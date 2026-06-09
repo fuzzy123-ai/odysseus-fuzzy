@@ -29,6 +29,12 @@ from src.constants import MAX_OUTPUT_CHARS, MAX_READ_CHARS, MAX_DIFF_LINES, DATA
 # in ephemeral container layers that are lost on the next rebuild.
 _AGENT_WORKDIR = DATA_DIR
 
+PLUGIN_TOOLS_REGISTRY = {}
+
+def register_plugin_tool(name: str, handler: Callable) -> None:
+    """Register a custom tool handler from a plugin."""
+    PLUGIN_TOOLS_REGISTRY[name] = handler
+
 
 def _unified_diff(old: str, new: str, path: str) -> Optional[Dict[str, Any]]:
     """Build a unified diff of a file write for display in the chat.
@@ -1476,6 +1482,16 @@ async def execute_tool_block(
         else:
             desc = f"mcp: {tool}"
             result = {"error": "MCP manager not available", "exit_code": 1}
+    elif tool in PLUGIN_TOOLS_REGISTRY:
+        desc = f"plugin_tool: {tool}"
+        handler = PLUGIN_TOOLS_REGISTRY[tool]
+        try:
+            if asyncio.iscoroutinefunction(handler):
+                result = await handler(content, owner=owner, workspace=workspace, session_id=session_id)
+            else:
+                result = await asyncio.to_thread(handler, content, owner=owner, workspace=workspace, session_id=session_id)
+        except Exception as e:
+            result = {"error": f"Plugin tool '{tool}' failed: {e}", "exit_code": 1}
     else:
         desc = f"unknown: {tool}"
         result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}

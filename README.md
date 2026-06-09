@@ -2,6 +2,8 @@
 
 > **Branch note:** `dev` is the default branch and contains the latest development changes, but it may be unstable. For the more stable curated branch, use [`main`](https://github.com/pewdiepie-archdaemon/odysseus/tree/main).
 
+> **Fork note:** Plugin-loader work for the Fuzzy/Obsidian setup is maintained in [`fuzzy123-ai/odysseus-fuzzy`](https://github.com/fuzzy123-ai/odysseus-fuzzy). The Obsidian plugin itself lives separately in [`fuzzy123-ai/Odysseus-plugin-obisidan`](https://github.com/fuzzy123-ai/Odysseus-plugin-obisidan) and should be installed into `plugins/obsidian`.
+
 ```
 ───────────────────────────────────────────────
  ⊹ ࣪ ˖ ૮( ˶ᵔ ᵕ ᵔ˶ )っ  Odysseus vers. 1.0
@@ -25,6 +27,21 @@ A self-hosted AI workspace -- meant to be the self-hosted version of the UI expe
   - **Calendar** -- Local-first calendar with CalDAV sync to Radicale / Nextcloud / Apple / Fastmail.<br>　<sub>CalDAV pull · .ics import/export · per-calendar colors · agent-aware</sub>
   - **Works on mobile** -- looks and runs great on your phone, not just desktop.<br>　<sub>responsive · installable (PWA) · touch gestures</sub>
   - **Extras** -- more to explore, happy if you give it a go!<br>　<sub>image editor · theme editor · file uploads (vision + PDF) · web search · presets · sessions · 2FA</sub>
+
+## Plugins
+
+Odysseus can load optional plugins from `plugins/<plugin-name>/plugin.py`.
+Plugins may register FastAPI routers, agent tools, and browser-side modules
+through the dynamic plugin loader.
+
+The core repository should keep only generic plugin infrastructure. Plugin
+implementations belong in their own repositories. For the Obsidian integration:
+
+```bash
+git clone https://github.com/fuzzy123-ai/Odysseus-plugin-obisidan.git plugins/obsidian
+```
+
+Restart Odysseus after installing a plugin.
 
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).
