@@ -15,7 +15,9 @@
 #>
 param(
     [int]$Port = 7000,
-    [string]$BindHost = "127.0.0.1"
+    [string]$BindHost = "127.0.0.1",
+    [string]$ChromaHost = "127.0.0.1",
+    [int]$ChromaPort = 8100
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,6 +30,38 @@ function Fail($msg) {
     Write-Host ""
     Read-Host "Press Enter to exit"
     exit 1
+}
+
+function Test-TcpPort($hostName, $portNumber) {
+    try {
+        $client = New-Object System.Net.Sockets.TcpClient
+        $async = $client.BeginConnect($hostName, $portNumber, $null, $null)
+        $connected = $async.AsyncWaitHandle.WaitOne(1000, $false)
+        if ($connected) { $client.EndConnect($async) }
+        $client.Close()
+        return $connected
+    } catch {
+        return $false
+    }
+}
+
+function Test-VenvPython($pythonPath) {
+    if (-not (Test-Path $pythonPath)) { return $false }
+    try {
+        & $pythonPath -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Test-ChromaReady($pythonPath, $hostName, $portNumber) {
+    try {
+        & $pythonPath -c "import chromadb; chromadb.HttpClient(host='$hostName', port=$portNumber).heartbeat()" 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
 }
 
 function Find-GitBash {
@@ -106,7 +140,10 @@ if (-not (Test-Path $venvPy)) {
     & $pyExe @pyArgs -m venv venv
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPy)) { Fail "Failed to create the virtual environment." }
 } else {
-    Write-Host "venv already exists - skipping creation."
+    if (-not (Test-VenvPython $venvPy)) {
+        Fail "The existing venv is broken or points at a missing Python interpreter. Rename or remove '$PSScriptRoot\venv', then re-run this script so it can create a fresh virtual environment."
+    }
+    Write-Host "venv already exists and is usable - skipping creation."
 }
 
 # 3. Install / update dependencies
@@ -120,7 +157,54 @@ Write-Step "Running first-time setup"
 & $venvPy setup.py
 if ($LASTEXITCODE -ne 0) { Fail "setup.py failed." }
 
-# 5. Friendly note about Git Bash (full Cookbook / agent-shell parity)
+# 5. Start or reuse ChromaDB
+$env:CHROMADB_HOST = $ChromaHost
+$env:CHROMADB_PORT = [string]$ChromaPort
+$chromaExe = Join-Path $PSScriptRoot "venv\Scripts\chroma.exe"
+$chromaData = Join-Path $PSScriptRoot "data\chroma"
+$chromaOutLog = Join-Path $PSScriptRoot "logs\chromadb.out.log"
+$chromaErrLog = Join-Path $PSScriptRoot "logs\chromadb.err.log"
+
+if (-not (Test-Path $chromaExe)) {
+    Fail "ChromaDB CLI was not installed. Ensure requirements.txt installs the full 'chromadb' package, then re-run this script."
+}
+
+if (-not (Test-ChromaReady $venvPy $ChromaHost $ChromaPort)) {
+    if (Test-TcpPort $ChromaHost $ChromaPort) {
+        Fail "Something is listening on $ChromaHost`:$ChromaPort, but it is not a healthy ChromaDB server. Stop that process or choose another -ChromaPort."
+    }
+
+    Write-Step ("Starting ChromaDB at http://{0}:{1}" -f $ChromaHost, $ChromaPort)
+    New-Item -ItemType Directory -Force -Path $chromaData | Out-Null
+    New-Item -ItemType Directory -Force -Path (Split-Path $chromaOutLog -Parent) | Out-Null
+    $chromaProcess = Start-Process -FilePath $chromaExe `
+        -ArgumentList @("run", "--path", $chromaData, "--host", $ChromaHost, "--port", [string]$ChromaPort) `
+        -WorkingDirectory $PSScriptRoot `
+        -RedirectStandardOutput $chromaOutLog `
+        -RedirectStandardError $chromaErrLog `
+        -WindowStyle Hidden `
+        -PassThru
+
+    $deadline = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $deadline) {
+        if ($chromaProcess.HasExited) {
+            Fail "ChromaDB exited during startup. See $chromaOutLog and $chromaErrLog for details."
+        }
+        if (Test-ChromaReady $venvPy $ChromaHost $ChromaPort) {
+            Write-Host "ChromaDB is ready."
+            break
+        }
+        Start-Sleep -Milliseconds 750
+    }
+
+    if (-not (Test-ChromaReady $venvPy $ChromaHost $ChromaPort)) {
+        Fail "ChromaDB did not become ready within 30 seconds. See $chromaOutLog and $chromaErrLog for details."
+    }
+} else {
+    Write-Host "ChromaDB already running at $ChromaHost`:$ChromaPort - reusing it."
+}
+
+# 6. Friendly note about Git Bash (full Cookbook / agent-shell parity)
 if (-not (Find-GitBash)) {
     Write-Host ""
     Write-Host "NOTE: Git Bash (bash.exe) was not found on PATH." -ForegroundColor Yellow
@@ -129,7 +213,7 @@ if (-not (Find-GitBash)) {
     Write-Host "      https://git-scm.com/download/win" -ForegroundColor Yellow
 }
 
-# 6. Start the server (use `python -m uvicorn` - bare `uvicorn` may not be on PATH)
+# 7. Start the server (use `python -m uvicorn` - bare `uvicorn` may not be on PATH)
 Write-Step ("Starting Odysseus at http://{0}:{1}" -f $BindHost, $Port)
 Write-Host "Press Ctrl+C to stop."
 Write-Host ""

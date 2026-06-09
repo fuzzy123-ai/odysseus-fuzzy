@@ -38,6 +38,7 @@ function initTabs() {
       document.body.classList.toggle('settings-appearance-open', tab === 'appearance');
       syncAppearanceOpacity(tab === 'appearance');
       if (tab === 'ai') refreshAiModelEndpoints();
+      if (tab === 'plugins') loadPlugins();
     });
   });
 }
@@ -5172,6 +5173,167 @@ async function initUnifiedIntegrations() {
   await renderList();
 }
 
+/* ── Plugins ── */
+let pluginsInitialized = false;
+
+async function pluginJson(url, opts = {}) {
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    ...opts,
+    headers: {
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function pluginStatusChip(plugin) {
+  const status = plugin.status || 'unknown';
+  const color = status === 'loaded' ? 'var(--green, #50fa7b)' : status === 'error' ? 'var(--red)' : 'var(--fg)';
+  return `<span style="font-size:10px;border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:${color};opacity:0.9;">${esc(status)}</span>`;
+}
+
+async function renderInstalledPlugins() {
+  const list = el('plugins-list');
+  if (!list) return;
+  list.innerHTML = '<div class="admin-empty">Loading...</div>';
+  try {
+    const data = await pluginJson('/api/plugins');
+    const plugins = data.plugins || [];
+    if (!plugins.length) {
+      list.innerHTML = '<div class="admin-empty">No plugins installed</div>';
+      return;
+    }
+    list.innerHTML = plugins.map(p => `
+      <div class="admin-card" style="margin:0 0 8px;padding:10px 12px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
+          <div style="min-width:0;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <strong>${esc(p.name || p.id)}</strong>
+              ${pluginStatusChip(p)}
+              <span style="font-size:10px;opacity:0.55;">${esc(p.version || '')}</span>
+            </div>
+            <div class="admin-toggle-sub" style="margin-top:3px;">${esc(p.description || '')}</div>
+            ${p.error ? `<pre style="white-space:pre-wrap;margin:6px 0 0;font-size:10px;color:var(--red);max-height:140px;overflow:auto;">${esc(p.error)}</pre>` : ''}
+          </div>
+          <label class="admin-switch" title="Enable plugin">
+            <input type="checkbox" class="plugin-enable-toggle" data-plugin-id="${esc(p.id)}" ${p.enabled ? 'checked' : ''}>
+            <span class="admin-slider"></span>
+          </label>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+          ${p.ui && p.ui.open ? `<a class="admin-btn-sm" href="${esc(p.ui.open)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">${esc(p.ui.label || 'Open')}</a>` : ''}
+          <button class="admin-btn-sm plugin-reload-btn" data-plugin-id="${esc(p.id)}">Reload</button>
+          <button class="admin-btn-sm plugin-uninstall-btn" data-plugin-id="${esc(p.id)}" style="opacity:0.7;">Uninstall</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="admin-empty">Failed to load plugins: ${esc(err.message || err)}</div>`;
+  }
+}
+
+async function renderPluginRegistry() {
+  const list = el('plugins-registry-list');
+  const sources = el('plugins-registry-sources');
+  if (!list) return;
+  list.innerHTML = '<div class="admin-empty">Loading...</div>';
+  if (sources) sources.textContent = '';
+  try {
+    const data = await pluginJson('/api/plugins/registry');
+    if (sources) {
+      const sourceText = (data.sources || []).map(s => s.ok ? `${s.url} (${s.count})` : `${s.url} (${s.error})`).join(' | ');
+      sources.textContent = sourceText || 'No registry sources configured';
+    }
+    const plugins = data.plugins || [];
+    if (!plugins.length) {
+      list.innerHTML = '<div class="admin-empty">No registry plugins found</div>';
+      return;
+    }
+    list.innerHTML = plugins.map(p => `
+      <div class="admin-card" style="margin:0 0 8px;padding:10px 12px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
+          <div style="min-width:0;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <strong>${esc(p.name || p.id)}</strong>
+              <span style="font-size:10px;opacity:0.55;">${esc(p.version || '')}</span>
+              ${p.installed ? '<span style="font-size:10px;opacity:0.65;">Installed</span>' : ''}
+            </div>
+            <div class="admin-toggle-sub" style="margin-top:3px;">${esc(p.description || '')}</div>
+          </div>
+          <button class="admin-btn-sm plugin-install-btn" data-plugin-id="${esc(p.id)}" ${p.installed && !p.update_available ? 'disabled' : ''}>${p.installed && p.update_available ? 'Update' : 'Install'}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="admin-empty">Failed to load registry: ${esc(err.message || err)}</div>`;
+  }
+}
+
+async function loadPlugins() {
+  if (!pluginsInitialized) {
+    pluginsInitialized = true;
+    el('plugins-refresh-btn')?.addEventListener('click', loadPlugins);
+    el('plugins-rescan-btn')?.addEventListener('click', async () => {
+      try {
+        await pluginJson('/api/plugins/rescan', { method: 'POST' });
+        uiModule.showToast('Plugins rescanned');
+      } catch (err) {
+        uiModule.showError(err.message || 'Rescan failed');
+      }
+      await loadPlugins();
+    });
+    el('plugins-list')?.addEventListener('change', async (ev) => {
+      const input = ev.target.closest('.plugin-enable-toggle');
+      if (!input) return;
+      const id = input.dataset.pluginId;
+      const action = input.checked ? 'enable' : 'disable';
+      try {
+        await pluginJson(`/api/plugins/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+        uiModule.showToast(`Plugin ${action}d`);
+      } catch (err) {
+        input.checked = !input.checked;
+        uiModule.showError(err.message || `Plugin ${action} failed`);
+      }
+      await loadPlugins();
+    });
+    el('plugins-list')?.addEventListener('click', async (ev) => {
+      const reload = ev.target.closest('.plugin-reload-btn');
+      const uninstall = ev.target.closest('.plugin-uninstall-btn');
+      if (!reload && !uninstall) return;
+      const id = (reload || uninstall).dataset.pluginId;
+      try {
+        if (reload) {
+          await pluginJson(`/api/plugins/${encodeURIComponent(id)}/reload`, { method: 'POST' });
+          uiModule.showToast('Plugin reloaded');
+        } else {
+          if (!await uiModule.styledConfirm(`Uninstall plugin "${id}"?`, { confirmText: 'Uninstall', danger: true })) return;
+          await pluginJson(`/api/plugins/${encodeURIComponent(id)}/uninstall`, { method: 'POST' });
+          uiModule.showToast('Plugin uninstalled');
+        }
+      } catch (err) {
+        uiModule.showError(err.message || 'Plugin action failed');
+      }
+      await loadPlugins();
+    });
+    el('plugins-registry-list')?.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('.plugin-install-btn');
+      if (!btn) return;
+      try {
+        await pluginJson('/api/plugins/install', { method: 'POST', body: JSON.stringify({ id: btn.dataset.pluginId }) });
+        uiModule.showToast('Plugin installed');
+      } catch (err) {
+        uiModule.showError(err.message || 'Install failed');
+      }
+      await loadPlugins();
+    });
+  }
+  await Promise.all([renderInstalledPlugins(), renderPluginRegistry()]);
+}
+
 /* ── Admin visibility sync ── */
 function syncAdminVisibility() {
   if (!modalEl) return;
@@ -5202,6 +5364,7 @@ export function open(tab) {
   document.body.classList.toggle('settings-appearance-open', activeTab === 'appearance');
   syncAppearanceOpacity(activeTab === 'appearance');
   if (activeTab === 'ai') refreshAiModelEndpoints();
+  if (activeTab === 'plugins') loadPlugins();
   if (ADMIN_TABS.has(activeTab) && window.adminModule && !window.adminModule._initialized) {
     window.adminModule._initData();
   }

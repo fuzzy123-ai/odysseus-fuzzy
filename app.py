@@ -43,7 +43,7 @@ from typing import Dict
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, Response
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -734,56 +734,12 @@ app.include_router(setup_contacts_routes())
 from companion import setup_companion_routes
 app.include_router(setup_companion_routes())
 
-# ========= DYNAMIC PLUGINS SYSTEM =========
-_PLUGIN_FRONTEND_SCRIPTS = []
-
-try:
-    import importlib
-    import sys
-    plugins_dir = os.path.join(BASE_DIR, "plugins")
-    if os.path.exists(plugins_dir):
-        if plugins_dir not in sys.path:
-            sys.path.insert(0, plugins_dir)
-        if BASE_DIR not in sys.path:
-            sys.path.insert(0, BASE_DIR)
-        for plugin_name in os.listdir(plugins_dir):
-            plugin_path = os.path.join(plugins_dir, plugin_name)
-            if os.path.isdir(plugin_path) and os.path.exists(os.path.join(plugin_path, "plugin.py")):
-                try:
-                    module = importlib.import_module(f"{plugin_name}.plugin")
-                    if hasattr(module, "setup"):
-                        class PluginContext:
-                            def add_router(self, router):
-                                app.include_router(router)
-                            def register_frontend_script(self, script_url):
-                                if script_url not in _PLUGIN_FRONTEND_SCRIPTS:
-                                    _PLUGIN_FRONTEND_SCRIPTS.append(script_url)
-                            def register_tool(self, tool_tag, tool_schema, tool_handler):
-                                from src.agent_tools import TOOL_TAGS
-                                TOOL_TAGS.add(tool_tag)
-                                from src.tool_schemas import FUNCTION_TOOL_SCHEMAS
-                                FUNCTION_TOOL_SCHEMAS.append(tool_schema)
-                                from src.tool_execution import register_plugin_tool
-                                register_plugin_tool(tool_tag, tool_handler)
-                        
-                        ctx = PluginContext()
-                        module.setup(ctx)
-                        logger.info(f"Loaded plugin: {plugin_name}")
-                except Exception as pe:
-                    logger.error(f"Error loading plugin {plugin_name}: {pe}")
-except Exception as e:
-    logger.error(f"Error initializing plugin system: {e}")
+# Plugin system: admin API for drop-in plugins. Enabled plugins are loaded in
+# startup so broken plugins cannot interrupt module import.
+from routes.plugin_routes import setup_plugin_routes
+app.include_router(setup_plugin_routes())
 
 # ========= ROUTES (kept in app.py) =========
-
-@app.get("/api/plugins/loader.js")
-async def plugin_loader_js():
-    """Serve a small ES module that imports registered plugin frontends."""
-    imports = "\n".join(
-        f"import {script_url!r};"
-        for script_url in _PLUGIN_FRONTEND_SCRIPTS
-    )
-    return Response(imports, media_type="text/javascript")
 
 def _serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
     """Read an HTML file and inject the CSP nonce into inline <script> tags."""
@@ -908,6 +864,11 @@ async def _startup_event():
     global upload_cleanup_task
     logger.info("Application starting up...")
     webhook_manager.set_loop(asyncio.get_running_loop())
+    try:
+        from src.plugin_system import load_plugins
+        load_plugins(app)
+    except Exception as e:
+        logger.warning(f"Plugin system load skipped: {e}")
     # Wipe any leftover incognito sessions from previous process — they're
     # ephemeral by design and must not survive a restart.
     try:
@@ -1140,6 +1101,13 @@ async def _startup_event():
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    try:
+        from src.plugin_system import get_manager
+        mgr = get_manager()
+        if mgr:
+            mgr.shutdown_all()
+    except Exception as e:
+        logger.warning(f"Plugin shutdown skipped: {e}")
     if upload_cleanup_task:
         upload_cleanup_task.cancel()
         try:

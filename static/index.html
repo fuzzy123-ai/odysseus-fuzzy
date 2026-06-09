@@ -1391,6 +1391,10 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             <span>Agent Tools</span>
           </button>
+          <button class="settings-nav-item admin-only" data-settings-tab="plugins">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v6H9z"/><path d="M3 15h6v6H3z"/><path d="M15 15h6v6h-6z"/><path d="M12 9v3"/><path d="M6 15v-3h12v3"/></svg>
+            <span>Plugins</span>
+          </button>
           <button class="settings-nav-item admin-only" data-settings-tab="users">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Users</span>
@@ -2186,6 +2190,24 @@
         </div>
 
         <!-- ═══ SYSTEM TAB ═══ -->
+        <div data-settings-panel="plugins" class="hidden">
+          <div class="admin-card" style="margin-bottom:12px;">
+            <h2><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;opacity:0.6"><path d="M9 3h6v6H9z"/><path d="M3 15h6v6H3z"/><path d="M15 15h6v6h-6z"/><path d="M12 9v3"/><path d="M6 15v-3h12v3"/></svg>Plugins</h2>
+            <div class="admin-toggle-sub" style="margin-bottom:8px">Drop-in extensions loaded from the local plugins directory.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <button class="admin-btn-sm" id="plugins-rescan-btn">Rescan</button>
+              <button class="admin-btn-sm" id="plugins-refresh-btn">Refresh</button>
+            </div>
+            <div id="plugins-list"><div class="admin-empty">Loading...</div></div>
+          </div>
+          <div class="admin-card">
+            <h2>Depot</h2>
+            <div class="admin-toggle-sub" style="margin-bottom:8px">Install curated plugins from configured registries. Downloads require a verified SHA-256 digest.</div>
+            <div id="plugins-registry-sources" class="admin-toggle-sub" style="margin-bottom:8px"></div>
+            <div id="plugins-registry-list"><div class="admin-empty">Loading...</div></div>
+          </div>
+        </div>
+
         <div data-settings-panel="system" class="hidden">
 
           <div class="admin-card">
@@ -2321,7 +2343,6 @@
 <script type="module" src="/static/js/settings.js"></script>
 <script type="module" src="/static/js/admin.js"></script>
 <script type="module" src="/static/js/assistant.js"></script>
-<script type="module" src="/api/plugins/loader.js" defer></script>
 <script type="module" src="/static/app.js"></script>  <!-- app.js must be LAST -->
 <script type="module" src="/static/js/init.js"></script>
 <script type="module" src="/static/js/a11y.js"></script>
