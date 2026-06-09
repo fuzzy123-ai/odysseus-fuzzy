@@ -2,6 +2,7 @@ import os
 import json
 import re
 import sys
+import base64
 from typing import Optional
 
 _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,8 +11,28 @@ if _PLUGIN_DIR not in sys.path:
 
 try:
     from obsidian.backend.routes import router
+    from obsidian.backend.vault_security import (
+        export_vault,
+        import_vault,
+        lock_vault,
+        protection_status,
+        remove_password,
+        require_unlocked,
+        set_password,
+        unlock_vault,
+    )
 except ModuleNotFoundError:
     from backend.routes import router
+    from backend.vault_security import (
+        export_vault,
+        import_vault,
+        lock_vault,
+        protection_status,
+        remove_password,
+        require_unlocked,
+        set_password,
+        unlock_vault,
+    )
 
 # Metadata manifest required by plugin loader
 PLUGIN = {
@@ -49,6 +70,11 @@ def secure_path(vault_dir: str, relative_path: str) -> str:
         raise ValueError("Path traversal attempt detected")
     return abs_target
 
+def get_unlocked_vault_path_by_owner(owner: Optional[str]) -> str:
+    vault_dir = get_vault_path_by_owner(owner)
+    require_unlocked(vault_dir)
+    return vault_dir
+
 # --- Tool Handlers ---
 
 def _parse_params(content: str, fallback_key: str) -> dict:
@@ -84,7 +110,7 @@ def _note_tree(dir_path: str, base_path: Optional[str] = None) -> list[dict]:
 async def handle_list_notes(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Lists all notes in the user's Obsidian vault."""
     try:
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         notes = []
         for root, dirs, files in os.walk(vault_dir):
             dirs[:] = [d for d in dirs if d != ".obsidian"]
@@ -109,7 +135,7 @@ async def handle_read_note(content: str, owner: Optional[str] = None, **kwargs) 
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
             
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         
         if not os.path.exists(abs_path):
@@ -141,7 +167,7 @@ async def handle_write_note(content: str, owner: Optional[str] = None, **kwargs)
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
             
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
@@ -160,7 +186,7 @@ async def handle_search_notes(content: str, owner: Optional[str] = None, **kwarg
         if not query:
             return {"error": "Query parameter is required.", "exit_code": 1}
             
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         query_re = re.compile(re.escape(query), re.IGNORECASE)
         results = []
         
@@ -192,7 +218,7 @@ async def handle_search_notes(content: str, owner: Optional[str] = None, **kwarg
 async def handle_tree(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Returns the vault tree with folders and files."""
     try:
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         return {"output": json.dumps(_note_tree(vault_dir), ensure_ascii=False, indent=2), "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to list vault tree: {e}", "exit_code": 1}
@@ -204,7 +230,7 @@ async def handle_create_folder(content: str, owner: Optional[str] = None, **kwar
         path = params.get("path", "").strip()
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         if os.path.exists(abs_path):
             return {"error": f"Path already exists: {path}", "exit_code": 1}
@@ -221,7 +247,7 @@ async def handle_rename_item(content: str, owner: Optional[str] = None, **kwargs
         new_path = params.get("new_path", "").strip()
         if not old_path or not new_path:
             return {"error": "old_path and new_path parameters are required.", "exit_code": 1}
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_old = secure_path(vault_dir, old_path)
         abs_new = secure_path(vault_dir, new_path)
         if not os.path.exists(abs_old):
@@ -241,7 +267,7 @@ async def handle_delete_note(content: str, owner: Optional[str] = None, **kwargs
         path = params.get("path", "").strip()
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         if not os.path.exists(abs_path):
             return {"error": f"File not found: {path}", "exit_code": 1}
@@ -259,7 +285,7 @@ async def handle_delete_folder(content: str, owner: Optional[str] = None, **kwar
         path = params.get("path", "").strip()
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
-        vault_dir = get_vault_path_by_owner(owner)
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         if not os.path.exists(abs_path):
             return {"error": f"Folder not found: {path}", "exit_code": 1}
@@ -269,6 +295,84 @@ async def handle_delete_folder(content: str, owner: Optional[str] = None, **kwar
         return {"output": f"Successfully deleted empty folder {path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to delete folder: {e}", "exit_code": 1}
+
+async def handle_vault_status(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns vault protection status without exposing secrets."""
+    try:
+        vault_dir = get_vault_path_by_owner(owner)
+        return {"output": json.dumps(protection_status(vault_dir), ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to read vault status: {e}", "exit_code": 1}
+
+async def handle_vault_set_password(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Enables or replaces vault password protection."""
+    try:
+        params = _parse_params(content, "password")
+        vault_dir = get_vault_path_by_owner(owner)
+        status = set_password(vault_dir, params.get("password", ""))
+        return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to set vault password: {e}", "exit_code": 1}
+
+async def handle_vault_lock(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Locks a password-protected vault."""
+    try:
+        vault_dir = get_vault_path_by_owner(owner)
+        status = lock_vault(vault_dir)
+        return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to lock vault: {e}", "exit_code": 1}
+
+async def handle_vault_unlock(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Unlocks a password-protected vault."""
+    try:
+        params = _parse_params(content, "password")
+        vault_dir = get_vault_path_by_owner(owner)
+        status = unlock_vault(vault_dir, params.get("password", ""))
+        return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to unlock vault: {e}", "exit_code": 1}
+
+async def handle_vault_remove_password(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Removes vault password protection after verification."""
+    try:
+        params = _parse_params(content, "password")
+        vault_dir = get_vault_path_by_owner(owner)
+        status = remove_password(vault_dir, params.get("password", ""))
+        return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to remove vault password: {e}", "exit_code": 1}
+
+async def handle_vault_export(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Exports a vault archive as base64 ZIP data."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_vault_path_by_owner(owner)
+        archive = export_vault(
+            vault_dir,
+            password=params.get("password"),
+            root=params.get("root", ""),
+        )
+        result = {
+            "filename": archive.filename,
+            "encrypted": archive.encrypted,
+            "file_count": archive.file_count,
+            "archive_base64": base64.b64encode(archive.data).decode("ascii"),
+        }
+        return {"output": json.dumps(result, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to export vault: {e}", "exit_code": 1}
+
+async def handle_vault_import(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Imports plain or encrypted base64 ZIP vault data."""
+    try:
+        params = json.loads((content or "").strip())
+        archive_data = base64.b64decode(params.get("archive_base64", ""), validate=True)
+        vault_dir = get_vault_path_by_owner(owner)
+        result = import_vault(vault_dir, archive_data, password=params.get("password"))
+        return {"output": json.dumps({"success": True, **result}, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to import vault: {e}", "exit_code": 1}
 
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
     return {
@@ -336,6 +440,25 @@ def setup(ctx):
         _tool_spec("obsidian_delete_folder", "Delete an empty folder inside the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative empty folder path to delete."},
         }, ["path"], handle_delete_folder),
+        _tool_spec("obsidian_vault_status", "Return Obsidian vault password-protection and lock status.", {}, [], handle_vault_status),
+        _tool_spec("obsidian_vault_set_password", "Enable or replace password protection for the Obsidian vault.", {
+            "password": {"type": "string", "description": "The vault password. Must not be logged or reused in URLs."},
+        }, ["password"], handle_vault_set_password),
+        _tool_spec("obsidian_vault_lock", "Lock the password-protected Obsidian vault.", {}, [], handle_vault_lock),
+        _tool_spec("obsidian_vault_unlock", "Unlock the Obsidian vault with its password.", {
+            "password": {"type": "string", "description": "The vault password. Must not be logged or reused in URLs."},
+        }, ["password"], handle_vault_unlock),
+        _tool_spec("obsidian_vault_remove_password", "Remove Obsidian vault password protection after password verification.", {
+            "password": {"type": "string", "description": "The current vault password."},
+        }, ["password"], handle_vault_remove_password),
+        _tool_spec("obsidian_vault_export", "Export the Obsidian vault as base64 ZIP data, optionally encrypted with a password.", {
+            "password": {"type": "string", "description": "Optional export password."},
+            "root": {"type": "string", "description": "Optional relative file or folder root to export."},
+        }, [], handle_vault_export),
+        _tool_spec("obsidian_vault_import", "Import base64 ZIP vault data, including password-encrypted Odysseus vault exports.", {
+            "archive_base64": {"type": "string", "description": "Base64-encoded ZIP archive data."},
+            "password": {"type": "string", "description": "Optional password for encrypted archives."},
+        }, ["archive_base64"], handle_vault_import),
     ]
     for spec in tools:
         _register_tool(ctx, spec)

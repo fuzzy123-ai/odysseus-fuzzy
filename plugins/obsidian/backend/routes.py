@@ -1,13 +1,26 @@
 import os
 import re
 import shutil
+import base64
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from src.constants import DATA_DIR
 from src.auth_helpers import require_user
+
+from .vault_security import (
+    VaultSecurityError,
+    export_vault,
+    import_vault,
+    lock_vault,
+    protection_status,
+    remove_password,
+    require_unlocked,
+    set_password,
+    unlock_vault,
+)
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
@@ -57,6 +70,17 @@ class RenameRequest(BaseModel):
     old_path: str
     new_path: str
 
+class VaultPasswordRequest(BaseModel):
+    password: str
+
+class VaultExportRequest(BaseModel):
+    password: Optional[str] = None
+    root: str = ""
+
+class VaultImportRequest(BaseModel):
+    archive_base64: str
+    password: Optional[str] = None
+
 # --- Helper Functions ---
 def get_vault_path(request: Request) -> str:
     """Get the user-specific vault directory.
@@ -73,6 +97,25 @@ def get_vault_path(request: Request) -> str:
         vault_dir = os.path.abspath(os.path.join(DATA_DIR, "obsidian_vaults", folder_name))
         os.makedirs(vault_dir, exist_ok=True)
     return vault_dir
+
+def get_unlocked_vault_path(request: Request) -> str:
+    vault_dir = get_vault_path(request)
+    try:
+        require_unlocked(vault_dir)
+    except VaultSecurityError as exc:
+        raise HTTPException(status_code=423, detail=str(exc))
+    return vault_dir
+
+def vault_error(exc: VaultSecurityError) -> HTTPException:
+    detail = str(exc)
+    status = 400
+    if "locked" in detail.lower():
+        status = 423
+    elif "invalid password" in detail.lower():
+        status = 401
+    elif "conflict" in detail.lower():
+        status = 409
+    return HTTPException(status_code=status, detail=detail)
 
 def secure_path(vault_dir: str, relative_path: str) -> str:
     """Resolve and validate a relative path within the user's vault.
@@ -123,11 +166,72 @@ async def obsidian_app():
     """Serve a standalone entry page for the plugin manager's Open button."""
     return HTMLResponse(APP_HTML)
 
+@router.get("/status")
+async def vault_status(request: Request):
+    """Return vault protection status without exposing secrets."""
+    return protection_status(get_vault_path(request))
+
+@router.post("/vault/password")
+async def set_vault_password(req: VaultPasswordRequest, request: Request):
+    """Enable or replace password protection for the vault."""
+    try:
+        return set_password(get_vault_path(request), req.password)
+    except VaultSecurityError as exc:
+        raise vault_error(exc)
+
+@router.post("/vault/lock")
+async def lock_current_vault(request: Request):
+    """Lock a password-protected vault."""
+    try:
+        return lock_vault(get_vault_path(request))
+    except VaultSecurityError as exc:
+        raise vault_error(exc)
+
+@router.post("/vault/unlock")
+async def unlock_current_vault(req: VaultPasswordRequest, request: Request):
+    """Unlock a password-protected vault."""
+    try:
+        return unlock_vault(get_vault_path(request), req.password)
+    except VaultSecurityError as exc:
+        raise vault_error(exc)
+
+@router.delete("/vault/password")
+async def remove_vault_password(req: VaultPasswordRequest, request: Request):
+    """Disable password protection after password verification."""
+    try:
+        return remove_password(get_vault_path(request), req.password)
+    except VaultSecurityError as exc:
+        raise vault_error(exc)
+
+@router.post("/vault/export")
+async def export_current_vault(req: VaultExportRequest, request: Request):
+    """Export the current vault as plain or password-encrypted ZIP data."""
+    try:
+        archive = export_vault(get_vault_path(request), password=req.password, root=req.root)
+        return {
+            "filename": archive.filename,
+            "encrypted": archive.encrypted,
+            "file_count": archive.file_count,
+            "archive_base64": base64.b64encode(archive.data).decode("ascii"),
+        }
+    except VaultSecurityError as exc:
+        raise vault_error(exc)
+
+@router.post("/vault/import")
+async def import_current_vault(req: VaultImportRequest, request: Request):
+    """Import a plain or password-encrypted ZIP vault archive."""
+    try:
+        archive_data = base64.b64decode(req.archive_base64, validate=True)
+        result = import_vault(get_vault_path(request), archive_data, password=req.password)
+        return {"success": True, **result}
+    except (ValueError, VaultSecurityError) as exc:
+        raise vault_error(VaultSecurityError(str(exc)))
+
 @router.get("/files")
 async def list_files(request: Request):
     """Get the complete tree structure of the vault."""
     try:
-        vault_dir = get_vault_path(request)
+        vault_dir = get_unlocked_vault_path(request)
         tree = get_file_tree(vault_dir, vault_dir)
         return tree
     except HTTPException:
@@ -138,7 +242,7 @@ async def list_files(request: Request):
 @router.get("/file")
 async def read_file(path: str, request: Request):
     """Read a specific file's content or serve binary assets."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, path)
     
     if not os.path.exists(abs_path):
@@ -163,7 +267,7 @@ async def read_file(path: str, request: Request):
 @router.post("/file")
 async def create_file(req: FileWriteRequest, request: Request):
     """Create a new file in the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, req.path)
     
     if os.path.exists(abs_path):
@@ -180,7 +284,7 @@ async def create_file(req: FileWriteRequest, request: Request):
 @router.put("/file")
 async def update_file(req: FileWriteRequest, request: Request):
     """Update (autosave) an existing file in the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, req.path)
     
     if not os.path.exists(abs_path):
@@ -199,7 +303,7 @@ async def update_file(req: FileWriteRequest, request: Request):
 @router.delete("/file")
 async def delete_file(path: str, request: Request):
     """Delete a file from the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, path)
     
     if not os.path.exists(abs_path):
@@ -217,7 +321,7 @@ async def delete_file(path: str, request: Request):
 @router.post("/folder")
 async def create_folder(req: FolderCreateRequest, request: Request):
     """Create a new folder in the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, req.path)
     
     if os.path.exists(abs_path):
@@ -232,7 +336,7 @@ async def create_folder(req: FolderCreateRequest, request: Request):
 @router.delete("/folder")
 async def delete_folder(path: str, request: Request):
     """Recursively delete a folder from the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_path = secure_path(vault_dir, path)
     
     if not os.path.exists(abs_path):
@@ -250,7 +354,7 @@ async def delete_folder(path: str, request: Request):
 @router.post("/rename")
 async def rename_item(req: RenameRequest, request: Request):
     """Rename or move a file/folder in the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     abs_old = secure_path(vault_dir, req.old_path)
     abs_new = secure_path(vault_dir, req.new_path)
     
@@ -270,7 +374,7 @@ async def rename_item(req: RenameRequest, request: Request):
 @router.get("/search")
 async def search_vault(q: str, request: Request):
     """Perform full-text search inside all markdown notes in the vault."""
-    vault_dir = get_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     results = []
     
     if not q.strip():
