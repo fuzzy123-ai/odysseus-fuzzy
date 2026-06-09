@@ -55,6 +55,18 @@ function Test-VenvPython($pythonPath) {
     }
 }
 
+function Move-BrokenVenvAside($venvPath) {
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $backupPath = Join-Path $PSScriptRoot ("venv.broken-" + $stamp)
+    try {
+        Write-Host "Existing venv is broken - moving it to $backupPath"
+        Move-Item -LiteralPath $venvPath -Destination $backupPath
+        return $true
+    } catch {
+        Fail "The existing venv is broken, but it could not be moved aside. Close any running Odysseus/Chroma/Python processes, then rename or remove '$venvPath' manually and re-run this script. Details: $($_.Exception.Message)"
+    }
+}
+
 function Test-ChromaReady($pythonPath, $hostName, $portNumber) {
     try {
         & $pythonPath -c "import chromadb; chromadb.HttpClient(host='$hostName', port=$portNumber).heartbeat()" 2>$null
@@ -134,6 +146,7 @@ $pythonLabel = ("Using Python {0}: {1} {2}" -f $pyVersion, $pyExe, ($pyArgs -joi
 Write-Host $pythonLabel
 
 # 2. Create the virtualenv if missing
+$venvDir = Join-Path $PSScriptRoot "venv"
 $venvPy = Join-Path $PSScriptRoot "venv\Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
     Write-Step "Creating virtual environment (venv)"
@@ -141,9 +154,15 @@ if (-not (Test-Path $venvPy)) {
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPy)) { Fail "Failed to create the virtual environment." }
 } else {
     if (-not (Test-VenvPython $venvPy)) {
-        Fail "The existing venv is broken or points at a missing Python interpreter. Rename or remove '$PSScriptRoot\venv', then re-run this script so it can create a fresh virtual environment."
+        Move-BrokenVenvAside $venvDir | Out-Null
+        Write-Step "Creating fresh virtual environment (venv)"
+        & $pyExe @pyArgs -m venv venv
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPy)) { Fail "Failed to recreate the virtual environment." }
+        if (-not (Test-VenvPython $venvPy)) { Fail "The recreated venv still cannot run Python. Check the Python installation selected above: $pythonLabel" }
+        Write-Host "Fresh venv created."
+    } else {
+        Write-Host "venv already exists and is usable - skipping creation."
     }
-    Write-Host "venv already exists and is usable - skipping creation."
 }
 
 # 3. Install / update dependencies
