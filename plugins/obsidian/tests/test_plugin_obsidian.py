@@ -27,14 +27,22 @@ from backend.vault_security import (
     unlock_vault,
     validate_archive_member,
 )
+from backend.performance_fixtures import create_large_vault_fixture, profile_graph_build
 from plugin import (
     get_vault_path_by_owner,
     handle_create_folder,
     handle_delete_folder,
     handle_delete_note,
     handle_list_notes,
+    handle_list_tags,
+    handle_graph,
+    handle_add_relationship,
+    handle_delete_relationship,
+    handle_history,
+    handle_list_relationships,
     handle_read_note,
     handle_rename_item,
+    handle_undo,
     handle_write_note,
     handle_search_notes,
     handle_tree,
@@ -154,10 +162,14 @@ async def test_ai_tools_cover_folder_tree_rename_and_delete(monkeypatch):
         assert os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
 
         res = await handle_delete_note('{"path": "Projects/Roadmap.md"}')
+        assert res["exit_code"] == 1
+        assert "Confirmation required" in res["error"]
+
+        res = await handle_delete_note('{"path": "Projects/Roadmap.md", "confirm": true}')
         assert res["exit_code"] == 0
         assert not os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
 
-        res = await handle_delete_folder('{"path": "Projects"}')
+        res = await handle_delete_folder('{"path": "Projects", "confirm": true}')
         assert res["exit_code"] == 0
         assert not os.path.exists(os.path.join(tmpdir, "Projects"))
 
@@ -171,10 +183,145 @@ async def test_ai_delete_folder_refuses_non_empty_folder(monkeypatch):
         with open(os.path.join(tmpdir, "Projects", "Plan.md"), "w", encoding="utf-8") as f:
             f.write("# Plan")
 
-        res = await handle_delete_folder('{"path": "Projects"}')
+        res = await handle_delete_folder('{"path": "Projects", "confirm": true}')
 
         assert res["exit_code"] == 1
         assert os.path.isdir(os.path.join(tmpdir, "Projects"))
+
+
+@pytest.mark.asyncio
+async def test_ai_rename_refuses_folder_into_itself(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        os.makedirs(os.path.join(tmpdir, "Projects", "Nested"), exist_ok=True)
+
+        res = await handle_rename_item('{"old_path": "Projects", "new_path": "Projects/Nested/Projects"}')
+
+        assert res["exit_code"] == 1
+        assert "itself" in res["error"]
+        assert os.path.isdir(os.path.join(tmpdir, "Projects", "Nested"))
+
+
+@pytest.mark.asyncio
+async def test_ai_write_requires_confirmation_before_overwrite(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+
+        res = await handle_write_note('{"path": "Project.md", "content": "# One"}')
+        assert res["exit_code"] == 0
+
+        res = await handle_write_note('{"path": "Project.md", "content": "# Two"}')
+        assert res["exit_code"] == 1
+        assert "Confirmation required" in res["error"]
+
+        res = await handle_write_note('{"path": "Project.md", "content": "# Two", "confirm": true}')
+        assert res["exit_code"] == 0
+        with open(os.path.join(tmpdir, "Project.md"), "r", encoding="utf-8") as f:
+            assert f.read() == "# Two"
+
+
+@pytest.mark.asyncio
+async def test_ai_tags_and_graph_include_implicit_tags_links_and_mentions(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        with open(os.path.join(tmpdir, "Roadmap.md"), "w", encoding="utf-8") as f:
+            f.write("# Roadmap\n\n#planning links to [[Architecture]] and mentions Architecture.")
+        with open(os.path.join(tmpdir, "Architecture.md"), "w", encoding="utf-8") as f:
+            f.write("# Architecture\n\n#planning")
+
+        tags_res = await handle_list_tags("")
+        assert tags_res["exit_code"] == 0
+        tags = json.loads(tags_res["output"])
+        assert {tag["name"] for tag in tags} >= {"roadmap", "architecture", "planning"}
+        assert next(tag for tag in tags if tag["name"] == "planning")["files"] == [
+            "Architecture.md",
+            "Roadmap.md",
+        ]
+
+        graph_res = await handle_graph("")
+        assert graph_res["exit_code"] == 0
+        graph = json.loads(graph_res["output"])["graph"]
+        edge_types = {edge["type"] for edge in graph["edges"]}
+        assert "wiki_link" in edge_types
+        assert "shared_tag" in edge_types
+        assert any(edge["target"] == "Architecture.md" for edge in graph["edges"])
+
+
+@pytest.mark.asyncio
+async def test_manual_relationships_are_graph_edges_and_undoable(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        with open(os.path.join(tmpdir, "Roadmap.md"), "w", encoding="utf-8") as f:
+            f.write("# Roadmap")
+        with open(os.path.join(tmpdir, "Architecture.md"), "w", encoding="utf-8") as f:
+            f.write("# Architecture")
+
+        add_res = await handle_add_relationship(json.dumps({
+            "source": "Roadmap.md",
+            "target": "Architecture.md",
+            "type": "depends_on",
+            "reason": "Roadmap depends on architecture",
+        }), owner="alice")
+        assert add_res["exit_code"] == 0
+
+        rel_res = await handle_list_relationships("", owner="alice")
+        assert rel_res["exit_code"] == 0
+        relationships = json.loads(rel_res["output"])
+        assert relationships[0]["type"] == "depends_on"
+
+        graph_res = await handle_graph("{}", owner="alice")
+        graph = json.loads(graph_res["output"])["graph"]
+        assert any(edge["type"] == "depends_on" for edge in graph["edges"])
+
+        history_res = await handle_history('{"limit": 5}', owner="alice")
+        assert history_res["exit_code"] == 0
+        assert "relationship_add" in history_res["output"]
+
+        undo_res = await handle_undo("", owner="alice")
+        assert undo_res["exit_code"] == 0
+        graph_res = await handle_graph("{}", owner="alice")
+        graph = json.loads(graph_res["output"])["graph"]
+        assert not any(edge["type"] == "depends_on" for edge in graph["edges"])
+
+
+@pytest.mark.asyncio
+async def test_delete_relationship_records_reversible_history(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        with open(os.path.join(tmpdir, "A.md"), "w", encoding="utf-8") as f:
+            f.write("# A")
+        with open(os.path.join(tmpdir, "B.md"), "w", encoding="utf-8") as f:
+            f.write("# B")
+
+        await handle_add_relationship('{"source": "A.md", "target": "B.md", "type": "relates_to"}')
+        delete_res = await handle_delete_relationship('{"source": "A.md", "target": "B.md", "type": "relates_to"}')
+        assert delete_res["exit_code"] == 0
+
+        undo_res = await handle_undo("")
+        assert undo_res["exit_code"] == 0
+        graph_res = await handle_graph("{}")
+        graph = json.loads(graph_res["output"])["graph"]
+        assert any(edge["type"] == "relates_to" for edge in graph["edges"])
+
+
+@pytest.mark.asyncio
+async def test_file_write_and_rename_history_undo(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+
+        write_res = await handle_write_note('{"path": "Plan.md", "content": "# Plan"}', owner="alice")
+        assert write_res["exit_code"] == 0
+        undo_res = await handle_undo("", owner="alice")
+        assert undo_res["exit_code"] == 0
+        assert not os.path.exists(os.path.join(tmpdir, "Plan.md"))
+
+        await handle_write_note('{"path": "Plan.md", "content": "# Plan"}', owner="alice")
+        rename_res = await handle_rename_item('{"old_path": "Plan.md", "new_path": "Roadmap.md"}', owner="alice")
+        assert rename_res["exit_code"] == 0
+        undo_res = await handle_undo("", owner="alice")
+        assert undo_res["exit_code"] == 0
+        assert os.path.exists(os.path.join(tmpdir, "Plan.md"))
+        assert not os.path.exists(os.path.join(tmpdir, "Roadmap.md"))
 
 
 def test_plain_vault_export_import_roundtrip():
@@ -225,6 +372,17 @@ def test_encrypted_vault_export_requires_correct_password():
             assert "Hidden content" in f.read()
 
 
+def test_large_vault_fixture_produces_retrievable_graph_baseline():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fixture = create_large_vault_fixture(tmpdir, note_count=48)
+        profile = profile_graph_build(tmpdir)
+
+        assert fixture["note_count"] == 48
+        assert profile["nodes"] >= 48
+        assert profile["edges"] >= 48
+        assert profile["elapsed_ms"] >= 0
+
+
 @pytest.mark.asyncio
 async def test_locked_vault_blocks_ai_file_access(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -248,6 +406,10 @@ async def test_ai_vault_password_and_encrypted_archive_flow(monkeypatch):
             f.write("# Project")
 
         res = await handle_vault_set_password('{"password": "strong password"}')
+        assert res["exit_code"] == 1
+        assert "Confirmation required" in res["error"]
+
+        res = await handle_vault_set_password('{"password": "strong password", "confirm": true}')
         assert res["exit_code"] == 0
         assert protection_status(src)["protected"] is True
 
@@ -261,6 +423,10 @@ async def test_ai_vault_password_and_encrypted_archive_flow(monkeypatch):
         assert res["exit_code"] == 0
 
         export_res = await handle_vault_export('{"password": "export password"}')
+        assert export_res["exit_code"] == 1
+        assert "Confirmation required" in export_res["error"]
+
+        export_res = await handle_vault_export('{"password": "export password", "confirm": true}')
         assert export_res["exit_code"] == 0
 
         archive_json = json.loads(export_res["output"])
@@ -270,6 +436,7 @@ async def test_ai_vault_password_and_encrypted_archive_flow(monkeypatch):
         import_res = await handle_vault_import(json.dumps({
             "archive_base64": archive_json["archive_base64"],
             "password": "export password",
+            "confirm": True,
         }))
 
         assert import_res["exit_code"] == 0
@@ -301,6 +468,13 @@ def test_plugin_setup_registration():
     assert "obsidian_read_note" in tool_names
     assert "obsidian_write_note" in tool_names
     assert "obsidian_search_notes" in tool_names
+    assert "obsidian_list_tags" in tool_names
+    assert "obsidian_graph" in tool_names
+    assert "obsidian_list_relationships" in tool_names
+    assert "obsidian_add_relationship" in tool_names
+    assert "obsidian_delete_relationship" in tool_names
+    assert "obsidian_history" in tool_names
+    assert "obsidian_undo" in tool_names
     assert "obsidian_create_folder" in tool_names
     assert "obsidian_rename_item" in tool_names
     assert "obsidian_delete_note" in tool_names

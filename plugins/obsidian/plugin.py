@@ -10,7 +10,8 @@ if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
 try:
-    from obsidian.backend.routes import router
+    from obsidian.backend.routes import _undo_entry, router
+    from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from obsidian.backend.vault_security import (
         export_vault,
         import_vault,
@@ -21,8 +22,16 @@ try:
         set_password,
         unlock_vault,
     )
+    from obsidian.backend.vault_model import (
+        add_manual_relationship,
+        build_vault_index,
+        graph_payload,
+        load_manual_relationships,
+        remove_manual_relationship,
+    )
 except ModuleNotFoundError:
-    from backend.routes import router
+    from backend.routes import _undo_entry, router
+    from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from backend.vault_security import (
         export_vault,
         import_vault,
@@ -33,17 +42,25 @@ except ModuleNotFoundError:
         set_password,
         unlock_vault,
     )
+    from backend.vault_model import (
+        add_manual_relationship,
+        build_vault_index,
+        graph_payload,
+        load_manual_relationships,
+        remove_manual_relationship,
+    )
 
 # Metadata manifest required by plugin loader
 PLUGIN = {
     "name": "obsidian",
-    "version": "1.0.0",
+    "version": "0.9.0",
     "description": "Obsidian vault integration for direct editing and AI tool search/updates.",
     "category": "productivity",
     "permissions": ["filesystem"],
     "ui": {
         "open": "/api/plugins/obsidian/app",
-        "label": "Open Vault"
+        "label": "Open Vault",
+        "script": "/api/plugins/obsidian/web/main.js",
     }
 }
 
@@ -70,10 +87,21 @@ def secure_path(vault_dir: str, relative_path: str) -> str:
         raise ValueError("Path traversal attempt detected")
     return abs_target
 
+def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
+    old_path = os.path.abspath(abs_old)
+    new_path = os.path.abspath(abs_new)
+    return new_path == old_path or os.path.commonpath([old_path, new_path]) == old_path
+
 def get_unlocked_vault_path_by_owner(owner: Optional[str]) -> str:
     vault_dir = get_vault_path_by_owner(owner)
     require_unlocked(vault_dir)
     return vault_dir
+
+def _read_text_if_exists(path: str) -> Optional[str]:
+    if not os.path.exists(path) or os.path.isdir(path):
+        return None
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
 
 # --- Tool Handlers ---
 
@@ -82,6 +110,15 @@ def _parse_params(content: str, fallback_key: str) -> dict:
     if raw.startswith("{"):
         return json.loads(raw)
     return {fallback_key: raw}
+
+def _is_confirmed(params: dict) -> bool:
+    return params.get("confirm") is True or params.get("confirmed") is True
+
+def _confirmation_required(action: str) -> dict:
+    return {
+        "error": f"Confirmation required before {action}. Re-run with confirm set to true after the user confirms.",
+        "exit_code": 1,
+    }
 
 def _note_tree(dir_path: str, base_path: Optional[str] = None) -> list[dict]:
     if base_path is None:
@@ -169,10 +206,24 @@ async def handle_write_note(content: str, owner: Optional[str] = None, **kwargs)
             
         vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
+
+        exists = os.path.exists(abs_path)
+        if exists and not _is_confirmed(params):
+            return _confirmation_required(f"overwriting {path}")
+        before_content = _read_text_if_exists(abs_path)
         
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(note_content)
+        record_action(
+            vault_dir,
+            action="update_file" if exists else "create_file",
+            owner=owner,
+            tool="obsidian_write_note",
+            paths=[path],
+            before={"content": before_content} if exists else {},
+            after={"content": note_content},
+        )
         return {"output": f"Successfully wrote note to {path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to write note: {e}", "exit_code": 1}
@@ -223,6 +274,29 @@ async def handle_tree(content: str, owner: Optional[str] = None, **kwargs) -> di
     except Exception as e:
         return {"error": f"Failed to list vault tree: {e}", "exit_code": 1}
 
+async def handle_list_tags(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns explicit and implicit vault tags."""
+    try:
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        tags = build_vault_index(vault_dir)["tags"]
+        return {"output": json.dumps(tags, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to list vault tags: {e}", "exit_code": 1}
+
+async def handle_graph(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns the vault graph with relationship reasons."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        result = graph_payload(
+            vault_dir,
+            focus=params.get("focus"),
+            tag=params.get("tag"),
+        )
+        return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to build vault graph: {e}", "exit_code": 1}
+
 async def handle_create_folder(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Creates a folder inside the vault."""
     try:
@@ -235,6 +309,14 @@ async def handle_create_folder(content: str, owner: Optional[str] = None, **kwar
         if os.path.exists(abs_path):
             return {"error": f"Path already exists: {path}", "exit_code": 1}
         os.makedirs(abs_path, exist_ok=False)
+        record_action(
+            vault_dir,
+            action="create_folder",
+            owner=owner,
+            tool="obsidian_create_folder",
+            paths=[path],
+            reversible=False,
+        )
         return {"output": f"Successfully created folder {path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to create folder: {e}", "exit_code": 1}
@@ -254,8 +336,19 @@ async def handle_rename_item(content: str, owner: Optional[str] = None, **kwargs
             return {"error": f"Source not found: {old_path}", "exit_code": 1}
         if os.path.exists(abs_new):
             return {"error": f"Destination already exists: {new_path}", "exit_code": 1}
+        if os.path.isdir(abs_old) and is_self_or_descendant_move(abs_old, abs_new):
+            return {"error": "Cannot move a folder into itself.", "exit_code": 1}
         os.makedirs(os.path.dirname(abs_new), exist_ok=True)
         os.replace(abs_old, abs_new)
+        record_action(
+            vault_dir,
+            action="rename_item",
+            owner=owner,
+            tool="obsidian_rename_item",
+            paths=[old_path, new_path],
+            before={"path": old_path},
+            after={"path": new_path},
+        )
         return {"output": f"Successfully renamed {old_path} to {new_path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to rename item: {e}", "exit_code": 1}
@@ -267,13 +360,25 @@ async def handle_delete_note(content: str, owner: Optional[str] = None, **kwargs
         path = params.get("path", "").strip()
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
+        if not _is_confirmed(params):
+            return _confirmation_required(f"deleting {path}")
         vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         if not os.path.exists(abs_path):
             return {"error": f"File not found: {path}", "exit_code": 1}
         if os.path.isdir(abs_path):
             return {"error": f"Path is a folder, not a file: {path}", "exit_code": 1}
+        before_content = _read_text_if_exists(abs_path)
         os.remove(abs_path)
+        record_action(
+            vault_dir,
+            action="delete_file",
+            owner=owner,
+            tool="obsidian_delete_note",
+            paths=[path],
+            before={"content": before_content},
+            reversible=False,
+        )
         return {"output": f"Successfully deleted note {path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to delete note: {e}", "exit_code": 1}
@@ -285,6 +390,8 @@ async def handle_delete_folder(content: str, owner: Optional[str] = None, **kwar
         path = params.get("path", "").strip()
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
+        if not _is_confirmed(params):
+            return _confirmation_required(f"deleting folder {path}")
         vault_dir = get_unlocked_vault_path_by_owner(owner)
         abs_path = secure_path(vault_dir, path)
         if not os.path.exists(abs_path):
@@ -292,6 +399,14 @@ async def handle_delete_folder(content: str, owner: Optional[str] = None, **kwar
         if not os.path.isdir(abs_path):
             return {"error": f"Path is not a folder: {path}", "exit_code": 1}
         os.rmdir(abs_path)
+        record_action(
+            vault_dir,
+            action="delete_folder",
+            owner=owner,
+            tool="obsidian_delete_folder",
+            paths=[path],
+            reversible=False,
+        )
         return {"output": f"Successfully deleted empty folder {path}.", "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to delete folder: {e}", "exit_code": 1}
@@ -308,6 +423,8 @@ async def handle_vault_set_password(content: str, owner: Optional[str] = None, *
     """Enables or replaces vault password protection."""
     try:
         params = _parse_params(content, "password")
+        if not _is_confirmed(params):
+            return _confirmation_required("changing Obsidian vault password protection")
         vault_dir = get_vault_path_by_owner(owner)
         status = set_password(vault_dir, params.get("password", ""))
         return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
@@ -337,6 +454,8 @@ async def handle_vault_remove_password(content: str, owner: Optional[str] = None
     """Removes vault password protection after verification."""
     try:
         params = _parse_params(content, "password")
+        if not _is_confirmed(params):
+            return _confirmation_required("removing Obsidian vault password protection")
         vault_dir = get_vault_path_by_owner(owner)
         status = remove_password(vault_dir, params.get("password", ""))
         return {"output": json.dumps(status, ensure_ascii=False), "exit_code": 0}
@@ -347,6 +466,8 @@ async def handle_vault_export(content: str, owner: Optional[str] = None, **kwarg
     """Exports a vault archive as base64 ZIP data."""
     try:
         params = json.loads((content or "{}").strip() or "{}")
+        if params.get("password") and not _is_confirmed(params):
+            return _confirmation_required("exporting an encrypted Obsidian vault archive")
         vault_dir = get_vault_path_by_owner(owner)
         archive = export_vault(
             vault_dir,
@@ -367,12 +488,86 @@ async def handle_vault_import(content: str, owner: Optional[str] = None, **kwarg
     """Imports plain or encrypted base64 ZIP vault data."""
     try:
         params = json.loads((content or "").strip())
+        if not _is_confirmed(params):
+            return _confirmation_required("importing an Obsidian vault archive")
         archive_data = base64.b64decode(params.get("archive_base64", ""), validate=True)
         vault_dir = get_vault_path_by_owner(owner)
         result = import_vault(vault_dir, archive_data, password=params.get("password"))
         return {"output": json.dumps({"success": True, **result}, ensure_ascii=False), "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to import vault: {e}", "exit_code": 1}
+
+async def handle_list_relationships(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Lists manually curated graph relationships."""
+    try:
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        relationships = load_manual_relationships(vault_dir)
+        return {"output": json.dumps(relationships, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to list relationships: {e}", "exit_code": 1}
+
+async def handle_add_relationship(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Adds a typed manual relationship between two existing notes."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        relationship = add_manual_relationship(vault_dir, params)
+        record_action(
+            vault_dir,
+            action="relationship_add",
+            owner=owner,
+            tool="obsidian_add_relationship",
+            paths=[relationship["source"], relationship["target"]],
+            after={"relationship": relationship},
+        )
+        return {"output": json.dumps(relationship, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to add relationship: {e}", "exit_code": 1}
+
+async def handle_delete_relationship(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Deletes a typed manual relationship."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        removed = remove_manual_relationship(vault_dir, params)
+        if removed is None:
+            return {"error": "Relationship not found.", "exit_code": 1}
+        record_action(
+            vault_dir,
+            action="relationship_delete",
+            owner=owner,
+            tool="obsidian_delete_relationship",
+            paths=[removed["source"], removed["target"]],
+            before={"relationship": removed},
+        )
+        return {"output": json.dumps(removed, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to delete relationship: {e}", "exit_code": 1}
+
+async def handle_history(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns recent vault action history."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        return {
+            "output": json.dumps(list_history(vault_dir, limit=int(params.get("limit", 50))), ensure_ascii=False, indent=2),
+            "exit_code": 0,
+        }
+    except Exception as e:
+        return {"error": f"Failed to read history: {e}", "exit_code": 1}
+
+async def handle_undo(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Undoes the latest safe reversible vault action."""
+    try:
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        entry = latest_reversible(vault_dir, owner=owner)
+        if not entry:
+            return {"error": "No reversible Obsidian action to undo.", "exit_code": 1}
+        _undo_entry(vault_dir, entry)
+        mark_undone(vault_dir, entry["id"])
+        return {"output": json.dumps({"undone": entry}, ensure_ascii=False), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to undo latest action: {e}", "exit_code": 1}
 
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
     return {
@@ -423,10 +618,32 @@ def setup(ctx):
         _tool_spec("obsidian_write_note", "Create a new note or update an existing note in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative path of the note."},
             "content": {"type": "string", "description": "The markdown content to write."},
+            "confirm": {"type": "boolean", "description": "Required when overwriting an existing note."},
         }, ["path", "content"], handle_write_note),
         _tool_spec("obsidian_search_notes", "Search for notes containing a text query in the user's Obsidian vault.", {
             "query": {"type": "string", "description": "Search keyword or text query."},
         }, ["query"], handle_search_notes),
+        _tool_spec("obsidian_list_tags", "List explicit hashtags and implicit filename tags in the user's Obsidian vault.", {}, [], handle_list_tags),
+        _tool_spec("obsidian_graph", "Return the Obsidian vault graph with markdown links, filename mentions, shared tags, and edge reasons.", {
+            "focus": {"type": "string", "description": "Optional note path to return only the local graph around that note."},
+            "tag": {"type": "string", "description": "Optional tag filter."},
+        }, [], handle_graph),
+        _tool_spec("obsidian_list_relationships", "List manually curated Obsidian graph relationships.", {}, [], handle_list_relationships),
+        _tool_spec("obsidian_add_relationship", "Add a typed manual graph relationship between two existing Obsidian notes.", {
+            "source": {"type": "string", "description": "Source note path."},
+            "target": {"type": "string", "description": "Target note path."},
+            "type": {"type": "string", "description": "Relationship type: manual, relates_to, depends_on, blocks, or supports."},
+            "reason": {"type": "string", "description": "Short reason shown in the graph."},
+        }, ["source", "target"], handle_add_relationship),
+        _tool_spec("obsidian_delete_relationship", "Delete a typed manual graph relationship between two Obsidian notes.", {
+            "source": {"type": "string", "description": "Source note path."},
+            "target": {"type": "string", "description": "Target note path."},
+            "type": {"type": "string", "description": "Relationship type to delete."},
+        }, ["source", "target"], handle_delete_relationship),
+        _tool_spec("obsidian_history", "List recent Obsidian vault actions with owner, tool, paths, and undo status.", {
+            "limit": {"type": "integer", "description": "Maximum number of recent actions to return."},
+        }, [], handle_history),
+        _tool_spec("obsidian_undo", "Undo the latest safe reversible Obsidian vault action for the current user.", {}, [], handle_undo),
         _tool_spec("obsidian_create_folder", "Create a folder in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative folder path to create."},
         }, ["path"], handle_create_folder),
@@ -436,13 +653,16 @@ def setup(ctx):
         }, ["old_path", "new_path"], handle_rename_item),
         _tool_spec("obsidian_delete_note", "Delete a single file inside the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative file path to delete."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms deletion."},
         }, ["path"], handle_delete_note),
         _tool_spec("obsidian_delete_folder", "Delete an empty folder inside the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative empty folder path to delete."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms deletion."},
         }, ["path"], handle_delete_folder),
         _tool_spec("obsidian_vault_status", "Return Obsidian vault password-protection and lock status.", {}, [], handle_vault_status),
         _tool_spec("obsidian_vault_set_password", "Enable or replace password protection for the Obsidian vault.", {
             "password": {"type": "string", "description": "The vault password. Must not be logged or reused in URLs."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms changing password protection."},
         }, ["password"], handle_vault_set_password),
         _tool_spec("obsidian_vault_lock", "Lock the password-protected Obsidian vault.", {}, [], handle_vault_lock),
         _tool_spec("obsidian_vault_unlock", "Unlock the Obsidian vault with its password.", {
@@ -450,14 +670,17 @@ def setup(ctx):
         }, ["password"], handle_vault_unlock),
         _tool_spec("obsidian_vault_remove_password", "Remove Obsidian vault password protection after password verification.", {
             "password": {"type": "string", "description": "The current vault password."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms removing password protection."},
         }, ["password"], handle_vault_remove_password),
         _tool_spec("obsidian_vault_export", "Export the Obsidian vault as base64 ZIP data, optionally encrypted with a password.", {
             "password": {"type": "string", "description": "Optional export password."},
             "root": {"type": "string", "description": "Optional relative file or folder root to export."},
+            "confirm": {"type": "boolean", "description": "Required when exporting with a password."},
         }, [], handle_vault_export),
         _tool_spec("obsidian_vault_import", "Import base64 ZIP vault data, including password-encrypted Odysseus vault exports.", {
             "archive_base64": {"type": "string", "description": "Base64-encoded ZIP archive data."},
             "password": {"type": "string", "description": "Optional password for encrypted archives."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms importing into the vault."},
         }, ["archive_base64"], handle_vault_import),
     ]
     for spec in tools:

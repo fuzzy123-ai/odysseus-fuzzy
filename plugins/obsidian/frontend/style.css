@@ -63,6 +63,34 @@ body.obsidian-open .obsidian-panel-content {
   transform: translateX(0);
 }
 
+body.obsidian-standalone {
+  overflow: hidden;
+}
+
+body.obsidian-standalone #obsidian-panel,
+body.obsidian-standalone.obsidian-open #obsidian-panel {
+  width: 100vw;
+  max-width: none;
+  min-width: 0;
+}
+
+body.obsidian-standalone #obsidian-panel-backdrop {
+  display: none;
+}
+
+body.obsidian-standalone .obsidian-panel-content {
+  width: 100vw;
+  max-width: none;
+  min-width: 0;
+  border-left: 0;
+  transform: translateX(0);
+}
+
+body.obsidian-standalone #obsidian-panel-minimize,
+body.obsidian-standalone #obsidian-panel-close {
+  display: none;
+}
+
 /* ─── Panel Header ──────────────────────────────────────────── */
 .obsidian-panel-header {
   display: flex;
@@ -83,7 +111,9 @@ body.obsidian-open .obsidian-panel-content {
 
 .obsidian-panel-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+  position: relative;
 }
 
 .obsidian-panel-btn {
@@ -113,6 +143,53 @@ body.obsidian-open .obsidian-panel-content {
   background: var(--red);
   border-color: var(--red);
   color: #fff;
+}
+
+.obsidian-header-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+  font-size: 11px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.obsidian-header-view-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.obsidian-settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 34px;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 94%, var(--fg));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  z-index: 260;
+}
+
+.obsidian-settings-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  padding: 8px 9px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.obsidian-settings-menu button:hover,
+.obsidian-settings-menu button:focus-visible {
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
+  outline: none;
 }
 
 /* ─── Panel Body ────────────────────────────────────────────── */
@@ -194,6 +271,11 @@ body.obsidian-open .obsidian-panel-content {
   user-select: none;
 }
 
+.obsidian-file-tree.drag-over-root {
+  outline: 1px dashed var(--accent, var(--red));
+  outline-offset: -3px;
+}
+
 /* File Tree Nodes styling */
 .tree-item {
   display: flex;
@@ -214,6 +296,15 @@ body.obsidian-open .obsidian-panel-content {
 .tree-item-header:hover {
   background: color-mix(in srgb, var(--fg) 5%, transparent);
   opacity: 1;
+}
+
+.tree-item.dragging > .tree-item-header {
+  opacity: 0.45;
+}
+
+.tree-item.drop-target > .tree-item-header {
+  background: color-mix(in srgb, var(--accent, var(--red)) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent, var(--red)) 55%, transparent);
 }
 
 .tree-item.active > .tree-item-header {
@@ -355,6 +446,35 @@ body.obsidian-open .obsidian-panel-content {
   font-family: inherit;
 }
 
+.obsidian-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.obsidian-editor-toolbar button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.obsidian-editor-toolbar button:hover,
+.obsidian-editor-toolbar button:focus-visible {
+  border-color: var(--accent, var(--red));
+  color: var(--accent, var(--red));
+}
+
 .obsidian-view-toggle {
   display: inline-flex;
   align-items: center;
@@ -394,12 +514,14 @@ body.obsidian-open .obsidian-panel-content {
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-.obsidian-view-toggle input:checked + .obsidian-toggle-track {
+.obsidian-view-toggle input:checked + .obsidian-toggle-track,
+.obsidian-header-view-toggle input:checked + .obsidian-toggle-track {
   border-color: var(--accent, var(--red));
   background: color-mix(in srgb, var(--accent, var(--red)) 18%, transparent);
 }
 
-.obsidian-view-toggle input:checked + .obsidian-toggle-track::after {
+.obsidian-view-toggle input:checked + .obsidian-toggle-track::after,
+.obsidian-header-view-toggle input:checked + .obsidian-toggle-track::after {
   transform: translateX(18px);
   opacity: 1;
 }
@@ -440,6 +562,10 @@ body.obsidian-open .obsidian-panel-content {
   flex-direction: column;
 }
 
+.obsidian-editor-pane {
+  position: relative;
+}
+
 .obsidian-divider {
   width: 1px;
   background: var(--border);
@@ -460,6 +586,55 @@ body.obsidian-open .obsidian-panel-content {
   outline: none;
   padding: 12px 10px;
   box-sizing: border-box;
+}
+
+.obsidian-autocomplete {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: min(360px, calc(100% - 20px));
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 94%, var(--fg));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  padding: 4px;
+  z-index: 2;
+}
+
+.obsidian-autocomplete-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  padding: 7px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.obsidian-autocomplete-item:hover,
+.obsidian-autocomplete-item.active {
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
+}
+
+.obsidian-autocomplete-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.obsidian-autocomplete-meta {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--fg) 60%, transparent);
+  font-size: 11px;
 }
 
 /* Preview Pane */
@@ -528,6 +703,8 @@ body.obsidian-open .obsidian-panel-content {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 6px;
   background:
@@ -535,6 +712,39 @@ body.obsidian-open .obsidian-panel-content {
     linear-gradient(90deg, color-mix(in srgb, var(--fg) 4%, transparent) 1px, transparent 1px),
     color-mix(in srgb, var(--bg) 88%, var(--panel, var(--bg)));
   background-size: 28px 28px;
+}
+
+.obsidian-graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+.obsidian-graph-controls select,
+.obsidian-graph-controls button {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.obsidian-graph-controls select {
+  min-width: 140px;
+}
+
+.obsidian-graph-controls button {
+  padding: 0 9px;
+  cursor: pointer;
+}
+
+.obsidian-graph-controls button:hover,
+.obsidian-graph-controls select:focus-visible {
+  border-color: var(--accent, var(--red));
 }
 
 .obsidian-graph-empty {
@@ -549,13 +759,36 @@ body.obsidian-open .obsidian-panel-content {
 
 .obsidian-graph-svg {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: block;
 }
 
 .obsidian-graph-edge {
   stroke: color-mix(in srgb, var(--fg) 28%, transparent);
   stroke-width: 1.4;
+}
+
+.obsidian-graph-edge.edge-filename_mention {
+  stroke-dasharray: 5 4;
+}
+
+.obsidian-graph-edge.edge-shared_tag {
+  stroke: color-mix(in srgb, var(--accent, var(--red)) 42%, transparent);
+  stroke-width: 1.1;
+}
+
+.obsidian-graph-edge.edge-manual,
+.obsidian-graph-edge.edge-relates_to,
+.obsidian-graph-edge.edge-depends_on,
+.obsidian-graph-edge.edge-blocks,
+.obsidian-graph-edge.edge-supports {
+  stroke: color-mix(in srgb, var(--fg) 54%, var(--accent, var(--red)));
+  stroke-width: 1.8;
+}
+
+.obsidian-graph-edge.edge-blocks {
+  stroke-dasharray: 3 3;
 }
 
 .obsidian-graph-node {
@@ -668,6 +901,18 @@ body.obsidian-open .obsidian-panel-content {
   
   .obsidian-editor-panes {
     flex-direction: column;
+  }
+
+  .obsidian-header-view-toggle {
+    display: none;
+  }
+
+  .obsidian-settings-menu {
+    right: 0;
+  }
+
+  .obsidian-graph-controls {
+    flex-wrap: wrap;
   }
   
   .obsidian-divider {

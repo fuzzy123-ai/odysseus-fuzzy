@@ -26,6 +26,9 @@ let autosaveTimeout = null;
 let searchTimeout = null;
 let isPanelOpen = false;
 let currentViewMode = 'document';
+let tagCache = null;
+let autocompleteState = null;
+let graphEdgeTypeFilter = 'all';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -64,7 +67,455 @@ function normalizeNotePath(path) {
   return clean.toLowerCase().endsWith('.md') ? clean : `${clean}.md`;
 }
 
+function getParentDir(path) {
+  if (!path || !path.includes('/')) return '';
+  return path.substring(0, path.lastIndexOf('/'));
+}
+
+function getBaseName(path) {
+  return (path || '').split('/').pop() || '';
+}
+
+function joinPath(dir, name) {
+  return [dir, name].filter(Boolean).join('/').replace(/\/+/g, '/');
+}
+
+function flattenTree(nodes, out = []) {
+  nodes.forEach(node => {
+    out.push(node);
+    if (node.is_dir && node.children) {
+      flattenTree(node.children, out);
+    }
+  });
+  return out;
+}
+
+function triggerEditorInput() {
+  const textarea = document.getElementById('obsidian-textarea');
+  textarea?.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function replaceSelection(before, after = '', placeholder = '') {
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!textarea || currentViewMode === 'graph') return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end) || placeholder;
+  const next = `${before}${selected}${after}`;
+  textarea.setRangeText(next, start, end, 'select');
+  textarea.selectionStart = start + before.length;
+  textarea.selectionEnd = start + before.length + selected.length;
+  textarea.focus();
+  triggerEditorInput();
+  updateAutocomplete();
+}
+
+function prefixSelectedLines(prefix) {
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!textarea || currentViewMode === 'graph') return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
+  const selected = textarea.value.slice(lineStart, end);
+  const replaced = selected.split('\n').map(line => line ? `${prefix}${line}` : prefix.trimEnd()).join('\n');
+  textarea.setRangeText(replaced, lineStart, end, 'end');
+  textarea.focus();
+  triggerEditorInput();
+}
+
+function applyMarkdownAction(action) {
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!textarea) return;
+  const selected = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+  switch (action) {
+    case 'bold':
+      replaceSelection('**', '**', 'bold text');
+      break;
+    case 'italic':
+      replaceSelection('*', '*', 'italic text');
+      break;
+    case 'inline-code':
+      replaceSelection('`', '`', 'code');
+      break;
+    case 'codeblock':
+      replaceSelection('```\n', '\n```', selected || 'code');
+      break;
+    case 'heading':
+      prefixSelectedLines('# ');
+      break;
+    case 'list':
+      prefixSelectedLines('- ');
+      break;
+    case 'checkbox':
+      prefixSelectedLines('- [ ] ');
+      break;
+    case 'quote':
+      prefixSelectedLines('> ');
+      break;
+    case 'link':
+      replaceSelection('[', '](https://)', selected || 'link text');
+      break;
+    case 'wikilink':
+      replaceSelection('[[', ']]', selected || 'Note');
+      break;
+    case 'tag':
+      replaceSelection('#', '', selected || 'tag');
+      break;
+    case 'table':
+      textarea.setRangeText('| Column | Value |\n| --- | --- |\n|  |  |', textarea.selectionStart, textarea.selectionEnd, 'end');
+      textarea.focus();
+      triggerEditorInput();
+      break;
+    default:
+      break;
+  }
+}
+
+async function getVaultTags() {
+  if (tagCache) return tagCache;
+  try {
+    const res = await fetch('/api/plugins/obsidian/tags');
+    if (!res.ok) return [];
+    tagCache = await res.json();
+    return tagCache;
+  } catch (e) {
+    console.error('Failed to load tags:', e);
+    return [];
+  }
+}
+
+function isInSuppressedAutocompleteContext(text, caret) {
+  const before = text.slice(0, caret);
+  const fenceCount = (before.match(/(^|\n)(```|~~~)/g) || []).length;
+  if (fenceCount % 2 === 1) return true;
+
+  const lineStart = before.lastIndexOf('\n') + 1;
+  const lineBeforeCaret = before.slice(lineStart);
+  const inlineTicks = (lineBeforeCaret.match(/`/g) || []).length;
+  if (inlineTicks % 2 === 1) return true;
+
+  const lastToken = lineBeforeCaret.split(/\s/).pop() || '';
+  return /^https?:\/\//i.test(lastToken);
+}
+
+function positionAutocompleteMenu(textarea, menu) {
+  const pane = textarea.closest('.obsidian-editor-pane');
+  if (!pane) return;
+
+  const style = window.getComputedStyle(textarea);
+  const mirror = document.createElement('div');
+  const marker = document.createElement('span');
+  const mirrorStyle = mirror.style;
+  mirrorStyle.position = 'absolute';
+  mirrorStyle.visibility = 'hidden';
+  mirrorStyle.whiteSpace = 'pre-wrap';
+  mirrorStyle.wordWrap = 'break-word';
+  mirrorStyle.overflow = 'hidden';
+  mirrorStyle.boxSizing = style.boxSizing;
+  mirrorStyle.width = `${textarea.clientWidth}px`;
+  mirrorStyle.font = style.font;
+  mirrorStyle.lineHeight = style.lineHeight;
+  mirrorStyle.padding = style.padding;
+  mirrorStyle.border = style.border;
+  mirror.textContent = textarea.value.slice(0, textarea.selectionStart);
+  marker.textContent = '\u200b';
+  mirror.appendChild(marker);
+  pane.appendChild(mirror);
+
+  const paneRect = pane.getBoundingClientRect();
+  const markerRect = marker.getBoundingClientRect();
+  const top = markerRect.top - paneRect.top - textarea.scrollTop + parseFloat(style.lineHeight || '20') + 4;
+  const left = markerRect.left - paneRect.left - textarea.scrollLeft;
+  pane.removeChild(mirror);
+
+  menu.style.top = `${Math.max(8, top)}px`;
+  menu.style.left = `${Math.max(8, left)}px`;
+  menu.style.right = 'auto';
+}
+
+function hideAutocomplete() {
+  autocompleteState = null;
+  const menu = document.getElementById('obsidian-autocomplete');
+  if (menu) {
+    menu.classList.add('hidden');
+    menu.innerHTML = '';
+  }
+}
+
+function renderAutocomplete() {
+  const menu = document.getElementById('obsidian-autocomplete');
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!menu || !autocompleteState || !autocompleteState.items.length) {
+    hideAutocomplete();
+    return;
+  }
+  menu.innerHTML = '';
+  autocompleteState.items.slice(0, 8).forEach((item, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `obsidian-autocomplete-item ${index === autocompleteState.index ? 'active' : ''}`;
+    btn.setAttribute('role', 'option');
+    btn.innerHTML = `
+      <span class="obsidian-autocomplete-label">${escapeHtml(item.label)}</span>
+      <span class="obsidian-autocomplete-meta">${escapeHtml(item.meta || '')}</span>
+    `;
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      applyAutocompleteItem(index);
+    });
+    menu.appendChild(btn);
+  });
+  if (textarea) {
+    positionAutocompleteMenu(textarea, menu);
+  }
+  menu.classList.remove('hidden');
+}
+
+async function updateAutocomplete() {
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!textarea || document.activeElement !== textarea) {
+    hideAutocomplete();
+    return;
+  }
+  const caret = textarea.selectionStart;
+  if (isInSuppressedAutocompleteContext(textarea.value, caret)) {
+    hideAutocomplete();
+    return;
+  }
+  const before = textarea.value.slice(0, caret);
+  const wikiMatch = before.match(/\[\[([^\]\n]*)$/);
+  if (wikiMatch) {
+    const query = wikiMatch[1].toLowerCase();
+    const notes = flattenNotes(vaultFiles)
+      .filter(path => path.toLowerCase().includes(query))
+      .slice(0, 8)
+      .map(path => ({ value: path.replace(/\.md$/i, ''), label: path.replace(/\.md$/i, ''), meta: getParentDir(path) }));
+    autocompleteState = {
+      mode: 'wikilink',
+      start: caret - wikiMatch[1].length,
+      end: caret,
+      index: 0,
+      items: notes,
+    };
+    renderAutocomplete();
+    return;
+  }
+
+  const tagMatch = before.match(/(^|[\s(])#([A-Za-z0-9_-]*)$/);
+  if (tagMatch) {
+    const query = tagMatch[2].toLowerCase();
+    const tags = (await getVaultTags())
+      .filter(tag => tag.name.toLowerCase().includes(query))
+      .slice(0, 8)
+      .map(tag => ({ value: tag.name, label: `#${tag.name}`, meta: `${tag.files.length} notes` }));
+    autocompleteState = {
+      mode: 'tag',
+      start: caret - tagMatch[2].length,
+      end: caret,
+      index: 0,
+      items: tags,
+    };
+    renderAutocomplete();
+    return;
+  }
+  hideAutocomplete();
+}
+
+function applyAutocompleteItem(index = autocompleteState?.index || 0) {
+  const textarea = document.getElementById('obsidian-textarea');
+  if (!textarea || !autocompleteState) return;
+  const item = autocompleteState.items[index];
+  if (!item) return;
+  const inserted = autocompleteState.mode === 'wikilink' ? `${item.value}]]` : item.value;
+  textarea.setSelectionRange(autocompleteState.start, autocompleteState.end);
+  textarea.setRangeText(inserted, autocompleteState.start, autocompleteState.end, 'end');
+  textarea.focus();
+  triggerEditorInput();
+  hideAutocomplete();
+}
+
+function handleAutocompleteKey(e) {
+  if (!autocompleteState || !autocompleteState.items.length) return false;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    autocompleteState.index = (autocompleteState.index + 1) % autocompleteState.items.length;
+    renderAutocomplete();
+    return true;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    autocompleteState.index = (autocompleteState.index - 1 + autocompleteState.items.length) % autocompleteState.items.length;
+    renderAutocomplete();
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    applyAutocompleteItem();
+    return true;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    hideAutocomplete();
+    return true;
+  }
+  return false;
+}
+
+async function moveVaultItem(oldPath, targetFolder) {
+  if (!oldPath && oldPath !== '') return;
+  const baseName = getBaseName(oldPath);
+  const newPath = joinPath(targetFolder, baseName);
+  if (!newPath || newPath === oldPath) return;
+  if (targetFolder && (targetFolder === oldPath || targetFolder.startsWith(`${oldPath}/`))) {
+    showToast('Cannot move a folder into itself');
+    return;
+  }
+  try {
+    const res = await fetch('/api/plugins/obsidian/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_path: oldPath, new_path: newPath }),
+    });
+    if (res.ok) {
+      showToast('Moved item');
+      if (currentNotePath === oldPath || currentNotePath?.startsWith(`${oldPath}/`)) {
+        currentNotePath = currentNotePath.replace(oldPath, newPath);
+      }
+      await loadVaultFiles();
+      if (currentNotePath && !currentNotePath.endsWith('/')) {
+        await openNote(currentNotePath);
+      }
+    } else {
+      const err = await res.json();
+      showToast(err.detail || 'Failed to move item');
+    }
+  } catch (e) {
+    console.error('Move failed:', e);
+    showToast('Error moving item');
+  }
+}
+
+async function importDroppedMarkdownFiles(files, targetFolder) {
+  const markdownFiles = [...files].filter(file => file.name.toLowerCase().endsWith('.md'));
+  if (!markdownFiles.length) return;
+  for (const file of markdownFiles) {
+    const content = await file.text();
+    const path = joinPath(targetFolder, file.name);
+    const res = await fetch('/api/plugins/obsidian/file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.detail || `Failed to import ${file.name}`);
+      continue;
+    }
+  }
+  tagCache = null;
+  await loadVaultFiles();
+  showToast('Markdown file imported');
+}
+
+function closeSettingsMenu() {
+  document.getElementById('obsidian-settings-menu')?.classList.add('hidden');
+}
+
+function toggleSettingsMenu() {
+  document.getElementById('obsidian-settings-menu')?.classList.toggle('hidden');
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      resolve(result.includes(',') ? result.split(',').pop() : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleVaultSettingsAction(action) {
+  closeSettingsMenu();
+  try {
+    if (action === 'export') {
+      const usePassword = await styledConfirm('Encrypt exported vault archive with a password?', { confirmText: 'Encrypt' });
+      let password = null;
+      if (usePassword) {
+        password = await styledPrompt('Export password:', { confirmText: 'Export' });
+        if (!password) return;
+      }
+      const res = await fetch('/api/plugins/obsidian/vault/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || 'Export failed');
+      const data = await res.json();
+      const link = document.createElement('a');
+      link.href = `data:application/zip;base64,${data.archive_base64}`;
+      link.download = data.filename || 'obsidian-vault.zip';
+      link.click();
+      showToast('Vault exported');
+      return;
+    }
+
+    if (action === 'import') {
+      document.getElementById('obsidian-import-input')?.click();
+      return;
+    }
+
+    if (action === 'set-password') {
+      const confirmed = await styledConfirm('Set or replace password protection for this vault?', { confirmText: 'Set password' });
+      if (!confirmed) return;
+      const password = await styledPrompt('Vault password:', { confirmText: 'Save' });
+      if (!password) return;
+      const res = await fetch('/api/plugins/obsidian/vault/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || 'Password update failed');
+      showToast('Vault password updated');
+      return;
+    }
+
+    if (action === 'remove-password') {
+      const confirmed = await styledConfirm('Remove password protection from this vault?', { confirmText: 'Remove', danger: true });
+      if (!confirmed) return;
+      const password = await styledPrompt('Current vault password:', { confirmText: 'Remove' });
+      if (!password) return;
+      const res = await fetch('/api/plugins/obsidian/vault/password', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || 'Password removal failed');
+      showToast('Vault password removed');
+      return;
+    }
+
+    if (action === 'reset-graph') {
+      graphEdgeTypeFilter = 'all';
+      setViewMode('graph');
+      renderGraphView();
+      showToast('Graph view reset');
+    }
+  } catch (e) {
+    console.error('Vault settings action failed:', e);
+    showToast(e.message || 'Vault settings action failed');
+  }
+}
+
 // ─── Panel UI Injection ──────────────────────────────────────────────────────
+
+function isStandaloneMode() {
+  return window.ODYSSEUS_OBSIDIAN_STANDALONE === true
+    || document.body?.dataset.obsidianStandalone === 'true'
+    || window.location.pathname === '/api/plugins/obsidian/app';
+}
 
 function injectUIElements() {
   // 1. Sidebar tool section
@@ -123,8 +574,28 @@ function injectUIElements() {
               <span>Obsidian Vault</span>
             </div>
             <div class="obsidian-panel-actions">
+              <label class="obsidian-header-view-toggle" title="Switch document or graph view">
+                <span>Editor</span>
+                <input type="checkbox" id="obsidian-header-view-toggle">
+                <span class="obsidian-toggle-track" aria-hidden="true"></span>
+                <span>Graph</span>
+              </label>
+              <button class="obsidian-panel-btn" id="obsidian-settings-toggle" title="Vault settings">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 .9-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
+                </svg>
+              </button>
               <button class="obsidian-panel-btn" id="obsidian-panel-minimize" title="Minimize">─</button>
               <button class="obsidian-panel-btn" id="obsidian-panel-close" title="Close">✕</button>
+              <div class="obsidian-settings-menu hidden" id="obsidian-settings-menu" role="menu">
+                <button type="button" data-settings-action="import" role="menuitem">Import vault</button>
+                <button type="button" data-settings-action="export" role="menuitem">Export vault</button>
+                <button type="button" data-settings-action="set-password" role="menuitem">Set password</button>
+                <button type="button" data-settings-action="remove-password" role="menuitem">Remove password</button>
+                <button type="button" data-settings-action="reset-graph" role="menuitem">Reset graph view</button>
+                <input type="file" id="obsidian-import-input" class="hidden" accept=".zip,application/zip">
+              </div>
             </div>
           </div>
 
@@ -158,19 +629,28 @@ function injectUIElements() {
                 <div class="obsidian-editor-header">
                   <div class="obsidian-current-note-title" id="obsidian-current-note-title">Untitled.md</div>
                   <div class="obsidian-editor-actions">
-                    <label class="obsidian-view-toggle" title="Switch document or graph view">
-                      <span>Editor</span>
-                      <input type="checkbox" id="obsidian-view-toggle">
-                      <span class="obsidian-toggle-track" aria-hidden="true"></span>
-                      <span>Graph</span>
-                    </label>
                     <button id="obsidian-rename-note" class="btn btn-secondary">Rename</button>
                     <button id="obsidian-delete-note" class="btn btn-danger">Delete</button>
                   </div>
                 </div>
+                <div class="obsidian-editor-toolbar" id="obsidian-editor-toolbar" aria-label="Markdown tools">
+                  <button data-md-action="bold" title="Bold"><strong>B</strong></button>
+                  <button data-md-action="italic" title="Italic"><em>I</em></button>
+                  <button data-md-action="inline-code" title="Inline code"><code>&lt;/&gt;</code></button>
+                  <button data-md-action="codeblock" title="Code block"><code>{ }</code></button>
+                  <button data-md-action="heading" title="Heading">H</button>
+                  <button data-md-action="list" title="Bullet list">-</button>
+                  <button data-md-action="checkbox" title="Checkbox">[ ]</button>
+                  <button data-md-action="quote" title="Quote">&gt;</button>
+                  <button data-md-action="link" title="Markdown link">link</button>
+                  <button data-md-action="wikilink" title="Wiki link">[[ ]]</button>
+                  <button data-md-action="tag" title="Tag">#</button>
+                  <button data-md-action="table" title="Table">tbl</button>
+                </div>
                 <div class="obsidian-editor-panes">
                   <div class="obsidian-pane obsidian-editor-pane">
                     <textarea id="obsidian-textarea" placeholder="Start writing markdown..."></textarea>
+                    <div id="obsidian-autocomplete" class="obsidian-autocomplete hidden" role="listbox"></div>
                   </div>
                 </div>
                 <div class="obsidian-graph-view hidden" id="obsidian-graph-view"></div>
@@ -206,6 +686,10 @@ function openPanel() {
 
 function closePanel() {
   if (!isPanelOpen) return;
+  if (isStandaloneMode()) {
+    document.body.classList.add('obsidian-open');
+    return;
+  }
   isPanelOpen = false;
   document.body.classList.remove('obsidian-open');
 }
@@ -217,6 +701,7 @@ async function loadVaultFiles() {
     const res = await fetch('/api/plugins/obsidian/files');
     if (res.ok) {
       vaultFiles = await res.json();
+      tagCache = null;
       renderFileTree();
       if (currentViewMode === 'graph') {
         renderGraphView();
@@ -231,6 +716,32 @@ function renderFileTree() {
   const container = document.getElementById('obsidian-file-tree');
   if (!container) return;
   buildTreeHTML(vaultFiles, container, 0);
+  if (!container.dataset.dndBound) {
+    container.dataset.dndBound = 'true';
+    container.addEventListener('dragover', (e) => {
+      if (e.dataTransfer?.types.includes('application/x-obsidian-path') || e.dataTransfer?.files?.length) {
+        e.preventDefault();
+        container.classList.add('drag-over-root');
+      }
+    });
+    container.addEventListener('dragleave', (e) => {
+      if (!container.contains(e.relatedTarget)) {
+        container.classList.remove('drag-over-root');
+      }
+    });
+    container.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      container.classList.remove('drag-over-root');
+      const oldPath = e.dataTransfer?.getData('application/x-obsidian-path');
+      if (oldPath) {
+        await moveVaultItem(oldPath, '');
+        return;
+      }
+      if (e.dataTransfer?.files?.length) {
+        await importDroppedMarkdownFiles(e.dataTransfer.files, '');
+      }
+    });
+  }
 }
 
 function buildTreeHTML(nodes, container, level) {
@@ -247,6 +758,7 @@ function buildTreeHTML(nodes, container, level) {
     const header = document.createElement('div');
     header.className = 'tree-item-header';
     header.style.paddingLeft = `${level * 12 + 6}px`;
+    header.draggable = true;
 
     const icon = document.createElement('span');
     icon.className = 'tree-item-icon';
@@ -293,6 +805,42 @@ function buildTreeHTML(nodes, container, level) {
       }
     });
 
+    header.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('application/x-obsidian-path', node.path);
+      e.dataTransfer.effectAllowed = 'move';
+      item.classList.add('dragging');
+    });
+
+    header.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      document.querySelectorAll('.tree-item.drop-target').forEach(el => el.classList.remove('drop-target'));
+    });
+
+    if (node.is_dir) {
+      header.addEventListener('dragover', (e) => {
+        if (e.dataTransfer?.types.includes('application/x-obsidian-path') || e.dataTransfer?.files?.length) {
+          e.preventDefault();
+          item.classList.add('drop-target');
+        }
+      });
+      header.addEventListener('dragleave', () => {
+        item.classList.remove('drop-target');
+      });
+      header.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        item.classList.remove('drop-target');
+        const oldPath = e.dataTransfer?.getData('application/x-obsidian-path');
+        if (oldPath) {
+          await moveVaultItem(oldPath, node.path);
+          return;
+        }
+        if (e.dataTransfer?.files?.length) {
+          await importDroppedMarkdownFiles(e.dataTransfer.files, node.path);
+        }
+      });
+    }
+
     container.appendChild(item);
   });
 }
@@ -333,8 +881,10 @@ function setViewMode(mode) {
   currentViewMode = mode === 'graph' ? 'graph' : 'document';
   const panes = document.querySelector('.obsidian-editor-panes');
   const graph = document.getElementById('obsidian-graph-view');
-  const toggle = document.getElementById('obsidian-view-toggle');
+  const toolbar = document.getElementById('obsidian-editor-toolbar');
+  const toggle = document.getElementById('obsidian-header-view-toggle');
   if (toggle) toggle.checked = currentViewMode === 'graph';
+  toolbar?.classList.toggle('hidden', currentViewMode === 'graph');
   panes?.classList.toggle('hidden', currentViewMode === 'graph');
   graph?.classList.toggle('hidden', currentViewMode !== 'graph');
   if (currentViewMode === 'graph') {
@@ -342,47 +892,86 @@ function setViewMode(mode) {
   }
 }
 
+async function promptAddRelationship() {
+  const notes = flattenNotes(vaultFiles);
+  if (notes.length < 2) {
+    showToast('Create at least two notes first');
+    return;
+  }
+  const source = await styledPrompt('Relationship source note:', { defaultValue: currentNotePath || notes[0], confirmText: 'Next' });
+  if (!source) return;
+  const target = await styledPrompt('Relationship target note:', { defaultValue: notes.find(path => path !== source) || '', confirmText: 'Next' });
+  if (!target) return;
+  const type = await styledPrompt('Relationship type:', { defaultValue: 'relates_to', confirmText: 'Next' });
+  if (!type) return;
+  const reason = await styledPrompt('Relationship reason:', { defaultValue: type.replace(/_/g, ' '), confirmText: 'Add' });
+  try {
+    const res = await fetch('/api/plugins/obsidian/relationships', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, target, type, reason }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to add relationship');
+    showToast('Relationship added');
+    renderGraphView();
+  } catch (e) {
+    console.error('Relationship add failed:', e);
+    showToast(e.message || 'Failed to add relationship');
+  }
+}
+
+async function promptDeleteRelationship() {
+  const source = await styledPrompt('Relationship source note:', { defaultValue: currentNotePath || '', confirmText: 'Next' });
+  if (!source) return;
+  const target = await styledPrompt('Relationship target note:', { confirmText: 'Next' });
+  if (!target) return;
+  const type = await styledPrompt('Relationship type:', { defaultValue: 'relates_to', confirmText: 'Delete' });
+  if (!type) return;
+  try {
+    const res = await fetch('/api/plugins/obsidian/relationships', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, target, type }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to delete relationship');
+    showToast('Relationship deleted');
+    renderGraphView();
+  } catch (e) {
+    console.error('Relationship delete failed:', e);
+    showToast(e.message || 'Failed to delete relationship');
+  }
+}
+
 async function renderGraphView() {
   const graph = document.getElementById('obsidian-graph-view');
   if (!graph) return;
 
-  const notePaths = flattenNotes(vaultFiles);
-  if (!notePaths.length) {
+  graph.innerHTML = '<div class="obsidian-graph-empty">Building graph...</div>';
+  let graphData;
+  try {
+    const focus = currentNotePath ? `?focus=${encodeURIComponent(currentNotePath)}` : '';
+    const res = await fetch(`/api/plugins/obsidian/graph${focus}`);
+    if (!res.ok) throw new Error(`Graph request failed: ${res.status}`);
+    graphData = await res.json();
+  } catch (e) {
+    console.error('Failed to build graph:', e);
+    graph.innerHTML = '<div class="obsidian-graph-empty">Unable to build graph.</div>';
+    return;
+  }
+
+  const nodes = (graphData.graph?.nodes || []).filter(node => node.type === 'markdown');
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const allEdges = (graphData.graph?.edges || [])
+    .filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+  const edgeTypes = [...new Set(allEdges.map(edge => edge.type || 'link'))].sort();
+  const edges = graphEdgeTypeFilter === 'all'
+    ? allEdges
+    : allEdges.filter(edge => (edge.type || 'link') === graphEdgeTypeFilter);
+  if (!nodes.length) {
     graph.innerHTML = '<div class="obsidian-graph-empty">No markdown notes to graph yet.</div>';
     return;
   }
 
-  graph.innerHTML = '<div class="obsidian-graph-empty">Building graph...</div>';
-  const existing = new Map(notePaths.map(path => [path.toLowerCase(), path]));
-  const nodeSet = new Set(notePaths);
-  const edgeSet = new Set();
-  const edges = [];
-
-  await Promise.all(notePaths.map(async path => {
-    try {
-      const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(path)}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const content = data.content || '';
-      const dir = path.includes('/') ? path.substring(0, path.lastIndexOf('/') + 1) : '';
-      const links = [...content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)];
-      links.forEach(match => {
-        const rawTarget = normalizeNotePath(match[1]);
-        const localTarget = normalizeNotePath(dir + rawTarget);
-        const target = existing.get(rawTarget.toLowerCase()) || existing.get(localTarget.toLowerCase()) || rawTarget;
-        nodeSet.add(target);
-        const key = `${path}->${target}`;
-        if (!edgeSet.has(key)) {
-          edgeSet.add(key);
-          edges.push({ from: path, to: target });
-        }
-      });
-    } catch (e) {
-      console.error('Failed to read graph note:', path, e);
-    }
-  }));
-
-  const nodes = [...nodeSet].sort((a, b) => a.localeCompare(b));
   const width = 900;
   const height = 560;
   const cx = width / 2;
@@ -390,9 +979,10 @@ async function renderGraphView() {
   const radius = Math.max(90, Math.min(width, height) * 0.34);
   const positions = new Map();
 
-  nodes.forEach((path, index) => {
+  nodes.forEach((node, index) => {
+    const path = node.id;
     const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
-    const linkedCount = edges.filter(edge => edge.from === path || edge.to === path).length;
+    const linkedCount = edges.filter(edge => edge.source === path || edge.target === path).length;
     const r = path === currentNotePath ? radius * 0.55 : radius + (linkedCount % 3) * 22;
     positions.set(path, {
       x: cx + Math.cos(angle) * r,
@@ -401,37 +991,56 @@ async function renderGraphView() {
   });
 
   const edgeSvg = edges.map(edge => {
-    const from = positions.get(edge.from);
-    const to = positions.get(edge.to);
+    const from = positions.get(edge.source);
+    const to = positions.get(edge.target);
     if (!from || !to) return '';
-    return `<line class="obsidian-graph-edge" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}"></line>`;
+    const type = escapeHtml(edge.type || 'link');
+    const reason = escapeHtml(edge.reason || type);
+    return `<line class="obsidian-graph-edge edge-${type}" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}"><title>${reason}</title></line>`;
   }).join('');
 
-  const nodeSvg = nodes.map(path => {
+  const nodeSvg = nodes.map(node => {
+    const path = node.id;
     const pos = positions.get(path);
     const isCurrent = path === currentNotePath;
-    const isMissing = !existing.has(path.toLowerCase());
     const label = escapeHtml(path.replace(/\.md$/i, '').split('/').pop());
     const safePath = escapeHtml(path);
+    const tags = escapeHtml((node.tags || []).slice(0, 4).join(', '));
     const classes = [
       'obsidian-graph-node',
       isCurrent ? 'current' : '',
-      isMissing ? 'missing' : ''
     ].filter(Boolean).join(' ');
     return `
       <g class="${classes}" data-path="${safePath}" tabindex="0" role="button">
+        <title>${safePath}${tags ? `\nTags: ${tags}` : ''}</title>
         <circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${isCurrent ? 18 : 13}"></circle>
         <text x="${pos.x.toFixed(1)}" y="${(pos.y + 30).toFixed(1)}">${label}</text>
       </g>
     `;
   }).join('');
 
+  const filterOptions = ['all', ...edgeTypes].map(type => (
+    `<option value="${escapeHtml(type)}" ${type === graphEdgeTypeFilter ? 'selected' : ''}>${escapeHtml(type.replace(/_/g, ' '))}</option>`
+  )).join('');
+
   graph.innerHTML = `
+    <div class="obsidian-graph-controls">
+      <select id="obsidian-graph-filter" title="Filter graph relationships">${filterOptions}</select>
+      <button type="button" id="obsidian-relationship-add">Add relationship</button>
+      <button type="button" id="obsidian-relationship-delete">Delete relationship</button>
+    </div>
     <svg class="obsidian-graph-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Obsidian note graph">
       <g>${edgeSvg}</g>
       <g>${nodeSvg}</g>
     </svg>
   `;
+
+  graph.querySelector('#obsidian-graph-filter')?.addEventListener('change', (e) => {
+    graphEdgeTypeFilter = e.target.value || 'all';
+    renderGraphView();
+  });
+  graph.querySelector('#obsidian-relationship-add')?.addEventListener('click', promptAddRelationship);
+  graph.querySelector('#obsidian-relationship-delete')?.addEventListener('click', promptDeleteRelationship);
 
   graph.querySelectorAll('.obsidian-graph-node:not(.missing)').forEach(node => {
     node.addEventListener('click', () => openNote(node.dataset.path));
@@ -560,6 +1169,9 @@ function setupEventListeners() {
 
   // Keyboard: Escape closes panel
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeSettingsMenu();
+    }
     if (e.key === 'Escape' && isPanelOpen) {
       closePanel();
     }
@@ -643,8 +1255,55 @@ function setupEventListeners() {
     showToast('Vault refreshed');
   });
 
-  document.getElementById('obsidian-view-toggle')?.addEventListener('change', (e) => {
+  document.getElementById('obsidian-header-view-toggle')?.addEventListener('change', (e) => {
     setViewMode(e.target.checked ? 'graph' : 'document');
+  });
+
+  document.getElementById('obsidian-settings-toggle')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleSettingsMenu();
+  });
+  document.getElementById('obsidian-settings-menu')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-settings-action]');
+    if (!btn) return;
+    e.preventDefault();
+    handleVaultSettingsAction(btn.dataset.settingsAction);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#obsidian-settings-menu, #obsidian-settings-toggle')) {
+      closeSettingsMenu();
+    }
+  });
+  document.getElementById('obsidian-import-input')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const confirmed = await styledConfirm(`Import ${file.name} into this vault?`, { confirmText: 'Import' });
+    if (!confirmed) return;
+    const password = await styledPrompt('Archive password, if needed:', { defaultValue: '', confirmText: 'Import' });
+    try {
+      const archive_base64 = await fileToBase64(file);
+      const res = await fetch('/api/plugins/obsidian/vault/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archive_base64, password: password || null }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || 'Import failed');
+      tagCache = null;
+      await loadVaultFiles();
+      showToast('Vault imported');
+    } catch (err) {
+      console.error('Vault import failed:', err);
+      showToast(err.message || 'Vault import failed');
+    }
+  });
+
+  document.getElementById('obsidian-editor-toolbar')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-md-action]');
+    if (!btn) return;
+    e.preventDefault();
+    applyMarkdownAction(btn.dataset.mdAction);
   });
 
   // Rename
@@ -704,6 +1363,7 @@ function setupEventListeners() {
   textarea?.addEventListener('input', () => {
     clearTimeout(autosaveTimeout);
     const content = textarea.value;
+    updateAutocomplete();
 
     autosaveTimeout = setTimeout(async () => {
       if (!currentNotePath) return;
@@ -717,6 +1377,15 @@ function setupEventListeners() {
         console.error('Autosave failed:', e);
       }
     }, 800);
+  });
+  textarea?.addEventListener('keydown', (e) => {
+    if (handleAutocompleteKey(e)) {
+      e.stopPropagation();
+    }
+  });
+  textarea?.addEventListener('click', updateAutocomplete);
+  textarea?.addEventListener('blur', () => {
+    setTimeout(hideAutocomplete, 120);
   });
 
   // Search with debounce
@@ -745,9 +1414,14 @@ function setupEventListeners() {
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function init() {
+  const standalone = isStandaloneMode();
+  document.body.classList.toggle('obsidian-standalone', standalone);
   injectUIElements();
   setupEventListeners();
   window.OdysseusObsidian = { openPanel, closePanel, togglePanel };
+  if (standalone) {
+    openPanel();
+  }
   console.log('[Obsidian Plugin] Panel-based UI initialized (Option B)');
 }
 

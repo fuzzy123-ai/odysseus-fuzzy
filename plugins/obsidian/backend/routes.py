@@ -21,6 +21,14 @@ from .vault_security import (
     set_password,
     unlock_vault,
 )
+from .vault_history import latest_reversible, list_history, mark_undone, record_action
+from .vault_model import (
+    add_manual_relationship,
+    build_vault_index,
+    graph_payload,
+    load_manual_relationships,
+    remove_manual_relationship,
+)
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
@@ -48,12 +56,18 @@ APP_HTML = """<!doctype html>
     }
   </style>
 </head>
-<body>
+<body data-obsidian-standalone="true">
   <script type="module">
+    window.ODYSSEUS_OBSIDIAN_STANDALONE = true;
     import "/api/plugins/obsidian/web/main.js";
-    window.addEventListener("DOMContentLoaded", () => {
+    const openObsidian = () => {
       window.OdysseusObsidian?.openPanel?.();
-    });
+    };
+    if (document.readyState === "loading") {
+      window.addEventListener("DOMContentLoaded", openObsidian, { once: true });
+    } else {
+      openObsidian();
+    }
   </script>
 </body>
 </html>"""
@@ -69,6 +83,12 @@ class FolderCreateRequest(BaseModel):
 class RenameRequest(BaseModel):
     old_path: str
     new_path: str
+
+class RelationshipRequest(BaseModel):
+    source: str
+    target: str
+    type: str = "manual"
+    reason: str = ""
 
 class VaultPasswordRequest(BaseModel):
     password: str
@@ -106,6 +126,9 @@ def get_unlocked_vault_path(request: Request) -> str:
         raise HTTPException(status_code=423, detail=str(exc))
     return vault_dir
 
+def current_owner(request: Request) -> str:
+    return require_user(request) or "default"
+
 def vault_error(exc: VaultSecurityError) -> HTTPException:
     detail = str(exc)
     status = 400
@@ -131,6 +154,17 @@ def secure_path(vault_dir: str, relative_path: str) -> str:
         raise HTTPException(status_code=400, detail="Path traversal attempt detected")
         
     return abs_target
+
+def _read_text_if_exists(path: str) -> Optional[str]:
+    if not os.path.exists(path) or os.path.isdir(path):
+        return None
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
+    old_path = os.path.abspath(abs_old)
+    new_path = os.path.abspath(abs_new)
+    return new_path == old_path or os.path.commonpath([old_path, new_path]) == old_path
 
 def get_file_tree(dir_path: str, base_path: str) -> List[Dict[str, Any]]:
     """Recursively build a sorted tree of directories and files."""
@@ -277,6 +311,14 @@ async def create_file(req: FileWriteRequest, request: Request):
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(req.content)
+        record_action(
+            vault_dir,
+            action="create_file",
+            owner=current_owner(request),
+            tool="obsidian_api",
+            paths=[req.path],
+            after={"content": req.content},
+        )
         return {"success": True, "path": req.path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create file: {e}")
@@ -294,8 +336,18 @@ async def update_file(req: FileWriteRequest, request: Request):
         raise HTTPException(status_code=400, detail="Specified path is a directory")
         
     try:
+        before_content = _read_text_if_exists(abs_path)
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(req.content)
+        record_action(
+            vault_dir,
+            action="update_file",
+            owner=current_owner(request),
+            tool="obsidian_api",
+            paths=[req.path],
+            before={"content": before_content},
+            after={"content": req.content},
+        )
         return {"success": True, "path": req.path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update file: {e}")
@@ -363,10 +415,22 @@ async def rename_item(req: RenameRequest, request: Request):
         
     if os.path.exists(abs_new):
         raise HTTPException(status_code=400, detail="Destination already exists")
+
+    if os.path.isdir(abs_old) and is_self_or_descendant_move(abs_old, abs_new):
+        raise HTTPException(status_code=400, detail="Cannot move a folder into itself")
         
     try:
         os.makedirs(os.path.dirname(abs_new), exist_ok=True)
         shutil.move(abs_old, abs_new)
+        record_action(
+            vault_dir,
+            action="rename_item",
+            owner=current_owner(request),
+            tool="obsidian_api",
+            paths=[req.old_path, req.new_path],
+            before={"path": req.old_path},
+            after={"path": req.new_path},
+        )
         return {"success": True, "path": req.new_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to rename: {e}")
@@ -411,6 +475,129 @@ async def search_vault(q: str, request: Request):
         raise HTTPException(status_code=500, detail=str(e))
         
     return results
+
+@router.get("/tags")
+async def list_tags(request: Request):
+    """Return explicit and implicit vault tags with deterministic colors."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return build_vault_index(vault_dir)["tags"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build tags: {e}")
+
+@router.get("/graph")
+async def graph_vault(request: Request, focus: Optional[str] = None, tag: Optional[str] = None):
+    """Return the Obsidian graph model with edge reasons and tag metadata."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return graph_payload(vault_dir, focus=focus, tag=tag)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build graph: {e}")
+
+@router.get("/relationships")
+async def list_relationships(request: Request):
+    """Return manually curated graph relationships."""
+    vault_dir = get_unlocked_vault_path(request)
+    return {"relationships": load_manual_relationships(vault_dir)}
+
+@router.post("/relationships")
+async def create_relationship(req: RelationshipRequest, request: Request):
+    """Create a typed manual graph relationship between existing notes."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        relationship = add_manual_relationship(vault_dir, req.dict())
+        record_action(
+            vault_dir,
+            action="relationship_add",
+            owner=current_owner(request),
+            tool="obsidian_api",
+            paths=[relationship["source"], relationship["target"]],
+            after={"relationship": relationship},
+        )
+        return {"success": True, "relationship": relationship}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@router.delete("/relationships")
+async def delete_relationship(req: RelationshipRequest, request: Request):
+    """Delete one typed manual graph relationship."""
+    vault_dir = get_unlocked_vault_path(request)
+    removed = remove_manual_relationship(vault_dir, req.dict())
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    record_action(
+        vault_dir,
+        action="relationship_delete",
+        owner=current_owner(request),
+        tool="obsidian_api",
+        paths=[removed["source"], removed["target"]],
+        before={"relationship": removed},
+    )
+    return {"success": True, "relationship": removed}
+
+@router.get("/history")
+async def history(request: Request, limit: int = 50):
+    """Return recent Obsidian vault actions without exposing secrets."""
+    vault_dir = get_unlocked_vault_path(request)
+    return {"history": list_history(vault_dir, limit=limit)}
+
+@router.post("/history/undo")
+async def undo_latest(request: Request):
+    """Undo the latest safe reversible vault action for the current user."""
+    vault_dir = get_unlocked_vault_path(request)
+    entry = latest_reversible(vault_dir, owner=current_owner(request))
+    if not entry:
+        raise HTTPException(status_code=404, detail="No reversible action to undo")
+    try:
+        _undo_entry(vault_dir, entry)
+        mark_undone(vault_dir, entry["id"])
+        return {"success": True, "undone": entry}
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+def _undo_entry(vault_dir: str, entry: Dict[str, Any]) -> None:
+    action = entry.get("action")
+    before = entry.get("before") or {}
+    after = entry.get("after") or {}
+    paths = entry.get("paths") or []
+
+    if action == "create_file":
+        path = paths[0]
+        abs_path = secure_path(vault_dir, path)
+        if _read_text_if_exists(abs_path) != after.get("content"):
+            raise ValueError("File changed after creation; refusing unsafe undo")
+        os.remove(abs_path)
+        return
+
+    if action == "update_file":
+        path = paths[0]
+        abs_path = secure_path(vault_dir, path)
+        if _read_text_if_exists(abs_path) != after.get("content"):
+            raise ValueError("File changed after update; refusing unsafe undo")
+        with open(abs_path, "w", encoding="utf-8") as f:
+            f.write(before.get("content") or "")
+        return
+
+    if action == "rename_item":
+        old_path = before.get("path")
+        new_path = after.get("path")
+        abs_old = secure_path(vault_dir, old_path)
+        abs_new = secure_path(vault_dir, new_path)
+        if not os.path.exists(abs_new) or os.path.exists(abs_old):
+            raise ValueError("Rename can no longer be safely undone")
+        os.makedirs(os.path.dirname(abs_old), exist_ok=True)
+        shutil.move(abs_new, abs_old)
+        return
+
+    if action == "relationship_add":
+        remove_manual_relationship(vault_dir, after.get("relationship") or {})
+        return
+
+    if action == "relationship_delete":
+        add_manual_relationship(vault_dir, before.get("relationship") or {})
+        return
+
+    raise ValueError(f"Action is not undoable: {action}")
 
 @router.get("/web/{filename:path}")
 async def serve_web_assets(filename: str):

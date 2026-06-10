@@ -2,8 +2,12 @@ import shutil
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from src.plugin_system import PluginManager
+import src.plugin_system as plugin_system
+from src.tool_registry import get_tool
+from routes.model_routes import setup_model_routes
+from routes.plugin_routes import setup_plugin_routes
 
 
 def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
@@ -17,19 +21,73 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
         ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache"),
     )
     monkeypatch.setenv("ODYSSEUS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(plugin_system, "MANAGER", None)
 
     app = FastAPI()
-    manager = PluginManager(app=app, directory=str(plugins_dir))
+    app.include_router(setup_model_routes(model_discovery=None))
+    app.include_router(setup_plugin_routes())
+    manager = plugin_system.PluginManager(app=app, directory=str(plugins_dir))
+    monkeypatch.setattr(plugin_system, "MANAGER", manager)
     manager.load_enabled(app)
 
     record = manager.records["obsidian"]
     paths = {getattr(route, "path", "") for route in app.router.routes}
 
     assert record.status == "loaded", record.error
+    assert record.public()["version"] == "0.9.0"
     assert record.public()["ui"] == {
         "open": "/api/plugins/obsidian/app",
         "label": "Open Vault",
+        "script": "/api/plugins/obsidian/web/main.js",
     }
     assert "/api/plugins/obsidian/app" in paths
     assert "/api/plugins/obsidian/files" in paths
+    assert "/api/plugins/obsidian/tags" in paths
+    assert "/api/plugins/obsidian/graph" in paths
+    assert "/api/plugins/obsidian/relationships" in paths
+    assert "/api/plugins/obsidian/history" in paths
+    assert "/api/plugins/obsidian/history/undo" in paths
     assert "/api/plugins/obsidian/web/{filename:path}" in paths
+    assert get_tool("obsidian_list_notes") is not None
+    assert get_tool("obsidian_read_note") is not None
+    assert get_tool("obsidian_list_tags") is not None
+    assert get_tool("obsidian_graph") is not None
+    assert get_tool("obsidian_add_relationship") is not None
+    assert get_tool("obsidian_history") is not None
+    assert get_tool("obsidian_undo") is not None
+    client = TestClient(app)
+    app_response = client.get("/api/plugins/obsidian/app")
+    assert app_response.status_code == 200
+    assert "ODYSSEUS_OBSIDIAN_STANDALONE" in app_response.text
+    assert "/api/plugins/obsidian/web/main.js" in app_response.text
+    asset_response = client.get("/api/plugins/obsidian/web/main.js")
+    assert asset_response.status_code == 200
+    assert "obsidian-panel" in asset_response.text
+    assert "openPanel" in asset_response.text
+
+    tools_response = client.get("/api/tools")
+    assert tools_response.status_code == 200
+    visible_tools = {tool["id"]: tool for tool in tools_response.json()["tools"]}
+    assert "obsidian_list_notes" in visible_tools
+    assert visible_tools["obsidian_list_notes"]["cat"] == "Plugins"
+    assert visible_tools["obsidian_list_notes"]["enabled"] is True
+    assert "obsidian_graph" in visible_tools
+    assert visible_tools["obsidian_graph"]["desc"]
+    assert "obsidian_add_relationship" in visible_tools
+    assert "obsidian_undo" in visible_tools
+    ui_loader_response = TestClient(app).get("/api/plugins/ui-loader.js")
+    assert ui_loader_response.status_code == 200
+    assert "/api/plugins/obsidian/web/main.js" in ui_loader_response.text
+    assert "obsidian" in ui_loader_response.text
+    from src.agent_loop import _loaded_plugins_prompt
+
+    assert "obsidian v0.9.0" in _loaded_plugins_prompt()
+
+    manager.disable("obsidian")
+    assert get_tool("obsidian_list_notes") is None
+    assert get_tool("obsidian_read_note") is None
+    assert get_tool("obsidian_list_tags") is None
+    assert get_tool("obsidian_graph") is None
+    assert get_tool("obsidian_add_relationship") is None
+    assert get_tool("obsidian_history") is None
+    assert get_tool("obsidian_undo") is None
