@@ -26,12 +26,28 @@ Bereits abgedeckte KI-Aktionen:
 - `obsidian_read_note`
 - `obsidian_write_note`
 - `obsidian_search_notes`
+- `obsidian_list_tags`
+- `obsidian_graph`
+- `obsidian_list_relationships`
+- `obsidian_add_relationship`
+- `obsidian_delete_relationship`
 - `obsidian_create_folder`
 - `obsidian_rename_item`
 - `obsidian_delete_note`
 - `obsidian_delete_folder`
+- `obsidian_vault_status`
+- `obsidian_vault_set_password`
+- `obsidian_vault_lock`
+- `obsidian_vault_unlock`
+- `obsidian_vault_remove_password`
+- `obsidian_vault_export`
+- `obsidian_vault_import`
+- `obsidian_history`
+- `obsidian_undo`
 
-Noch offen ist die harte Produktregel fuer destruktive Aktionen: Die Tools existieren technisch, aber Loeschen, Ueberschreiben, Import/Export, Passwortschutz und Massenaktionen muessen im weiteren Ausbau eine Bestaetigungs- oder Planpflicht bekommen.
+Destruktive oder riskante Aktionen sind bestaetigungspflichtig: Loeschen, Ueberschreiben, Import, Passwortaenderungen, Passwortentfernung und verschluesselter Export.
+
+Eine erste Undo-Historie existiert fuer sichere Einzelaktionen: Datei erstellen, Datei ueberschreiben, Datei verschieben/umbenennen, Beziehung anlegen und Beziehung loeschen.
 
 ## Feature-Paritaet
 
@@ -155,6 +171,11 @@ Diese Tests pruefen, ob die KI wirklich dieselben Rechte- und Sicherheitsgrenzen
 ## Offene Entscheidungen
 
 - Wird zusaetzlich zu den Plugin-Tools eine interne Command Registry gebraucht, damit UI, KI, Shortcuts und Command Palette exakt dieselben Aktionen nutzen?
-- Gibt es eine Undo-Historie fuer KI-Aktionen?
 - Wie detailliert muss die KI vor Massenaktionen einen Plan anzeigen?
 - Welche Aktionen sind im geschuetzten Vault-Zustand komplett gesperrt?
+
+## Geloeste Entscheidungen
+
+- Plugin-Tools sind die verbindliche KI-Steuerflaeche fuer Obsidian.
+- Eine erste Undo-Historie existiert und ist auf sichere Einzelaktionen begrenzt.
+- Massenaktionen, Import, Passwortaktionen und endgueltiges Loeschen bleiben nicht automatisch undo-faehig.

@@ -11,6 +11,7 @@
 - Mutierende sichere Aktionen schreiben History-Eintraege; erste Undo-Aktionen: Datei erstellen, Datei ueberschreiben, Datei umbenennen/verschieben, Beziehung anlegen/loeschen.
 - Large-Vault-Testdaten koennen deterministisch erzeugt und fuer Graph-Baselines profiliert werden.
 - Settings-Menue ist im Obsidian-Header verfuegbar und verdrahtet Import, Export, Passwortschutz und Graph-Reset.
+- Die Markdown-Toolbar ist nur im Editor-Modus sichtbar und wird im Graph-Modus ausgeblendet.
 
 ## Nicht in dieser Phase
 
@@ -29,3 +30,11 @@
 ## Offener manueller Check
 
 Der Browser-Smoke gegen `http://127.0.0.1:7000/api/plugins/obsidian/app` wurde vom echten App-Auth-Layer mit `Not authenticated` geblockt. Die Route und Assets sind per TestClient geprueft; ein sichtbarer Browser-Smoke braucht eine authentifizierte Browser-Session.
+
+## Naechste sinnvolle Planung
+
+- Authentifizierten Browser-Smoke als echte visuelle Regression ergaenzen.
+- Notiz- und Tag-Schema fuer KI-generierte Obsidian-Notizen festlegen.
+- P4 KI-Projektplanung als Plan-vor-Schreiben-Workflow umsetzen.
+- P5 Memory Review mit Save-to-Obsidian vorbereiten.
+- Graph-Ausbau fuer semantische Projektstrukturen planen.

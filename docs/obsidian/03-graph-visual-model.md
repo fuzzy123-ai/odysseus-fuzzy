@@ -13,6 +13,17 @@ Der Graph soll sich nah am originalen Obsidian anfuehlen: schnell sichtbar, dyna
 
 Der Graph soll nicht nur zeigen, dass Dateien miteinander verbunden sind. Er soll erklaeren, warum sie verbunden sind und welche Art von Zusammenhang besteht: Ordnerstruktur, Link, Tag-Ueberschneidung, Dateinamen-Erwaehnung, KI-geplante Abhaengigkeit oder manuell gesetzte Beziehung.
 
+## Aktueller Stand
+
+Umgesetzt sind:
+
+- Backend-Graphmodell fuer Markdown-Dateien, Ordner, Tags, Wiki-/Markdown-Links, Dateinamen-Erwaehnungen und gemeinsame Tags.
+- Lokale Graphsicht ueber `focus` und Tag-Filter ueber `tag`.
+- Manuelle Beziehungen als vault-lokale Plugin-Metadaten in `.obsidian/relationships.json`.
+- Typisierte manuelle Kanten: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
+- UI-Filter fuer Kantentypen sowie Buttons zum Anlegen und Loeschen manueller Beziehungen.
+- KI-Tools zum Lesen, Anlegen und Loeschen manueller Beziehungen.
+
 ## Original-Obsidian-Gefuehl
 
 Fuer ein vertrautes Obsidian-Feeling braucht die Graphsicht:
@@ -150,14 +161,12 @@ Destruktive Aktionen wie Loeschen oder massenhaftes Umverdrahten brauchen eine N
 
 Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 
-- Beziehungstypen statt nur "verbunden".
-- Filter fuer Kantentypen, Tags, Ordner und Suchbegriffe.
-- Fokusansicht fuer ein Dokument, damit grosse Vaults nicht unlesbar werden.
-- Manuelle Beziehungserstellung im Graph.
 - KI-Erklaerung: Warum ist Knoten A mit B verbunden?
 - Semantische Ebenen fuer Softwareprojekte: Feature, Modul, API, Datenmodell, Test, Risiko, Entscheidung.
 - Layout-Speicherung pro Vault oder pro Ansicht.
 - Export einer Graph-Ansicht als Bild oder Markdown-Zusammenfassung.
+- Besseres Layout fuer groessere Vaults, inklusive Virtualisierung oder Clustering.
+- Bearbeiten bestehender Beziehungstypen ohne Loeschen/Neuanlegen.
 
 ## Akzeptanzkriterien
 
@@ -177,6 +186,11 @@ Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 - Soll der Graph live beim Tippen aktualisieren oder beim Speichern/Indexieren?
 - Wie gross darf ein Vault sein, bevor wir Graph-Virtualisierung brauchen?
 - Welche Graph-Bibliothek nutzt das Plugin aktuell oder soll es nutzen?
-- Sollen manuelle Beziehungen im Markdown gespeichert werden oder in Plugin-Metadaten?
 - Soll die lokale Graphansicht automatisch folgen oder manuell gepinnt werden koennen?
 - Welche Graphaktionen darf die KI ohne Rueckfrage ausfuehren?
+
+## Geloeste Entscheidungen
+
+- Manuelle Beziehungen werden in Plugin-Metadaten gespeichert, nicht direkt in Markdown.
+- Erste manuelle Beziehungstypen sind festgelegt: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
+- Der erste UI-Ausbau nutzt den bestehenden SVG-Graph statt einer zusaetzlichen Graph-Bibliothek.

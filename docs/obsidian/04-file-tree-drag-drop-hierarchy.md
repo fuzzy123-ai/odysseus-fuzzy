@@ -11,6 +11,18 @@ Die Dateiansicht soll sich wie ein stabiler, originalnaher Obsidian-Vault-Explor
 
 Das Ziel ist nicht ein generischer Dateibaum, sondern ein Schreib- und Denkraum: Der Nutzer soll sich in einer Vault-Struktur bewegen wie in Obsidian, waehrend Odysseus zusaetzlich KI-Steuerung, Graph-Erklaerung und Projektplanung anbietet.
 
+## Aktueller Stand
+
+Umgesetzt sind:
+
+- Desktop-Dateibaum mit Ordnern, Markdown-Dateien, aktiver Datei und Drop-Ziel-Markierung.
+- Interne Drag-and-drop-Moves fuer Dateien und Ordner.
+- Import externer Markdown-Dateien per Drop.
+- Schutz gegen Ordner-in-sich-selbst bzw. Ordner-in-eigenen-Unterordner.
+- KI-Tools fuer Baum, Datei-/Ordner-Erstellung, Umbenennen/Verschieben und konservatives Loeschen.
+
+Mobile Drag-and-drop per Long-Press wird bewusst nicht in dieser Phase umgesetzt und liegt auf Do Later.
+
 ## Drag-and-Drop-Regeln
 
 Unterstuetzte Aktionen:
@@ -119,6 +131,10 @@ Die KI darf riskante Aktionen nicht still ausfuehren. Loeschen, Ueberschreiben, 
 
 - Soll es manuelle Sortierung geben oder immer alphabetisch?
 - Werden leere Ordner erlaubt und exportiert?
-- Soll Drag and Drop auf Mobile per Long-Press funktionieren?
 - Werden externe Dateien direkt kopiert oder erst in einem Importdialog bestaetigt?
 - Welche Dateibaum-Aktionen sollen per Quick Command erreichbar sein?
+
+## Do Later
+
+- Mobile Drag-and-drop per Long-Press.
+- Mobile-spezifische Vault-Navigation.

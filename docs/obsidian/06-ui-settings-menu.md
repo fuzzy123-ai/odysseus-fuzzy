@@ -10,6 +10,17 @@
 
 Die wichtigsten Plugin-Steuerungen sollen an einer erwartbaren Stelle sitzen: oben im Plugin-Fenster. Der Graph-Switch, das Settings-Zahnrad und Minimieren bilden eine kleine Kontrollgruppe.
 
+## Aktueller Stand
+
+Umgesetzt sind:
+
+- Header-Kontrollgruppe rechts oben mit Graph-Switch, Settings-Zahnrad, Minimieren und Schliessen.
+- Graph-Switch ist ein Toggle zwischen Editor- und Graph-Modus.
+- Settings ist ein Popover-Menue.
+- Das Menue enthaelt Vault importieren, Vault exportieren, Passwort setzen, Passwort entfernen und Graph-Reset.
+- Import, Passwortschutz und Passwortentfernung laufen ueber bestaetigte Aktionen.
+- Menue schliesst per Escape und Klick ausserhalb.
+
 ## Zielanordnung
 
 Empfohlene Reihenfolge rechts oben:
@@ -57,8 +68,16 @@ Nicht in die erste Version:
 
 ## Offene Entscheidungen
 
-- Ist der Graph-Switch ein Toggle, Tab oder Button?
-- Soll das Settings-Menue als Popover, Modal oder Sidepanel erscheinen?
 - Soll Import/Export direkt starten oder zuerst einen Wizard oeffnen?
 - Wo werden Vault-spezifische Settings gespeichert?
 
+## Geloeste Entscheidungen
+
+- Graph-Switch ist ein Toggle.
+- Settings-Menue ist ein Popover.
+- Vault-nahe Metadaten wie Beziehungen und History liegen vault-lokal unter `.obsidian`.
+
+## Do Later
+
+- Tag-Farbverwaltung als eigenes UI.
+- Vollstaendige globale Plugin-Einstellungsseite.

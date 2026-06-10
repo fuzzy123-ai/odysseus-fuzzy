@@ -9,6 +9,18 @@
 
 Der Markdown-Editor soll sich wie ein originalnaher Obsidian-Schreibraum anfuehlen: Markdown steht im Zentrum, Links und Tags entstehen schnell, Vorschlaege reagieren direkt, und der Nutzer bleibt im Schreibfluss. Werkzeuge sollen helfen, aber Markdown nicht verstecken oder verkomplizieren.
 
+## Aktueller Stand
+
+Umgesetzt sind:
+
+- Markdown-Toolbar fuer Fett, Kursiv, Inline-Code, Codeblock, Ueberschrift, Liste, Checkbox, Zitat, Markdown-Link, Wiki-Link, Tag und Tabelle.
+- Toolbar ist nur im Editor-Modus sichtbar und wird im Graph-Modus ausgeblendet.
+- Autocomplete fuer `[[...]]` auf Vault-Dateien.
+- Autocomplete fuer `#...` auf Vault-Tags.
+- Autocomplete ist an der Textarea-Caret-Position ausgerichtet.
+- Autocomplete wird in Code-Fences, Inline-Code und URL-Kontexten unterdrueckt.
+- Tastaturbedienung fuer Vorschlaege: Pfeiltasten, Enter/Tab und Escape.
+
 ## Editor-Tools
 
 Empfohlene erste Werkzeugleiste:
@@ -133,9 +145,12 @@ Die KI sollte bei groesseren Aenderungen zuerst einen Diff oder eine Zusammenfas
 
 ## Offene Entscheidungen
 
-- Welcher Editor wird aktuell im Plugin genutzt?
-- Gibt es bereits eine Markdown-Preview im Plugin oder wird Odysseus' bestehender Renderer wiederverwendet?
-- Soll die Toolbar immer sichtbar sein oder kontextuell erscheinen?
 - Soll Autocomplete auch normale Dateinamen ohne `[[...]]` vorschlagen?
 - Soll KI direkt in der Toolbar sitzen oder in einem separaten Aktionsmenue?
 - Soll ein `[[Neuer Link]]` beim Bestaetigen automatisch eine neue Datei anbieten?
+
+## Geloeste Entscheidungen
+
+- Der aktuelle Editor ist eine Textarea-basierte Markdown-Oberflaeche.
+- Die Toolbar ist kontextuell: sichtbar im Editor-Modus, verborgen im Graph-Modus.
+- Autocomplete ist auf explizite Trigger `[[` und `#` begrenzt.

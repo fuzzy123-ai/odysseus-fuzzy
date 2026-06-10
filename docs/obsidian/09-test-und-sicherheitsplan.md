@@ -95,6 +95,12 @@ Geeignet fuer:
 - Graph-Switch bedienen.
 - Settings-Menue oeffnen und Import-/Export-Aktionen erreichen.
 
+Aktueller automatisierter Stand:
+
+- Statische UI-Smokes pruefen, dass Plugin-UI-Loader, Sidebar/Standalone-App, zentrale Obsidian-DOM-Elemente, Header-Graph-Switch, Settings-Menue, Toolbar-Sichtbarkeit und Caret-Autocomplete-Vertraege vorhanden sind.
+- TestClient-Smokes pruefen `/api/plugins/obsidian/app` und `/api/plugins/obsidian/web/main.js`, damit eine schwarze/leere App-Seite nicht als erfolgreicher HTTP-Status durchgeht.
+- Ein echter Browser-Smoke gegen die laufende App braucht eine authentifizierte lokale Browser-Session; ohne Login antwortet der Auth-Layer korrekt mit `Not authenticated`.
+
 ### Manuelle Explorationschecks
 
 Diese bleiben sinnvoll, auch wenn automatisierte Tests existieren:
@@ -131,6 +137,8 @@ Wir sollten kleine feste Test-Vaults pflegen:
 - `large-vault`: viele Dateien fuer Performance und Graph-Stabilitaet.
 - `ai-vault`: Dateien mit Prompt-Injection-Inhalten und KI-Aktionsszenarien.
 
+Aktueller Stand: Ein deterministischer Large-Vault-Fixture-Generator existiert im Plugin und liefert Graph-Baselines fuer Node-/Edge-Anzahl und Laufzeit.
+
 ## Selbststaendige Durchfuehrung
 
 Wenn die Implementierung beginnt, kann ich pro Feature eigenstaendig:
@@ -159,3 +167,9 @@ Ein Implementierungspaket darf erst als erledigt gelten, wenn:
 - Wie streng muessen Performance-Grenzen fuer grosse Vaults sein?
 - Gibt es eine zentrale Command Registry, die UI- und KI-Aktionen gemeinsam testbar macht?
 - Welche Tests laufen immer lokal, welche nur optional wegen Laufzeit?
+
+## Geloeste Testentscheidungen
+
+- Windows-Launcher- und Restart-Skripte sind Regression-Gates.
+- Plugin-Tool-Registry, Tool-RAG, Dispatcher, Prompt-Schemas und Plugin-Load sind automatisiert getestet.
+- Obsidian-Beziehungen, History/Undo, Tags, Graph, Vault-Sicherheit und KI-Bestaetigungen sind durch Plugin-Tests abgedeckt.

@@ -40,11 +40,20 @@ Beide Checks sind erfolgreich.
 
 Ein In-App-Browser-Smoke-Test wurde versucht, aber die Browser-Umgebung blockierte lokale Navigation zu `http://127.0.0.1:7000` und `http://localhost:7000` mit `ERR_BLOCKED_BY_CLIENT`. Die Frontend-Aenderungen sind deshalb per `node --check` und durch backend-/pluginseitige Regressionen abgesichert, aber nicht visuell im Browser bestaetigt.
 
-## Naechste Phase
+## Folgephase
 
-- Browser-/UI-Smoke-Test aus einer Umgebung mit lokal erlaubtem Odysseus-Zugriff nachholen.
-- Drag-and-drop auf Mobile per Long-Press evaluieren.
-- Autocomplete optisch an Caret-Position binden statt am unteren Editor-Rand.
-- Manuelle Graph-Beziehungen und Beziehungstyp-Bearbeitung planen.
-- Undo-/History-Modell fuer KI-Aktionen entwerfen.
-- Groessere Vaults mit Performance-Testdaten pruefen.
+Die urspruenglich geplante naechste Phase ist abgeschlossen und in [11-phase2-implementation-status.md](11-phase2-implementation-status.md) dokumentiert.
+
+Erledigt wurden:
+
+- UI-Smoke-Vertraege fuer Obsidian-App, Sidebar, zentrale DOM-Elemente und Plugin-Assets.
+- Autocomplete an der Caret-Position mit Kontextunterdrueckung fuer Code und URLs.
+- Manuelle Graph-Beziehungen und typisierte Beziehungskanten.
+- Undo-/History-Grundmodell fuer sichere Einzelaktionen.
+- Large-Vault-Testdaten und Graph-Baseline.
+- Header-Settings-Menue.
+
+Weiterhin Do Later:
+
+- Mobile Drag-and-drop per Long-Press.
+- Mobile-spezifische Vault-Navigation.

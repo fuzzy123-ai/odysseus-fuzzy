@@ -1,6 +1,6 @@
 # Odysseus Obsidian Plugin: Priorisierte Roadmap
 
-Stand: 2026-06-09
+Stand: 2026-06-10
 
 Dieses Dokument ordnet die geplanten Features so, dass wir sie nacheinander sauber abarbeiten koennen. Die Reihenfolge ist bewusst nicht identisch mit der Ideensammlung: Erst kommt das Datenmodell, dann die Grundbedienung, dann Visualisierung. KI-Steuerbarkeit ist kein spaeteres Zusatzfeature, sondern gilt fuer jedes einzelne Feature von Anfang an.
 
@@ -15,6 +15,22 @@ Dadurch aendert sich die Roadmap nicht in ihrem Zielbild, aber in der Abarbeitun
 - Der alte `/api/plugins/loader.js`-Ansatz ist kein Ziel mehr.
 - Erste KI-Paritaet fuer Datei-/Ordner-Kernaktionen ist vorhanden: Listen, Baum, Lesen, Schreiben, Suchen, Ordner erstellen, Umbenennen, Datei loeschen, leeren Ordner loeschen.
 - Destruktive Aktionen bleiben in der weiteren Roadmap bestaetigungspflichtig; die aktuelle KI-Ordnerloeschung ist bewusst auf leere Ordner begrenzt.
+
+## Update nach Phase 2
+
+Phase 2 ist umgesetzt und dokumentiert in [11-phase2-implementation-status.md](11-phase2-implementation-status.md).
+
+Erledigt sind damit:
+
+- Obsidian-UI-Smoke-Vertraege fuer Sidebar, Standalone-App, zentrale Panel-Elemente, Header-Graph-Switch, Settings-Menue und Asset-Bootstrap.
+- Windows-Launcher-Regressionen inklusive lokalisierter Listener-Erkennung.
+- Caret-positionierter Autocomplete fuer `[[...]]` und `#...`, mit Unterdrueckung in Code-Fences, Inline-Code und URLs.
+- Manuelle Graph-Beziehungen als vault-lokale Plugin-Metadaten mit typisierten Kanten: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
+- History/Undo-Grundmodell fuer sichere Einzelaktionen: Datei erstellen, Datei ueberschreiben, Datei verschieben/umbenennen, Beziehung anlegen/loeschen.
+- Large-Vault-Testdaten und Graph-Profiling-Baseline.
+- Header-Settings-Menue mit Import, Export, Passwortschutz und Graph-Reset.
+
+Mobile Drag-and-drop und Mobile-spezifische Vault-Navigation sind bewusst aus Phase 2 herausgenommen und bleiben Do Later.
 
 ## Zielbild
 
@@ -92,6 +108,8 @@ Planungsdokumente:
 - [09-test-und-sicherheitsplan.md](09-test-und-sicherheitsplan.md)
 - [11-memory-review-save-to-obsidian.md](11-memory-review-save-to-obsidian.md)
 
+Status: Fundament, Plugin-Vertrag, Vault-Sicherheit, Tags, automatische Graph-Kanten, KI-Regeln und Regressionstests sind fuer die aktuelle Obsidian-Version umgesetzt. Das Notiz- und Tag-Schema fuer spaetere KI-generierte Obsidian-Notizen bleibt der naechste P0/P5-Planungspunkt.
+
 ### P1: Taegliche Bedienung
 
 1. Drag and Drop fuer Ordner und Dateien.
@@ -107,6 +125,8 @@ Planungsdokumente:
 
 - [04-file-tree-drag-drop-hierarchy.md](04-file-tree-drag-drop-hierarchy.md)
 - [05-editor-tools-autocomplete.md](05-editor-tools-autocomplete.md)
+
+Status: Desktop-Dateibaum, interne Moves, Markdown-Import per Drop, Toolbar und Autocomplete sind umgesetzt. Mobile-DnD bleibt Do Later.
 
 ### P2: Graph als Verstaendniswerkzeug
 
@@ -124,6 +144,8 @@ Planungsdokument:
 - [03-graph-visual-model.md](03-graph-visual-model.md)
 - [08-ai-control-surface.md](08-ai-control-surface.md)
 
+Status: Backend-Graph, automatische Link-/Tag-/Dateinamen-Kanten, lokale Fokusansicht, Edge-Typ-Filter und manuelle Beziehungen sind umgesetzt. Groessere semantische Projektgraphen gehoeren zu P4.
+
 ### P3: UI-Polish und Einstellungen
 
 1. Graph-Switch nach oben neben Minimieren verschieben.
@@ -137,6 +159,8 @@ Warum P3: Die UI-Aenderung ist sichtbar, aber fachlich kleiner als Datenmodell, 
 Planungsdokument:
 
 - [06-ui-settings-menu.md](06-ui-settings-menu.md)
+
+Status: Header-Kontrollgruppe, Settings-Popover, Import/Export, Passwortschutz und Graph-Reset sind umgesetzt. Eine vollstaendige globale Einstellungsseite und Tag-Farbverwaltung bleiben Do Later.
 
 ### P4: KI-Projektplanung in Vaults
 
@@ -169,19 +193,13 @@ Planungsdokument:
 
 ## Empfohlene Abarbeitung
 
-1. Plugin-Vertrag als Regression-Gate behalten: echter `PluginManager` muss Obsidian laden.
-2. P0-Datenmodell reviewen und offene Entscheidungen treffen.
-3. Sicherheitsgate und Testmatrix fuer das erste Fachpaket festlegen.
-4. Vault-Import/-Export und Passwortschutz als erstes Fach-Implementierungspaket planen.
-5. Tag-Erkennung, Dateiname-als-Standardtag und Highlighting als zweites Paket planen.
-6. Automatische Graph-Kanten definieren und testen.
-7. File Tree mit Drag and Drop und visueller Hierarchie verbessern.
-8. Markdown-Editor-Tools und Autocomplete bauen.
-9. Settings-Menue anbinden.
-10. Notiz- und Tag-Schema fuer KI-erzeugte Obsidian-Notizen festlegen.
-11. KI-Steuerflaeche fuer alle Features pruefen und fehlende Tools nachziehen.
-12. KI-Projektplanung als zusammenhaengendes Feature bauen.
-13. Memory Review mit Save-to-Obsidian und direkter Verknuepfung planen.
+1. Plugin-Vertrag und Windows-Start/Restart als Regression-Gate behalten.
+2. Authentifizierten Browser-Smoke fuer Obsidian-App ergaenzen, sobald eine lokale Login-Session im Browser verfuegbar ist.
+3. Notiz- und Tag-Schema fuer KI-erzeugte Obsidian-Notizen festlegen.
+4. KI-Projektplanung als Plan-vor-Schreiben-Workflow bauen.
+5. Memory Review mit Save-to-Obsidian und direkter Verknuepfung planen.
+6. Graph fuer Projektplanung erweitern: semantische Ebenen, bessere Layout-Stabilitaet, Export/Zusammenfassung.
+7. Do Later separat planen: Mobile-DnD, Mobile-Vault-Navigation, globale Plugin-Einstellungen, Tag-Farbverwaltung.
 
 ## Noch offene Grundsatzfragen
 
@@ -193,5 +211,12 @@ Planungsdokument:
 - Nach welchem Schema duerfen KI und Memory Review neue Obsidian-Notizen, Tags und Links erzeugen?
 - Wann soll eine Information nur in Odysseus Memory, nur in Obsidian oder in beiden Systemen landen?
 - Welche bestehenden Tags muessen bevorzugt werden, bevor ein neues Tag angelegt werden darf?
-- Welche Aktionen sind fuer die KI nur nach expliziter Nutzerbestaetigung erlaubt?
 - Welche Tests muessen als Release-Blocker gelten und welche duerfen spaeter nachgezogen werden?
+
+## Geloeste Entscheidungen
+
+- Das Plugin bearbeitet echte Markdown-Dateien im Vault; Plugin-Metadaten liegen vault-lokal unter `.obsidian`.
+- Manuelle Beziehungen werden nicht in Markdown geschrieben, sondern in Plugin-Metadaten gespeichert.
+- Graph-Switch ist ein Header-Toggle; Settings ist ein Popover.
+- Erste Undo-Historie existiert fuer sichere Einzelaktionen.
+- Riskante KI-Aktionen verlangen Bestaetigung: Loeschen, Ueberschreiben, Import, Passwortaktionen, verschluesselter Export und groessere Massenaktionen.
