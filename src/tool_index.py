@@ -174,6 +174,7 @@ class ToolIndex:
         migrate_legacy_collection(COLLECTION_NAME, self._lanes)
         self._fingerprint = ""
         self._mcp_generation = -1
+        self._plugin_generation = -1
         self._healthy = True
         logger.info("ToolIndex initialized (lanes=%s)", [lane.name for lane in self._lanes])
 
@@ -236,6 +237,59 @@ class ToolIndex:
             ",".join(sorted(BUILTIN_TOOL_DESCRIPTIONS.keys())).encode()
         ).hexdigest()
         logger.info(f"Indexed {len(docs)} built-in tools")
+
+    def index_plugin_tools(self):
+        """Index dynamically registered plugin tool descriptions."""
+        try:
+            from src.tool_registry import generation, get_tool_descriptions
+        except Exception:
+            return
+        gen = generation()
+        if not hasattr(self, "_lanes"):
+            return
+        if gen == getattr(self, "_plugin_generation", -1):
+            return
+
+        descriptions = get_tool_descriptions()
+        wanted_ids = {f"plugin_{name}" for name in descriptions}
+
+        for lane in self._lanes:
+            try:
+                existing = lane.collection.get(where={"tool_type": "plugin"})
+                existing_ids = (existing or {}).get("ids") or []
+                stale = [i for i in existing_ids if i not in wanted_ids]
+                if stale:
+                    lane.collection.delete(ids=stale)
+            except Exception:
+                pass
+
+        if not descriptions:
+            self._plugin_generation = gen
+            return
+
+        docs = []
+        ids = []
+        metadatas = []
+        for name, desc in sorted(descriptions.items()):
+            docs.append(f"Tool: {name}\n{desc}")
+            ids.append(f"plugin_{name}")
+            metadatas.append({"tool_name": name, "tool_type": "plugin"})
+
+        indexed = False
+        for lane in self._lanes:
+            try:
+                lane.collection.upsert(
+                    ids=ids,
+                    documents=docs,
+                    embeddings=lane.encode(docs),
+                    metadatas=metadatas,
+                )
+                indexed = True
+            except Exception as e:
+                logger.warning("Plugin tool indexing failed in %s lane: %s", lane.name, e)
+        if indexed:
+            self._plugin_generation = gen
+            logger.info("Indexed %d plugin tools", len(docs))
 
     def index_mcp_tools(self, mcp_mgr, disabled_map: Optional[Dict] = None):
         """Index MCP tool descriptions. Call after MCP servers connect/disconnect."""
@@ -497,6 +551,7 @@ class ToolIndex:
         self, query: str, k: int = 8, always_include: Optional[Set[str]] = None
     ) -> Set[str]:
         """Get the set of tool names to include for a given user query."""
+        self.index_plugin_tools()
         base = set(always_include or ALWAYS_AVAILABLE)
         retrieved = self.retrieve(query, k=k)
         base.update(retrieved)
@@ -541,6 +596,7 @@ def get_tool_index() -> Optional[ToolIndex]:
     try:
         _tool_index = ToolIndex()
         _tool_index.index_builtin_tools()
+        _tool_index.index_plugin_tools()
         return _tool_index
     except Exception as e:
         logger.warning(f"ToolIndex init failed (will retry in {_RETRY_INTERVAL}s): {e}")

@@ -33,6 +33,25 @@ function Fail($msg) {
     exit 1
 }
 
+function Repair-PathEnvironmentKeys {
+    <#
+      Some Windows PowerShell hosts inherit both Path and PATH from parent
+      processes. Start-Process materializes environment variables into a
+      case-insensitive dictionary and then fails with:
+      "Item has already been added. Key in dictionary: 'Path' Key being added:
+      'PATH'". Keep the canonical Windows Path key and remove duplicate casing
+      before any Start-Process call.
+    #>
+    $pathValue = [Environment]::GetEnvironmentVariable("Path", "Process")
+    if (-not $pathValue) {
+        $pathValue = [Environment]::GetEnvironmentVariable("PATH", "Process")
+    }
+    if (-not $pathValue) { return }
+
+    [Environment]::SetEnvironmentVariable("PATH", $null, "Process")
+    [Environment]::SetEnvironmentVariable("Path", $pathValue, "Process")
+}
+
 function Test-TcpPort($hostName, $portNumber) {
     try {
         $client = New-Object System.Net.Sockets.TcpClient
@@ -204,6 +223,7 @@ if (-not (Test-ChromaReady $venvPy $ChromaHost $ChromaPort)) {
     Write-Step ("Starting ChromaDB at http://{0}:{1}" -f $ChromaHost, $ChromaPort)
     New-Item -ItemType Directory -Force -Path $chromaData | Out-Null
     New-Item -ItemType Directory -Force -Path (Split-Path $chromaOutLog -Parent) | Out-Null
+    Repair-PathEnvironmentKeys
     $chromaProcess = Start-Process -FilePath $chromaExe `
         -ArgumentList @("run", "--path", $chromaData, "--host", $ChromaHost, "--port", [string]$ChromaPort) `
         -WorkingDirectory $PSScriptRoot `

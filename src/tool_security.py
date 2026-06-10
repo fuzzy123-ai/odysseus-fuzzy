@@ -137,6 +137,12 @@ def plan_mode_disabled_tools() -> Set[str]:
             for t in FUNCTION_TOOL_SCHEMAS
         }
         all_names.discard(None)
+        try:
+            from src.tool_registry import tool_names
+
+            all_names.update(tool_names())
+        except Exception:
+            pass
     except Exception as exc:
         logger.warning("Unable to load tool schemas for plan-mode gating: %s", exc)
         all_names = set()
@@ -179,4 +185,11 @@ def blocked_tools_for_owner(owner: Optional[str]) -> Set[str]:
     """Tools to hide/disable for this owner under public-user policy."""
     if owner_is_admin_or_single_user(owner):
         return set()
-    return set(NON_ADMIN_BLOCKED_TOOLS)
+    blocked = set(NON_ADMIN_BLOCKED_TOOLS)
+    try:
+        from src.tool_registry import list_tools
+
+        blocked.update(tool.name for tool in list_tools() if tool.permission == "admin")
+    except Exception:
+        pass
+    return blocked

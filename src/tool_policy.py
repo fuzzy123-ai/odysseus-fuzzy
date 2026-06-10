@@ -168,6 +168,12 @@ def known_tool_names() -> Set[str]:
         names.update(_PLAN_MODE_KNOWN_MUTATORS)
     except Exception:
         pass
+    try:
+        from src.tool_registry import tool_names
+
+        names.update(tool_names())
+    except Exception:
+        pass
     return names
 
 

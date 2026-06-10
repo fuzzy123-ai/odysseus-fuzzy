@@ -289,6 +289,12 @@ cd odysseus
 powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1
 ```
 
+After code or plugin changes, restart a native Windows run with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\restart-windows.ps1
+```
+
 Or do it by hand:
 
 ```powershell

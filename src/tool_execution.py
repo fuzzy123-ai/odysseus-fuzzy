@@ -16,7 +16,7 @@ import pathlib
 import re
 import sys
 import time
-from typing import Any, Awaitable, Dict, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 from src.tool_security import is_public_blocked_tool, owner_is_admin_or_single_user
 from src.tool_policy import ToolPolicy
@@ -1476,8 +1476,29 @@ async def execute_tool_block(
             desc = f"mcp: {tool}"
             result = {"error": "MCP manager not available", "exit_code": 1}
     else:
-        desc = f"unknown: {tool}"
-        result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
+        try:
+            from src.tool_registry import execute_tool as _execute_plugin_tool, get_tool as _get_plugin_tool
+
+            plugin_tool = _get_plugin_tool(tool)
+        except Exception:
+            plugin_tool = None
+        if plugin_tool:
+            if getattr(plugin_tool, "permission", "admin") == "admin" and not _owner_is_admin(owner):
+                desc = f"{tool}: BLOCKED"
+                result = {"error": f"Tool '{tool}' requires an admin user.", "exit_code": 1}
+            else:
+                desc = f"{tool}: plugin"
+                result = await _execute_plugin_tool(
+                    tool,
+                    content,
+                    owner=owner,
+                    session_id=session_id,
+                    workspace=workspace,
+                    progress_cb=progress_cb,
+                )
+        else:
+            desc = f"unknown: {tool}"
+            result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
 
     logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
     return desc, result

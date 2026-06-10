@@ -2230,11 +2230,22 @@ def setup_model_routes(model_discovery):
     def list_tools():
         """List all available tools with their enabled/disabled status."""
         from src.agent_tools import TOOL_TAGS
+        from src.tool_registry import list_tools as list_plugin_tools
         settings = _load_settings()
         disabled = set(settings.get("disabled_tools", []))
         tools = []
         for tag in sorted(TOOL_TAGS):
             tools.append({"id": tag, "enabled": tag not in disabled})
+        for tool in list_plugin_tools():
+            tools.append({
+                "id": tool.name,
+                "name": tool.name,
+                "desc": tool.description,
+                "cat": "Plugins",
+                "ctx": "~plugin",
+                "permission": tool.permission,
+                "enabled": tool.name not in disabled,
+            })
         return {"tools": tools}
 
     class ToolsUpdate(BaseModel):

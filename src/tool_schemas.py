@@ -17,6 +17,26 @@ from src.tool_parsing import _TOOL_NAME_MAP
 
 logger = logging.getLogger(__name__)
 
+
+def get_function_tool_schemas() -> list:
+    """Return built-in plus dynamically registered plugin function schemas."""
+    schemas = list(FUNCTION_TOOL_SCHEMAS)
+    names = {
+        (schema.get("function") or {}).get("name") or schema.get("name")
+        for schema in schemas
+    }
+    try:
+        from src.tool_registry import get_function_schemas
+
+        for schema in get_function_schemas():
+            name = (schema.get("function") or {}).get("name") or schema.get("name")
+            if name and name not in names:
+                schemas.append(schema)
+                names.add(name)
+    except Exception:
+        pass
+    return schemas
+
 # ---------------------------------------------------------------------------
 # OpenAI-compatible function tool schemas
 # ---------------------------------------------------------------------------
@@ -1210,6 +1230,13 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
     if tool_type.startswith("mcp__"):
         content = json.dumps(args) if args else "{}"
         return ToolBlock(tool_type, content)
+    try:
+        from src.tool_registry import get_tool
+
+        if get_tool(tool_type):
+            return ToolBlock(tool_type, json.dumps(args) if args else "{}")
+    except Exception:
+        pass
     # Email tools are implemented as MCP — route them to email
     _BUILTIN_EMAIL_TOOLS = {"list_email_accounts", "send_email", "list_emails", "read_email", "reply_to_email",
                             "archive_email", "delete_email", "mark_email_read", "bulk_email", "download_attachment"}

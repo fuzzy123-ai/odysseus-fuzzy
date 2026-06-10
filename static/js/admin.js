@@ -1458,14 +1458,19 @@ async function loadBuiltinTools() {
     // Group by category
     const groups = {};
     for (const t of tools) {
-      const meta = TOOL_META[t.id] || { name: t.id, desc: '', cat: 'Other', ctx: '?' };
+      const meta = TOOL_META[t.id] || {
+        name: t.name || t.id,
+        desc: t.desc || t.description || '',
+        cat: t.cat || t.category || 'Other',
+        ctx: t.ctx || '?'
+      };
       const cat = meta.cat;
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push({ ...t, ...meta });
     }
 
     // Category order
-    const catOrder = ['Code', 'Search', 'Documents', 'Media', 'Knowledge', 'Multi-Agent', 'Sessions', 'System', 'Other'];
+    const catOrder = ['Code', 'Search', 'Documents', 'Media', 'Knowledge', 'Multi-Agent', 'Sessions', 'System', 'Plugins', 'Other'];
     let html = '';
     for (const cat of catOrder) {
       const items = groups[cat];

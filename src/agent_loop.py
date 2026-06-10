@@ -35,6 +35,7 @@ from src.agent_tools import (
     ToolBlock,
     MAX_AGENT_ROUNDS,
 )
+from src.tool_schemas import get_function_tool_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -406,6 +407,17 @@ def _section_text(name: str, default: str) -> str:
     return val if isinstance(val, str) and val.strip() else default
 
 
+def _all_tool_sections() -> dict:
+    sections = dict(TOOL_SECTIONS)
+    try:
+        from src.tool_registry import get_tool_sections
+
+        sections.update(get_tool_sections())
+    except Exception:
+        pass
+    return sections
+
+
 def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool = False) -> str:
     """Build the system prompt with only the specified tools included."""
     disabled = disabled_tools or set()
@@ -427,7 +439,8 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
     # Collect one-liner tool sections
     one_liners = []
 
-    for name, _default_section in TOOL_SECTIONS.items():
+    tool_sections = _all_tool_sections()
+    for name, _default_section in tool_sections.items():
         if name not in included:
             continue
         section = _section_text(name, _default_section)
@@ -444,7 +457,7 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
         parts.append("## Additional tools\n" + "\n".join(one_liners))
 
     # Mention tools that exist but weren't included
-    all_known = set(TOOL_SECTIONS.keys())
+    all_known = set(tool_sections.keys())
     not_shown = all_known - included - disabled
     if not_shown:
         sample = sorted(not_shown)[:5]
@@ -455,6 +468,25 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
 
     parts.append(_AGENT_RULES)
     return "\n\n".join(parts)
+
+
+def _loaded_plugins_prompt() -> str:
+    try:
+        from src.plugin_system import get_manager
+
+        mgr = get_manager()
+        if not mgr:
+            return ""
+        rows = []
+        for plugin in mgr.list():
+            if plugin.get("enabled") and plugin.get("status") == "loaded":
+                version = plugin.get("version") or "unknown"
+                rows.append(f"{plugin.get('id')} v{version}")
+        if rows:
+            return "## Loaded plugins\n" + ", ".join(sorted(rows))
+    except Exception:
+        pass
+    return ""
 
 
 # Legacy: full prompt with all tools (fallback when RAG unavailable)
@@ -1040,18 +1072,19 @@ def _build_base_prompt(
         agent_prompt = _assemble_prompt(tool_names, disabled, compact=compact)
     else:
         # Fallback: full prompt (RAG unavailable)
-        agent_prompt = AGENT_SYSTEM_PROMPT
+        all_section_names = set(_all_tool_sections().keys())
+        agent_prompt = _assemble_prompt(all_section_names, disabled, compact=compact)
         if not needs_admin:
             # At least strip the management section
-            mgmt_tools = set(TOOL_SECTIONS.keys()) - set(ALWAYS_AVAILABLE) - {
+            mgmt_tools = all_section_names - set(ALWAYS_AVAILABLE) - {
                 "generate_image", "suggest_document",
                 "chat_with_model", "ask_teacher", "list_models",
             }
             agent_prompt = _assemble_prompt(
-                set(TOOL_SECTIONS.keys()) - mgmt_tools, disabled, compact=compact
+                all_section_names - mgmt_tools, disabled, compact=compact
             )
         elif compact:
-            agent_prompt = _assemble_prompt(set(TOOL_SECTIONS.keys()), disabled, compact=True)
+            agent_prompt = _assemble_prompt(all_section_names, disabled, compact=True)
 
     # Inject the Level-0 skill index — one line per skill so the agent
     # knows what canonical procedures exist. Includes published skills
@@ -1071,7 +1104,7 @@ def _build_base_prompt(
             from services.memory.skills import SkillsManager
             from src.constants import DATA_DIR
             _sm = SkillsManager(DATA_DIR)
-            active_tools = list(set(TOOL_SECTIONS.keys()) - set(disabled or []))
+            active_tools = list(set(_all_tool_sections().keys()) - set(disabled or []))
             skill_idx = _sm.index_for(owner=None, active_toolsets=active_tools)
             if skill_idx:
                 lines = ["## Available skills",
@@ -1096,6 +1129,10 @@ def _build_base_prompt(
 
     # Inject integration descriptions
     if not suppress_local_context:
+        plugin_prompt = _loaded_plugins_prompt()
+        if plugin_prompt:
+            agent_prompt += "\n\n" + plugin_prompt
+
         from src.integrations import get_integrations_prompt
         integ_prompt = get_integrations_prompt()
         if integ_prompt:
@@ -1849,10 +1886,11 @@ async def stream_agent_loop(
             # write the answer instead of flailing further.
             all_tool_schemas = []
         elif _is_api_model:
+            function_tool_schemas = get_function_tool_schemas()
             # Filter schemas by RAG-selected tools (if available)
             if _relevant_tools:
                 base_schemas = [
-                    s for s in FUNCTION_TOOL_SCHEMAS
+                    s for s in function_tool_schemas
                     if s.get("function", {}).get("name") in _relevant_tools
                 ]
                 _mcp_filtered = [
@@ -1861,8 +1899,8 @@ async def stream_agent_loop(
                 ]
                 all_tool_schemas = base_schemas + _mcp_filtered
             else:
-                base_schemas = FUNCTION_TOOL_SCHEMAS if _needs_admin else [
-                    s for s in FUNCTION_TOOL_SCHEMAS
+                base_schemas = function_tool_schemas if _needs_admin else [
+                    s for s in function_tool_schemas
                     if s.get("function", {}).get("name") not in _ADMIN_SCHEMA_NAMES
                 ]
                 all_tool_schemas = base_schemas + mcp_schemas

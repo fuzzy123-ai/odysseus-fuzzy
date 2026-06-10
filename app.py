@@ -907,6 +907,9 @@ async def _startup_event():
             await register_builtin_servers(mcp_manager)
         except BaseException as e:
             logger.warning(f"Built-in MCP registration failed (non-critical): {type(e).__name__}: {e}")
+        if os.environ.get("ODYSSEUS_DISABLE_USER_MCP", "").lower() in ("1", "true", "yes"):
+            logger.info("User MCP auto-connect disabled via ODYSSEUS_DISABLE_USER_MCP")
+            return
         try:
             await asyncio.wait_for(mcp_manager.connect_all_enabled(), timeout=20)
         except asyncio.TimeoutError:

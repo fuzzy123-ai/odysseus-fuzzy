@@ -25,6 +25,21 @@ _TOOL_BLOCK_RE = re.compile(
     re.IGNORECASE,
 )
 
+
+def _tool_block_re():
+    """Build fenced-tool regex from built-ins plus runtime plugin tools."""
+    names = set(TOOL_TAGS)
+    try:
+        from src.tool_registry import tool_names
+
+        names.update(tool_names())
+    except Exception:
+        pass
+    return re.compile(
+        r"```(" + "|".join(re.escape(name) for name in sorted(names)) + r")\s*\n([\s\S]*?)```",
+        re.IGNORECASE,
+    )
+
 # Pattern 2: [TOOL_CALL] ... [/TOOL_CALL] blocks (some models use this format)
 # Matches: {tool => "shell", args => {--command "ls -la"}} etc.
 _TOOL_CALL_RE = re.compile(
@@ -444,7 +459,8 @@ def parse_tool_blocks(text: str) -> List[ToolBlock]:
     text = _normalize_dsml(text)
 
     # Pattern 1: fenced code blocks
-    for m in _TOOL_BLOCK_RE.finditer(text):
+    tool_block_re = _tool_block_re()
+    for m in tool_block_re.finditer(text):
         tag = m.group(1).lower()
         content = m.group(2).strip()
         if not content:
@@ -505,7 +521,7 @@ def strip_tool_blocks(text: str) -> str:
     # Normalize DSML first so its markup gets stripped by the <invoke>
     # / <tool_call> removers below instead of leaking to the user.
     text = _normalize_dsml(text)
-    cleaned = _TOOL_BLOCK_RE.sub('', text)
+    cleaned = _tool_block_re().sub('', text)
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _TOOL_CODE_RE.sub('', cleaned)

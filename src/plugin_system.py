@@ -134,8 +134,8 @@ class PluginContext:
         except Exception as e:  # tool registry not installed in this build
             self.logger.warning("register_tool unavailable (%s); skipping %r", e, getattr(spec, "name", spec))
             return
-        _rt(spec)
-        self._tools.append(getattr(spec, "name", str(spec)))
+        registered = _rt(spec)
+        self._tools.append(registered.name)
 
     def on_teardown(self, fn: Callable[[], None]) -> None:
         """Register an arbitrary cleanup callable run on teardown."""
@@ -392,10 +392,7 @@ class PluginManager:
 
 
 def _safe_ui(manifest: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Sanitize the manifest ``ui`` entry for the Plugins panel. ``open`` must be
-    a same-origin path (a single leading ``/``) so the rendered Open button can't
-    become a ``javascript:`` or protocol-relative (``//evil``) link. Returns None
-    if absent or unsafe."""
+    """Sanitize browser-visible plugin UI metadata."""
     ui = manifest.get("ui")
     if not isinstance(ui, dict):
         return None
@@ -403,7 +400,16 @@ def _safe_ui(manifest: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not (isinstance(open_, str) and open_.startswith("/") and not open_.startswith("//")):
         return None
     label = ui.get("label")
-    return {"open": open_, "label": label if isinstance(label, str) and label else "Open"}
+    safe = {"open": open_, "label": label if isinstance(label, str) and label else "Open"}
+    script = ui.get("script") or manifest.get("frontend")
+    if (
+        isinstance(script, str)
+        and script.startswith("/")
+        and not script.startswith("//")
+        and script.endswith(".js")
+    ):
+        safe["script"] = script
+    return safe
 
 
 def _read_manifest(path: str) -> Dict[str, Any]:
