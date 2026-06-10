@@ -17,7 +17,8 @@ param(
     [int]$Port = 7000,
     [string]$BindHost = "127.0.0.1",
     [string]$ChromaHost = "127.0.0.1",
-    [int]$ChromaPort = 8100
+    [int]$ChromaPort = 8100,
+    [switch]$EnableBuiltinMcp
 )
 
 $ErrorActionPreference = "Stop"
@@ -179,6 +180,13 @@ if ($LASTEXITCODE -ne 0) { Fail "setup.py failed." }
 # 5. Start or reuse ChromaDB
 $env:CHROMADB_HOST = $ChromaHost
 $env:CHROMADB_PORT = [string]$ChromaPort
+if ($EnableBuiltinMcp) {
+    Remove-Item Env:ODYSSEUS_DISABLE_MCP -ErrorAction SilentlyContinue
+    Write-Host "Built-in MCP auto-start is enabled."
+} else {
+    $env:ODYSSEUS_DISABLE_MCP = "1"
+    Write-Host "Built-in MCP auto-start is disabled for this Windows launcher run. Use -EnableBuiltinMcp to opt in."
+}
 $chromaExe = Join-Path $PSScriptRoot "venv\Scripts\chroma.exe"
 $chromaData = Join-Path $PSScriptRoot "data\chroma"
 $chromaOutLog = Join-Path $PSScriptRoot "logs\chromadb.out.log"
