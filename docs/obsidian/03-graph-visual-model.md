@@ -24,6 +24,41 @@ Umgesetzt sind:
 - UI-Filter fuer Kantentypen sowie Buttons zum Anlegen und Loeschen manueller Beziehungen.
 - KI-Tools zum Lesen, Anlegen und Loeschen manueller Beziehungen.
 
+## Renderer-Entscheidung: Cytoscape.js
+
+Cytoscape.js ist die Zielbibliothek fuer den naechsten groesseren Graph-Renderer.
+Der aktuelle SVG-Graph bleibt fuer Phase 3 bestehen und dient als Referenz, bis
+der neue Renderer funktional gleichwertig ist. Die Migration ist ein eigenes
+Graph-v2-Paket, kein Nebenpunkt von UI-Polish.
+
+Gruende fuer Cytoscape.js:
+
+- Gute Unterstuetzung fuer interaktive Netzwerkgraphen.
+- Styling von Node- und Edge-Typen passt zu Datei-, Ordner-, Tag- und Beziehungsknoten.
+- Layouts, Zoom, Pan, Selektion und Fokusansichten sind als Kernkonzepte vorhanden.
+- Erweiterbar fuer Clustering, grosse Vaults und spaetere semantische Projektgraphen.
+- Der Datenvertrag kann klar bleiben: Backend liefert Nodes/Edges, Frontend rendert und steuert Ansichtszustand.
+
+Migrationsgrenzen:
+
+- Das Backend-Graphmodell bleibt die Quelle der Wahrheit.
+- Cytoscape.js darf keine eigenen fachlichen Beziehungen erfinden.
+- UI- und KI-Aktionen muessen dieselben Node-/Edge-IDs und Filterbegriffe verwenden.
+- Der bestehende SVG-Graph bleibt bis zum Abschluss als Fallback oder Vergleichspunkt erhalten.
+- Die Migration darf Import, Export, Passwortschutz, History und Undo nicht beruehren.
+
+Graph-v2-Mindestumfang:
+
+- Datei-, Ordner-, Tag- und Beziehungsknoten unterscheidbar rendern.
+- Edge-Typen `wiki_link`, `markdown_link`, `filename_mention`, `shared_tag`, `manual`, `relates_to`, `depends_on`, `blocks`, `supports` visuell unterscheidbar machen.
+- Globale und lokale Graphansicht unterstuetzen.
+- Klick auf Dokumentknoten oeffnet die Datei.
+- Fokuswechsel bei Dateiwechsel nachvollziehbar aktualisieren.
+- Filter fuer Tag, Pfad/Ordner und Kantentyp behalten.
+- Manuelle Beziehungen weiterhin anlegen und loeschen koennen.
+- Large-Vault-Fixture gegen den neuen Renderer messen.
+- Browser-Smoke fuer nicht-leere Darstellung, Zoom/Pan, Klick und Filter bestehen.
+
 ## Original-Obsidian-Gefuehl
 
 Fuer ein vertrautes Obsidian-Feeling braucht die Graphsicht:
@@ -162,6 +197,7 @@ Destruktive Aktionen wie Loeschen oder massenhaftes Umverdrahten brauchen eine N
 Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 
 - KI-Erklaerung: Warum ist Knoten A mit B verbunden?
+- Cytoscape.js-Renderer fuer stabilere Interaktion, Zoom/Pan, Layouts und groessere Vaults.
 - Semantische Ebenen fuer Softwareprojekte: Feature, Modul, API, Datenmodell, Test, Risiko, Entscheidung.
 - Layout-Speicherung pro Vault oder pro Ansicht.
 - Export einer Graph-Ansicht als Bild oder Markdown-Zusammenfassung.
@@ -179,13 +215,13 @@ Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 - Lokaler Graph wechselt automatisch mit der aktiven Datei.
 - Graph reagiert nach Speichern auf neue Links und Tags.
 - KI kann dieselben Graphaktionen ausfuehren wie die UI.
+- Cytoscape.js-Graph-v2 erfuellt vor Ablösung des SVG-Graphen dieselben Kerninteraktionen und besteht Large-Vault- sowie Browser-Smoke-Tests.
 
 ## Offene Entscheidungen
 
 - Sollen Ordner echte Knoten sein oder nur visuelle Gruppen?
 - Soll der Graph live beim Tippen aktualisieren oder beim Speichern/Indexieren?
 - Wie gross darf ein Vault sein, bevor wir Graph-Virtualisierung brauchen?
-- Welche Graph-Bibliothek nutzt das Plugin aktuell oder soll es nutzen?
 - Soll die lokale Graphansicht automatisch folgen oder manuell gepinnt werden koennen?
 - Welche Graphaktionen darf die KI ohne Rueckfrage ausfuehren?
 
@@ -194,3 +230,4 @@ Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 - Manuelle Beziehungen werden in Plugin-Metadaten gespeichert, nicht direkt in Markdown.
 - Erste manuelle Beziehungstypen sind festgelegt: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
 - Der erste UI-Ausbau nutzt den bestehenden SVG-Graph statt einer zusaetzlichen Graph-Bibliothek.
+- Cytoscape.js ist die Zielbibliothek fuer Graph-v2; der bestehende SVG-Graph bleibt bis zur abgeschlossenen Migration Referenz und Fallback.

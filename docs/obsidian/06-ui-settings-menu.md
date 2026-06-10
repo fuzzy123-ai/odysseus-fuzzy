@@ -20,6 +20,8 @@ Umgesetzt sind:
 - Das Menue enthaelt Vault importieren, Vault exportieren, Passwort setzen, Passwort entfernen und Graph-Reset.
 - Import, Passwortschutz und Passwortentfernung laufen ueber bestaetigte Aktionen.
 - Menue schliesst per Escape und Klick ausserhalb.
+- Mobile bleibt der Graph-Switch bedienbar: die Textlabels werden kompakt ausgeblendet, der Toggle selbst bleibt sichtbar.
+- Settings-Menue, Graph-Kontrollen und Toolbar sind durch statische UI-Smoke-Tests gegen unbeabsichtigtes Entfernen abgesichert.
 
 ## Zielanordnung
 
@@ -76,6 +78,7 @@ Nicht in die erste Version:
 - Graph-Switch ist ein Toggle.
 - Settings-Menue ist ein Popover.
 - Vault-nahe Metadaten wie Beziehungen und History liegen vault-lokal unter `.obsidian`.
+- Import/Export bleiben in Phase 3 direkte bestaetigte Aktionen; ein Wizard ist ein spaeterer UX-Ausbau, falls Import-Konflikte oder grosse Vaults mehr Vorschau brauchen.
 
 ## Do Later
 

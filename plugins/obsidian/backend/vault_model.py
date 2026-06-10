@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 _WIKI_LINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
 _MD_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)")
-_TAG_RE = re.compile(r"(?<![\w/#])#([A-Za-z0-9][A-Za-z0-9_-]*)")
+_TAG_RE = re.compile(r"(?<![\w/#])#([A-Za-z0-9][A-Za-z0-9_/-]*[A-Za-z0-9_-]?)")
 _URL_RE = re.compile(r"https?://\S+")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
@@ -17,6 +17,11 @@ RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"
 def slugify_tag(value: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9]+", "-", value.strip().lower()).strip("-")
     return slug or "untitled"
+
+
+def normalize_tag_name(value: str) -> str:
+    parts = [slugify_tag(part) for part in str(value or "").strip().strip("#/").split("/") if part.strip()]
+    return "/".join(parts) or "untitled"
 
 
 def tag_color(tag: str) -> str:
@@ -144,7 +149,7 @@ def content_without_code(content: str) -> str:
 
 def extract_tags(content: str, path: str) -> Dict[str, Any]:
     searchable = _URL_RE.sub("", content_without_code(content))
-    explicit = sorted({slugify_tag(match.group(1)) for match in _TAG_RE.finditer(searchable)})
+    explicit = sorted({normalize_tag_name(match.group(1)) for match in _TAG_RE.finditer(searchable)})
     file_tag = file_tag_for_path(path)
     tags = sorted(set(explicit) | {file_tag})
     return {
@@ -317,7 +322,7 @@ def graph_payload(vault_dir: str, focus: Optional[str] = None, tag: Optional[str
     index = build_vault_index(vault_dir)
     graph = index["graph"]
     if tag:
-        normalized_tag = slugify_tag(tag)
+        normalized_tag = normalize_tag_name(tag)
         allowed = {note["path"] for note in index["notes"] if normalized_tag in note["tags"]}
         graph = _filter_graph(graph, allowed)
     if focus:

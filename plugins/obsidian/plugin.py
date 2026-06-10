@@ -11,6 +11,16 @@ if _PLUGIN_DIR not in sys.path:
 
 try:
     from obsidian.backend.routes import _undo_entry, router
+    from obsidian.backend.project_planning import (
+        ProjectPlan,
+        ProjectPlanApplyRequest,
+        ProjectPlanRequest,
+        ProjectPlanValidationError,
+        apply_project_plan,
+        build_project_plan,
+        template_options,
+        validate_project_plan,
+    )
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from obsidian.backend.vault_security import (
         export_vault,
@@ -31,6 +41,16 @@ try:
     )
 except ModuleNotFoundError:
     from backend.routes import _undo_entry, router
+    from backend.project_planning import (
+        ProjectPlan,
+        ProjectPlanApplyRequest,
+        ProjectPlanRequest,
+        ProjectPlanValidationError,
+        apply_project_plan,
+        build_project_plan,
+        template_options,
+        validate_project_plan,
+    )
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from backend.vault_security import (
         export_vault,
@@ -569,6 +589,67 @@ async def handle_undo(content: str, owner: Optional[str] = None, **kwargs) -> di
     except Exception as e:
         return {"error": f"Failed to undo latest action: {e}", "exit_code": 1}
 
+async def handle_project_plan_templates(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Lists supported AI project planning templates and schema options."""
+    try:
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        _ = vault_dir
+        return {"output": json.dumps(template_options(), ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to read project plan templates: {e}", "exit_code": 1}
+
+async def handle_project_plan_preview(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Creates a non-destructive project plan preview for a vault folder."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = build_project_plan(vault_dir, ProjectPlanRequest(**params))
+        payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to preview project plan: {e}", "exit_code": 1}
+
+async def handle_project_plan_apply(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Applies a confirmed project plan by creating files and graph relationships."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        if not _is_confirmed(params):
+            return _confirmation_required("creating an Obsidian project structure")
+        raw_plan = params.get("plan")
+        if not isinstance(raw_plan, dict):
+            return {"error": "plan parameter is required.", "exit_code": 1}
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = validate_project_plan(vault_dir, ProjectPlan(**raw_plan), collect_conflicts=True)
+        if plan.conflicts:
+            return {
+                "error": "Project plan has file conflicts and cannot be applied without a future merge flow.",
+                "output": json.dumps({"conflicts": plan.conflicts}, ensure_ascii=False),
+                "exit_code": 1,
+            }
+        result = apply_project_plan(vault_dir, plan)
+        for path in result["created_files"]:
+            abs_path = secure_path(vault_dir, path)
+            record_action(
+                vault_dir,
+                action="create_file",
+                owner=owner,
+                tool="obsidian_project_plan_apply",
+                paths=[path],
+                after={"content": _read_text_if_exists(abs_path)},
+            )
+        for relationship in result["relationships"]:
+            record_action(
+                vault_dir,
+                action="relationship_add",
+                owner=owner,
+                tool="obsidian_project_plan_apply",
+                paths=[relationship["source"], relationship["target"]],
+                after={"relationship": relationship},
+            )
+        return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to apply project plan: {e}", "exit_code": 1}
+
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
     return {
         "name": name,
@@ -644,6 +725,17 @@ def setup(ctx):
             "limit": {"type": "integer", "description": "Maximum number of recent actions to return."},
         }, [], handle_history),
         _tool_spec("obsidian_undo", "Undo the latest safe reversible Obsidian vault action for the current user.", {}, [], handle_undo),
+        _tool_spec("obsidian_project_plan_templates", "List supported Obsidian AI project planning templates and document schema options.", {}, [], handle_project_plan_templates),
+        _tool_spec("obsidian_project_plan_preview", "Preview a non-destructive AI project plan for a target Obsidian vault folder.", {
+            "target_folder": {"type": "string", "description": "Relative vault folder where the project structure should be planned."},
+            "title": {"type": "string", "description": "Project title."},
+            "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context."},
+            "kind": {"type": "string", "description": "Project kind: software, research, writing, ops, or generic."},
+        }, ["target_folder", "title"], handle_project_plan_preview),
+        _tool_spec("obsidian_project_plan_apply", "Create files and relationships from a confirmed Obsidian project plan preview.", {
+            "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},
+            "confirm": {"type": "boolean", "description": "Must be true after the user confirms creating multiple project files."},
+        }, ["plan"], handle_project_plan_apply),
         _tool_spec("obsidian_create_folder", "Create a folder in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative folder path to create."},
         }, ["path"], handle_create_folder),

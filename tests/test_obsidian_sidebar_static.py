@@ -47,6 +47,94 @@ def test_obsidian_frontend_smoke_contract_has_rendered_app_parts():
     assert ".obsidian-settings-menu" in style
 
 
+def test_obsidian_phase3_settings_menu_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    ordered_controls = [
+        'id="obsidian-header-view-toggle"',
+        'id="obsidian-settings-toggle"',
+        'id="obsidian-panel-minimize"',
+    ]
+    last_seen = -1
+    for marker in ordered_controls:
+        pos = main_js.find(marker)
+        assert pos > last_seen
+        last_seen = pos
+
+    for action in (
+        'data-settings-action="import"',
+        'data-settings-action="export"',
+        'data-settings-action="set-password"',
+        'data-settings-action="remove-password"',
+        'data-settings-action="reset-graph"',
+    ):
+        assert action in main_js
+
+    assert 'id="obsidian-import-input"' in main_js
+    assert 'accept=".zip,application/zip"' in main_js
+    assert "closeSettingsMenu();" in main_js
+    assert "if (e.key === 'Escape')" in main_js
+    assert "#obsidian-settings-menu, #obsidian-settings-toggle" in main_js
+
+
+def test_obsidian_phase4_project_planning_ui_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    for marker in (
+        'id="obsidian-project-plan"',
+        'id="obsidian-project-planner"',
+        'id="obsidian-project-folder"',
+        'id="obsidian-project-title"',
+        'id="obsidian-project-kind"',
+        'id="obsidian-project-description"',
+        'id="obsidian-project-preview"',
+        'id="obsidian-project-apply"',
+        'id="obsidian-project-preview-panel"',
+    ):
+        assert marker in main_js
+
+    assert "function previewProjectPlan()" in main_js
+    assert "function applyProjectPlan()" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/preview'" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/apply'" in main_js
+    assert "Create this project structure in the vault?" in main_js
+    assert "projectPlanPreview" in main_js
+    assert "data-project-conflicts" in main_js
+    assert ".obsidian-project-planner" in style
+    assert ".obsidian-project-form" in style
+    assert ".obsidian-project-conflicts" in style
+
+
+def test_obsidian_phase3_password_prompts_do_not_render_password_values():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    assert "Set or replace password protection for this vault?" in main_js
+    assert "Remove password protection from this vault?" in main_js
+    assert "Export password:" in main_js
+    assert "Current vault password:" in main_js
+    assert "Archive password, if needed:" in main_js
+    assert "showToast('Vault password updated')" in main_js
+    assert "showToast('Vault password removed')" in main_js
+    assert "showToast(password" not in main_js
+    assert "innerHTML = password" not in main_js
+
+
+def test_obsidian_phase3_mobile_keeps_graph_switch_and_settings_usable():
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    marker = "@media (max-width: 640px)"
+    assert marker in style
+    mobile_body = style[style.index(marker):]
+    assert ".obsidian-header-view-toggle" in mobile_body
+    assert "display: none" not in mobile_body
+    assert "font-size: 0" in mobile_body
+    assert ".obsidian-settings-menu" in mobile_body
+    assert "max-width: calc(100vw - 16px)" in mobile_body
+    assert ".obsidian-graph-controls" in mobile_body
+    assert "flex-wrap: wrap" in mobile_body
+
+
 def test_obsidian_autocomplete_is_caret_positioned_and_context_filtered():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")

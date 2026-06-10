@@ -17,6 +17,13 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
         sys.path.insert(0, _p)
 
 from backend.routes import secure_path, get_file_tree
+from backend.project_planning import (
+    ProjectPlan,
+    ProjectPlanRequest,
+    ProjectPlanValidationError,
+    build_project_plan,
+    validate_project_plan,
+)
 from backend.vault_security import (
     VaultSecurityError,
     export_vault,
@@ -39,6 +46,9 @@ from plugin import (
     handle_add_relationship,
     handle_delete_relationship,
     handle_history,
+    handle_project_plan_apply,
+    handle_project_plan_preview,
+    handle_project_plan_templates,
     handle_list_relationships,
     handle_read_note,
     handle_rename_item,
@@ -245,6 +255,93 @@ async def test_ai_tags_and_graph_include_implicit_tags_links_and_mentions(monkey
         assert "wiki_link" in edge_types
         assert "shared_tag" in edge_types
         assert any(edge["target"] == "Architecture.md" for edge in graph["edges"])
+
+
+def test_project_plan_preview_validates_schema_paths_tags_and_conflicts():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"), "w", encoding="utf-8") as f:
+            f.write("# Existing")
+
+        plan = build_project_plan(tmpdir, ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="A small planning target.",
+            kind="software",
+        ))
+
+        assert plan.project.slug == "demo-app"
+        assert plan.conflicts == [{"path": "Projects/Demo/00 Projektuebersicht.md", "reason": "file_exists"}]
+        first = plan.files[0]
+        assert first.path == "Projects/Demo/00 Projektuebersicht.md"
+        assert "#project/demo-app" in first.tags
+        assert "#type/project" in first.tags
+        assert "#status/draft" in first.tags
+
+        plan_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        bad = ProjectPlan(**plan_payload)
+        bad.files[0].path = "../escape.md"
+        with pytest.raises(ProjectPlanValidationError):
+            validate_project_plan(tmpdir, bad)
+
+        bad = ProjectPlan(**plan_payload)
+        bad.files[0].tags = ["#project/demo-app", "#status/draft"]
+        with pytest.raises(ProjectPlanValidationError):
+            validate_project_plan(tmpdir, bad)
+
+
+@pytest.mark.asyncio
+async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+
+        templates = await handle_project_plan_templates("", owner="alice")
+        assert templates["exit_code"] == 0
+        assert "software" in templates["output"]
+
+        preview = await handle_project_plan_preview(json.dumps({
+            "target_folder": "Projects/Demo",
+            "title": "Demo App",
+            "description": "Build a graphable project plan.",
+            "kind": "software",
+        }), owner="alice")
+        assert preview["exit_code"] == 0
+        plan = json.loads(preview["output"])
+        assert plan["conflicts"] == []
+        assert len(plan["files"]) >= 6
+        assert "Projects/Demo/00 Projektuebersicht.md" in {item["path"] for item in plan["files"]}
+
+        blocked = await handle_project_plan_apply(json.dumps({"plan": plan}), owner="alice")
+        assert blocked["exit_code"] == 1
+        assert "Confirmation required" in blocked["error"]
+
+        applied = await handle_project_plan_apply(json.dumps({"plan": plan, "confirm": True}), owner="alice")
+        assert applied["exit_code"] == 0
+        result = json.loads(applied["output"])
+        assert "Projects/Demo/00 Projektuebersicht.md" in result["created_files"]
+        assert os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"))
+
+        graph_res = await handle_graph("{}", owner="alice")
+        graph = json.loads(graph_res["output"])["graph"]
+        edge_types = {edge["type"] for edge in graph["edges"]}
+        assert "wiki_link" in edge_types
+        assert "shared_tag" in edge_types
+        assert "depends_on" in edge_types
+
+        history_res = await handle_history('{"limit": 20}', owner="alice")
+        assert "obsidian_project_plan_apply" in history_res["output"]
+
+        conflict = await handle_project_plan_preview(json.dumps({
+            "target_folder": "Projects/Demo",
+            "title": "Demo App",
+            "description": "Build again.",
+            "kind": "software",
+        }), owner="alice")
+        conflict_plan = json.loads(conflict["output"])
+        assert conflict_plan["conflicts"]
+        refused = await handle_project_plan_apply(json.dumps({"plan": conflict_plan, "confirm": True}), owner="alice")
+        assert refused["exit_code"] == 1
+        assert "conflicts" in refused["output"]
 
 
 @pytest.mark.asyncio
@@ -475,6 +572,9 @@ def test_plugin_setup_registration():
     assert "obsidian_delete_relationship" in tool_names
     assert "obsidian_history" in tool_names
     assert "obsidian_undo" in tool_names
+    assert "obsidian_project_plan_templates" in tool_names
+    assert "obsidian_project_plan_preview" in tool_names
+    assert "obsidian_project_plan_apply" in tool_names
     assert "obsidian_create_folder" in tool_names
     assert "obsidian_rename_item" in tool_names
     assert "obsidian_delete_note" in tool_names

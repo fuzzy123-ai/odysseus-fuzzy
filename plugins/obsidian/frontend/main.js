@@ -29,11 +29,12 @@ let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
 let graphEdgeTypeFilter = 'all';
+let projectPlanPreview = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   if (!str) return '';
-  return str
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -301,7 +302,7 @@ async function updateAutocomplete() {
     return;
   }
 
-  const tagMatch = before.match(/(^|[\s(])#([A-Za-z0-9_-]*)$/);
+  const tagMatch = before.match(/(^|[\s(])#([A-Za-z0-9_/-]*)$/);
   if (tagMatch) {
     const query = tagMatch[2].toLowerCase();
     const tags = (await getVaultTags())
@@ -610,6 +611,9 @@ function injectUIElements() {
                 <button id="obsidian-new-folder" title="New Folder">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 </button>
+                <button id="obsidian-project-plan" title="Plan Project">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h1"/><path d="M4 12h1"/><path d="M4 18h1"/></svg>
+                </button>
                 <button id="obsidian-refresh" title="Refresh Vault">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 </button>
@@ -622,6 +626,32 @@ function injectUIElements() {
 
             <!-- Workspace: Editor / Graph -->
             <div class="obsidian-workspace">
+              <div class="obsidian-project-planner hidden" id="obsidian-project-planner">
+                <div class="obsidian-project-header">
+                  <div>
+                    <div class="obsidian-project-title">Project planning</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-project-target">No target folder selected</div>
+                  </div>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-project-close" title="Close project planner">x</button>
+                </div>
+                <div class="obsidian-project-form">
+                  <input id="obsidian-project-folder" type="text" placeholder="Target folder, e.g. Projects/My App" autocomplete="off">
+                  <input id="obsidian-project-title" type="text" placeholder="Project title" autocomplete="off">
+                  <select id="obsidian-project-kind" title="Project kind">
+                    <option value="software">Software</option>
+                    <option value="research">Research</option>
+                    <option value="writing">Writing</option>
+                    <option value="ops">Ops</option>
+                    <option value="generic">Generic</option>
+                  </select>
+                  <textarea id="obsidian-project-description" placeholder="Project goal, scope, constraints, and useful context"></textarea>
+                  <div class="obsidian-project-actions">
+                    <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Preview plan</button>
+                    <button type="button" id="obsidian-project-apply" class="btn btn-primary" disabled>Create structure</button>
+                  </div>
+                </div>
+                <div class="obsidian-project-preview" id="obsidian-project-preview-panel"></div>
+              </div>
               <div class="obsidian-empty-state" id="obsidian-empty-state">
                 <span>Select a note to start editing or create a new one</span>
               </div>
@@ -855,6 +885,7 @@ async function openNote(path) {
       currentNotePath = path;
 
       // Update UI panels visibility
+      document.getElementById('obsidian-project-planner')?.classList.add('hidden');
       document.getElementById('obsidian-empty-state').classList.add('hidden');
       document.getElementById('obsidian-editor-container').classList.remove('hidden');
 
@@ -889,6 +920,133 @@ function setViewMode(mode) {
   graph?.classList.toggle('hidden', currentViewMode !== 'graph');
   if (currentViewMode === 'graph') {
     renderGraphView();
+  }
+}
+
+function currentTargetFolder() {
+  if (currentNotePath) return getParentDir(currentNotePath);
+  const firstFolder = flattenTree(vaultFiles).find(node => node.is_dir);
+  return firstFolder?.path || 'Projects';
+}
+
+function showProjectPlanner() {
+  const planner = document.getElementById('obsidian-project-planner');
+  if (!planner) return;
+  projectPlanPreview = null;
+  document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+  document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  planner.classList.remove('hidden');
+  const folderInput = document.getElementById('obsidian-project-folder');
+  const target = currentTargetFolder();
+  if (folderInput && !folderInput.value) folderInput.value = target;
+  document.getElementById('obsidian-project-target').textContent = target ? `Target: ${target}` : 'Target: vault root';
+  document.getElementById('obsidian-project-preview-panel').innerHTML = '';
+  document.getElementById('obsidian-project-apply').disabled = true;
+}
+
+function closeProjectPlanner() {
+  document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  if (currentNotePath) {
+    document.getElementById('obsidian-editor-container')?.classList.remove('hidden');
+  } else {
+    document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+  }
+}
+
+function renderProjectPlanPreview(plan) {
+  const panel = document.getElementById('obsidian-project-preview-panel');
+  const applyBtn = document.getElementById('obsidian-project-apply');
+  if (!panel || !applyBtn) return;
+  const conflicts = plan.conflicts || [];
+  const warnings = plan.warnings || [];
+  const files = plan.files || [];
+  const tags = plan.new_tags || [];
+  const relationships = plan.relationships || [];
+  panel.innerHTML = `
+    <div class="obsidian-project-summary">
+      <strong>${escapeHtml(plan.project?.title || 'Project')}</strong>
+      <span>${escapeHtml(files.length)} files</span>
+      <span>${escapeHtml(relationships.length)} relationships</span>
+    </div>
+    ${conflicts.length ? `<div class="obsidian-project-conflicts" data-project-conflicts="true">
+      <strong>Conflicts</strong>
+      ${conflicts.map(item => `<div>${escapeHtml(item.path)} - ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : '<div class="obsidian-project-ok">No file conflicts</div>'}
+    ${warnings.length ? `<div class="obsidian-project-warnings">
+      ${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}
+    </div>` : ''}
+    <div class="obsidian-project-files">
+      ${files.map(file => `
+        <div class="obsidian-project-file" data-project-file="${escapeHtml(file.path)}">
+          <div>
+            <strong>${escapeHtml(file.path)}</strong>
+            <span>${escapeHtml(file.type)} · ${escapeHtml(file.status)}</span>
+          </div>
+          <div class="obsidian-project-tags">${(file.tags || []).map(tag => `<code>${escapeHtml(tag)}</code>`).join('')}</div>
+          <div class="obsidian-project-links">${(file.links || []).slice(0, 5).map(link => `<span>${escapeHtml(link)}</span>`).join('')}</div>
+        </div>
+      `).join('')}
+    </div>
+    ${tags.length ? `<div class="obsidian-project-new-tags">
+      <strong>New tags</strong>
+      ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : ''}
+  `;
+  applyBtn.disabled = conflicts.length > 0 || files.length === 0;
+}
+
+async function previewProjectPlan() {
+  const target_folder = document.getElementById('obsidian-project-folder')?.value || '';
+  const title = document.getElementById('obsidian-project-title')?.value || '';
+  const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
+  const description = document.getElementById('obsidian-project-description')?.value || '';
+  if (!title.trim()) {
+    showToast('Project title required');
+    return;
+  }
+  const panel = document.getElementById('obsidian-project-preview-panel');
+  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Planning project structure...</div>';
+  try {
+    const res = await fetch('/api/plugins/obsidian/project-plan/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_folder, title, kind, description }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
+    projectPlanPreview = await res.json();
+    renderProjectPlanPreview(projectPlanPreview);
+  } catch (e) {
+    console.error('Project preview failed:', e);
+    if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Project preview failed')}</div>`;
+    document.getElementById('obsidian-project-apply').disabled = true;
+  }
+}
+
+async function applyProjectPlan() {
+  if (!projectPlanPreview) return;
+  const confirmed = await styledConfirm('Create this project structure in the vault?', { confirmText: 'Create' });
+  if (!confirmed) return;
+  try {
+    const res = await fetch('/api/plugins/obsidian/project-plan/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: projectPlanPreview, confirm: true }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Project apply failed');
+    }
+    const data = await res.json();
+    tagCache = null;
+    await loadVaultFiles();
+    closeProjectPlanner();
+    const firstFile = data.created_files?.[0] || projectPlanPreview.files?.[0]?.path;
+    if (firstFile) await openNote(firstFile);
+    setViewMode('graph');
+    showToast('Project structure created');
+  } catch (e) {
+    console.error('Project apply failed:', e);
+    showToast(e.message || 'Project apply failed');
   }
 }
 
@@ -1245,6 +1403,11 @@ function setupEventListeners() {
       showToast('Error creating folder');
     }
   });
+
+  document.getElementById('obsidian-project-plan')?.addEventListener('click', showProjectPlanner);
+  document.getElementById('obsidian-project-close')?.addEventListener('click', closeProjectPlanner);
+  document.getElementById('obsidian-project-preview')?.addEventListener('click', previewProjectPlan);
+  document.getElementById('obsidian-project-apply')?.addEventListener('click', applyProjectPlan);
 
   // Refresh
   document.getElementById('obsidian-refresh')?.addEventListener('click', async () => {

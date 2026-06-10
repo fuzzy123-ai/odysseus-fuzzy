@@ -43,6 +43,7 @@ Wichtig ist dabei:
 - Obsidian ist eine aktive Gedaechtnisquelle fuer Odysseus, aber nicht der Ort fuer die gesamte Odysseus-Systemlogik.
 - Tags und Dateinamen bilden eine einfache, stabile Beziehungsschicht.
 - Der Graph soll Zusammenhaenge erklaeren, nicht nur huebsch aussehen.
+- Fuer den naechsten groesseren Graph-Ausbau ist Cytoscape.js als Zielbibliothek gesetzt; Phase 3 bleibt beim bestehenden Graphen, die Migration wird als eigenes Graph-v2-Paket geplant.
 - Die Bedienung soll sich nah am originalen Obsidian anfuehlen: schnell, direkt, markdownzentriert, mit dynamischem Graph und vertrauter Vault-Navigation.
 - Neue KI-erzeugte Notizen muessen nach einem nachvollziehbaren Notiz- und Tag-Schema entstehen, damit Graph-Verbindungen nicht zufaellig oder tag-chaotisch werden.
 - KI darf alles tun, was ein Mensch im Plugin tun kann, muss aber nachvollziehbar, bestaetigbar und ruecknehmbar bleiben.
@@ -146,6 +147,8 @@ Planungsdokument:
 
 Status: Backend-Graph, automatische Link-/Tag-/Dateinamen-Kanten, lokale Fokusansicht, Edge-Typ-Filter und manuelle Beziehungen sind umgesetzt. Groessere semantische Projektgraphen gehoeren zu P4.
 
+Graph-v2-Entscheidung: Cytoscape.js ist die Zielbibliothek fuer den naechsten groesseren Graph-Renderer. Die Migration soll nicht als Teil von Phase 3 erfolgen, sondern als eigenes Paket nach UI-/Settings-Haertung, sobald Datenmodell, Edge-Typen und Browser-Smoke stabil sind. Der bestehende SVG-Graph bleibt bis dahin Referenz und Fallback.
+
 ### P3: UI-Polish und Einstellungen
 
 1. Graph-Switch nach oben neben Minimieren verschieben.
@@ -153,14 +156,16 @@ Status: Backend-Graph, automatische Link-/Tag-/Dateinamen-Kanten, lokale Fokusan
 3. Kleines Settings-Menue bauen.
 4. Import-/Export-Buttons dort anbieten.
 5. Vault-Passwortschutz dort verwalten.
+6. Mobile Bedienbarkeit fuer Header-Kontrollen, Settings-Menue und Graph-Kontrollen absichern.
 
 Warum P3: Die UI-Aenderung ist sichtbar, aber fachlich kleiner als Datenmodell, Security und Editor. Sie sollte die vorherigen Funktionen nur verfuegbar machen, nicht definieren.
 
 Planungsdokument:
 
 - [06-ui-settings-menu.md](06-ui-settings-menu.md)
+- [12-phase3-implementation-status.md](12-phase3-implementation-status.md)
 
-Status: Header-Kontrollgruppe, Settings-Popover, Import/Export, Passwortschutz und Graph-Reset sind umgesetzt. Eine vollstaendige globale Einstellungsseite und Tag-Farbverwaltung bleiben Do Later.
+Status: Header-Kontrollgruppe, Settings-Popover, Import/Export, Passwortschutz, Graph-Reset und mobile Bedienbarkeit der Header-/Settings-/Graph-Kontrollen sind umgesetzt und durch statische UI-Smoke-Tests gepinnt. Eine vollstaendige globale Einstellungsseite, Tag-Farbverwaltung und Mobile-DnD bleiben Do Later.
 
 ### P4: KI-Projektplanung in Vaults
 
@@ -175,6 +180,9 @@ Warum P4: Dieses Feature ist stark, aber risikoreich. Es braucht die vorherigen 
 Planungsdokument:
 
 - [07-ai-project-planning.md](07-ai-project-planning.md)
+- [13-phase4-implementation-status.md](13-phase4-implementation-status.md)
+
+Status: Phase 4 ist als Plan-vor-Schreiben-Workflow umgesetzt. KI und UI koennen Projektplaene fuer Zielordner vorschlagen, validieren und nach Bestaetigung konfliktfrei anlegen. Erzeugte Dateien enthalten Frontmatter, Projekt-/Typ-/Status-Tags, Wiki-Links und optionale manuelle Beziehungen, sodass der bestehende Graph direkt sinnvolle Projektkanten zeigt. Ueberschreiben/Mergen bestehender Projektdateien bleibt bewusst Do Later.
 
 ### P5: Memory Review und Save-to-Obsidian
 
@@ -199,7 +207,8 @@ Planungsdokument:
 4. KI-Projektplanung als Plan-vor-Schreiben-Workflow bauen.
 5. Memory Review mit Save-to-Obsidian und direkter Verknuepfung planen.
 6. Graph fuer Projektplanung erweitern: semantische Ebenen, bessere Layout-Stabilitaet, Export/Zusammenfassung.
-7. Do Later separat planen: Mobile-DnD, Mobile-Vault-Navigation, globale Plugin-Einstellungen, Tag-Farbverwaltung.
+7. Cytoscape.js-Migration als Graph-v2-Paket planen: Renderer isolieren, Node-/Edge-Datenvertrag fixieren, Interaktionen nachbauen, Large-Vault-Performance messen und Fallback behalten.
+8. Do Later separat planen: Mobile-DnD, Mobile-Vault-Navigation, globale Plugin-Einstellungen, Tag-Farbverwaltung.
 
 ## Noch offene Grundsatzfragen
 
@@ -220,3 +229,4 @@ Planungsdokument:
 - Graph-Switch ist ein Header-Toggle; Settings ist ein Popover.
 - Erste Undo-Historie existiert fuer sichere Einzelaktionen.
 - Riskante KI-Aktionen verlangen Bestaetigung: Loeschen, Ueberschreiben, Import, Passwortaktionen, verschluesselter Export und groessere Massenaktionen.
+- Cytoscape.js ist die Zielbibliothek fuer den spaeteren Graph-v2-Renderer; Phase 3 migriert den Renderer noch nicht.

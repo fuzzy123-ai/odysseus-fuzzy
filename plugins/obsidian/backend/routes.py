@@ -29,6 +29,15 @@ from .vault_model import (
     load_manual_relationships,
     remove_manual_relationship,
 )
+from .project_planning import (
+    ProjectPlanApplyRequest,
+    ProjectPlanRequest,
+    ProjectPlanValidationError,
+    apply_project_plan,
+    build_project_plan,
+    template_options,
+    validate_project_plan,
+)
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
@@ -499,6 +508,58 @@ async def list_relationships(request: Request):
     """Return manually curated graph relationships."""
     vault_dir = get_unlocked_vault_path(request)
     return {"relationships": load_manual_relationships(vault_dir)}
+
+@router.get("/project-plan/templates")
+async def project_plan_templates(request: Request):
+    """Return deterministic project planning templates and schema options."""
+    get_unlocked_vault_path(request)
+    return template_options()
+
+@router.post("/project-plan/preview")
+async def project_plan_preview(req: ProjectPlanRequest, request: Request):
+    """Build a non-destructive AI project planning preview."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = build_project_plan(vault_dir, req)
+        return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    except ProjectPlanValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@router.post("/project-plan/apply")
+async def project_plan_apply(req: ProjectPlanApplyRequest, request: Request):
+    """Apply a confirmed project plan by writing files and relationships."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = validate_project_plan(vault_dir, req.plan, collect_conflicts=True)
+        if plan.conflicts:
+            raise HTTPException(status_code=409, detail={"message": "Plan has file conflicts", "conflicts": plan.conflicts})
+        if not req.confirm:
+            raise HTTPException(status_code=409, detail="Confirmation required before creating a project structure")
+        result = apply_project_plan(vault_dir, plan)
+        for path in result["created_files"]:
+            abs_path = secure_path(vault_dir, path)
+            record_action(
+                vault_dir,
+                action="create_file",
+                owner=current_owner(request),
+                tool="obsidian_project_plan_apply",
+                paths=[path],
+                after={"content": _read_text_if_exists(abs_path)},
+            )
+        for relationship in result["relationships"]:
+            record_action(
+                vault_dir,
+                action="relationship_add",
+                owner=current_owner(request),
+                tool="obsidian_project_plan_apply",
+                paths=[relationship["source"], relationship["target"]],
+                after={"relationship": relationship},
+            )
+        return result
+    except HTTPException:
+        raise
+    except ProjectPlanValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 @router.post("/relationships")
 async def create_relationship(req: RelationshipRequest, request: Request):

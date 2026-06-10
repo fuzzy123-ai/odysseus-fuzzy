@@ -47,6 +47,9 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/obsidian/relationships" in paths
     assert "/api/plugins/obsidian/history" in paths
     assert "/api/plugins/obsidian/history/undo" in paths
+    assert "/api/plugins/obsidian/project-plan/templates" in paths
+    assert "/api/plugins/obsidian/project-plan/preview" in paths
+    assert "/api/plugins/obsidian/project-plan/apply" in paths
     assert "/api/plugins/obsidian/web/{filename:path}" in paths
     assert get_tool("obsidian_list_notes") is not None
     assert get_tool("obsidian_read_note") is not None
@@ -55,6 +58,8 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_add_relationship") is not None
     assert get_tool("obsidian_history") is not None
     assert get_tool("obsidian_undo") is not None
+    assert get_tool("obsidian_project_plan_preview") is not None
+    assert get_tool("obsidian_project_plan_apply") is not None
     client = TestClient(app)
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
@@ -75,6 +80,8 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert visible_tools["obsidian_graph"]["desc"]
     assert "obsidian_add_relationship" in visible_tools
     assert "obsidian_undo" in visible_tools
+    assert "obsidian_project_plan_preview" in visible_tools
+    assert "obsidian_project_plan_apply" in visible_tools
     ui_loader_response = TestClient(app).get("/api/plugins/ui-loader.js")
     assert ui_loader_response.status_code == 200
     assert "/api/plugins/obsidian/web/main.js" in ui_loader_response.text
@@ -91,3 +98,5 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_add_relationship") is None
     assert get_tool("obsidian_history") is None
     assert get_tool("obsidian_undo") is None
+    assert get_tool("obsidian_project_plan_preview") is None
+    assert get_tool("obsidian_project_plan_apply") is None
