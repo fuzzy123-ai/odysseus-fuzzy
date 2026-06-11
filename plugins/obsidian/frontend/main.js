@@ -31,6 +31,16 @@ let autocompleteState = null;
 let graphEdgeTypeFilter = 'all';
 let projectPlanPreview = null;
 let memoryReviewPreview = null;
+let projectTemplateOptions = null;
+const NEW_PROJECT_FOLDER_SENTINEL = '__new_project_folder__';
+const OBSIDIAN_PANEL_WIDTH_KEY = 'odysseus.obsidian.panelWidth';
+const OBSIDIAN_SIDEBAR_WIDTH_KEY = 'odysseus.obsidian.sidebarWidth';
+const DEFAULT_PANEL_WIDTH = 0;
+const DEFAULT_SIDEBAR_WIDTH = 220;
+const MIN_PANEL_WIDTH = 540;
+const MAX_PANEL_WIDTH = 1200;
+const MIN_SIDEBAR_WIDTH = 160;
+const MAX_SIDEBAR_WIDTH = 420;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -519,6 +529,103 @@ function isStandaloneMode() {
     || window.location.pathname === '/api/plugins/obsidian/app';
 }
 
+function clampNumber(value, min, max) {
+  const number = Number.parseFloat(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function panelWidthBounds() {
+  const viewport = window.innerWidth || 1024;
+  return {
+    min: Math.min(MIN_PANEL_WIDTH, Math.max(320, viewport - 48)),
+    max: Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, viewport - 48)),
+  };
+}
+
+function currentPanelWidth() {
+  const content = document.querySelector('.obsidian-panel-content');
+  return content?.getBoundingClientRect().width || Math.min(960, Math.round((window.innerWidth || 1200) * 0.55));
+}
+
+function applyPanelWidth(width, { persist = false } = {}) {
+  if (isStandaloneMode() || window.innerWidth <= 640) return;
+  const bounds = panelWidthBounds();
+  const next = clampNumber(width, bounds.min, bounds.max);
+  document.documentElement.style.setProperty('--obsidian-panel-width', `${next}px`);
+  if (persist) localStorage.setItem(OBSIDIAN_PANEL_WIDTH_KEY, String(Math.round(next)));
+}
+
+function applySidebarWidth(width, { persist = false } = {}) {
+  const panelWidth = currentPanelWidth();
+  const maxByPanel = Math.max(MIN_SIDEBAR_WIDTH, Math.floor(panelWidth * 0.45));
+  const next = clampNumber(width, MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, maxByPanel));
+  document.documentElement.style.setProperty('--obsidian-sidebar-width', `${next}px`);
+  if (persist) localStorage.setItem(OBSIDIAN_SIDEBAR_WIDTH_KEY, String(Math.round(next)));
+}
+
+function restoreObsidianResizeState() {
+  const savedPanel = localStorage.getItem(OBSIDIAN_PANEL_WIDTH_KEY);
+  const savedSidebar = localStorage.getItem(OBSIDIAN_SIDEBAR_WIDTH_KEY);
+  if (savedPanel) applyPanelWidth(savedPanel);
+  applySidebarWidth(savedSidebar || DEFAULT_SIDEBAR_WIDTH);
+}
+
+function bindResizeHandle(handle, callbacks) {
+  if (!handle || handle.dataset.resizeBound) return;
+  handle.dataset.resizeBound = 'true';
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const start = callbacks.start(e);
+    document.body.classList.add('obsidian-resizing');
+    handle.setPointerCapture?.(e.pointerId);
+    const onMove = (moveEvent) => callbacks.move(moveEvent, start);
+    const onEnd = (endEvent) => {
+      callbacks.end?.(endEvent, start);
+      document.body.classList.remove('obsidian-resizing');
+      handle.releasePointerCapture?.(e.pointerId);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+  });
+}
+
+function setupObsidianResizers() {
+  restoreObsidianResizeState();
+  bindResizeHandle(document.getElementById('obsidian-panel-resize-handle'), {
+    start: (e) => ({ startX: e.clientX, startWidth: currentPanelWidth() }),
+    move: (e, start) => {
+      const delta = start.startX - e.clientX;
+      applyPanelWidth(start.startWidth + delta);
+      applySidebarWidth(localStorage.getItem(OBSIDIAN_SIDEBAR_WIDTH_KEY) || DEFAULT_SIDEBAR_WIDTH);
+    },
+    end: (e, start) => {
+      const delta = start.startX - e.clientX;
+      applyPanelWidth(start.startWidth + delta, { persist: true });
+      applySidebarWidth(localStorage.getItem(OBSIDIAN_SIDEBAR_WIDTH_KEY) || DEFAULT_SIDEBAR_WIDTH, { persist: true });
+    },
+  });
+  bindResizeHandle(document.getElementById('obsidian-split-resize-handle'), {
+    start: (e) => ({
+      startX: e.clientX,
+      startWidth: document.querySelector('.obsidian-sidebar')?.getBoundingClientRect().width || DEFAULT_SIDEBAR_WIDTH,
+    }),
+    move: (e, start) => applySidebarWidth(start.startWidth + (e.clientX - start.startX)),
+    end: (e, start) => applySidebarWidth(start.startWidth + (e.clientX - start.startX), { persist: true }),
+  });
+  if (!window.__obsidianResizeViewportBound) {
+    window.__obsidianResizeViewportBound = true;
+    window.addEventListener('resize', () => {
+      restoreObsidianResizeState();
+    });
+  }
+}
+
 function injectUIElements() {
   // 1. Sidebar tool section
   const toolsSection = document.getElementById('tools-section');
@@ -565,6 +672,7 @@ function injectUIElements() {
       <div id="obsidian-panel" class="obsidian-panel">
         <div class="obsidian-panel-backdrop" id="obsidian-panel-backdrop"></div>
         <div class="obsidian-panel-content">
+          <div class="obsidian-panel-resize-handle" id="obsidian-panel-resize-handle" role="separator" aria-label="Panel Resize Handle" aria-orientation="vertical"></div>
           <!-- Header -->
           <div class="obsidian-panel-header">
             <div class="obsidian-panel-title">
@@ -627,6 +735,7 @@ function injectUIElements() {
               </div>
               <div class="obsidian-file-tree" id="obsidian-file-tree"></div>
             </div>
+            <div class="obsidian-split-resize-handle" id="obsidian-split-resize-handle" role="separator" aria-label="Split Resize Handle" aria-orientation="vertical"></div>
 
             <!-- Workspace: Editor / Graph -->
             <div class="obsidian-workspace">
@@ -639,14 +748,10 @@ function injectUIElements() {
                   <button type="button" class="obsidian-panel-btn" id="obsidian-project-close" title="Close project planner">x</button>
                 </div>
                 <div class="obsidian-project-form">
-                  <input id="obsidian-project-folder" type="text" placeholder="Target folder, e.g. Projects/My App" autocomplete="off">
+                  <select id="obsidian-project-folder" title="Target folder"></select>
                   <input id="obsidian-project-title" type="text" placeholder="Project title" autocomplete="off">
                   <select id="obsidian-project-kind" title="Project kind">
                     <option value="software">Software</option>
-                    <option value="research">Research</option>
-                    <option value="writing">Writing</option>
-                    <option value="ops">Ops</option>
-                    <option value="generic">Generic</option>
                   </select>
                   <textarea id="obsidian-project-description" placeholder="Project goal, scope, constraints, and useful context"></textarea>
                   <div class="obsidian-project-actions">
@@ -955,23 +1060,111 @@ function setViewMode(mode) {
   }
 }
 
+async function activateGraphNode(path) {
+  if (!path) return;
+  if (path === currentNotePath && currentViewMode === 'graph') {
+    setViewMode('document');
+    return;
+  }
+  await openNote(path);
+}
+
 function currentTargetFolder() {
   if (currentNotePath) return getParentDir(currentNotePath);
   const firstFolder = flattenTree(vaultFiles).find(node => node.is_dir);
   return firstFolder?.path || 'Projects';
 }
 
-function showProjectPlanner() {
+function slugifyProjectTitle(value) {
+  return (value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled-project';
+}
+
+function projectFolderOptions() {
+  const folders = flattenTree(vaultFiles)
+    .filter(node => node.is_dir)
+    .map(node => node.path)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  return ['', ...folders.filter((path, index) => folders.indexOf(path) === index)];
+}
+
+function renderProjectFolderOptions() {
+  const select = document.getElementById('obsidian-project-folder');
+  if (!select) return;
+  const previous = select.value;
+  const target = currentTargetFolder();
+  const folders = projectFolderOptions();
+  select.innerHTML = folders.map(path => {
+    const label = path || 'Vault root';
+    return `<option value="${escapeHtml(path)}">${escapeHtml(label)}</option>`;
+  }).join('') + `<option value="${NEW_PROJECT_FOLDER_SENTINEL}">${escapeHtml('Neuen Projektordner anlegen')}</option>`;
+  if (previous && [...select.options].some(option => option.value === previous)) {
+    select.value = previous;
+  } else if ([...select.options].some(option => option.value === target)) {
+    select.value = target;
+  } else {
+    select.value = '';
+  }
+}
+
+function resolveProjectTargetFolder() {
+  const folderSelect = document.getElementById('obsidian-project-folder');
+  const title = document.getElementById('obsidian-project-title')?.value || '';
+  const selected = folderSelect?.value || '';
+  if (selected === NEW_PROJECT_FOLDER_SENTINEL) {
+    const parent = currentTargetFolder();
+    return `${NEW_PROJECT_FOLDER_SENTINEL}::${parent || ''}`;
+  }
+  return selected || '';
+}
+
+function updateProjectTargetLabel() {
+  const selected = document.getElementById('obsidian-project-folder')?.value || '';
+  const title = document.getElementById('obsidian-project-title')?.value || '';
+  const label = document.getElementById('obsidian-project-target');
+  if (!label) return;
+  if (selected === NEW_PROJECT_FOLDER_SENTINEL) {
+    const parent = currentTargetFolder();
+    const slug = slugifyProjectTitle(title);
+    label.textContent = parent ? `Target: ${parent}/${slug}` : `Target: ${slug}`;
+  } else {
+    label.textContent = selected ? `Target: ${selected}` : 'Target: vault root';
+  }
+}
+
+async function loadProjectTemplateOptions() {
+  const kindSelect = document.getElementById('obsidian-project-kind');
+  if (!kindSelect) return;
+  if (!projectTemplateOptions) {
+    const res = await fetch('/api/plugins/obsidian/project-plan/templates');
+    if (!res.ok) throw new Error('Failed to load project templates');
+    projectTemplateOptions = await res.json();
+  }
+  const previous = kindSelect.value || projectTemplateOptions.default_kind || 'software';
+  const kinds = projectTemplateOptions.kinds || [];
+  kindSelect.innerHTML = kinds.map(kind => {
+    const key = typeof kind === 'string' ? kind : kind.key;
+    const label = typeof kind === 'string' ? kind : kind.label;
+    return `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`;
+  }).join('');
+  kindSelect.value = kinds.some(kind => (typeof kind === 'string' ? kind : kind.key) === previous)
+    ? previous
+    : (projectTemplateOptions.default_kind || 'software');
+}
+
+async function showProjectPlanner() {
   const planner = document.getElementById('obsidian-project-planner');
   if (!planner) return;
   projectPlanPreview = null;
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   planner.classList.remove('hidden');
-  const folderInput = document.getElementById('obsidian-project-folder');
-  const target = currentTargetFolder();
-  if (folderInput && !folderInput.value) folderInput.value = target;
-  document.getElementById('obsidian-project-target').textContent = target ? `Target: ${target}` : 'Target: vault root';
+  renderProjectFolderOptions();
+  await loadProjectTemplateOptions().catch((e) => {
+    console.error('Failed to load project templates:', e);
+    showToast(e.message || 'Failed to load project templates');
+  });
+  updateProjectTargetLabel();
   document.getElementById('obsidian-project-preview-panel').innerHTML = '';
   document.getElementById('obsidian-project-apply').disabled = true;
 }
@@ -1101,7 +1294,7 @@ function renderMemoryReviewPreview(plan) {
 }
 
 async function previewProjectPlan() {
-  const target_folder = document.getElementById('obsidian-project-folder')?.value || '';
+  const target_folder = resolveProjectTargetFolder();
   const title = document.getElementById('obsidian-project-title')?.value || '';
   const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
   const description = document.getElementById('obsidian-project-description')?.value || '';
@@ -1376,11 +1569,11 @@ async function renderGraphView() {
   graph.querySelector('#obsidian-relationship-delete')?.addEventListener('click', promptDeleteRelationship);
 
   graph.querySelectorAll('.obsidian-graph-node:not(.missing)').forEach(node => {
-    node.addEventListener('click', () => openNote(node.dataset.path));
+    node.addEventListener('click', () => activateGraphNode(node.dataset.path));
     node.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openNote(node.dataset.path);
+        activateGraphNode(node.dataset.path);
       }
     });
   });
@@ -1478,6 +1671,8 @@ function renderSearchResults(results) {
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 
 function setupEventListeners() {
+  setupObsidianResizers();
+
   // Toggle via sidebar or rail button. Delegation keeps this working if the
   // Odysseus shell rebuilds either launcher after this module initializes.
   if (!window.__obsidianPanelClickBound) {
@@ -1583,6 +1778,8 @@ function setupEventListeners() {
   document.getElementById('obsidian-project-close')?.addEventListener('click', closeProjectPlanner);
   document.getElementById('obsidian-project-preview')?.addEventListener('click', previewProjectPlan);
   document.getElementById('obsidian-project-apply')?.addEventListener('click', applyProjectPlan);
+  document.getElementById('obsidian-project-folder')?.addEventListener('change', updateProjectTargetLabel);
+  document.getElementById('obsidian-project-title')?.addEventListener('input', updateProjectTargetLabel);
   document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);

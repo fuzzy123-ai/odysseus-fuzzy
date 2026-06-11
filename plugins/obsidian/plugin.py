@@ -807,7 +807,7 @@ def setup(ctx):
             "target_folder": {"type": "string", "description": "Relative vault folder where the project structure should be planned."},
             "title": {"type": "string", "description": "Project title."},
             "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context."},
-            "kind": {"type": "string", "description": "Project kind: software, research, writing, ops, or generic."},
+            "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, or teaching. Legacy ops is accepted as an alias for sec_ops."},
         }, ["target_folder", "title"], handle_project_plan_preview),
         _tool_spec("obsidian_project_plan_apply", "Create files and relationships from a confirmed Obsidian project plan preview.", {
             "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},

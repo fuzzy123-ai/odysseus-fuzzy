@@ -18,10 +18,14 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
+    NEW_PROJECT_FOLDER_SENTINEL,
     ProjectPlan,
     ProjectPlanRequest,
     ProjectPlanValidationError,
     build_project_plan,
+    normalize_project_kind,
+    normalize_project_target_folder,
+    template_options,
     validate_project_plan,
 )
 from backend.memory_review import (
@@ -299,6 +303,68 @@ def test_project_plan_preview_validates_schema_paths_tags_and_conflicts():
             validate_project_plan(tmpdir, bad)
 
 
+def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
+    options = template_options()
+    kind_labels = {item["key"]: item["label"] for item in options["kinds"]}
+    assert kind_labels["sec_ops"] == "Sec-Ops"
+    assert kind_labels["teaching"] == "Unterricht"
+    assert "ops" not in kind_labels
+    assert normalize_project_kind("ops") == "sec_ops"
+    assert normalize_project_kind("Unterricht") == "teaching"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plans = {
+            kind: build_project_plan(tmpdir, ProjectPlanRequest(
+                target_folder=f"Projects/{kind}",
+                title=f"{kind} Demo",
+                description="Template coverage.",
+                kind=kind,
+            ))
+            for kind in ["software", "research", "writing", "sec_ops", "generic", "teaching"]
+        }
+
+        software_paths = {file.path for file in plans["software"].files}
+        assert "Projects/software/APIs und Schnittstellen.md" in software_paths
+        assert "Projects/software/Datenmodell.md" in software_paths
+
+        assert {file.path for file in plans["research"].files} != software_paths
+        assert any(file.path.endswith("01 Forschungsfrage.md") for file in plans["research"].files)
+        assert any(file.path.endswith("02 Gliederung.md") for file in plans["writing"].files)
+        assert any(file.path.endswith("04 Incident Response.md") for file in plans["sec_ops"].files)
+        assert any(file.path.endswith("02 Arbeitspakete.md") for file in plans["generic"].files)
+
+        teaching_paths = [file.path for file in plans["teaching"].files]
+        assert len(teaching_paths) == 9
+        assert teaching_paths == [
+            "Projects/teaching/00 Unterrichtsuebersicht.md",
+            "Projects/teaching/01 Rahmenkriterien.md",
+            "Projects/teaching/02 Kompetenzen und Bildungsplan.md",
+            "Projects/teaching/03 Wissenschaftliche Recherche.md",
+            "Projects/teaching/04 Didaktische Reduktion.md",
+            "Projects/teaching/05 Verlaufsplan.md",
+            "Projects/teaching/06 Materialien.md",
+            "Projects/teaching/07 Loesungen und Erwartungshorizont.md",
+            "Projects/teaching/08 Kritische Review.md",
+        ]
+
+
+def test_project_plan_new_folder_sentinel_is_resolved_without_preview_writes():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        assert normalize_project_target_folder(f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects", "demo-app") == "Projects/demo-app"
+
+        plan = build_project_plan(tmpdir, ProjectPlanRequest(
+            target_folder=f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects",
+            title="Demo App",
+            description="Preview only.",
+            kind="generic",
+        ))
+
+        assert plan.target_folder == "Projects/demo-app"
+        assert all(file.path.startswith("Projects/demo-app/") for file in plan.files)
+        assert not os.path.exists(os.path.join(tmpdir, "Projects", "demo-app"))
+
+
 @pytest.mark.asyncio
 async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -351,6 +417,21 @@ async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
         refused = await handle_project_plan_apply(json.dumps({"plan": conflict_plan, "confirm": True}), owner="alice")
         assert refused["exit_code"] == 1
         assert "conflicts" in refused["output"]
+
+        new_folder_preview = await handle_project_plan_preview(json.dumps({
+            "target_folder": f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects",
+            "title": "Fresh Project",
+            "description": "Create under Projects only when applied.",
+            "kind": "generic",
+        }), owner="alice")
+        assert new_folder_preview["exit_code"] == 0
+        new_folder_plan = json.loads(new_folder_preview["output"])
+        assert new_folder_plan["target_folder"] == "Projects/fresh-project"
+        assert not os.path.exists(os.path.join(tmpdir, "Projects", "fresh-project"))
+
+        new_folder_apply = await handle_project_plan_apply(json.dumps({"plan": new_folder_plan, "confirm": True}), owner="alice")
+        assert new_folder_apply["exit_code"] == 0
+        assert os.path.exists(os.path.join(tmpdir, "Projects", "fresh-project", "00 Projektuebersicht.md"))
 
 
 def test_memory_review_preview_reuses_tags_links_and_validates_schema():

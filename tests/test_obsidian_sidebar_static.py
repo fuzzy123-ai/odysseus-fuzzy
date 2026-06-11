@@ -47,6 +47,38 @@ def test_obsidian_frontend_smoke_contract_has_rendered_app_parts():
     assert ".obsidian-settings-menu" in style
 
 
+def test_obsidian_graph_current_node_click_returns_to_editor():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    assert "async function activateGraphNode(path)" in main_js
+    assert "path === currentNotePath && currentViewMode === 'graph'" in main_js
+    assert "setViewMode('document');" in main_js
+    assert "node.addEventListener('click', () => activateGraphNode(node.dataset.path))" in main_js
+    assert "activateGraphNode(node.dataset.path);" in main_js
+
+
+def test_obsidian_panel_and_sidebar_split_are_resizable():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert 'id="obsidian-panel-resize-handle"' in main_js
+    assert 'aria-label="Panel Resize Handle"' in main_js
+    assert 'id="obsidian-split-resize-handle"' in main_js
+    assert 'aria-label="Split Resize Handle"' in main_js
+    assert "function setupObsidianResizers()" in main_js
+    assert "odysseus.obsidian.panelWidth" in main_js
+    assert "odysseus.obsidian.sidebarWidth" in main_js
+    assert "setPointerCapture" in main_js
+    assert "pointermove" in main_js
+    assert "--obsidian-panel-width" in style
+    assert "--obsidian-sidebar-width" in style
+    assert ".obsidian-panel-resize-handle" in style
+    assert ".obsidian-split-resize-handle" in style
+    mobile_body = style[style.index("@media (max-width: 640px)"):]
+    assert ".obsidian-panel-resize-handle,\n  .obsidian-split-resize-handle" in mobile_body
+    assert "display: none" in mobile_body
+
+
 def test_obsidian_phase3_settings_menu_contract():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
@@ -84,7 +116,7 @@ def test_obsidian_phase4_project_planning_ui_contract():
     for marker in (
         'id="obsidian-project-plan"',
         'id="obsidian-project-planner"',
-        'id="obsidian-project-folder"',
+        '<select id="obsidian-project-folder"',
         'id="obsidian-project-title"',
         'id="obsidian-project-kind"',
         'id="obsidian-project-description"',
@@ -96,11 +128,18 @@ def test_obsidian_phase4_project_planning_ui_contract():
 
     assert "function previewProjectPlan()" in main_js
     assert "function applyProjectPlan()" in main_js
+    assert "function renderProjectFolderOptions()" in main_js
+    assert "function loadProjectTemplateOptions()" in main_js
+    assert "NEW_PROJECT_FOLDER_SENTINEL" in main_js
+    assert "Neuen Projektordner anlegen" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/preview'" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/apply'" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/templates')" in main_js
     assert "Create this project structure in the vault?" in main_js
     assert "projectPlanPreview" in main_js
     assert "data-project-conflicts" in main_js
+    assert "#obsidian-project-folder,\n#obsidian-project-title,\n#obsidian-project-kind" in style
+    assert "min-height: 42px" in style
     assert ".obsidian-project-planner" in style
     assert ".obsidian-project-form" in style
     assert ".obsidian-project-conflicts" in style
@@ -156,7 +195,9 @@ def test_obsidian_phase3_mobile_keeps_graph_switch_and_settings_usable():
     assert marker in style
     mobile_body = style[style.index(marker):]
     assert ".obsidian-header-view-toggle" in mobile_body
-    assert "display: none" not in mobile_body
+    header_toggle_css = re.search(r"\.obsidian-header-view-toggle\s*\{(?P<body>.*?)\n  \}", mobile_body, re.S)
+    assert header_toggle_css
+    assert "display: none" not in header_toggle_css.group("body")
     assert "font-size: 0" in mobile_body
     assert ".obsidian-settings-menu" in mobile_body
     assert "max-width: calc(100vw - 16px)" in mobile_body

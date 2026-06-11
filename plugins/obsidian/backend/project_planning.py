@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 from .vault_model import add_manual_relationship, build_vault_index, normalize_tag_name
 
 
-PROJECT_KINDS = {"software", "research", "writing", "ops", "generic"}
+NEW_PROJECT_FOLDER_SENTINEL = "__new_project_folder__"
+PROJECT_KIND_ALIASES = {"ops": "sec_ops", "unterricht": "teaching"}
 DOCUMENT_TYPES = {
     "project",
     "requirements",
@@ -24,8 +25,144 @@ DOCUMENT_TYPES = {
     "glossary",
     "operations",
     "research",
+    "research_question",
+    "methodology",
+    "findings",
+    "audience",
+    "outline",
+    "draft",
+    "revision",
+    "security",
+    "infrastructure",
+    "monitoring",
+    "runbook",
+    "incident_response",
+    "framework",
+    "competencies",
+    "didactics",
+    "lesson_sequence",
+    "materials",
+    "solutions",
 }
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
+
+
+PROJECT_TEMPLATES: Dict[str, Dict[str, Any]] = {
+    "software": {
+        "label": "Software",
+        "documents": [
+            {"filename": "00 Projektuebersicht.md", "title": "Projektuebersicht", "type": "project", "outline": ["Ziel", "Umfang", "Dokumente", "Offene Fragen"]},
+            {"filename": "01 Anforderungen.md", "title": "Anforderungen", "type": "requirements", "outline": ["Muss-Anforderungen", "Soll-Anforderungen", "Nicht-Ziele"]},
+            {"filename": "02 Architektur.md", "title": "Architektur", "type": "architecture", "outline": ["Bausteine", "Datenfluss", "Abhaengigkeiten"]},
+            {"filename": "03 Implementierungsplan.md", "title": "Implementierungsplan", "type": "implementation_plan", "outline": ["Schnitt 1", "Schnitt 2", "Risiken"]},
+            {"filename": "04 Testplan.md", "title": "Testplan", "type": "test_plan", "outline": ["Unit-Tests", "Integrationstests", "UI-Smokes"]},
+            {"filename": "05 Risiken und offene Fragen.md", "title": "Risiken und offene Fragen", "type": "risk", "outline": ["Risiken", "Offene Fragen", "Entscheidungsbedarf"]},
+            {"filename": "APIs und Schnittstellen.md", "title": "APIs und Schnittstellen", "type": "api", "outline": ["Eingaenge", "Ausgaenge", "Fehlerfaelle"]},
+            {"filename": "Datenmodell.md", "title": "Datenmodell", "type": "data_model", "outline": ["Entitaeten", "Validierung", "Migration"]},
+            {"filename": "Entscheidungen/ADR-0001-Grundarchitektur.md", "title": "ADR-0001-Grundarchitektur", "type": "decision", "outline": ["Kontext", "Entscheidung", "Konsequenzen"]},
+        ],
+        "relationships": [
+            ("implementation_plan", "architecture", "depends_on", "Implementation depends on architecture"),
+            ("implementation_plan", "requirements", "depends_on", "Implementation tracks requirements"),
+            ("test_plan", "requirements", "depends_on", "Tests verify requirements"),
+            ("risk", "architecture", "relates_to", "Risks affect architecture choices"),
+            ("decision", "architecture", "supports", "Decision records architecture rationale"),
+            ("api", "architecture", "depends_on", "APIs are derived from architecture"),
+            ("data_model", "architecture", "depends_on", "Data model supports architecture"),
+        ],
+    },
+    "research": {
+        "label": "Research",
+        "documents": [
+            {"filename": "00 Forschungsuebersicht.md", "title": "Forschungsuebersicht", "type": "project", "outline": ["Thema", "Ziel", "Dokumente", "Offene Fragen"]},
+            {"filename": "01 Forschungsfrage.md", "title": "Forschungsfrage", "type": "research_question", "outline": ["Leitfrage", "Teilfragen", "Abgrenzung"]},
+            {"filename": "02 Quellenlage.md", "title": "Quellenlage", "type": "research", "outline": ["Primaerquellen", "Sekundaerquellen", "Bewertung"]},
+            {"filename": "03 Methodik.md", "title": "Methodik", "type": "methodology", "outline": ["Vorgehen", "Kriterien", "Grenzen"]},
+            {"filename": "04 Erkenntnisse.md", "title": "Erkenntnisse", "type": "findings", "outline": ["Befunde", "Muster", "Unsicherheiten"]},
+            {"filename": "05 Offene Fragen.md", "title": "Offene Fragen", "type": "risk", "outline": ["Ungeklaertes", "Risiken", "Naechste Recherche"]},
+        ],
+        "relationships": [
+            ("methodology", "research_question", "depends_on", "Methodology follows the research question"),
+            ("findings", "research", "depends_on", "Findings are derived from sources"),
+            ("findings", "methodology", "depends_on", "Findings follow methodology"),
+            ("risk", "research_question", "relates_to", "Open questions refine the research question"),
+        ],
+    },
+    "writing": {
+        "label": "Writing",
+        "documents": [
+            {"filename": "00 Schreibprojekt.md", "title": "Schreibprojekt", "type": "project", "outline": ["Ziel", "Format", "Dokumente", "Offene Fragen"]},
+            {"filename": "01 Zielgruppe und Aussage.md", "title": "Zielgruppe und Aussage", "type": "audience", "outline": ["Leser", "Kernaussage", "Ton"]},
+            {"filename": "02 Gliederung.md", "title": "Gliederung", "type": "outline", "outline": ["Struktur", "Kapitel", "Argumentationsbogen"]},
+            {"filename": "03 Recherche.md", "title": "Recherche", "type": "research", "outline": ["Quellen", "Notizen", "Luecken"]},
+            {"filename": "04 Entwurf.md", "title": "Entwurf", "type": "draft", "outline": ["Rohfassung", "Szenen oder Abschnitte", "Arbeitsnotizen"]},
+            {"filename": "05 Revision.md", "title": "Revision", "type": "revision", "outline": ["Pruefpunkte", "Feedback", "Naechste Fassung"]},
+        ],
+        "relationships": [
+            ("outline", "audience", "depends_on", "Outline follows audience and message"),
+            ("draft", "outline", "depends_on", "Draft follows outline"),
+            ("draft", "research", "depends_on", "Draft uses research"),
+            ("revision", "draft", "depends_on", "Revision improves the draft"),
+        ],
+    },
+    "sec_ops": {
+        "label": "Sec-Ops",
+        "documents": [
+            {"filename": "00 Sicherheitsuebersicht.md", "title": "Sicherheitsuebersicht", "type": "project", "outline": ["Ziel", "Scope", "Assets", "Offene Fragen"]},
+            {"filename": "01 Infrastruktur.md", "title": "Infrastruktur", "type": "infrastructure", "outline": ["Systeme", "Zugaenge", "Datenfluesse"]},
+            {"filename": "02 Monitoring.md", "title": "Monitoring", "type": "monitoring", "outline": ["Signale", "Alarme", "Dashboards"]},
+            {"filename": "03 Runbook.md", "title": "Runbook", "type": "runbook", "outline": ["Routineablaeufe", "Checks", "Eskalation"]},
+            {"filename": "04 Incident Response.md", "title": "Incident Response", "type": "incident_response", "outline": ["Erkennung", "Eindaemmung", "Kommunikation", "Nachbereitung"]},
+            {"filename": "05 Risiken und Kontrollen.md", "title": "Risiken und Kontrollen", "type": "security", "outline": ["Risiken", "Kontrollen", "Restunsicherheit"]},
+        ],
+        "relationships": [
+            ("monitoring", "infrastructure", "depends_on", "Monitoring observes infrastructure"),
+            ("runbook", "monitoring", "depends_on", "Runbook reacts to monitoring signals"),
+            ("incident_response", "runbook", "depends_on", "Incident response builds on runbooks"),
+            ("security", "infrastructure", "relates_to", "Security controls protect infrastructure"),
+        ],
+    },
+    "generic": {
+        "label": "Generic",
+        "documents": [
+            {"filename": "00 Projektuebersicht.md", "title": "Projektuebersicht", "type": "project", "outline": ["Ziel", "Umfang", "Dokumente", "Offene Fragen"]},
+            {"filename": "01 Ziele.md", "title": "Ziele", "type": "requirements", "outline": ["Ergebnis", "Nicht-Ziele", "Erfolgskriterien"]},
+            {"filename": "02 Arbeitspakete.md", "title": "Arbeitspakete", "type": "implementation_plan", "outline": ["Paket 1", "Paket 2", "Abhaengigkeiten"]},
+            {"filename": "03 Entscheidungen.md", "title": "Entscheidungen", "type": "decision", "outline": ["Entscheidungen", "Begruendung", "Konsequenzen"]},
+            {"filename": "04 Risiken.md", "title": "Risiken", "type": "risk", "outline": ["Risiken", "Gegenmassnahmen", "Offene Punkte"]},
+        ],
+        "relationships": [
+            ("implementation_plan", "requirements", "depends_on", "Work packages follow goals"),
+            ("decision", "requirements", "supports", "Decisions support goals"),
+            ("risk", "implementation_plan", "relates_to", "Risks affect work packages"),
+        ],
+    },
+    "teaching": {
+        "label": "Unterricht",
+        "documents": [
+            {"filename": "00 Unterrichtsuebersicht.md", "title": "Unterrichtsuebersicht", "type": "project", "outline": ["Thema", "Zielgruppe", "Umfang", "Dokumente", "Offene Entscheidungen"]},
+            {"filename": "01 Rahmenkriterien.md", "title": "Rahmenkriterien", "type": "framework", "outline": ["Bundesland", "Schulart", "Klasse", "Paedagogische Besonderheiten", "Vorwissen"]},
+            {"filename": "02 Kompetenzen und Bildungsplan.md", "title": "Kompetenzen und Bildungsplan", "type": "competencies", "outline": ["Bildungsplanbezug", "G-Niveau", "M-Niveau", "E-Niveau", "Sozialkompetenzen", "Metakompetenzen"]},
+            {"filename": "03 Wissenschaftliche Recherche.md", "title": "Wissenschaftliche Recherche", "type": "research", "outline": ["Sachstand", "Zentrale Begriffe", "Quellen", "Fehlvorstellungen"]},
+            {"filename": "04 Didaktische Reduktion.md", "title": "Didaktische Reduktion", "type": "didactics", "outline": ["Zielgruppenbezug", "Reduktionen", "Modelle", "Differenzierung", "Paedagogische Begruendung"]},
+            {"filename": "05 Verlaufsplan.md", "title": "Verlaufsplan", "type": "lesson_sequence", "outline": ["Stundenuebersicht", "Phasen", "Lehrerhandlung", "Schuelerhandlung", "Sozialform", "Sicherung"]},
+            {"filename": "06 Materialien.md", "title": "Materialien", "type": "materials", "outline": ["Praesentationen", "Arbeitsblaetter", "Videos", "Tafelbilder", "Digitale Tools"]},
+            {"filename": "07 Loesungen und Erwartungshorizont.md", "title": "Loesungen und Erwartungshorizont", "type": "solutions", "outline": ["Musterloesungen", "Erwartungshorizont", "Hilfen", "Niveaudifferenzierung"]},
+            {"filename": "08 Kritische Review.md", "title": "Kritische Review", "type": "revision", "outline": ["Fachliche Stimmigkeit", "Bildungsplan-Abgleich", "Zielgruppenpassung", "Zeitrealismus", "Ueberarbeitungen"]},
+        ],
+        "relationships": [
+            ("competencies", "framework", "depends_on", "Competencies depend on teaching context"),
+            ("research", "competencies", "supports", "Research supports competency planning"),
+            ("didactics", "research", "depends_on", "Didactic reduction follows research"),
+            ("didactics", "framework", "depends_on", "Didactic reduction follows learner context"),
+            ("lesson_sequence", "didactics", "depends_on", "Lesson sequence follows didactic reduction"),
+            ("materials", "lesson_sequence", "depends_on", "Materials support lesson phases"),
+            ("solutions", "materials", "depends_on", "Solutions correspond to planned materials"),
+            ("revision", "lesson_sequence", "relates_to", "Review checks the full lesson plan"),
+        ],
+    },
+}
+PROJECT_KINDS = set(PROJECT_TEMPLATES)
 
 
 class ProjectSpec(BaseModel):
@@ -93,6 +230,12 @@ def slugify_project(value: str) -> str:
     return slug or "untitled-project"
 
 
+def normalize_project_kind(value: str) -> str:
+    kind = re.sub(r"[^a-z0-9]+", "_", str(value or "generic").strip().lower()).strip("_")
+    kind = PROJECT_KIND_ALIASES.get(kind, kind)
+    return kind if kind in PROJECT_TEMPLATES else "generic"
+
+
 def normalize_relative_path(path: str) -> str:
     raw = str(path or "").replace("\\", "/").strip()
     if not raw or raw in {".", "/"}:
@@ -103,6 +246,17 @@ def normalize_relative_path(path: str) -> str:
     if any(part == ".." for part in parts):
         raise ProjectPlanValidationError("Path traversal is not allowed")
     return "/".join(parts)
+
+
+def normalize_project_target_folder(target_folder: str, project_slug: str) -> str:
+    raw = str(target_folder or "").strip()
+    if raw == NEW_PROJECT_FOLDER_SENTINEL:
+        return normalize_relative_path(project_slug)
+    prefix = f"{NEW_PROJECT_FOLDER_SENTINEL}::"
+    if raw.startswith(prefix):
+        parent = normalize_relative_path(raw[len(prefix):])
+        return "/".join(part for part in [parent, project_slug] if part)
+    return normalize_relative_path(raw)
 
 
 def resolve_inside(base_dir: str, relative_path: str) -> str:
@@ -124,10 +278,15 @@ def ensure_under_folder(target_folder: str, file_path: str) -> None:
 
 
 def template_options() -> Dict[str, Any]:
+    kinds = [
+        {"key": key, "label": template["label"]}
+        for key, template in PROJECT_TEMPLATES.items()
+    ]
     return {
-        "kinds": sorted(PROJECT_KINDS),
+        "kinds": kinds,
         "document_types": sorted(DOCUMENT_TYPES),
         "default_kind": "software",
+        "new_folder_sentinel": NEW_PROJECT_FOLDER_SENTINEL,
     }
 
 
@@ -140,11 +299,9 @@ def build_project_plan(
     title = request.title.strip()
     if not title:
         raise ProjectPlanValidationError("Project title is required")
-    target_folder = normalize_relative_path(request.target_folder)
-    kind = request.kind.strip().lower() if request.kind else "generic"
-    if kind not in PROJECT_KINDS:
-        kind = "generic"
+    kind = normalize_project_kind(request.kind)
     slug = slugify_project(title)
+    target_folder = normalize_project_target_folder(request.target_folder, slug)
     created = (today or date.today()).isoformat()
     existing_tags = {tag["name"] for tag in build_vault_index(vault_dir).get("tags", [])}
     specs = _document_specs(kind)
@@ -187,7 +344,7 @@ def build_project_plan(
             content_preview=_content_preview(content),
             content=content,
         ))
-    relationships = _relationships_for(files)
+    relationships = _relationships_for(files, kind)
     new_tags = _new_tags_for(files, existing_tags)
     plan = ProjectPlan(
         target_folder=target_folder,
@@ -215,6 +372,7 @@ def validate_project_plan(
     warnings: List[str] = []
     existing_notes = set(_markdown_notes(vault_dir))
 
+    plan.project.kind = normalize_project_kind(plan.project.kind)
     if plan.project.kind not in PROJECT_KINDS:
         warnings.append(f"Unknown project kind normalized by caller: {plan.project.kind}")
     if not plan.project.slug:
@@ -332,6 +490,8 @@ def render_project_markdown(
     links: Iterable[str],
     outline: Iterable[str],
 ) -> str:
+    overview_link = next((link for link in links if re.match(r"\[\[[^]]*00 ", str(link))), "")
+    project_line = f"Projekt: {overview_link}" if overview_link else f"Projekt: {project_title}"
     frontmatter = [
         "---",
         f"type: {doc_type}",
@@ -345,7 +505,7 @@ def render_project_markdown(
     body = [
         f"# {title}",
         "",
-        f"Projekt: [[00 Projektuebersicht|{project_title}]]",
+        project_line,
         "",
         "## Kontext",
         "",
@@ -381,21 +541,8 @@ def _validate_tags(tags: List[str], project_slug: str) -> None:
 
 
 def _document_specs(kind: str) -> List[Dict[str, Any]]:
-    base = [
-        {"filename": "00 Projektuebersicht.md", "title": "Projektuebersicht", "type": "project", "outline": ["Ziel", "Umfang", "Dokumente", "Offene Fragen"]},
-        {"filename": "01 Anforderungen.md", "title": "Anforderungen", "type": "requirements", "outline": ["Muss-Anforderungen", "Soll-Anforderungen", "Nicht-Ziele"]},
-        {"filename": "02 Architektur.md", "title": "Architektur", "type": "architecture", "outline": ["Bausteine", "Datenfluss", "Abhaengigkeiten"]},
-        {"filename": "03 Implementierungsplan.md", "title": "Implementierungsplan", "type": "implementation_plan", "outline": ["Schnitt 1", "Schnitt 2", "Risiken"]},
-        {"filename": "04 Testplan.md", "title": "Testplan", "type": "test_plan", "outline": ["Unit-Tests", "Integrationstests", "UI-Smokes"]},
-        {"filename": "05 Risiken und offene Fragen.md", "title": "Risiken und offene Fragen", "type": "risk", "outline": ["Risiken", "Offene Fragen", "Entscheidungsbedarf"]},
-    ]
-    if kind == "software":
-        base.extend([
-            {"filename": "APIs und Schnittstellen.md", "title": "APIs und Schnittstellen", "type": "api", "outline": ["Eingaenge", "Ausgaenge", "Fehlerfaelle"]},
-            {"filename": "Datenmodell.md", "title": "Datenmodell", "type": "data_model", "outline": ["Entitaeten", "Validierung", "Migration"]},
-            {"filename": "Entscheidungen/ADR-0001-Grundarchitektur.md", "title": "ADR-0001-Grundarchitektur", "type": "decision", "outline": ["Kontext", "Entscheidung", "Konsequenzen"]},
-        ])
-    return base
+    template = PROJECT_TEMPLATES[normalize_project_kind(kind)]
+    return [dict(spec) for spec in template["documents"]]
 
 
 def _document_path(target_folder: str, filename: str) -> str:
@@ -407,33 +554,31 @@ def _links_for(doc_type: str, specs: List[Dict[str, Any]], target_folder: str) -
         stem = os.path.splitext(filename)[0]
         return f"[[{_document_path(target_folder, stem)}]]"
 
-    overview = note_link("00 Projektuebersicht.md")
+    overview = note_link(specs[0]["filename"])
     by_type = {spec["type"]: spec["filename"] for spec in specs}
     if doc_type == "project":
         return [note_link(spec["filename"]) for spec in specs if spec["type"] != "project"]
     links = [overview]
     if doc_type == "implementation_plan":
-        links.extend([note_link("01 Anforderungen.md"), note_link("02 Architektur.md"), note_link("04 Testplan.md")])
+        for linked_type in ("requirements", "architecture", "test_plan"):
+            if linked_type in by_type:
+                links.append(note_link(by_type[linked_type]))
     if doc_type == "test_plan":
-        links.extend([note_link("01 Anforderungen.md"), note_link("03 Implementierungsplan.md")])
+        for linked_type in ("requirements", "implementation_plan"):
+            if linked_type in by_type:
+                links.append(note_link(by_type[linked_type]))
     if doc_type == "risk":
-        links.extend([note_link("01 Anforderungen.md"), note_link("02 Architektur.md"), note_link("03 Implementierungsplan.md")])
+        for linked_type in ("requirements", "architecture", "implementation_plan"):
+            if linked_type in by_type:
+                links.append(note_link(by_type[linked_type]))
     if doc_type in {"api", "data_model", "decision"} and "architecture" in by_type:
-        links.append(note_link("02 Architektur.md"))
+        links.append(note_link(by_type["architecture"]))
     return sorted(set(links), key=links.index)
 
 
-def _relationships_for(files: List[PlannedFile]) -> List[PlannedRelationship]:
+def _relationships_for(files: List[PlannedFile], kind: str) -> List[PlannedRelationship]:
     by_type = {planned.type: planned.path for planned in files}
-    specs = [
-        ("implementation_plan", "architecture", "depends_on", "Implementation depends on architecture"),
-        ("implementation_plan", "requirements", "depends_on", "Implementation tracks requirements"),
-        ("test_plan", "requirements", "depends_on", "Tests verify requirements"),
-        ("risk", "architecture", "relates_to", "Risks affect architecture choices"),
-        ("decision", "architecture", "supports", "Decision records architecture rationale"),
-        ("api", "architecture", "depends_on", "APIs are derived from architecture"),
-        ("data_model", "architecture", "depends_on", "Data model supports architecture"),
-    ]
+    specs = PROJECT_TEMPLATES[normalize_project_kind(kind)].get("relationships", [])
     relationships = []
     for source_type, target_type, relation_type, reason in specs:
         source = by_type.get(source_type)
