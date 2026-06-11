@@ -672,6 +672,61 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   gap: 6px;
 }
 
+.obsidian-project-file-editor {
+  display: block;
+}
+
+.obsidian-project-file-editor summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.obsidian-project-file-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(120px, 0.7fr) minmax(90px, 0.6fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.obsidian-project-file-grid label,
+.obsidian-project-wide-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.obsidian-project-file-grid input,
+.obsidian-project-wide-field textarea {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.obsidian-project-wide-field {
+  margin-top: 8px;
+}
+
+.obsidian-project-wide-field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.obsidian-project-wide-field textarea[data-project-field="content"] {
+  min-height: 220px;
+  font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .obsidian-project-tags,
 .obsidian-project-links {
   display: flex;
@@ -1204,6 +1259,10 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   }
 
   .obsidian-project-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .obsidian-project-file-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

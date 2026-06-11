@@ -782,6 +782,7 @@ function injectUIElements() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.56 8.5 21l-1.44-6.44L.62 13.12l6.44-1.44L8.5 5.24l1.44 6.44 6.44 1.44-6.44 1.44Z"/><path d="M18 8V2"/><path d="M21 5h-6"/><path d="M19 22v-4"/><path d="M21 20h-4"/></svg>
                     </button>
                   </div>
+                  <textarea id="obsidian-project-focus" placeholder="Custom prompts, priorities, sections to emphasize, tone, constraints, or quality checks"></textarea>
                   <div class="obsidian-project-actions">
                     <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Create plan</button>
                     <button type="button" id="obsidian-project-apply" class="btn btn-primary" disabled>Create structure</button>
@@ -1356,6 +1357,13 @@ function handleProjectInputChanged() {
   invalidateProjectPlanPreview();
 }
 
+function splitProjectList(value) {
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
 async function showProjectPlanner() {
   const planner = document.getElementById('obsidian-project-planner');
   if (!planner) return;
@@ -1408,7 +1416,7 @@ function closeMemoryReview() {
   }
 }
 
-function renderProjectPlanPreview(plan) {
+function renderProjectPlanPreviewLegacy(plan) {
   const panel = document.getElementById('obsidian-project-preview-panel');
   const applyBtn = document.getElementById('obsidian-project-apply');
   if (!panel || !applyBtn) return;
@@ -1448,6 +1456,86 @@ function renderProjectPlanPreview(plan) {
     </div>` : ''}
   `;
   applyBtn.disabled = conflicts.length > 0 || files.length === 0;
+}
+
+function renderProjectPlanPreview(plan) {
+  const panel = document.getElementById('obsidian-project-preview-panel');
+  const applyBtn = document.getElementById('obsidian-project-apply');
+  if (!panel || !applyBtn) return;
+  const conflicts = plan.conflicts || [];
+  const warnings = plan.warnings || [];
+  const files = plan.files || [];
+  const tags = plan.new_tags || [];
+  const relationships = plan.relationships || [];
+  panel.innerHTML = `
+    <div class="obsidian-project-summary">
+      <strong>${escapeHtml(plan.project?.title || 'Project')}</strong>
+      <span>${escapeHtml(files.length)} files</span>
+      <span>${escapeHtml(relationships.length)} relationships</span>
+    </div>
+    ${conflicts.length ? `<div class="obsidian-project-conflicts" data-project-conflicts="true">
+      <strong>Conflicts</strong>
+      ${conflicts.map(item => `<div>${escapeHtml(item.path)} - ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : '<div class="obsidian-project-ok">No file conflicts</div>'}
+    ${warnings.length ? `<div class="obsidian-project-warnings">
+      ${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}
+    </div>` : ''}
+    <div class="obsidian-project-files">
+      ${files.map((file, index) => `
+        <details class="obsidian-project-file obsidian-project-file-editor" data-project-file="${escapeHtml(file.path)}" data-project-index="${index}" open>
+          <summary>
+            <strong>${escapeHtml(file.path)}</strong>
+            <span>${escapeHtml(file.type)} - ${escapeHtml(file.status)}</span>
+          </summary>
+          <div class="obsidian-project-file-grid">
+            <label>Path<input data-project-field="path" value="${escapeHtml(file.path)}"></label>
+            <label>Title<input data-project-field="title" value="${escapeHtml(file.title || '')}"></label>
+            <label>Type<input data-project-field="type" value="${escapeHtml(file.type || '')}"></label>
+            <label>Status<input data-project-field="status" value="${escapeHtml(file.status || 'draft')}"></label>
+          </div>
+          <label class="obsidian-project-wide-field">Outline<textarea data-project-field="outline">${escapeHtml((file.outline || []).join('\n'))}</textarea></label>
+          <label class="obsidian-project-wide-field">Links<textarea data-project-field="links">${escapeHtml((file.links || []).join('\n'))}</textarea></label>
+          <label class="obsidian-project-wide-field">Markdown<textarea data-project-field="content">${escapeHtml(file.content || file.content_preview || '')}</textarea></label>
+          <div class="obsidian-project-tags">${(file.tags || []).map(tag => `<code>${escapeHtml(tag)}</code>`).join('')}</div>
+        </details>
+      `).join('')}
+    </div>
+    ${tags.length ? `<div class="obsidian-project-new-tags">
+      <strong>New tags</strong>
+      ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : ''}
+  `;
+  applyBtn.disabled = conflicts.length > 0 || files.length === 0;
+}
+
+function syncProjectPlanPreviewEdits() {
+  if (!projectPlanPreview) return;
+  document.querySelectorAll('[data-project-index]').forEach(editor => {
+    const index = Number(editor.dataset.projectIndex);
+    const file = projectPlanPreview.files?.[index];
+    if (!file) return;
+    const previousPath = file.path;
+    editor.querySelectorAll('[data-project-field]').forEach(field => {
+      const key = field.dataset.projectField;
+      const value = field.value || '';
+      if (key === 'outline' || key === 'links') {
+        file[key] = splitProjectList(value);
+      } else {
+        file[key] = value.trim();
+      }
+    });
+    if (file.frontmatter) {
+      file.frontmatter.type = file.type;
+      file.frontmatter.status = file.status;
+    }
+    if (previousPath && file.path && previousPath !== file.path) {
+      (projectPlanPreview.relationships || []).forEach(relationship => {
+        if (relationship.source === previousPath) relationship.source = file.path;
+        if (relationship.target === previousPath) relationship.target = file.path;
+      });
+    }
+    file.content_preview = String(file.content || '').split('\n').filter(Boolean).slice(0, 8).join('\n');
+  });
 }
 
 function renderMemoryReviewPreview(plan) {
@@ -1533,6 +1621,7 @@ async function createGameDevDraft() {
   const title = document.getElementById('obsidian-project-title')?.value || '';
   const kind = document.getElementById('obsidian-project-kind')?.value || 'game_dev';
   const description = document.getElementById('obsidian-project-description')?.value || '';
+  const custom_focus = document.getElementById('obsidian-project-focus')?.value || '';
   if (!title.trim()) {
     showToast('Project title required');
     return;
@@ -1553,7 +1642,7 @@ async function createGameDevDraft() {
     const res = await fetch('/api/plugins/obsidian/project-plan/gamedev-draft', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, kind, description }),
+      body: JSON.stringify({ title, kind, description, custom_focus }),
     });
     if (!res.ok) throw new Error((await res.json()).detail || 'GameDev draft failed');
     gameDevConceptDraft = await res.json();
@@ -1571,6 +1660,7 @@ async function previewProjectPlan({ conceptApproved = false, approvedConcept = '
   const title = document.getElementById('obsidian-project-title')?.value || '';
   const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
   const description = document.getElementById('obsidian-project-description')?.value || '';
+  const custom_focus = document.getElementById('obsidian-project-focus')?.value || '';
   if (!title.trim()) {
     showToast('Project title required');
     return;
@@ -1593,6 +1683,7 @@ async function previewProjectPlan({ conceptApproved = false, approvedConcept = '
         title,
         kind,
         description,
+        custom_focus,
         generate_content: true,
         approved_concept: approvedConcept,
         concept_approved: conceptApproved,
@@ -1615,6 +1706,7 @@ async function improveProjectDescription() {
   const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
   const textarea = document.getElementById('obsidian-project-description');
   const description = textarea?.value || '';
+  const custom_focus = document.getElementById('obsidian-project-focus')?.value || '';
   const btn = document.getElementById('obsidian-project-improve-description');
   if (!textarea) return;
   if (!description.trim()) {
@@ -1626,7 +1718,7 @@ async function improveProjectDescription() {
     const res = await fetch('/api/plugins/obsidian/project-plan/improve-description', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, kind, description }),
+      body: JSON.stringify({ title, kind, description, custom_focus }),
     });
     if (!res.ok) throw new Error((await res.json()).detail || 'Prompt improvement failed');
     const data = await res.json();
@@ -1713,6 +1805,7 @@ async function applyMemoryReview() {
 
 async function applyProjectPlan() {
   if (!projectPlanPreview) return;
+  syncProjectPlanPreviewEdits();
   const confirmed = await styledConfirm('Create this project structure in the vault?', { confirmText: 'Create' });
   if (!confirmed) return;
   try {
@@ -2104,6 +2197,7 @@ function setupEventListeners() {
   document.getElementById('obsidian-project-title')?.addEventListener('input', handleProjectInputChanged);
   document.getElementById('obsidian-project-kind')?.addEventListener('change', handleProjectInputChanged);
   document.getElementById('obsidian-project-description')?.addEventListener('input', handleProjectInputChanged);
+  document.getElementById('obsidian-project-focus')?.addEventListener('input', handleProjectInputChanged);
   document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);

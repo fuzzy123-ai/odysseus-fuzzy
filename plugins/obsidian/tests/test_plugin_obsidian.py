@@ -287,10 +287,13 @@ def test_project_plan_preview_validates_schema_paths_tags_and_conflicts():
             target_folder="Projects/Demo",
             title="Demo App",
             description="A small planning target.",
+            custom_focus="Emphasize offline-first decisions.",
             kind="software",
         ))
 
         assert plan.project.slug == "demo-app"
+        assert "Nutzerdefinierte Schwerpunkte" in plan.project.summary
+        assert "offline-first" in plan.files[0].content
         assert plan.conflicts == [{"path": "Projects/Demo/00 Projektuebersicht.md", "reason": "file_exists"}]
         first = plan.files[0]
         assert first.path == "Projects/Demo/00 Projektuebersicht.md"
@@ -397,12 +400,15 @@ def test_project_plan_new_folder_sentinel_is_resolved_without_preview_writes():
 async def test_project_plan_ai_improves_description():
     async def fake_llm(messages, **kwargs):
         assert "Verbessere diesen Projektkontext" in messages[-1]["content"]
+        assert "Nutzerdefinierte Schwerpunkte" in messages[-1]["content"]
+        assert "Differenzierung" in messages[-1]["content"]
         return "Ziel: klarer Unterrichtsplan.\nOffene Fragen: Bundesland klaeren."
 
     improved = await improve_project_description_with_ai(
         ProjectDescriptionImproveRequest(
             title="Hasen",
             description="mach unterricht",
+            custom_focus="Differenzierung und Zeitrealismus beachten.",
             kind="teaching",
         ),
         llm_call=fake_llm,
@@ -417,6 +423,7 @@ async def test_project_plan_gamedev_draft_and_approval_gate():
     async def fake_llm(messages, **kwargs):
         assert "editable GameDev concept draft" in messages[0]["content"]
         assert "worker/unit complexity" in messages[-1]["content"]
+        assert "pathfinding risk first" in messages[-1]["content"]
         return (
             "# GameDev Concept Draft\n\n"
             "## MVP Scope\nA tiny 2D strategy prototype.\n\n"
@@ -429,6 +436,7 @@ async def test_project_plan_gamedev_draft_and_approval_gate():
         GameDevConceptDraftRequest(
             title="Worker Fields",
             description="2D strategy game in Godot with workers.",
+            custom_focus="pathfinding risk first",
             kind="GameDev",
         ),
         llm_call=fake_llm,
@@ -470,6 +478,7 @@ async def test_project_plan_ai_generation_is_sequential_context_chain():
             target_folder="Projects/Demo",
             title="Demo App",
             description="Create a useful project folder.",
+            custom_focus="Prioritize API boundaries.",
             kind="generic",
         ))
         calls = []
@@ -479,6 +488,7 @@ async def test_project_plan_ai_generation_is_sequential_context_chain():
             user = messages[-1]["content"]
             calls.append({"system": system, "user": user})
             if "einzelne Markdown-Datei" in system:
+                assert "Prioritize API boundaries" in user
                 match = re.search(r"Zieldatei \d+ von \d+: (.+)", user)
                 path = match.group(1)
                 return f"# Generated {path}\n\nContent built from sequential context."

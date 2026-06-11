@@ -879,17 +879,20 @@ def setup(ctx):
         _tool_spec("obsidian_project_plan_improve_description", "Improve a project planning description before creating an Obsidian project plan preview.", {
             "title": {"type": "string", "description": "Project title."},
             "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context to improve."},
+            "custom_focus": {"type": "string", "description": "Optional user-defined priorities, tone, sections to emphasize, constraints, or quality checks."},
             "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, teaching, or game_dev."},
         }, ["description"], handle_project_plan_improve_description),
         _tool_spec("obsidian_project_plan_gamedev_draft", "Create an editable GameDev concept draft before generating a full project plan.", {
             "title": {"type": "string", "description": "Game project title."},
             "description": {"type": "string", "description": "Game idea, genre, engine, 2D/3D, constraints, scope hints, and target platform."},
+            "custom_focus": {"type": "string", "description": "Optional GameDev priorities such as systems to emphasize, complexity concerns, tone, or scope constraints."},
             "kind": {"type": "string", "description": "Usually game_dev or GameDev."},
         }, ["description"], handle_project_plan_gamedev_draft),
         _tool_spec("obsidian_project_plan_preview", "Preview a non-destructive AI project plan for a target Obsidian vault folder.", {
             "target_folder": {"type": "string", "description": "Relative vault folder where the project structure should be planned."},
             "title": {"type": "string", "description": "Project title."},
             "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context."},
+            "custom_focus": {"type": "string", "description": "Optional user-defined priorities, tone, sections to emphasize, constraints, or quality checks."},
             "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, teaching, or game_dev. Legacy ops is accepted as an alias for sec_ops."},
             "generate_content": {"type": "boolean", "description": "When true, fill each planned file sequentially with AI-generated Markdown content before returning the preview."},
             "approved_concept": {"type": "string", "description": "Approved editable concept draft. Required for GameDev content generation."},

@@ -258,6 +258,7 @@ class ProjectPlanRequest(BaseModel):
     target_folder: str = ""
     title: str
     description: str = ""
+    custom_focus: str = ""
     kind: str = "software"
     generate_content: bool = False
     approved_concept: str = ""
@@ -267,12 +268,14 @@ class ProjectPlanRequest(BaseModel):
 class ProjectDescriptionImproveRequest(BaseModel):
     title: str = ""
     description: str = ""
+    custom_focus: str = ""
     kind: str = "software"
 
 
 class GameDevConceptDraftRequest(BaseModel):
     title: str = ""
     description: str = ""
+    custom_focus: str = ""
     kind: str = "game_dev"
 
 
@@ -424,8 +427,18 @@ def build_project_plan(
 def _project_summary_from_request(request: ProjectPlanRequest, kind: str) -> str:
     approved = request.approved_concept.strip()
     if kind == "game_dev" and request.concept_approved and approved:
-        return approved
-    return request.description.strip()
+        return _summary_with_custom_focus(approved, request.custom_focus)
+    return _summary_with_custom_focus(request.description, request.custom_focus)
+
+
+def _summary_with_custom_focus(description: str, custom_focus: str) -> str:
+    summary = str(description or "").strip()
+    focus = str(custom_focus or "").strip()
+    if not focus:
+        return summary
+    if not summary:
+        return f"Nutzerdefinierte Schwerpunkte:\n{focus}"
+    return f"{summary}\n\nNutzerdefinierte Schwerpunkte:\n{focus}"
 
 
 def validate_gamedev_concept_gate(request: ProjectPlanRequest) -> None:
@@ -564,6 +577,7 @@ async def improve_project_description_with_ai(
     title = request.title.strip() or "Unbenanntes Projekt"
     kind = normalize_project_kind(request.kind)
     raw_description = request.description.strip()
+    custom_focus = request.custom_focus.strip()
     messages = [
         {
             "role": "system",
@@ -580,7 +594,9 @@ async def improve_project_description_with_ai(
                 f"Projekttitel: {title}\n\n"
                 "Verbessere diesen Projektkontext so, dass daraus ein guter, arbeitsfaehiger Projektplan "
                 "erstellt werden kann. Klaere Ziel, Rahmen, Zielgruppe, Ergebnis, Constraints, offene Fragen "
-                "und Qualitaetskriterien, aber markiere fehlende Informationen als offene Fragen.\n\n"
+                "und Qualitaetskriterien, aber markiere fehlende Informationen als offene Fragen. "
+                "Beruecksichtige die nutzerdefinierten Schwerpunkte, ohne sie zu ueberschreiben.\n\n"
+                f"Nutzerdefinierte Schwerpunkte:\n{custom_focus or '(keine)'}\n\n"
                 f"Eingabe:\n{raw_description or '(leer)'}"
             ),
         },
@@ -596,6 +612,7 @@ async def build_gamedev_concept_draft_with_ai(
 ) -> Dict[str, Any]:
     title = request.title.strip() or "Untitled Game"
     raw_description = request.description.strip()
+    custom_focus = request.custom_focus.strip()
     messages = [
         {
             "role": "system",
@@ -610,6 +627,7 @@ async def build_gamedev_concept_draft_with_ai(
             "content": (
                 f"Game title: {title}\n\n"
                 f"User prompt:\n{raw_description or '(empty)'}\n\n"
+                f"User-defined focus and priorities:\n{custom_focus or '(none)'}\n\n"
                 "Create a concept draft with these sections:\n"
                 "1. Game concept\n"
                 "2. Genre, perspective, 2D/3D, target platform\n"
@@ -757,6 +775,7 @@ def _file_generation_messages(
         "Erfinde keine Quellen, Studien, Autorinnen, URLs oder Gesetzes-/Bildungsplandetails. "
         "Wenn echte Recherche noetig ist, schreibe klare To-dos, Suchbegriffe, Pruefkriterien und Platzhalter."
     )
+    custom_focus = _custom_focus_from_summary(plan.project.summary)
     return [
         {
             "role": "system",
@@ -779,6 +798,7 @@ def _file_generation_messages(
                 f"Tags: {' '.join(planned.tags)}\n"
                 f"Links: {', '.join(planned.links) or '(keine)'}\n"
                 f"Outline: {', '.join(planned.outline)}\n\n"
+                f"Nutzerdefinierte Schwerpunkte:\n{custom_focus or '(keine)'}\n\n"
                 "Komplette geplante Projektdateien:\n"
                 f"{file_list}\n\n"
                 "Akkumulierter Projektordner-Kontext aus vorherigen Dateien:\n"
@@ -791,6 +811,13 @@ def _file_generation_messages(
             ),
         },
     ]
+
+
+def _custom_focus_from_summary(summary: str) -> str:
+    marker = "Nutzerdefinierte Schwerpunkte:"
+    if marker not in str(summary or ""):
+        return ""
+    return str(summary or "").split(marker, 1)[1].strip()
 
 
 async def _update_project_context(

@@ -145,6 +145,7 @@ def test_obsidian_phase4_project_planning_ui_contract():
         'id="obsidian-project-title"',
         'id="obsidian-project-kind"',
         'id="obsidian-project-description"',
+        'id="obsidian-project-focus"',
         'id="obsidian-project-improve-description"',
         'id="obsidian-project-preview"',
         'id="obsidian-project-apply"',
@@ -158,6 +159,9 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert "function createGameDevDraft()" in main_js
     assert "function renderGameDevDraftPanel(draftPayload)" in main_js
     assert "function isGameDevProjectKind(kind)" in main_js
+    assert "function syncProjectPlanPreviewEdits()" in main_js
+    assert "data-project-field=\"content\"" in main_js
+    assert "data-project-field=\"outline\"" in main_js
     assert "function applyProjectPlan()" in main_js
     assert "function renderProjectFolderOptions()" in main_js
     assert "function loadProjectTemplateOptions()" in main_js
@@ -176,12 +180,16 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert "generate_content: true" in main_js
     assert "approved_concept: approvedConcept" in main_js
     assert "concept_approved: conceptApproved" in main_js
+    assert "custom_focus" in main_js
     assert "Create this project structure in the vault?" in main_js
     assert "projectPlanPreview" in main_js
     assert "data-project-conflicts" in main_js
     assert ".obsidian-project-ai-btn" in style
     assert ".obsidian-project-gamedev-draft" in style
     assert ".obsidian-gamedev-draft-text" in style
+    assert ".obsidian-project-file-editor" in style
+    assert ".obsidian-project-file-grid" in style
+    assert ".obsidian-project-wide-field" in style
     assert "#obsidian-project-folder,\n#obsidian-project-title,\n#obsidian-project-kind" in style
     assert "min-height: 42px" in style
     assert ".obsidian-project-planner" in style
