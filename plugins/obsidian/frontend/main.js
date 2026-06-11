@@ -3783,8 +3783,6 @@ function renderSvgGraphFallback(graph, prepared) {
       });
     }
   });
-    });
-  });
 
   const edgeSvg = edges.map(edge => {
     const from = positions.get(edge.source);

@@ -1,5 +1,7 @@
 from pathlib import Path
 import re
+import shutil
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,6 +10,19 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_main_app_loads_plugin_ui_loader():
     index = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
     assert '<script type="module" src="/api/plugins/ui-loader.js"></script>' in index
+
+
+def test_obsidian_frontend_javascript_syntax_is_valid():
+    node = shutil.which("node")
+    if not node:
+        return
+    result = subprocess.run(
+        [node, "--check", str(ROOT / "plugins" / "obsidian" / "frontend" / "main.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
 
 
 def test_obsidian_plugin_loader_is_auth_exempt():
