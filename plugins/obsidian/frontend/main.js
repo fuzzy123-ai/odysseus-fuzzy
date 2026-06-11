@@ -11,11 +11,14 @@
  */
 
 import { styledConfirm, styledPrompt, showToast } from '/static/js/ui.js';
+import * as Modals from '/static/js/modalManager.js';
+import { makeWindowDraggable } from '/static/js/windowDrag.js';
+import { clearDockSide } from '/static/js/modalSnap.js';
 
 // Dynamic stylesheet insertion
 const link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = '/api/plugins/obsidian/web/style.css';
+link.href = '/api/plugins/obsidian/web/style.css?v=surface-mode-v2';
 document.head.appendChild(link);
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -42,10 +45,15 @@ let memoryDestinationPickerTab = 'folders';
 let projectTemplateOptions = null;
 let gameDevConceptDraft = null;
 let projectPlanPreviewStreaming = false;
+let minimizedSurfaceMode = null;
 const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer';
 const OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE = 'cytoscape';
 const OBSIDIAN_GRAPH_RENDERER_SVG = 'svg';
 const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js';
+const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode';
+const OBSIDIAN_SURFACE_DEFAULT = 'sidebar';
+const OBSIDIAN_SURFACE_MODES = ['sidebar', 'overlay', 'fullscreen'];
+const OBSIDIAN_MODAL_ID = 'obsidian-modal';
 const NEW_PROJECT_FOLDER_SENTINEL = '__new_project_folder__';
 const OBSIDIAN_PANEL_WIDTH_KEY = 'odysseus.obsidian.panelWidth';
 const OBSIDIAN_SIDEBAR_WIDTH_KEY = 'odysseus.obsidian.sidebarWidth';
@@ -563,6 +571,202 @@ function isStandaloneMode() {
     || window.location.pathname === '/api/plugins/obsidian/app';
 }
 
+function normalizeSurfaceMode(mode) {
+  return OBSIDIAN_SURFACE_MODES.includes(mode) ? mode : OBSIDIAN_SURFACE_DEFAULT;
+}
+
+function getStoredSurfaceMode() {
+  if (isStandaloneMode()) return 'fullscreen';
+  try {
+    return normalizeSurfaceMode(localStorage.getItem(OBSIDIAN_SURFACE_MODE_KEY));
+  } catch (_) {
+    return OBSIDIAN_SURFACE_DEFAULT;
+  }
+}
+
+function saveSurfaceMode(mode) {
+  if (isStandaloneMode()) return;
+  try {
+    localStorage.setItem(OBSIDIAN_SURFACE_MODE_KEY, normalizeSurfaceMode(mode));
+  } catch (_) {}
+}
+
+function syncSurfaceModeControls(mode = getStoredSurfaceMode()) {
+  const normalized = normalizeSurfaceMode(mode);
+  document.querySelectorAll('[data-obsidian-surface-mode]').forEach(btn => {
+    const active = btn.dataset.obsidianSurfaceMode === normalized;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', active ? 'true' : 'false');
+  });
+}
+
+function setLauncherActive(on) {
+  document.getElementById('tool-obsidian-btn')?.classList.toggle('active', on);
+  document.getElementById('rail-obsidian')?.classList.toggle('active-section', on);
+}
+
+function getObsidianModal() {
+  return document.getElementById(OBSIDIAN_MODAL_ID);
+}
+
+function getObsidianPanelContent() {
+  return document.querySelector('#obsidian-panel .obsidian-panel-content');
+}
+
+function clearObsidianSurfaceClasses() {
+  document.body.classList.remove(
+    'obsidian-surface-sidebar',
+    'obsidian-surface-overlay',
+    'obsidian-surface-fullscreen',
+    'obsidian-fullscreen'
+  );
+}
+
+function applyObsidianSurfaceMode(mode) {
+  const normalized = normalizeSurfaceMode(mode);
+  clearObsidianSurfaceClasses();
+  document.body.classList.add(`obsidian-surface-${normalized}`);
+  document.body.classList.toggle('obsidian-fullscreen', normalized === 'fullscreen');
+  const panel = document.getElementById('obsidian-panel');
+  if (panel) panel.dataset.surfaceMode = normalized;
+  syncSurfaceModeControls(normalized);
+  return normalized;
+}
+
+function resetObsidianWindowStyles() {
+  const modal = getObsidianModal();
+  const content = getObsidianPanelContent();
+  if (modal) {
+    try { clearDockSide('left', modal); } catch (_) {}
+    try { clearDockSide('right', modal); } catch (_) {}
+  }
+  modal?.classList.remove('obsidian-overlay-fullscreen', 'modal-left-docked', 'modal-right-docked');
+  if (modal) {
+    modal.style.display = '';
+    modal.style.zIndex = '';
+  }
+  if (content) {
+    [
+      'position', 'left', 'top', 'right', 'bottom', 'width', 'height',
+      'max-width', 'max-height', 'min-height', 'margin', 'transform',
+      'animation', 'transition', 'opacity'
+    ].forEach(prop => content.style.removeProperty(prop));
+  }
+}
+
+function ensureObsidianModalRegistered() {
+  if (Modals.isRegistered(OBSIDIAN_MODAL_ID)) return;
+  Modals.register(OBSIDIAN_MODAL_ID, {
+    railBtnId: 'rail-obsidian',
+    sidebarBtnId: 'tool-obsidian-btn',
+    label: 'Obsidian',
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 2 18 2 18 6 6 6"/><rect x="3" y="6" width="18" height="16" rx="2"/><path d="M8 11h8M8 15h5"/></svg>',
+    restoreFn: () => {
+      const mode = normalizeSurfaceMode(minimizedSurfaceMode || getStoredSurfaceMode());
+      minimizedSurfaceMode = null;
+      showObsidianSurface(mode);
+    },
+    closeFn: () => {
+      hideObsidianSurface({ unregisterOverlay: false, resetWindow: true });
+    },
+  });
+}
+
+function unregisterObsidianModal() {
+  if (Modals.isRegistered(OBSIDIAN_MODAL_ID)) {
+    Modals.unregister(OBSIDIAN_MODAL_ID);
+  }
+}
+
+function wireObsidianOverlayWindow() {
+  const modal = getObsidianModal();
+  const content = getObsidianPanelContent();
+  const header = content?.querySelector('.obsidian-panel-header');
+  if (!modal || !content || !header || modal.dataset.overlayWindowWired === '1') return;
+  modal.dataset.overlayWindowWired = '1';
+  makeWindowDraggable(modal, {
+    content,
+    header,
+    fsClass: 'obsidian-overlay-fullscreen',
+    skipSelector: 'button, input, select, textarea, label, [role="menu"], .obsidian-panel-resize-handle, .obsidian-split-resize-handle',
+    minWidth: 540,
+    minHeight: 420,
+    resizeStorageKey: 'winsize-obsidian-modal',
+    onEnterFullscreen: () => {
+      modal.classList.add('obsidian-overlay-fullscreen');
+      content.style.position = 'fixed';
+      content.style.left = '0';
+      content.style.top = '0';
+      content.style.width = '100vw';
+      content.style.height = '100vh';
+      content.style.maxWidth = 'none';
+      content.style.maxHeight = 'none';
+      content.style.margin = '0';
+      content.style.transform = 'none';
+    },
+    onExitFullscreen: () => {
+      modal.classList.remove('obsidian-overlay-fullscreen');
+    },
+  });
+}
+
+function hideObsidianSurface({ unregisterOverlay = true, resetWindow = false } = {}) {
+  if (isStandaloneMode()) {
+    document.body.classList.add('obsidian-open');
+    return;
+  }
+  isPanelOpen = false;
+  document.body.classList.remove('obsidian-open', 'obsidian-fullscreen');
+  minimizedSurfaceMode = null;
+  closeSettingsMenu();
+  setLauncherActive(false);
+  const modal = getObsidianModal();
+  if (modal) {
+    modal.classList.remove('modal-minimized');
+    modal.classList.add('hidden');
+  }
+  if (resetWindow) resetObsidianWindowStyles();
+  if (unregisterOverlay) unregisterObsidianModal();
+}
+
+function showObsidianSurface(mode = getStoredSurfaceMode()) {
+  const normalized = isStandaloneMode() ? 'fullscreen' : normalizeSurfaceMode(mode);
+  if (normalized === 'overlay' && Modals.isRegistered(OBSIDIAN_MODAL_ID) && Modals.isMinimized(OBSIDIAN_MODAL_ID)) {
+    Modals.restore(OBSIDIAN_MODAL_ID);
+    return;
+  }
+  if (normalized !== 'overlay' && Modals.isRegistered(OBSIDIAN_MODAL_ID) && Modals.isMinimized(OBSIDIAN_MODAL_ID)) {
+    Modals.close(OBSIDIAN_MODAL_ID);
+  }
+
+  applyObsidianSurfaceMode(normalized);
+  resetObsidianWindowStyles();
+  const modal = getObsidianModal();
+  modal?.classList.remove('hidden', 'modal-minimized');
+
+  if (normalized === 'overlay') {
+    ensureObsidianModalRegistered();
+    wireObsidianOverlayWindow();
+  } else {
+    unregisterObsidianModal();
+  }
+
+  isPanelOpen = true;
+  document.body.classList.add('obsidian-open');
+  setLauncherActive(true);
+  loadVaultFiles();
+}
+
+function changeObsidianSurfaceMode(mode) {
+  const normalized = normalizeSurfaceMode(mode);
+  saveSurfaceMode(normalized);
+  syncSurfaceModeControls(normalized);
+  if (isStandaloneMode()) return;
+  if (isPanelOpen) {
+    showObsidianSurface(normalized);
+  }
+}
+
 function clampNumber(value, min, max) {
   const number = Number.parseFloat(value);
   if (!Number.isFinite(number)) return min;
@@ -713,10 +917,11 @@ function injectUIElements() {
     const panelHtml = `
       <div id="obsidian-panel" class="obsidian-panel">
         <div class="obsidian-panel-backdrop" id="obsidian-panel-backdrop"></div>
-        <div class="obsidian-panel-content">
+        <div id="obsidian-modal" class="obsidian-modal modal hidden">
+        <div class="obsidian-panel-content modal-content">
           <div class="obsidian-panel-resize-handle" id="obsidian-panel-resize-handle" role="separator" aria-label="Panel Resize Handle" aria-orientation="vertical"></div>
           <!-- Header -->
-          <div class="obsidian-panel-header">
+          <div class="obsidian-panel-header modal-header">
             <div class="obsidian-panel-title">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;opacity:0.8;">
                 <polygon points="6 2 18 2 18 6 6 6" />
@@ -738,9 +943,17 @@ function injectUIElements() {
                   <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 .9-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
                 </svg>
               </button>
-              <button class="obsidian-panel-btn" id="obsidian-panel-minimize" title="Minimize">─</button>
+              <button class="obsidian-panel-btn minimize-btn" id="obsidian-panel-minimize" title="Minimize">─</button>
               <button class="obsidian-panel-btn" id="obsidian-panel-close" title="Close">✕</button>
               <div class="obsidian-settings-menu hidden" id="obsidian-settings-menu" role="menu">
+                <div class="obsidian-surface-mode" role="radiogroup" aria-label="Window mode">
+                  <div class="obsidian-settings-label">Window mode</div>
+                  <div class="obsidian-surface-options">
+                    <button type="button" class="obsidian-surface-option" data-obsidian-surface-mode="sidebar" role="radio" aria-checked="true">Sidebar</button>
+                    <button type="button" class="obsidian-surface-option" data-obsidian-surface-mode="overlay" role="radio" aria-checked="false">Overlay</button>
+                    <button type="button" class="obsidian-surface-option" data-obsidian-surface-mode="fullscreen" role="radio" aria-checked="false">Fullscreen</button>
+                  </div>
+                </div>
                 <button type="button" data-settings-action="import" role="menuitem">Import vault</button>
                 <button type="button" data-settings-action="export" role="menuitem">Export vault</button>
                 <button type="button" data-settings-action="set-password" role="menuitem">Set password</button>
@@ -879,10 +1092,6 @@ function injectUIElements() {
               <div class="obsidian-editor-container hidden" id="obsidian-editor-container">
                 <div class="obsidian-editor-header">
                   <div class="obsidian-current-note-title" id="obsidian-current-note-title">Untitled.md</div>
-                  <div class="obsidian-editor-actions">
-                    <button id="obsidian-rename-note" class="btn btn-secondary">Rename</button>
-                    <button id="obsidian-delete-note" class="btn btn-danger">Delete</button>
-                  </div>
                 </div>
                 <div class="obsidian-editor-toolbar" id="obsidian-editor-toolbar" aria-label="Markdown tools">
                   <button data-md-action="bold" title="Bold"><strong>B</strong></button>
@@ -909,6 +1118,7 @@ function injectUIElements() {
             </div>
           </div>
         </div>
+        </div>
       </div>
     `;
     const div = document.createElement('div');
@@ -920,29 +1130,41 @@ function injectUIElements() {
 // ─── Panel Toggle ────────────────────────────────────────────────────────────
 
 function togglePanel() {
-  isPanelOpen = !isPanelOpen;
-  document.body.classList.toggle('obsidian-open', isPanelOpen);
-  
-  if (isPanelOpen) {
-    loadVaultFiles();
+  const mode = getStoredSurfaceMode();
+  if (mode === 'overlay' && Modals.isRegistered(OBSIDIAN_MODAL_ID) && Modals.isMinimized(OBSIDIAN_MODAL_ID)) {
+    Modals.restore(OBSIDIAN_MODAL_ID);
+    return;
   }
+  if (isPanelOpen) closePanel();
+  else showObsidianSurface(mode);
 }
 
 function openPanel() {
   if (isPanelOpen) return;
-  isPanelOpen = true;
-  document.body.classList.add('obsidian-open');
-  loadVaultFiles();
+  showObsidianSurface(getStoredSurfaceMode());
 }
 
-function closePanel() {
+function closePanel(options = {}) {
   if (!isPanelOpen) return;
   if (isStandaloneMode()) {
     document.body.classList.add('obsidian-open');
     return;
   }
+  hideObsidianSurface({
+    unregisterOverlay: options.unregisterOverlay !== false,
+    resetWindow: true,
+  });
+}
+
+function minimizePanel() {
+  const mode = normalizeSurfaceMode(document.getElementById('obsidian-panel')?.dataset.surfaceMode || getStoredSurfaceMode());
+  minimizedSurfaceMode = mode;
+  ensureObsidianModalRegistered();
+  Modals.minimize(OBSIDIAN_MODAL_ID);
   isPanelOpen = false;
-  document.body.classList.remove('obsidian-open');
+  document.body.classList.remove('obsidian-open', 'obsidian-fullscreen');
+  setLauncherActive(false);
+  showToast('Obsidian minimized');
 }
 
 // ─── File Tree ───────────────────────────────────────────────────────────────
@@ -1002,8 +1224,11 @@ function buildTreeHTML(nodes, container, level) {
     const item = document.createElement('div');
     item.className = `tree-item ${node.is_dir ? 'tree-folder' : 'tree-file'}`;
     item.dataset.path = node.path;
-    const isSelected = selectedTreePath === node.path || (!selectedTreePath && currentNotePath === node.path);
-    const isInlineRenaming = node.is_dir && inlineRenamePath === node.path;
+    const isCurrentNote = !node.is_dir && currentNotePath === node.path;
+    const isSelected = selectedTreePath === node.path || (!selectedTreePath && isCurrentNote);
+    const isFolderSelected = node.is_dir && selectedTreePath === node.path;
+    const isFileSelected = !node.is_dir && isSelected;
+    const isInlineRenaming = inlineRenamePath === node.path;
     if (isSelected) {
       item.classList.add('active');
     }
@@ -1035,18 +1260,19 @@ function buildTreeHTML(nodes, container, level) {
       name.addEventListener('click', (e) => e.stopPropagation());
       name.addEventListener('pointerdown', (e) => e.stopPropagation());
       name.addEventListener('keydown', async (e) => {
+        e.stopPropagation();
         if (e.key === 'Escape') {
           e.preventDefault();
-          cancelInlineRenameFolder();
+          cancelInlineRenameItem();
         }
         if (e.key === 'Enter') {
           e.preventDefault();
-          await commitInlineRenameFolder(node.path, name.value);
+          await commitInlineRenameItem(node.path, name.value);
         }
       });
       name.addEventListener('blur', async () => {
         if (inlineRenamePath === node.path) {
-          await commitInlineRenameFolder(node.path, name.value);
+          await commitInlineRenameItem(node.path, name.value);
         }
       });
     } else {
@@ -1057,7 +1283,7 @@ function buildTreeHTML(nodes, container, level) {
 
     header.appendChild(icon);
     header.appendChild(name);
-    if (node.is_dir && isSelected && !isInlineRenaming) {
+    if (isFolderSelected && !isInlineRenaming) {
       const renameButton = document.createElement('button');
       renameButton.type = 'button';
       renameButton.className = 'tree-rename-button';
@@ -1067,9 +1293,41 @@ function buildTreeHTML(nodes, container, level) {
       renameButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        startInlineRenameFolder(node.path);
+        startInlineRenameItem(node.path);
       });
       header.appendChild(renameButton);
+    }
+    if (isFileSelected && !isInlineRenaming) {
+      const actions = document.createElement('span');
+      actions.className = 'tree-item-actions';
+
+      const renameButton = document.createElement('button');
+      renameButton.type = 'button';
+      renameButton.className = 'tree-rename-button';
+      renameButton.title = 'Rename note';
+      renameButton.setAttribute('aria-label', 'Rename selected note');
+      renameButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+      renameButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startInlineRenameItem(node.path);
+      });
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'tree-delete-button';
+      deleteButton.title = 'Delete note';
+      deleteButton.setAttribute('aria-label', 'Delete selected note');
+      deleteButton.textContent = 'x';
+      deleteButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await deleteNote(node.path);
+      });
+
+      actions.appendChild(renameButton);
+      actions.appendChild(deleteButton);
+      header.appendChild(actions);
     }
     item.appendChild(header);
 
@@ -1215,19 +1473,7 @@ async function promptRenameSelectedItem() {
   const oldPath = selectedTreePath || currentNotePath;
   if (!oldPath) return;
 
-  const selected = findTreeNode(oldPath);
-  const isFolder = Boolean(selected?.is_dir);
-  if (isFolder) {
-    startInlineRenameFolder(oldPath);
-    return;
-  }
-  const newPath = await styledPrompt('Rename note to:', {
-    defaultValue: oldPath,
-    confirmText: 'Rename'
-  });
-  if (!newPath || newPath === oldPath) return;
-
-  await renameVaultItem(oldPath, newPath, isFolder);
+  startInlineRenameItem(oldPath);
 }
 
 async function renameVaultItem(oldPath, newPath, isFolder) {
@@ -1266,9 +1512,9 @@ async function renameVaultItem(oldPath, newPath, isFolder) {
   }
 }
 
-function startInlineRenameFolder(path) {
+function startInlineRenameItem(path) {
   const selected = findTreeNode(path);
-  if (!selected?.is_dir) return;
+  if (!selected) return;
   selectedTreePath = path;
   inlineRenamePath = path;
   renderFileTree();
@@ -1279,24 +1525,85 @@ function startInlineRenameFolder(path) {
   });
 }
 
-function cancelInlineRenameFolder() {
+function startInlineRenameFolder(path) {
+  const selected = findTreeNode(path);
+  if (!selected?.is_dir) return;
+  startInlineRenameItem(path);
+}
+
+function cancelInlineRenameItem() {
   inlineRenamePath = null;
   renderFileTree();
 }
 
-async function commitInlineRenameFolder(oldPath, nextName) {
+function cancelInlineRenameFolder() {
+  cancelInlineRenameItem();
+}
+
+function inlineRenameTargetPath(oldPath, trimmedName, isFolder) {
+  const nextName = !isFolder
+    && oldPath.toLowerCase().endsWith('.md')
+    && !trimmedName.toLowerCase().endsWith('.md')
+    ? `${trimmedName}.md`
+    : trimmedName;
+  return joinPath(getParentDir(oldPath), nextName);
+}
+
+async function commitInlineRenameItem(oldPath, nextName) {
+  const selected = findTreeNode(oldPath);
+  if (!selected) {
+    inlineRenamePath = null;
+    renderFileTree();
+    return;
+  }
   const trimmedName = (nextName || '').trim();
   inlineRenamePath = null;
   if (!trimmedName) {
     renderFileTree();
     return;
   }
-  const newPath = joinPath(getParentDir(oldPath), trimmedName);
+  const newPath = inlineRenameTargetPath(oldPath, trimmedName, Boolean(selected.is_dir));
   if (newPath === oldPath) {
     renderFileTree();
     return;
   }
-  await renameVaultItem(oldPath, newPath, true);
+  await renameVaultItem(oldPath, newPath, Boolean(selected.is_dir));
+}
+
+async function commitInlineRenameFolder(oldPath, nextName) {
+  const selected = findTreeNode(oldPath);
+  if (!selected?.is_dir) return;
+  await commitInlineRenameItem(oldPath, nextName);
+}
+
+async function deleteNote(path) {
+  if (!path) return;
+  const confirm = await styledConfirm('Are you sure you want to delete this note?', { confirmText: 'Delete', danger: true });
+  if (!confirm) return;
+
+  try {
+    const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      showToast('Note deleted');
+      if (selectedTreePath === path) {
+        selectedTreePath = null;
+      }
+      if (currentNotePath === path) {
+        currentNotePath = null;
+        document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+        document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+      }
+      await loadVaultFiles();
+      await refreshSearchResults();
+    } else {
+      showToast('Failed to delete note');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting note');
+  }
 }
 
 function currentTargetFolder() {
@@ -2792,7 +3099,42 @@ function renderSearchResults(results) {
 
     const pathHeader = document.createElement('div');
     pathHeader.className = 'search-result-path';
-    pathHeader.textContent = result.path;
+    const pathLabel = document.createElement('span');
+    pathLabel.textContent = result.path;
+    pathHeader.appendChild(pathLabel);
+
+    if (selectedTreePath === result.path || currentNotePath === result.path) {
+      const actions = document.createElement('span');
+      actions.className = 'search-result-actions';
+
+      const renameButton = document.createElement('button');
+      renameButton.type = 'button';
+      renameButton.className = 'tree-rename-button';
+      renameButton.title = 'Rename note';
+      renameButton.setAttribute('aria-label', 'Rename selected search result');
+      renameButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+      renameButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startInlineRenameItem(result.path);
+      });
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'tree-delete-button';
+      deleteButton.title = 'Delete note';
+      deleteButton.setAttribute('aria-label', 'Delete selected search result');
+      deleteButton.textContent = 'x';
+      deleteButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await deleteNote(result.path);
+      });
+
+      actions.appendChild(renameButton);
+      actions.appendChild(deleteButton);
+      pathHeader.appendChild(actions);
+    }
     item.appendChild(pathHeader);
 
     const matchesDiv = document.createElement('div');
@@ -2805,14 +3147,29 @@ function renderSearchResults(results) {
     });
     item.appendChild(matchesDiv);
 
-    item.addEventListener('click', () => {
-      openNote(result.path);
+    item.addEventListener('click', async () => {
+      await openNote(result.path);
+      renderSearchResults(results);
     });
     container.appendChild(item);
   });
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
+
+async function refreshSearchResults() {
+  const searchInput = document.getElementById('obsidian-search-input');
+  const q = searchInput?.value.trim() || '';
+  if (!q) return;
+  try {
+    const res = await fetch(`/api/plugins/obsidian/search?q=${encodeURIComponent(q)}`);
+    if (res.ok) {
+      renderSearchResults(await res.json());
+    }
+  } catch (e) {
+    console.error('Search refresh failed:', e);
+  }
+}
 
 function setupEventListeners() {
   setupObsidianResizers();
@@ -2831,10 +3188,7 @@ function setupEventListeners() {
 
   // Close / Minimize
   document.getElementById('obsidian-panel-close')?.addEventListener('click', closePanel);
-  document.getElementById('obsidian-panel-minimize')?.addEventListener('click', () => {
-    closePanel();
-    showToast('Obsidian panel minimized');
-  });
+  document.getElementById('obsidian-panel-minimize')?.addEventListener('click', minimizePanel);
 
   // Backdrop click closes panel
   document.getElementById('obsidian-panel-backdrop')?.addEventListener('click', closePanel);
@@ -2982,6 +3336,13 @@ function setupEventListeners() {
     toggleSettingsMenu();
   });
   document.getElementById('obsidian-settings-menu')?.addEventListener('click', (e) => {
+    const modeBtn = e.target.closest('[data-obsidian-surface-mode]');
+    if (modeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      changeObsidianSurfaceMode(modeBtn.dataset.obsidianSurfaceMode);
+      return;
+    }
     const btn = e.target.closest('[data-settings-action]');
     if (!btn) return;
     e.preventDefault();
@@ -3021,34 +3382,6 @@ function setupEventListeners() {
     if (!btn) return;
     e.preventDefault();
     applyMarkdownAction(btn.dataset.mdAction);
-  });
-
-  // Rename
-  document.getElementById('obsidian-rename-note')?.addEventListener('click', promptRenameSelectedItem);
-
-  // Delete
-  document.getElementById('obsidian-delete-note')?.addEventListener('click', async () => {
-    if (!currentNotePath) return;
-    const confirm = await styledConfirm('Are you sure you want to delete this note?', { confirmText: 'Delete', danger: true });
-    if (!confirm) return;
-
-    try {
-      const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(currentNotePath)}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        showToast('Note deleted');
-        currentNotePath = null;
-        document.getElementById('obsidian-editor-container').classList.add('hidden');
-        document.getElementById('obsidian-empty-state').classList.remove('hidden');
-        await loadVaultFiles();
-      } else {
-        showToast('Failed to delete note');
-      }
-    } catch (e) {
-      console.error(e);
-      showToast('Error deleting note');
-    }
   });
 
   // Autosave + Preview
@@ -3110,6 +3443,7 @@ function init() {
   const standalone = isStandaloneMode();
   document.body.classList.toggle('obsidian-standalone', standalone);
   injectUIElements();
+  applyObsidianSurfaceMode(getStoredSurfaceMode());
   setupEventListeners();
   window.OdysseusObsidian = { openPanel, closePanel, togglePanel };
   if (standalone) {

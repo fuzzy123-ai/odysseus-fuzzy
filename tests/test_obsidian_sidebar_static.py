@@ -89,20 +89,49 @@ def test_obsidian_file_tree_selects_and_renames_folders():
     assert "let inlineRenamePath = null" in main_js
     assert "function selectTreeItem(path)" in main_js
     assert "selectedTreePath === node.path" in main_js
+    assert "const isFolderSelected = node.is_dir && selectedTreePath === node.path" in main_js
+    assert "const isFileSelected = !node.is_dir && isSelected" in main_js
+    assert "function startInlineRenameItem(path)" in main_js
     assert "function startInlineRenameFolder(path)" in main_js
+    assert "function inlineRenameTargetPath(oldPath, trimmedName, isFolder)" in main_js
+    assert "oldPath.toLowerCase().endsWith('.md')" in main_js
+    assert "`${trimmedName}.md`" in main_js
+    assert "async function commitInlineRenameItem(oldPath, nextName)" in main_js
     assert "async function commitInlineRenameFolder(oldPath, nextName)" in main_js
     assert "tree-rename-button" in main_js
+    assert "tree-delete-button" in main_js
+    assert "async function deleteNote(path)" in main_js
+    assert "await deleteNote(node.path);" in main_js
+    assert "await refreshSearchResults();" in main_js
+    assert "async function refreshSearchResults()" in main_js
+    assert "/api/plugins/obsidian/search?q=" in main_js
+    assert "if (selectedTreePath === path)" in main_js
+    assert "if (currentNotePath === path)" in main_js
+    assert "document.getElementById('obsidian-editor-container')?.classList.add('hidden')" in main_js
     assert "tree-rename-input" in main_js
     assert "Rename selected folder" in main_js
+    assert "Rename selected note" in main_js
+    assert "Delete selected note" in main_js
     assert "async function promptRenameSelectedItem()" in main_js
-    assert "startInlineRenameFolder(oldPath);" in main_js
+    assert "startInlineRenameItem(oldPath);" in main_js
     assert "Renamed folder" in main_js
     assert "e.key === 'F2'" in main_js
     assert "e.key === 'Escape'" in main_js
+    assert "e.stopPropagation();" in main_js
     assert "e.key === 'Enter'" in main_js
-    assert "document.getElementById('obsidian-rename-note')?.addEventListener('click', promptRenameSelectedItem)" in main_js
+    assert "search-result-actions" in main_js
+    assert "Rename selected search result" in main_js
+    assert "Delete selected search result" in main_js
+    assert "renderSearchResults(results);" in main_js
+    assert 'id="obsidian-rename-note"' not in main_js
+    assert 'id="obsidian-delete-note"' not in main_js
     assert "Rename folder to:" not in main_js
     assert ".tree-rename-button" in style
+    assert ".tree-delete-button" in style
+    assert ".tree-rename-button:focus-visible" in style
+    assert ".tree-delete-button:focus-visible" in style
+    assert ".search-result-actions" in style
+    assert ".obsidian-editor-actions" not in style
     assert ".tree-rename-input" in style
 
 
@@ -146,6 +175,47 @@ def test_obsidian_panel_and_sidebar_split_are_resizable():
     assert "display: none" in mobile_body
 
 
+def test_obsidian_surface_modes_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert "const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode'" in main_js
+    assert "style.css?v=surface-mode-v2" in main_js
+    assert "const OBSIDIAN_SURFACE_DEFAULT = 'sidebar'" in main_js
+    assert "const OBSIDIAN_SURFACE_MODES = ['sidebar', 'overlay', 'fullscreen']" in main_js
+    assert "function normalizeSurfaceMode(mode)" in main_js
+    assert "function getStoredSurfaceMode()" in main_js
+    assert "function changeObsidianSurfaceMode(mode)" in main_js
+    assert 'id="obsidian-modal"' in main_js
+    assert 'data-obsidian-surface-mode="sidebar"' in main_js
+    assert 'data-obsidian-surface-mode="overlay"' in main_js
+    assert 'data-obsidian-surface-mode="fullscreen"' in main_js
+    assert "Window mode" in main_js
+    assert "Modals.register(OBSIDIAN_MODAL_ID" in main_js
+    assert "label: 'Obsidian'" in main_js
+    assert "let minimizedSurfaceMode = null" in main_js
+    assert "const mode = normalizeSurfaceMode(minimizedSurfaceMode || getStoredSurfaceMode())" in main_js
+    assert "Modals.minimize(OBSIDIAN_MODAL_ID)" in main_js
+    assert "Modals.restore(OBSIDIAN_MODAL_ID)" in main_js
+    assert "makeWindowDraggable(modal" in main_js
+    assert 'class="obsidian-panel-header modal-header"' in main_js
+    assert "content?.querySelector('.obsidian-panel-header')" in main_js
+    assert "content?.querySelector('.obsidian-panel-title')" not in main_js
+    assert "body.obsidian-fullscreen #obsidian-panel" in style
+    assert "body.obsidian-surface-overlay .obsidian-panel-content" in style
+    assert "#obsidian-modal.obsidian-overlay-fullscreen .obsidian-panel-content" in style
+    assert '#minimized-dock:has(.minimized-dock-chip[data-modal-id="obsidian-modal"])' in style
+    fullscreen_content = re.search(r"body\.obsidian-fullscreen \.obsidian-panel-content\s*\{(?P<body>.*?)\n\}", style, re.S)
+    assert fullscreen_content
+    assert "height: 100vh" in fullscreen_content.group("body")
+    assert "max-height: none" in fullscreen_content.group("body")
+    mobile_body = style[style.index("@media (max-width: 640px)"):]
+    assert "body.obsidian-surface-overlay #obsidian-panel" in mobile_body
+    assert "body.obsidian-fullscreen #obsidian-panel" in mobile_body
+    assert "body.obsidian-surface-overlay .obsidian-panel-content" in mobile_body
+    assert "body.obsidian-fullscreen .obsidian-panel-content" in mobile_body
+
+
 def test_obsidian_phase3_settings_menu_contract():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
@@ -171,6 +241,8 @@ def test_obsidian_phase3_settings_menu_contract():
 
     assert 'id="obsidian-import-input"' in main_js
     assert 'accept=".zip,application/zip"' in main_js
+    assert 'role="radiogroup" aria-label="Window mode"' in main_js
+    assert "syncSurfaceModeControls(normalized)" in main_js
     assert "closeSettingsMenu();" in main_js
     assert "if (e.key === 'Escape')" in main_js
     assert "#obsidian-settings-menu, #obsidian-settings-toggle" in main_js
