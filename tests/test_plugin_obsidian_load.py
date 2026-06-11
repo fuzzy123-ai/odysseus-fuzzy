@@ -44,6 +44,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/obsidian/files" in paths
     assert "/api/plugins/obsidian/tags" in paths
     assert "/api/plugins/obsidian/graph" in paths
+    assert "/api/plugins/obsidian/ai-status" in paths
+    assert "/api/plugins/obsidian/project-plan/sessions" in paths
+    assert "/api/plugins/obsidian/project-plan/sessions/{session_id}" in paths
+    assert "/api/plugins/obsidian/project-plan/sessions/{session_id}/preview-stream" in paths
+    assert "/api/plugins/obsidian/project-plan/sessions/{session_id}/apply" in paths
     assert "/api/plugins/obsidian/relationships" in paths
     assert "/api/plugins/obsidian/history" in paths
     assert "/api/plugins/obsidian/history/undo" in paths

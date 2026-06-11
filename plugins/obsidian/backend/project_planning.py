@@ -236,6 +236,7 @@ class PlannedRelationship(BaseModel):
     target: str
     type: str = "relates_to"
     reason: str = ""
+    suggested: bool = False
 
 
 class NewTag(BaseModel):
@@ -385,7 +386,7 @@ def build_project_plan(
             "source": "ai_project_planning",
             "created": created,
         }
-        links = _links_for(spec["type"], specs, target_folder)
+        links = _links_for(spec["filename"], specs, target_folder)
         content = render_project_markdown(
             title=spec["title"],
             project_title=title,
@@ -409,7 +410,7 @@ def build_project_plan(
             content_preview=_content_preview(content),
             content=content,
         ))
-    relationships = _relationships_for(files, kind)
+    relationships: List[PlannedRelationship] = []
     new_tags = _new_tags_for(files, existing_tags)
     plan = ProjectPlan(
         target_folder=target_folder,
@@ -421,6 +422,7 @@ def build_project_plan(
         warnings=[],
         questions=[],
     )
+    _add_external_relationship_suggestions(vault_dir, plan)
     return validate_project_plan(vault_dir, plan, collect_conflicts=True)
 
 
@@ -499,8 +501,10 @@ def validate_project_plan(
     for relationship in plan.relationships:
         relationship.source = normalize_relative_path(relationship.source)
         relationship.target = normalize_relative_path(relationship.target)
-        ensure_under_folder(target_folder, relationship.source)
-        ensure_under_folder(target_folder, relationship.target)
+        if relationship.source in planned_paths:
+            ensure_under_folder(target_folder, relationship.source)
+        if relationship.target in planned_paths:
+            ensure_under_folder(target_folder, relationship.target)
         if relationship.source not in planned_paths and relationship.source not in existing_notes:
             raise ProjectPlanValidationError(f"Relationship source does not exist: {relationship.source}")
         if relationship.target not in planned_paths and relationship.target not in existing_notes:
@@ -585,9 +589,14 @@ async def improve_project_description_with_ai(
             "content": (
                 "Du verbesserst Projektbeschreibungen fuer ein Obsidian Project Planning Tool. "
                 "Antworte ausschliesslich mit der finalen, direkt uebernehmbaren Projektbeschreibung. "
-                "Gib kein Denkprotokoll, keine Analyse, keine Begruendung, keine Alternativen, keine Meta-Kommentare "
-                "und keine Formulierungen wie 'Moegliche Struktur' aus. Verwende keinen Markdown-Codeblock. "
-                "Erhalte die Sprache des Nutzers. Korrigiere offensichtliche Tippfehler still. "
+                "Der erste ausgegebene Satz muss bereits Teil dieser Projektbeschreibung sein. "
+                "Gib kein Denkprotokoll, keine Analyse, keine Zusammenfassung der Eingabe, keine Begruendung, "
+                "keine Alternativen, keine Meta-Kommentare und keine Formulierungen wie 'Wir haben', "
+                "'Der Nutzer will', 'Ich werde', 'Moegliche Struktur' oder 'Also beginne' aus. "
+                "Verwende keinen Markdown-Codeblock. "
+                "Ermittle die Sprache der eigentlichen Projekteingabe und verwende diese Sprache fuer die gesamte "
+                "Ausgabe, inklusive Abschnittsueberschriften. Wenn die Projekteingabe gemischtsprachig ist, "
+                "verwende die Sprache des konkreten Projektziels. Korrigiere offensichtliche Tippfehler still. "
                 "Erfinde keine Fakten, Quellen, Anforderungen, Rahmenbedingungen oder Bildungsplanbezuege."
             ),
         },
@@ -601,11 +610,13 @@ async def improve_project_description_with_ai(
                 "und Qualitaetskriterien, aber markiere fehlende Informationen als offene Fragen. "
                 "Beruecksichtige die nutzerdefinierten Schwerpunkte, ohne sie zu ueberschreiben.\n\n"
                 "Ausgabeformat:\n"
-                "- Beginne direkt mit 'Projektart:' und 'Projekttitel:'.\n"
-                "- Verwende danach die Abschnitte 'Ziel', 'Rahmen', 'Zielgruppe', 'Geplantes Ergebnis', "
-                "'Bekannte Constraints', 'Offene Fragen' und 'Qualitaetskriterien'.\n"
+                "- Beginne direkt mit den lokalisierten Entsprechungen von 'Projektart:' und 'Projekttitel:' "
+                "in der Ausgabesprache.\n"
+                "- Verwende danach lokalisierte Entsprechungen der Abschnitte 'Ziel', 'Rahmen', 'Zielgruppe', "
+                "'Geplantes Ergebnis', 'Bekannte Constraints', 'Offene Fragen' und 'Qualitaetskriterien'.\n"
                 "- Schreibe knapp, konkret und planungsorientiert.\n"
                 "- Markiere Unsicheres nur als offene Frage, nicht als Annahme.\n"
+                "- Schreibe keine Saetze ueber die Eingabe, den Nutzer, deine Absicht oder deine Vorgehensweise.\n"
                 "- Nenne keine internen Ueberlegungen dazu, wie du zu dieser Struktur gekommen bist.\n\n"
                 f"Nutzerdefinierte Schwerpunkte:\n{custom_focus or '(keine)'}\n\n"
                 f"Eingabe:\n{raw_description or '(leer)'}"
@@ -613,7 +624,8 @@ async def improve_project_description_with_ai(
         },
     ]
     improved = (await _call_llm(llm_call, messages, max_tokens=1400, temperature=0.25)).strip()
-    return _strip_markdown_fence(improved) or raw_description
+    improved = _strip_project_description_metatext(_strip_markdown_fence(improved))
+    return improved or raw_description
 
 
 async def build_gamedev_concept_draft_with_ai(
@@ -840,7 +852,9 @@ def _file_generation_messages(
                 "Akkumulierter Projektordner-Kontext aus vorherigen Dateien:\n"
                 f"{project_context}\n\n"
                 "Skeleton mit verpflichtender Struktur, Frontmatter, Links und Tags. "
-                "Behalte Frontmatter, Projektlinks und Tags bei, aber ersetze Platzhalter durch arbeitsfertige Inhalte:\n"
+                "Behalte Frontmatter, Projektlinks und Tags bei, aber ersetze Platzhalter durch arbeitsfertige Inhalte. "
+                "Erfinde keine weiteren Wikilinks und verknuepfe Projektdokumente nicht direkt miteinander; "
+                "die geplanten Links bilden bewusst eine Hub-and-Spoke-Struktur ueber die erste Projektdatei:\n"
                 f"{skeleton}\n\n"
                 "Schreibe die Datei arbeitsfertig: konkrete Abschnitte, Listen, Entscheidungen, To-dos, offene Fragen. "
                 "Baue sinnvoll auf dem akkumulierten Kontext auf und widersprich frueheren Entscheidungen nicht."
@@ -949,6 +963,27 @@ def _strip_markdown_fence(value: str) -> str:
     return match.group(1).strip() if match else text
 
 
+def _strip_project_description_metatext(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return text
+    accepted_prefixes = (
+        "projektart:",
+        "projekttitel:",
+        "project type:",
+        "project kind:",
+        "project title:",
+        "ziel:",
+        "goal:",
+        "objective:",
+    )
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip().lower().startswith(accepted_prefixes):
+            return "\n".join(lines[index:]).strip()
+    return text
+
+
 def _compact_text(value: str, *, limit: int) -> str:
     text = re.sub(r"\n{3,}", "\n\n", str(value or "").strip())
     if len(text) <= limit:
@@ -1027,43 +1062,88 @@ def _document_path(target_folder: str, filename: str) -> str:
     return "/".join(part for part in [target_folder, filename] if part)
 
 
-def _links_for(doc_type: str, specs: List[Dict[str, Any]], target_folder: str) -> List[str]:
-    def note_link(filename: str) -> str:
-        stem = os.path.splitext(filename)[0]
-        return f"[[{_document_path(target_folder, stem)}]]"
+def _note_link_for_filename(target_folder: str, filename: str) -> str:
+    stem = os.path.splitext(filename)[0]
+    return f"[[{_document_path(target_folder, stem)}]]"
 
-    overview = note_link(specs[0]["filename"])
-    by_type = {spec["type"]: spec["filename"] for spec in specs}
-    if doc_type == "project":
-        return [note_link(spec["filename"]) for spec in specs if spec["type"] != "project"]
-    links = [overview]
-    if doc_type == "implementation_plan":
-        for linked_type in ("requirements", "architecture", "test_plan"):
-            if linked_type in by_type:
-                links.append(note_link(by_type[linked_type]))
-    if doc_type == "test_plan":
-        for linked_type in ("requirements", "implementation_plan"):
-            if linked_type in by_type:
-                links.append(note_link(by_type[linked_type]))
-    if doc_type == "risk":
-        for linked_type in ("requirements", "architecture", "implementation_plan"):
-            if linked_type in by_type:
-                links.append(note_link(by_type[linked_type]))
-    if doc_type in {"api", "data_model", "decision"} and "architecture" in by_type:
-        links.append(note_link(by_type["architecture"]))
-    return sorted(set(links), key=links.index)
+
+def _links_for(filename: str, specs: List[Dict[str, Any]], target_folder: str) -> List[str]:
+    def note_link(filename: str) -> str:
+        return _note_link_for_filename(target_folder, filename)
+
+    hub_filename = specs[0]["filename"]
+    if filename == hub_filename:
+        return [note_link(spec["filename"]) for spec in specs if spec["filename"] != hub_filename]
+    return [note_link(hub_filename)]
 
 
 def _relationships_for(files: List[PlannedFile], kind: str) -> List[PlannedRelationship]:
-    by_type = {planned.type: planned.path for planned in files}
-    specs = PROJECT_TEMPLATES[normalize_project_kind(kind)].get("relationships", [])
-    relationships = []
-    for source_type, target_type, relation_type, reason in specs:
-        source = by_type.get(source_type)
-        target = by_type.get(target_type)
-        if source and target:
-            relationships.append(PlannedRelationship(source=source, target=target, type=relation_type, reason=reason))
-    return relationships
+    return []
+
+
+def _add_external_relationship_suggestions(vault_dir: str, plan: ProjectPlan, *, limit: int = 3) -> None:
+    if not plan.files:
+        return
+    hub_path = plan.files[0].path
+    planned_paths = {file.path for file in plan.files}
+    project_terms = _project_terms(plan)
+    suggestions: List[PlannedRelationship] = []
+    for note in build_vault_index(vault_dir).get("notes", []):
+        path = note.get("path", "")
+        if not path or path in planned_paths:
+            continue
+        score = _external_note_score(note, project_terms, plan.project.slug)
+        if score <= 0:
+            continue
+        suggestions.append(PlannedRelationship(
+            source=hub_path,
+            target=path,
+            type="relates_to",
+            reason=f"Suggested sparse project context match ({score})",
+            suggested=True,
+        ))
+    suggestions.sort(key=lambda item: (-_relationship_score(item.reason), item.target.lower()))
+    existing_keys = {(rel.source, rel.target, rel.type) for rel in plan.relationships}
+    for suggestion in suggestions[:limit]:
+        key = (suggestion.source, suggestion.target, suggestion.type)
+        if key not in existing_keys:
+            plan.relationships.append(suggestion)
+            existing_keys.add(key)
+
+
+def _project_terms(plan: ProjectPlan) -> Set[str]:
+    raw = " ".join([
+        plan.project.title,
+        plan.project.slug.replace("-", " "),
+        plan.project.summary,
+    ])
+    terms = {
+        normalize_tag_name(term)
+        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9_-]{2,}", raw.lower())
+    }
+    stopwords = {"der", "die", "das", "und", "oder", "with", "the", "for", "from", "eine", "einer", "projekt", "project"}
+    return {term for term in terms if term and term not in stopwords}
+
+
+def _external_note_score(note: Dict[str, Any], project_terms: Set[str], project_slug: str) -> int:
+    title_terms = {
+        normalize_tag_name(term)
+        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9_-]{2,}", str(note.get("title", "")).lower())
+    }
+    tag_terms = {normalize_tag_name(tag) for tag in note.get("tags", [])}
+    text = str(note.get("_content", "")).lower()
+    score = 0
+    score += len(project_terms & title_terms) * 4
+    score += len(project_terms & tag_terms) * 3
+    score += sum(1 for term in project_terms if term.replace("-", " ") in text)
+    if project_slug in tag_terms:
+        score += 6
+    return score
+
+
+def _relationship_score(reason: str) -> int:
+    match = re.search(r"\((\d+)\)", str(reason or ""))
+    return int(match.group(1)) if match else 0
 
 
 def _new_tags_for(files: List[PlannedFile], existing_tags: Set[str]) -> List[NewTag]:

@@ -12,6 +12,7 @@ _TAG_RE = re.compile(r"(?<![\w/#])#([A-Za-z0-9][A-Za-z0-9_/-]*[A-Za-z0-9_-]?)")
 _URL_RE = re.compile(r"https?://\S+")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
+SHARED_TAG_EDGE_EXCLUDED_PREFIXES = ("project/", "status/", "type/")
 
 
 def slugify_tag(value: str) -> str:
@@ -270,7 +271,10 @@ def _build_edges(
                 _add_edge(edge_map, note["path"], target_path, "filename_mention", f"Mentions {stem}", "medium")
 
     for left, right in combinations(notes, 2):
-        shared = sorted((set(left["tags"]) & set(right["tags"])) - {left["file_tag"], right["file_tag"]})
+        shared = [
+            tag for tag in sorted((set(left["tags"]) & set(right["tags"])) - {left["file_tag"], right["file_tag"]})
+            if not _is_shared_tag_edge_excluded(tag)
+        ]
         if shared:
             reason = "Shared tags: " + ", ".join(shared[:5])
             _add_edge(edge_map, left["path"], right["path"], "shared_tag", reason, "weak")
@@ -289,6 +293,11 @@ def _build_edges(
         edge_map.values(),
         key=lambda edge: (edge["source"].lower(), edge["target"].lower(), edge["type"]),
     )
+
+
+def _is_shared_tag_edge_excluded(tag: str) -> bool:
+    clean = normalize_tag_name(tag)
+    return any(clean.startswith(prefix) for prefix in SHARED_TAG_EDGE_EXCLUDED_PREFIXES)
 
 
 def _build_nodes(notes: List[Dict[str, Any]], tag_map: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -327,6 +336,12 @@ def graph_payload(vault_dir: str, focus: Optional[str] = None, tag: Optional[str
         graph = _filter_graph(graph, allowed)
     if focus:
         allowed = {focus}
+        focus_folder = "/".join(focus.replace("\\", "/").split("/")[:-1])
+        if focus_folder:
+            allowed.update(
+                note["path"] for note in index["notes"]
+                if note["path"].startswith(f"{focus_folder}/")
+            )
         allowed.update(edge["source"] for edge in graph["edges"] if edge["target"] == focus)
         allowed.update(edge["target"] for edge in graph["edges"] if edge["source"] == focus)
         graph = _filter_graph(graph, allowed)

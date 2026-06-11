@@ -53,6 +53,7 @@ from backend.vault_security import (
     unlock_vault,
     validate_archive_member,
 )
+from backend.vault_model import extract_tags
 from backend.performance_fixtures import create_large_vault_fixture, profile_graph_build
 from plugin import (
     get_vault_path_by_owner,
@@ -86,6 +87,77 @@ from plugin import (
     PLUGIN,
     setup,
 )
+
+
+@pytest.mark.asyncio
+async def test_ai_status_returns_utility_model(monkeypatch):
+    calls = []
+
+    def fake_resolve_endpoint(prefix, owner=None):
+        calls.append((prefix, owner))
+        if prefix == "utility":
+            return "http://utility.test/v1/chat/completions", "utility-model", {"Authorization": "Bearer secret"}
+        return "http://default.test/v1/chat/completions", "default-model", {}
+
+    monkeypatch.setattr("src.endpoint_resolver.resolve_endpoint", fake_resolve_endpoint)
+    monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+    status = await obsidian_routes.ai_status(SimpleNamespace())
+
+    assert status == {
+        "available": True,
+        "role": "utility",
+        "model": "utility-model",
+        "endpoint_url": "http://utility.test/v1/chat/completions",
+    }
+    assert calls == [("utility", "alice")]
+
+
+@pytest.mark.asyncio
+async def test_ai_status_falls_back_to_default_model(monkeypatch):
+    calls = []
+
+    def fake_resolve_endpoint(prefix, owner=None):
+        calls.append((prefix, owner))
+        if prefix == "utility":
+            return None, None, None
+        return "http://default.test/v1/chat/completions", "default-model", {}
+
+    monkeypatch.setattr("src.endpoint_resolver.resolve_endpoint", fake_resolve_endpoint)
+    monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+    status = await obsidian_routes.ai_status(SimpleNamespace())
+
+    assert status == {
+        "available": True,
+        "role": "default",
+        "model": "default-model",
+        "endpoint_url": "http://default.test/v1/chat/completions",
+    }
+    assert calls == [("utility", "alice"), ("default", "alice")]
+
+
+@pytest.mark.asyncio
+async def test_ai_status_reports_unavailable_without_writing_settings(monkeypatch):
+    def fake_resolve_endpoint(prefix, owner=None):
+        return None, None, None
+
+    def fail_write(*args, **kwargs):
+        raise AssertionError("ai-status must not write settings")
+
+    monkeypatch.setattr("src.endpoint_resolver.resolve_endpoint", fake_resolve_endpoint)
+    monkeypatch.setattr("src.settings.save_settings", fail_write)
+    monkeypatch.setattr("routes.prefs_routes._save", fail_write)
+    monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+    status = await obsidian_routes.ai_status(SimpleNamespace())
+
+    assert status == {
+        "available": False,
+        "role": "default",
+        "model": "",
+        "endpoint_url": "",
+    }
 
 
 def test_secure_path_prevents_traversal():
@@ -279,6 +351,27 @@ async def test_ai_tags_and_graph_include_implicit_tags_links_and_mentions(monkey
         assert any(edge["target"] == "Architecture.md" for edge in graph["edges"])
 
 
+def test_tag_index_ignores_headings_code_inline_code_and_urls():
+    content = "\n".join([
+        "# Heading stays a heading",
+        "Text with #real-tag and #project/demo.",
+        "## Subheading also stays a heading",
+        "Inline `#code-tag` is ignored.",
+        "URL https://example.test/#url-tag is ignored.",
+        "```",
+        "# fenced-code-tag",
+        "```",
+    ])
+
+    tags = extract_tags(content, "Notes/Demo.md")
+
+    assert set(tags["explicit_tags"]) == {"project/demo", "real-tag"}
+    assert "heading" not in tags["explicit_tags"]
+    assert "subheading" not in tags["explicit_tags"]
+    assert "code-tag" not in tags["explicit_tags"]
+    assert "url-tag" not in tags["explicit_tags"]
+
+
 def test_project_plan_preview_validates_schema_paths_tags_and_conflicts():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
@@ -302,6 +395,18 @@ def test_project_plan_preview_validates_schema_paths_tags_and_conflicts():
         assert "#project/demo-app" in first.tags
         assert "#type/project" in first.tags
         assert "#status/draft" in first.tags
+        assert first.links == [
+            "[[Projects/Demo/01 Anforderungen]]",
+            "[[Projects/Demo/02 Architektur]]",
+            "[[Projects/Demo/03 Implementierungsplan]]",
+            "[[Projects/Demo/04 Testplan]]",
+            "[[Projects/Demo/05 Risiken und offene Fragen]]",
+            "[[Projects/Demo/APIs und Schnittstellen]]",
+            "[[Projects/Demo/Datenmodell]]",
+            "[[Projects/Demo/Entscheidungen/ADR-0001-Grundarchitektur]]",
+        ]
+        assert all(file.links == ["[[Projects/Demo/00 Projektuebersicht]]"] for file in plan.files[1:])
+        assert plan.relationships == []
 
         plan_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
         bad = ProjectPlan(**plan_payload)
@@ -379,23 +484,26 @@ def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
             "Projects/game_dev/08 Testing and Balancing.md",
             "Projects/game_dev/09 Risks and Open Questions.md",
         ]
+        assert "[[Projects/game_dev/00 Game Overview]]" not in plans["game_dev"].files[0].links
+        assert all(file.links == ["[[Projects/game_dev/00 Game Overview]]"] for file in plans["game_dev"].files[1:])
 
 
 def test_project_plan_new_folder_sentinel_is_resolved_without_preview_writes():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
         assert normalize_project_target_folder(f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects", "demo-app") == "Projects/demo-app"
+        assert normalize_project_target_folder(f"{NEW_PROJECT_FOLDER_SENTINEL}::", "demo-app") == "demo-app"
 
         plan = build_project_plan(tmpdir, ProjectPlanRequest(
-            target_folder=f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects",
+            target_folder=f"{NEW_PROJECT_FOLDER_SENTINEL}::",
             title="Demo App",
             description="Preview only.",
             kind="generic",
         ))
 
-        assert plan.target_folder == "Projects/demo-app"
-        assert all(file.path.startswith("Projects/demo-app/") for file in plan.files)
-        assert not os.path.exists(os.path.join(tmpdir, "Projects", "demo-app"))
+        assert plan.target_folder == "demo-app"
+        assert all(file.path.startswith("demo-app/") for file in plan.files)
+        assert not os.path.exists(os.path.join(tmpdir, "demo-app"))
 
 
 @pytest.mark.asyncio
@@ -403,11 +511,14 @@ async def test_project_plan_ai_improves_description():
     async def fake_llm(messages, **kwargs):
         assert "kein Denkprotokoll" in messages[0]["content"]
         assert "keine Meta-Kommentare" in messages[0]["content"]
+        assert "Der Nutzer will" in messages[0]["content"]
+        assert "Sprache der eigentlichen Projekteingabe" in messages[0]["content"]
         assert "Korrigiere offensichtliche Tippfehler still" in messages[0]["content"]
         assert "Verbessere diesen Projektkontext" in messages[-1]["content"]
         assert "Nutzerdefinierte Schwerpunkte" in messages[-1]["content"]
-        assert "Beginne direkt mit 'Projektart:'" in messages[-1]["content"]
+        assert "Beginne direkt mit den lokalisierten Entsprechungen" in messages[-1]["content"]
         assert "Geplantes Ergebnis" in messages[-1]["content"]
+        assert "Schreibe keine Saetze ueber die Eingabe" in messages[-1]["content"]
         assert "Nenne keine internen Ueberlegungen" in messages[-1]["content"]
         assert "Differenzierung" in messages[-1]["content"]
         return "Ziel: klarer Unterrichtsplan.\nOffene Fragen: Bundesland klaeren."
@@ -424,6 +535,34 @@ async def test_project_plan_ai_improves_description():
 
     assert "klarer Unterrichtsplan" in improved
     assert "Offene Fragen" in improved
+
+
+@pytest.mark.asyncio
+async def test_project_plan_ai_strips_prompt_improvement_metatext():
+    async def fake_llm(messages, **kwargs):
+        return (
+            "Wir haben die Eingabe: Projektart Research, Projekttitel Beer.\n"
+            "Der Nutzer will eine verbesserte Projektbeschreibung.\n\n"
+            "Project type: Research\n"
+            "Project title: Beer\n"
+            "Goal: Research the history of beer with verified sources.\n"
+            "Open questions: Define geography and depth."
+        )
+
+    improved = await improve_project_description_with_ai(
+        ProjectDescriptionImproveRequest(
+            title="Beer",
+            description="Research the history of beer.",
+            custom_focus="make sure every link is true to its proposed content. No fake news!",
+            kind="research",
+        ),
+        llm_call=fake_llm,
+    )
+
+    assert improved.startswith("Project type: Research")
+    assert "Wir haben" not in improved
+    assert "Der Nutzer will" not in improved
+    assert "Research the history of beer" in improved
 
 
 @pytest.mark.asyncio
@@ -627,6 +766,132 @@ async def test_project_plan_preview_stream_emits_sse_events(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_project_plan_sessions_are_recoverable_and_non_destructive(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+
+        created = await obsidian_routes.project_plan_session_create(
+            obsidian_routes.ProjectPlanSessionCreateRequest(
+                request=ProjectPlanRequest(
+                    target_folder=f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects",
+                    title="Recoverable Demo",
+                    description="Create a recoverable planning session.",
+                    kind="software",
+                    generate_content=True,
+                )
+            ),
+            SimpleNamespace(),
+        )
+
+        assert created["status"] == "draft"
+        assert created["target_folder"] == "Projects/recoverable-demo"
+        assert created["debug_events"][0]["message"] == "Session created"
+        assert not os.path.exists(os.path.join(tmpdir, "Projects", "recoverable-demo"))
+
+        listed = await obsidian_routes.project_plan_sessions(SimpleNamespace())
+        assert [session["id"] for session in listed["sessions"]] == [created["id"]]
+
+        loaded = await obsidian_routes.project_plan_session_get(created["id"], SimpleNamespace())
+        assert loaded["request"]["title"] == "Recoverable Demo"
+
+        deleted = await obsidian_routes.project_plan_session_delete(created["id"], SimpleNamespace())
+        assert deleted == {"success": True, "session_id": created["id"]}
+        listed = await obsidian_routes.project_plan_sessions(SimpleNamespace())
+        assert listed["sessions"] == []
+
+
+@pytest.mark.asyncio
+async def test_project_plan_session_preview_stream_persists_progress(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+        async def fake_llm(messages, **kwargs):
+            system = messages[0]["content"]
+            user = messages[-1]["content"]
+            if "einzelne Markdown-Datei" in system:
+                path = re.search(r"Zieldatei \d+ von \d+: (.+)", user).group(1)
+                return f"# Generated {path}\n\nStreamed content."
+            if "Kontextzusammenfassung" in system:
+                path = re.search(r"Neu generierte Datei: (.+)", user).group(1)
+                return f"CTX after {path}"
+            raise AssertionError("unexpected prompt")
+
+        monkeypatch.setattr(obsidian_routes, "project_planning_llm_call", lambda owner: fake_llm)
+        created = await obsidian_routes.project_plan_session_create(
+            obsidian_routes.ProjectPlanSessionCreateRequest(
+                request=ProjectPlanRequest(
+                    target_folder="Projects/Demo",
+                    title="Demo",
+                    description="Create a streamed project folder.",
+                    kind="software",
+                    generate_content=True,
+                )
+            ),
+            SimpleNamespace(),
+        )
+
+        response = await obsidian_routes.project_plan_session_preview_stream(
+            created["id"],
+            obsidian_routes.ProjectPlanSessionPreviewRequest(),
+            SimpleNamespace(),
+        )
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
+        stream = "".join(chunks)
+
+        assert "event: session_updated" in stream
+        assert "event: plan_done" in stream
+        loaded = await obsidian_routes.project_plan_session_get(created["id"], SimpleNamespace())
+        assert loaded["status"] == "ready"
+        assert loaded["progress"]["phase"] == "ready"
+        assert loaded["plan"]["target_folder"] == "Projects/Demo"
+        assert any(event["phase"] == "file_started" for event in loaded["debug_events"])
+        assert any(event["phase"] == "ready" for event in loaded["debug_events"])
+        assert not os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"))
+
+
+@pytest.mark.asyncio
+async def test_project_plan_session_apply_marks_created_and_hides_from_active(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+        request_payload = ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo",
+            description="Build a graphable project plan.",
+            kind="software",
+            generate_content=False,
+        )
+        created = await obsidian_routes.project_plan_session_create(
+            obsidian_routes.ProjectPlanSessionCreateRequest(request=request_payload),
+            SimpleNamespace(),
+        )
+        plan = build_project_plan(tmpdir, request_payload)
+        obsidian_routes._update_project_plan_session(
+            tmpdir,
+            created["id"],
+            plan=plan.model_dump() if hasattr(plan, "model_dump") else plan.dict(),
+            status="ready",
+        )
+
+        result = await obsidian_routes.project_plan_session_apply(
+            created["id"],
+            obsidian_routes.ProjectPlanSessionApplyRequest(confirm=True),
+            SimpleNamespace(),
+        )
+
+        assert result["success"] is True
+        assert result["session"]["status"] == "created"
+        assert any(event["phase"] == "created" for event in result["session"]["debug_events"])
+        assert os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"))
+        listed = await obsidian_routes.project_plan_sessions(SimpleNamespace())
+        assert listed["sessions"] == []
+
+
+@pytest.mark.asyncio
 async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
@@ -661,8 +926,9 @@ async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
         graph = json.loads(graph_res["output"])["graph"]
         edge_types = {edge["type"] for edge in graph["edges"]}
         assert "wiki_link" in edge_types
-        assert "shared_tag" in edge_types
-        assert "depends_on" in edge_types
+        assert "shared_tag" not in edge_types
+        assert "depends_on" not in edge_types
+        assert "supports" not in edge_types
 
         history_res = await handle_history('{"limit": 20}', owner="alice")
         assert "obsidian_project_plan_apply" in history_res["output"]
@@ -680,19 +946,19 @@ async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
         assert "conflicts" in refused["output"]
 
         new_folder_preview = await handle_project_plan_preview(json.dumps({
-            "target_folder": f"{NEW_PROJECT_FOLDER_SENTINEL}::Projects",
+            "target_folder": f"{NEW_PROJECT_FOLDER_SENTINEL}::",
             "title": "Fresh Project",
-            "description": "Create under Projects only when applied.",
+            "description": "Create under the vault root only when applied.",
             "kind": "generic",
         }), owner="alice")
         assert new_folder_preview["exit_code"] == 0
         new_folder_plan = json.loads(new_folder_preview["output"])
-        assert new_folder_plan["target_folder"] == "Projects/fresh-project"
-        assert not os.path.exists(os.path.join(tmpdir, "Projects", "fresh-project"))
+        assert new_folder_plan["target_folder"] == "fresh-project"
+        assert not os.path.exists(os.path.join(tmpdir, "fresh-project"))
 
         new_folder_apply = await handle_project_plan_apply(json.dumps({"plan": new_folder_plan, "confirm": True}), owner="alice")
         assert new_folder_apply["exit_code"] == 0
-        assert os.path.exists(os.path.join(tmpdir, "Projects", "fresh-project", "00 Projektuebersicht.md"))
+        assert os.path.exists(os.path.join(tmpdir, "fresh-project", "00 Projektuebersicht.md"))
 
 
 def test_memory_review_preview_reuses_tags_links_and_validates_schema():
@@ -778,7 +1044,6 @@ async def test_memory_review_tools_apply_create_append_history_and_graph(monkeyp
         graph = json.loads(graph_res["output"])["graph"]
         edge_types = {edge["type"] for edge in graph["edges"]}
         assert "wiki_link" in edge_types
-        assert "shared_tag" in edge_types
         assert "relates_to" in edge_types
 
         append_preview = await handle_memory_review_preview(json.dumps({

@@ -14,11 +14,13 @@ import { styledConfirm, styledPrompt, showToast } from '/static/js/ui.js';
 import * as Modals from '/static/js/modalManager.js';
 import { makeWindowDraggable } from '/static/js/windowDrag.js';
 import { clearDockSide } from '/static/js/modalSnap.js';
+import { createWhirlpool } from '/static/js/spinner.js';
+import { mdToHtml, renderMermaid } from '/static/js/markdown.js';
 
 // Dynamic stylesheet insertion
 const link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = '/api/plugins/obsidian/web/style.css?v=surface-mode-v2';
+link.href = '/api/plugins/obsidian/web/style.css?v=project-sessions-v1';
 document.head.appendChild(link);
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -37,6 +39,9 @@ let graphEdgeTypeFilter = 'all';
 let graphCytoscapeInstance = null;
 let graphCytoscapeLoadPromise = null;
 let projectPlanPreview = null;
+let projectPlanSessions = [];
+let activeProjectPlanSessionId = null;
+let activeProjectPlanSession = null;
 let memoryReviewPreview = null;
 let memoryReviewDestination = { type: '', path: '' };
 let memoryReviewTags = [];
@@ -50,6 +55,7 @@ const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer';
 const OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE = 'cytoscape';
 const OBSIDIAN_GRAPH_RENDERER_SVG = 'svg';
 const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js';
+const VAULT_ROOT_TREE_PATH = '__vault_root__';
 const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode';
 const OBSIDIAN_SURFACE_DEFAULT = 'sidebar';
 const OBSIDIAN_SURFACE_MODES = ['sidebar', 'overlay', 'fullscreen'];
@@ -82,6 +88,147 @@ function preprocessWikiLinks(text) {
     const displayLabel = (label || notePath).trim();
     const encodedPath = encodeURIComponent(cleanPath);
     return `[${displayLabel}](#obsidian-link-${encodedPath})`;
+  });
+}
+
+function normalizeMarkdownTags(content) {
+  let inFence = false;
+  return String(content || '').split('\n').map(line => {
+    const stripped = line.trimStart();
+    if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+      inFence = !inFence;
+      return line;
+    }
+    if (inFence || /^#{1,6}\s/.test(stripped)) return line;
+    return line.split(/(`[^`\n]*`)/g).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[\s(])#\s+([A-Za-z0-9][A-Za-z0-9_/-]*)/g, '$1#$2');
+    }).join('');
+  }).join('\n');
+}
+
+function displayTagLabel(tag) {
+  const clean = String(tag || '').replace(/^#+/, '');
+  return clean ? `# ${clean}` : '#';
+}
+
+function tagMetaPath(tag) {
+  const clean = String(tag || '').replace(/^#+/, '').replace(/^\/+|\/+$/g, '');
+  return clean ? `Tags/${clean}.md` : 'Tags/untitled.md';
+}
+
+function shouldSkipTagEnhance(node) {
+  const parent = node.parentElement;
+  return !parent || Boolean(parent.closest('a, code, pre, script, style, textarea, .obsidian-tag-badge'));
+}
+
+function enhancePreviewTags(container) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const targets = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!node.nodeValue || shouldSkipTagEnhance(node)) continue;
+    if (/(^|[^\w/#])#[A-Za-z0-9][A-Za-z0-9_/-]*/.test(node.nodeValue)) targets.push(node);
+  }
+  targets.forEach(node => {
+    const fragment = document.createDocumentFragment();
+    const text = node.nodeValue;
+    const re = /(^|[^\w/#])#([A-Za-z0-9][A-Za-z0-9_/-]*)/g;
+    let last = 0;
+    let match;
+    while ((match = re.exec(text))) {
+      const prefix = match[1] || '';
+      const start = match.index + prefix.length;
+      if (start > last) fragment.appendChild(document.createTextNode(text.slice(last, start)));
+      const tag = match[2];
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'obsidian-tag-badge';
+      badge.dataset.obsidianTag = tag;
+      badge.textContent = displayTagLabel(tag);
+      fragment.appendChild(badge);
+      last = start + tag.length + 1;
+    }
+    if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(fragment, node);
+  });
+}
+
+function resolveMarkdownFileLink(rawHref) {
+  const href = decodeURIComponent(String(rawHref || '').split('#')[0]).replace(/^\.\/+/, '').replace(/\\/g, '/');
+  if (!href || /^https?:\/\//i.test(href) || !/\.md$|\.markdown$/i.test(href)) return '';
+  const normalized = href.replace(/\.markdown$/i, '.md');
+  const localPath = currentNotePath && !normalized.includes('/')
+    ? joinPath(getParentDir(currentNotePath), normalized)
+    : normalized;
+  const localFound = findFileInTree(vaultFiles, localPath);
+  if (localFound) return localFound;
+  return findFileInTree(vaultFiles, normalized) || findFileInTree(vaultFiles, normalizeNotePath(normalized)) || normalized;
+}
+
+function renderEditorPreview(content) {
+  const preview = document.getElementById('obsidian-rendered-preview');
+  if (!preview) return;
+  const prepared = preprocessWikiLinks(content || '');
+  preview.innerHTML = mdToHtml(prepared || '', { allowHtml: false });
+  enhancePreviewTags(preview);
+  renderMermaid(preview);
+}
+
+function closeTagDetails() {
+  document.querySelector('.obsidian-tag-detail-popover')?.remove();
+}
+
+async function openTagDetails(tag, anchor) {
+  closeTagDetails();
+  const clean = String(tag || '').replace(/^#+/, '');
+  const metaPath = tagMetaPath(clean);
+  const tags = await getVaultTags();
+  const info = tags.find(item => item.name === clean) || { name: clean, files: [] };
+  const metaExists = Boolean(findFileInTree(vaultFiles, metaPath));
+  const popover = document.createElement('div');
+  popover.className = 'obsidian-tag-detail-popover';
+  popover.innerHTML = `
+    <div class="obsidian-tag-detail-head">
+      <strong>${escapeHtml(displayTagLabel(clean))}</strong>
+      <button type="button" data-tag-detail-close aria-label="Close">x</button>
+    </div>
+    <div class="obsidian-tag-detail-meta">${escapeHtml((info.files || []).length)} linked notes</div>
+    <div class="obsidian-tag-detail-files">
+      ${(info.files || []).slice(0, 8).map(path => `<button type="button" data-tag-note="${escapeHtml(path)}">${escapeHtml(path)}</button>`).join('') || '<span>No notes yet</span>'}
+    </div>
+    <button type="button" class="obsidian-tag-meta-action" data-tag-meta-path="${escapeHtml(metaPath)}">${metaExists ? 'Open meta note' : 'Create meta note'}</button>
+  `;
+  document.body.appendChild(popover);
+  const rect = anchor?.getBoundingClientRect?.() || { left: 20, bottom: 20 };
+  popover.style.left = `${Math.min(rect.left, window.innerWidth - 280)}px`;
+  popover.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 220)}px`;
+  popover.querySelector('[data-tag-detail-close]')?.addEventListener('click', closeTagDetails);
+  popover.querySelectorAll('[data-tag-note]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      closeTagDetails();
+      await openNote(btn.dataset.tagNote);
+    });
+  });
+  popover.querySelector('[data-tag-meta-path]')?.addEventListener('click', async (e) => {
+    const path = e.currentTarget.dataset.tagMetaPath;
+    if (!findFileInTree(vaultFiles, path)) {
+      const res = await fetch('/api/plugins/obsidian/file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path,
+          content: `# ${displayTagLabel(clean)}\n\nTag: #${clean}\n\n## Linked notes\n${(info.files || []).map(file => `- [[${file.replace(/\.md$/i, '')}]]`).join('\n')}\n`,
+        }),
+      });
+      if (!res.ok) {
+        showToast('Failed to create tag meta note');
+        return;
+      }
+      await loadVaultFiles();
+    }
+    closeTagDetails();
+    await openNote(path);
   });
 }
 
@@ -124,12 +271,118 @@ function flattenTree(nodes, out = []) {
   return out;
 }
 
+function cloneTreeNodes(nodes) {
+  return (nodes || []).map(node => ({
+    ...node,
+    children: node.children ? cloneTreeNodes(node.children) : node.children,
+  }));
+}
+
+function sessionTreePath(session) {
+  return `__project_session__/${session.id}`;
+}
+
+function sessionDisplayName(session) {
+  const folderName = getBaseName(session.target_preview_path || session.target_folder || '');
+  return folderName || session.title || 'Project planning';
+}
+
+function sessionParentPath(session) {
+  return getParentDir(session.target_preview_path || session.target_folder || '');
+}
+
+function sessionStatusLabel(status) {
+  switch (String(status || '').toLowerCase()) {
+    case 'draft':
+      return 'Draft';
+    case 'generating':
+      return 'Generating';
+    case 'ready':
+      return 'Ready';
+    case 'applying':
+      return 'Applying';
+    case 'error':
+      return 'Error';
+    default:
+      return 'Planning';
+  }
+}
+
+function projectPlanSessionNode(session) {
+  const planFiles = session.plan?.files || [];
+  return {
+    name: sessionDisplayName(session),
+    path: sessionTreePath(session),
+    is_dir: true,
+    is_virtual_project_session: true,
+    session_id: session.id,
+    wip_status: session.status || 'draft',
+    children: planFiles.map(file => ({
+      name: getBaseName(file.path),
+      path: `${sessionTreePath(session)}/${file.path}`,
+      is_dir: false,
+      is_virtual_project_session_file: true,
+      session_id: session.id,
+      source_path: file.path,
+    })),
+  };
+}
+
+function insertSessionNode(nodes, sessionNode, parentPath) {
+  if (!parentPath) {
+    nodes.push(sessionNode);
+    return true;
+  }
+  for (const node of nodes) {
+    if (node.is_dir && node.path === parentPath) {
+      node.children = node.children || [];
+      node.children.push(sessionNode);
+      expandedFolders.add(node.path);
+      return true;
+    }
+    if (node.is_dir && node.children && insertSessionNode(node.children, sessionNode, parentPath)) {
+      return true;
+    }
+  }
+  nodes.push(sessionNode);
+  return false;
+}
+
+function treeWithProjectPlanSessions(nodes) {
+  const merged = cloneTreeNodes(nodes);
+  projectPlanSessions.forEach(session => {
+    const status = String(session.status || '').toLowerCase();
+    if (['created', 'cancelled'].includes(status)) return;
+    const node = projectPlanSessionNode(session);
+    insertSessionNode(merged, node, sessionParentPath(session));
+  });
+  return merged;
+}
+
+function visibleTreeNodes(nodes) {
+  return [
+    {
+      name: 'Vault root',
+      path: VAULT_ROOT_TREE_PATH,
+      is_dir: true,
+      is_virtual_root: true,
+      children: [],
+    },
+    ...treeWithProjectPlanSessions(nodes),
+  ];
+}
+
 function findTreeNode(path) {
-  return flattenTree(vaultFiles).find(node => node.path === path) || null;
+  if (path === VAULT_ROOT_TREE_PATH) {
+    return { name: 'Vault root', path: VAULT_ROOT_TREE_PATH, is_dir: true, is_virtual_root: true };
+  }
+  return flattenTree(visibleTreeNodes(vaultFiles)).find(node => node.path === path) || null;
 }
 
 function selectedFolderPath() {
   const selected = selectedTreePath ? findTreeNode(selectedTreePath) : null;
+  if (selected?.is_virtual_root) return '';
+  if (selected?.is_virtual_project_session || selected?.is_virtual_project_session_file) return '';
   if (selected?.is_dir) return selected.path;
   return '';
 }
@@ -475,8 +728,44 @@ function closeSettingsMenu() {
   document.getElementById('obsidian-settings-menu')?.classList.add('hidden');
 }
 
+function shortAiModelName(model) {
+  const text = String(model || '').trim();
+  if (!text) return '';
+  return text.split('/').pop();
+}
+
+async function refreshObsidianAiStatus() {
+  const valueEl = document.getElementById('obsidian-ai-model-value');
+  const hintEl = document.getElementById('obsidian-ai-model-hint');
+  if (!valueEl || !hintEl) return;
+  valueEl.textContent = 'Loading...';
+  valueEl.removeAttribute('title');
+  hintEl.textContent = '';
+  try {
+    const res = await fetch('/api/plugins/obsidian/ai-status', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('AI status unavailable');
+    const status = await res.json();
+    if (!status.available || !status.model) {
+      valueEl.textContent = 'No model configured';
+      hintEl.textContent = '';
+      return;
+    }
+    valueEl.textContent = shortAiModelName(status.model);
+    valueEl.title = status.model;
+    hintEl.textContent = status.role === 'utility' ? 'Utility' : 'Default fallback';
+  } catch (e) {
+    valueEl.textContent = 'Unable to load model';
+    hintEl.textContent = '';
+  }
+}
+
 function toggleSettingsMenu() {
-  document.getElementById('obsidian-settings-menu')?.classList.toggle('hidden');
+  const menu = document.getElementById('obsidian-settings-menu');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+  if (!menu.classList.contains('hidden')) {
+    refreshObsidianAiStatus();
+  }
 }
 
 function fileToBase64(file) {
@@ -954,6 +1243,11 @@ function injectUIElements() {
                     <button type="button" class="obsidian-surface-option" data-obsidian-surface-mode="fullscreen" role="radio" aria-checked="false">Fullscreen</button>
                   </div>
                 </div>
+                <div class="obsidian-ai-status" role="group" aria-label="AI model status">
+                  <div class="obsidian-settings-label">AI Model</div>
+                  <div class="obsidian-ai-status-value" id="obsidian-ai-model-value">Loading...</div>
+                  <div class="obsidian-ai-status-hint" id="obsidian-ai-model-hint"></div>
+                </div>
                 <button type="button" data-settings-action="import" role="menuitem">Import vault</button>
                 <button type="button" data-settings-action="export" role="menuitem">Export vault</button>
                 <button type="button" data-settings-action="set-password" role="menuitem">Set password</button>
@@ -1003,11 +1297,19 @@ function injectUIElements() {
                   <button type="button" class="obsidian-panel-btn" id="obsidian-project-close" title="Close project planner">x</button>
                 </div>
                 <div class="obsidian-project-form">
-                  <select id="obsidian-project-folder" title="Target folder"></select>
+                  <div class="obsidian-project-select obsidian-project-folder-select" data-project-select="folder">
+                    <select id="obsidian-project-folder" title="Target folder"></select>
+                    <button type="button" class="obsidian-project-select-trigger" data-project-select-trigger="folder" aria-haspopup="listbox" aria-expanded="false"></button>
+                    <div class="obsidian-project-select-menu hidden" data-project-select-menu="folder" role="listbox"></div>
+                  </div>
                   <input id="obsidian-project-title" type="text" placeholder="Project title" autocomplete="off">
-                  <select id="obsidian-project-kind" title="Project kind">
-                    <option value="software">Software</option>
-                  </select>
+                  <div class="obsidian-project-select obsidian-project-kind-select" data-project-select="kind">
+                    <select id="obsidian-project-kind" title="Project kind">
+                      <option value="software">Software</option>
+                    </select>
+                    <button type="button" class="obsidian-project-select-trigger" data-project-select-trigger="kind" aria-haspopup="listbox" aria-expanded="false"></button>
+                    <div class="obsidian-project-select-menu hidden" data-project-select-menu="kind" role="listbox"></div>
+                  </div>
                   <div class="obsidian-project-description-wrap">
                     <textarea id="obsidian-project-description" placeholder="Project goal, scope, constraints, and useful context"></textarea>
                     <button type="button" id="obsidian-project-improve-description" class="obsidian-project-ai-btn" title="Improve prompt" aria-label="Improve project prompt">
@@ -1016,8 +1318,8 @@ function injectUIElements() {
                   </div>
                   <textarea id="obsidian-project-focus" placeholder="Custom prompts, priorities, sections to emphasize, tone, constraints, or quality checks"></textarea>
                   <div class="obsidian-project-actions">
-                    <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Create plan</button>
-                    <button type="button" id="obsidian-project-apply" class="btn btn-primary" disabled>Create structure</button>
+                    <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Create plan preview</button>
+                    <button type="button" id="obsidian-project-apply" class="btn btn-primary" disabled>Create files</button>
                   </div>
                 </div>
                 <div class="obsidian-project-gamedev-draft hidden" id="obsidian-project-gamedev-draft"></div>
@@ -1112,6 +1414,7 @@ function injectUIElements() {
                     <textarea id="obsidian-textarea" placeholder="Start writing markdown..."></textarea>
                     <div id="obsidian-autocomplete" class="obsidian-autocomplete hidden" role="listbox"></div>
                   </div>
+                  <div class="obsidian-pane obsidian-preview-pane" id="obsidian-rendered-preview"></div>
                 </div>
                 <div class="obsidian-graph-view hidden" id="obsidian-graph-view"></div>
               </div>
@@ -1169,9 +1472,27 @@ function minimizePanel() {
 
 // ─── File Tree ───────────────────────────────────────────────────────────────
 
+async function loadProjectPlanSessions() {
+  try {
+    const res = await fetch('/api/plugins/obsidian/project-plan/sessions');
+    if (!res.ok) {
+      projectPlanSessions = [];
+      return;
+    }
+    const data = await res.json();
+    projectPlanSessions = data.sessions || [];
+  } catch (e) {
+    console.error('Failed to load project planning sessions:', e);
+    projectPlanSessions = [];
+  }
+}
+
 async function loadVaultFiles() {
   try {
-    const res = await fetch('/api/plugins/obsidian/files');
+    const [res] = await Promise.all([
+      fetch('/api/plugins/obsidian/files'),
+      loadProjectPlanSessions(),
+    ]);
     if (res.ok) {
       vaultFiles = await res.json();
       tagCache = null;
@@ -1188,7 +1509,7 @@ async function loadVaultFiles() {
 function renderFileTree() {
   const container = document.getElementById('obsidian-file-tree');
   if (!container) return;
-  buildTreeHTML(vaultFiles, container, 0);
+  buildTreeHTML(visibleTreeNodes(vaultFiles), container, 0);
   if (!container.dataset.dndBound) {
     container.dataset.dndBound = 'true';
     container.addEventListener('dragover', (e) => {
@@ -1223,6 +1544,9 @@ function buildTreeHTML(nodes, container, level) {
   nodes.forEach(node => {
     const item = document.createElement('div');
     item.className = `tree-item ${node.is_dir ? 'tree-folder' : 'tree-file'}`;
+    if (node.is_virtual_root) item.classList.add('tree-root-node');
+    if (node.is_virtual_project_session) item.classList.add('tree-project-session');
+    if (node.is_virtual_project_session_file) item.classList.add('tree-project-session-file');
     item.dataset.path = node.path;
     const isCurrentNote = !node.is_dir && currentNotePath === node.path;
     const isSelected = selectedTreePath === node.path || (!selectedTreePath && isCurrentNote);
@@ -1236,11 +1560,17 @@ function buildTreeHTML(nodes, container, level) {
     const header = document.createElement('div');
     header.className = 'tree-item-header';
     header.style.paddingLeft = `${level * 12 + 6}px`;
-    header.draggable = !isInlineRenaming;
+    header.draggable = !isInlineRenaming && !node.is_virtual_root && !node.is_virtual_project_session && !node.is_virtual_project_session_file;
 
     const icon = document.createElement('span');
     icon.className = 'tree-item-icon';
-    if (node.is_dir) {
+    if (node.is_virtual_root) {
+      icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>`;
+    } else if (node.is_virtual_project_session) {
+      icon.innerHTML = `<span class="tree-project-session-spinner" aria-hidden="true"></span>`;
+    } else if (node.is_virtual_project_session_file) {
+      icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    } else if (node.is_dir) {
       const isExpanded = expandedFolders.has(node.path);
       icon.innerHTML = isExpanded
         ? `<svg class="chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1252,7 +1582,7 @@ function buildTreeHTML(nodes, container, level) {
     }
 
     let name;
-    if (isInlineRenaming) {
+    if (isInlineRenaming && !node.is_virtual_project_session && !node.is_virtual_project_session_file) {
       name = document.createElement('input');
       name.className = 'tree-rename-input';
       name.dataset.path = node.path;
@@ -1283,7 +1613,13 @@ function buildTreeHTML(nodes, container, level) {
 
     header.appendChild(icon);
     header.appendChild(name);
-    if (isFolderSelected && !isInlineRenaming) {
+    if (node.is_virtual_project_session) {
+      const status = document.createElement('span');
+      status.className = `tree-project-session-status tree-project-session-status-${String(node.wip_status || 'draft').toLowerCase()}`;
+      status.textContent = sessionStatusLabel(node.wip_status);
+      header.appendChild(status);
+    }
+    if (isFolderSelected && !isInlineRenaming && !node.is_virtual_project_session && !node.is_virtual_root) {
       const renameButton = document.createElement('button');
       renameButton.type = 'button';
       renameButton.className = 'tree-rename-button';
@@ -1297,7 +1633,7 @@ function buildTreeHTML(nodes, container, level) {
       });
       header.appendChild(renameButton);
     }
-    if (isFileSelected && !isInlineRenaming) {
+    if (isFileSelected && !isInlineRenaming && !node.is_virtual_project_session_file) {
       const actions = document.createElement('span');
       actions.className = 'tree-item-actions';
 
@@ -1343,6 +1679,16 @@ function buildTreeHTML(nodes, container, level) {
 
     header.addEventListener('click', async (e) => {
       e.stopPropagation();
+      if (node.is_virtual_root) {
+        selectedTreePath = VAULT_ROOT_TREE_PATH;
+        renderFileTree();
+        return;
+      }
+      if (node.is_virtual_project_session || node.is_virtual_project_session_file) {
+        selectTreeItem(node.path);
+        await openProjectPlanSession(node.session_id);
+        return;
+      }
       if (node.is_dir) {
         if (inlineRenamePath === node.path) {
           return;
@@ -1361,6 +1707,10 @@ function buildTreeHTML(nodes, container, level) {
     });
 
     header.addEventListener('dragstart', (e) => {
+      if (node.is_virtual_project_session || node.is_virtual_project_session_file) {
+        e.preventDefault();
+        return;
+      }
       e.dataTransfer.setData('application/x-obsidian-path', node.path);
       e.dataTransfer.effectAllowed = 'move';
       item.classList.add('dragging');
@@ -1371,7 +1721,7 @@ function buildTreeHTML(nodes, container, level) {
       document.querySelectorAll('.tree-item.drop-target').forEach(el => el.classList.remove('drop-target'));
     });
 
-    if (node.is_dir) {
+    if (node.is_dir && !node.is_virtual_project_session) {
       header.addEventListener('dragover', (e) => {
         if (e.dataTransfer?.types.includes('application/x-obsidian-path') || e.dataTransfer?.files?.length) {
           e.preventDefault();
@@ -1386,12 +1736,13 @@ function buildTreeHTML(nodes, container, level) {
         e.stopPropagation();
         item.classList.remove('drop-target');
         const oldPath = e.dataTransfer?.getData('application/x-obsidian-path');
+        const dropTarget = node.is_virtual_root ? '' : node.path;
         if (oldPath) {
-          await moveVaultItem(oldPath, node.path);
+          await moveVaultItem(oldPath, dropTarget);
           return;
         }
         if (e.dataTransfer?.files?.length) {
-          await importDroppedMarkdownFiles(e.dataTransfer.files, node.path);
+          await importDroppedMarkdownFiles(e.dataTransfer.files, dropTarget);
         }
       });
     }
@@ -1422,6 +1773,7 @@ async function openNote(path) {
       document.getElementById('obsidian-current-note-title').textContent = path;
       const textarea = document.getElementById('obsidian-textarea');
       textarea.value = data.content || '';
+      renderEditorPreview(textarea.value);
       if (currentViewMode === 'graph') {
         renderGraphView();
       }
@@ -1607,6 +1959,7 @@ async function deleteNote(path) {
 }
 
 function currentTargetFolder() {
+  if (selectedTreePath === VAULT_ROOT_TREE_PATH) return '';
   const selectedFolder = selectedFolderPath();
   if (selectedFolder) return selectedFolder;
   if (currentNotePath) return getParentDir(currentNotePath);
@@ -1627,23 +1980,105 @@ function projectFolderOptions() {
   return ['', ...folders.filter((path, index) => folders.indexOf(path) === index)];
 }
 
+function projectSelectIcon(type, key = '') {
+  const normalized = String(key || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  if (type === 'folder') {
+    if (key === NEW_PROJECT_FOLDER_SENTINEL) {
+      return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+    }
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  }
+  if (['research', 'study', 'science'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>';
+  }
+  if (['writing', 'creative_writing', 'book'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  }
+  if (['game_dev', 'gamedev', 'game_development', 'game'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.3 6H6.7A4.7 4.7 0 0 0 2 10.7v2.6A4.7 4.7 0 0 0 6.7 18h.6a2 2 0 0 0 1.6-.8l1-1.4h4.2l1 1.4a2 2 0 0 0 1.6.8h.6a4.7 4.7 0 0 0 4.7-4.7v-2.6A4.7 4.7 0 0 0 17.3 6Z"/></svg>';
+  }
+  if (['sec_ops', 'secops', 'security_operations'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  }
+  if (['security', 'cybersecurity', 'audit'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.7 8.9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.4a1.4 1.4 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></svg>';
+  }
+  if (['teaching', 'education', 'course', 'lesson'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>';
+  }
+  if (['software', 'code', 'development'].includes(normalized)) {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+  }
+  return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h1"/><path d="M4 12h1"/><path d="M4 18h1"/></svg>';
+}
+
+function closeProjectSelectMenus(except = '') {
+  document.querySelectorAll('.obsidian-project-select-menu').forEach(menu => {
+    if (except && menu.dataset.projectSelectMenu === except) return;
+    menu.classList.add('hidden');
+  });
+  document.querySelectorAll('.obsidian-project-select-trigger').forEach(trigger => {
+    if (except && trigger.dataset.projectSelectTrigger === except) return;
+    trigger.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function setProjectSelectValue(type, value) {
+  const select = document.getElementById(type === 'folder' ? 'obsidian-project-folder' : 'obsidian-project-kind');
+  if (!select) return;
+  select.value = value;
+  renderProjectCustomSelect(type);
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  closeProjectSelectMenus();
+}
+
+function renderProjectCustomSelect(type, items = null) {
+  const select = document.getElementById(type === 'folder' ? 'obsidian-project-folder' : 'obsidian-project-kind');
+  const trigger = document.querySelector(`[data-project-select-trigger="${type}"]`);
+  const menu = document.querySelector(`[data-project-select-menu="${type}"]`);
+  if (!select || !trigger || !menu) return;
+  const options = items || [...select.options].map(option => ({ value: option.value, label: option.textContent || option.value }));
+  const selected = options.find(item => item.value === select.value) || options[0] || { value: '', label: '' };
+  trigger.innerHTML = `
+    <span class="obsidian-project-select-icon">${projectSelectIcon(type, selected.value)}</span>
+    <span class="obsidian-project-select-label">${escapeHtml(selected.label)}</span>
+    <svg class="obsidian-project-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  `;
+  menu.innerHTML = options.map(item => `
+    <button type="button" class="obsidian-project-select-option ${item.value === select.value ? 'active' : ''}" data-project-select-value="${escapeHtml(item.value)}" role="option" aria-selected="${item.value === select.value ? 'true' : 'false'}">
+      <span class="obsidian-project-select-icon">${projectSelectIcon(type, item.value)}</span>
+      <span>${escapeHtml(item.label)}</span>
+    </button>
+  `).join('');
+}
+
+function toggleProjectSelectMenu(type) {
+  const trigger = document.querySelector(`[data-project-select-trigger="${type}"]`);
+  const menu = document.querySelector(`[data-project-select-menu="${type}"]`);
+  if (!trigger || !menu) return;
+  const willOpen = menu.classList.contains('hidden');
+  closeProjectSelectMenus(type);
+  menu.classList.toggle('hidden', !willOpen);
+  trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
 function renderProjectFolderOptions() {
   const select = document.getElementById('obsidian-project-folder');
   if (!select) return;
   const previous = select.value;
-  const target = currentTargetFolder();
   const folders = projectFolderOptions();
   select.innerHTML = folders.map(path => {
     const label = path || 'Vault root';
     return `<option value="${escapeHtml(path)}">${escapeHtml(label)}</option>`;
-  }).join('') + `<option value="${NEW_PROJECT_FOLDER_SENTINEL}">${escapeHtml('Create new project folder')}</option>`;
+  }).join('') + `<option value="${NEW_PROJECT_FOLDER_SENTINEL}">${escapeHtml('Plan new project folder')}</option>`;
   if (previous && [...select.options].some(option => option.value === previous)) {
     select.value = previous;
-  } else if ([...select.options].some(option => option.value === target)) {
-    select.value = target;
+  } else if ([...select.options].some(option => option.value === NEW_PROJECT_FOLDER_SENTINEL)) {
+    select.value = NEW_PROJECT_FOLDER_SENTINEL;
   } else {
     select.value = '';
   }
+  renderProjectCustomSelect('folder');
 }
 
 function resolveProjectTargetFolder() {
@@ -1651,8 +2086,7 @@ function resolveProjectTargetFolder() {
   const title = document.getElementById('obsidian-project-title')?.value || '';
   const selected = folderSelect?.value || '';
   if (selected === NEW_PROJECT_FOLDER_SENTINEL) {
-    const parent = currentTargetFolder();
-    return `${NEW_PROJECT_FOLDER_SENTINEL}::${parent || ''}`;
+    return `${NEW_PROJECT_FOLDER_SENTINEL}::`;
   }
   return selected || '';
 }
@@ -1663,9 +2097,8 @@ function updateProjectTargetLabel() {
   const label = document.getElementById('obsidian-project-target');
   if (!label) return;
   if (selected === NEW_PROJECT_FOLDER_SENTINEL) {
-    const parent = currentTargetFolder();
     const slug = slugifyProjectTitle(title);
-    label.textContent = parent ? `Target: ${parent}/${slug}` : `Target: ${slug}`;
+    label.textContent = `Target: ${slug}`;
   } else {
     label.textContent = selected ? `Target: ${selected}` : 'Target: vault root';
   }
@@ -1689,6 +2122,7 @@ async function loadProjectTemplateOptions() {
   kindSelect.value = kinds.some(kind => (typeof kind === 'string' ? kind : kind.key) === previous)
     ? previous
     : (projectTemplateOptions.default_kind || 'software');
+  renderProjectCustomSelect('kind');
 }
 
 function isGameDevProjectKind(kind) {
@@ -1707,11 +2141,159 @@ function clearGameDevDraft() {
 
 function invalidateProjectPlanPreview({ clearDraft = true } = {}) {
   projectPlanPreview = null;
-  const applyBtn = document.getElementById('obsidian-project-apply');
-  if (applyBtn) applyBtn.disabled = true;
   const previewPanel = document.getElementById('obsidian-project-preview-panel');
   if (previewPanel) previewPanel.innerHTML = '';
   if (clearDraft) clearGameDevDraft();
+}
+
+function projectPlanRequestFromForm({ conceptApproved = false, approvedConcept = '' } = {}) {
+  return {
+    target_folder: resolveProjectTargetFolder(),
+    title: document.getElementById('obsidian-project-title')?.value || '',
+    kind: document.getElementById('obsidian-project-kind')?.value || 'software',
+    description: document.getElementById('obsidian-project-description')?.value || '',
+    custom_focus: document.getElementById('obsidian-project-focus')?.value || '',
+    generate_content: true,
+    approved_concept: approvedConcept,
+    concept_approved: conceptApproved,
+  };
+}
+
+function setProjectPlanFormFromRequest(requestPayload = {}) {
+  const folder = document.getElementById('obsidian-project-folder');
+  const title = document.getElementById('obsidian-project-title');
+  const kind = document.getElementById('obsidian-project-kind');
+  const description = document.getElementById('obsidian-project-description');
+  const focus = document.getElementById('obsidian-project-focus');
+  if (folder) {
+    const requestedFolder = requestPayload.target_folder || '';
+    folder.value = String(requestedFolder).startsWith(`${NEW_PROJECT_FOLDER_SENTINEL}::`)
+      ? NEW_PROJECT_FOLDER_SENTINEL
+      : requestedFolder;
+  }
+  if (title) title.value = requestPayload.title || '';
+  if (kind) kind.value = requestPayload.kind || 'software';
+  if (description) description.value = requestPayload.description || '';
+  if (focus) focus.value = requestPayload.custom_focus || '';
+  renderProjectCustomSelect('folder');
+  renderProjectCustomSelect('kind');
+  updateProjectTargetLabel();
+}
+
+function setActiveProjectPlanSession(session) {
+  activeProjectPlanSession = session || null;
+  activeProjectPlanSessionId = session?.id || null;
+  if (session?.id) {
+    const existing = projectPlanSessions.findIndex(item => item.id === session.id);
+    if (existing >= 0) {
+      projectPlanSessions[existing] = session;
+    } else if (!['created', 'cancelled'].includes(String(session.status || '').toLowerCase())) {
+      projectPlanSessions.push(session);
+    }
+  }
+  renderFileTree();
+}
+
+function projectSessionProgressHtml() {
+  if (!activeProjectPlanSession) return '';
+  const progress = activeProjectPlanSession.progress || {};
+  const status = activeProjectPlanSession.status || 'draft';
+  const total = Number(progress.total_files || 0);
+  const current = Math.min(Number(progress.current_index || 0), total || Number(progress.current_index || 0));
+  const percent = total ? Math.max(0, Math.min(100, Math.round((current / total) * 100))) : 0;
+  return `
+    <div class="obsidian-project-session-progress" data-project-session-status="${escapeHtml(status)}">
+      <div class="obsidian-project-session-progress-head">
+        <strong>${escapeHtml(sessionStatusLabel(status))}</strong>
+        <span>${escapeHtml(progress.message || 'Recoverable WIP plan')}</span>
+        <button type="button" class="obsidian-project-session-cancel" data-project-session-cancel>Cancel planning</button>
+      </div>
+      <div class="obsidian-project-session-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
+      ${total ? `<div class="obsidian-project-session-count">${escapeHtml(current)} / ${escapeHtml(total)} files</div>` : ''}
+    </div>
+  `;
+}
+
+function projectSessionDebugHtml() {
+  if (!activeProjectPlanSession) return '';
+  const events = activeProjectPlanSession.debug_events || [];
+  const sessionId = activeProjectPlanSession.id || activeProjectPlanSessionId || '';
+  const status = activeProjectPlanSession.status || 'draft';
+  const progress = activeProjectPlanSession.progress || {};
+  const rows = events.slice(-18).reverse().map(event => {
+    const bits = [
+      event.phase || 'event',
+      event.file || '',
+      event.message || '',
+      event.error ? `Error: ${event.error}` : '',
+    ].filter(Boolean).join(' - ');
+    return `<li><time>${escapeHtml(event.ts || '')}</time><span>${escapeHtml(bits)}</span></li>`;
+  }).join('');
+  return `
+    <details class="obsidian-project-debug" open>
+      <summary>Debug</summary>
+      <div class="obsidian-project-debug-meta">
+        <span>Session: ${escapeHtml(sessionId || 'none')}</span>
+        <span>Status: ${escapeHtml(status)}</span>
+        <span>Phase: ${escapeHtml(progress.phase || '')}</span>
+        <span>${escapeHtml(progress.message || '')}</span>
+      </div>
+      <ol>${rows || '<li><span>No debug events yet</span></li>'}</ol>
+    </details>
+  `;
+}
+
+function renderProjectSessionDraft() {
+  const panel = document.getElementById('obsidian-project-preview-panel');
+  if (!panel || !activeProjectPlanSession) return;
+  panel.innerHTML = `
+    ${projectSessionProgressHtml()}
+    ${projectSessionDebugHtml()}
+    <div class="obsidian-project-ok">Preview saves a recoverable WIP plan.</div>
+  `;
+  bindProjectSessionActions();
+  updateProjectApplyState();
+}
+
+function bindProjectSessionActions() {
+  document.querySelector('[data-project-session-cancel]')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await cancelActiveProjectPlanSession();
+  });
+}
+
+function updateProjectApplyState() {
+  const applyBtn = document.getElementById('obsidian-project-apply');
+  if (!applyBtn) return;
+  const conflicts = projectPlanPreview?.conflicts || [];
+  const files = projectPlanPreview?.files || [];
+  const sessionStatus = String(activeProjectPlanSession?.status || '').toLowerCase();
+  applyBtn.disabled = projectPlanPreviewStreaming
+    || conflicts.length > 0
+    || files.length === 0
+    || ['draft', 'generating', 'applying', 'error'].includes(sessionStatus);
+}
+
+async function cancelActiveProjectPlanSession() {
+  if (!activeProjectPlanSessionId) return;
+  const confirmed = await styledConfirm('Cancel this recoverable project planning session?', { confirmText: 'Cancel planning', danger: true });
+  if (!confirmed) return;
+  try {
+    const res = await fetch(`/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to cancel planning session');
+    activeProjectPlanSession = null;
+    activeProjectPlanSessionId = null;
+    projectPlanPreview = null;
+    await loadProjectPlanSessions();
+    renderFileTree();
+    closeProjectPlanner();
+    showToast('Planning session cancelled');
+  } catch (e) {
+    console.error('Project planning cancel failed:', e);
+    showToast(e.message || 'Failed to cancel planning session');
+  }
 }
 
 function handleProjectInputChanged() {
@@ -2005,11 +2587,15 @@ function handleMemoryTagKey(e) {
   }
 }
 
-async function showProjectPlanner() {
+async function showProjectPlanner({ preserveSession = false } = {}) {
   const planner = document.getElementById('obsidian-project-planner');
   if (!planner) return;
-  projectPlanPreview = null;
-  clearGameDevDraft();
+  if (!preserveSession) {
+    projectPlanPreview = null;
+    activeProjectPlanSession = null;
+    activeProjectPlanSessionId = null;
+    clearGameDevDraft();
+  }
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   planner.classList.remove('hidden');
@@ -2019,8 +2605,30 @@ async function showProjectPlanner() {
     showToast(e.message || 'Failed to load project templates');
   });
   updateProjectTargetLabel();
-  document.getElementById('obsidian-project-preview-panel').innerHTML = '';
-  document.getElementById('obsidian-project-apply').disabled = true;
+  if (!preserveSession) {
+    document.getElementById('obsidian-project-preview-panel').innerHTML = '';
+  }
+}
+
+async function openProjectPlanSession(sessionId) {
+  if (!sessionId) return;
+  try {
+    const res = await fetch(`/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(sessionId)}`);
+    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to load planning session');
+    const session = await res.json();
+    await showProjectPlanner({ preserveSession: true });
+    setActiveProjectPlanSession(session);
+    setProjectPlanFormFromRequest(session.request || {});
+    projectPlanPreview = session.plan || null;
+    if (projectPlanPreview) {
+      renderProjectPlanPreview(projectPlanPreview);
+    } else {
+      renderProjectSessionDraft();
+    }
+  } catch (e) {
+    console.error('Failed to open project planning session:', e);
+    showToast(e.message || 'Failed to open planning session');
+  }
 }
 
 function closeProjectPlanner() {
@@ -2060,14 +2668,14 @@ function closeMemoryReview() {
 
 function renderProjectPlanPreviewLegacy(plan) {
   const panel = document.getElementById('obsidian-project-preview-panel');
-  const applyBtn = document.getElementById('obsidian-project-apply');
-  if (!panel || !applyBtn) return;
+  if (!panel) return;
   const conflicts = plan.conflicts || [];
   const warnings = plan.warnings || [];
   const files = plan.files || [];
   const tags = plan.new_tags || [];
   const relationships = plan.relationships || [];
   panel.innerHTML = `
+    ${projectSessionProgressHtml()}
     <div class="obsidian-project-summary">
       <strong>${escapeHtml(plan.project?.title || 'Project')}</strong>
       <span>${escapeHtml(files.length)} files</span>
@@ -2097,19 +2705,35 @@ function renderProjectPlanPreviewLegacy(plan) {
       ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
     </div>` : ''}
   `;
-  applyBtn.disabled = projectPlanPreviewStreaming || conflicts.length > 0 || files.length === 0;
+}
+
+function projectFileGenerationState(file) {
+  const explicit = String(file?.__generationState || '').toLowerCase();
+  if (['done', 'wip', 'open'].includes(explicit)) return explicit;
+  const status = String(file?.status || '').toLowerCase();
+  if (['writing', 'in_progress', 'work_in_progress', 'work in progress', 'wip'].includes(status)) return 'wip';
+  if (projectPlanPreviewStreaming) return 'open';
+  if (file?.content || file?.content_preview) return 'done';
+  return 'open';
+}
+
+function projectFileGenerationLabel(state) {
+  if (state === 'done') return 'Done';
+  if (state === 'wip') return 'Work in Progress';
+  return 'Open';
 }
 
 function renderProjectPlanPreview(plan) {
   const panel = document.getElementById('obsidian-project-preview-panel');
-  const applyBtn = document.getElementById('obsidian-project-apply');
-  if (!panel || !applyBtn) return;
+  if (!panel) return;
   const conflicts = plan.conflicts || [];
   const warnings = plan.warnings || [];
   const files = plan.files || [];
   const tags = plan.new_tags || [];
   const relationships = plan.relationships || [];
   panel.innerHTML = `
+    ${projectSessionProgressHtml()}
+    ${projectSessionDebugHtml()}
     <div class="obsidian-project-summary">
       <strong>${escapeHtml(plan.project?.title || 'Project')}</strong>
       <span>${escapeHtml(files.length)} files</span>
@@ -2122,12 +2746,27 @@ function renderProjectPlanPreview(plan) {
     ${warnings.length ? `<div class="obsidian-project-warnings">
       ${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}
     </div>` : ''}
+    ${relationships.length ? `<div class="obsidian-project-relationships">
+      <strong>External link suggestions</strong>
+      ${relationships.map((relationship, index) => `
+        <label class="obsidian-project-relationship">
+          <input type="checkbox" data-project-relationship-index="${index}" ${relationship.disabled ? '' : 'checked'}>
+          <span>${escapeHtml(relationship.source)} -> ${escapeHtml(relationship.target)}</span>
+          <small>${escapeHtml(relationship.reason || relationship.type || 'relates to')}</small>
+        </label>
+      `).join('')}
+    </div>` : ''}
     <div class="obsidian-project-files">
-      ${files.map((file, index) => `
-        <details class="obsidian-project-file obsidian-project-file-editor" data-project-file="${escapeHtml(file.path)}" data-project-index="${index}" open>
+      ${files.map((file, index) => {
+        const generationState = projectFileGenerationState(file);
+        return `
+        <details class="obsidian-project-file obsidian-project-file-editor obsidian-project-file-${generationState}" data-project-file="${escapeHtml(file.path)}" data-project-index="${index}" data-project-generation-state="${generationState}">
           <summary>
             <strong>${escapeHtml(file.path)}</strong>
-            <span>${escapeHtml(file.type)} - ${escapeHtml(file.status)}</span>
+            <span class="obsidian-project-file-meta">
+              <span>${escapeHtml(file.type)} - ${escapeHtml(file.status)}</span>
+              <span class="obsidian-project-file-state obsidian-project-file-state-${generationState}">${projectFileGenerationLabel(generationState)}</span>
+            </span>
           </summary>
           <div class="obsidian-project-file-grid">
             <label>Path<input data-project-field="path" value="${escapeHtml(file.path)}"></label>
@@ -2140,14 +2779,16 @@ function renderProjectPlanPreview(plan) {
           <label class="obsidian-project-wide-field">Markdown<textarea data-project-field="content">${escapeHtml(file.content || file.content_preview || '')}</textarea></label>
           <div class="obsidian-project-tags">${(file.tags || []).map(tag => `<code>${escapeHtml(tag)}</code>`).join('')}</div>
         </details>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
     ${tags.length ? `<div class="obsidian-project-new-tags">
       <strong>New tags</strong>
       ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
     </div>` : ''}
   `;
-  applyBtn.disabled = conflicts.length > 0 || files.length === 0;
+  bindProjectSessionActions();
+  updateProjectApplyState();
 }
 
 function syncProjectPlanPreviewEdits() {
@@ -2178,6 +2819,12 @@ function syncProjectPlanPreviewEdits() {
     }
     file.content_preview = String(file.content || '').split('\n').filter(Boolean).slice(0, 8).join('\n');
   });
+  const checkedRelationships = new Set(
+    [...document.querySelectorAll('[data-project-relationship-index]:checked')]
+      .map(input => Number(input.dataset.projectRelationshipIndex))
+  );
+  projectPlanPreview.relationships = (projectPlanPreview.relationships || [])
+    .filter((relationship, index) => !relationship.suggested || checkedRelationships.has(index));
 }
 
 function renderMemoryReviewPreview(plan) {
@@ -2336,6 +2983,32 @@ function startProjectPlanLoadingAnimation(panel) {
   return () => window.clearInterval(timer);
 }
 
+function startProjectDescriptionImproveLoading(textarea) {
+  const wrap = textarea?.closest('.obsidian-project-description-wrap');
+  if (!wrap) return () => {};
+
+  wrap.querySelector('.obsidian-project-description-loading')?.remove();
+  const spinner = createWhirlpool(26);
+  const overlay = document.createElement('div');
+  overlay.className = 'obsidian-project-description-loading';
+  overlay.setAttribute('aria-label', 'Improving project prompt');
+  overlay.appendChild(spinner.element);
+  wrap.appendChild(overlay);
+
+  const wasReadOnly = textarea.readOnly;
+  wrap.classList.add('is-ai-loading');
+  textarea.readOnly = true;
+  textarea.setAttribute('aria-busy', 'true');
+
+  return () => {
+    spinner.destroy();
+    overlay.remove();
+    wrap.classList.remove('is-ai-loading');
+    textarea.readOnly = wasReadOnly;
+    textarea.removeAttribute('aria-busy');
+  };
+}
+
 function setProjectPlanFile(index, file) {
   if (!projectPlanPreview || !file) return;
   if (!Array.isArray(projectPlanPreview.files)) projectPlanPreview.files = [];
@@ -2348,6 +3021,16 @@ function setProjectPlanFile(index, file) {
 }
 
 function handleProjectPlanStreamEvent(eventName, payload) {
+  if (eventName === 'session_updated' && payload?.session) {
+    setActiveProjectPlanSession(payload.session);
+    if (payload.session.plan) {
+      projectPlanPreview = payload.session.plan;
+      renderProjectPlanPreview(projectPlanPreview);
+    } else {
+      renderProjectSessionDraft();
+    }
+    return;
+  }
   if (eventName === 'plan_started' && payload?.plan) {
     projectPlanPreview = payload.plan;
     renderProjectPlanPreview(projectPlanPreview);
@@ -2358,12 +3041,15 @@ function handleProjectPlanStreamEvent(eventName, payload) {
     const file = projectPlanPreview?.files?.[index];
     if (file) {
       file.status = 'writing';
+      file.__generationState = 'wip';
       renderProjectPlanPreview(projectPlanPreview);
     }
     return;
   }
   if (eventName === 'file_done') {
-    setProjectPlanFile(Number(payload?.index), payload?.file);
+    const file = payload?.file;
+    if (file) file.__generationState = 'done';
+    setProjectPlanFile(Number(payload?.index), file);
     renderProjectPlanPreview(projectPlanPreview);
     return;
   }
@@ -2408,11 +3094,31 @@ async function previewProjectPlanFallback(payload) {
   renderProjectPlanPreview(projectPlanPreview);
 }
 
-async function previewProjectPlanStream(payload) {
-  const res = await fetch('/api/plugins/obsidian/project-plan/preview-stream', {
+async function ensureProjectPlanSession(payload) {
+  if (activeProjectPlanSessionId) return activeProjectPlanSessionId;
+  const res = await fetch('/api/plugins/obsidian/project-plan/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ request: payload }),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || 'Failed to create planning session');
+  const session = await res.json();
+  setActiveProjectPlanSession(session);
+  await loadProjectPlanSessions();
+  renderFileTree();
+  renderProjectSessionDraft();
+  return session.id;
+}
+
+async function previewProjectPlanStream(payload, sessionId) {
+  const url = sessionId
+    ? `/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(sessionId)}/preview-stream`
+    : '/api/plugins/obsidian/project-plan/preview-stream';
+  const body = sessionId ? { request: payload } : payload;
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
   if (!res.body || !res.body.getReader) {
@@ -2441,11 +3147,9 @@ async function previewProjectPlanStream(payload) {
 }
 
 async function previewProjectPlan({ conceptApproved = false, approvedConcept = '' } = {}) {
-  const target_folder = resolveProjectTargetFolder();
-  const title = document.getElementById('obsidian-project-title')?.value || '';
-  const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
-  const description = document.getElementById('obsidian-project-description')?.value || '';
-  const custom_focus = document.getElementById('obsidian-project-focus')?.value || '';
+  const payload = projectPlanRequestFromForm({ conceptApproved, approvedConcept });
+  const title = payload.title;
+  const kind = payload.kind;
   if (!title.trim()) {
     showToast('Project title required');
     return;
@@ -2458,31 +3162,21 @@ async function previewProjectPlan({ conceptApproved = false, approvedConcept = '
   const previewBtn = document.getElementById('obsidian-project-preview');
   const stopLoadingAnimation = startProjectPlanLoadingAnimation(panel);
   if (previewBtn) previewBtn.disabled = true;
-  document.getElementById('obsidian-project-apply').disabled = true;
   projectPlanPreviewStreaming = true;
-  const payload = {
-    target_folder,
-    title,
-    kind,
-    description,
-    custom_focus,
-    generate_content: true,
-    approved_concept: approvedConcept,
-    concept_approved: conceptApproved,
-  };
   try {
-    await previewProjectPlanStream(payload);
+    const sessionId = await ensureProjectPlanSession(payload);
+    await previewProjectPlanStream(payload, sessionId);
   } catch (e) {
     console.error('Project preview failed:', e);
     projectPlanPreview = null;
     projectPlanPreviewStreaming = false;
     if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Project preview failed')}</div>`;
-    document.getElementById('obsidian-project-apply').disabled = true;
   } finally {
     stopLoadingAnimation();
     projectPlanPreviewStreaming = false;
     if (projectPlanPreview) renderProjectPlanPreview(projectPlanPreview);
     if (previewBtn) previewBtn.disabled = false;
+    updateProjectApplyState();
   }
 }
 
@@ -2498,6 +3192,7 @@ async function improveProjectDescription() {
     showToast('Project context required');
     return;
   }
+  const stopLoadingAnimation = startProjectDescriptionImproveLoading(textarea);
   try {
     if (btn) btn.disabled = true;
     const res = await fetch('/api/plugins/obsidian/project-plan/improve-description', {
@@ -2514,6 +3209,7 @@ async function improveProjectDescription() {
     console.error('Project prompt improvement failed:', e);
     showToast(e.message || 'Prompt improvement failed');
   } finally {
+    stopLoadingAnimation();
     if (btn) btn.disabled = false;
   }
 }
@@ -2595,10 +3291,15 @@ async function applyMemoryReview() {
 async function applyProjectPlan() {
   if (!projectPlanPreview) return;
   syncProjectPlanPreviewEdits();
-  const confirmed = await styledConfirm('Create this project structure in the vault?', { confirmText: 'Create' });
+  const confirmed = await styledConfirm('Create these project files in the vault?', { confirmText: 'Create files' });
   if (!confirmed) return;
+  const applyBtn = document.getElementById('obsidian-project-apply');
+  if (applyBtn) applyBtn.disabled = true;
   try {
-    const res = await fetch('/api/plugins/obsidian/project-plan/apply', {
+    const url = activeProjectPlanSessionId
+      ? `/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}/apply`
+      : '/api/plugins/obsidian/project-plan/apply';
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan: projectPlanPreview, confirm: true }),
@@ -2609,15 +3310,23 @@ async function applyProjectPlan() {
     }
     const data = await res.json();
     tagCache = null;
+    activeProjectPlanSession = null;
+    activeProjectPlanSessionId = null;
+    projectPlanPreview = null;
     await loadVaultFiles();
     closeProjectPlanner();
-    const firstFile = data.created_files?.[0] || projectPlanPreview.files?.[0]?.path;
+    const firstFile = data.created_files?.[0] || data.session?.plan?.files?.[0]?.path;
     if (firstFile) await openNote(firstFile);
     setViewMode('graph');
-    showToast('Project structure created');
+    showToast('Project files created');
   } catch (e) {
     console.error('Project apply failed:', e);
     showToast(e.message || 'Project apply failed');
+    if (activeProjectPlanSessionId) {
+      await openProjectPlanSession(activeProjectPlanSessionId).catch(() => {});
+    }
+  } finally {
+    updateProjectApplyState();
   }
 }
 
@@ -2779,9 +3488,48 @@ async function loadCytoscape() {
   return graphCytoscapeLoadPromise;
 }
 
-function cytoscapeElements(prepared) {
+function focusedProjectFolder() {
+  return currentNotePath ? directFolderForPath(currentNotePath) : null;
+}
+
+function projectFolderNodes(prepared) {
+  const folder = focusedProjectFolder();
+  if (!folder) return [];
+  return prepared.markdownNodes
+    .filter(node => directFolderForPath(node.id) === folder)
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function projectHubNode(nodes) {
+  if (!nodes.length) return null;
+  return nodes.find(node => /^00[\s_-]/.test(getBaseName(node.id).replace(/\.md$/i, ''))) || nodes[0];
+}
+
+function starPositions(prepared, width, height) {
+  const nodes = projectFolderNodes(prepared);
+  if (nodes.length < 3) return null;
+  const hub = projectHubNode(nodes);
+  if (!hub) return null;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = Math.max(120, Math.min(width, height) * 0.32);
+  const positions = new Map([[hub.id, { x: cx, y: cy }]]);
+  const spokes = nodes.filter(node => node.id !== hub.id);
+  spokes.forEach((node, index) => {
+    const angle = (Math.PI * 2 * index) / Math.max(spokes.length, 1) - Math.PI / 2;
+    positions.set(node.id, {
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius,
+    });
+  });
+  return { hub: hub.id, positions };
+}
+
+function cytoscapeElements(prepared, star = null) {
+  const focusedFolder = directFolderForPath(currentNotePath);
   const folderElements = prepared.folderNodes.map(node => {
     const parent = parentFolderForFolder(node.id);
+    const isFocusedFolder = focusedFolder && (node.id === focusedFolder || focusedFolder.startsWith(`${node.id}/`));
     return {
       data: {
         id: node.id,
@@ -2789,13 +3537,14 @@ function cytoscapeElements(prepared) {
         type: 'folder',
         parent: parent || undefined,
       },
-      classes: 'obsidian-folder-node',
+      classes: ['obsidian-folder-node', isFocusedFolder ? 'obsidian-focused-project-folder' : ''].filter(Boolean).join(' '),
     };
   });
 
   const markdownElements = prepared.markdownNodes.map(node => {
     const parent = directFolderForPath(node.id);
-    return {
+    const isFocusedProjectNode = focusedFolder && (parent === focusedFolder || parent?.startsWith(`${focusedFolder}/`));
+    const element = {
       data: {
         id: node.id,
         label: node.label || node.id.replace(/\.md$/i, '').split('/').pop(),
@@ -2803,8 +3552,15 @@ function cytoscapeElements(prepared) {
         parent: parent || undefined,
         tags: (node.tags || []).join(', '),
       },
-      classes: node.id === currentNotePath ? 'obsidian-current-node' : '',
+      classes: [
+        node.id === currentNotePath ? 'obsidian-current-node' : '',
+        isFocusedProjectNode ? 'obsidian-focused-project-node' : '',
+        star?.hub === node.id ? 'obsidian-project-hub-node' : '',
+      ].filter(Boolean).join(' '),
     };
+    const position = star?.positions?.get(node.id);
+    if (position) element.position = position;
+    return element;
   });
 
   const edgeElements = prepared.edges.map((edge, index) => ({
@@ -2881,6 +3637,31 @@ function cytoscapeStyle(container) {
       },
     },
     {
+      selector: 'node.obsidian-focused-project-folder',
+      style: {
+        'background-opacity': 0.14,
+        'border-color': accent,
+        'border-width': 2,
+      },
+    },
+    {
+      selector: 'node.obsidian-focused-project-node',
+      style: {
+        'border-color': accent,
+        'border-width': 2,
+      },
+    },
+    {
+      selector: 'node.obsidian-project-hub-node',
+      style: {
+        'background-color': accent,
+        'border-color': fg,
+        'border-width': 3,
+        'width': 38,
+        'height': 38,
+      },
+    },
+    {
       selector: 'edge',
       style: {
         'curve-style': 'bezier',
@@ -2928,18 +3709,31 @@ async function renderCytoscapeGraph(graph, prepared) {
   const canvas = graph.querySelector('#obsidian-graph-canvas');
   if (!canvas) return;
   const cytoscape = await loadCytoscape();
+  const rect = canvas.getBoundingClientRect();
+  const star = starPositions(prepared, Math.max(760, rect.width || 900), Math.max(480, rect.height || 560));
 
   graphCytoscapeInstance = cytoscape({
     container: canvas,
-    elements: cytoscapeElements(prepared),
-    layout: {
+    elements: cytoscapeElements(prepared, star),
+    layout: star ? {
+      name: 'preset',
+      animate: false,
+      fit: true,
+      padding: 58,
+    } : {
       name: 'cose',
       animate: false,
       fit: true,
       padding: 48,
-      nodeRepulsion: 9000,
-      idealEdgeLength: 95,
-      componentSpacing: 72,
+      nodeDimensionsIncludeLabels: true,
+      avoidOverlap: true,
+      avoidOverlapPadding: 18,
+      nestingFactor: 1.25,
+      nodeRepulsion: 14000,
+      idealEdgeLength: 125,
+      componentSpacing: 110,
+      gravity: 0.55,
+      numIter: 1400,
     },
     style: cytoscapeStyle(canvas),
     wheelSensitivity: 0.22,
@@ -2971,15 +3765,24 @@ function renderSvgGraphFallback(graph, prepared) {
   const cy = height / 2;
   const radius = Math.max(90, Math.min(width, height) * 0.34);
   const positions = new Map();
+  const star = starPositions(prepared, width, height);
+
+  if (star) {
+    star.positions.forEach((position, path) => positions.set(path, position));
+  }
 
   nodes.forEach((node, index) => {
     const path = node.id;
-    const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
-    const linkedCount = edges.filter(edge => edge.source === path || edge.target === path).length;
-    const r = path === currentNotePath ? radius * 0.55 : radius + (linkedCount % 3) * 22;
-    positions.set(path, {
-      x: cx + Math.cos(angle) * r,
-      y: cy + Math.sin(angle) * r
+    if (!positions.has(path)) {
+      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
+      const linkedCount = edges.filter(edge => edge.source === path || edge.target === path).length;
+      const r = path === currentNotePath ? radius * 0.55 : radius + (linkedCount % 3) * 22;
+      positions.set(path, {
+        x: cx + Math.cos(angle) * r,
+        y: cy + Math.sin(angle) * r
+      });
+    }
+  });
     });
   });
 
@@ -3002,6 +3805,7 @@ function renderSvgGraphFallback(graph, prepared) {
     const classes = [
       'obsidian-graph-node',
       isCurrent ? 'current' : '',
+      star?.hub === path ? 'project-hub' : '',
     ].filter(Boolean).join(' ');
     return `
       <g class="${classes}" data-path="${safePath}" tabindex="0" role="button">
@@ -3080,6 +3884,34 @@ async function handleWikiLinkClick(targetPath) {
     }
   } catch (e) {
     console.error('Failed to create wiki note:', e);
+  }
+}
+
+async function handleRenderedPreviewClick(e) {
+  const tagBadge = e.target.closest('[data-obsidian-tag]');
+  if (tagBadge) {
+    e.preventDefault();
+    await openTagDetails(tagBadge.dataset.obsidianTag, tagBadge);
+    return;
+  }
+
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href') || '';
+  if (href.startsWith('#obsidian-link-')) {
+    e.preventDefault();
+    await handleWikiLinkClick(decodeURIComponent(href.replace('#obsidian-link-', '')));
+    return;
+  }
+  if (/^https?:\/\//i.test(href)) {
+    link.setAttribute('target', '_blank');
+    link.setAttribute('rel', 'noopener noreferrer');
+    return;
+  }
+  const filePath = resolveMarkdownFileLink(href);
+  if (filePath) {
+    e.preventDefault();
+    await openNote(filePath);
   }
 }
 
@@ -3285,6 +4117,29 @@ function setupEventListeners() {
   document.getElementById('obsidian-project-kind')?.addEventListener('change', handleProjectInputChanged);
   document.getElementById('obsidian-project-description')?.addEventListener('input', handleProjectInputChanged);
   document.getElementById('obsidian-project-focus')?.addEventListener('input', handleProjectInputChanged);
+  document.querySelectorAll('[data-project-select-trigger]').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleProjectSelectMenu(trigger.dataset.projectSelectTrigger);
+    });
+    trigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleProjectSelectMenu(trigger.dataset.projectSelectTrigger);
+      }
+      if (e.key === 'Escape') {
+        closeProjectSelectMenus();
+      }
+    });
+  });
+  document.querySelectorAll('.obsidian-project-select-menu').forEach(menu => {
+    menu.addEventListener('click', (e) => {
+      const option = e.target.closest('[data-project-select-value]');
+      if (!option) return;
+      e.preventDefault();
+      setProjectSelectValue(menu.dataset.projectSelectMenu, option.dataset.projectSelectValue || '');
+    });
+  });
   document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
@@ -3312,6 +4167,9 @@ function setupEventListeners() {
     memoryTagEntry?.focus();
   });
   document.addEventListener('click', (e) => {
+    if (!e.target.closest('.obsidian-project-select')) {
+      closeProjectSelectMenus();
+    }
     if (!e.target.closest('#obsidian-memory-destination-field')) {
       closeMemoryDestinationPicker();
     }
@@ -3388,7 +4246,18 @@ function setupEventListeners() {
   const textarea = document.getElementById('obsidian-textarea');
   textarea?.addEventListener('input', () => {
     clearTimeout(autosaveTimeout);
+    const original = textarea.value;
+    const normalized = normalizeMarkdownTags(original);
+    if (normalized !== original) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const delta = original.length - normalized.length;
+      textarea.value = normalized;
+      textarea.selectionStart = Math.max(0, start - delta);
+      textarea.selectionEnd = Math.max(0, end - delta);
+    }
     const content = textarea.value;
+    renderEditorPreview(content);
     updateAutocomplete();
 
     autosaveTimeout = setTimeout(async () => {
@@ -3412,6 +4281,12 @@ function setupEventListeners() {
   textarea?.addEventListener('click', updateAutocomplete);
   textarea?.addEventListener('blur', () => {
     setTimeout(hideAutocomplete, 120);
+  });
+  document.getElementById('obsidian-rendered-preview')?.addEventListener('click', handleRenderedPreviewClick);
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.obsidian-tag-detail-popover, .obsidian-tag-badge')) {
+      closeTagDetails();
+    }
   });
 
   // Search with debounce

@@ -349,6 +349,12 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   margin-bottom: 5px;
 }
 
+.obsidian-ai-status {
+  padding: 6px 5px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  margin-bottom: 5px;
+}
+
 .obsidian-settings-label {
   color: var(--muted);
   font-size: 10px;
@@ -356,6 +362,24 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   letter-spacing: 0;
   margin: 0 0 6px;
   text-transform: uppercase;
+}
+
+.obsidian-ai-status-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.obsidian-ai-status-hint {
+  min-height: 14px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .obsidian-surface-options {
@@ -561,6 +585,54 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   text-overflow: ellipsis;
 }
 
+.tree-root-node > .tree-item-header {
+  color: var(--fg);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.tree-root-node.active > .tree-item-header {
+  color: var(--accent, var(--red));
+}
+
+.tree-project-session > .tree-item-header {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--accent, var(--red)) 8%, transparent);
+}
+
+.tree-project-session-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--accent, var(--red)) 32%, transparent);
+  border-top-color: var(--accent, var(--red));
+  border-radius: 50%;
+  animation: obsidian-spin 0.9s linear infinite;
+}
+
+.tree-project-session-status {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
+  color: var(--fg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tree-project-session-status-ready {
+  color: #63d471;
+}
+
+.tree-project-session-status-error {
+  color: #ff6b6b;
+}
+
+.tree-project-session-file > .tree-item-header {
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .tree-item-actions {
   display: inline-flex;
   align-items: center;
@@ -738,7 +810,7 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
 .obsidian-project-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) 140px;
   gap: 8px;
 }
 
@@ -796,6 +868,101 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 #obsidian-project-kind {
   min-height: 42px;
   line-height: 1.25;
+}
+
+#obsidian-project-folder,
+#obsidian-project-kind {
+  display: none;
+}
+
+.obsidian-project-select {
+  position: relative;
+  min-width: 0;
+}
+
+.obsidian-project-select-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.25;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.obsidian-project-select-trigger:hover,
+.obsidian-project-select-trigger:focus-visible,
+.obsidian-project-select-trigger[aria-expanded="true"] {
+  border-color: var(--accent, var(--red));
+  outline: none;
+}
+
+.obsidian-project-select-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, var(--red));
+  flex: 0 0 auto;
+}
+
+.obsidian-project-select-label,
+.obsidian-project-select-option span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-project-select-chevron {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.obsidian-project-select-menu {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 94%, var(--fg));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  padding: 5px;
+}
+
+.obsidian-project-select-option {
+  width: 100%;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.obsidian-project-select-option:hover,
+.obsidian-project-select-option.active {
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
 }
 
 .obsidian-project-form textarea {
@@ -1017,33 +1184,68 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
 .obsidian-project-description-wrap textarea {
   width: 100%;
-  padding-right: 42px;
+  padding-right: 60px;
+}
+
+.obsidian-project-description-wrap.is-ai-loading textarea {
+  color: transparent;
+  caret-color: transparent;
+  text-shadow: none;
+}
+
+.obsidian-project-description-wrap.is-ai-loading textarea::selection {
+  background: transparent;
+}
+
+.obsidian-project-description-loading {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+.obsidian-project-description-loading .spinner-whirlpool {
+  width: 26px !important;
+  height: 26px !important;
+  margin: 0 !important;
+}
+
+.obsidian-project-description-loading .ai-spinner-whirlpool canvas {
+  width: 26px;
+  height: 26px;
 }
 
 .obsidian-project-ai-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 7px;
+  right: 22px;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--accent, var(--red));
   cursor: pointer;
 }
 
 .obsidian-project-ai-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent, var(--red)) 14%, var(--panel));
+  color: color-mix(in srgb, var(--accent, var(--red)) 72%, var(--fg));
+  background: transparent;
 }
 
 .obsidian-project-ai-btn:disabled {
   cursor: wait;
-  opacity: 0.55;
+  opacity: 0.7;
 }
 
 .obsidian-project-actions {
@@ -1085,11 +1287,139 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 .obsidian-project-warnings,
 .obsidian-project-ok,
 .obsidian-project-new-tags,
+.obsidian-project-session-progress,
+.obsidian-project-debug,
+.obsidian-project-relationships,
 .obsidian-project-loading {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   padding: 10px;
+}
+
+.obsidian-project-session-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-color: color-mix(in srgb, var(--accent, var(--red)) 42%, var(--border));
+}
+
+.obsidian-project-session-progress-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.obsidian-project-session-progress-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.obsidian-project-session-cancel {
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  border-radius: 4px;
+  background: transparent;
+  color: #ffd1d1;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 7px;
+}
+
+.obsidian-project-session-bar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.obsidian-project-session-bar span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--accent, var(--red));
+  transition: width 0.2s ease;
+}
+
+.obsidian-project-session-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-project-debug summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.obsidian-project-debug-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-project-debug-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-project-debug ol {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--fg);
+  font-size: 11px;
+}
+
+.obsidian-project-debug li time {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.obsidian-project-relationships {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.obsidian-project-relationship {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.obsidian-project-relationship span,
+.obsidian-project-relationship small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-project-relationship small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@keyframes obsidian-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .obsidian-project-conflicts {
@@ -1122,6 +1452,48 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   justify-content: space-between;
   gap: 8px;
   cursor: pointer;
+}
+
+.obsidian-project-file-editor summary strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-project-file-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.obsidian-project-file-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+}
+
+.obsidian-project-file-state-done {
+  color: #63d471;
+  background: color-mix(in srgb, #63d471 16%, transparent);
+}
+
+.obsidian-project-file-state-wip {
+  color: #f0c75e;
+  background: color-mix(in srgb, #f0c75e 18%, transparent);
+}
+
+.obsidian-project-file-state-open {
+  color: #ff6b6b;
+  background: color-mix(in srgb, #ff6b6b 16%, transparent);
 }
 
 .obsidian-project-file-grid {
@@ -1460,6 +1832,95 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   margin-bottom: 12px;
 }
 
+.obsidian-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin: 0 2px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent, var(--red)) 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, var(--red)) 13%, transparent);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.obsidian-tag-badge:hover,
+.obsidian-tag-badge:focus-visible {
+  border-color: var(--accent, var(--red));
+  outline: none;
+}
+
+.obsidian-tag-detail-popover {
+  position: fixed;
+  z-index: 400;
+  width: min(280px, calc(100vw - 24px));
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 96%, var(--fg));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+  padding: 10px;
+  color: var(--fg);
+}
+
+.obsidian-tag-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.obsidian-tag-detail-head button,
+.obsidian-tag-detail-files button,
+.obsidian-tag-meta-action {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.obsidian-tag-detail-head button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+.obsidian-tag-detail-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.obsidian-tag-detail-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.obsidian-tag-detail-files button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px 7px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-tag-meta-action {
+  width: 100%;
+  padding: 7px 8px;
+  text-align: center;
+}
+
 /* Graph View */
 .obsidian-graph-view {
   flex: 1;
@@ -1594,6 +2055,12 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   fill: color-mix(in srgb, var(--accent, var(--red)) 22%, var(--bg));
   stroke: var(--accent, var(--red));
   stroke-width: 2.4;
+}
+
+.obsidian-graph-node.project-hub circle {
+  fill: var(--accent, var(--red));
+  stroke: var(--fg);
+  stroke-width: 3;
 }
 
 .obsidian-graph-node.missing {

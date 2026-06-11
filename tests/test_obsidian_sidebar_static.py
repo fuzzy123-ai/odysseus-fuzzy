@@ -75,6 +75,10 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
     assert "parent: parent || undefined" in main_js
     assert "node[type = \"folder\"]" in main_js
     assert "node[type = \"markdown\"]" in main_js
+    assert "obsidian-focused-project-folder" in main_js
+    assert "obsidian-focused-project-node" in main_js
+    assert "avoidOverlapPadding" in main_js
+    assert "componentSpacing: 110" in main_js
     assert ".obsidian-graph-canvas" in style
     assert ".obsidian-graph-renderer-badge" not in style
     assert 'id="obsidian-relationship-add"' not in main_js
@@ -180,7 +184,7 @@ def test_obsidian_surface_modes_contract():
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
 
     assert "const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode'" in main_js
-    assert "style.css?v=surface-mode-v2" in main_js
+    assert "style.css?v=project-sessions-v1" in main_js
     assert "const OBSIDIAN_SURFACE_DEFAULT = 'sidebar'" in main_js
     assert "const OBSIDIAN_SURFACE_MODES = ['sidebar', 'overlay', 'fullscreen']" in main_js
     assert "function normalizeSurfaceMode(mode)" in main_js
@@ -279,26 +283,63 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert "function applyProjectPlan()" in main_js
     assert "function renderProjectFolderOptions()" in main_js
     assert "function loadProjectTemplateOptions()" in main_js
+    assert "function renderProjectCustomSelect(type, items = null)" in main_js
+    assert "function projectSelectIcon(type, key = '')" in main_js
+    assert "function projectFileGenerationState(file)" in main_js
+    assert "function projectFileGenerationLabel(state)" in main_js
+    assert 'data-project-select-trigger="folder"' in main_js
+    assert 'data-project-select-trigger="kind"' in main_js
     assert "NEW_PROJECT_FOLDER_SENTINEL" in main_js
-    assert "Create new project folder" in main_js
-    assert "Create plan" in main_js
+    assert "Plan new project folder" in main_js
+    assert "VAULT_ROOT_TREE_PATH" in main_js
+    assert "Vault root" in main_js
+    assert "function projectSessionDebugHtml()" in main_js
+    assert "function starPositions(prepared, width, height)" in main_js
+    assert "function projectHubNode(nodes)" in main_js
+    assert "Create plan preview" in main_js
+    assert "Create files" in main_js
     assert "Creating plan and writing AI content sequentially" in main_js
     assert "GameDev concept draft" in main_js
     assert "Approve & create plan" in main_js
     assert "Regenerate draft" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/preview'" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/sessions'" in main_js
+    assert "project-plan/sessions/${encodeURIComponent(sessionId)}/preview-stream" in main_js
+    assert "project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}/apply" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/improve-description'" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/gamedev-draft'" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/apply'" in main_js
+    assert "'/api/plugins/obsidian/project-plan/apply'" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/templates')" in main_js
     assert "generate_content: true" in main_js
     assert "approved_concept: approvedConcept" in main_js
     assert "concept_approved: conceptApproved" in main_js
     assert "custom_focus" in main_js
-    assert "Create this project structure in the vault?" in main_js
+    assert "Create these project files in the vault?" in main_js
     assert "projectPlanPreview" in main_js
+    assert "projectPlanSessions" in main_js
+    assert "activeProjectPlanSessionId" in main_js
+    assert "function openProjectPlanSession(sessionId)" in main_js
+    assert "function treeWithProjectPlanSessions(nodes)" in main_js
+    assert "data-project-session-cancel" in main_js
+    assert "data-project-relationship-index" in main_js
     assert "data-project-conflicts" in main_js
+    assert "data-project-generation-state" in main_js
+    assert "__generationState = 'wip'" in main_js
+    assert "__generationState = 'done'" in main_js
+    assert 'data-project-index="${index}" data-project-generation-state' in main_js
     assert ".obsidian-project-ai-btn" in style
+    assert ".obsidian-project-select-trigger" in style
+    assert ".obsidian-project-select-option" in style
+    assert ".obsidian-project-file-state-done" in style
+    assert ".obsidian-project-file-state-wip" in style
+    assert ".obsidian-project-file-state-open" in style
+    assert ".tree-project-session" in style
+    assert ".tree-root-node" in style
+    assert ".tree-project-session-spinner" in style
+    assert ".obsidian-project-session-progress" in style
+    assert ".obsidian-project-debug" in style
+    assert ".obsidian-project-relationships" in style
+    assert ".obsidian-project-session-bar" in style
     assert ".obsidian-project-gamedev-draft" in style
     assert ".obsidian-gamedev-draft-text" in style
     assert ".obsidian-project-file-editor" in style
@@ -309,6 +350,29 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert ".obsidian-project-planner" in style
     assert ".obsidian-project-form" in style
     assert ".obsidian-project-conflicts" in style
+
+
+def test_obsidian_markdown_preview_links_and_tags_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert "import { mdToHtml, renderMermaid } from '/static/js/markdown.js'" in main_js
+    assert 'id="obsidian-rendered-preview"' in main_js
+    assert "function normalizeMarkdownTags(content)" in main_js
+    assert "function renderEditorPreview(content)" in main_js
+    assert "function enhancePreviewTags(container)" in main_js
+    assert "function handleRenderedPreviewClick(e)" in main_js
+    assert "function openTagDetails(tag, anchor)" in main_js
+    assert "function tagMetaPath(tag)" in main_js
+    assert "Tags/${clean}.md" in main_js
+    assert "href.startsWith('#obsidian-link-')" in main_js
+    assert "resolveMarkdownFileLink(href)" in main_js
+    assert "normalizeMarkdownTags(original)" in main_js
+    assert "renderEditorPreview(textarea.value)" in main_js
+    assert "data-obsidian-tag" in main_js
+    assert ".obsidian-tag-badge" in style
+    assert ".obsidian-tag-detail-popover" in style
+    assert ".obsidian-tag-meta-action" in style
 
 
 def test_obsidian_phase5_memory_review_ui_contract():
