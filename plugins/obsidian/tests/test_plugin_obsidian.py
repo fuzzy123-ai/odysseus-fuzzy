@@ -399,8 +399,14 @@ def test_project_plan_new_folder_sentinel_is_resolved_without_preview_writes():
 @pytest.mark.asyncio
 async def test_project_plan_ai_improves_description():
     async def fake_llm(messages, **kwargs):
+        assert "kein Denkprotokoll" in messages[0]["content"]
+        assert "keine Meta-Kommentare" in messages[0]["content"]
+        assert "Korrigiere offensichtliche Tippfehler still" in messages[0]["content"]
         assert "Verbessere diesen Projektkontext" in messages[-1]["content"]
         assert "Nutzerdefinierte Schwerpunkte" in messages[-1]["content"]
+        assert "Beginne direkt mit 'Projektart:'" in messages[-1]["content"]
+        assert "Geplantes Ergebnis" in messages[-1]["content"]
+        assert "Nenne keine internen Ueberlegungen" in messages[-1]["content"]
         assert "Differenzierung" in messages[-1]["content"]
         return "Ziel: klarer Unterrichtsplan.\nOffene Fragen: Bundesland klaeren."
 

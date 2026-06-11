@@ -567,6 +567,7 @@ def apply_project_plan(vault_dir: str, plan: ProjectPlan) -> Dict[str, Any]:
 
 
 LLMCall = Callable[..., Awaitable[str]]
+ProjectPlanProgressCallback = Callable[[Dict[str, Any]], Awaitable[None]]
 
 
 async def improve_project_description_with_ai(
@@ -583,8 +584,11 @@ async def improve_project_description_with_ai(
             "role": "system",
             "content": (
                 "Du verbesserst Projektbeschreibungen fuer ein Obsidian Project Planning Tool. "
-                "Antworte nur mit dem verbesserten Projektkontext, ohne Markdown-Codeblock, ohne Vorrede. "
-                "Erhalte die Sprache des Nutzers. Erfinde keine Fakten, Quellen oder Anforderungen."
+                "Antworte ausschliesslich mit der finalen, direkt uebernehmbaren Projektbeschreibung. "
+                "Gib kein Denkprotokoll, keine Analyse, keine Begruendung, keine Alternativen, keine Meta-Kommentare "
+                "und keine Formulierungen wie 'Moegliche Struktur' aus. Verwende keinen Markdown-Codeblock. "
+                "Erhalte die Sprache des Nutzers. Korrigiere offensichtliche Tippfehler still. "
+                "Erfinde keine Fakten, Quellen, Anforderungen, Rahmenbedingungen oder Bildungsplanbezuege."
             ),
         },
         {
@@ -596,6 +600,13 @@ async def improve_project_description_with_ai(
                 "erstellt werden kann. Klaere Ziel, Rahmen, Zielgruppe, Ergebnis, Constraints, offene Fragen "
                 "und Qualitaetskriterien, aber markiere fehlende Informationen als offene Fragen. "
                 "Beruecksichtige die nutzerdefinierten Schwerpunkte, ohne sie zu ueberschreiben.\n\n"
+                "Ausgabeformat:\n"
+                "- Beginne direkt mit 'Projektart:' und 'Projekttitel:'.\n"
+                "- Verwende danach die Abschnitte 'Ziel', 'Rahmen', 'Zielgruppe', 'Geplantes Ergebnis', "
+                "'Bekannte Constraints', 'Offene Fragen' und 'Qualitaetskriterien'.\n"
+                "- Schreibe knapp, konkret und planungsorientiert.\n"
+                "- Markiere Unsicheres nur als offene Frage, nicht als Annahme.\n"
+                "- Nenne keine internen Ueberlegungen dazu, wie du zu dieser Struktur gekommen bist.\n\n"
                 f"Nutzerdefinierte Schwerpunkte:\n{custom_focus or '(keine)'}\n\n"
                 f"Eingabe:\n{raw_description or '(leer)'}"
             ),
@@ -659,6 +670,7 @@ async def generate_project_plan_content(
     *,
     llm_call: LLMCall,
     max_attempts: int = 3,
+    progress_callback: Optional[ProjectPlanProgressCallback] = None,
 ) -> ProjectPlan:
     if normalize_project_kind(plan.project.kind) == "game_dev" and not plan.project.summary.strip():
         raise ProjectPlanValidationError("GameDev requires an approved concept draft before AI content generation")
@@ -667,6 +679,14 @@ async def generate_project_plan_content(
     warnings = list(plan.warnings)
 
     for index, planned in enumerate(plan.files):
+        if progress_callback:
+            await progress_callback({
+                "type": "file_started",
+                "index": index,
+                "total": len(plan.files),
+                "path": planned.path,
+                "file_type": planned.type,
+            })
         skeleton = planned.content or ""
         generated = None
         last_error = ""
@@ -700,7 +720,16 @@ async def generate_project_plan_content(
             if last_error:
                 warning = f"{warning}: {last_error}"
             warnings.append(warning)
+            if progress_callback:
+                await progress_callback({"type": "warning", "message": warning})
             project_context = _append_failed_file_context(project_context, planned, warning)
+            if progress_callback:
+                await progress_callback({
+                    "type": "file_done",
+                    "index": index,
+                    "total": len(plan.files),
+                    "file": planned.model_dump() if hasattr(planned, "model_dump") else planned.dict(),
+                })
             continue
 
         project_context = await _safe_update_project_context(
@@ -710,6 +739,13 @@ async def generate_project_plan_content(
             generated_content=planned.content,
             plan=plan,
         )
+        if progress_callback:
+            await progress_callback({
+                "type": "file_done",
+                "index": index,
+                "total": len(plan.files),
+                "file": planned.model_dump() if hasattr(planned, "model_dump") else planned.dict(),
+            })
 
     plan.warnings = sorted(set(warnings))
     return plan
