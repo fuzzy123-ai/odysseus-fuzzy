@@ -35,6 +35,7 @@ let projectPlanPreview = null;
 let memoryReviewPreview = null;
 let projectTemplateOptions = null;
 let gameDevConceptDraft = null;
+let projectPlanPreviewStreaming = false;
 const NEW_PROJECT_FOLDER_SENTINEL = '__new_project_folder__';
 const OBSIDIAN_PANEL_WIDTH_KEY = 'odysseus.obsidian.panelWidth';
 const OBSIDIAN_SIDEBAR_WIDTH_KEY = 'odysseus.obsidian.sidebarWidth';
@@ -1455,7 +1456,7 @@ function renderProjectPlanPreviewLegacy(plan) {
       ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
     </div>` : ''}
   `;
-  applyBtn.disabled = conflicts.length > 0 || files.length === 0;
+  applyBtn.disabled = projectPlanPreviewStreaming || conflicts.length > 0 || files.length === 0;
 }
 
 function renderProjectPlanPreview(plan) {
@@ -1655,6 +1656,125 @@ async function createGameDevDraft() {
   }
 }
 
+function startProjectPlanLoadingAnimation(panel) {
+  if (!panel) return () => {};
+  const baseText = 'Creating plan and writing AI content sequentially';
+  let dots = 0;
+  panel.innerHTML = '<div class="obsidian-project-loading"><span data-project-loading-text></span></div>';
+  const render = () => {
+    const target = panel.querySelector('[data-project-loading-text]');
+    if (target) target.textContent = `${baseText}${'.'.repeat(dots)}`;
+    dots = (dots + 1) % 4;
+  };
+  render();
+  const timer = window.setInterval(render, 450);
+  return () => window.clearInterval(timer);
+}
+
+function setProjectPlanFile(index, file) {
+  if (!projectPlanPreview || !file) return;
+  if (!Array.isArray(projectPlanPreview.files)) projectPlanPreview.files = [];
+  if (Number.isInteger(index) && index >= 0 && index < projectPlanPreview.files.length) {
+    projectPlanPreview.files[index] = file;
+    return;
+  }
+  const existingIndex = projectPlanPreview.files.findIndex(item => item.path === file.path);
+  if (existingIndex >= 0) projectPlanPreview.files[existingIndex] = file;
+}
+
+function handleProjectPlanStreamEvent(eventName, payload) {
+  if (eventName === 'plan_started' && payload?.plan) {
+    projectPlanPreview = payload.plan;
+    renderProjectPlanPreview(projectPlanPreview);
+    return;
+  }
+  if (eventName === 'file_started') {
+    const index = Number(payload?.index);
+    const file = projectPlanPreview?.files?.[index];
+    if (file) {
+      file.status = 'writing';
+      renderProjectPlanPreview(projectPlanPreview);
+    }
+    return;
+  }
+  if (eventName === 'file_done') {
+    setProjectPlanFile(Number(payload?.index), payload?.file);
+    renderProjectPlanPreview(projectPlanPreview);
+    return;
+  }
+  if (eventName === 'warning' && payload?.message) {
+    if (projectPlanPreview) {
+      projectPlanPreview.warnings = Array.from(new Set([...(projectPlanPreview.warnings || []), payload.message]));
+      renderProjectPlanPreview(projectPlanPreview);
+    }
+    return;
+  }
+  if (eventName === 'plan_done' && payload?.plan) {
+    projectPlanPreview = payload.plan;
+    projectPlanPreviewStreaming = false;
+    renderProjectPlanPreview(projectPlanPreview);
+    return;
+  }
+  if (eventName === 'error') {
+    throw new Error(payload?.detail || 'Project preview failed');
+  }
+}
+
+function parseProjectPlanSseBlock(block) {
+  let eventName = 'message';
+  const dataLines = [];
+  block.split(/\r?\n/).forEach(line => {
+    if (line.startsWith('event:')) eventName = line.slice(6).trim() || 'message';
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+  });
+  if (!dataLines.length) return null;
+  return { eventName, payload: JSON.parse(dataLines.join('\n')) };
+}
+
+async function previewProjectPlanFallback(payload) {
+  const res = await fetch('/api/plugins/obsidian/project-plan/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
+  projectPlanPreview = await res.json();
+  projectPlanPreviewStreaming = false;
+  renderProjectPlanPreview(projectPlanPreview);
+}
+
+async function previewProjectPlanStream(payload) {
+  const res = await fetch('/api/plugins/obsidian/project-plan/preview-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
+  if (!res.body || !res.body.getReader) {
+    await previewProjectPlanFallback(payload);
+    return;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() || '';
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+      const event = parseProjectPlanSseBlock(block);
+      if (event) handleProjectPlanStreamEvent(event.eventName, event.payload);
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) {
+    const event = parseProjectPlanSseBlock(buffer);
+    if (event) handleProjectPlanStreamEvent(event.eventName, event.payload);
+  }
+}
+
 async function previewProjectPlan({ conceptApproved = false, approvedConcept = '' } = {}) {
   const target_folder = resolveProjectTargetFolder();
   const title = document.getElementById('obsidian-project-title')?.value || '';
@@ -1671,32 +1791,32 @@ async function previewProjectPlan({ conceptApproved = false, approvedConcept = '
   }
   const panel = document.getElementById('obsidian-project-preview-panel');
   const previewBtn = document.getElementById('obsidian-project-preview');
-  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Creating plan and writing AI content sequentially...</div>';
+  const stopLoadingAnimation = startProjectPlanLoadingAnimation(panel);
   if (previewBtn) previewBtn.disabled = true;
   document.getElementById('obsidian-project-apply').disabled = true;
+  projectPlanPreviewStreaming = true;
+  const payload = {
+    target_folder,
+    title,
+    kind,
+    description,
+    custom_focus,
+    generate_content: true,
+    approved_concept: approvedConcept,
+    concept_approved: conceptApproved,
+  };
   try {
-    const res = await fetch('/api/plugins/obsidian/project-plan/preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        target_folder,
-        title,
-        kind,
-        description,
-        custom_focus,
-        generate_content: true,
-        approved_concept: approvedConcept,
-        concept_approved: conceptApproved,
-      }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
-    projectPlanPreview = await res.json();
-    renderProjectPlanPreview(projectPlanPreview);
+    await previewProjectPlanStream(payload);
   } catch (e) {
     console.error('Project preview failed:', e);
+    projectPlanPreview = null;
+    projectPlanPreviewStreaming = false;
     if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Project preview failed')}</div>`;
     document.getElementById('obsidian-project-apply').disabled = true;
   } finally {
+    stopLoadingAnimation();
+    projectPlanPreviewStreaming = false;
+    if (projectPlanPreview) renderProjectPlanPreview(projectPlanPreview);
     if (previewBtn) previewBtn.disabled = false;
   }
 }

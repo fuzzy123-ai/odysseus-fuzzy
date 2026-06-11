@@ -129,6 +129,7 @@ _TIMEOUT_EXEMPT_PREFIXES = (
     "/api/cookbook/setup",  # remote pacman/apt installs
     "/api/upload",          # large files
     "/api/image",           # diffusion proxies (inpaint/harmonize/upscale/etc.) — own 120s httpx timeout
+    "/api/plugins/obsidian/project-plan/preview-stream", # SSE; emits per-file AI planning progress
 )
 
 

@@ -2,9 +2,11 @@ import os
 import re
 import shutil
 import base64
+import json
+import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from src.constants import DATA_DIR
@@ -210,6 +212,9 @@ def _read_text_if_exists(path: str) -> Optional[str]:
         return None
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         return f.read()
+
+def _project_plan_stream_event(event: str, payload: Dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
     old_path = os.path.abspath(abs_old)
@@ -601,6 +606,50 @@ async def project_plan_preview(req: ProjectPlanRequest, request: Request):
         return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
     except ProjectPlanValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+@router.post("/project-plan/preview-stream")
+async def project_plan_preview_stream(req: ProjectPlanRequest, request: Request):
+    """Stream a non-destructive AI project planning preview as each file is generated."""
+    vault_dir = get_unlocked_vault_path(request)
+    owner = current_owner(request)
+
+    async def _stream():
+        try:
+            validate_gamedev_concept_gate(req)
+            plan = build_project_plan(vault_dir, req)
+            plan_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+            yield _project_plan_stream_event("plan_started", {"plan": plan_payload})
+
+            event_queue: asyncio.Queue[str] = asyncio.Queue()
+
+            async def _progress(event: Dict[str, Any]) -> None:
+                event_type = str(event.pop("type", "progress"))
+                await event_queue.put(_project_plan_stream_event(event_type, event))
+
+            generation_task = asyncio.create_task(generate_project_plan_content(
+                plan,
+                llm_call=project_planning_llm_call(owner),
+                progress_callback=_progress,
+            ))
+            try:
+                while not generation_task.done() or not event_queue.empty():
+                    try:
+                        yield await asyncio.wait_for(event_queue.get(), timeout=0.25)
+                    except asyncio.TimeoutError:
+                        continue
+                plan = await generation_task
+            finally:
+                if not generation_task.done():
+                    generation_task.cancel()
+            plan = validate_project_plan(vault_dir, plan, collect_conflicts=True)
+            final_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+            yield _project_plan_stream_event("plan_done", {"plan": final_payload})
+        except ProjectPlanValidationError as exc:
+            yield _project_plan_stream_event("error", {"detail": str(exc)})
+        except Exception:
+            yield _project_plan_stream_event("error", {"detail": "Project preview failed"})
+
+    return StreamingResponse(_stream(), media_type="text/event-stream")
 
 @router.post("/project-plan/apply")
 async def project_plan_apply(req: ProjectPlanApplyRequest, request: Request):

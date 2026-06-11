@@ -17,6 +17,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import backend.routes as obsidian_routes
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
     GameDevConceptDraftRequest,
@@ -516,6 +517,41 @@ async def test_project_plan_ai_generation_is_sequential_context_chain():
 
 
 @pytest.mark.asyncio
+async def test_project_plan_ai_generation_emits_progress_in_file_order():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plan = build_project_plan(tmpdir, ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="Create a useful project folder.",
+            kind="generic",
+        ))
+        events = []
+
+        async def fake_llm(messages, **kwargs):
+            system = messages[0]["content"]
+            user = messages[-1]["content"]
+            if "einzelne Markdown-Datei" in system:
+                path = re.search(r"Zieldatei \d+ von \d+: (.+)", user).group(1)
+                return f"# Generated {path}\n\nSequential content."
+            if "Kontextzusammenfassung" in system:
+                path = re.search(r"Neu generierte Datei: (.+)", user).group(1)
+                return f"CTX after {path}"
+            raise AssertionError("unexpected prompt")
+
+        async def progress(event):
+            events.append(dict(event))
+
+        await generate_project_plan_content(plan, llm_call=fake_llm, progress_callback=progress)
+
+        started = [event for event in events if event["type"] == "file_started"]
+        done = [event for event in events if event["type"] == "file_done"]
+        assert [event["index"] for event in started] == list(range(len(plan.files)))
+        assert [event["index"] for event in done] == list(range(len(plan.files)))
+        assert done[0]["file"]["path"] == "Projects/Demo/00 Projektuebersicht.md"
+        assert "Sequential content" in done[0]["file"]["content"]
+
+
+@pytest.mark.asyncio
 async def test_project_plan_ai_generation_retries_and_keeps_partial_preview():
     with tempfile.TemporaryDirectory() as tmpdir:
         plan = build_project_plan(tmpdir, ProjectPlanRequest(
@@ -548,6 +584,45 @@ async def test_project_plan_ai_generation_retries_and_keeps_partial_preview():
         assert any("AI generation failed for Projects/Demo/00 Projektuebersicht.md after 3 attempts" in warning for warning in enriched.warnings)
         assert "Klaeren und ausarbeiten" in enriched.files[0].content
         assert "Generated Projects/Demo/01 Ziele.md" in enriched.files[1].content
+
+
+@pytest.mark.asyncio
+async def test_project_plan_preview_stream_emits_sse_events(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+
+        async def fake_llm(messages, **kwargs):
+            system = messages[0]["content"]
+            user = messages[-1]["content"]
+            if "einzelne Markdown-Datei" in system:
+                path = re.search(r"Zieldatei \d+ von \d+: (.+)", user).group(1)
+                return f"# Generated {path}\n\nStreamed content."
+            if "Kontextzusammenfassung" in system:
+                path = re.search(r"Neu generierte Datei: (.+)", user).group(1)
+                return f"CTX after {path}"
+            raise AssertionError("unexpected prompt")
+
+        monkeypatch.setattr(obsidian_routes, "project_planning_llm_call", lambda owner: fake_llm)
+        response = await obsidian_routes.project_plan_preview_stream(ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="Create a streamed project folder.",
+            kind="generic",
+            generate_content=True,
+        ), SimpleNamespace())
+
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
+        stream = "".join(chunks)
+
+        assert "event: plan_started" in stream
+        assert "event: file_started" in stream
+        assert "event: file_done" in stream
+        assert "event: plan_done" in stream
+        assert stream.index("event: plan_started") < stream.index("event: file_started")
+        assert "Streamed content" in stream
 
 
 @pytest.mark.asyncio
