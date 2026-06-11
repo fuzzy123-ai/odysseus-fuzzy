@@ -275,6 +275,7 @@ async def test_ai_tags_and_graph_include_implicit_tags_links_and_mentions(monkey
         edge_types = {edge["type"] for edge in graph["edges"]}
         assert "wiki_link" in edge_types
         assert "shared_tag" in edge_types
+        assert "filename_mention" in edge_types
         assert any(edge["target"] == "Architecture.md" for edge in graph["edges"])
 
 

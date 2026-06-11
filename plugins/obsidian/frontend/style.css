@@ -110,7 +110,7 @@ body.obsidian-standalone .obsidian-panel-content {
 }
 
 .obsidian-panel-resize-handle:hover::after,
-body.obsidian-resizing .obsidian-panel-resize-handle::after {
+.obsidian-panel-resize-handle.resizing::after {
   background: var(--accent, var(--red));
 }
 
@@ -275,7 +275,7 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 }
 
 .obsidian-split-resize-handle:hover::after,
-body.obsidian-resizing .obsidian-split-resize-handle::after {
+.obsidian-split-resize-handle.resizing::after {
   background: var(--accent, var(--red));
 }
 
@@ -544,6 +544,43 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   gap: 8px;
 }
 
+.obsidian-memory-form {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.4fr);
+  gap: 10px;
+}
+
+.obsidian-memory-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--fg);
+}
+
+.obsidian-memory-field > span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.obsidian-memory-field small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.obsidian-memory-title-field,
+.obsidian-memory-destination-field,
+.obsidian-memory-tags-field,
+.obsidian-memory-content-field {
+  grid-column: 1 / -1;
+}
+
+.obsidian-memory-action-field {
+  grid-column: 1 / -1;
+  max-width: 260px;
+}
+
 .obsidian-project-form input,
 .obsidian-project-form select,
 .obsidian-project-form textarea {
@@ -567,6 +604,211 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   grid-column: 1 / -1;
   min-height: 92px;
   resize: vertical;
+}
+
+.obsidian-memory-save-to {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.obsidian-memory-save-to:hover:not(:disabled),
+.obsidian-memory-save-to:focus-visible {
+  border-color: var(--accent, var(--red));
+}
+
+.obsidian-memory-save-to:empty::after,
+#obsidian-memory-save-to-label:empty::after {
+  content: ' ';
+}
+
+.obsidian-memory-destination-picker,
+.obsidian-memory-tag-menu {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: calc(100% - 18px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 94%, var(--fg));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  padding: 8px;
+}
+
+.obsidian-memory-picker-tabs,
+.obsidian-memory-picker-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.obsidian-memory-picker-tabs button,
+.obsidian-memory-picker-hints button,
+.obsidian-memory-picker-list button,
+.obsidian-memory-tag-chip,
+.obsidian-memory-tag-option {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.obsidian-memory-picker-tabs button {
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.obsidian-memory-picker-tabs button.active,
+.obsidian-memory-picker-hints button:hover,
+.obsidian-memory-picker-list button:hover,
+.obsidian-memory-tag-option:hover,
+.obsidian-memory-tag-option.active {
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
+}
+
+#obsidian-memory-picker-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.obsidian-memory-picker-hints button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.obsidian-memory-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.obsidian-memory-picker-list button,
+.obsidian-memory-tag-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.obsidian-memory-picker-list span,
+.obsidian-memory-tag-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-memory-picker-list small,
+.obsidian-memory-tag-option small,
+.obsidian-memory-picker-empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-memory-tag-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  padding: 5px 7px;
+}
+
+.obsidian-memory-tag-input:focus-within {
+  border-color: var(--accent, var(--red));
+}
+
+.obsidian-memory-tag-chips {
+  display: contents;
+}
+
+.obsidian-memory-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  background: color-mix(in srgb, var(--accent, var(--red)) 16%, transparent);
+  font-size: 12px;
+}
+
+#obsidian-memory-tag-entry {
+  flex: 1 1 180px;
+  min-width: 150px;
+  border: 0;
+  padding: 4px 2px;
+  background: transparent;
+}
+
+#obsidian-memory-tag-entry:focus {
+  outline: none;
+}
+
+.obsidian-memory-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.obsidian-memory-preview-summary > div,
+.obsidian-memory-markdown-preview {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: 10px;
+}
+
+.obsidian-memory-preview-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.obsidian-memory-preview-summary strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.obsidian-memory-markdown-preview {
+  margin-top: 4px;
+}
+
+.obsidian-memory-markdown-preview summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.obsidian-memory-markdown-preview pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .obsidian-project-description-wrap {
@@ -1083,6 +1325,20 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   border-color: var(--accent, var(--red));
 }
 
+.obsidian-graph-canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.obsidian-graph-canvas[data-graph-renderer="cytoscape"] {
+  cursor: grab;
+}
+
+.obsidian-graph-canvas[data-graph-renderer="cytoscape"]:active {
+  cursor: grabbing;
+}
+
 .obsidian-graph-empty {
   height: 100%;
   display: flex;
@@ -1095,6 +1351,7 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
 
 .obsidian-graph-svg {
   width: 100%;
+  height: 100%;
   flex: 1;
   min-height: 0;
   display: block;
@@ -1270,6 +1527,10 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   .obsidian-project-summary {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .obsidian-memory-preview-summary {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .obsidian-graph-controls {

@@ -855,7 +855,7 @@ def setup(ctx):
             "query": {"type": "string", "description": "Search keyword or text query."},
         }, ["query"], handle_search_notes),
         _tool_spec("obsidian_list_tags", "List explicit hashtags and implicit filename tags in the user's Obsidian vault.", {}, [], handle_list_tags),
-        _tool_spec("obsidian_graph", "Return the Obsidian vault graph with markdown links, filename mentions, shared tags, and edge reasons.", {
+        _tool_spec("obsidian_graph", "Return the Obsidian vault graph with markdown links, filename mentions, shared tags, manual relationships, and edge reasons.", {
             "focus": {"type": "string", "description": "Optional note path to return only the local graph around that note."},
             "tag": {"type": "string", "description": "Optional tag filter."},
         }, [], handle_graph),

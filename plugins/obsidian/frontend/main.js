@@ -31,11 +31,21 @@ let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
 let graphEdgeTypeFilter = 'all';
+let graphCytoscapeInstance = null;
+let graphCytoscapeLoadPromise = null;
 let projectPlanPreview = null;
 let memoryReviewPreview = null;
+let memoryReviewDestination = { type: '', path: '' };
+let memoryReviewTags = [];
+let memoryTagPickerState = { index: 0, items: [] };
+let memoryDestinationPickerTab = 'folders';
 let projectTemplateOptions = null;
 let gameDevConceptDraft = null;
 let projectPlanPreviewStreaming = false;
+const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer';
+const OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE = 'cytoscape';
+const OBSIDIAN_GRAPH_RENDERER_SVG = 'svg';
+const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js';
 const NEW_PROJECT_FOLDER_SENTINEL = '__new_project_folder__';
 const OBSIDIAN_PANEL_WIDTH_KEY = 'odysseus.obsidian.panelWidth';
 const OBSIDIAN_SIDEBAR_WIDTH_KEY = 'odysseus.obsidian.sidebarWidth';
@@ -572,11 +582,17 @@ function currentPanelWidth() {
   return content?.getBoundingClientRect().width || Math.min(960, Math.round((window.innerWidth || 1200) * 0.55));
 }
 
+function setObsidianPanelCssVar(name, value) {
+  const panel = document.getElementById('obsidian-panel');
+  const target = panel || document.documentElement;
+  target.style.setProperty(name, value);
+}
+
 function applyPanelWidth(width, { persist = false } = {}) {
   if (isStandaloneMode() || window.innerWidth <= 640) return;
   const bounds = panelWidthBounds();
   const next = clampNumber(width, bounds.min, bounds.max);
-  document.documentElement.style.setProperty('--obsidian-panel-width', `${next}px`);
+  setObsidianPanelCssVar('--obsidian-panel-width', `${next}px`);
   if (persist) localStorage.setItem(OBSIDIAN_PANEL_WIDTH_KEY, String(Math.round(next)));
 }
 
@@ -584,7 +600,7 @@ function applySidebarWidth(width, { persist = false } = {}) {
   const panelWidth = currentPanelWidth();
   const maxByPanel = Math.max(MIN_SIDEBAR_WIDTH, Math.floor(panelWidth * 0.45));
   const next = clampNumber(width, MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, maxByPanel));
-  document.documentElement.style.setProperty('--obsidian-sidebar-width', `${next}px`);
+  setObsidianPanelCssVar('--obsidian-sidebar-width', `${next}px`);
   if (persist) localStorage.setItem(OBSIDIAN_SIDEBAR_WIDTH_KEY, String(Math.round(next)));
 }
 
@@ -603,11 +619,13 @@ function bindResizeHandle(handle, callbacks) {
     e.preventDefault();
     const start = callbacks.start(e);
     document.body.classList.add('obsidian-resizing');
+    handle.classList.add('resizing');
     handle.setPointerCapture?.(e.pointerId);
     const onMove = (moveEvent) => callbacks.move(moveEvent, start);
     const onEnd = (endEvent) => {
       callbacks.end?.(endEvent, start);
       document.body.classList.remove('obsidian-resizing');
+      handle.classList.remove('resizing');
       handle.releasePointerCapture?.(e.pointerId);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onEnd);
@@ -796,25 +814,61 @@ function injectUIElements() {
                 <div class="obsidian-project-header">
                   <div>
                     <div class="obsidian-project-title">Memory review</div>
-                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Save, link, or append reviewed context</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Save one reviewed insight into your vault</div>
                   </div>
                   <button type="button" class="obsidian-panel-btn" id="obsidian-memory-close" title="Close memory review">x</button>
                 </div>
-                <div class="obsidian-project-form">
-                  <input id="obsidian-memory-title" type="text" placeholder="Candidate title" autocomplete="off">
-                  <select id="obsidian-memory-action" title="Review action">
-                    <option value="save_to_obsidian">Save to Obsidian</option>
-                    <option value="append_to_note">Append to note</option>
-                    <option value="memory_only">Memory only</option>
-                    <option value="discard">Discard</option>
-                  </select>
-                  <input id="obsidian-memory-folder" type="text" placeholder="Target folder, e.g. Memory Review" autocomplete="off">
-                  <input id="obsidian-memory-note" type="text" placeholder="Existing note path for append/link" autocomplete="off">
-                  <input id="obsidian-memory-tags" type="text" placeholder="Tags, comma separated" autocomplete="off">
-                  <textarea id="obsidian-memory-content" placeholder="Reviewed memory candidate, chat insight, or project decision"></textarea>
+                <div class="obsidian-memory-form obsidian-project-form">
+                  <label class="obsidian-memory-field obsidian-memory-title-field">
+                    <span>Title (optional)</span>
+                    <input id="obsidian-memory-title" type="text" placeholder="Title (optional)" autocomplete="off">
+                    <small>Used for the new note title and filename. If empty, a title is generated from the insight.</small>
+                  </label>
+                  <label class="obsidian-memory-field obsidian-memory-action-field">
+                    <span>Review action</span>
+                    <select id="obsidian-memory-action" title="Review action">
+                      <option value="save_to_obsidian">Save to vault</option>
+                      <option value="append_to_note" hidden>Append to selected note</option>
+                      <option value="memory_only">Memory only</option>
+                      <option value="discard">Discard</option>
+                    </select>
+                    <small>Choose whether this writes to Obsidian, stays in memory, or is discarded.</small>
+                  </label>
+                  <div class="obsidian-memory-field obsidian-memory-destination-field" id="obsidian-memory-destination-field">
+                    <span>Save to</span>
+                    <button type="button" id="obsidian-memory-save-to" class="obsidian-memory-save-to" data-memory-destination-type="" data-memory-destination-path="" aria-label="Choose where to save this memory">
+                      <span id="obsidian-memory-save-to-label"></span>
+                    </button>
+                    <small>Choose a folder to create a new note, or choose a note to append this insight.</small>
+                    <input id="obsidian-memory-folder" type="hidden" value="">
+                    <input id="obsidian-memory-note" type="hidden" value="">
+                    <div class="obsidian-memory-destination-picker hidden" id="obsidian-memory-destination-picker">
+                      <div class="obsidian-memory-picker-tabs">
+                        <button type="button" data-memory-picker-tab="folders">Folders</button>
+                        <button type="button" data-memory-picker-tab="notes">Notes</button>
+                      </div>
+                      <input id="obsidian-memory-picker-search" type="text" placeholder="Search vault..." autocomplete="off">
+                      <div class="obsidian-memory-picker-hints" id="obsidian-memory-picker-hints"></div>
+                      <div class="obsidian-memory-picker-list" id="obsidian-memory-picker-list"></div>
+                    </div>
+                  </div>
+                  <div class="obsidian-memory-field obsidian-memory-tags-field">
+                    <span>Tags</span>
+                    <div class="obsidian-memory-tag-input" id="obsidian-memory-tags">
+                      <div class="obsidian-memory-tag-chips" id="obsidian-memory-tag-chips"></div>
+                      <input id="obsidian-memory-tag-entry" type="text" placeholder="Type a tag and press Enter" autocomplete="off">
+                      <div class="obsidian-memory-tag-menu hidden" id="obsidian-memory-tag-menu"></div>
+                    </div>
+                    <small>Existing tags autocomplete from the vault. Press Enter to add the selected tag or create a new one.</small>
+                  </div>
+                  <label class="obsidian-memory-field obsidian-memory-content-field">
+                    <span>Insight to save</span>
+                    <textarea id="obsidian-memory-content" placeholder="Write the reviewed insight or decision that should become vault context."></textarea>
+                    <small>This text becomes the saved note content or the appended memory section.</small>
+                  </label>
                   <div class="obsidian-project-actions">
-                    <button type="button" id="obsidian-memory-preview" class="btn btn-secondary">Preview memory</button>
-                    <button type="button" id="obsidian-memory-apply" class="btn btn-primary" disabled>Apply review</button>
+                    <button type="button" id="obsidian-memory-preview" class="btn btn-secondary">Preview changes</button>
+                    <button type="button" id="obsidian-memory-apply" class="btn btn-primary" disabled>Apply to vault</button>
                   </div>
                 </div>
                 <div class="obsidian-project-preview" id="obsidian-memory-preview-panel"></div>
@@ -1365,6 +1419,285 @@ function splitProjectList(value) {
     .filter(Boolean);
 }
 
+function invalidateMemoryReviewPreview({ clearPanel = false } = {}) {
+  memoryReviewPreview = null;
+  const applyBtn = document.getElementById('obsidian-memory-apply');
+  if (applyBtn) applyBtn.disabled = true;
+  if (clearPanel) {
+    const panel = document.getElementById('obsidian-memory-preview-panel');
+    if (panel) panel.innerHTML = '';
+  }
+}
+
+function memoryReviewActionLabel(action) {
+  switch (action) {
+    case 'append_to_note':
+      return 'Append to note';
+    case 'memory_only':
+      return 'Memory only';
+    case 'discard':
+      return 'Discard';
+    case 'save_to_obsidian':
+    default:
+      return 'Create note';
+  }
+}
+
+function memoryReviewDestinationLabel() {
+  if (memoryReviewDestination.type === 'folder') {
+    return memoryReviewDestination.path || 'Vault root';
+  }
+  if (memoryReviewDestination.type === 'note') {
+    return memoryReviewDestination.path;
+  }
+  return '';
+}
+
+function syncMemoryDestinationFields() {
+  const folderInput = document.getElementById('obsidian-memory-folder');
+  const noteInput = document.getElementById('obsidian-memory-note');
+  const saveTo = document.getElementById('obsidian-memory-save-to');
+  const label = document.getElementById('obsidian-memory-save-to-label');
+  const actionSelect = document.getElementById('obsidian-memory-action');
+  const isFolder = memoryReviewDestination.type === 'folder';
+  const isNote = memoryReviewDestination.type === 'note';
+
+  if (folderInput) folderInput.value = isFolder ? memoryReviewDestination.path : '';
+  if (noteInput) noteInput.value = isNote ? memoryReviewDestination.path : '';
+  if (saveTo) {
+    saveTo.dataset.memoryDestinationType = memoryReviewDestination.type;
+    saveTo.dataset.memoryDestinationPath = memoryReviewDestination.path;
+  }
+  if (label) label.textContent = memoryReviewDestinationLabel();
+  if (actionSelect && (isFolder || isNote)) {
+    actionSelect.value = isNote ? 'append_to_note' : 'save_to_obsidian';
+  }
+}
+
+function setMemoryReviewDestination(type, path) {
+  memoryReviewDestination = { type, path: String(path || '').replace(/\\/g, '/').replace(/^\/+/, '') };
+  syncMemoryDestinationFields();
+  updateMemoryReviewActionUi();
+  closeMemoryDestinationPicker();
+  invalidateMemoryReviewPreview({ clearPanel: true });
+}
+
+function clearMemoryReviewDestination() {
+  memoryReviewDestination = { type: '', path: '' };
+  syncMemoryDestinationFields();
+}
+
+function updateMemoryReviewActionUi() {
+  const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
+  const destinationField = document.getElementById('obsidian-memory-destination-field');
+  const saveTo = document.getElementById('obsidian-memory-save-to');
+  const requiresDestination = !['memory_only', 'discard'].includes(action);
+  destinationField?.classList.toggle('hidden', !requiresDestination);
+  if (saveTo) saveTo.disabled = !requiresDestination;
+  if (!requiresDestination) closeMemoryDestinationPicker();
+}
+
+function handleMemoryActionChanged() {
+  const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
+  if (action === 'save_to_obsidian' && memoryReviewDestination.type === 'note') {
+    clearMemoryReviewDestination();
+  }
+  if (action === 'append_to_note' && memoryReviewDestination.type === 'folder') {
+    clearMemoryReviewDestination();
+  }
+  updateMemoryReviewActionUi();
+  invalidateMemoryReviewPreview({ clearPanel: true });
+}
+
+function uniqueMemoryFolders() {
+  const folders = flattenTree(vaultFiles)
+    .filter(node => node.is_dir)
+    .map(node => node.path)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  return ['', ...folders.filter((path, index) => folders.indexOf(path) === index)];
+}
+
+function memoryPickerItems() {
+  const search = (document.getElementById('obsidian-memory-picker-search')?.value || '').trim().toLowerCase();
+  const paths = memoryDestinationPickerTab === 'notes' ? flattenNotes(vaultFiles) : uniqueMemoryFolders();
+  return paths.filter(path => {
+    const label = path || 'Vault root';
+    return !search || label.toLowerCase().includes(search);
+  });
+}
+
+function renderMemoryDestinationPicker() {
+  const picker = document.getElementById('obsidian-memory-destination-picker');
+  const hints = document.getElementById('obsidian-memory-picker-hints');
+  const list = document.getElementById('obsidian-memory-picker-list');
+  if (!picker || !hints || !list) return;
+
+  picker.querySelectorAll('[data-memory-picker-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.memoryPickerTab === memoryDestinationPickerTab);
+  });
+
+  const hintItems = [];
+  const selectedFolder = selectedFolderPath();
+  const currentFolder = currentNotePath ? getParentDir(currentNotePath) : '';
+  if (memoryDestinationPickerTab === 'folders') {
+    hintItems.push({ label: 'Vault root', type: 'folder', path: '' });
+    if (selectedFolder) hintItems.push({ label: `Selected folder: ${selectedFolder}`, type: 'folder', path: selectedFolder });
+    if (currentFolder && currentFolder !== selectedFolder) hintItems.push({ label: `Current folder: ${currentFolder}`, type: 'folder', path: currentFolder });
+  } else if (currentNotePath) {
+    hintItems.push({ label: `Current note: ${currentNotePath}`, type: 'note', path: currentNotePath });
+  }
+
+  hints.innerHTML = hintItems.map(item => `
+    <button type="button" data-memory-pick-type="${escapeHtml(item.type)}" data-memory-pick-path="${escapeHtml(item.path)}">${escapeHtml(item.label)}</button>
+  `).join('');
+
+  const type = memoryDestinationPickerTab === 'notes' ? 'note' : 'folder';
+  const items = memoryPickerItems();
+  list.innerHTML = items.length ? items.map(path => `
+    <button type="button" data-memory-pick-type="${type}" data-memory-pick-path="${escapeHtml(path)}">
+      <span>${escapeHtml(path || 'Vault root')}</span>
+      <small>${type === 'note' ? getParentDir(path) || 'Vault root' : 'Folder'}</small>
+    </button>
+  `).join('') : '<div class="obsidian-memory-picker-empty">No matches</div>';
+
+  picker.querySelectorAll('[data-memory-pick-type]').forEach(btn => {
+    btn.addEventListener('click', () => setMemoryReviewDestination(btn.dataset.memoryPickType, btn.dataset.memoryPickPath || ''));
+  });
+}
+
+function openMemoryDestinationPicker() {
+  const picker = document.getElementById('obsidian-memory-destination-picker');
+  if (!picker) return;
+  picker.classList.remove('hidden');
+  renderMemoryDestinationPicker();
+  const search = document.getElementById('obsidian-memory-picker-search');
+  search?.focus();
+  search?.select();
+}
+
+function closeMemoryDestinationPicker() {
+  document.getElementById('obsidian-memory-destination-picker')?.classList.add('hidden');
+}
+
+function normalizeMemoryTag(value) {
+  const clean = String(value || '').trim().replace(/^#+/, '').replace(/\s+/g, '-');
+  return clean ? `#${clean}` : '';
+}
+
+function renderMemoryTagChips() {
+  const chips = document.getElementById('obsidian-memory-tag-chips');
+  if (!chips) return;
+  chips.innerHTML = memoryReviewTags.map(tag => `
+    <button type="button" class="obsidian-memory-tag-chip" data-memory-tag="${escapeHtml(tag)}">
+      <span>${escapeHtml(tag)}</span>
+      <span aria-hidden="true">x</span>
+    </button>
+  `).join('');
+  chips.querySelectorAll('[data-memory-tag]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      memoryReviewTags = memoryReviewTags.filter(tag => tag !== btn.dataset.memoryTag);
+      renderMemoryTagChips();
+      updateMemoryTagSuggestions();
+      invalidateMemoryReviewPreview({ clearPanel: true });
+    });
+  });
+}
+
+function addMemoryTag(value) {
+  const tag = normalizeMemoryTag(value);
+  if (!tag || memoryReviewTags.includes(tag)) return;
+  memoryReviewTags.push(tag);
+  renderMemoryTagChips();
+  const input = document.getElementById('obsidian-memory-tag-entry');
+  if (input) input.value = '';
+  hideMemoryTagMenu();
+  invalidateMemoryReviewPreview({ clearPanel: true });
+}
+
+function hideMemoryTagMenu() {
+  memoryTagPickerState = { index: 0, items: [] };
+  const menu = document.getElementById('obsidian-memory-tag-menu');
+  if (menu) {
+    menu.classList.add('hidden');
+    menu.innerHTML = '';
+  }
+}
+
+function renderMemoryTagMenu() {
+  const menu = document.getElementById('obsidian-memory-tag-menu');
+  if (!menu || !memoryTagPickerState.items.length) {
+    hideMemoryTagMenu();
+    return;
+  }
+  menu.innerHTML = memoryTagPickerState.items.map((item, index) => `
+    <button type="button" class="obsidian-memory-tag-option ${index === memoryTagPickerState.index ? 'active' : ''}" data-memory-tag-option="${escapeHtml(item.value)}">
+      <span>${escapeHtml(item.label)}</span>
+      <small>${escapeHtml(item.meta || '')}</small>
+    </button>
+  `).join('');
+  menu.querySelectorAll('[data-memory-tag-option]').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      addMemoryTag(btn.dataset.memoryTagOption);
+    });
+  });
+  menu.classList.remove('hidden');
+}
+
+async function updateMemoryTagSuggestions() {
+  const input = document.getElementById('obsidian-memory-tag-entry');
+  if (!input || document.activeElement !== input) {
+    hideMemoryTagMenu();
+    return;
+  }
+  const query = input.value.trim().replace(/^#+/, '').toLowerCase();
+  if (!query) {
+    hideMemoryTagMenu();
+    return;
+  }
+  const tags = (await getVaultTags())
+    .filter(tag => tag.name.toLowerCase().includes(query))
+    .filter(tag => !memoryReviewTags.includes(`#${tag.name}`))
+    .slice(0, 8)
+    .map(tag => ({ value: `#${tag.name}`, label: `#${tag.name}`, meta: `${tag.files.length} notes` }));
+  memoryTagPickerState = { index: 0, items: tags };
+  renderMemoryTagMenu();
+}
+
+function handleMemoryTagKey(e) {
+  const input = document.getElementById('obsidian-memory-tag-entry');
+  if (!input) return;
+  const items = memoryTagPickerState.items;
+  if (e.key === 'ArrowDown' && items.length) {
+    e.preventDefault();
+    memoryTagPickerState.index = (memoryTagPickerState.index + 1) % items.length;
+    renderMemoryTagMenu();
+    return;
+  }
+  if (e.key === 'ArrowUp' && items.length) {
+    e.preventDefault();
+    memoryTagPickerState.index = (memoryTagPickerState.index - 1 + items.length) % items.length;
+    renderMemoryTagMenu();
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const selected = items[memoryTagPickerState.index]?.value;
+    addMemoryTag(selected || input.value);
+    return;
+  }
+  if (e.key === 'Backspace' && !input.value && memoryReviewTags.length) {
+    memoryReviewTags.pop();
+    renderMemoryTagChips();
+    invalidateMemoryReviewPreview({ clearPanel: true });
+    return;
+  }
+  if (e.key === 'Escape') {
+    hideMemoryTagMenu();
+  }
+}
+
 async function showProjectPlanner() {
   const planner = document.getElementById('obsidian-project-planner');
   if (!planner) return;
@@ -1396,14 +1729,15 @@ function showMemoryReview() {
   const panel = document.getElementById('obsidian-memory-review-panel');
   if (!panel) return;
   memoryReviewPreview = null;
+  clearMemoryReviewDestination();
   document.getElementById('obsidian-project-planner')?.classList.add('hidden');
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   panel.classList.remove('hidden');
-  const folderInput = document.getElementById('obsidian-memory-folder');
-  if (folderInput && !folderInput.value) folderInput.value = 'Memory Review';
-  const noteInput = document.getElementById('obsidian-memory-note');
-  if (noteInput && currentNotePath && !noteInput.value) noteInput.value = currentNotePath;
+  const actionSelect = document.getElementById('obsidian-memory-action');
+  if (actionSelect) actionSelect.value = 'save_to_obsidian';
+  renderMemoryTagChips();
+  updateMemoryReviewActionUi();
   document.getElementById('obsidian-memory-preview-panel').innerHTML = '';
   document.getElementById('obsidian-memory-apply').disabled = true;
 }
@@ -1549,12 +1883,32 @@ function renderMemoryReviewPreview(plan) {
   const tags = plan.new_tags || [];
   const notes = plan.suggested_notes || [];
   const relationships = plan.relationships || [];
+  const firstFile = files[0] || null;
+  const titleWasProvided = Boolean((plan.candidate?.title || '').trim());
+  const destination = firstFile?.path
+    || (plan.action === 'memory_only' ? 'Odysseus memory only' : '')
+    || (plan.action === 'discard' ? 'No vault destination' : '')
+    || plan.target_note
+    || plan.target_folder
+    || 'Vault root';
   panel.innerHTML = `
-    <div class="obsidian-project-summary">
-      <strong>${escapeHtml(plan.candidate?.title || plan.action || 'Memory review')}</strong>
-      <span>${escapeHtml(plan.action)}</span>
-      <span>${escapeHtml(files.length)} files</span>
-      <span>${escapeHtml(relationships.length)} relationships</span>
+    <div class="obsidian-memory-preview-summary">
+      <div>
+        <span>Action</span>
+        <strong>${escapeHtml(memoryReviewActionLabel(plan.action))}</strong>
+      </div>
+      <div>
+        <span>Destination</span>
+        <strong>${escapeHtml(destination)}</strong>
+      </div>
+      <div>
+        <span>Title source</span>
+        <strong>${titleWasProvided ? 'Typed title' : 'Generated from insight'}</strong>
+      </div>
+      <div>
+        <span>Relationships</span>
+        <strong>${escapeHtml(relationships.length)}</strong>
+      </div>
     </div>
     ${conflicts.length ? `<div class="obsidian-project-conflicts" data-memory-conflicts="true">
       <strong>Conflicts</strong>
@@ -1572,6 +1926,10 @@ function renderMemoryReviewPreview(plan) {
           </div>
           <div class="obsidian-project-tags">${(file.tags || []).map(tag => `<code>${escapeHtml(tag)}</code>`).join('')}</div>
           <div class="obsidian-project-links">${(file.links || []).slice(0, 5).map(link => `<span>${escapeHtml(link)}</span>`).join('')}</div>
+          <details class="obsidian-memory-markdown-preview" open>
+            <summary>Generated markdown</summary>
+            <pre>${escapeHtml(file.content || file.content_preview || '')}</pre>
+          </details>
         </div>
       `).join('')}
     </div>
@@ -1856,17 +2214,21 @@ async function improveProjectDescription() {
 async function previewMemoryReview() {
   const title = document.getElementById('obsidian-memory-title')?.value || '';
   const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
-  const target_folder = document.getElementById('obsidian-memory-folder')?.value || 'Memory Review';
+  const target_folder = document.getElementById('obsidian-memory-folder')?.value ?? '';
   const target_note = document.getElementById('obsidian-memory-note')?.value || '';
   const content = document.getElementById('obsidian-memory-content')?.value || '';
-  const tags = (document.getElementById('obsidian-memory-tags')?.value || '').split(',').map(item => item.trim()).filter(Boolean);
+  const tags = [...memoryReviewTags];
   const link_paths = target_note ? [target_note] : [];
   if (!content.trim()) {
-    showToast('Memory content required');
+    showToast('Insight to save required');
+    return;
+  }
+  if (!['memory_only', 'discard'].includes(action) && !memoryReviewDestination.type) {
+    showToast('Choose where to save this memory');
     return;
   }
   const panel = document.getElementById('obsidian-memory-preview-panel');
-  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Reviewing memory candidate...</div>';
+  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Previewing memory changes...</div>';
   try {
     const res = await fetch('/api/plugins/obsidian/memory-review/preview', {
       method: 'POST',
@@ -1952,86 +2314,350 @@ async function applyProjectPlan() {
   }
 }
 
-async function promptAddRelationship() {
-  const notes = flattenNotes(vaultFiles);
-  if (notes.length < 2) {
-    showToast('Create at least two notes first');
-    return;
-  }
-  const source = await styledPrompt('Relationship source note:', { defaultValue: currentNotePath || notes[0], confirmText: 'Next' });
-  if (!source) return;
-  const target = await styledPrompt('Relationship target note:', { defaultValue: notes.find(path => path !== source) || '', confirmText: 'Next' });
-  if (!target) return;
-  const type = await styledPrompt('Relationship type:', { defaultValue: 'relates_to', confirmText: 'Next' });
-  if (!type) return;
-  const reason = await styledPrompt('Relationship reason:', { defaultValue: type.replace(/_/g, ' '), confirmText: 'Add' });
-  try {
-    const res = await fetch('/api/plugins/obsidian/relationships', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source, target, type, reason }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to add relationship');
-    showToast('Relationship added');
-    renderGraphView();
-  } catch (e) {
-    console.error('Relationship add failed:', e);
-    showToast(e.message || 'Failed to add relationship');
-  }
-}
-
-async function promptDeleteRelationship() {
-  const source = await styledPrompt('Relationship source note:', { defaultValue: currentNotePath || '', confirmText: 'Next' });
-  if (!source) return;
-  const target = await styledPrompt('Relationship target note:', { confirmText: 'Next' });
-  if (!target) return;
-  const type = await styledPrompt('Relationship type:', { defaultValue: 'relates_to', confirmText: 'Delete' });
-  if (!type) return;
-  try {
-    const res = await fetch('/api/plugins/obsidian/relationships', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source, target, type }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to delete relationship');
-    showToast('Relationship deleted');
-    renderGraphView();
-  } catch (e) {
-    console.error('Relationship delete failed:', e);
-    showToast(e.message || 'Failed to delete relationship');
-  }
-}
-
 async function renderGraphView() {
   const graph = document.getElementById('obsidian-graph-view');
   if (!graph) return;
 
+  destroyGraphCytoscape();
   graph.innerHTML = '<div class="obsidian-graph-empty">Building graph...</div>';
-  let graphData;
+
+  let prepared;
   try {
-    const focus = currentNotePath ? `?focus=${encodeURIComponent(currentNotePath)}` : '';
-    const res = await fetch(`/api/plugins/obsidian/graph${focus}`);
-    if (!res.ok) throw new Error(`Graph request failed: ${res.status}`);
-    graphData = await res.json();
+    prepared = prepareGraphData(await fetchGraphData());
   } catch (e) {
     console.error('Failed to build graph:', e);
     graph.innerHTML = '<div class="obsidian-graph-empty">Unable to build graph.</div>';
     return;
   }
 
-  const nodes = (graphData.graph?.nodes || []).filter(node => node.type === 'markdown');
-  const nodeIds = new Set(nodes.map(node => node.id));
-  const allEdges = (graphData.graph?.edges || [])
-    .filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target));
-  const edgeTypes = [...new Set(allEdges.map(edge => edge.type || 'link'))].sort();
-  const edges = graphEdgeTypeFilter === 'all'
-    ? allEdges
-    : allEdges.filter(edge => (edge.type || 'link') === graphEdgeTypeFilter);
-  if (!nodes.length) {
+  if (!prepared.markdownNodes.length) {
     graph.innerHTML = '<div class="obsidian-graph-empty">No markdown notes to graph yet.</div>';
     return;
   }
 
+  const preferredRenderer = preferredGraphRenderer();
+  renderGraphShell(graph, prepared, preferredRenderer);
+
+  if (preferredRenderer === OBSIDIAN_GRAPH_RENDERER_SVG) {
+    renderSvgGraphFallback(graph, prepared);
+    return;
+  }
+
+  try {
+    await renderCytoscapeGraph(graph, prepared);
+  } catch (e) {
+    console.warn('Cytoscape graph failed, falling back to SVG:', e);
+    renderGraphShell(graph, prepared, OBSIDIAN_GRAPH_RENDERER_SVG, 'SVG fallback');
+    renderSvgGraphFallback(graph, prepared);
+  }
+}
+
+async function fetchGraphData() {
+  const focus = currentNotePath ? `?focus=${encodeURIComponent(currentNotePath)}` : '';
+  const res = await fetch(`/api/plugins/obsidian/graph${focus}`);
+  if (!res.ok) throw new Error(`Graph request failed: ${res.status}`);
+  return res.json();
+}
+
+function preferredGraphRenderer() {
+  try {
+    return localStorage.getItem(OBSIDIAN_GRAPH_RENDERER_KEY) === OBSIDIAN_GRAPH_RENDERER_SVG
+      ? OBSIDIAN_GRAPH_RENDERER_SVG
+      : OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE;
+  } catch (_) {
+    return OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE;
+  }
+}
+
+function destroyGraphCytoscape() {
+  if (graphCytoscapeInstance) {
+    graphCytoscapeInstance.destroy();
+    graphCytoscapeInstance = null;
+  }
+}
+
+function directFolderForPath(path) {
+  const clean = String(path || '').replace(/\\/g, '/');
+  if (!clean.includes('/')) return null;
+  return clean.split('/').slice(0, -1).join('/');
+}
+
+function parentFolderForFolder(path) {
+  const clean = String(path || '').replace(/\\/g, '/');
+  if (!clean.includes('/')) return null;
+  return clean.split('/').slice(0, -1).join('/');
+}
+
+function prepareGraphData(graphData) {
+  const rawNodes = graphData.graph?.nodes || [];
+  const markdownNodes = rawNodes.filter(node => node.type === 'markdown');
+  const markdownIds = new Set(markdownNodes.map(node => node.id));
+  const folderIds = new Set(rawNodes.filter(node => node.type === 'folder').map(node => node.id));
+
+  markdownNodes.forEach(node => {
+    let folder = directFolderForPath(node.id);
+    while (folder) {
+      folderIds.add(folder);
+      folder = parentFolderForFolder(folder);
+    }
+  });
+
+  const folderNodes = [...folderIds]
+    .sort((a, b) => a.localeCompare(b))
+    .map(id => ({
+      id,
+      label: id.split('/').pop(),
+      type: 'folder',
+    }));
+
+  const allEdges = (graphData.graph?.edges || [])
+    .filter(edge => markdownIds.has(edge.source) && markdownIds.has(edge.target));
+  const edgeTypes = [...new Set(allEdges.map(edge => edge.type || 'link'))].sort();
+  const edges = graphEdgeTypeFilter === 'all'
+    ? allEdges
+    : allEdges.filter(edge => (edge.type || 'link') === graphEdgeTypeFilter);
+
+  return {
+    markdownNodes,
+    folderNodes,
+    edges,
+    edgeTypes,
+  };
+}
+
+function renderGraphShell(graph, prepared, renderer) {
+  const filterOptions = ['all', ...prepared.edgeTypes].map(type => (
+    `<option value="${escapeHtml(type)}" ${type === graphEdgeTypeFilter ? 'selected' : ''}>${escapeHtml(type.replace(/_/g, ' '))}</option>`
+  )).join('');
+
+  graph.innerHTML = `
+    <div class="obsidian-graph-controls">
+      <select id="obsidian-graph-filter" title="Filter graph edges">${filterOptions}</select>
+    </div>
+    <div class="obsidian-graph-canvas" id="obsidian-graph-canvas" data-graph-renderer="${escapeHtml(renderer)}"></div>
+  `;
+
+  graph.querySelector('#obsidian-graph-filter')?.addEventListener('change', (e) => {
+    graphEdgeTypeFilter = e.target.value || 'all';
+    renderGraphView();
+  });
+}
+
+function graphCssVar(element, name, fallback) {
+  const value = getComputedStyle(element).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+async function loadCytoscape() {
+  if (window.cytoscape) return window.cytoscape;
+  if (graphCytoscapeLoadPromise) return graphCytoscapeLoadPromise;
+
+  graphCytoscapeLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-obsidian-cytoscape-loader="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.cytoscape), { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = OBSIDIAN_CYTOSCAPE_ASSET;
+    script.async = true;
+    script.dataset.obsidianCytoscapeLoader = 'true';
+    script.onload = () => window.cytoscape ? resolve(window.cytoscape) : reject(new Error('Cytoscape did not initialize'));
+    script.onerror = () => reject(new Error('Failed to load Cytoscape'));
+    document.head.appendChild(script);
+  });
+
+  return graphCytoscapeLoadPromise;
+}
+
+function cytoscapeElements(prepared) {
+  const folderElements = prepared.folderNodes.map(node => {
+    const parent = parentFolderForFolder(node.id);
+    return {
+      data: {
+        id: node.id,
+        label: node.label || node.id,
+        type: 'folder',
+        parent: parent || undefined,
+      },
+      classes: 'obsidian-folder-node',
+    };
+  });
+
+  const markdownElements = prepared.markdownNodes.map(node => {
+    const parent = directFolderForPath(node.id);
+    return {
+      data: {
+        id: node.id,
+        label: node.label || node.id.replace(/\.md$/i, '').split('/').pop(),
+        type: 'markdown',
+        parent: parent || undefined,
+        tags: (node.tags || []).join(', '),
+      },
+      classes: node.id === currentNotePath ? 'obsidian-current-node' : '',
+    };
+  });
+
+  const edgeElements = prepared.edges.map((edge, index) => ({
+    data: {
+      id: `edge-${index}-${edge.source}-${edge.target}-${edge.type || 'link'}`,
+      source: edge.source,
+      target: edge.target,
+      type: edge.type || 'link',
+      reason: edge.reason || edge.type || 'link',
+      weight: edge.weight || '',
+    },
+    classes: `edge-${edge.type || 'link'}`,
+  }));
+
+  return [...folderElements, ...markdownElements, ...edgeElements];
+}
+
+function cytoscapeStyle(container) {
+  const fg = graphCssVar(container, '--fg', '#e5e7eb');
+  const bg = graphCssVar(container, '--bg', '#111827');
+  const accent = graphCssVar(container, '--accent', '#ef4444');
+  const border = graphCssVar(container, '--border', '#374151');
+
+  return [
+    {
+      selector: 'node',
+      style: {
+        'background-color': bg,
+        'border-color': fg,
+        'border-width': 1.5,
+        'color': fg,
+        'font-size': 12,
+        'label': 'data(label)',
+        'text-background-color': bg,
+        'text-background-opacity': 0.88,
+        'text-background-padding': 2,
+        'text-margin-y': 7,
+        'text-valign': 'bottom',
+        'text-halign': 'center',
+        'width': 26,
+        'height': 26,
+      },
+    },
+    {
+      selector: 'node[type = "folder"]',
+      style: {
+        'background-opacity': 0.08,
+        'background-color': accent,
+        'border-color': border,
+        'border-style': 'dashed',
+        'border-width': 1.4,
+        'padding': 18,
+        'shape': 'round-rectangle',
+        'text-valign': 'top',
+        'text-halign': 'left',
+        'text-margin-x': 6,
+        'text-margin-y': 6,
+      },
+    },
+    {
+      selector: 'node[type = "markdown"]',
+      style: {
+        'shape': 'ellipse',
+      },
+    },
+    {
+      selector: 'node.obsidian-current-node',
+      style: {
+        'background-color': accent,
+        'border-color': accent,
+        'border-width': 3,
+        'width': 34,
+        'height': 34,
+      },
+    },
+    {
+      selector: 'edge',
+      style: {
+        'curve-style': 'bezier',
+        'line-color': fg,
+        'opacity': 0.34,
+        'target-arrow-color': fg,
+        'target-arrow-shape': 'triangle',
+        'width': 1.3,
+      },
+    },
+    {
+      selector: 'edge[type = "shared_tag"]',
+      style: {
+        'line-color': accent,
+        'target-arrow-color': accent,
+        'opacity': 0.46,
+        'width': 1.1,
+      },
+    },
+    {
+      selector: 'edge[type = "filename_mention"]',
+      style: {
+        'line-style': 'dashed',
+      },
+    },
+    {
+      selector: 'edge[type = "manual"], edge[type = "relates_to"], edge[type = "depends_on"], edge[type = "blocks"], edge[type = "supports"]',
+      style: {
+        'line-color': accent,
+        'target-arrow-color': accent,
+        'opacity': 0.64,
+        'width': 2,
+      },
+    },
+    {
+      selector: 'edge[type = "blocks"]',
+      style: {
+        'line-style': 'dashed',
+      },
+    },
+  ];
+}
+
+async function renderCytoscapeGraph(graph, prepared) {
+  const canvas = graph.querySelector('#obsidian-graph-canvas');
+  if (!canvas) return;
+  const cytoscape = await loadCytoscape();
+
+  graphCytoscapeInstance = cytoscape({
+    container: canvas,
+    elements: cytoscapeElements(prepared),
+    layout: {
+      name: 'cose',
+      animate: false,
+      fit: true,
+      padding: 48,
+      nodeRepulsion: 9000,
+      idealEdgeLength: 95,
+      componentSpacing: 72,
+    },
+    style: cytoscapeStyle(canvas),
+    wheelSensitivity: 0.22,
+    minZoom: 0.28,
+    maxZoom: 2.4,
+  });
+
+  graphCytoscapeInstance.on('tap', 'node[type = "markdown"]', (event) => {
+    activateGraphNode(event.target.id());
+  });
+  graphCytoscapeInstance.on('mouseover', 'node, edge', (event) => {
+    const data = event.target.data();
+    canvas.title = data.reason || data.tags || data.id || '';
+  });
+  graphCytoscapeInstance.on('mouseout', 'node, edge', () => {
+    canvas.title = '';
+  });
+}
+
+function renderSvgGraphFallback(graph, prepared) {
+  const canvas = graph.querySelector('#obsidian-graph-canvas');
+  if (!canvas) return;
+
+  const nodes = prepared.markdownNodes;
+  const edges = prepared.edges;
   const width = 900;
   const height = 560;
   const cx = width / 2;
@@ -2079,30 +2705,14 @@ async function renderGraphView() {
     `;
   }).join('');
 
-  const filterOptions = ['all', ...edgeTypes].map(type => (
-    `<option value="${escapeHtml(type)}" ${type === graphEdgeTypeFilter ? 'selected' : ''}>${escapeHtml(type.replace(/_/g, ' '))}</option>`
-  )).join('');
-
-  graph.innerHTML = `
-    <div class="obsidian-graph-controls">
-      <select id="obsidian-graph-filter" title="Filter graph relationships">${filterOptions}</select>
-      <button type="button" id="obsidian-relationship-add">Add relationship</button>
-      <button type="button" id="obsidian-relationship-delete">Delete relationship</button>
-    </div>
+  canvas.innerHTML = `
     <svg class="obsidian-graph-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Obsidian note graph">
       <g>${edgeSvg}</g>
       <g>${nodeSvg}</g>
     </svg>
   `;
 
-  graph.querySelector('#obsidian-graph-filter')?.addEventListener('change', (e) => {
-    graphEdgeTypeFilter = e.target.value || 'all';
-    renderGraphView();
-  });
-  graph.querySelector('#obsidian-relationship-add')?.addEventListener('click', promptAddRelationship);
-  graph.querySelector('#obsidian-relationship-delete')?.addEventListener('click', promptDeleteRelationship);
-
-  graph.querySelectorAll('.obsidian-graph-node:not(.missing)').forEach(node => {
+  canvas.querySelectorAll('.obsidian-graph-node:not(.missing)').forEach(node => {
     node.addEventListener('click', () => activateGraphNode(node.dataset.path));
     node.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -2325,6 +2935,33 @@ function setupEventListeners() {
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
   document.getElementById('obsidian-memory-apply')?.addEventListener('click', applyMemoryReview);
+  document.getElementById('obsidian-memory-action')?.addEventListener('change', handleMemoryActionChanged);
+  document.getElementById('obsidian-memory-title')?.addEventListener('input', () => invalidateMemoryReviewPreview({ clearPanel: true }));
+  document.getElementById('obsidian-memory-content')?.addEventListener('input', () => invalidateMemoryReviewPreview({ clearPanel: true }));
+  document.getElementById('obsidian-memory-save-to')?.addEventListener('click', openMemoryDestinationPicker);
+  document.getElementById('obsidian-memory-picker-search')?.addEventListener('input', renderMemoryDestinationPicker);
+  document.querySelectorAll('[data-memory-picker-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      memoryDestinationPickerTab = btn.dataset.memoryPickerTab || 'folders';
+      renderMemoryDestinationPicker();
+      document.getElementById('obsidian-memory-picker-search')?.focus();
+    });
+  });
+  const memoryTagEntry = document.getElementById('obsidian-memory-tag-entry');
+  memoryTagEntry?.addEventListener('input', updateMemoryTagSuggestions);
+  memoryTagEntry?.addEventListener('focus', updateMemoryTagSuggestions);
+  memoryTagEntry?.addEventListener('keydown', handleMemoryTagKey);
+  memoryTagEntry?.addEventListener('blur', () => {
+    setTimeout(hideMemoryTagMenu, 120);
+  });
+  document.getElementById('obsidian-memory-tags')?.addEventListener('click', () => {
+    memoryTagEntry?.focus();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#obsidian-memory-destination-field')) {
+      closeMemoryDestinationPicker();
+    }
+  });
 
   // Refresh
   document.getElementById('obsidian-refresh')?.addEventListener('click', async () => {

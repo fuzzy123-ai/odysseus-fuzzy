@@ -21,7 +21,7 @@ Umgesetzt sind:
 - Lokale Graphsicht ueber `focus` und Tag-Filter ueber `tag`.
 - Manuelle Beziehungen als vault-lokale Plugin-Metadaten in `.obsidian/relationships.json`.
 - Typisierte manuelle Kanten: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
-- UI-Filter fuer Kantentypen sowie Buttons zum Anlegen und Loeschen manueller Beziehungen.
+- UI-Filter fuer Kantentypen.
 - KI-Tools zum Lesen, Anlegen und Loeschen manueller Beziehungen.
 
 ## Renderer-Entscheidung: Cytoscape.js
@@ -55,7 +55,8 @@ Graph-v2-Mindestumfang:
 - Klick auf Dokumentknoten oeffnet die Datei.
 - Fokuswechsel bei Dateiwechsel nachvollziehbar aktualisieren.
 - Filter fuer Tag, Pfad/Ordner und Kantentyp behalten.
-- Manuelle Beziehungen weiterhin anlegen und loeschen koennen.
+- Keine UI-Buttons fuer manuelle Graphbeziehungen anzeigen.
+- Graph-Filter-/Tag-Filter-Overlay im Graph-Editor planen.
 - Large-Vault-Fixture gegen den neuen Renderer messen.
 - Browser-Smoke fuer nicht-leere Darstellung, Zoom/Pan, Klick und Filter bestehen.
 
@@ -169,7 +170,7 @@ Empfehlung fuer erste Version: Tags als Farbe und Filter. Eigene Tag-Knoten erst
 Sinnvolle Modi:
 
 - Strukturmodus: Ordner, Unterordner, Dateien.
-- Beziehungsmodus: Links, Dateinamen-Erwaehnungen, Tags.
+- Beziehungsmodus: explizite Dokument-Tag-Referenzen.
 - Projektmodus: KI-geplante Module, Aufgaben, Abhaengigkeiten.
 - Fokusmodus: aktuelles Dokument und direkte Nachbarn.
 - Originalmodus: moeglichst einfache globale/lokale Graphsicht wie Obsidian.
@@ -207,7 +208,7 @@ Damit das Tool mehr als ein Note-Tool wird, brauchen wir zusaetzlich:
 ## Akzeptanzkriterien
 
 - Ordner, Unterordner und Markdown-Dateien sind sofort unterscheidbar.
-- Automatische Dateinamen-Erwaehnungen erzeugen sichtbare Kanten.
+- Explizite Dokument-Tags erzeugen sichtbare Kanten.
 - Unterschiedliche Kantentypen sind filterbar oder visuell unterscheidbar.
 - Ein grosses Projekt kann per Fokusmodus lesbar reduziert werden.
 - Klick auf Dokumentknoten oeffnet die Datei.

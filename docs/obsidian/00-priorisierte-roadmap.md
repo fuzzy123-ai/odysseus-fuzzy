@@ -1,234 +1,382 @@
-# Odysseus Obsidian Plugin: Priorisierte Roadmap
+# Odysseus Obsidian Plugin: Roadmap mit Ist-Stand
 
-Stand: 2026-06-10
+Stand: 2026-06-11
 
-Dieses Dokument ordnet die geplanten Features so, dass wir sie nacheinander sauber abarbeiten koennen. Die Reihenfolge ist bewusst nicht identisch mit der Ideensammlung: Erst kommt das Datenmodell, dann die Grundbedienung, dann Visualisierung. KI-Steuerbarkeit ist kein spaeteres Zusatzfeature, sondern gilt fuer jedes einzelne Feature von Anfang an.
+Dieses Dokument trennt bewusst drei Ebenen:
 
-## Update nach Plugin-System-Migration
+- **Ist-Stand:** Was im aktuellen Plugin bereits vorhanden, getestet oder als Vertrag gepinnt ist.
+- **Sollstand:** Welche Richtung das Plugin fachlich nehmen soll.
+- **Erweiterungsbacklog:** Welche naechsten Arbeitspakete auf dem Ist-Stand aufbauen koennen.
 
-Die Plugin-System-Migration ist als technisches Fundament erledigt. Das Obsidian-Plugin wird jetzt als Drop-in-Plugin unter `plugins/obsidian/plugin.py` geladen, nutzt Routen unter `/api/plugins/obsidian/...` und besitzt einen UI-Einstieg ueber `/api/plugins/obsidian/app`.
+Die Roadmap ist damit nicht mehr nur eine Aufgabenliste, sondern eine Arbeitsgrundlage fuer neue Sollstand-Erweiterungen. Neue Ideen sollen zuerst gegen den Ist-Stand eingeordnet werden: passt sie zu einem vorhandenen Modul, braucht sie ein neues Paket, oder aendert sie einen bestehenden Vertrag?
 
-Dadurch aendert sich die Roadmap nicht in ihrem Zielbild, aber in der Abarbeitung:
+## Kurzfazit
 
-- P0 enthaelt jetzt zusaetzlich die Stabilisierung des Plugin-Vertrags: Manifest, Route-Namespace, UI-Einstieg und KI-Tools muessen bei jedem Feature erhalten bleiben.
-- KI-Steuerbarkeit wird ueber Plugin-Tools und Plugin-Routen geplant, nicht mehr ueber den alten Minimal-Loader.
-- Der alte `/api/plugins/loader.js`-Ansatz ist kein Ziel mehr.
-- Erste KI-Paritaet fuer Datei-/Ordner-Kernaktionen ist vorhanden: Listen, Baum, Lesen, Schreiben, Suchen, Ordner erstellen, Umbenennen, Datei loeschen, leeren Ordner loeschen.
-- Destruktive Aktionen bleiben in der weiteren Roadmap bestaetigungspflichtig; die aktuelle KI-Ordnerloeschung ist bewusst auf leere Ordner begrenzt.
+Das Obsidian-Plugin ist nicht mehr im Fundament-Aufbau. Es ist ein natives Odysseus-Drop-in-Plugin mit UI, Backend-Routen, KI-Tools, Vault-Sicherheit, History/Undo, Projektplanung, Memory Review und einem Cytoscape-basierten Graph-Renderer mit SVG-Fallback.
 
-## Update nach Phase 2
+Der naechste sinnvolle Sollstand ist deshalb nicht "Plugin fertig machen", sondern:
 
-Phase 2 ist umgesetzt und dokumentiert in [11-phase2-implementation-status.md](11-phase2-implementation-status.md).
+1. Graph-v2 haerten und semantisch ausbauen.
+2. Projektplanung und Memory Review ergonomischer machen.
+3. Obsidian als kuratiertes Odysseus-Gedaechtnis sauber an Core-Memory anbinden.
+4. Release-Gates, Browser-Smokes und groessere Vault-Szenarien festziehen.
 
-Erledigt sind damit:
+## Ist-Stand
 
-- Obsidian-UI-Smoke-Vertraege fuer Sidebar, Standalone-App, zentrale Panel-Elemente, Header-Graph-Switch, Settings-Menue und Asset-Bootstrap.
-- Windows-Launcher-Regressionen inklusive lokalisierter Listener-Erkennung.
+### Plugin-Vertrag
+
+- Plugin-Ordner: `plugins/obsidian/`
+- Einstieg: `plugins/obsidian/plugin.py`
+- Manifest: `PLUGIN`, aktuell `obsidian v0.9.0`
+- UI-Einstieg: `GET /api/plugins/obsidian/app`
+- Statische Plugin-Assets: `GET /api/plugins/obsidian/web/{filename:path}`
+- Routen-Namespace: `/api/plugins/obsidian/...`
+- Tool-Registrierung: `ctx.register_tool(...)`
+- Router-Registrierung: `ctx.add_router(router)`
+- Plugin-Load wird durch `tests/test_plugin_obsidian_load.py` abgesichert.
+
+Status: erledigt und als Regression-Vertrag wichtig. Der alte direkte Loader-Ansatz ist kein Ziel mehr.
+
+### Vault, Dateien und Sicherheit
+
+Vorhanden:
+
+- Benutzerbezogene Vaults unter `data/obsidian_vaults/<owner>` oder via `OBSIDIAN_VAULT_DIR`.
+- Pfadschutz gegen absolute Pfade und Traversal.
+- Lock-/Unlock-Status fuer geschuetzte Vaults.
+- Passwort setzen, entfernen, sperren und entsperren.
+- Import/Export als ZIP, optional passwortgeschuetzt.
+- Dateien und Ordner listen, lesen, erstellen, aktualisieren, loeschen, verschieben und umbenennen.
+- Suchroute fuer Markdown-Inhalte.
+- Destruktive oder riskante KI-Aktionen verlangen Bestaetigung.
+- Gesperrte Vaults blockieren schreibende und lesende Fachaktionen, die Zugriff auf Inhalte brauchen.
+
+Wichtige Routen:
+
+- `GET /status`
+- `POST /vault/password`
+- `POST /vault/lock`
+- `POST /vault/unlock`
+- `POST /vault/export`
+- `POST /vault/import`
+- `GET /files`
+- `GET /file`
+- `POST /file`
+- `PUT /file`
+- `DELETE /file`
+- `POST /folder`
+- `DELETE /folder`
+- `POST /rename`
+- `GET /search`
+
+Status: fuer die aktuelle Plugin-Version umgesetzt. Offen bleibt eine bessere UX fuer Merge/Overwrite statt reinem Konfliktabbruch.
+
+### UI und Bedienung
+
+Vorhanden:
+
+- Rechts gedocktes Obsidian-Panel in Odysseus.
+- Standalone-App-Seite ueber `/api/plugins/obsidian/app`.
+- Dateibaum mit Ordnern, Notizen, Auswahlzustand und Inline-/Toolbar-Umbenennung.
+- Markdown-Editor mit Autosave und Toolbar.
+- Neue Notizen und Ordner aus dem aktuell gewaehlten Kontext.
+- Suche.
+- Header-Kontrollgruppe mit Graph-Switch, Settings, Minimieren und Schliessen.
+- Settings-Popover mit Import, Export, Passwortschutz und Graph-Reset.
+- Resizable Panel und Sidebar-Split mit gespeicherten Breiten.
+- Mobile Absicherung fuer Header-, Settings- und Graph-Kontrollen.
 - Caret-positionierter Autocomplete fuer `[[...]]` und `#...`, mit Unterdrueckung in Code-Fences, Inline-Code und URLs.
-- Manuelle Graph-Beziehungen als vault-lokale Plugin-Metadaten mit typisierten Kanten: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
-- History/Undo-Grundmodell fuer sichere Einzelaktionen: Datei erstellen, Datei ueberschreiben, Datei verschieben/umbenennen, Beziehung anlegen/loeschen.
-- Large-Vault-Testdaten und Graph-Profiling-Baseline.
-- Header-Settings-Menue mit Import, Export, Passwortschutz und Graph-Reset.
 
-Mobile Drag-and-drop und Mobile-spezifische Vault-Navigation sind bewusst aus Phase 2 herausgenommen und bleiben Do Later.
+Status: alltagstauglicher Grundbetrieb ist vorhanden. Mobile Drag-and-drop und eine umfassende mobile Vault-Navigation bleiben offen.
 
-## Zielbild
+### Tags, Links, Beziehungen und Graph-Datenmodell
 
-Das Plugin soll kein reines Notizwerkzeug sein. Es soll ein lokaler Wissensraum werden, in dem Markdown-Dateien, Ordner, Tags, automatische Beziehungen und KI-generierte Projektplaene gemeinsam als lesbare Dokumente und als interaktiver Graph funktionieren.
+Vorhanden:
 
-Wichtig ist dabei:
+- Vault-Index fuer Markdown-Dateien, explizite Tags und implizite Dateitags.
+- Hierarchische Tags wie `#project/demo-app`, `#type/project`, `#status/draft`.
+- Wiki-Link- und Tag-Flows im Editor.
+- Manuelle Relationship-Metadaten vault-lokal unter `.obsidian/relationships.json`.
+- Beziehungstypen: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
+- Relationship-Routen und KI-Tools zum Listen, Anlegen und Loeschen.
+- History/Undo fuer sichere Einzelaktionen, inklusive Relationship-Add/Delete.
+- Graph-Payload mit Fokus- und Tag-Filter.
 
-- Markdown bleibt das zentrale, portable Dateiformat.
-- Vaults bleiben importierbar/exportierbar und optional schuetzbar.
-- Obsidian ist eine aktive Gedaechtnisquelle fuer Odysseus, aber nicht der Ort fuer die gesamte Odysseus-Systemlogik.
-- Tags und Dateinamen bilden eine einfache, stabile Beziehungsschicht.
-- Der Graph soll Zusammenhaenge erklaeren, nicht nur huebsch aussehen.
-- Fuer den naechsten groesseren Graph-Ausbau ist Cytoscape.js als Zielbibliothek gesetzt; Phase 3 bleibt beim bestehenden Graphen, die Migration wird als eigenes Graph-v2-Paket geplant.
-- Die Bedienung soll sich nah am originalen Obsidian anfuehlen: schnell, direkt, markdownzentriert, mit dynamischem Graph und vertrauter Vault-Navigation.
-- Neue KI-erzeugte Notizen muessen nach einem nachvollziehbaren Notiz- und Tag-Schema entstehen, damit Graph-Verbindungen nicht zufaellig oder tag-chaotisch werden.
-- KI darf alles tun, was ein Mensch im Plugin tun kann, muss aber nachvollziehbar, bestaetigbar und ruecknehmbar bleiben.
-- Sicherheit steht vor Bedienkomfort: Pfadschutz, Passwortschutz, Rechtepruefung, Importhygiene und KI-Bestaetigungen sind Release-Blocker.
+Aktueller Graph-Vertrag:
 
-## Querschnittsregel: Mensch-KI-Paritaet
+- Sichtbare Graphkanten entstehen aus Wiki-/Markdown-Links, Dateinamen-Erwaehnungen, gemeinsamen Tags und manuellen Relationships.
+- Manuelle Relationships sind strukturierte Metadaten und werden durch Apply-Flows oder KI-Tools erzeugt; sie erscheinen als typisierte Graphkanten.
+- Tests pinnen automatische Link-, Mention-, Shared-Tag- und manuelle Relationship-Kanten.
 
-Jedes Feature braucht zwei Bedienwege:
+Status: stabiler Kern vorhanden, aber der semantische Ausbau des Graphen ist der wichtigste naechste Sollstand.
 
-- Menschlicher Bedienweg ueber UI, Tastatur, Maus oder Touch.
-- KI-Bedienweg ueber klare interne Aktionen, Werkzeuge oder APIs.
+### Graph-Renderer
 
-Wenn ein Mensch eine Datei verschieben, einen Tag setzen, einen Graph-Filter aendern, ein Vault importieren, eine Graph-Beziehung erstellen oder ein Editor-Tool ausloesen kann, muss die KI dieselbe Aktion ebenfalls ausfuehren koennen. Ausnahmen muessen ausdruecklich begruendet werden, z.B. Passwort-Eingabe oder destruktive Aktionen ohne Nutzerbestaetigung.
+Vorhanden:
 
-Planungsdokument:
+- Cytoscape.js ist als lokales Asset unter `plugins/obsidian/frontend/cytoscape.min.js` vorhanden.
+- Der Frontend-Vertrag enthaelt `odysseus.obsidian.graphRenderer`.
+- Cytoscape wird dynamisch geladen.
+- Es gibt einen SVG-Fallback.
+- Graphdaten werden vor dem Rendern vorbereitet.
+- Ordnerknoten und Markdown-Knoten werden separat modelliert.
+- Tests pinnen den Phase-6-Renderer-Vertrag.
 
-- [08-ai-control-surface.md](08-ai-control-surface.md)
+Status: Graph-v2 ist nicht mehr nur geplant, sondern technisch begonnen. Was noch fehlt, ist die fachliche Haertung: Interaktionen, Semantik, Performance, Browser-Smokes und erklaerende Graphansichten.
 
-## Querschnittsregel: Tests und Sicherheitsgate
+### KI-Steuerbarkeit
 
-Jedes Feature braucht vor Umsetzung einen Testplan und nach Umsetzung ausfuehrbare Tests. Ich kann diese Tests spaeter selbststaendig planen, schreiben und ausfuehren, solange das Plugin lokal vorhanden ist.
+Vorhandene KI-Tools:
 
-Sicherheitsrelevante Tests haben Vorrang vor UI-Polish. Ein Feature gilt nicht als fertig, wenn es Pfadgrenzen, Nutzerrechte, Passwortschutz, Importvalidierung, KI-Bestaetigungen oder Datenintegritaet ungeprueft laesst.
+- `obsidian_list_notes`
+- `obsidian_tree`
+- `obsidian_read_note`
+- `obsidian_write_note`
+- `obsidian_search_notes`
+- `obsidian_list_tags`
+- `obsidian_graph`
+- `obsidian_list_relationships`
+- `obsidian_add_relationship`
+- `obsidian_delete_relationship`
+- `obsidian_history`
+- `obsidian_undo`
+- `obsidian_project_plan_templates`
+- `obsidian_project_plan_improve_description`
+- `obsidian_project_plan_gamedev_draft`
+- `obsidian_project_plan_preview`
+- `obsidian_project_plan_apply`
+- `obsidian_memory_review_preview`
+- `obsidian_memory_review_apply`
+- `obsidian_create_folder`
+- `obsidian_rename_item`
+- `obsidian_delete_note`
+- `obsidian_delete_folder`
+- `obsidian_vault_status`
+- `obsidian_vault_set_password`
+- `obsidian_vault_lock`
+- `obsidian_vault_unlock`
+- `obsidian_vault_remove_password`
+- `obsidian_vault_export`
+- `obsidian_vault_import`
 
-Planungsdokument:
+Status: Mensch-KI-Paritaet ist fuer Kernaktionen, Vault-Sicherheit, Graphdaten, Projektplanung und Memory Review weitgehend vorhanden. UI-only-Funktionen muessen weiter gegen Tool-/API-Paritaet geprueft werden.
 
-- [09-test-und-sicherheitsplan.md](09-test-und-sicherheitsplan.md)
+### KI-Projektplanung
 
-## Querschnittsregel: Obsidian als kuratiertes Gedaechtnis
+Vorhanden:
 
-Odysseus soll Obsidian als Kontext- und Langzeitgedaechtnis nutzen koennen, ohne dass das Obsidian-Plugin zur Ablage fuer alle Systemfunktionen wird.
+- Plan-vor-Schreiben-Workflow.
+- Template-Optionen und Projekttypen.
+- Beschreibung verbessern via LLM.
+- GameDev-Concept-Draft mit expliziter Freigabe vor generiertem Plan.
+- Nicht-destruktive Preview.
+- Streaming-Preview fuer sequentielle Dateigenerierung.
+- Editierbare Preview-Dateien in der UI: Pfad, Titel, Typ, Status, Outline, Links und Markdown.
+- Apply nur nach Bestaetigung.
+- Konflikterkennung; bestehende Dateien werden nicht ueberschrieben.
+- Frontmatter, Projekt-/Typ-/Status-Tags, Wiki-Links und optionale Relationships.
 
-Darum gilt:
+Wichtige Routen:
 
-- Das Obsidian-Plugin besitzt Vault, Markdown, Tags, Links, Graph und Notizbearbeitung.
-- Odysseus Core besitzt globales Memory, Retrieval, Quellenranking, Backup, Datei-/Medienlogik und Sync.
-- Eine neue Obsidian-Notiz aus Memory Review oder Chat darf nicht isoliert entstehen: Speichern, Taggen und Verknuepfen mit bestehenden Notizen ist ein gemeinsamer Schritt.
-- Die KI muss vor dem Erzeugen einer Notiz bestehende relevante Tags, Notizen, Projektordner und Graph-Nachbarn beruecksichtigen.
-- Tags duerfen nicht frei erfunden werden, wenn ein passendes bestehendes Tag oder ein definierter Schematag existiert.
-- Neue Tags sind erlaubt, muessen aber begruendet, normalisiert und optional bestaetigbar sein.
-- Fuer KI-generierte Notizen braucht es ein klares Skill-/Schema-Dokument, das Format, Frontmatter, Tag-Regeln, Link-Regeln und Projektordner beschreibt.
+- `GET /project-plan/templates`
+- `POST /project-plan/improve-description`
+- `POST /project-plan/gamedev-draft`
+- `POST /project-plan/preview`
+- `POST /project-plan/preview-stream`
+- `POST /project-plan/apply`
 
-Ziel: Obsidian wird als lesbares, portables Gedaechtnis gepflegt; Odysseus entscheidet ueber globalen Kontext und Memory-Qualitaet.
+Status: Phase 4 ist umgesetzt und nachtraeglich erweitert. Der naechste Sollstand ist nicht "erstmals planen", sondern Merge/Overwrite, Preview-Qualitaet, Vorlagenvielfalt und bessere Projekt-Nachpflege.
 
-## Prioritaeten
+### Memory Review und Save-to-Obsidian
 
-### P0: Fundament und Sicherheit
+Vorhanden:
 
-1. Vault-Import/-Export und Passwortschutz planen und absichern.
-2. Einheitliches Datenmodell fuer Vault, Ordner, Datei, Tag, Link und Graph-Kante definieren.
-3. Regeln fuer automatische Tags und automatische Verbindungen festlegen.
-4. Sicherheits- und Regressionstests fuer Pfade, Archive, Passwoerter, Rechte und KI-Aktionen definieren.
-5. Plugin-Vertrag stabil halten: `PLUGIN`-Manifest, `/api/plugins/obsidian/...`-Routen, `/app`-UI-Einstieg und KI-Tool-Registrierung.
-6. Notiz- und Tag-Schema fuer KI-erzeugte Obsidian-Notizen definieren: erlaubte Tag-Typen, Wiederverwendung bestehender Tags, neue Tags mit Begruendung, Pflichtlinks und Frontmatter-Konventionen.
+- Plan-vor-Schreiben-Workflow fuer Memory Review.
+- Aktionen: `memory_only`, `save_to_obsidian`, `append_to_note`, `discard`.
+- Preview schreibt nicht.
+- Apply schreibt nur nach Bestaetigung, sofern Vault-Aenderungen entstehen.
+- Bestehende Notizen und Tags werden vorgeschlagen.
+- Neue Tags werden normalisiert und begruendet.
+- Neue Notizen enthalten Frontmatter mit `type`, `status`, `source`, `created`, `updated`, optional `project` und `source_ref`.
+- Append-to-Note haengt reviewte Erkenntnisse an bestehende Markdown-Notizen an.
+- UI besitzt Zielauswahl fuer Ordner und Notizen, Tag-Chips, Vorschau und Apply.
 
-Warum zuerst: Fast alle spaeteren Features haengen davon ab. Wenn Tags, Dateinamen, Vault-Schutz und Graph-Kanten spaeter umgebaut werden muessen, wird jede UI-Funktion instabil.
+Wichtige Routen:
 
-Planungsdokumente:
+- `POST /memory-review/preview`
+- `POST /memory-review/apply`
+
+Status: Phase 5 ist umgesetzt. Offen bleibt die saubere Produktentscheidung, wann Odysseus Core Memory, Obsidian oder beide Speicher genutzt werden.
+
+### Tests und Verifikation
+
+Vorhanden:
+
+- Plugin-Load-Tests.
+- Statische UI-Smoke-Vertraege fuer Sidebar, Standalone-App, Toolbar, Settings, Mobile, Autocomplete, Projektplanung, Memory Review und Cytoscape.
+- Backend-Tests im Plugin fuer Vault-Aktionen, Graph, Relationships, Projektplanung, Streaming, Memory Review, History und Undo.
+- Sicherheitschecks fuer Pfade, Konflikte, gesperrte Vaults und Bestaetigungen.
+- Bisher dokumentierte Testlaeufe:
+  - Phase 3: `66 passed, 2 warnings`
+  - Phase 4: `69 passed, 2 warnings`
+  - Phase 5 gezielt: `33 passed, 1 warning`
+
+Noch nicht vollstaendig:
+
+- Authentifizierter sichtbarer Browser-Smoke fuer `/api/plugins/obsidian/app`.
+- Echte Playwright-/Browser-Verifikation fuer den Cytoscape-Renderer.
+- Performance-Benchmarks auf grossen realistischen Vaults als Release-Gate.
+
+## Sollstand
+
+Das Plugin soll ein lokaler Wissensraum fuer Odysseus werden:
+
+- Markdown bleibt das portable Hauptformat.
+- Der Vault bleibt direkt lesbar und bearbeitbar, ohne proprietaere Zwischendatenbank.
+- Obsidian dient als kuratiertes, lesbares Langzeitgedaechtnis.
+- Odysseus Core bleibt verantwortlich fuer globales Memory, Retrieval, Quellenranking, Sync und systemweite Entscheidungen.
+- Graph, Tags, Links und Relationships sollen Zusammenhaenge erklaeren, nicht nur visualisieren.
+- KI darf grundsaetzlich alles tun, was ein Mensch im Plugin tun kann, aber mit nachvollziehbaren Previews, Bestaetigungen und Undo-Grenzen.
+- Riskante Aktionen bleiben bestaetigungspflichtig.
+- Jede neue Funktion braucht UI-Weg, API-/Tool-Weg und Tests.
+
+## Priorisierte Erweiterungen
+
+### P0: Release-Gates und Vertragsklarheit
+
+Naechster Sollstand:
+
+1. Authentifizierten Browser-Smoke fuer die Obsidian-App ergaenzen.
+2. Cytoscape-Renderer im Browser testen: Asset geladen, Canvas/DOM nicht leer, Fallback funktioniert.
+3. Route- und Tool-Vertrag dokumentieren: welche UI-Aktion nutzt welche Route und welches Tool.
+4. Release-Blocker definieren: Pfadschutz, Passwortschutz, Importhygiene, Konflikte, Bestaetigungen, History/Undo.
+5. Migration-Plan aktualisieren, weil mehrere dort offene Punkte inzwischen erledigt sind.
+
+Warum: Der aktuelle Funktionsumfang ist gross genug, dass Vertragsdrift das groesste Risiko wird.
+
+### P1: Graph-v2 fachlich fertigstellen
+
+Naechster Sollstand:
+
+1. Cytoscape als Standardrenderer haerten, SVG als Fallback behalten.
+2. Node-Typen klar machen: Ordner, Notiz, Tag, Projekt, Memory, Relationship.
+3. Edge-Typen explizit modellieren: Tag-Kante, expliziter Dateitag, Wiki-Link, manuelle Relationship, Projektstruktur, Memory-Link.
+4. Graph-Filter-/Tag-Filter-Overlay im Graph-Editor ergaenzen, damit Node-Typen, Edge-Typen, Tags und Fokusfilter ohne Toolbar-Ueberladung steuerbar sind.
+5. UI-Filter fuer Node-/Edge-Typen ergaenzen.
+6. Fokusansicht erklaerend machen: warum existiert diese Kante?
+7. Graph-Export und Graph-Zusammenfassung fuer KI ergaenzen.
+8. Large-Vault-Performance mit realistischen Fixtures messen.
+
+Wichtig: Neue Kantenarten muessen bewusst freigeschaltet, erklaerbar und testbar sein.
+
+### P2: Projektplanung ausbauen
+
+Naechster Sollstand:
+
+1. Merge-/Overwrite-Flow fuer bestehende Projektordner planen.
+2. Preview-Edits validieren, bevor Apply schreibt.
+3. Einzelne Dateien aus der Preview selektiv anwenden.
+4. Projektvorlagen erweitern: Research, Writing, Teaching, SecOps, GameDev, Software.
+5. Projekt-Nachpflege ergaenzen: Statuswechsel, neue ADR, neue Task-/Decision-Note, Roadmap-Update.
+6. KI-Tool fuer "Projektstruktur analysieren und naechste Schritte vorschlagen" ergaenzen.
+
+Warum: Projektplanung erzeugt inzwischen brauchbare Strukturen. Der naechste Nutzen entsteht durch Iteration an vorhandenen Projekten.
+
+### P3: Memory Review produktreif machen
+
+Naechster Sollstand:
+
+1. Entscheidungsmatrix festlegen: Memory-only, Obsidian-only, beides, discard.
+2. Core-Memory-Anbindung planen, ohne das Obsidian-Plugin zur globalen Memory-Datenbank zu machen.
+3. Quellen- und Risikoanzeige in Preview staerken.
+4. Duplikat- und Aehnlichkeitspruefung verbessern.
+5. Mehrere Memory-Kandidaten als Review-Queue unterstuetzen.
+6. Nach Apply optional Graph-Fokus auf neue/veraenderte Notizen oeffnen.
+7. Append-Abschnitte mit stabilen Ueberschriften und Quellenanker normalisieren.
+
+Warum: Ein gutes Gedaechtnis entsteht durch Kuration, nicht durch ungefiltertes Speichern.
+
+### P4: Vault-UX und Alltagsbedienung
+
+Naechster Sollstand:
+
+1. Mobile Vault-Navigation verbessern.
+2. Mobile Drag-and-drop oder Long-Press-Move separat designen.
+3. Globale Plugin-Einstellungen pruefen, ohne per-Vault-Settings zu verwischen.
+4. Tag-Farbverwaltung als eigenes UI planen.
+5. Keyboard-Shortcuts und Command-Palette pruefen.
+6. Bessere Konfliktmeldungen fuer Rename, Move, Import und Apply.
+
+Warum: Die Basisbedienung funktioniert, aber laengere Nutzung braucht weniger Reibung.
+
+### P5: Import, Export und Schutz vertiefen
+
+Naechster Sollstand:
+
+1. Verschluesselungsmodell klaeren: entschluesselt auf Platte, temporaerer Arbeitsordner oder speichernaeherer Ansatz.
+2. Import-Dry-Run mit Konfliktliste und Zielvorschau.
+3. Teilimport und Teilexport fuer Ordner/Notizen.
+4. Backup-/Restore-Protokoll als History-Ereignis.
+5. Passwort-UX mit klaren Warnungen und ohne Geheimnis-Leaks weiter haerten.
+
+Warum: Vaults sind Nutzerdaten. Schutz, Wiederherstellung und Importhygiene bleiben hoeher priorisiert als Komfortfeatures.
+
+## Offene Entscheidungen
+
+- Soll Wiki-Link-Kanten im Graph sichtbar werden, und wenn ja, standardmaessig oder als Filter?
+- Sollen manuelle Relationships immer sichtbare Graphkanten sein oder zunaechst erklaerende Metadaten?
+- Wie streng soll Tag-Governance sein: Warnen, bestaetigen oder blockieren bei neuen Tags?
+- Wie wird entschieden, ob eine Erkenntnis in Core Memory, Obsidian oder beides gehoert?
+- Welche Tests werden harte Release-Blocker fuer Graph-v2 und Memory Review?
+- Wie soll ein Merge-/Overwrite-Flow aussehen, ohne Nutzerdaten zu riskieren?
+
+## Geloeste Entscheidungen
+
+- Das Plugin bearbeitet echte Markdown-Dateien direkt im Vault.
+- Plugin-Metadaten liegen vault-lokal unter `.obsidian`.
+- Der Plugin-Vertrag laeuft ueber Manifest, `ctx.add_router(...)`, `ctx.register_tool(...)` und `/api/plugins/obsidian/...`.
+- Riskante KI-Aktionen bleiben bestaetigungspflichtig.
+- Projektplanung und Memory Review nutzen Plan-vor-Schreiben.
+- Bestehende Dateien werden durch Apply-Flows nicht still ueberschrieben.
+- Cytoscape ist die Zielrichtung fuer Graph-v2, SVG bleibt Fallback.
+- Obsidian ist kuratiertes Gedaechtnis; Odysseus Core bleibt fuer globales Memory verantwortlich.
+
+## Relevante Detaildokumente
 
 - [01-vault-import-export-security.md](01-vault-import-export-security.md)
 - [02-tags-highlighting-autolinks.md](02-tags-highlighting-autolinks.md)
 - [03-graph-visual-model.md](03-graph-visual-model.md)
-- [09-test-und-sicherheitsplan.md](09-test-und-sicherheitsplan.md)
-- [11-memory-review-save-to-obsidian.md](11-memory-review-save-to-obsidian.md)
-
-Status: Fundament, Plugin-Vertrag, Vault-Sicherheit, Tags, automatische Graph-Kanten, KI-Regeln und Regressionstests sind fuer die aktuelle Obsidian-Version umgesetzt. Das Notiz- und Tag-Schema fuer spaetere KI-generierte Obsidian-Notizen bleibt der naechste P0/P5-Planungspunkt.
-
-### P1: Taegliche Bedienung
-
-1. Drag and Drop fuer Ordner und Dateien.
-2. Klare visuelle Trennung von Ordnern, Unterordnern und Markdown-Dokumenten.
-3. Editor-Tools fuer Markdown-Dateien.
-4. Autocomplete fuer Dateinamen und Tags pruefen.
-5. Originalnahes Obsidian-Gefuehl herstellen: schnelle Vault-Navigation, direkte Markdown-Bearbeitung, vertraute Link-/Tag-Flows, kaum Reibung.
-6. Jede Bedienaktion als KI-steuerbare Aktion modellieren.
-
-Warum danach: Diese Funktionen machen das Plugin im Alltag brauchbar. Sie sollten auf dem P0-Datenmodell aufbauen, nicht parallel daran vorbei entstehen.
-
-Planungsdokumente:
-
 - [04-file-tree-drag-drop-hierarchy.md](04-file-tree-drag-drop-hierarchy.md)
 - [05-editor-tools-autocomplete.md](05-editor-tools-autocomplete.md)
-
-Status: Desktop-Dateibaum, interne Moves, Markdown-Import per Drop, Toolbar und Autocomplete sind umgesetzt. Mobile-DnD bleibt Do Later.
-
-### P2: Graph als Verstaendniswerkzeug
-
-1. Graph-Regeln erweitern: Dateiname in anderem Dokument erzeugt automatisch Verbindung.
-2. Tags im Graph sichtbar machen.
-3. Ordner/Unterordner als eigene visuelle Ebenen darstellen.
-4. Graph nicht nur als Netzwerk, sondern als Erklaerflaeche fuer komplexe Zusammenhaenge ausbauen.
-5. Dynamische Graphsicht wie im originalen Obsidian planen: Graph reagiert automatisch auf Dateiwechsel, Link-Aenderungen, Tags, Filter und Fokus.
-6. KI kann Graphansichten oeffnen, filtern, fokussieren, erklaeren, exportieren und Beziehungen anlegen.
-
-Warum P2: Der Graph braucht stabile Dateien, Tags und Links. Danach kann er aus einer einfachen Ansicht zu einer Analyse- und Planungsoberflaeche werden.
-
-Planungsdokument:
-
-- [03-graph-visual-model.md](03-graph-visual-model.md)
-- [08-ai-control-surface.md](08-ai-control-surface.md)
-
-Status: Backend-Graph, automatische Link-/Tag-/Dateinamen-Kanten, lokale Fokusansicht, Edge-Typ-Filter und manuelle Beziehungen sind umgesetzt. Groessere semantische Projektgraphen gehoeren zu P4.
-
-Graph-v2-Entscheidung: Cytoscape.js ist die Zielbibliothek fuer den naechsten groesseren Graph-Renderer. Die Migration soll nicht als Teil von Phase 3 erfolgen, sondern als eigenes Paket nach UI-/Settings-Haertung, sobald Datenmodell, Edge-Typen und Browser-Smoke stabil sind. Der bestehende SVG-Graph bleibt bis dahin Referenz und Fallback.
-
-### P3: UI-Polish und Einstellungen
-
-1. Graph-Switch nach oben neben Minimieren verschieben.
-2. Settings-Zahnrad zwischen Graph-Switch und Minimieren platzieren.
-3. Kleines Settings-Menue bauen.
-4. Import-/Export-Buttons dort anbieten.
-5. Vault-Passwortschutz dort verwalten.
-6. Mobile Bedienbarkeit fuer Header-Kontrollen, Settings-Menue und Graph-Kontrollen absichern.
-
-Warum P3: Die UI-Aenderung ist sichtbar, aber fachlich kleiner als Datenmodell, Security und Editor. Sie sollte die vorherigen Funktionen nur verfuegbar machen, nicht definieren.
-
-Planungsdokument:
-
 - [06-ui-settings-menu.md](06-ui-settings-menu.md)
-- [12-phase3-implementation-status.md](12-phase3-implementation-status.md)
-
-Status: Header-Kontrollgruppe, Settings-Popover, Import/Export, Passwortschutz, Graph-Reset und mobile Bedienbarkeit der Header-/Settings-/Graph-Kontrollen sind umgesetzt und durch statische UI-Smoke-Tests gepinnt. Eine vollstaendige globale Einstellungsseite, Tag-Farbverwaltung und Mobile-DnD bleiben Do Later.
-
-### P4: KI-Projektplanung in Vaults
-
-1. KI soll in einem ausgewaehlten Ordner ein Projekt planen.
-2. Sie soll mehrere passende Obsidian-Dokumente erzeugen.
-3. Dokumente sollen korrekt verlinkt, getaggt und graphfaehig sein.
-4. Komplexe Programme sollen dadurch als Struktur visualisierbar werden.
-5. Projektplanung muss das definierte Notiz- und Tag-Schema nutzen, damit Projektordner, Status-Tags, Typ-Tags und Backlinks konsistent bleiben.
-
-Warum P4: Dieses Feature ist stark, aber risikoreich. Es braucht die vorherigen Bausteine, sonst erzeugt die KI nur lose Dateien statt einer verstaendlichen Projektstruktur.
-
-Planungsdokument:
-
 - [07-ai-project-planning.md](07-ai-project-planning.md)
+- [08-ai-control-surface.md](08-ai-control-surface.md)
+- [09-test-und-sicherheitsplan.md](09-test-und-sicherheitsplan.md)
+- [10-phase1-implementation-status.md](10-phase1-implementation-status.md)
+- [11-phase2-implementation-status.md](11-phase2-implementation-status.md)
+- [12-phase3-implementation-status.md](12-phase3-implementation-status.md)
 - [13-phase4-implementation-status.md](13-phase4-implementation-status.md)
-
-Status: Phase 4 ist als Plan-vor-Schreiben-Workflow umgesetzt. KI und UI koennen Projektplaene fuer Zielordner vorschlagen, validieren und nach Bestaetigung konfliktfrei anlegen. Erzeugte Dateien enthalten Frontmatter, Projekt-/Typ-/Status-Tags, Wiki-Links und optionale manuelle Beziehungen, sodass der bestehende Graph direkt sinnvolle Projektkanten zeigt. Ueberschreiben/Mergen bestehender Projektdateien bleibt bewusst Do Later.
-
-### P5: Memory Review und Save-to-Obsidian
-
-1. Odysseus soll vorgeschlagene Erinnerungen, Chat-Erkenntnisse und Projektentscheidungen in einer Memory-Review-Oberflaeche anzeigen.
-2. Der Nutzer kann entscheiden: nur als Memory speichern, als Obsidian-Notiz speichern, mit bestehender Notiz verknuepfen oder verwerfen.
-3. "Als Obsidian-Notiz speichern" und "mit bestehenden Notizen verknuepfen" ist ein gemeinsamer Workflow, kein spaeterer Nachbearbeitungsschritt.
-4. Beim Erstellen einer neuen Notiz muss die KI passende bestehende Tags und Notizen vorschlagen, Pflichtlinks setzen und nur begruendete neue Tags erzeugen.
-5. Der erzeugte Graph muss direkt nach dem Speichern sinnvolle Kanten zeigen: Wiki-Links, gemeinsame Tags, Dateinamen-Referenzen und optional Projekt-/Typ-Beziehungen.
-6. Odysseus Core entscheidet, welche Memory-Kandidaten reviewt werden; das Obsidian-Plugin fuehrt Vault-spezifisches Schreiben, Taggen und Linken aus.
-
-Warum P5: Ein starkes Gedaechtnis entsteht nicht durch ungefiltertes Speichern. Es braucht Review, Quellen, ein Tag-Schema und kontrollierte Verknuepfung, damit Obsidian langfristig nutzbarer Kontext bleibt.
-
-Planungsdokument:
-
-- [11-memory-review-save-to-obsidian.md](11-memory-review-save-to-obsidian.md)
 - [14-phase5-memory-review-save-to-obsidian-plan.md](14-phase5-memory-review-save-to-obsidian-plan.md)
 
-Status: Phase 5 ist umgesetzt. Memory Review besitzt Preview-/Apply-Routen, KI-Tools und eine kompakte UI. Vorschauen schlagen bestehende Notizen und Tags vor, erzeugen Schema-Tags mit Begruendung fuer neue Tags, zeigen Datei-, Link- und Beziehungsauswirkungen vor dem Schreiben und wenden Obsidian-Aenderungen erst nach Bestaetigung an. Save-to-Obsidian erzeugt verlinkte Markdown-Notizen mit Frontmatter; Append-to-Note haengt reviewte Erkenntnisse an bestehende Notizen an; Memory-only und Discard bleiben ohne Vault-Schreiboperation.
+## Erweiterungsschablone
 
-## Empfohlene Abarbeitung
+Neue Sollstand-Erweiterungen sollten in dieser Form ergaenzt werden:
 
-1. Plugin-Vertrag und Windows-Start/Restart als Regression-Gate behalten.
-2. Authentifizierten Browser-Smoke fuer Obsidian-App ergaenzen, sobald eine lokale Login-Session im Browser verfuegbar ist.
-3. Notiz- und Tag-Schema fuer KI-erzeugte Obsidian-Notizen festlegen.
-4. KI-Projektplanung als Plan-vor-Schreiben-Workflow bauen.
-5. Memory Review mit Save-to-Obsidian und direkter Verknuepfung planen.
-6. Graph fuer Projektplanung erweitern: semantische Ebenen, bessere Layout-Stabilitaet, Export/Zusammenfassung.
-7. Cytoscape.js-Migration als Graph-v2-Paket planen: Renderer isolieren, Node-/Edge-Datenvertrag fixieren, Interaktionen nachbauen, Large-Vault-Performance messen und Fallback behalten.
-8. Do Later separat planen: Mobile-DnD, Mobile-Vault-Navigation, globale Plugin-Einstellungen, Tag-Farbverwaltung.
+```text
+### P?: Arbeitspaket-Name
 
-## Noch offene Grundsatzfragen
+Ist-Anschluss:
+- Welche vorhandenen Module, Routen, Tools, UI-Elemente und Tests sind betroffen?
 
-- Verschluesselung muss in Ruhe geklaert werden: Sollen verschluesselte Vaults im laufenden Zustand voll entschluesselt auf Platte liegen, nur im Speicher, oder als temporaerer Arbeitsordner?
-- Das Erzeugungsschema muss in Ruhe festgelegt werden: Nach welchem Schema duerfen KI und Memory Review neue Obsidian-Notizen, Tags und Links erzeugen?
-- Memory-Grenzen muessen in Ruhe geplant werden: Wann soll eine Information nur in Odysseus Memory, nur in Obsidian oder in beiden Systemen landen?
-- Tag-Governance muss in Ruhe festgelegt werden: Welche bestehenden Tags muessen bevorzugt werden, bevor ein neues Tag angelegt werden darf?
-- Release-Gates muessen in Ruhe festgelegt werden: Welche Tests muessen als Release-Blocker gelten und welche duerfen spaeter nachgezogen werden?
+Sollstand:
+- Was soll fachlich moeglich sein?
 
-## Geloeste Entscheidungen
+Nicht-Ziel:
+- Was gehoert ausdruecklich nicht in dieses Paket?
 
-- Das Plugin bearbeitet echte Markdown-Dateien im Vault direkt; es fuehrt keine interne Datenbank als Zwischenmodell. Plugin-Metadaten liegen vault-lokal unter `.obsidian`.
-- Manuelle Beziehungen werden nicht in Markdown geschrieben, sondern in Plugin-Metadaten gespeichert.
-- Tags werden pro Vault gefaerbt und verwaltet, nicht global fuer die gesamte Odysseus-Installation.
-- Automatische Dateinamen-Verbindungen duerfen auch Alias-, Plural- und Slug-Varianten erkennen. Bei nicht eindeutigem Match soll das Plugin die wahrscheinlich korrekte Verbindung vorschlagen.
-- Die KI soll grundsaetzlich alles duerfen, was ein Mensch im Obsidian-Plugin auch darf: Dateien anlegen, bearbeiten, verschieben, loeschen, taggen und verlinken. Sicherheitsgates fuer riskante Aktionen bleiben Teil der Tool-Policy.
-- Graph-Switch ist ein Header-Toggle; Settings ist ein Popover.
-- Erste Undo-Historie existiert fuer sichere Einzelaktionen.
-- Riskante KI-Aktionen verlangen Bestaetigung: Loeschen, Ueberschreiben, Import, Passwortaktionen, verschluesselter Export und groessere Massenaktionen.
-- Cytoscape.js ist die Zielbibliothek fuer den spaeteren Graph-v2-Renderer; Phase 3 migriert den Renderer noch nicht.
+Sicherheitsgate:
+- Welche Pfad-, Passwort-, Rechte-, Konflikt-, Bestaetigungs- oder Undo-Regeln gelten?
+
+Testgate:
+- Welche Unit-, API-, UI-, Browser- oder Performance-Tests muessen gruen sein?
+```

@@ -57,6 +57,30 @@ def test_obsidian_graph_current_node_click_returns_to_editor():
     assert "activateGraphNode(node.dataset.path);" in main_js
 
 
+def test_obsidian_phase6_cytoscape_graph_renderer_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+    cytoscape_asset = ROOT / "plugins" / "obsidian" / "frontend" / "cytoscape.min.js"
+
+    assert cytoscape_asset.exists()
+    assert "const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer'" in main_js
+    assert "const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js'" in main_js
+    assert "function loadCytoscape()" in main_js
+    assert "async function renderCytoscapeGraph(graph, prepared)" in main_js
+    assert "function renderSvgGraphFallback(graph, prepared)" in main_js
+    assert "Cytoscape graph failed, falling back to SVG" in main_js
+    assert "function prepareGraphData(graphData)" in main_js
+    assert "function directFolderForPath(path)" in main_js
+    assert "node => node.type === 'folder'" in main_js
+    assert "parent: parent || undefined" in main_js
+    assert "node[type = \"folder\"]" in main_js
+    assert "node[type = \"markdown\"]" in main_js
+    assert ".obsidian-graph-canvas" in style
+    assert ".obsidian-graph-renderer-badge" not in style
+    assert 'id="obsidian-relationship-add"' not in main_js
+    assert 'id="obsidian-relationship-delete"' not in main_js
+
+
 def test_obsidian_file_tree_selects_and_renames_folders():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
@@ -101,14 +125,22 @@ def test_obsidian_panel_and_sidebar_split_are_resizable():
     assert 'id="obsidian-split-resize-handle"' in main_js
     assert 'aria-label="Split Resize Handle"' in main_js
     assert "function setupObsidianResizers()" in main_js
+    assert "function setObsidianPanelCssVar(name, value)" in main_js
+    assert "target.style.setProperty(name, value)" in main_js
     assert "odysseus.obsidian.panelWidth" in main_js
     assert "odysseus.obsidian.sidebarWidth" in main_js
+    assert "handle.classList.add('resizing')" in main_js
+    assert "handle.classList.remove('resizing')" in main_js
     assert "setPointerCapture" in main_js
     assert "pointermove" in main_js
     assert "--obsidian-panel-width" in style
     assert "--obsidian-sidebar-width" in style
     assert ".obsidian-panel-resize-handle" in style
     assert ".obsidian-split-resize-handle" in style
+    assert ".obsidian-panel-resize-handle.resizing::after" in style
+    assert ".obsidian-split-resize-handle.resizing::after" in style
+    assert "body.obsidian-resizing .obsidian-panel-resize-handle::after" not in style
+    assert "body.obsidian-resizing .obsidian-split-resize-handle::after" not in style
     mobile_body = style[style.index("@media (max-width: 640px)"):]
     assert ".obsidian-panel-resize-handle,\n  .obsidian-split-resize-handle" in mobile_body
     assert "display: none" in mobile_body
@@ -216,9 +248,16 @@ def test_obsidian_phase5_memory_review_ui_contract():
         'id="obsidian-memory-review-panel"',
         'id="obsidian-memory-title"',
         'id="obsidian-memory-action"',
+        'id="obsidian-memory-save-to"',
+        'id="obsidian-memory-save-to-label"',
         'id="obsidian-memory-folder"',
         'id="obsidian-memory-note"',
         'id="obsidian-memory-tags"',
+        'id="obsidian-memory-tag-entry"',
+        'id="obsidian-memory-tag-menu"',
+        'id="obsidian-memory-destination-picker"',
+        'data-memory-picker-tab="folders"',
+        'data-memory-picker-tab="notes"',
         'id="obsidian-memory-content"',
         'id="obsidian-memory-preview"',
         'id="obsidian-memory-apply"',
@@ -226,6 +265,25 @@ def test_obsidian_phase5_memory_review_ui_contract():
     ):
         assert marker in main_js
 
+    assert "Title (optional)" in main_js
+    assert "Save one reviewed insight into your vault" in main_js
+    assert "Insight to save" in main_js
+    assert "Preview changes" in main_js
+    assert "Apply to vault" in main_js
+    assert 'id="obsidian-memory-folder" type="hidden"' in main_js
+    assert 'id="obsidian-memory-note" type="hidden"' in main_js
+    assert "Target folder, e.g. Memory Review" not in main_js
+    assert "Existing note path for append/link" not in main_js
+    assert "Tags, comma separated" not in main_js
+    assert "function openMemoryDestinationPicker()" in main_js
+    assert "function renderMemoryDestinationPicker()" in main_js
+    assert "flattenNotes(vaultFiles)" in main_js
+    assert "function addMemoryTag(value)" in main_js
+    assert "function updateMemoryTagSuggestions()" in main_js
+    assert "await getVaultTags()" in main_js
+    assert "e.key === 'Enter'" in main_js
+    assert "Generated markdown" in main_js
+    assert "Title source" in main_js
     assert "function previewMemoryReview()" in main_js
     assert "function applyMemoryReview()" in main_js
     assert "fetch('/api/plugins/obsidian/memory-review/preview'" in main_js
@@ -234,6 +292,9 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert "memoryReviewPreview" in main_js
     assert "data-memory-conflicts" in main_js
     assert ".obsidian-memory-review-panel" in style
+    assert ".obsidian-memory-save-to" in style
+    assert ".obsidian-memory-tag-chip" in style
+    assert ".obsidian-memory-preview-summary" in style
 
 
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
