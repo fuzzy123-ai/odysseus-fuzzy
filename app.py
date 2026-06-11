@@ -171,9 +171,12 @@ if AUTH_ENABLED:
         "/api/auth/integrations/presets",
         "/api/health",
         "/api/version",
+        "/api/plugins/ui-loader.js",
         "/login",
     }
-    AUTH_EXEMPT_PREFIXES = ["/static"]
+    # Plugin UI assets must load before their route handlers can perform
+    # user-level checks. Obsidian's data-changing routes call require_user().
+    AUTH_EXEMPT_PREFIXES = ["/static", "/api/plugins/obsidian"]
     # Dynamic paths whose own handler proves identity via a path-embedded
     # secret instead of the session/bearer auth. The route handler at
     # routes/task_routes.py validates the per-task `webhook_token` itself

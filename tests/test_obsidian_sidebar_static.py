@@ -10,6 +10,14 @@ def test_main_app_loads_plugin_ui_loader():
     assert '<script type="module" src="/api/plugins/ui-loader.js"></script>' in index
 
 
+def test_obsidian_plugin_loader_is_auth_exempt():
+    app_py = (ROOT / "app.py").read_text(encoding="utf-8")
+
+    assert '"/api/plugins/ui-loader.js"' in app_py
+    assert '"/api/plugins/obsidian"' in app_py
+    assert "AUTH_EXEMPT_PREFIXES" in app_py
+
+
 def test_obsidian_frontend_registers_sidebar_and_standalone_mode():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
