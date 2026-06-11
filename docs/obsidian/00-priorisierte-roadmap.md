@@ -198,6 +198,9 @@ Warum P5: Ein starkes Gedaechtnis entsteht nicht durch ungefiltertes Speichern. 
 Planungsdokument:
 
 - [11-memory-review-save-to-obsidian.md](11-memory-review-save-to-obsidian.md)
+- [14-phase5-memory-review-save-to-obsidian-plan.md](14-phase5-memory-review-save-to-obsidian-plan.md)
+
+Status: Phase 5 ist umgesetzt. Memory Review besitzt Preview-/Apply-Routen, KI-Tools und eine kompakte UI. Vorschauen schlagen bestehende Notizen und Tags vor, erzeugen Schema-Tags mit Begruendung fuer neue Tags, zeigen Datei-, Link- und Beziehungsauswirkungen vor dem Schreiben und wenden Obsidian-Aenderungen erst nach Bestaetigung an. Save-to-Obsidian erzeugt verlinkte Markdown-Notizen mit Frontmatter; Append-to-Note haengt reviewte Erkenntnisse an bestehende Notizen an; Memory-only und Discard bleiben ohne Vault-Schreiboperation.
 
 ## Empfohlene Abarbeitung
 
@@ -212,20 +215,19 @@ Planungsdokument:
 
 ## Noch offene Grundsatzfragen
 
-- Soll das Plugin echte Dateien im Vault direkt bearbeiten oder eine interne Datenbank als Zwischenmodell fuehren?
-- Sollen verschluesselte Vaults im laufenden Zustand voll entschluesselt auf Platte liegen, nur im Speicher, oder als temporaerer Arbeitsordner?
-- Sollen Tags global pro Vault oder pro gesamter Odysseus-Installation gleich gefaerbt werden?
-- Soll eine automatische Dateinamen-Verbindung nur bei exaktem Match entstehen oder auch bei Alias/Plural/Slug-Varianten?
-- Soll die KI Dateien direkt anlegen duerfen oder immer erst einen Plan zur Bestaetigung zeigen?
-- Nach welchem Schema duerfen KI und Memory Review neue Obsidian-Notizen, Tags und Links erzeugen?
-- Wann soll eine Information nur in Odysseus Memory, nur in Obsidian oder in beiden Systemen landen?
-- Welche bestehenden Tags muessen bevorzugt werden, bevor ein neues Tag angelegt werden darf?
-- Welche Tests muessen als Release-Blocker gelten und welche duerfen spaeter nachgezogen werden?
+- Verschluesselung muss in Ruhe geklaert werden: Sollen verschluesselte Vaults im laufenden Zustand voll entschluesselt auf Platte liegen, nur im Speicher, oder als temporaerer Arbeitsordner?
+- Das Erzeugungsschema muss in Ruhe festgelegt werden: Nach welchem Schema duerfen KI und Memory Review neue Obsidian-Notizen, Tags und Links erzeugen?
+- Memory-Grenzen muessen in Ruhe geplant werden: Wann soll eine Information nur in Odysseus Memory, nur in Obsidian oder in beiden Systemen landen?
+- Tag-Governance muss in Ruhe festgelegt werden: Welche bestehenden Tags muessen bevorzugt werden, bevor ein neues Tag angelegt werden darf?
+- Release-Gates muessen in Ruhe festgelegt werden: Welche Tests muessen als Release-Blocker gelten und welche duerfen spaeter nachgezogen werden?
 
 ## Geloeste Entscheidungen
 
-- Das Plugin bearbeitet echte Markdown-Dateien im Vault; Plugin-Metadaten liegen vault-lokal unter `.obsidian`.
+- Das Plugin bearbeitet echte Markdown-Dateien im Vault direkt; es fuehrt keine interne Datenbank als Zwischenmodell. Plugin-Metadaten liegen vault-lokal unter `.obsidian`.
 - Manuelle Beziehungen werden nicht in Markdown geschrieben, sondern in Plugin-Metadaten gespeichert.
+- Tags werden pro Vault gefaerbt und verwaltet, nicht global fuer die gesamte Odysseus-Installation.
+- Automatische Dateinamen-Verbindungen duerfen auch Alias-, Plural- und Slug-Varianten erkennen. Bei nicht eindeutigem Match soll das Plugin die wahrscheinlich korrekte Verbindung vorschlagen.
+- Die KI soll grundsaetzlich alles duerfen, was ein Mensch im Obsidian-Plugin auch darf: Dateien anlegen, bearbeiten, verschieben, loeschen, taggen und verlinken. Sicherheitsgates fuer riskante Aktionen bleiben Teil der Tool-Policy.
 - Graph-Switch ist ein Header-Toggle; Settings ist ein Popover.
 - Erste Undo-Historie existiert fuer sichere Einzelaktionen.
 - Riskante KI-Aktionen verlangen Bestaetigung: Loeschen, Ueberschreiben, Import, Passwortaktionen, verschluesselter Export und groessere Massenaktionen.

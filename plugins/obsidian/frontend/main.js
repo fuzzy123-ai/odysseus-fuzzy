@@ -30,6 +30,7 @@ let tagCache = null;
 let autocompleteState = null;
 let graphEdgeTypeFilter = 'all';
 let projectPlanPreview = null;
+let memoryReviewPreview = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -614,6 +615,9 @@ function injectUIElements() {
                 <button id="obsidian-project-plan" title="Plan Project">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h1"/><path d="M4 12h1"/><path d="M4 18h1"/></svg>
                 </button>
+                <button id="obsidian-memory-review" title="Memory Review">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.2 1.02 4.16 2.61 5.44.53.43.89 1.05.89 1.73V18h7v-.83c0-.68.36-1.3.89-1.73A6.98 6.98 0 0 0 19 10a7 7 0 0 0-7-7Z"/><path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/></svg>
+                </button>
                 <button id="obsidian-refresh" title="Refresh Vault">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 </button>
@@ -651,6 +655,33 @@ function injectUIElements() {
                   </div>
                 </div>
                 <div class="obsidian-project-preview" id="obsidian-project-preview-panel"></div>
+              </div>
+              <div class="obsidian-memory-review-panel hidden" id="obsidian-memory-review-panel">
+                <div class="obsidian-project-header">
+                  <div>
+                    <div class="obsidian-project-title">Memory review</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Save, link, or append reviewed context</div>
+                  </div>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-memory-close" title="Close memory review">x</button>
+                </div>
+                <div class="obsidian-project-form">
+                  <input id="obsidian-memory-title" type="text" placeholder="Candidate title" autocomplete="off">
+                  <select id="obsidian-memory-action" title="Review action">
+                    <option value="save_to_obsidian">Save to Obsidian</option>
+                    <option value="append_to_note">Append to note</option>
+                    <option value="memory_only">Memory only</option>
+                    <option value="discard">Discard</option>
+                  </select>
+                  <input id="obsidian-memory-folder" type="text" placeholder="Target folder, e.g. Memory Review" autocomplete="off">
+                  <input id="obsidian-memory-note" type="text" placeholder="Existing note path for append/link" autocomplete="off">
+                  <input id="obsidian-memory-tags" type="text" placeholder="Tags, comma separated" autocomplete="off">
+                  <textarea id="obsidian-memory-content" placeholder="Reviewed memory candidate, chat insight, or project decision"></textarea>
+                  <div class="obsidian-project-actions">
+                    <button type="button" id="obsidian-memory-preview" class="btn btn-secondary">Preview memory</button>
+                    <button type="button" id="obsidian-memory-apply" class="btn btn-primary" disabled>Apply review</button>
+                  </div>
+                </div>
+                <div class="obsidian-project-preview" id="obsidian-memory-preview-panel"></div>
               </div>
               <div class="obsidian-empty-state" id="obsidian-empty-state">
                 <span>Select a note to start editing or create a new one</span>
@@ -886,6 +917,7 @@ async function openNote(path) {
 
       // Update UI panels visibility
       document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+      document.getElementById('obsidian-memory-review-panel')?.classList.add('hidden');
       document.getElementById('obsidian-empty-state').classList.add('hidden');
       document.getElementById('obsidian-editor-container').classList.remove('hidden');
 
@@ -953,6 +985,31 @@ function closeProjectPlanner() {
   }
 }
 
+function showMemoryReview() {
+  const panel = document.getElementById('obsidian-memory-review-panel');
+  if (!panel) return;
+  memoryReviewPreview = null;
+  document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+  document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  panel.classList.remove('hidden');
+  const folderInput = document.getElementById('obsidian-memory-folder');
+  if (folderInput && !folderInput.value) folderInput.value = 'Memory Review';
+  const noteInput = document.getElementById('obsidian-memory-note');
+  if (noteInput && currentNotePath && !noteInput.value) noteInput.value = currentNotePath;
+  document.getElementById('obsidian-memory-preview-panel').innerHTML = '';
+  document.getElementById('obsidian-memory-apply').disabled = true;
+}
+
+function closeMemoryReview() {
+  document.getElementById('obsidian-memory-review-panel')?.classList.add('hidden');
+  if (currentNotePath) {
+    document.getElementById('obsidian-editor-container')?.classList.remove('hidden');
+  } else {
+    document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+  }
+}
+
 function renderProjectPlanPreview(plan) {
   const panel = document.getElementById('obsidian-project-preview-panel');
   const applyBtn = document.getElementById('obsidian-project-apply');
@@ -995,6 +1052,54 @@ function renderProjectPlanPreview(plan) {
   applyBtn.disabled = conflicts.length > 0 || files.length === 0;
 }
 
+function renderMemoryReviewPreview(plan) {
+  const panel = document.getElementById('obsidian-memory-preview-panel');
+  const applyBtn = document.getElementById('obsidian-memory-apply');
+  if (!panel || !applyBtn) return;
+  const conflicts = plan.conflicts || [];
+  const warnings = plan.warnings || [];
+  const files = plan.files || [];
+  const tags = plan.new_tags || [];
+  const notes = plan.suggested_notes || [];
+  const relationships = plan.relationships || [];
+  panel.innerHTML = `
+    <div class="obsidian-project-summary">
+      <strong>${escapeHtml(plan.candidate?.title || plan.action || 'Memory review')}</strong>
+      <span>${escapeHtml(plan.action)}</span>
+      <span>${escapeHtml(files.length)} files</span>
+      <span>${escapeHtml(relationships.length)} relationships</span>
+    </div>
+    ${conflicts.length ? `<div class="obsidian-project-conflicts" data-memory-conflicts="true">
+      <strong>Conflicts</strong>
+      ${conflicts.map(item => `<div>${escapeHtml(item.path)} - ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : '<div class="obsidian-project-ok">No file conflicts</div>'}
+    ${warnings.length ? `<div class="obsidian-project-warnings">
+      ${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}
+    </div>` : ''}
+    <div class="obsidian-project-files">
+      ${files.map(file => `
+        <div class="obsidian-project-file" data-memory-file="${escapeHtml(file.path)}">
+          <div>
+            <strong>${escapeHtml(file.path)}</strong>
+            <span>${escapeHtml(file.mode)} · ${escapeHtml(file.type)} · ${escapeHtml(file.status)}</span>
+          </div>
+          <div class="obsidian-project-tags">${(file.tags || []).map(tag => `<code>${escapeHtml(tag)}</code>`).join('')}</div>
+          <div class="obsidian-project-links">${(file.links || []).slice(0, 5).map(link => `<span>${escapeHtml(link)}</span>`).join('')}</div>
+        </div>
+      `).join('')}
+    </div>
+    ${notes.length ? `<div class="obsidian-project-new-tags">
+      <strong>Suggested notes</strong>
+      ${notes.map(item => `<div><code>${escapeHtml(item.path)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : ''}
+    ${tags.length ? `<div class="obsidian-project-new-tags">
+      <strong>New tags</strong>
+      ${tags.map(item => `<div><code>${escapeHtml(item.tag)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : ''}
+  `;
+  applyBtn.disabled = conflicts.length > 0;
+}
+
 async function previewProjectPlan() {
   const target_folder = document.getElementById('obsidian-project-folder')?.value || '';
   const title = document.getElementById('obsidian-project-title')?.value || '';
@@ -1019,6 +1124,76 @@ async function previewProjectPlan() {
     console.error('Project preview failed:', e);
     if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Project preview failed')}</div>`;
     document.getElementById('obsidian-project-apply').disabled = true;
+  }
+}
+
+async function previewMemoryReview() {
+  const title = document.getElementById('obsidian-memory-title')?.value || '';
+  const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
+  const target_folder = document.getElementById('obsidian-memory-folder')?.value || 'Memory Review';
+  const target_note = document.getElementById('obsidian-memory-note')?.value || '';
+  const content = document.getElementById('obsidian-memory-content')?.value || '';
+  const tags = (document.getElementById('obsidian-memory-tags')?.value || '').split(',').map(item => item.trim()).filter(Boolean);
+  const link_paths = target_note ? [target_note] : [];
+  if (!content.trim()) {
+    showToast('Memory content required');
+    return;
+  }
+  const panel = document.getElementById('obsidian-memory-preview-panel');
+  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Reviewing memory candidate...</div>';
+  try {
+    const res = await fetch('/api/plugins/obsidian/memory-review/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate: { title, content, source: 'manual', source_ref: currentNotePath || '', risk: 'normal' },
+        action,
+        target_folder,
+        target_note,
+        note_type: 'memory',
+        status: 'review',
+        tags,
+        link_paths,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Memory review preview failed');
+    memoryReviewPreview = await res.json();
+    renderMemoryReviewPreview(memoryReviewPreview);
+  } catch (e) {
+    console.error('Memory review preview failed:', e);
+    if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Memory review preview failed')}</div>`;
+    document.getElementById('obsidian-memory-apply').disabled = true;
+  }
+}
+
+async function applyMemoryReview() {
+  if (!memoryReviewPreview) return;
+  const needsConfirm = !['memory_only', 'discard'].includes(memoryReviewPreview.action);
+  if (needsConfirm) {
+    const confirmed = await styledConfirm('Apply this memory review to the vault?', { confirmText: 'Apply' });
+    if (!confirmed) return;
+  }
+  try {
+    const res = await fetch('/api/plugins/obsidian/memory-review/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: memoryReviewPreview, confirm: needsConfirm }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Memory review apply failed');
+    }
+    const data = await res.json();
+    tagCache = null;
+    await loadVaultFiles();
+    closeMemoryReview();
+    const firstFile = data.created_files?.[0] || data.updated_files?.[0];
+    if (firstFile) await openNote(firstFile);
+    setViewMode('graph');
+    showToast('Memory review applied');
+  } catch (e) {
+    console.error('Memory review apply failed:', e);
+    showToast(e.message || 'Memory review apply failed');
   }
 }
 
@@ -1408,6 +1583,10 @@ function setupEventListeners() {
   document.getElementById('obsidian-project-close')?.addEventListener('click', closeProjectPlanner);
   document.getElementById('obsidian-project-preview')?.addEventListener('click', previewProjectPlan);
   document.getElementById('obsidian-project-apply')?.addEventListener('click', applyProjectPlan);
+  document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
+  document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
+  document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
+  document.getElementById('obsidian-memory-apply')?.addEventListener('click', applyMemoryReview);
 
   // Refresh
   document.getElementById('obsidian-refresh')?.addEventListener('click', async () => {

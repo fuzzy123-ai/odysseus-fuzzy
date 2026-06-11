@@ -106,6 +106,35 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert ".obsidian-project-conflicts" in style
 
 
+def test_obsidian_phase5_memory_review_ui_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    for marker in (
+        'id="obsidian-memory-review"',
+        'id="obsidian-memory-review-panel"',
+        'id="obsidian-memory-title"',
+        'id="obsidian-memory-action"',
+        'id="obsidian-memory-folder"',
+        'id="obsidian-memory-note"',
+        'id="obsidian-memory-tags"',
+        'id="obsidian-memory-content"',
+        'id="obsidian-memory-preview"',
+        'id="obsidian-memory-apply"',
+        'id="obsidian-memory-preview-panel"',
+    ):
+        assert marker in main_js
+
+    assert "function previewMemoryReview()" in main_js
+    assert "function applyMemoryReview()" in main_js
+    assert "fetch('/api/plugins/obsidian/memory-review/preview'" in main_js
+    assert "fetch('/api/plugins/obsidian/memory-review/apply'" in main_js
+    assert "Apply this memory review to the vault?" in main_js
+    assert "memoryReviewPreview" in main_js
+    assert "data-memory-conflicts" in main_js
+    assert ".obsidian-memory-review-panel" in style
+
+
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 

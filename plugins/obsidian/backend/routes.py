@@ -38,6 +38,15 @@ from .project_planning import (
     template_options,
     validate_project_plan,
 )
+from .memory_review import (
+    MemoryReviewApplyRequest,
+    MemoryReviewPlan,
+    MemoryReviewRequest,
+    MemoryReviewValidationError,
+    apply_memory_review_plan,
+    build_memory_review_plan,
+    validate_memory_review_plan,
+)
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
@@ -559,6 +568,63 @@ async def project_plan_apply(req: ProjectPlanApplyRequest, request: Request):
     except HTTPException:
         raise
     except ProjectPlanValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@router.post("/memory-review/preview")
+async def memory_review_preview(req: MemoryReviewRequest, request: Request):
+    """Build a non-destructive memory review Save-to-Obsidian preview."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = build_memory_review_plan(vault_dir, req)
+        return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    except MemoryReviewValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@router.post("/memory-review/apply")
+async def memory_review_apply(req: MemoryReviewApplyRequest, request: Request):
+    """Apply a confirmed memory review plan by writing or updating notes."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = validate_memory_review_plan(vault_dir, req.plan, collect_conflicts=True)
+        if plan.conflicts:
+            raise HTTPException(status_code=409, detail={"message": "Memory review plan has file conflicts", "conflicts": plan.conflicts})
+        if plan.action not in {"memory_only", "discard"} and not req.confirm:
+            raise HTTPException(status_code=409, detail="Confirmation required before changing Obsidian notes")
+        result = apply_memory_review_plan(vault_dir, plan)
+        for path in result.get("created_files", []):
+            abs_path = secure_path(vault_dir, path)
+            record_action(
+                vault_dir,
+                action="create_file",
+                owner=current_owner(request),
+                tool="obsidian_memory_review_apply",
+                paths=[path],
+                after={"content": _read_text_if_exists(abs_path)},
+            )
+        for detail in result.get("updated_file_details", []):
+            record_action(
+                vault_dir,
+                action="update_file",
+                owner=current_owner(request),
+                tool="obsidian_memory_review_apply",
+                paths=[detail["path"]],
+                before={"content": detail["before"]},
+                after={"content": detail["after"]},
+            )
+        for relationship in result.get("relationships", []):
+            record_action(
+                vault_dir,
+                action="relationship_add",
+                owner=current_owner(request),
+                tool="obsidian_memory_review_apply",
+                paths=[relationship["source"], relationship["target"]],
+                after={"relationship": relationship},
+            )
+        result.pop("updated_file_details", None)
+        return result
+    except HTTPException:
+        raise
+    except MemoryReviewValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 @router.post("/relationships")

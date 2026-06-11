@@ -21,6 +21,13 @@ try:
         template_options,
         validate_project_plan,
     )
+    from obsidian.backend.memory_review import (
+        MemoryReviewPlan,
+        MemoryReviewRequest,
+        apply_memory_review_plan,
+        build_memory_review_plan,
+        validate_memory_review_plan,
+    )
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from obsidian.backend.vault_security import (
         export_vault,
@@ -50,6 +57,13 @@ except ModuleNotFoundError:
         build_project_plan,
         template_options,
         validate_project_plan,
+    )
+    from backend.memory_review import (
+        MemoryReviewPlan,
+        MemoryReviewRequest,
+        apply_memory_review_plan,
+        build_memory_review_plan,
+        validate_memory_review_plan,
     )
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from backend.vault_security import (
@@ -650,6 +664,69 @@ async def handle_project_plan_apply(content: str, owner: Optional[str] = None, *
     except Exception as e:
         return {"error": f"Failed to apply project plan: {e}", "exit_code": 1}
 
+async def handle_memory_review_preview(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Creates a non-destructive memory review Save-to-Obsidian preview."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = build_memory_review_plan(vault_dir, MemoryReviewRequest(**params))
+        payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to preview memory review: {e}", "exit_code": 1}
+
+async def handle_memory_review_apply(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Applies a confirmed memory review by creating or updating vault notes."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        raw_plan = params.get("plan")
+        if not isinstance(raw_plan, dict):
+            return {"error": "plan parameter is required.", "exit_code": 1}
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = validate_memory_review_plan(vault_dir, MemoryReviewPlan(**raw_plan), collect_conflicts=True)
+        if plan.conflicts:
+            return {
+                "error": "Memory review plan has file conflicts and cannot be applied without a future merge flow.",
+                "output": json.dumps({"conflicts": plan.conflicts}, ensure_ascii=False),
+                "exit_code": 1,
+            }
+        if plan.action not in {"memory_only", "discard"} and not _is_confirmed(params):
+            return _confirmation_required("changing Obsidian notes from memory review")
+        result = apply_memory_review_plan(vault_dir, plan)
+        for path in result.get("created_files", []):
+            abs_path = secure_path(vault_dir, path)
+            record_action(
+                vault_dir,
+                action="create_file",
+                owner=owner,
+                tool="obsidian_memory_review_apply",
+                paths=[path],
+                after={"content": _read_text_if_exists(abs_path)},
+            )
+        for detail in result.get("updated_file_details", []):
+            record_action(
+                vault_dir,
+                action="update_file",
+                owner=owner,
+                tool="obsidian_memory_review_apply",
+                paths=[detail["path"]],
+                before={"content": detail["before"]},
+                after={"content": detail["after"]},
+            )
+        for relationship in result.get("relationships", []):
+            record_action(
+                vault_dir,
+                action="relationship_add",
+                owner=owner,
+                tool="obsidian_memory_review_apply",
+                paths=[relationship["source"], relationship["target"]],
+                after={"relationship": relationship},
+            )
+        result.pop("updated_file_details", None)
+        return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to apply memory review: {e}", "exit_code": 1}
+
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
     return {
         "name": name,
@@ -736,6 +813,21 @@ def setup(ctx):
             "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms creating multiple project files."},
         }, ["plan"], handle_project_plan_apply),
+        _tool_spec("obsidian_memory_review_preview", "Preview a memory review decision, including Save-to-Obsidian note content, reused tags, links, and graph relationships.", {
+            "candidate": {"type": "object", "description": "Memory candidate with title, content, source, source_ref, and risk."},
+            "action": {"type": "string", "description": "memory_only, save_to_obsidian, append_to_note, or discard."},
+            "target_folder": {"type": "string", "description": "Relative vault folder for a new memory note."},
+            "target_note": {"type": "string", "description": "Existing note path when appending."},
+            "note_type": {"type": "string", "description": "Schema type such as memory, decision, idea, reference, resource, meeting, or project."},
+            "status": {"type": "string", "description": "Review status tag, usually review, draft, active, or archived."},
+            "project": {"type": "string", "description": "Optional project slug or name."},
+            "tags": {"type": "array", "items": {"type": "string"}, "description": "Requested tags. Existing vault tags are preferred when possible."},
+            "link_paths": {"type": "array", "items": {"type": "string"}, "description": "Existing notes to link directly."},
+        }, ["candidate"], handle_memory_review_preview),
+        _tool_spec("obsidian_memory_review_apply", "Apply a confirmed memory review preview by creating or appending Obsidian notes and graph relationships.", {
+            "plan": {"type": "object", "description": "Memory review plan returned by obsidian_memory_review_preview."},
+            "confirm": {"type": "boolean", "description": "Must be true before changing Obsidian notes."},
+        }, ["plan"], handle_memory_review_apply),
         _tool_spec("obsidian_create_folder", "Create a folder in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative folder path to create."},
         }, ["path"], handle_create_folder),

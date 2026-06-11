@@ -405,7 +405,8 @@ body.obsidian-standalone #obsidian-panel-close {
   font-style: italic;
 }
 
-.obsidian-project-planner {
+.obsidian-project-planner,
+.obsidian-memory-review-panel {
   flex: 1;
   min-height: 0;
   display: flex;

@@ -24,6 +24,13 @@ from backend.project_planning import (
     build_project_plan,
     validate_project_plan,
 )
+from backend.memory_review import (
+    MemoryReviewPlan,
+    MemoryReviewRequest,
+    MemoryReviewValidationError,
+    build_memory_review_plan,
+    validate_memory_review_plan,
+)
 from backend.vault_security import (
     VaultSecurityError,
     export_vault,
@@ -49,6 +56,8 @@ from plugin import (
     handle_project_plan_apply,
     handle_project_plan_preview,
     handle_project_plan_templates,
+    handle_memory_review_apply,
+    handle_memory_review_preview,
     handle_list_relationships,
     handle_read_note,
     handle_rename_item,
@@ -344,6 +353,121 @@ async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
         assert "conflicts" in refused["output"]
 
 
+def test_memory_review_preview_reuses_tags_links_and_validates_schema():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\n#project/demo #type/project\n\nGraph memory review context.")
+
+        plan = build_memory_review_plan(tmpdir, MemoryReviewRequest(
+            candidate={
+                "title": "Graph memory decision",
+                "content": "Memory review should save graph decisions into Demo context.",
+                "source": "chat",
+                "source_ref": "thread-123",
+            },
+            action="save_to_obsidian",
+            target_folder="Memory Review",
+            note_type="decision",
+            project="Demo",
+            tags=["#project/demo"],
+            link_paths=["Projects/Demo.md"],
+        ))
+
+        assert plan.action == "save_to_obsidian"
+        assert plan.conflicts == []
+        assert plan.files[0].path.startswith("Memory Review/")
+        assert plan.files[0].frontmatter["source"] == "chat"
+        assert "#project/demo" in plan.files[0].tags
+        assert "#type/decision" in plan.files[0].tags
+        assert "[[Projects/Demo]]" in plan.files[0].links
+        assert any(item.path == "Projects/Demo.md" for item in plan.suggested_notes)
+        assert plan.relationships[0].target == "Projects/Demo.md"
+
+        payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        bad = MemoryReviewPlan(**payload)
+        bad.files[0].path = "../escape.md"
+        with pytest.raises(MemoryReviewValidationError):
+            validate_memory_review_plan(tmpdir, bad)
+
+        bad = MemoryReviewPlan(**payload)
+        bad.files[0].tags = ["#memory", "#status/review"]
+        with pytest.raises(MemoryReviewValidationError):
+            validate_memory_review_plan(tmpdir, bad)
+
+
+@pytest.mark.asyncio
+async def test_memory_review_tools_apply_create_append_history_and_graph(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\n#project/demo\n\nExisting graph context.")
+
+        preview = await handle_memory_review_preview(json.dumps({
+            "candidate": {
+                "title": "Demo retention decision",
+                "content": "Keep the memory review workflow linked to Demo.",
+                "source": "chat",
+                "source_ref": "chat:42",
+            },
+            "action": "save_to_obsidian",
+            "target_folder": "Memory Review",
+            "note_type": "decision",
+            "project": "Demo",
+            "tags": ["#project/demo"],
+            "link_paths": ["Projects/Demo.md"],
+        }), owner="alice")
+        assert preview["exit_code"] == 0
+        plan = json.loads(preview["output"])
+        assert plan["files"][0]["links"] == ["[[Projects/Demo]]"]
+
+        blocked = await handle_memory_review_apply(json.dumps({"plan": plan}), owner="alice")
+        assert blocked["exit_code"] == 1
+        assert "Confirmation required" in blocked["error"]
+
+        applied = await handle_memory_review_apply(json.dumps({"plan": plan, "confirm": True}), owner="alice")
+        assert applied["exit_code"] == 0
+        result = json.loads(applied["output"])
+        created_path = result["created_files"][0]
+        assert os.path.exists(os.path.join(tmpdir, created_path.replace("/", os.sep)))
+
+        graph_res = await handle_graph("{}", owner="alice")
+        graph = json.loads(graph_res["output"])["graph"]
+        edge_types = {edge["type"] for edge in graph["edges"]}
+        assert "wiki_link" in edge_types
+        assert "shared_tag" in edge_types
+        assert "relates_to" in edge_types
+
+        append_preview = await handle_memory_review_preview(json.dumps({
+            "candidate": {
+                "title": "Append insight",
+                "content": "Append this insight to Demo instead of creating another note.",
+                "source": "manual",
+            },
+            "action": "append_to_note",
+            "target_note": "Projects/Demo.md",
+            "tags": ["#project/demo"],
+        }), owner="alice")
+        append_plan = json.loads(append_preview["output"])
+        append_res = await handle_memory_review_apply(json.dumps({"plan": append_plan, "confirm": True}), owner="alice")
+        assert append_res["exit_code"] == 0
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "r", encoding="utf-8") as f:
+            assert "Append this insight" in f.read()
+
+        memory_only = await handle_memory_review_preview(json.dumps({
+            "candidate": {"content": "Keep only in Odysseus memory.", "source": "chat"},
+            "action": "memory_only",
+        }), owner="alice")
+        memory_plan = json.loads(memory_only["output"])
+        memory_result = await handle_memory_review_apply(json.dumps({"plan": memory_plan}), owner="alice")
+        assert memory_result["exit_code"] == 0
+        assert json.loads(memory_result["output"])["created_files"] == []
+
+        history_res = await handle_history('{"limit": 20}', owner="alice")
+        assert "obsidian_memory_review_apply" in history_res["output"]
+
+
 @pytest.mark.asyncio
 async def test_manual_relationships_are_graph_edges_and_undoable(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -575,6 +699,8 @@ def test_plugin_setup_registration():
     assert "obsidian_project_plan_templates" in tool_names
     assert "obsidian_project_plan_preview" in tool_names
     assert "obsidian_project_plan_apply" in tool_names
+    assert "obsidian_memory_review_preview" in tool_names
+    assert "obsidian_memory_review_apply" in tool_names
     assert "obsidian_create_folder" in tool_names
     assert "obsidian_rename_item" in tool_names
     assert "obsidian_delete_note" in tool_names
