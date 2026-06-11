@@ -82,6 +82,16 @@ def test_obsidian_file_tree_selects_and_renames_folders():
     assert ".tree-rename-input" in style
 
 
+def test_obsidian_new_note_expands_target_folder():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    new_note_body = main_js.split("// New Note", 1)[1].split("// New Folder", 1)[0]
+    assert "const dir = currentTargetFolder();" in new_note_body
+    assert "expandedFolders.add(dir);" in new_note_body
+    assert new_note_body.index("expandedFolders.add(dir);") < new_note_body.index("await loadVaultFiles();")
+    assert new_note_body.index("await loadVaultFiles();") < new_note_body.index("await openNote(fullPath);")
+
+
 def test_obsidian_panel_and_sidebar_split_are_resizable():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")

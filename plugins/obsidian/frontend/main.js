@@ -2149,6 +2149,9 @@ function setupEventListeners() {
       });
       if (res.ok) {
         showToast('Note created');
+        if (dir) {
+          expandedFolders.add(dir);
+        }
         await loadVaultFiles();
         await openNote(fullPath);
       } else {
