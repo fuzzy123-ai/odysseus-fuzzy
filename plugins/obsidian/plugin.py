@@ -12,13 +12,19 @@ if _PLUGIN_DIR not in sys.path:
 try:
     from obsidian.backend.routes import _undo_entry, router
     from obsidian.backend.project_planning import (
+        GameDevConceptDraftRequest,
+        ProjectDescriptionImproveRequest,
         ProjectPlan,
         ProjectPlanApplyRequest,
         ProjectPlanRequest,
         ProjectPlanValidationError,
         apply_project_plan,
+        build_gamedev_concept_draft_with_ai,
         build_project_plan,
+        generate_project_plan_content,
+        improve_project_description_with_ai,
         template_options,
+        validate_gamedev_concept_gate,
         validate_project_plan,
     )
     from obsidian.backend.memory_review import (
@@ -49,13 +55,19 @@ try:
 except ModuleNotFoundError:
     from backend.routes import _undo_entry, router
     from backend.project_planning import (
+        GameDevConceptDraftRequest,
+        ProjectDescriptionImproveRequest,
         ProjectPlan,
         ProjectPlanApplyRequest,
         ProjectPlanRequest,
         ProjectPlanValidationError,
         apply_project_plan,
+        build_gamedev_concept_draft_with_ai,
         build_project_plan,
+        generate_project_plan_content,
+        improve_project_description_with_ai,
         template_options,
+        validate_gamedev_concept_gate,
         validate_project_plan,
     )
     from backend.memory_review import (
@@ -136,6 +148,31 @@ def _read_text_if_exists(path: str) -> Optional[str]:
         return None
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         return f.read()
+
+
+def project_planning_llm_call(owner: Optional[str] = None):
+    from src.endpoint_resolver import resolve_endpoint
+    from src.llm_core import llm_call_async
+
+    url, model, headers = resolve_endpoint("utility", owner=owner)
+    if not url or not model:
+        url, model, headers = resolve_endpoint("default", owner=owner)
+    if not url or not model:
+        raise RuntimeError("No LLM endpoint configured")
+
+    async def _call(messages, *, max_tokens: int, temperature: float):
+        return await llm_call_async(
+            url,
+            model,
+            messages,
+            headers=headers,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=120,
+            prompt_type="obsidian_project_planning",
+        )
+
+    return _call
 
 # --- Tool Handlers ---
 
@@ -612,12 +649,48 @@ async def handle_project_plan_templates(content: str, owner: Optional[str] = Non
     except Exception as e:
         return {"error": f"Failed to read project plan templates: {e}", "exit_code": 1}
 
+async def handle_project_plan_improve_description(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Improves a project planning prompt without changing the vault."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        _ = vault_dir
+        description = await improve_project_description_with_ai(
+            ProjectDescriptionImproveRequest(**params),
+            llm_call=project_planning_llm_call(owner),
+        )
+        return {"output": json.dumps({"description": description}, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to improve project description: {e}", "exit_code": 1}
+
+async def handle_project_plan_gamedev_draft(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Creates an editable GameDev concept draft without changing the vault."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        _ = vault_dir
+        draft = await build_gamedev_concept_draft_with_ai(
+            GameDevConceptDraftRequest(**params),
+            llm_call=project_planning_llm_call(owner),
+        )
+        return {"output": json.dumps(draft, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to create GameDev concept draft: {e}", "exit_code": 1}
+
 async def handle_project_plan_preview(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Creates a non-destructive project plan preview for a vault folder."""
     try:
         params = json.loads((content or "{}").strip() or "{}")
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        plan = build_project_plan(vault_dir, ProjectPlanRequest(**params))
+        request = ProjectPlanRequest(**params)
+        validate_gamedev_concept_gate(request)
+        plan = build_project_plan(vault_dir, request)
+        if request.generate_content:
+            plan = await generate_project_plan_content(
+                plan,
+                llm_call=project_planning_llm_call(owner),
+            )
+            plan = validate_project_plan(vault_dir, plan, collect_conflicts=True)
         payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
         return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
     except Exception as e:
@@ -803,11 +876,24 @@ def setup(ctx):
         }, [], handle_history),
         _tool_spec("obsidian_undo", "Undo the latest safe reversible Obsidian vault action for the current user.", {}, [], handle_undo),
         _tool_spec("obsidian_project_plan_templates", "List supported Obsidian AI project planning templates and document schema options.", {}, [], handle_project_plan_templates),
+        _tool_spec("obsidian_project_plan_improve_description", "Improve a project planning description before creating an Obsidian project plan preview.", {
+            "title": {"type": "string", "description": "Project title."},
+            "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context to improve."},
+            "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, teaching, or game_dev."},
+        }, ["description"], handle_project_plan_improve_description),
+        _tool_spec("obsidian_project_plan_gamedev_draft", "Create an editable GameDev concept draft before generating a full project plan.", {
+            "title": {"type": "string", "description": "Game project title."},
+            "description": {"type": "string", "description": "Game idea, genre, engine, 2D/3D, constraints, scope hints, and target platform."},
+            "kind": {"type": "string", "description": "Usually game_dev or GameDev."},
+        }, ["description"], handle_project_plan_gamedev_draft),
         _tool_spec("obsidian_project_plan_preview", "Preview a non-destructive AI project plan for a target Obsidian vault folder.", {
             "target_folder": {"type": "string", "description": "Relative vault folder where the project structure should be planned."},
             "title": {"type": "string", "description": "Project title."},
             "description": {"type": "string", "description": "Project goal, scope, constraints, or other planning context."},
-            "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, or teaching. Legacy ops is accepted as an alias for sec_ops."},
+            "kind": {"type": "string", "description": "Project kind: software, research, writing, sec_ops, generic, teaching, or game_dev. Legacy ops is accepted as an alias for sec_ops."},
+            "generate_content": {"type": "boolean", "description": "When true, fill each planned file sequentially with AI-generated Markdown content before returning the preview."},
+            "approved_concept": {"type": "string", "description": "Approved editable concept draft. Required for GameDev content generation."},
+            "concept_approved": {"type": "boolean", "description": "Must be true for GameDev content generation."},
         }, ["target_folder", "title"], handle_project_plan_preview),
         _tool_spec("obsidian_project_plan_apply", "Create files and relationships from a confirmed Obsidian project plan preview.", {
             "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},

@@ -402,9 +402,45 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
 }
 
 .tree-item-name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tree-rename-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tree-rename-button:hover {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  border-color: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+.tree-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent, var(--red)) 55%, transparent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  outline: none;
 }
 
 .tree-item-children {
@@ -533,6 +569,43 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   resize: vertical;
 }
 
+.obsidian-project-description-wrap {
+  position: relative;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.obsidian-project-description-wrap textarea {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.obsidian-project-ai-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: var(--accent, var(--red));
+  cursor: pointer;
+}
+
+.obsidian-project-ai-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, var(--panel));
+}
+
+.obsidian-project-ai-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .obsidian-project-actions {
   grid-column: 1 / -1;
   justify-content: flex-end;
@@ -542,6 +615,28 @@ body.obsidian-resizing .obsidian-split-resize-handle::after {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.obsidian-project-gamedev-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-project-gamedev-draft.hidden {
+  display: none;
+}
+
+.obsidian-gamedev-draft-text {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  padding: 10px;
 }
 
 .obsidian-project-summary,

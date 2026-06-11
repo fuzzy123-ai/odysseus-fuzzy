@@ -20,6 +20,8 @@ document.head.appendChild(link);
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let currentNotePath = null;
+let selectedTreePath = null;
+let inlineRenamePath = null;
 let vaultFiles = [];
 const expandedFolders = new Set();
 let autosaveTimeout = null;
@@ -32,6 +34,7 @@ let graphEdgeTypeFilter = 'all';
 let projectPlanPreview = null;
 let memoryReviewPreview = null;
 let projectTemplateOptions = null;
+let gameDevConceptDraft = null;
 const NEW_PROJECT_FOLDER_SENTINEL = '__new_project_folder__';
 const OBSIDIAN_PANEL_WIDTH_KEY = 'odysseus.obsidian.panelWidth';
 const OBSIDIAN_SIDEBAR_WIDTH_KEY = 'odysseus.obsidian.sidebarWidth';
@@ -100,6 +103,23 @@ function flattenTree(nodes, out = []) {
     }
   });
   return out;
+}
+
+function findTreeNode(path) {
+  return flattenTree(vaultFiles).find(node => node.path === path) || null;
+}
+
+function selectedFolderPath() {
+  const selected = selectedTreePath ? findTreeNode(selectedTreePath) : null;
+  if (selected?.is_dir) return selected.path;
+  return '';
+}
+
+function selectTreeItem(path) {
+  selectedTreePath = path;
+  document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`);
+  if (activeEl) activeEl.classList.add('active');
 }
 
 function triggerEditorInput() {
@@ -390,6 +410,9 @@ async function moveVaultItem(oldPath, targetFolder) {
     });
     if (res.ok) {
       showToast('Moved item');
+      if (selectedTreePath === oldPath || selectedTreePath?.startsWith(`${oldPath}/`)) {
+        selectedTreePath = selectedTreePath.replace(oldPath, newPath);
+      }
       if (currentNotePath === oldPath || currentNotePath?.startsWith(`${oldPath}/`)) {
         currentNotePath = currentNotePath.replace(oldPath, newPath);
       }
@@ -753,12 +776,18 @@ function injectUIElements() {
                   <select id="obsidian-project-kind" title="Project kind">
                     <option value="software">Software</option>
                   </select>
-                  <textarea id="obsidian-project-description" placeholder="Project goal, scope, constraints, and useful context"></textarea>
+                  <div class="obsidian-project-description-wrap">
+                    <textarea id="obsidian-project-description" placeholder="Project goal, scope, constraints, and useful context"></textarea>
+                    <button type="button" id="obsidian-project-improve-description" class="obsidian-project-ai-btn" title="Improve prompt" aria-label="Improve project prompt">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.56 8.5 21l-1.44-6.44L.62 13.12l6.44-1.44L8.5 5.24l1.44 6.44 6.44 1.44-6.44 1.44Z"/><path d="M18 8V2"/><path d="M21 5h-6"/><path d="M19 22v-4"/><path d="M21 20h-4"/></svg>
+                    </button>
+                  </div>
                   <div class="obsidian-project-actions">
-                    <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Preview plan</button>
+                    <button type="button" id="obsidian-project-preview" class="btn btn-secondary">Create plan</button>
                     <button type="button" id="obsidian-project-apply" class="btn btn-primary" disabled>Create structure</button>
                   </div>
                 </div>
+                <div class="obsidian-project-gamedev-draft hidden" id="obsidian-project-gamedev-draft"></div>
                 <div class="obsidian-project-preview" id="obsidian-project-preview-panel"></div>
               </div>
               <div class="obsidian-memory-review-panel hidden" id="obsidian-memory-review-panel">
@@ -917,14 +946,16 @@ function buildTreeHTML(nodes, container, level) {
     const item = document.createElement('div');
     item.className = `tree-item ${node.is_dir ? 'tree-folder' : 'tree-file'}`;
     item.dataset.path = node.path;
-    if (currentNotePath === node.path) {
+    const isSelected = selectedTreePath === node.path || (!selectedTreePath && currentNotePath === node.path);
+    const isInlineRenaming = node.is_dir && inlineRenamePath === node.path;
+    if (isSelected) {
       item.classList.add('active');
     }
 
     const header = document.createElement('div');
     header.className = 'tree-item-header';
     header.style.paddingLeft = `${level * 12 + 6}px`;
-    header.draggable = true;
+    header.draggable = !isInlineRenaming;
 
     const icon = document.createElement('span');
     icon.className = 'tree-item-icon';
@@ -939,12 +970,51 @@ function buildTreeHTML(nodes, container, level) {
       icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
     }
 
-    const name = document.createElement('span');
-    name.className = 'tree-item-name';
-    name.textContent = node.name;
+    let name;
+    if (isInlineRenaming) {
+      name = document.createElement('input');
+      name.className = 'tree-rename-input';
+      name.dataset.path = node.path;
+      name.value = node.name;
+      name.addEventListener('click', (e) => e.stopPropagation());
+      name.addEventListener('pointerdown', (e) => e.stopPropagation());
+      name.addEventListener('keydown', async (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelInlineRenameFolder();
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          await commitInlineRenameFolder(node.path, name.value);
+        }
+      });
+      name.addEventListener('blur', async () => {
+        if (inlineRenamePath === node.path) {
+          await commitInlineRenameFolder(node.path, name.value);
+        }
+      });
+    } else {
+      name = document.createElement('span');
+      name.className = 'tree-item-name';
+      name.textContent = node.name;
+    }
 
     header.appendChild(icon);
     header.appendChild(name);
+    if (node.is_dir && isSelected && !isInlineRenaming) {
+      const renameButton = document.createElement('button');
+      renameButton.type = 'button';
+      renameButton.className = 'tree-rename-button';
+      renameButton.title = 'Rename folder';
+      renameButton.setAttribute('aria-label', 'Rename selected folder');
+      renameButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+      renameButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startInlineRenameFolder(node.path);
+      });
+      header.appendChild(renameButton);
+    }
     item.appendChild(header);
 
     if (node.is_dir && node.children && node.children.length > 0) {
@@ -957,9 +1027,13 @@ function buildTreeHTML(nodes, container, level) {
       item.appendChild(childrenContainer);
     }
 
-    header.addEventListener('click', (e) => {
+    header.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (node.is_dir) {
+        if (inlineRenamePath === node.path) {
+          return;
+        }
+        selectedTreePath = node.path;
         if (expandedFolders.has(node.path)) {
           expandedFolders.delete(node.path);
         } else {
@@ -967,6 +1041,7 @@ function buildTreeHTML(nodes, container, level) {
         }
         renderFileTree();
       } else {
+        selectTreeItem(node.path);
         openNote(node.path);
       }
     });
@@ -1027,9 +1102,7 @@ async function openNote(path) {
       document.getElementById('obsidian-editor-container').classList.remove('hidden');
 
       // Update active selection class in tree
-      document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
-      const activeEl = document.querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`);
-      if (activeEl) activeEl.classList.add('active');
+      selectTreeItem(path);
 
       // Update header title and textarea value
       document.getElementById('obsidian-current-note-title').textContent = path;
@@ -1069,7 +1142,110 @@ async function activateGraphNode(path) {
   await openNote(path);
 }
 
+function remapExpandedFolders(oldPath, newPath) {
+  const next = new Set();
+  expandedFolders.forEach(path => {
+    if (path === oldPath || path.startsWith(`${oldPath}/`)) {
+      next.add(path.replace(oldPath, newPath));
+    } else {
+      next.add(path);
+    }
+  });
+  expandedFolders.clear();
+  next.forEach(path => expandedFolders.add(path));
+}
+
+async function promptRenameSelectedItem() {
+  const oldPath = selectedTreePath || currentNotePath;
+  if (!oldPath) return;
+
+  const selected = findTreeNode(oldPath);
+  const isFolder = Boolean(selected?.is_dir);
+  if (isFolder) {
+    startInlineRenameFolder(oldPath);
+    return;
+  }
+  const newPath = await styledPrompt('Rename note to:', {
+    defaultValue: oldPath,
+    confirmText: 'Rename'
+  });
+  if (!newPath || newPath === oldPath) return;
+
+  await renameVaultItem(oldPath, newPath, isFolder);
+}
+
+async function renameVaultItem(oldPath, newPath, isFolder) {
+  try {
+    const res = await fetch('/api/plugins/obsidian/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_path: oldPath, new_path: newPath })
+    });
+    if (res.ok) {
+      showToast(isFolder ? 'Renamed folder' : 'Renamed note');
+      if (selectedTreePath === oldPath || selectedTreePath?.startsWith(`${oldPath}/`)) {
+        selectedTreePath = selectedTreePath.replace(oldPath, newPath);
+      }
+      if (currentNotePath === oldPath || currentNotePath?.startsWith(`${oldPath}/`)) {
+        currentNotePath = currentNotePath.replace(oldPath, newPath);
+      }
+      if (isFolder) {
+        remapExpandedFolders(oldPath, newPath);
+      }
+      await loadVaultFiles();
+      if (!isFolder && currentNotePath === newPath) {
+        await openNote(newPath);
+      } else if (isFolder && currentNotePath?.startsWith(`${newPath}/`)) {
+        await openNote(currentNotePath);
+      } else if (selectedTreePath) {
+        selectTreeItem(selectedTreePath);
+      }
+    } else {
+      const err = await res.json();
+      showToast(err.detail || 'Failed to rename');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast(isFolder ? 'Error renaming folder' : 'Error renaming note');
+  }
+}
+
+function startInlineRenameFolder(path) {
+  const selected = findTreeNode(path);
+  if (!selected?.is_dir) return;
+  selectedTreePath = path;
+  inlineRenamePath = path;
+  renderFileTree();
+  requestAnimationFrame(() => {
+    const input = document.querySelector(`.tree-rename-input[data-path="${CSS.escape(path)}"]`);
+    input?.focus();
+    input?.select();
+  });
+}
+
+function cancelInlineRenameFolder() {
+  inlineRenamePath = null;
+  renderFileTree();
+}
+
+async function commitInlineRenameFolder(oldPath, nextName) {
+  const trimmedName = (nextName || '').trim();
+  inlineRenamePath = null;
+  if (!trimmedName) {
+    renderFileTree();
+    return;
+  }
+  const newPath = joinPath(getParentDir(oldPath), trimmedName);
+  if (newPath === oldPath) {
+    renderFileTree();
+    return;
+  }
+  await renameVaultItem(oldPath, newPath, true);
+}
+
 function currentTargetFolder() {
+  const selectedFolder = selectedFolderPath();
+  if (selectedFolder) return selectedFolder;
   if (currentNotePath) return getParentDir(currentNotePath);
   const firstFolder = flattenTree(vaultFiles).find(node => node.is_dir);
   return firstFolder?.path || 'Projects';
@@ -1097,7 +1273,7 @@ function renderProjectFolderOptions() {
   select.innerHTML = folders.map(path => {
     const label = path || 'Vault root';
     return `<option value="${escapeHtml(path)}">${escapeHtml(label)}</option>`;
-  }).join('') + `<option value="${NEW_PROJECT_FOLDER_SENTINEL}">${escapeHtml('Neuen Projektordner anlegen')}</option>`;
+  }).join('') + `<option value="${NEW_PROJECT_FOLDER_SENTINEL}">${escapeHtml('Create new project folder')}</option>`;
   if (previous && [...select.options].some(option => option.value === previous)) {
     select.value = previous;
   } else if ([...select.options].some(option => option.value === target)) {
@@ -1152,10 +1328,39 @@ async function loadProjectTemplateOptions() {
     : (projectTemplateOptions.default_kind || 'software');
 }
 
+function isGameDevProjectKind(kind) {
+  const normalized = String(kind || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return ['game_dev', 'gamedev', 'game_development'].includes(normalized);
+}
+
+function clearGameDevDraft() {
+  gameDevConceptDraft = null;
+  const panel = document.getElementById('obsidian-project-gamedev-draft');
+  if (panel) {
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+  }
+}
+
+function invalidateProjectPlanPreview({ clearDraft = true } = {}) {
+  projectPlanPreview = null;
+  const applyBtn = document.getElementById('obsidian-project-apply');
+  if (applyBtn) applyBtn.disabled = true;
+  const previewPanel = document.getElementById('obsidian-project-preview-panel');
+  if (previewPanel) previewPanel.innerHTML = '';
+  if (clearDraft) clearGameDevDraft();
+}
+
+function handleProjectInputChanged() {
+  updateProjectTargetLabel();
+  invalidateProjectPlanPreview();
+}
+
 async function showProjectPlanner() {
   const planner = document.getElementById('obsidian-project-planner');
   if (!planner) return;
   projectPlanPreview = null;
+  clearGameDevDraft();
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   planner.classList.remove('hidden');
@@ -1293,7 +1498,75 @@ function renderMemoryReviewPreview(plan) {
   applyBtn.disabled = conflicts.length > 0;
 }
 
-async function previewProjectPlan() {
+function renderGameDevDraftPanel(draftPayload) {
+  const panel = document.getElementById('obsidian-project-gamedev-draft');
+  if (!panel) return;
+  const warnings = draftPayload.warnings || [];
+  panel.classList.remove('hidden');
+  panel.innerHTML = `
+    <div class="obsidian-project-summary">
+      <strong>GameDev concept draft</strong>
+      <span>Edit and approve this concept before creating the plan.</span>
+    </div>
+    ${warnings.length ? `<div class="obsidian-project-warnings">
+      <strong>Draft warnings</strong>
+      <ul>${warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>
+    </div>` : ''}
+    <textarea id="obsidian-gamedev-draft-text" class="obsidian-gamedev-draft-text">${escapeHtml(draftPayload.draft || '')}</textarea>
+    <div class="obsidian-project-actions">
+      <button type="button" id="obsidian-gamedev-regenerate" class="btn btn-secondary">Regenerate draft</button>
+      <button type="button" id="obsidian-gamedev-approve" class="btn btn-primary">Approve & create plan</button>
+    </div>
+  `;
+  document.getElementById('obsidian-gamedev-regenerate')?.addEventListener('click', createGameDevDraft);
+  document.getElementById('obsidian-gamedev-approve')?.addEventListener('click', async () => {
+    const approvedConcept = document.getElementById('obsidian-gamedev-draft-text')?.value || '';
+    if (!approvedConcept.trim()) {
+      showToast('GameDev concept draft required');
+      return;
+    }
+    await previewProjectPlan({ conceptApproved: true, approvedConcept });
+  });
+}
+
+async function createGameDevDraft() {
+  const title = document.getElementById('obsidian-project-title')?.value || '';
+  const kind = document.getElementById('obsidian-project-kind')?.value || 'game_dev';
+  const description = document.getElementById('obsidian-project-description')?.value || '';
+  if (!title.trim()) {
+    showToast('Project title required');
+    return;
+  }
+  if (!description.trim()) {
+    showToast('Game idea required');
+    return;
+  }
+  const panel = document.getElementById('obsidian-project-gamedev-draft');
+  const previewBtn = document.getElementById('obsidian-project-preview');
+  invalidateProjectPlanPreview({ clearDraft: false });
+  if (panel) {
+    panel.classList.remove('hidden');
+    panel.innerHTML = '<div class="obsidian-project-loading">Creating editable GameDev concept draft...</div>';
+  }
+  if (previewBtn) previewBtn.disabled = true;
+  try {
+    const res = await fetch('/api/plugins/obsidian/project-plan/gamedev-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, kind, description }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'GameDev draft failed');
+    gameDevConceptDraft = await res.json();
+    renderGameDevDraftPanel(gameDevConceptDraft);
+  } catch (e) {
+    console.error('GameDev draft failed:', e);
+    if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'GameDev draft failed')}</div>`;
+  } finally {
+    if (previewBtn) previewBtn.disabled = false;
+  }
+}
+
+async function previewProjectPlan({ conceptApproved = false, approvedConcept = '' } = {}) {
   const target_folder = resolveProjectTargetFolder();
   const title = document.getElementById('obsidian-project-title')?.value || '';
   const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
@@ -1302,13 +1575,28 @@ async function previewProjectPlan() {
     showToast('Project title required');
     return;
   }
+  if (isGameDevProjectKind(kind) && !conceptApproved) {
+    await createGameDevDraft();
+    return;
+  }
   const panel = document.getElementById('obsidian-project-preview-panel');
-  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Planning project structure...</div>';
+  const previewBtn = document.getElementById('obsidian-project-preview');
+  if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Creating plan and writing AI content sequentially...</div>';
+  if (previewBtn) previewBtn.disabled = true;
+  document.getElementById('obsidian-project-apply').disabled = true;
   try {
     const res = await fetch('/api/plugins/obsidian/project-plan/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_folder, title, kind, description }),
+      body: JSON.stringify({
+        target_folder,
+        title,
+        kind,
+        description,
+        generate_content: true,
+        approved_concept: approvedConcept,
+        concept_approved: conceptApproved,
+      }),
     });
     if (!res.ok) throw new Error((await res.json()).detail || 'Project preview failed');
     projectPlanPreview = await res.json();
@@ -1317,6 +1605,39 @@ async function previewProjectPlan() {
     console.error('Project preview failed:', e);
     if (panel) panel.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Project preview failed')}</div>`;
     document.getElementById('obsidian-project-apply').disabled = true;
+  } finally {
+    if (previewBtn) previewBtn.disabled = false;
+  }
+}
+
+async function improveProjectDescription() {
+  const title = document.getElementById('obsidian-project-title')?.value || '';
+  const kind = document.getElementById('obsidian-project-kind')?.value || 'software';
+  const textarea = document.getElementById('obsidian-project-description');
+  const description = textarea?.value || '';
+  const btn = document.getElementById('obsidian-project-improve-description');
+  if (!textarea) return;
+  if (!description.trim()) {
+    showToast('Project context required');
+    return;
+  }
+  try {
+    if (btn) btn.disabled = true;
+    const res = await fetch('/api/plugins/obsidian/project-plan/improve-description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, kind, description }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Prompt improvement failed');
+    const data = await res.json();
+    textarea.value = data.description || description;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    showToast('Project prompt improved');
+  } catch (e) {
+    console.error('Project prompt improvement failed:', e);
+    showToast(e.message || 'Prompt improvement failed');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1703,6 +2024,12 @@ function setupEventListeners() {
     if (e.key === 'Escape' && isPanelOpen) {
       closePanel();
     }
+    if (e.key === 'F2' && (isPanelOpen || isStandaloneMode()) && selectedTreePath) {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      promptRenameSelectedItem();
+    }
   });
 
   // New Note
@@ -1715,11 +2042,8 @@ function setupEventListeners() {
       path += '.md';
     }
 
-    let dir = '';
-    if (currentNotePath && currentNotePath.includes('/')) {
-      dir = currentNotePath.substring(0, currentNotePath.lastIndexOf('/') + 1);
-    }
-    const fullPath = dir + path;
+    const dir = currentTargetFolder();
+    const fullPath = joinPath(dir, path);
 
     try {
       const res = await fetch('/api/plugins/obsidian/file', {
@@ -1749,11 +2073,8 @@ function setupEventListeners() {
     const name = await styledPrompt('Enter folder name:', { defaultValue: 'New Folder', confirmText: 'Create' });
     if (!name) return;
 
-    let dir = '';
-    if (currentNotePath && currentNotePath.includes('/')) {
-      dir = currentNotePath.substring(0, currentNotePath.lastIndexOf('/') + 1);
-    }
-    const fullPath = dir + name;
+    const dir = currentTargetFolder();
+    const fullPath = joinPath(dir, name);
 
     try {
       const res = await fetch('/api/plugins/obsidian/folder', {
@@ -1778,8 +2099,11 @@ function setupEventListeners() {
   document.getElementById('obsidian-project-close')?.addEventListener('click', closeProjectPlanner);
   document.getElementById('obsidian-project-preview')?.addEventListener('click', previewProjectPlan);
   document.getElementById('obsidian-project-apply')?.addEventListener('click', applyProjectPlan);
-  document.getElementById('obsidian-project-folder')?.addEventListener('change', updateProjectTargetLabel);
-  document.getElementById('obsidian-project-title')?.addEventListener('input', updateProjectTargetLabel);
+  document.getElementById('obsidian-project-improve-description')?.addEventListener('click', improveProjectDescription);
+  document.getElementById('obsidian-project-folder')?.addEventListener('change', handleProjectInputChanged);
+  document.getElementById('obsidian-project-title')?.addEventListener('input', handleProjectInputChanged);
+  document.getElementById('obsidian-project-kind')?.addEventListener('change', handleProjectInputChanged);
+  document.getElementById('obsidian-project-description')?.addEventListener('input', handleProjectInputChanged);
   document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
@@ -1846,31 +2170,7 @@ function setupEventListeners() {
   });
 
   // Rename
-  document.getElementById('obsidian-rename-note')?.addEventListener('click', async () => {
-    if (!currentNotePath) return;
-    const newPath = await styledPrompt('Rename to:', { defaultValue: currentNotePath, confirmText: 'Rename' });
-    if (!newPath || newPath === currentNotePath) return;
-
-    try {
-      const res = await fetch('/api/plugins/obsidian/rename', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ old_path: currentNotePath, new_path: newPath })
-      });
-      if (res.ok) {
-        showToast('Renamed note');
-        currentNotePath = newPath;
-        await loadVaultFiles();
-        await openNote(newPath);
-      } else {
-        const err = await res.json();
-        showToast(err.detail || 'Failed to rename');
-      }
-    } catch (e) {
-      console.error(e);
-      showToast('Error renaming note');
-    }
-  });
+  document.getElementById('obsidian-rename-note')?.addEventListener('click', promptRenameSelectedItem);
 
   // Delete
   document.getElementById('obsidian-delete-note')?.addEventListener('click', async () => {

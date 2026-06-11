@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import tempfile
 import zipfile
@@ -18,14 +19,20 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
+    GameDevConceptDraftRequest,
     NEW_PROJECT_FOLDER_SENTINEL,
+    ProjectDescriptionImproveRequest,
     ProjectPlan,
     ProjectPlanRequest,
     ProjectPlanValidationError,
+    build_gamedev_concept_draft_with_ai,
     build_project_plan,
+    generate_project_plan_content,
+    improve_project_description_with_ai,
     normalize_project_kind,
     normalize_project_target_folder,
     template_options,
+    validate_gamedev_concept_gate,
     validate_project_plan,
 )
 from backend.memory_review import (
@@ -307,10 +314,14 @@ def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
     options = template_options()
     kind_labels = {item["key"]: item["label"] for item in options["kinds"]}
     assert kind_labels["sec_ops"] == "Sec-Ops"
-    assert kind_labels["teaching"] == "Unterricht"
+    assert kind_labels["teaching"] == "Teaching"
+    assert kind_labels["game_dev"] == "GameDev"
     assert "ops" not in kind_labels
     assert normalize_project_kind("ops") == "sec_ops"
     assert normalize_project_kind("Unterricht") == "teaching"
+    assert normalize_project_kind("Education") == "teaching"
+    assert normalize_project_kind("GameDev") == "game_dev"
+    assert normalize_project_kind("game-dev") == "game_dev"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         plans = {
@@ -320,7 +331,7 @@ def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
                 description="Template coverage.",
                 kind=kind,
             ))
-            for kind in ["software", "research", "writing", "sec_ops", "generic", "teaching"]
+            for kind in ["software", "research", "writing", "sec_ops", "generic", "teaching", "game_dev"]
         }
 
         software_paths = {file.path for file in plans["software"].files}
@@ -332,6 +343,8 @@ def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
         assert any(file.path.endswith("02 Gliederung.md") for file in plans["writing"].files)
         assert any(file.path.endswith("04 Incident Response.md") for file in plans["sec_ops"].files)
         assert any(file.path.endswith("02 Arbeitspakete.md") for file in plans["generic"].files)
+        assert any(file.path.endswith("03 Engine and Architecture.md") for file in plans["game_dev"].files)
+        assert any(file.path.endswith("09 Risks and Open Questions.md") for file in plans["game_dev"].files)
 
         teaching_paths = [file.path for file in plans["teaching"].files]
         assert len(teaching_paths) == 9
@@ -345,6 +358,21 @@ def test_project_plan_templates_drive_distinct_project_kinds_and_aliases():
             "Projects/teaching/06 Materialien.md",
             "Projects/teaching/07 Loesungen und Erwartungshorizont.md",
             "Projects/teaching/08 Kritische Review.md",
+        ]
+
+        game_paths = [file.path for file in plans["game_dev"].files]
+        assert len(game_paths) == 10
+        assert game_paths == [
+            "Projects/game_dev/00 Game Overview.md",
+            "Projects/game_dev/01 Scope and MVP.md",
+            "Projects/game_dev/02 Core Gameplay Loop.md",
+            "Projects/game_dev/03 Engine and Architecture.md",
+            "Projects/game_dev/04 Gameplay Systems.md",
+            "Projects/game_dev/05 Content and Level Design.md",
+            "Projects/game_dev/06 Art Audio UI Pipeline.md",
+            "Projects/game_dev/07 Production Plan.md",
+            "Projects/game_dev/08 Testing and Balancing.md",
+            "Projects/game_dev/09 Risks and Open Questions.md",
         ]
 
 
@@ -363,6 +391,147 @@ def test_project_plan_new_folder_sentinel_is_resolved_without_preview_writes():
         assert plan.target_folder == "Projects/demo-app"
         assert all(file.path.startswith("Projects/demo-app/") for file in plan.files)
         assert not os.path.exists(os.path.join(tmpdir, "Projects", "demo-app"))
+
+
+@pytest.mark.asyncio
+async def test_project_plan_ai_improves_description():
+    async def fake_llm(messages, **kwargs):
+        assert "Verbessere diesen Projektkontext" in messages[-1]["content"]
+        return "Ziel: klarer Unterrichtsplan.\nOffene Fragen: Bundesland klaeren."
+
+    improved = await improve_project_description_with_ai(
+        ProjectDescriptionImproveRequest(
+            title="Hasen",
+            description="mach unterricht",
+            kind="teaching",
+        ),
+        llm_call=fake_llm,
+    )
+
+    assert "klarer Unterrichtsplan" in improved
+    assert "Offene Fragen" in improved
+
+
+@pytest.mark.asyncio
+async def test_project_plan_gamedev_draft_and_approval_gate():
+    async def fake_llm(messages, **kwargs):
+        assert "editable GameDev concept draft" in messages[0]["content"]
+        assert "worker/unit complexity" in messages[-1]["content"]
+        return (
+            "# GameDev Concept Draft\n\n"
+            "## MVP Scope\nA tiny 2D strategy prototype.\n\n"
+            "## Engine and Tech Assumptions\nGodot 2D.\n\n"
+            "## Production Risks\nWorker units need pathfinding and task queues.\n\n"
+            "## Open Questions\nMap size and win condition."
+        )
+
+    draft = await build_gamedev_concept_draft_with_ai(
+        GameDevConceptDraftRequest(
+            title="Worker Fields",
+            description="2D strategy game in Godot with workers.",
+            kind="GameDev",
+        ),
+        llm_call=fake_llm,
+    )
+    assert "Worker units" in draft["draft"]
+    assert draft["warnings"] == []
+
+    blocked = ProjectPlanRequest(
+        target_folder="Games/Worker Fields",
+        title="Worker Fields",
+        description="2D strategy game in Godot with workers.",
+        kind="GameDev",
+        generate_content=True,
+    )
+    with pytest.raises(ProjectPlanValidationError):
+        validate_gamedev_concept_gate(blocked)
+
+    approved = ProjectPlanRequest(
+        target_folder="Games/Worker Fields",
+        title="Worker Fields",
+        description="Original prompt.",
+        kind="GameDev",
+        generate_content=True,
+        concept_approved=True,
+        approved_concept=draft["draft"],
+    )
+    validate_gamedev_concept_gate(approved)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plan = build_project_plan(tmpdir, approved)
+        assert plan.project.kind == "game_dev"
+        assert "Worker units need pathfinding" in plan.project.summary
+        assert "Worker units need pathfinding" in plan.files[0].content
+
+
+@pytest.mark.asyncio
+async def test_project_plan_ai_generation_is_sequential_context_chain():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plan = build_project_plan(tmpdir, ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="Create a useful project folder.",
+            kind="generic",
+        ))
+        calls = []
+
+        async def fake_llm(messages, **kwargs):
+            system = messages[0]["content"]
+            user = messages[-1]["content"]
+            calls.append({"system": system, "user": user})
+            if "einzelne Markdown-Datei" in system:
+                match = re.search(r"Zieldatei \d+ von \d+: (.+)", user)
+                path = match.group(1)
+                return f"# Generated {path}\n\nContent built from sequential context."
+            if "Kontextzusammenfassung" in system:
+                match = re.search(r"Neu generierte Datei: (.+)", user)
+                path = match.group(1)
+                previous = user.split("Bisherige Kontextzusammenfassung:\n", 1)[1].split("\n\nNeu generierte Datei:", 1)[0]
+                return f"{previous}\nCTX after {path}"
+            raise AssertionError("unexpected prompt")
+
+        enriched = await generate_project_plan_content(plan, llm_call=fake_llm)
+
+        generation_prompts = [call["user"] for call in calls if "Zieldatei" in call["user"]]
+        assert len(generation_prompts) == len(enriched.files)
+        assert "Bisher generierte Dateien: noch keine" in generation_prompts[0]
+        assert "CTX after Projects/Demo/00 Projektuebersicht.md" in generation_prompts[1]
+        assert "CTX after Projects/Demo/03 Entscheidungen.md" in generation_prompts[-1]
+        assert "Generated Projects/Demo/00 Projektuebersicht.md" in enriched.files[0].content
+
+
+@pytest.mark.asyncio
+async def test_project_plan_ai_generation_retries_and_keeps_partial_preview():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plan = build_project_plan(tmpdir, ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="Create a useful project folder.",
+            kind="generic",
+        ))
+        attempts = {}
+
+        async def fake_llm(messages, **kwargs):
+            system = messages[0]["content"]
+            user = messages[-1]["content"]
+            if "einzelne Markdown-Datei" in system:
+                match = re.search(r"Zieldatei \d+ von \d+: (.+)", user)
+                path = match.group(1)
+                attempts[path] = attempts.get(path, 0) + 1
+                if path.endswith("00 Projektuebersicht.md"):
+                    raise RuntimeError("temporary model error")
+                assert "Generierungswarnung fuer Projects/Demo/00 Projektuebersicht.md" in user
+                return f"# Generated {path}\n\nContinued after warning."
+            if "Kontextzusammenfassung" in system:
+                match = re.search(r"Neu generierte Datei: (.+)", user)
+                return f"CTX after {match.group(1)}"
+            raise AssertionError("unexpected prompt")
+
+        enriched = await generate_project_plan_content(plan, llm_call=fake_llm, max_attempts=3)
+
+        assert attempts["Projects/Demo/00 Projektuebersicht.md"] == 3
+        assert any("AI generation failed for Projects/Demo/00 Projektuebersicht.md after 3 attempts" in warning for warning in enriched.warnings)
+        assert "Klaeren und ausarbeiten" in enriched.files[0].content
+        assert "Generated Projects/Demo/01 Ziele.md" in enriched.files[1].content
 
 
 @pytest.mark.asyncio
@@ -778,6 +947,7 @@ def test_plugin_setup_registration():
     assert "obsidian_history" in tool_names
     assert "obsidian_undo" in tool_names
     assert "obsidian_project_plan_templates" in tool_names
+    assert "obsidian_project_plan_gamedev_draft" in tool_names
     assert "obsidian_project_plan_preview" in tool_names
     assert "obsidian_project_plan_apply" in tool_names
     assert "obsidian_memory_review_preview" in tool_names

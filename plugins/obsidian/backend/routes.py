@@ -30,12 +30,18 @@ from .vault_model import (
     remove_manual_relationship,
 )
 from .project_planning import (
+    GameDevConceptDraftRequest,
     ProjectPlanApplyRequest,
+    ProjectDescriptionImproveRequest,
     ProjectPlanRequest,
     ProjectPlanValidationError,
     apply_project_plan,
+    build_gamedev_concept_draft_with_ai,
     build_project_plan,
+    generate_project_plan_content,
+    improve_project_description_with_ai,
     template_options,
+    validate_gamedev_concept_gate,
     validate_project_plan,
 )
 from .memory_review import (
@@ -157,6 +163,32 @@ def vault_error(exc: VaultSecurityError) -> HTTPException:
     elif "conflict" in detail.lower():
         status = 409
     return HTTPException(status_code=status, detail=detail)
+
+
+def project_planning_llm_call(owner: str):
+    from src.endpoint_resolver import resolve_endpoint
+    from src.llm_core import llm_call_async
+
+    url, model, headers = resolve_endpoint("utility", owner=owner)
+    if not url or not model:
+        url, model, headers = resolve_endpoint("default", owner=owner)
+    if not url or not model:
+        raise HTTPException(status_code=503, detail="No LLM endpoint configured")
+
+    async def _call(messages, *, max_tokens: int, temperature: float):
+        return await llm_call_async(
+            url,
+            model,
+            messages,
+            headers=headers,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=120,
+            prompt_type="obsidian_project_planning",
+        )
+
+    return _call
+
 
 def secure_path(vault_dir: str, relative_path: str) -> str:
     """Resolve and validate a relative path within the user's vault.
@@ -524,12 +556,48 @@ async def project_plan_templates(request: Request):
     get_unlocked_vault_path(request)
     return template_options()
 
+@router.post("/project-plan/improve-description")
+async def project_plan_improve_description(req: ProjectDescriptionImproveRequest, request: Request):
+    """Improve the project planning prompt without writing to the vault."""
+    get_unlocked_vault_path(request)
+    try:
+        description = await improve_project_description_with_ai(
+            req,
+            llm_call=project_planning_llm_call(current_owner(request)),
+        )
+        return {"description": description}
+    except HTTPException:
+        raise
+    except ProjectPlanValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@router.post("/project-plan/gamedev-draft")
+async def project_plan_gamedev_draft(req: GameDevConceptDraftRequest, request: Request):
+    """Build an editable GameDev concept draft before creating the plan preview."""
+    get_unlocked_vault_path(request)
+    try:
+        return await build_gamedev_concept_draft_with_ai(
+            req,
+            llm_call=project_planning_llm_call(current_owner(request)),
+        )
+    except HTTPException:
+        raise
+    except ProjectPlanValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
 @router.post("/project-plan/preview")
 async def project_plan_preview(req: ProjectPlanRequest, request: Request):
     """Build a non-destructive AI project planning preview."""
     vault_dir = get_unlocked_vault_path(request)
     try:
+        validate_gamedev_concept_gate(req)
         plan = build_project_plan(vault_dir, req)
+        if req.generate_content:
+            plan = await generate_project_plan_content(
+                plan,
+                llm_call=project_planning_llm_call(current_owner(request)),
+            )
+            plan = validate_project_plan(vault_dir, plan, collect_conflicts=True)
         return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
     except ProjectPlanValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

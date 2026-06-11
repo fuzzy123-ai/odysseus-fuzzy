@@ -1,7 +1,8 @@
+import inspect
 import os
 import re
 from datetime import date
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Set
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +10,14 @@ from .vault_model import add_manual_relationship, build_vault_index, normalize_t
 
 
 NEW_PROJECT_FOLDER_SENTINEL = "__new_project_folder__"
-PROJECT_KIND_ALIASES = {"ops": "sec_ops", "unterricht": "teaching"}
+PROJECT_KIND_ALIASES = {
+    "ops": "sec_ops",
+    "unterricht": "teaching",
+    "education": "teaching",
+    "gamedev": "game_dev",
+    "game_dev": "game_dev",
+    "game_development": "game_dev",
+}
 DOCUMENT_TYPES = {
     "project",
     "requirements",
@@ -43,6 +51,15 @@ DOCUMENT_TYPES = {
     "lesson_sequence",
     "materials",
     "solutions",
+    "game_overview",
+    "scope",
+    "gameplay_loop",
+    "game_architecture",
+    "gameplay_systems",
+    "level_design",
+    "asset_pipeline",
+    "production_plan",
+    "balancing",
 }
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
 
@@ -138,7 +155,7 @@ PROJECT_TEMPLATES: Dict[str, Dict[str, Any]] = {
         ],
     },
     "teaching": {
-        "label": "Unterricht",
+        "label": "Teaching",
         "documents": [
             {"filename": "00 Unterrichtsuebersicht.md", "title": "Unterrichtsuebersicht", "type": "project", "outline": ["Thema", "Zielgruppe", "Umfang", "Dokumente", "Offene Entscheidungen"]},
             {"filename": "01 Rahmenkriterien.md", "title": "Rahmenkriterien", "type": "framework", "outline": ["Bundesland", "Schulart", "Klasse", "Paedagogische Besonderheiten", "Vorwissen"]},
@@ -159,6 +176,35 @@ PROJECT_TEMPLATES: Dict[str, Dict[str, Any]] = {
             ("materials", "lesson_sequence", "depends_on", "Materials support lesson phases"),
             ("solutions", "materials", "depends_on", "Solutions correspond to planned materials"),
             ("revision", "lesson_sequence", "relates_to", "Review checks the full lesson plan"),
+        ],
+    },
+    "game_dev": {
+        "label": "GameDev",
+        "documents": [
+            {"filename": "00 Game Overview.md", "title": "Game Overview", "type": "game_overview", "outline": ["Core fantasy", "Genre", "Target platform", "Player promise", "Design pillars", "Open questions"]},
+            {"filename": "01 Scope and MVP.md", "title": "Scope and MVP", "type": "scope", "outline": ["MVP boundaries", "Non-goals", "Complexity budget", "Release slice", "Expansion hooks"]},
+            {"filename": "02 Core Gameplay Loop.md", "title": "Core Gameplay Loop", "type": "gameplay_loop", "outline": ["Moment-to-moment loop", "Progression loop", "Win and loss conditions", "Player decisions", "Feedback"]},
+            {"filename": "03 Engine and Architecture.md", "title": "Engine and Architecture", "type": "game_architecture", "outline": ["Engine assumptions", "Scene or module structure", "Data flow", "Save/load", "Tooling"]},
+            {"filename": "04 Gameplay Systems.md", "title": "Gameplay Systems", "type": "gameplay_systems", "outline": ["Units and actors", "Input", "AI and state machines", "Pathfinding", "Task queues", "Resources"]},
+            {"filename": "05 Content and Level Design.md", "title": "Content and Level Design", "type": "level_design", "outline": ["Content types", "Level structure", "Progression", "Authoring workflow", "Replayability"]},
+            {"filename": "06 Art Audio UI Pipeline.md", "title": "Art Audio UI Pipeline", "type": "asset_pipeline", "outline": ["Art style", "Animation", "Audio", "UI screens", "Asset production"]},
+            {"filename": "07 Production Plan.md", "title": "Production Plan", "type": "production_plan", "outline": ["Milestones", "Implementation slices", "Dependencies", "Validation checkpoints", "Definition of done"]},
+            {"filename": "08 Testing and Balancing.md", "title": "Testing and Balancing", "type": "balancing", "outline": ["Playtest plan", "Balance levers", "Debug tools", "Performance targets", "Regression checks"]},
+            {"filename": "09 Risks and Open Questions.md", "title": "Risks and Open Questions", "type": "risk", "outline": ["Hidden complexity", "Engine risks", "Scope risks", "Unknowns", "Mitigations"]},
+        ],
+        "relationships": [
+            ("scope", "game_overview", "depends_on", "Scope is derived from the game overview"),
+            ("gameplay_loop", "scope", "depends_on", "The loop must fit the MVP scope"),
+            ("game_architecture", "scope", "depends_on", "Architecture follows scope and engine assumptions"),
+            ("gameplay_systems", "gameplay_loop", "depends_on", "Systems implement the core loop"),
+            ("gameplay_systems", "game_architecture", "depends_on", "Systems must match the architecture"),
+            ("level_design", "gameplay_systems", "depends_on", "Content depends on available systems"),
+            ("asset_pipeline", "game_overview", "supports", "Assets support the game direction"),
+            ("production_plan", "game_architecture", "depends_on", "Production follows architecture"),
+            ("production_plan", "gameplay_systems", "depends_on", "Production plans system complexity"),
+            ("balancing", "gameplay_loop", "depends_on", "Balancing validates the gameplay loop"),
+            ("risk", "scope", "relates_to", "Risks can reshape scope"),
+            ("risk", "gameplay_systems", "relates_to", "Hidden system complexity is tracked as risk"),
         ],
     },
 }
@@ -213,6 +259,21 @@ class ProjectPlanRequest(BaseModel):
     title: str
     description: str = ""
     kind: str = "software"
+    generate_content: bool = False
+    approved_concept: str = ""
+    concept_approved: bool = False
+
+
+class ProjectDescriptionImproveRequest(BaseModel):
+    title: str = ""
+    description: str = ""
+    kind: str = "software"
+
+
+class GameDevConceptDraftRequest(BaseModel):
+    title: str = ""
+    description: str = ""
+    kind: str = "game_dev"
 
 
 class ProjectPlanApplyRequest(BaseModel):
@@ -300,6 +361,7 @@ def build_project_plan(
     if not title:
         raise ProjectPlanValidationError("Project title is required")
     kind = normalize_project_kind(request.kind)
+    summary = _project_summary_from_request(request, kind)
     slug = slugify_project(title)
     target_folder = normalize_project_target_folder(request.target_folder, slug)
     created = (today or date.today()).isoformat()
@@ -325,7 +387,7 @@ def build_project_plan(
             title=spec["title"],
             project_title=title,
             project_slug=slug,
-            description=request.description,
+            description=summary,
             doc_type=spec["type"],
             created=created,
             tags=tags,
@@ -348,7 +410,7 @@ def build_project_plan(
     new_tags = _new_tags_for(files, existing_tags)
     plan = ProjectPlan(
         target_folder=target_folder,
-        project=ProjectSpec(title=title, slug=slug, kind=kind, summary=request.description.strip()),
+        project=ProjectSpec(title=title, slug=slug, kind=kind, summary=summary),
         files=files,
         relationships=relationships,
         new_tags=new_tags,
@@ -357,6 +419,19 @@ def build_project_plan(
         questions=[],
     )
     return validate_project_plan(vault_dir, plan, collect_conflicts=True)
+
+
+def _project_summary_from_request(request: ProjectPlanRequest, kind: str) -> str:
+    approved = request.approved_concept.strip()
+    if kind == "game_dev" and request.concept_approved and approved:
+        return approved
+    return request.description.strip()
+
+
+def validate_gamedev_concept_gate(request: ProjectPlanRequest) -> None:
+    if request.generate_content and normalize_project_kind(request.kind) == "game_dev":
+        if not request.concept_approved or not request.approved_concept.strip():
+            raise ProjectPlanValidationError("GameDev requires an approved concept draft before creating the plan")
 
 
 def validate_project_plan(
@@ -476,6 +551,346 @@ def apply_project_plan(vault_dir: str, plan: ProjectPlan) -> Dict[str, Any]:
             "edges": len(graph["edges"]),
         },
     }
+
+
+LLMCall = Callable[..., Awaitable[str]]
+
+
+async def improve_project_description_with_ai(
+    request: ProjectDescriptionImproveRequest,
+    *,
+    llm_call: LLMCall,
+) -> str:
+    title = request.title.strip() or "Unbenanntes Projekt"
+    kind = normalize_project_kind(request.kind)
+    raw_description = request.description.strip()
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Du verbesserst Projektbeschreibungen fuer ein Obsidian Project Planning Tool. "
+                "Antworte nur mit dem verbesserten Projektkontext, ohne Markdown-Codeblock, ohne Vorrede. "
+                "Erhalte die Sprache des Nutzers. Erfinde keine Fakten, Quellen oder Anforderungen."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Projektart: {PROJECT_TEMPLATES[kind]['label']}\n"
+                f"Projekttitel: {title}\n\n"
+                "Verbessere diesen Projektkontext so, dass daraus ein guter, arbeitsfaehiger Projektplan "
+                "erstellt werden kann. Klaere Ziel, Rahmen, Zielgruppe, Ergebnis, Constraints, offene Fragen "
+                "und Qualitaetskriterien, aber markiere fehlende Informationen als offene Fragen.\n\n"
+                f"Eingabe:\n{raw_description or '(leer)'}"
+            ),
+        },
+    ]
+    improved = (await _call_llm(llm_call, messages, max_tokens=1400, temperature=0.25)).strip()
+    return _strip_markdown_fence(improved) or raw_description
+
+
+async def build_gamedev_concept_draft_with_ai(
+    request: GameDevConceptDraftRequest,
+    *,
+    llm_call: LLMCall,
+) -> Dict[str, Any]:
+    title = request.title.strip() or "Untitled Game"
+    raw_description = request.description.strip()
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You create an editable GameDev concept draft before a project structure is generated. "
+                "Write in English. Do not create files yet. Do not invent engine facts; mark assumptions and verification tasks. "
+                "Be practical and scope-aware. Explicitly call out hidden complexity and production risks."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Game title: {title}\n\n"
+                f"User prompt:\n{raw_description or '(empty)'}\n\n"
+                "Create a concept draft with these sections:\n"
+                "1. Game concept\n"
+                "2. Genre, perspective, 2D/3D, target platform\n"
+                "3. Engine and tech assumptions\n"
+                "4. MVP scope and non-goals\n"
+                "5. Core gameplay loop\n"
+                "6. Major systems and hidden complexity\n"
+                "7. Production risks and mitigation\n"
+                "8. Open questions before implementation planning\n\n"
+                "For strategy games or games with units, explicitly discuss worker/unit complexity, pathfinding, task queues, AI states, "
+                "resource flows, selection/input, save/load, debug tools, and balancing where relevant."
+            ),
+        },
+    ]
+    draft = _strip_markdown_fence(await _call_llm(
+        llm_call,
+        messages,
+        max_tokens=2400,
+        temperature=0.3,
+    )).strip()
+    if not draft:
+        raise ProjectPlanValidationError("AI returned empty GameDev concept draft")
+    warnings = _gamedev_draft_warnings(draft)
+    return {"draft": draft, "warnings": warnings}
+
+
+async def generate_project_plan_content(
+    plan: ProjectPlan,
+    *,
+    llm_call: LLMCall,
+    max_attempts: int = 3,
+) -> ProjectPlan:
+    if normalize_project_kind(plan.project.kind) == "game_dev" and not plan.project.summary.strip():
+        raise ProjectPlanValidationError("GameDev requires an approved concept draft before AI content generation")
+    project_context = _initial_project_context(plan)
+    file_list = _project_file_list(plan)
+    warnings = list(plan.warnings)
+
+    for index, planned in enumerate(plan.files):
+        skeleton = planned.content or ""
+        generated = None
+        last_error = ""
+        for attempt in range(1, max_attempts + 1):
+            try:
+                messages = _file_generation_messages(
+                    plan=plan,
+                    planned=planned,
+                    file_index=index,
+                    file_list=file_list,
+                    project_context=project_context,
+                    skeleton=skeleton,
+                )
+                generated = _strip_markdown_fence(await _call_llm(
+                    llm_call,
+                    messages,
+                    max_tokens=3200,
+                    temperature=0.35,
+                )).strip()
+                if not generated:
+                    raise ProjectPlanValidationError("AI returned empty content")
+                planned.content = _ensure_project_markdown_contract(generated, planned, skeleton)
+                planned.content_preview = _content_preview(planned.content)
+                break
+            except Exception as exc:
+                last_error = str(exc)
+        else:
+            planned.content = skeleton
+            planned.content_preview = _content_preview(skeleton)
+            warning = f"AI generation failed for {planned.path} after {max_attempts} attempts"
+            if last_error:
+                warning = f"{warning}: {last_error}"
+            warnings.append(warning)
+            project_context = _append_failed_file_context(project_context, planned, warning)
+            continue
+
+        project_context = await _safe_update_project_context(
+            llm_call=llm_call,
+            previous_context=project_context,
+            planned=planned,
+            generated_content=planned.content,
+            plan=plan,
+        )
+
+    plan.warnings = sorted(set(warnings))
+    return plan
+
+
+async def _call_llm(
+    llm_call: LLMCall,
+    messages: List[Dict[str, str]],
+    *,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    result = llm_call(messages, max_tokens=max_tokens, temperature=temperature)
+    if inspect.isawaitable(result):
+        result = await result
+    return str(result or "")
+
+
+def _initial_project_context(plan: ProjectPlan) -> str:
+    return (
+        f"Projekt: {plan.project.title}\n"
+        f"Slug: {plan.project.slug}\n"
+        f"Projektart: {PROJECT_TEMPLATES[normalize_project_kind(plan.project.kind)]['label']}\n"
+        f"Ausgangskontext:\n{plan.project.summary.strip() or 'Keine Beschreibung angegeben.'}\n\n"
+        "Bisher generierte Dateien: noch keine.\n"
+        "Akkumulierte Entscheidungen, Begriffe und offene Fragen werden nach jeder Datei aktualisiert."
+    )
+
+
+def _project_file_list(plan: ProjectPlan) -> str:
+    lines = []
+    for idx, planned in enumerate(plan.files, start=1):
+        outline = ", ".join(planned.outline)
+        lines.append(f"{idx}. {planned.path} | Rolle: {planned.type} | Outline: {outline}")
+    return "\n".join(lines)
+
+
+def _gamedev_draft_warnings(draft: str) -> List[str]:
+    text = draft.lower()
+    checks = {
+        "MVP scope is not clearly mentioned": ("mvp", "scope"),
+        "Engine or tech stack assumptions are not clearly mentioned": ("engine", "tech"),
+        "Risks are not clearly mentioned": ("risk", "risks"),
+        "Open questions are not clearly mentioned": ("open question", "open questions"),
+    }
+    warnings = []
+    for warning, needles in checks.items():
+        if not any(needle in text for needle in needles):
+            warnings.append(warning)
+    return warnings
+
+
+def _file_generation_messages(
+    *,
+    plan: ProjectPlan,
+    planned: PlannedFile,
+    file_index: int,
+    file_list: str,
+    project_context: str,
+    skeleton: str,
+) -> List[Dict[str, str]]:
+    source_policy = (
+        "Erfinde keine Quellen, Studien, Autorinnen, URLs oder Gesetzes-/Bildungsplandetails. "
+        "Wenn echte Recherche noetig ist, schreibe klare To-dos, Suchbegriffe, Pruefkriterien und Platzhalter."
+    )
+    return [
+        {
+            "role": "system",
+            "content": (
+                "Du erzeugst eine einzelne Markdown-Datei fuer einen Obsidian-Projektordner. "
+                "Du arbeitest sequenziell: vorherige Dateien sind als akkumulierte Projektkontext-Zusammenfassung gegeben. "
+                "Antworte ausschliesslich mit dem vollstaendigen Markdown-Inhalt dieser Datei. "
+                "Keine Markdown-Codefences, keine Vorrede, keine Erklaerung ausserhalb der Datei. "
+                f"{source_policy}"
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Projekt: {plan.project.title}\n"
+                f"Projektart: {PROJECT_TEMPLATES[normalize_project_kind(plan.project.kind)]['label']}\n"
+                f"Zieldatei {file_index + 1} von {len(plan.files)}: {planned.path}\n"
+                f"Dateityp: {planned.type}\n"
+                f"Titel: {planned.title}\n"
+                f"Tags: {' '.join(planned.tags)}\n"
+                f"Links: {', '.join(planned.links) or '(keine)'}\n"
+                f"Outline: {', '.join(planned.outline)}\n\n"
+                "Komplette geplante Projektdateien:\n"
+                f"{file_list}\n\n"
+                "Akkumulierter Projektordner-Kontext aus vorherigen Dateien:\n"
+                f"{project_context}\n\n"
+                "Skeleton mit verpflichtender Struktur, Frontmatter, Links und Tags. "
+                "Behalte Frontmatter, Projektlinks und Tags bei, aber ersetze Platzhalter durch arbeitsfertige Inhalte:\n"
+                f"{skeleton}\n\n"
+                "Schreibe die Datei arbeitsfertig: konkrete Abschnitte, Listen, Entscheidungen, To-dos, offene Fragen. "
+                "Baue sinnvoll auf dem akkumulierten Kontext auf und widersprich frueheren Entscheidungen nicht."
+            ),
+        },
+    ]
+
+
+async def _update_project_context(
+    *,
+    llm_call: LLMCall,
+    previous_context: str,
+    planned: PlannedFile,
+    generated_content: str,
+    plan: ProjectPlan,
+) -> str:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Du pflegst eine kompakte Kontextzusammenfassung fuer eine sequenzielle Projektordner-Generierung. "
+                "Antworte nur mit der aktualisierten Zusammenfassung. Keine Codefences. "
+                "Halte sie kompakt, aber erhalte Entscheidungen, Begriffe, offene Fragen, Abhaengigkeiten und Details, "
+                "die spaetere Dateien brauchen."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Projekt: {plan.project.title}\n\n"
+                f"Bisherige Kontextzusammenfassung:\n{previous_context}\n\n"
+                f"Neu generierte Datei: {planned.path}\n"
+                f"Inhalt:\n{generated_content}\n\n"
+                "Aktualisiere die Projektordner-Kontextzusammenfassung fuer die naechste Datei."
+            ),
+        },
+    ]
+    updated = _strip_markdown_fence(await _call_llm(
+        llm_call,
+        messages,
+        max_tokens=1800,
+        temperature=0.2,
+    )).strip()
+    return _compact_text(updated or previous_context, limit=6000)
+
+
+async def _safe_update_project_context(
+    *,
+    llm_call: LLMCall,
+    previous_context: str,
+    planned: PlannedFile,
+    generated_content: str,
+    plan: ProjectPlan,
+) -> str:
+    try:
+        return await _update_project_context(
+            llm_call=llm_call,
+            previous_context=previous_context,
+            planned=planned,
+            generated_content=generated_content,
+            plan=plan,
+        )
+    except Exception:
+        return _compact_text(
+            f"{previous_context}\n\n"
+            f"Datei fertiggestellt: {planned.path}\n"
+            f"Kurzauszug fuer Folgedateien:\n{_content_preview(generated_content)}",
+            limit=6000,
+        )
+
+
+def _append_failed_file_context(project_context: str, planned: PlannedFile, warning: str) -> str:
+    return _compact_text(
+        f"{project_context}\n\nGenerierungswarnung fuer {planned.path}: {warning}\n"
+        "Diese Datei blieb beim Skeleton; spaetere Dateien sollen fehlende Details als offene Punkte markieren.",
+        limit=6000,
+    )
+
+
+def _ensure_project_markdown_contract(content: str, planned: PlannedFile, skeleton: str) -> str:
+    text = content.strip()
+    if not text.startswith("---"):
+        skeleton_frontmatter = _frontmatter_block(skeleton)
+        if skeleton_frontmatter:
+            text = f"{skeleton_frontmatter}\n\n{text}"
+    if not any(tag in text for tag in planned.tags):
+        text = f"{text.rstrip()}\n\nTags: {' '.join(planned.tags)}"
+    return text.rstrip() + "\n"
+
+
+def _frontmatter_block(markdown: str) -> str:
+    match = re.match(r"^(---\n.*?\n---)", markdown or "", flags=re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def _strip_markdown_fence(value: str) -> str:
+    text = str(value or "").strip()
+    match = re.match(r"^```(?:markdown|md)?\s*(.*?)\s*```$", text, flags=re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else text
+
+
+def _compact_text(value: str, *, limit: int) -> str:
+    text = re.sub(r"\n{3,}", "\n\n", str(value or "").strip())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit("\n", 1)[0].rstrip() + "\n\n[Kontext gekuerzt]"
 
 
 def render_project_markdown(

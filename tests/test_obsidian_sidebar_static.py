@@ -57,6 +57,31 @@ def test_obsidian_graph_current_node_click_returns_to_editor():
     assert "activateGraphNode(node.dataset.path);" in main_js
 
 
+def test_obsidian_file_tree_selects_and_renames_folders():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert "let selectedTreePath = null" in main_js
+    assert "let inlineRenamePath = null" in main_js
+    assert "function selectTreeItem(path)" in main_js
+    assert "selectedTreePath === node.path" in main_js
+    assert "function startInlineRenameFolder(path)" in main_js
+    assert "async function commitInlineRenameFolder(oldPath, nextName)" in main_js
+    assert "tree-rename-button" in main_js
+    assert "tree-rename-input" in main_js
+    assert "Rename selected folder" in main_js
+    assert "async function promptRenameSelectedItem()" in main_js
+    assert "startInlineRenameFolder(oldPath);" in main_js
+    assert "Renamed folder" in main_js
+    assert "e.key === 'F2'" in main_js
+    assert "e.key === 'Escape'" in main_js
+    assert "e.key === 'Enter'" in main_js
+    assert "document.getElementById('obsidian-rename-note')?.addEventListener('click', promptRenameSelectedItem)" in main_js
+    assert "Rename folder to:" not in main_js
+    assert ".tree-rename-button" in style
+    assert ".tree-rename-input" in style
+
+
 def test_obsidian_panel_and_sidebar_split_are_resizable():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
@@ -120,24 +145,43 @@ def test_obsidian_phase4_project_planning_ui_contract():
         'id="obsidian-project-title"',
         'id="obsidian-project-kind"',
         'id="obsidian-project-description"',
+        'id="obsidian-project-improve-description"',
         'id="obsidian-project-preview"',
         'id="obsidian-project-apply"',
+        'id="obsidian-project-gamedev-draft"',
         'id="obsidian-project-preview-panel"',
     ):
         assert marker in main_js
 
-    assert "function previewProjectPlan()" in main_js
+    assert "function previewProjectPlan({ conceptApproved = false, approvedConcept = '' } = {})" in main_js
+    assert "function improveProjectDescription()" in main_js
+    assert "function createGameDevDraft()" in main_js
+    assert "function renderGameDevDraftPanel(draftPayload)" in main_js
+    assert "function isGameDevProjectKind(kind)" in main_js
     assert "function applyProjectPlan()" in main_js
     assert "function renderProjectFolderOptions()" in main_js
     assert "function loadProjectTemplateOptions()" in main_js
     assert "NEW_PROJECT_FOLDER_SENTINEL" in main_js
-    assert "Neuen Projektordner anlegen" in main_js
+    assert "Create new project folder" in main_js
+    assert "Create plan" in main_js
+    assert "Creating plan and writing AI content sequentially" in main_js
+    assert "GameDev concept draft" in main_js
+    assert "Approve & create plan" in main_js
+    assert "Regenerate draft" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/preview'" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/improve-description'" in main_js
+    assert "fetch('/api/plugins/obsidian/project-plan/gamedev-draft'" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/apply'" in main_js
     assert "fetch('/api/plugins/obsidian/project-plan/templates')" in main_js
+    assert "generate_content: true" in main_js
+    assert "approved_concept: approvedConcept" in main_js
+    assert "concept_approved: conceptApproved" in main_js
     assert "Create this project structure in the vault?" in main_js
     assert "projectPlanPreview" in main_js
     assert "data-project-conflicts" in main_js
+    assert ".obsidian-project-ai-btn" in style
+    assert ".obsidian-project-gamedev-draft" in style
+    assert ".obsidian-gamedev-draft-text" in style
     assert "#obsidian-project-folder,\n#obsidian-project-title,\n#obsidian-project-kind" in style
     assert "min-height: 42px" in style
     assert ".obsidian-project-planner" in style
