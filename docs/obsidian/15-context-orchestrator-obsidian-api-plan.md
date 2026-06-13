@@ -229,7 +229,7 @@ Commit-Schnitt:
 
 ## Phase 6: Background Consolidation
 
-Status: umgesetzt. `src/consolidation_runner.py` fuehrt registrierte Plugin-Consolidation-Jobs fehlerisoliert aus. Chat-Abschluss triggert Jobs mit Capability `chat_completed`, sofern das Feature-Flag aktiv ist. Das Obsidian-Plugin registriert `obsidian.vault_consolidation` und schreibt nur einen nicht-destruktiven Report unter `.obsidian/consolidation_report.json`.
+Status: umgesetzt. `src/consolidation_runner.py` fuehrt registrierte Plugin-Consolidation-Jobs fehlerisoliert aus. Chat-Abschluss triggert Jobs mit Capability `chat_completed`, sofern das Feature-Flag aktiv ist. Ein periodischer Pass kann Jobs mit Capability `periodic` fuer einen oder mehrere Owner ausfuehren. Das Obsidian-Plugin registriert `obsidian.vault_consolidation` und schreibt nur einen nicht-destruktiven Report unter `.obsidian/consolidation_report.json`.
 
 Gedachtnispflege laeuft nicht im heissen Chat-Pfad, sondern asynchron.
 

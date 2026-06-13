@@ -60,7 +60,7 @@ def job_spec() -> Dict[str, Any]:
         "id": JOB_ID,
         "label": "Obsidian Vault Consolidation",
         "priority": 50,
-        "capabilities": ["chat_completed", "vault", "obsidian"],
+        "capabilities": ["chat_completed", "periodic", "vault", "obsidian"],
         "run": run_vault_consolidation,
     }
 

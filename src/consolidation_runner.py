@@ -50,6 +50,20 @@ async def run_consolidation_jobs(
     return results
 
 
+async def run_periodic_consolidation_pass(*, owners: Optional[List[str]] = None) -> List[ConsolidationRunResult]:
+    """Run one periodic consolidation pass for each owner, or default scope."""
+    targets = owners or [None]
+    all_results: List[ConsolidationRunResult] = []
+    for owner in targets:
+        all_results.extend(await run_consolidation_jobs(
+            owner=owner,
+            capability="periodic",
+            trigger="periodic",
+            context={},
+        ))
+    return all_results
+
+
 async def _run_one(
     job: ConsolidationJobSpec,
     *,

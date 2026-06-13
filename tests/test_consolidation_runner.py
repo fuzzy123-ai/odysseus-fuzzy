@@ -1,6 +1,6 @@
 import asyncio
 
-from src.consolidation_runner import run_consolidation_jobs
+from src.consolidation_runner import run_consolidation_jobs, run_periodic_consolidation_pass
 from src.plugin_system import register_consolidation_job, unregister_consolidation_job
 
 
@@ -90,3 +90,18 @@ def test_runner_supports_async_jobs_and_context_kwargs():
 
     assert results[0].ok is True
     assert results[0].result == {"owner": "alice", "trigger": "chat.completed", "session": "s1"}
+
+
+def test_periodic_pass_runs_periodic_jobs_for_each_owner():
+    calls = []
+    register_consolidation_job({
+        "id": "demo.low",
+        "label": "Periodic",
+        "capabilities": ["periodic"],
+        "run": lambda owner=None, trigger=None, context=None: calls.append((owner, trigger, context)) or {"ok": True},
+    })
+
+    results = asyncio.run(run_periodic_consolidation_pass(owners=["alice", "bob"]))
+
+    assert [result.job_id for result in results] == ["demo.low", "demo.low"]
+    assert calls == [("alice", "periodic", {}), ("bob", "periodic", {})]
