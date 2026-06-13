@@ -22,7 +22,9 @@ from src.context_compactor import (
     COMPACT_THRESHOLD,
     SELF_SUMMARY_SYSTEM_PROMPT,
     SUMMARY_MAX_TOKENS,
+    TASK_STATE_HEADER,
     _content_as_text,
+    build_task_state_message,
     maybe_compact,
     trim_for_context,
 )
@@ -60,6 +62,38 @@ class TestSelfSummaryPrompt:
 
     def test_mentions_compactions(self):
         assert "Compactions so far" in SELF_SUMMARY_SYSTEM_PROMPT
+
+
+class TestPersistentTaskState:
+    def test_builds_task_state_from_summary_sections(self):
+        summary = """## Conversation Summary
+### User Goal
+Ship the context orchestrator roadmap.
+
+### What Was Done
+- Added provider API
+- Registered Obsidian provider
+
+### Current State
+Working on compaction.
+
+### Pending / Next Steps
+- Wire task state into history
+
+### Key Context
+- Core must not import Obsidian
+- Keep commits focused
+"""
+
+        msg = build_task_state_message(summary)
+
+        assert msg["role"] == "system"
+        assert msg["metadata"] == {"task_state": True}
+        assert msg["content"].startswith(TASK_STATE_HEADER)
+        assert "CURRENT_TASK: Ship the context orchestrator roadmap." in msg["content"]
+        assert "- Added provider API" in msg["content"]
+        assert "- Core must not import Obsidian" in msg["content"]
+        assert "- Wire task state into history" in msg["content"]
 
 
 class TestTrimForContext:
@@ -183,6 +217,11 @@ class TestMaybeCompactFourthMessage:
             m.get("role") == "system" and "compact summary text" in (m.get("content") or "")
             for m in compacted_messages
         )
+        assert any(
+            m.get("role") == "system" and TASK_STATE_HEADER in (m.get("content") or "")
+            for m in compacted_messages
+        )
+        assert compacted_messages[-1]["content"] == "turn 4 — previously broke here"
 
     def test_handles_multimodal_list_content(self):
         messages = self._four_turn_history_with_tool_call()

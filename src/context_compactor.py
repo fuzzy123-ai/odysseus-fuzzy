@@ -39,6 +39,7 @@ def _content_as_text(content: Any) -> str:
 COMPACT_THRESHOLD = 0.85  # Trigger compaction at 85% of context window
 SUMMARY_MAX_TOKENS = 1024
 SMALL_CONTEXT_LIMIT = 8192  # Models with context <= this get aggressive trimming
+TASK_STATE_HEADER = "[Persistent task state]"
 
 # Cursor-style self-summarization prompt — produces structured, dense summaries
 SELF_SUMMARY_SYSTEM_PROMPT = """You are summarizing a conversation to preserve context after compaction. Produce a structured summary that lets the conversation continue seamlessly.
@@ -68,6 +69,70 @@ What is the system/code/task state right now? What was the last thing discussed?
 - Specific values: model names, ports, paths, credentials references, versions
 
 Keep the summary under 1000 tokens. Be dense — every token should carry information. Do not include pleasantries or meta-commentary."""
+
+
+def build_task_state_message(summary: str, recent_messages: Optional[List[Dict]] = None) -> Dict[str, Any]:
+    """Build a compact persistent task-state system block from a summary."""
+    recent_messages = recent_messages or []
+    state = {
+        "CURRENT_TASK": _first_section_line(summary, "User Goal") or _latest_user_text(recent_messages) or "unknown",
+        "COMPLETED_STEPS": _section_bullets(summary, "What Was Done") or ["none recorded"],
+        "KNOWN_CONSTRAINTS": _section_bullets(summary, "Key Context") or ["none recorded"],
+        "OPEN_QUESTIONS": _section_bullets(summary, "Pending / Next Steps") or ["none recorded"],
+    }
+    content = (
+        f"{TASK_STATE_HEADER}\n"
+        "CURRENT_TASK: " + state["CURRENT_TASK"] + "\n"
+        "COMPLETED_STEPS:\n" + _format_bullets(state["COMPLETED_STEPS"]) + "\n"
+        "KNOWN_CONSTRAINTS:\n" + _format_bullets(state["KNOWN_CONSTRAINTS"]) + "\n"
+        "OPEN_QUESTIONS:\n" + _format_bullets(state["OPEN_QUESTIONS"])
+    )
+    return {"role": "system", "content": content, "metadata": {"task_state": True}}
+
+
+def _section_text(text: str, heading: str) -> str:
+    marker = f"### {heading}"
+    raw = str(text or "")
+    start = raw.find(marker)
+    if start == -1:
+        return ""
+    start += len(marker)
+    end = raw.find("\n### ", start)
+    return raw[start:end if end != -1 else len(raw)].strip()
+
+
+def _first_section_line(text: str, heading: str) -> str:
+    for line in _section_text(text, heading).splitlines():
+        stripped = line.strip().strip("-*").strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def _section_bullets(text: str, heading: str) -> List[str]:
+    bullets = []
+    for line in _section_text(text, heading).splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("-", "*")):
+            value = stripped[1:].strip()
+            if value:
+                bullets.append(value)
+    if not bullets:
+        fallback = _first_section_line(text, heading)
+        if fallback:
+            bullets.append(fallback)
+    return bullets[:8]
+
+
+def _latest_user_text(messages: List[Dict]) -> str:
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            return _content_as_text(msg.get("content")).strip()[:500]
+    return ""
+
+
+def _format_bullets(items: List[str]) -> str:
+    return "\n".join(f"- {item}" for item in items)
 
 
 def _sanitize_tool_messages(msgs: List[Dict]) -> List[Dict]:
@@ -390,15 +455,22 @@ async def maybe_compact(
         "role": "system",
         "content": f"[Conversation summary — earlier messages were compacted]\n{summary}",
     }
+    task_state_msg = build_task_state_message(summary, recent)
 
-    compacted = system_msgs + [summary_msg] + recent
+    compacted = system_msgs + [summary_msg, task_state_msg] + recent
 
     # Update session history to match. Pass len(system_msgs) so the
     # recent_history slice in _update_session_history uses the correct
     # offset — session.history INCLUDES the system messages, but
     # split_point is indexed against convo_msgs which does NOT. Without
     # this, the slice drops the leading system message(s).
-    _update_session_history(session, split_point, summary, system_msg_count=len(system_msgs))
+    _update_session_history(
+        session,
+        split_point,
+        summary,
+        system_msg_count=len(system_msgs),
+        recent_messages=recent,
+    )
 
     new_used = estimate_tokens(compacted)
     logger.info(
@@ -410,7 +482,8 @@ async def maybe_compact(
 
 
 def _update_session_history(session, split_point: int, summary: str,
-                            system_msg_count: int = 0):
+                            system_msg_count: int = 0,
+                            recent_messages: Optional[List[Dict]] = None):
     """Update the in-memory session history after compaction.
 
     `split_point` is the index in `convo_msgs` (system-stripped). The
@@ -436,7 +509,13 @@ def _update_session_history(session, split_point: int, summary: str,
         content=f"[Conversation summary]\n{summary}",
         metadata={"compacted": True, "summarized_count": split_point},
     )
-    new_history = system_prefix + [summary_msg] + recent_history
+    task_state_payload = build_task_state_message(summary, recent_messages or recent_history)
+    task_state_msg = ChatMessage(
+        role="system",
+        content=task_state_payload["content"],
+        metadata={"task_state": True},
+    )
+    new_history = system_prefix + [summary_msg, task_state_msg] + recent_history
     try:
         from core import models as _core_models
         manager = getattr(_core_models, "_session_manager", None)
