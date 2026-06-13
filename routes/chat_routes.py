@@ -453,6 +453,7 @@ def setup_chat_routes(
         compare_mode = str(form_data.get("compare_mode", "")).lower() == "true"
         incognito = str(form_data.get("incognito", "")).lower() == "true"
         plan_mode = str(form_data.get("plan_mode", "")).lower() == "true"
+        orchestrator_mode = str(form_data.get("orchestrator_mode", "")).lower() == "true"
         chat_mode = str(form_data.get("mode", "")).lower()  # 'chat' or 'agent'
         # Workspace: confine the agent's file/shell tools to this folder. Validate
         # it's a real directory; ignore (no confinement) otherwise.
@@ -462,6 +463,9 @@ def setup_chat_routes(
             workspace = _ws_real if os.path.isdir(_ws_real) else ""
         # Plan mode is a modifier on agent mode — it only makes sense with tools.
         if plan_mode:
+            chat_mode = "agent"
+            orchestrator_mode = False
+        if orchestrator_mode:
             chat_mode = "agent"
         # An approved plan being EXECUTED: the frontend sends the checklist back
         # on each turn so we can pin it in context. This way a long plan on a
@@ -739,6 +743,7 @@ def setup_chat_routes(
         tool_policy = build_effective_tool_policy(
             disabled_tools=disabled_tools,
             last_user_message=message,
+            orchestrator_mode=orchestrator_mode,
         )
         disabled_tools = tool_policy.all_disabled_names()
         research_blocked_by_policy = bool(
@@ -1140,6 +1145,7 @@ def setup_chat_routes(
                         fallbacks=_fallback_candidates,
                         workspace=workspace or None,
                         plan_mode=plan_mode,
+                        orchestrator_mode=orchestrator_mode,
                         approved_plan=approved_plan or None,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):

@@ -84,6 +84,22 @@ PLAN_MODE_READONLY_TOOLS = {
     "ask_teacher",
 }
 
+ORCHESTRATOR_MODE_ALLOWED_TOOLS = {
+    "delegate",
+    "obsidian_read_note",
+    "obsidian_write_note",
+    "obsidian_search_notes",
+    "obsidian_graph",
+    "read_file",
+    "grep",
+    "glob",
+    "ls",
+    "web_search",
+    "web_fetch",
+    "search_chats",
+    "list_models",
+}
+
 
 # The agent's tool gate is a DENYLIST: execute_tool_block blocks any tool whose
 # name is in `disabled_tools`. Plan mode's policy is the opposite — an allowlist
@@ -150,6 +166,36 @@ def plan_mode_disabled_tools() -> Set[str]:
     # static mutator backstop). Fail closed: if the schema import failed above,
     # the backstop alone still blocks known mutators.
     return (all_names | _PLAN_MODE_KNOWN_MUTATORS) - PLAN_MODE_READONLY_TOOLS
+
+
+def orchestrator_mode_disabled_tools() -> Set[str]:
+    """Tool names to add to the denylist in orchestrator mode.
+
+    Orchestrator mode is an allowlist: the top-level agent may inspect context,
+    update the Obsidian state doc, and delegate work, but it may not directly
+    mutate host files, run shell commands, call broad app APIs, or use arbitrary
+    plugin/MCP tools. Unknown future tools default to blocked once known by the
+    schema/registry discovery path.
+    """
+    try:
+        import src.agent_tools  # noqa: F401
+        from src.tool_schemas import FUNCTION_TOOL_SCHEMAS
+
+        all_names = {
+            (t.get("function") or {}).get("name")
+            for t in FUNCTION_TOOL_SCHEMAS
+        }
+        all_names.discard(None)
+        try:
+            from src.tool_registry import tool_names
+
+            all_names.update(tool_names())
+        except Exception:
+            pass
+    except Exception as exc:
+        logger.warning("Unable to load tool schemas for orchestrator-mode gating: %s", exc)
+        all_names = set()
+    return (all_names | _PLAN_MODE_KNOWN_MUTATORS) - ORCHESTRATOR_MODE_ALLOWED_TOOLS
 
 
 def is_public_blocked_tool(tool_name: Optional[str]) -> bool:

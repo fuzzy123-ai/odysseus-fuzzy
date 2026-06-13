@@ -76,6 +76,27 @@ def test_normal_policy_preserves_existing_disabled_tools():
     assert not policy.blocks("bash")
 
 
+def test_orchestrator_policy_allows_delegate_and_context_tools():
+    policy = build_effective_tool_policy(
+        last_user_message="Run this as an orchestrator.",
+        orchestrator_mode=True,
+    )
+    assert policy.mode == "orchestrator"
+    assert policy.disable_mcp is True
+    for tool in ("delegate", "obsidian_read_note", "obsidian_write_note", "obsidian_search_notes", "obsidian_graph"):
+        assert not policy.blocks(tool)
+
+
+def test_orchestrator_policy_blocks_mutating_host_tools():
+    policy = build_effective_tool_policy(
+        last_user_message="Run this as an orchestrator.",
+        orchestrator_mode=True,
+    )
+    for tool in ("bash", "python", "write_file", "edit_file", "app_api", "manage_calendar"):
+        assert policy.blocks(tool)
+        assert "orchestrator mode" in policy.reason_for(tool)
+
+
 def test_executor_policy_backstop_blocks_tools():
     policy = build_effective_tool_policy(last_user_message="Do not use tools.")
     desc, result = asyncio.run(

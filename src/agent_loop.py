@@ -19,7 +19,7 @@ from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native
 from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.prompt_security import untrusted_context_message
-from src.tool_security import blocked_tools_for_owner, plan_mode_disabled_tools
+from src.tool_security import blocked_tools_for_owner, orchestrator_mode_disabled_tools, plan_mode_disabled_tools
 from src.tool_policy import GUIDE_ONLY_DIRECTIVE, ToolPolicy
 from src.agent_tools import (
     parse_tool_blocks,
@@ -1448,6 +1448,16 @@ PLAN_MODE_DIRECTIVE = (
     "is finished. End your turn with the checklist."
 )
 
+ORCHESTRATOR_MODE_DIRECTIVE = (
+    "## ORCHESTRATOR MODE\n"
+    "You are the top-level orchestrator for this run. Keep durable progress in "
+    "the Obsidian state doc when available, inspect only the context needed to "
+    "route work, and use `delegate` for focused worker tasks. Do not directly "
+    "edit host files, run shell commands, call broad app APIs, or perform the "
+    "worker's implementation work yourself. Summarize delegated results and "
+    "choose the next orchestration step."
+)
+
 
 def build_active_plan_note(approved_plan: str) -> str:
     """System note that pins an approved plan during execution.
@@ -1525,6 +1535,34 @@ def _detect_runaway_call(call_freq, threshold=15):
     return sig.split(":", 1)[0] if sig else None
 
 
+def _ensure_orchestrator_state_doc(*, owner: Optional[str], session_id: Optional[str], goal: str) -> None:
+    try:
+        from plugins.obsidian.backend import state_doc, vault_service
+        from plugins.obsidian.backend.vault_security import VaultSecurityError
+
+        try:
+            vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
+        except VaultSecurityError:
+            return
+        if state_doc.read_state_doc(vault_dir) is None:
+            state_doc.initialize_state_doc(
+                vault_dir,
+                owner=owner,
+                session_id=session_id,
+                goal=goal,
+                checklist=["Delegate focused work.", "Review worker result.", "Choose next step."],
+            )
+        else:
+            state_doc.append_step_entry(
+                vault_dir,
+                owner=owner,
+                entry="Orchestrator run resumed.",
+                status="active",
+            )
+    except Exception:
+        logger.debug("[orchestrator] state-doc initialization skipped", exc_info=True)
+
+
 async def stream_agent_loop(
     endpoint_url: str,
     model: str,
@@ -1544,6 +1582,7 @@ async def stream_agent_loop(
     fallbacks: Optional[List[tuple]] = None,
     workspace: Optional[str] = None,
     plan_mode: bool = False,
+    orchestrator_mode: bool = False,
     approved_plan: Optional[str] = None,
     tool_policy: Optional[ToolPolicy] = None,
     _is_teacher_run: bool = False,
@@ -1580,10 +1619,15 @@ async def stream_agent_loop(
         # the loop is safe regardless of caller. MCP stays available but is
         # filtered to read-only tools below (after the disabled map is loaded).
         disabled_tools.update(plan_mode_disabled_tools())
+    if orchestrator_mode:
+        disabled_tools.update(orchestrator_mode_disabled_tools())
+        mcp_mgr = None
 
     _t0 = time.time()
     _needs_admin = _detect_admin_intent(messages)
     _last_user = _extract_last_user_message(messages)
+    if orchestrator_mode:
+        _ensure_orchestrator_state_doc(owner=owner, session_id=session_id, goal=_last_user)
     # Tool retrieval keys on recent conversation context (last few user turns),
     # not just the latest message, so short follow-ups don't drop just-used tools.
     _retrieval_query = _recent_context_for_retrieval(messages) or _last_user
@@ -1770,6 +1814,11 @@ async def stream_agent_loop(
             messages[0]["content"] = PLAN_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": PLAN_MODE_DIRECTIVE})
+    elif orchestrator_mode and not guide_only:
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = ORCHESTRATOR_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
+        else:
+            messages.insert(0, {"role": "system", "content": ORCHESTRATOR_MODE_DIRECTIVE})
     elif approved_plan and approved_plan.strip() and not guide_only:
         # EXECUTING an approved plan. Pin the checklist as a top-of-context
         # system note so a long plan on a weak model survives history
@@ -2450,6 +2499,10 @@ async def stream_agent_loop(
                             owner=owner,
                             progress_cb=_push_progress,
                             workspace=workspace,
+                            endpoint_url=endpoint_url,
+                            model=model,
+                            headers=headers or {},
+                            context_length=context_length,
                         )
                     finally:
                         # Sentinel so the drainer knows to stop.

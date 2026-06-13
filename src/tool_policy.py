@@ -30,6 +30,7 @@ _COMMON_TOOL_NAMES = {
     "chat_with_model",
     "create_document",
     "create_session",
+    "delegate",
     "delete_email",
     "download_model",
     "edit_document",
@@ -86,6 +87,10 @@ _COMMON_TOOL_NAMES = {
     "web_fetch",
     "web_search",
     "write_file",
+    "obsidian_read_note",
+    "obsidian_write_note",
+    "obsidian_search_notes",
+    "obsidian_graph",
 }
 
 
@@ -181,6 +186,7 @@ def build_effective_tool_policy(
     *,
     disabled_tools: Optional[Iterable[str]] = None,
     last_user_message: object = "",
+    orchestrator_mode: bool = False,
 ) -> ToolPolicy:
     """Compose the effective policy for one agent turn.
 
@@ -205,6 +211,29 @@ def build_effective_tool_policy(
             reasons=MappingProxyType(dict(reasons)),
             mode="guide_only",
             block_all_tool_calls=True,
+            disable_mcp=True,
+        )
+
+    if orchestrator_mode:
+        try:
+            from src.tool_security import orchestrator_mode_disabled_tools
+
+            orch_disabled = orchestrator_mode_disabled_tools()
+        except Exception:
+            orch_disabled = known_tool_names() - {
+                "delegate",
+                "obsidian_read_note",
+                "obsidian_write_note",
+                "obsidian_search_notes",
+                "obsidian_graph",
+            }
+        disabled.update(orch_disabled)
+        reasons.update({tool: "Tool is disabled in orchestrator mode." for tool in orch_disabled})
+        return ToolPolicy(
+            disabled_tools=frozenset(disabled),
+            hidden_tools=frozenset(hidden),
+            reasons=MappingProxyType(dict(reasons)),
+            mode="orchestrator",
             disable_mcp=True,
         )
 

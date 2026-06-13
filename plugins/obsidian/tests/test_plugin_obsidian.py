@@ -20,6 +20,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 
 import backend.routes as obsidian_routes
 from backend import vault_service
+from backend import state_doc
 from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidation
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
@@ -120,9 +121,56 @@ def test_vault_watch_signature_changes_when_file_changes():
 
         second = obsidian_routes._vault_watch_signature(tmpdir)
 
-    assert first != second
-    assert [entry[0] for entry in second[1]] == ["note.md"]
-    assert second[1][0][2] == len(content)
+        assert first != second
+        assert [entry[0] for entry in second[1]] == ["note.md"]
+        assert second[1][0][2] == len(content)
+
+
+def test_state_doc_initialize_read_and_append_entries():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        doc = state_doc.initialize_state_doc(
+            tmpdir,
+            owner="alice",
+            session_id="sess-1",
+            goal="Ship orchestrator foundation.",
+            checklist=["Create state doc", "Delegate worker task"],
+            open_questions=["How much context is enough?"],
+        )
+
+        assert doc.path == state_doc.STATE_DOC_PATH
+        assert doc.frontmatter["status"] == "active"
+        assert doc.frontmatter["owner"] == "alice"
+        assert doc.frontmatter["session_id"] == "sess-1"
+        assert "## Goal" in doc.body
+        assert "- [ ] Create state doc" in doc.body
+
+        state_doc.append_step_entry(tmpdir, owner="alice", entry="State doc created.", status="done")
+        updated = state_doc.append_delegation_entry(
+            tmpdir,
+            owner="alice",
+            task="Inspect delegate interface.",
+            status="done",
+            summary="Interface is compact.",
+        )
+
+        assert "[done] State doc created." in updated.body
+        assert "[done] Inspect delegate interface." in updated.body
+        assert "Summary: Interface is compact." in updated.body
+
+
+def test_state_doc_status_validation_and_update():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_doc.initialize_state_doc(
+            tmpdir,
+            owner=None,
+            session_id=None,
+            goal="Test status updates.",
+        )
+        done = state_doc.update_state_doc_status(tmpdir, owner=None, status="done")
+        assert done.frontmatter["status"] == "done"
+
+        with pytest.raises(ValueError):
+            state_doc.update_state_doc_status(tmpdir, owner=None, status="paused")
 
 
 @pytest.mark.asyncio

@@ -44,6 +44,22 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "delegate",
+            "description": "Delegate a focused subtask to an isolated worker agent. The worker receives bounded provider context and returns a compact JSON result; it does not mutate host files or keep conversation history.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "The concrete subtask for the worker agent."},
+                    "context_query": {"type": "string", "description": "Optional query used to preload relevant provider context."},
+                    "budget": {"type": "integer", "description": "Approximate provider-context token budget for the worker."}
+                },
+                "required": ["task"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "bash",
             "description": "Run a shell command (full access)",
             "parameters": {
@@ -1393,6 +1409,8 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         content = json.dumps(args)
     elif tool_type == "ask_teacher":
         content = args.get("model", "auto") + "\n" + args.get("problem", "")
+    elif tool_type == "delegate":
+        content = json.dumps(args)
     else:
         content = json.dumps(args)
 

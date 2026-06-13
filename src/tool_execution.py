@@ -1132,6 +1132,10 @@ async def execute_tool_block(
     owner: Optional[str] = None,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
     workspace: Optional[str] = None,
+    endpoint_url: Optional[str] = None,
+    model: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+    context_length: int = 0,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -1336,6 +1340,19 @@ async def execute_tool_block(
         desc = f"{tool}: {first_line}"
         result = await _direct_fallback(tool, content, progress_cb=progress_cb, workspace=workspace) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
+    elif tool == "delegate":
+        from src.delegate_tool import do_delegate
+
+        desc = "delegate"
+        result = await do_delegate(
+            content,
+            endpoint_url=endpoint_url,
+            model=model,
+            headers=headers,
+            owner=owner,
+            session_id=session_id,
+            context_length=context_length,
+        )
     elif tool == "create_document":
         title = content.split("\n")[0].strip()[:60]
         desc = f"create_document: {title}"
