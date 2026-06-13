@@ -1474,6 +1474,42 @@ def build_active_plan_note(approved_plan: str) -> str:
     )
 
 
+def _inject_context_provider_messages(
+    messages: List[Dict],
+    *,
+    owner: Optional[str],
+    query: str,
+    context_length: int,
+    enabled: bool = True,
+) -> List[Dict]:
+    """Insert generic plugin provider context after the primary system prompt."""
+    if not enabled:
+        return messages
+    try:
+        from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
+
+        budget = split_context_budget(context_length or 4000)
+        payloads, warnings = preload_provider_context(
+            owner=owner,
+            query=query,
+            budget_tokens=budget.providers,
+            mode="agent",
+        )
+        injected = provider_messages(payloads)
+        if not injected:
+            for warning in warnings:
+                logger.warning("[agent] Context provider warning: %s", warning)
+            return messages
+        for warning in warnings:
+            logger.warning("[agent] Context provider warning: %s", warning)
+        if messages and messages[0].get("role") == "system":
+            return [messages[0]] + injected + messages[1:]
+        return injected + messages
+    except Exception as e:
+        logger.warning("[agent] Context provider preload skipped: %s", e)
+        return messages
+
+
 def _detect_runaway_call(call_freq, threshold=15):
     """Tool name of a call signature repeated >= ``threshold`` times — a real
     runaway loop. Counts IDENTICAL repeated calls (same tool AND args), so a
@@ -1692,6 +1728,13 @@ async def stream_agent_loop(
         compact=_is_api_model,
         owner=owner,
         suppress_local_context=guide_only,
+    )
+    messages = _inject_context_provider_messages(
+        messages,
+        owner=owner,
+        query=_retrieval_query or _last_user or "",
+        context_length=context_length,
+        enabled=not guide_only,
     )
     if workspace and not guide_only:
         # PREPEND (not append) so it dominates the large base prompt — appended

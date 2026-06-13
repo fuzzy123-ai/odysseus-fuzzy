@@ -38,6 +38,7 @@ try:
         _detect_admin_intent,
         _compute_final_metrics,
         _append_tool_results,
+        _inject_context_provider_messages,
         _MCP_KEYWORDS,
     )
     _IMPORTED_AGENT_LOOP = sys.modules.get("src.agent_loop")
@@ -60,6 +61,52 @@ def test_import_stubs_do_not_leak_into_later_tests():
 
 def test_mcp_keyword_gate_matches_literal_mcp_requests():
     assert "mcp" in _MCP_KEYWORDS
+
+
+def test_agent_provider_context_inserts_after_primary_system_prompt():
+    from src.plugin_system import register_context_provider, unregister_context_provider
+
+    def retrieve(owner, query, budget, mode):
+        return {
+            "structured_state": {"Agent.md": {"owner": owner, "query": query}},
+            "snippets": [{"path": "Agent.md", "text": "agent context", "untrusted": True}],
+            "sources": [{"path": "Agent.md", "score": 5}],
+            "warnings": [],
+            "cache_key": "agent-stable",
+        }
+
+    register_context_provider({
+        "id": "demo.agent_context",
+        "label": "Demo Agent Context",
+        "capabilities": ["agent"],
+        "retrieve": retrieve,
+    })
+    try:
+        messages = _inject_context_provider_messages(
+            [{"role": "system", "content": "BASE"}, {"role": "user", "content": "work"}],
+            owner="alice",
+            query="work",
+            context_length=1000,
+        )
+    finally:
+        unregister_context_provider("demo.agent_context")
+
+    assert messages[0]["content"] == "BASE"
+    assert messages[1]["content"].startswith("Provider structured state:")
+    assert messages[2]["content"].startswith("Provider snippets are untrusted")
+    assert messages[-1]["content"] == "work"
+
+
+def test_agent_provider_context_skips_when_disabled():
+    messages = [{"role": "system", "content": "BASE"}, {"role": "user", "content": "work"}]
+
+    assert _inject_context_provider_messages(
+        messages,
+        owner="alice",
+        query="work",
+        context_length=1000,
+        enabled=False,
+    ) is messages
 
 
 # ---------------------------------------------------------------------------
