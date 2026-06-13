@@ -1,6 +1,5 @@
 import os
 import json
-import re
 import sys
 import base64
 from typing import Optional
@@ -52,6 +51,7 @@ try:
         load_manual_relationships,
         remove_manual_relationship,
     )
+    from obsidian.backend import vault_service
 except ModuleNotFoundError:
     from backend.routes import _undo_entry, router
     from backend.project_planning import (
@@ -95,6 +95,7 @@ except ModuleNotFoundError:
         load_manual_relationships,
         remove_manual_relationship,
     )
+    from backend import vault_service
 
 # Metadata manifest required by plugin loader
 PLUGIN = {
@@ -113,30 +114,14 @@ PLUGIN = {
 # --- Vault Path Helpers for Agent Tools ---
 def get_vault_path_by_owner(owner: Optional[str]) -> str:
     """Resolve vault path by owner username."""
-    from src.constants import DATA_DIR
-    folder_name = owner if owner else "default"
-    configured_vault = os.getenv("OBSIDIAN_VAULT_DIR", "").strip()
-    if configured_vault:
-        vault_template = configured_vault.format(owner=folder_name)
-        vault_dir = os.path.abspath(os.path.expanduser(vault_template))
-    else:
-        vault_dir = os.path.abspath(os.path.join(DATA_DIR, "obsidian_vaults", folder_name))
-        os.makedirs(vault_dir, exist_ok=True)
-    return vault_dir
+    return vault_service.vault_path_for_owner(owner)
 
 def secure_path(vault_dir: str, relative_path: str) -> str:
     """Ensure relative path is securely located within vault_dir."""
-    cleaned_rel = relative_path.replace("\\", "/").strip("/")
-    abs_vault = os.path.abspath(vault_dir)
-    abs_target = os.path.abspath(os.path.join(abs_vault, cleaned_rel))
-    if os.path.commonpath([abs_vault, abs_target]) != abs_vault:
-        raise ValueError("Path traversal attempt detected")
-    return abs_target
+    return vault_service.secure_path(vault_dir, relative_path)
 
 def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
-    old_path = os.path.abspath(abs_old)
-    new_path = os.path.abspath(abs_new)
-    return new_path == old_path or os.path.commonpath([old_path, new_path]) == old_path
+    return vault_service.is_self_or_descendant_move(abs_old, abs_new)
 
 def get_unlocked_vault_path_by_owner(owner: Optional[str]) -> str:
     vault_dir = get_vault_path_by_owner(owner)
@@ -144,10 +129,7 @@ def get_unlocked_vault_path_by_owner(owner: Optional[str]) -> str:
     return vault_dir
 
 def _read_text_if_exists(path: str) -> Optional[str]:
-    if not os.path.exists(path) or os.path.isdir(path):
-        return None
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        return f.read()
+    return vault_service.read_text_if_exists(path)
 
 
 def project_planning_llm_call(owner: Optional[str] = None):
@@ -192,42 +174,13 @@ def _confirmation_required(action: str) -> dict:
     }
 
 def _note_tree(dir_path: str, base_path: Optional[str] = None) -> list[dict]:
-    if base_path is None:
-        base_path = dir_path
-    tree = []
-    for entry in os.scandir(dir_path):
-        if entry.name == ".obsidian":
-            continue
-        rel_path = os.path.relpath(entry.path, base_path).replace("\\", "/")
-        if entry.is_dir():
-            tree.append({
-                "name": entry.name,
-                "path": rel_path,
-                "is_dir": True,
-                "children": _note_tree(entry.path, base_path),
-            })
-        else:
-            tree.append({
-                "name": entry.name,
-                "path": rel_path,
-                "is_dir": False,
-            })
-    tree.sort(key=lambda item: (not item["is_dir"], item["name"].lower()))
-    return tree
+    return vault_service.file_tree(base_path or dir_path, dir_path)
 
 async def handle_list_notes(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Lists all notes in the user's Obsidian vault."""
     try:
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        notes = []
-        for root, dirs, files in os.walk(vault_dir):
-            dirs[:] = [d for d in dirs if d != ".obsidian"]
-            for file in files:
-                if file.lower().endswith(".md"):
-                    abs_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(abs_path, vault_dir).replace("\\", "/")
-                    notes.append(rel_path)
-        notes.sort()
+        notes = vault_service.markdown_notes(vault_dir)
         if not notes:
             return {"output": "No notes found in the Obsidian vault.", "exit_code": 0}
         return {"output": "\n".join(notes), "exit_code": 0}
@@ -244,15 +197,7 @@ async def handle_read_note(content: str, owner: Optional[str] = None, **kwargs) 
             return {"error": "Path parameter is required.", "exit_code": 1}
             
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        abs_path = secure_path(vault_dir, path)
-        
-        if not os.path.exists(abs_path):
-            return {"error": f"Note not found: {path}", "exit_code": 1}
-        if os.path.isdir(abs_path):
-            return {"error": f"Path is a directory: {path}", "exit_code": 1}
-            
-        with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-            note_content = f.read()
+        note_content = vault_service.read_file(vault_dir, path)
         return {"output": note_content, "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to read note: {e}", "exit_code": 1}
@@ -281,19 +226,12 @@ async def handle_write_note(content: str, owner: Optional[str] = None, **kwargs)
         exists = os.path.exists(abs_path)
         if exists and not _is_confirmed(params):
             return _confirmation_required(f"overwriting {path}")
-        before_content = _read_text_if_exists(abs_path)
-        
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        with open(abs_path, "w", encoding="utf-8") as f:
-            f.write(note_content)
-        record_action(
+        vault_service.write_file(
             vault_dir,
-            action="update_file" if exists else "create_file",
+            path,
+            note_content,
             owner=owner,
             tool="obsidian_write_note",
-            paths=[path],
-            before={"content": before_content} if exists else {},
-            after={"content": note_content},
         )
         return {"output": f"Successfully wrote note to {path}.", "exit_code": 0}
     except Exception as e:
@@ -309,28 +247,10 @@ async def handle_search_notes(content: str, owner: Optional[str] = None, **kwarg
             return {"error": "Query parameter is required.", "exit_code": 1}
             
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        query_re = re.compile(re.escape(query), re.IGNORECASE)
-        results = []
-        
-        for root, dirs, files in os.walk(vault_dir):
-            dirs[:] = [d for d in dirs if d != ".obsidian"]
-            for file in files:
-                if not file.lower().endswith(".md"):
-                    continue
-                abs_path = os.path.join(root, file)
-                rel_path = os.path.relpath(abs_path, vault_dir).replace("\\", "/")
-                
-                try:
-                    matches = []
-                    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-                        for line_num, line in enumerate(f, 1):
-                            if query_re.search(line):
-                                matches.append(f"Line {line_num}: {line.strip()}")
-                    if matches:
-                        results.append(f"--- {rel_path} ---\n" + "\n".join(matches))
-                except Exception:
-                    continue
-                    
+        results = [
+            f"--- {result.path} ---\n" + "\n".join(f"Line {match.line}: {match.text}" for match in result.matches)
+            for result in vault_service.search_markdown(vault_dir, query)
+        ]
         if not results:
             return {"output": f"No matches found for query: {query}", "exit_code": 0}
         return {"output": "\n\n".join(results), "exit_code": 0}
@@ -376,17 +296,11 @@ async def handle_create_folder(content: str, owner: Optional[str] = None, **kwar
         if not path:
             return {"error": "Path parameter is required.", "exit_code": 1}
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        abs_path = secure_path(vault_dir, path)
-        if os.path.exists(abs_path):
-            return {"error": f"Path already exists: {path}", "exit_code": 1}
-        os.makedirs(abs_path, exist_ok=False)
-        record_action(
+        vault_service.create_folder(
             vault_dir,
-            action="create_folder",
+            path,
             owner=owner,
             tool="obsidian_create_folder",
-            paths=[path],
-            reversible=False,
         )
         return {"output": f"Successfully created folder {path}.", "exit_code": 0}
     except Exception as e:
@@ -401,24 +315,12 @@ async def handle_rename_item(content: str, owner: Optional[str] = None, **kwargs
         if not old_path or not new_path:
             return {"error": "old_path and new_path parameters are required.", "exit_code": 1}
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        abs_old = secure_path(vault_dir, old_path)
-        abs_new = secure_path(vault_dir, new_path)
-        if not os.path.exists(abs_old):
-            return {"error": f"Source not found: {old_path}", "exit_code": 1}
-        if os.path.exists(abs_new):
-            return {"error": f"Destination already exists: {new_path}", "exit_code": 1}
-        if os.path.isdir(abs_old) and is_self_or_descendant_move(abs_old, abs_new):
-            return {"error": "Cannot move a folder into itself.", "exit_code": 1}
-        os.makedirs(os.path.dirname(abs_new), exist_ok=True)
-        os.replace(abs_old, abs_new)
-        record_action(
+        vault_service.rename_item(
             vault_dir,
-            action="rename_item",
+            old_path,
+            new_path,
             owner=owner,
             tool="obsidian_rename_item",
-            paths=[old_path, new_path],
-            before={"path": old_path},
-            after={"path": new_path},
         )
         return {"output": f"Successfully renamed {old_path} to {new_path}.", "exit_code": 0}
     except Exception as e:
@@ -434,21 +336,11 @@ async def handle_delete_note(content: str, owner: Optional[str] = None, **kwargs
         if not _is_confirmed(params):
             return _confirmation_required(f"deleting {path}")
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        abs_path = secure_path(vault_dir, path)
-        if not os.path.exists(abs_path):
-            return {"error": f"File not found: {path}", "exit_code": 1}
-        if os.path.isdir(abs_path):
-            return {"error": f"Path is a folder, not a file: {path}", "exit_code": 1}
-        before_content = _read_text_if_exists(abs_path)
-        os.remove(abs_path)
-        record_action(
+        vault_service.delete_file(
             vault_dir,
-            action="delete_file",
+            path,
             owner=owner,
             tool="obsidian_delete_note",
-            paths=[path],
-            before={"content": before_content},
-            reversible=False,
         )
         return {"output": f"Successfully deleted note {path}.", "exit_code": 0}
     except Exception as e:
@@ -464,19 +356,11 @@ async def handle_delete_folder(content: str, owner: Optional[str] = None, **kwar
         if not _is_confirmed(params):
             return _confirmation_required(f"deleting folder {path}")
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        abs_path = secure_path(vault_dir, path)
-        if not os.path.exists(abs_path):
-            return {"error": f"Folder not found: {path}", "exit_code": 1}
-        if not os.path.isdir(abs_path):
-            return {"error": f"Path is not a folder: {path}", "exit_code": 1}
-        os.rmdir(abs_path)
-        record_action(
+        vault_service.delete_folder(
             vault_dir,
-            action="delete_folder",
+            path,
             owner=owner,
             tool="obsidian_delete_folder",
-            paths=[path],
-            reversible=False,
         )
         return {"output": f"Successfully deleted empty folder {path}.", "exit_code": 0}
     except Exception as e:

@@ -18,6 +18,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
         sys.path.insert(0, _p)
 
 import backend.routes as obsidian_routes
+from backend import vault_service
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
     GameDevConceptDraftRequest,
@@ -179,6 +180,53 @@ def test_secure_path_prevents_traversal():
                 secure_path(vault_dir, path)
             assert exc.value.status_code == 400
             assert "Path traversal attempt detected" in exc.value.detail
+
+
+def test_vault_service_tree_search_and_text_crud():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.create_folder(tmpdir, "Projects", owner="alice", tool="test")
+        vault_service.create_file(
+            tmpdir,
+            "Projects/Plan.md",
+            "# Plan\n\nShared service search target.",
+            owner="alice",
+            tool="test",
+        )
+        vault_service.create_file(
+            tmpdir,
+            "Notes.txt",
+            "Plain text",
+            owner="alice",
+            tool="test",
+        )
+
+        assert vault_service.markdown_notes(tmpdir) == ["Projects/Plan.md"]
+        assert vault_service.read_file(tmpdir, "Projects/Plan.md").startswith("# Plan")
+
+        tree = vault_service.file_tree(tmpdir)
+        assert tree[0]["path"] == "Projects"
+        assert tree[0]["children"][0]["path"] == "Projects/Plan.md"
+
+        results = vault_service.search_markdown(tmpdir, "target")
+        assert len(results) == 1
+        assert results[0].path == "Projects/Plan.md"
+        assert results[0].matches[0].line == 3
+
+        vault_service.rename_item(tmpdir, "Projects/Plan.md", "Projects/Roadmap.md", owner="alice", tool="test")
+        assert os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
+        vault_service.delete_file(tmpdir, "Projects/Roadmap.md", owner="alice", tool="test")
+        assert not os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
+
+
+def test_vault_service_locking_blocks_unlocked_resolution(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("OBSIDIAN_VAULT_DIR", os.path.join(tmpdir, "{owner}"))
+        vault_dir = vault_service.vault_path_for_owner("alice")
+        set_password(vault_dir, "strong password")
+        lock_vault(vault_dir)
+
+        with pytest.raises(VaultSecurityError):
+            vault_service.unlocked_vault_path_for_owner("alice")
 
 
 def test_archive_member_validation_blocks_escape_paths():
@@ -1368,4 +1416,3 @@ async def test_locked_vault_blocks_all_actions(monkeypatch):
         # Test memory review preview
         res = await handle_memory_review_preview('{"candidate": {"content": "memory"}, "action": "save_to_obsidian"}')
         assert res["exit_code"] == 1 and "locked" in res["error"].lower()
-

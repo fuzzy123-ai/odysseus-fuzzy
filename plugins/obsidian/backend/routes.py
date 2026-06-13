@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 import base64
 import json
@@ -11,7 +10,6 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from src.constants import DATA_DIR
 from src.auth_helpers import require_user
 
 from .vault_security import (
@@ -33,6 +31,7 @@ from .vault_model import (
     load_manual_relationships,
     remove_manual_relationship,
 )
+from . import vault_service
 from .project_planning import (
     GameDevConceptDraftRequest,
     ProjectPlan,
@@ -150,15 +149,7 @@ def get_vault_path(request: Request) -> str:
     Uses multi-user isolation or 'default' if auth is disabled.
     """
     username = require_user(request)
-    folder_name = username if username else "default"
-    configured_vault = os.getenv("OBSIDIAN_VAULT_DIR", "").strip()
-    if configured_vault:
-        vault_template = configured_vault.format(owner=folder_name)
-        vault_dir = os.path.abspath(os.path.expanduser(vault_template))
-    else:
-        vault_dir = os.path.abspath(os.path.join(DATA_DIR, "obsidian_vaults", folder_name))
-        os.makedirs(vault_dir, exist_ok=True)
-    return vault_dir
+    return vault_service.vault_path_for_owner(username)
 
 def get_unlocked_vault_path(request: Request) -> str:
     vault_dir = get_vault_path(request)
@@ -237,21 +228,13 @@ def secure_path(vault_dir: str, relative_path: str) -> str:
     
     Prevents path traversal attacks. Raises HTTPException 400 if invalid.
     """
-    cleaned_rel = relative_path.replace("\\", "/").strip("/")
-    abs_vault = os.path.abspath(vault_dir)
-    abs_target = os.path.abspath(os.path.join(abs_vault, cleaned_rel))
-    
-    # Ensure target is strictly inside vault_dir using commonpath
-    if os.path.commonpath([abs_vault, abs_target]) != abs_vault:
+    try:
+        return vault_service.secure_path(vault_dir, relative_path)
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail="Path traversal attempt detected")
-        
-    return abs_target
 
 def _read_text_if_exists(path: str) -> Optional[str]:
-    if not os.path.exists(path) or os.path.isdir(path):
-        return None
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        return f.read()
+    return vault_service.read_text_if_exists(path)
 
 def _project_plan_stream_event(event: str, payload: Dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -389,36 +372,11 @@ def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApp
     return result
 
 def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
-    old_path = os.path.abspath(abs_old)
-    new_path = os.path.abspath(abs_new)
-    return new_path == old_path or os.path.commonpath([old_path, new_path]) == old_path
+    return vault_service.is_self_or_descendant_move(abs_old, abs_new)
 
 def get_file_tree(dir_path: str, base_path: str) -> List[Dict[str, Any]]:
     """Recursively build a sorted tree of directories and files."""
-    tree = []
-    try:
-        for entry in os.scandir(dir_path):
-            if entry.name == ".obsidian":
-                continue
-            rel_path = os.path.relpath(entry.path, base_path).replace("\\", "/")
-            if entry.is_dir():
-                tree.append({
-                    "name": entry.name,
-                    "path": rel_path,
-                    "is_dir": True,
-                    "children": get_file_tree(entry.path, base_path)
-                })
-            else:
-                tree.append({
-                    "name": entry.name,
-                    "path": rel_path,
-                    "is_dir": False
-                })
-    except Exception:
-        pass
-    # Sort: folders first, then files alphabetically
-    tree.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-    return tree
+    return vault_service.file_tree(base_path, dir_path)
 
 # --- Endpoints ---
 
@@ -493,8 +451,7 @@ async def list_files(request: Request):
     """Get the complete tree structure of the vault."""
     try:
         vault_dir = get_unlocked_vault_path(request)
-        tree = get_file_tree(vault_dir, vault_dir)
-        return tree
+        return vault_service.file_tree(vault_dir)
     except HTTPException:
         raise
     except Exception as e:
@@ -513,12 +470,9 @@ async def read_file(path: str, request: Request):
         raise HTTPException(status_code=400, detail="Specified path is a directory")
         
     # Check if the file is markdown or text to return as JSON
-    lower_name = abs_path.lower()
-    if lower_name.endswith((".md", ".txt", ".json", ".html", ".js", ".css")):
+    if vault_service.is_text_path(abs_path):
         try:
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-            return {"content": content}
+            return {"content": vault_service.read_file(vault_dir, path)}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to read file: {e}")
     else:
@@ -529,24 +483,19 @@ async def read_file(path: str, request: Request):
 async def create_file(req: FileWriteRequest, request: Request):
     """Create a new file in the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_path = secure_path(vault_dir, req.path)
-    
-    if os.path.exists(abs_path):
-        raise HTTPException(status_code=400, detail="File already exists")
-        
     try:
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        with open(abs_path, "w", encoding="utf-8") as f:
-            f.write(req.content)
-        record_action(
+        vault_service.create_file(
             vault_dir,
-            action="create_file",
+            req.path,
+            req.content,
             owner=current_owner(request),
             tool="obsidian_api",
-            paths=[req.path],
-            after={"content": req.content},
         )
         return {"success": True, "path": req.path}
+    except FileExistsError:
+        raise HTTPException(status_code=400, detail="File already exists")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create file: {e}")
 
@@ -554,28 +503,21 @@ async def create_file(req: FileWriteRequest, request: Request):
 async def update_file(req: FileWriteRequest, request: Request):
     """Update (autosave) an existing file in the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_path = secure_path(vault_dir, req.path)
-    
-    if not os.path.exists(abs_path):
-        raise HTTPException(status_code=404, detail="File not found")
-        
-    if os.path.isdir(abs_path):
-        raise HTTPException(status_code=400, detail="Specified path is a directory")
-        
     try:
-        before_content = _read_text_if_exists(abs_path)
-        with open(abs_path, "w", encoding="utf-8") as f:
-            f.write(req.content)
-        record_action(
+        vault_service.update_file(
             vault_dir,
-            action="update_file",
+            req.path,
+            req.content,
             owner=current_owner(request),
             tool="obsidian_api",
-            paths=[req.path],
-            before={"content": before_content},
-            after={"content": req.content},
         )
         return {"success": True, "path": req.path}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except IsADirectoryError:
+        raise HTTPException(status_code=400, detail="Specified path is a directory")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update file: {e}")
 
@@ -583,17 +525,15 @@ async def update_file(req: FileWriteRequest, request: Request):
 async def delete_file(path: str, request: Request):
     """Delete a file from the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_path = secure_path(vault_dir, path)
-    
-    if not os.path.exists(abs_path):
-        raise HTTPException(status_code=404, detail="File not found")
-        
-    if os.path.isdir(abs_path):
-        raise HTTPException(status_code=400, detail="Specified path is a directory")
-        
     try:
-        os.remove(abs_path)
+        vault_service.delete_file(vault_dir, path, owner=current_owner(request), tool="obsidian_api")
         return {"success": True}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except IsADirectoryError:
+        raise HTTPException(status_code=400, detail="Specified path is a directory")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
 
@@ -601,14 +541,13 @@ async def delete_file(path: str, request: Request):
 async def create_folder(req: FolderCreateRequest, request: Request):
     """Create a new folder in the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_path = secure_path(vault_dir, req.path)
-    
-    if os.path.exists(abs_path):
-        raise HTTPException(status_code=400, detail="Path already exists")
-        
     try:
-        os.makedirs(abs_path, exist_ok=True)
+        vault_service.create_folder(vault_dir, req.path, owner=current_owner(request), tool="obsidian_api")
         return {"success": True, "path": req.path}
+    except FileExistsError:
+        raise HTTPException(status_code=400, detail="Path already exists")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create folder: {e}")
 
@@ -616,17 +555,15 @@ async def create_folder(req: FolderCreateRequest, request: Request):
 async def delete_folder(path: str, request: Request):
     """Recursively delete a folder from the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_path = secure_path(vault_dir, path)
-    
-    if not os.path.exists(abs_path):
-        raise HTTPException(status_code=404, detail="Folder not found")
-        
-    if not os.path.isdir(abs_path):
-        raise HTTPException(status_code=400, detail="Specified path is not a directory")
-        
     try:
-        shutil.rmtree(abs_path)
+        vault_service.delete_folder(vault_dir, path, owner=current_owner(request), tool="obsidian_api", recursive=True)
         return {"success": True}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    except NotADirectoryError:
+        raise HTTPException(status_code=400, detail="Specified path is not a directory")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete folder: {e}")
 
@@ -634,31 +571,21 @@ async def delete_folder(path: str, request: Request):
 async def rename_item(req: RenameRequest, request: Request):
     """Rename or move a file/folder in the vault."""
     vault_dir = get_unlocked_vault_path(request)
-    abs_old = secure_path(vault_dir, req.old_path)
-    abs_new = secure_path(vault_dir, req.new_path)
-    
-    if not os.path.exists(abs_old):
-        raise HTTPException(status_code=404, detail="Source not found")
-        
-    if os.path.exists(abs_new):
-        raise HTTPException(status_code=400, detail="Destination already exists")
-
-    if os.path.isdir(abs_old) and is_self_or_descendant_move(abs_old, abs_new):
-        raise HTTPException(status_code=400, detail="Cannot move a folder into itself")
-        
     try:
-        os.makedirs(os.path.dirname(abs_new), exist_ok=True)
-        shutil.move(abs_old, abs_new)
-        record_action(
+        vault_service.rename_item(
             vault_dir,
-            action="rename_item",
+            req.old_path,
+            req.new_path,
             owner=current_owner(request),
             tool="obsidian_api",
-            paths=[req.old_path, req.new_path],
-            before={"path": req.old_path},
-            after={"path": req.new_path},
         )
         return {"success": True, "path": req.new_path}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
+    except FileExistsError:
+        raise HTTPException(status_code=400, detail="Destination already exists")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to rename: {e}")
 
@@ -670,34 +597,13 @@ async def search_vault(q: str, request: Request):
     
     if not q.strip():
         return results
-        
-    query_re = re.compile(re.escape(q), re.IGNORECASE)
     
     try:
-        for root, dirs, files in os.walk(vault_dir):
-            dirs[:] = [d for d in dirs if d != ".obsidian"]
-            for file in files:
-                if not file.lower().endswith(".md"):
-                    continue
-                abs_path = os.path.join(root, file)
-                rel_path = os.path.relpath(abs_path, vault_dir).replace("\\", "/")
-                
-                try:
-                    matches = []
-                    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-                        for line_num, line in enumerate(f, 1):
-                            if query_re.search(line):
-                                matches.append({
-                                    "line": line_num,
-                                    "text": line.strip()
-                                })
-                    if matches:
-                        results.append({
-                            "path": rel_path,
-                            "matches": matches
-                        })
-                except Exception:
-                    continue  # skip unreadable files
+        for result in vault_service.search_markdown(vault_dir, q):
+            results.append({
+                "path": result.path,
+                "matches": [{"line": match.line, "text": match.text} for match in result.matches],
+            })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
         
