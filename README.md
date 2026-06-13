@@ -2,7 +2,7 @@
 
 > **Branch note:** `dev` is the default branch and contains the latest development changes, but it may be unstable. For the more stable curated branch, use [`main`](https://github.com/pewdiepie-archdaemon/odysseus/tree/main).
 
-> **Fork note:** Plugin-loader work for the Fuzzy/Obsidian setup is maintained in [`fuzzy123-ai/odysseus-fuzzy`](https://github.com/fuzzy123-ai/odysseus-fuzzy). The Obsidian plugin itself lives separately in [`fuzzy123-ai/Odysseus-plugin-obisidan`](https://github.com/fuzzy123-ai/Odysseus-plugin-obisidan) and should be installed into `plugins/obsidian`.
+> **Fork note:** The Fuzzy/Obsidian work is maintained in [`fuzzy123-ai/odysseus-fuzzy`](https://github.com/fuzzy123-ai/odysseus-fuzzy). This fork keeps Odysseus as the generic AI workspace while adding plugin APIs that let Obsidian provide vault context without hard-coding Obsidian into `src/`. The Obsidian plugin itself lives separately in [`fuzzy123-ai/Odysseus-plugin-obisidan`](https://github.com/fuzzy123-ai/Odysseus-plugin-obisidan) and should be installed into `plugins/obsidian`.
 
 ```
 ───────────────────────────────────────────────
@@ -34,14 +34,36 @@ Odysseus can load optional plugins from `plugins/<plugin-name>/plugin.py`.
 Plugins may register FastAPI routers, agent tools, and browser-side modules
 through the dynamic plugin loader.
 
-The core repository should keep only generic plugin infrastructure. Plugin
-implementations belong in their own repositories. For the Obsidian integration:
+The core repository keeps generic plugin infrastructure. Plugin implementations
+belong in their own repositories. In this fork the plugin API currently supports:
+
+- `ctx.add_router(...)` for plugin-owned FastAPI routes.
+- `ctx.register_tool(...)` for agent-callable plugin tools.
+- `ctx.register_context_provider(...)` for read-only context providers.
+- `ctx.register_consolidation_job(...)` as the planned background-job extension point.
+- Manifest UI entries such as `PLUGIN["ui"]["open"]` and browser-side plugin scripts.
+
+For the Obsidian integration:
 
 ```bash
 git clone https://github.com/fuzzy123-ai/Odysseus-plugin-obisidan.git plugins/obsidian
 ```
 
 Restart Odysseus after installing a plugin.
+
+### Fuzzy/Obsidian Roadmap
+
+The active branch for this work is `feat/obsidian-plugin`. The implementation is deliberately split across Core and Plugin boundaries:
+
+- Done: consolidated Obsidian planning docs and prepared the plugin release candidate.
+- Done: stabilized the current Obsidian UI/graph behavior before building orchestration on top.
+- Done: added the generic Core plugin API for context providers and consolidation-job specs.
+- Done: moved shared Obsidian vault behavior into plugin-internal services.
+- Done: registered the Obsidian read-only context provider `obsidian.vault_context`.
+- Next: build the Core Context-Orchestrator that asks registered providers for budgeted context and assembles stable prompts for chat and agent mode.
+- Next: add preventive history compaction, persistent task state, and background consolidation jobs.
+
+The Core must not import `plugins/obsidian` directly. Obsidian owns vault paths, lock state, owner isolation, Frontmatter, tags, graph rules, and snippet selection. Odysseus only calls generic provider/job interfaces.
 
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).

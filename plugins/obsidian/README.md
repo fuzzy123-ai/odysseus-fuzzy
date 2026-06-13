@@ -4,6 +4,8 @@ Obsidian vault integration for the Odysseus local AI workspace.
 
 The plugin adds a full vault workspace to Odysseus: a dockable editor UI, secure per-user vault storage, graph and tag intelligence, AI-assisted project planning, memory review workflows, and agent-callable tools for reading, writing, searching, organizing, exporting, and importing Markdown notes.
 
+It also registers a read-only context provider for the Fuzzy/Odysseus context-orchestrator work. The provider lets Odysseus preload relevant vault context through a generic plugin API while keeping all Obsidian-specific rules inside this plugin.
+
 ## Feature Overview
 
 ### Vault Workspace UI
@@ -95,6 +97,22 @@ The plugin registers Odysseus agent tools through `ctx.register_tool(...)` so AI
 
 Destructive or overwriting tool operations require explicit `confirm: true`.
 
+### Context Provider
+
+The plugin registers `obsidian.vault_context` through `ctx.register_context_provider(...)` when the host Odysseus fork exposes that API.
+
+Provider contract:
+
+- Input: `owner`, `query`, `budget`, and `mode`.
+- Output: `structured_state`, `snippets`, `sources`, `warnings`, and `cache_key`.
+- Frontmatter/properties are returned as structured state for machine-readable facts.
+- Markdown body excerpts are returned as untrusted snippets.
+- Sources include note path, title, tags, score, and match reason.
+- Identical vault/query/budget output produces a stable cache key.
+- Locked vaults return no note content and include a warning.
+
+The provider does not add a public HTTP route. It uses plugin-internal vault services directly, so the Odysseus core can remain generic.
+
 ## API Surface
 
 All routes are registered under `/api/plugins/obsidian`.
@@ -171,7 +189,27 @@ The plugin expects the Odysseus core plugin manager to support:
 - Dynamic plugin discovery from `plugins/<plugin-name>/plugin.py`.
 - `ctx.add_router(...)`.
 - `ctx.register_tool(...)` for agent-controllable vault actions.
+- `ctx.register_context_provider(...)` for read-only vault context.
+- `ctx.register_consolidation_job(...)` for planned background consolidation jobs.
 - Manifest UI entries such as `PLUGIN["ui"]["open"]`.
+
+Core Odysseus must not import this plugin directly. This plugin owns vault path resolution, lock checks, owner isolation, Frontmatter parsing, tags, graph relationships, and snippet selection.
+
+## Current Implementation Status
+
+Implemented in the active Fuzzy/Odysseus branch:
+
+- Phase 0: current Obsidian UI/graph stabilization and release-candidate preparation.
+- Phase 1: generic Core plugin API for context providers and consolidation-job specs.
+- Phase 2: plugin-internal vault service layer reused by routes and agent tools.
+- Phase 3: `obsidian.vault_context` read-only provider with Frontmatter-first structured state, untrusted snippets, sources, warnings, stable cache key, and locked-vault safety.
+
+Planned next:
+
+- Phase 4: Core Context-Orchestrator for chat and agent mode with provider preloading, stable prompt prefix, token budgeting, and final overflow guard.
+- Phase 5: preventive history compaction and persistent task-state blocks.
+- Phase 6: background consolidation jobs for dedupe, conflict marking, structured fact suggestions, and non-destructive archival.
+- Phase 7: rollout docs, feature flags, prefix-stability tests, and browser smoke checks.
 
 ## Install
 
@@ -213,6 +251,12 @@ Run the plugin tests from an Odysseus checkout after cloning this repository int
 python -m pytest plugins/obsidian/tests/test_plugin_obsidian.py
 ```
 
+When testing against the Fuzzy/Odysseus fork, also run the plugin-manager and context-provider integration tests:
+
+```powershell
+python -m pytest tests/test_plugin_obsidian_load.py tests/test_plugin_system.py
+```
+
 The host Odysseus checkout also contains static sidebar contract tests:
 
 ```powershell
@@ -228,6 +272,8 @@ node --check plugins/obsidian/frontend/main.js
 ## Files
 
 - `plugin.py` - Odysseus plugin manifest, setup hook, and agent tool handlers.
+- `backend/context_provider.py` - read-only vault context provider for the Odysseus context-orchestrator API.
+- `backend/vault_service.py` - shared vault path, file, search, tree, and mutation helpers used by routes, tools, and the context provider.
 - `backend/routes.py` - FastAPI routes and request models.
 - `backend/vault_model.py` - tag extraction, vault indexing, graph construction, and manual relationships.
 - `backend/vault_security.py` - password status, lock/unlock, ZIP export/import, and archive validation.
