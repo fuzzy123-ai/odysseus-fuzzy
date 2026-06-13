@@ -19,6 +19,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 
 import backend.routes as obsidian_routes
 from backend import vault_service
+from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidation
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
@@ -279,6 +280,51 @@ def test_obsidian_context_provider_parses_frontmatter_lists():
 
     assert frontmatter == {"tags": ["alpha", "beta"], "published": True}
     assert body == "# Body"
+
+
+def test_obsidian_consolidation_job_writes_non_destructive_report(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdir, "Archive"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\n---\n# Demo\n\n[[Projects/Hub]]")
+        with open(os.path.join(tmpdir, "Archive", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\nNo frontmatter yet.")
+        with open(os.path.join(tmpdir, "Projects", "Hub.md"), "w", encoding="utf-8") as f:
+            f.write("# Hub\n\n[[Projects/Demo]]")
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+
+        result = run_vault_consolidation(
+            owner="alice",
+            trigger="chat.completed",
+            context={"session_id": "s1", "model": "demo", "response": "not persisted"},
+        )
+
+        report_file = os.path.join(tmpdir, REPORT_PATH)
+        assert result["skipped"] is False
+        assert os.path.exists(report_file)
+        with open(report_file, "r", encoding="utf-8") as f:
+            report = json.load(f)
+        assert report["safety"] == {
+            "destructive_changes": False,
+            "note_files_modified": False,
+            "report_only": True,
+        }
+        assert report["context"] == {"session_id": "s1", "model": "demo"}
+        assert report["duplicate_title_candidates"][0]["title"] == "demo"
+        assert any(item["path"] == "Archive/Demo.md" for item in report["frontmatter_suggestions"])
+
+
+def test_obsidian_consolidation_job_respects_locked_vault(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        set_password(tmpdir, "strong password")
+        lock_vault(tmpdir)
+
+        result = run_vault_consolidation(owner="alice")
+
+        assert result == {"skipped": True, "reason": "vault_locked"}
+        assert not os.path.exists(os.path.join(tmpdir, REPORT_PATH))
 
 
 def test_archive_member_validation_blocks_escape_paths():
@@ -1376,6 +1422,7 @@ def test_plugin_setup_registration():
     registered_routers = []
     registered_tools = []
     registered_context_providers = []
+    registered_consolidation_jobs = []
 
     class MockContext:
         logger = SimpleNamespace(warning=lambda *args, **kwargs: None)
@@ -1389,11 +1436,15 @@ def test_plugin_setup_registration():
         def register_context_provider(self, spec):
             registered_context_providers.append(spec)
 
+        def register_consolidation_job(self, spec):
+            registered_consolidation_jobs.append(spec)
+
     ctx = MockContext()
     setup(ctx)
 
     assert len(registered_routers) == 1
     assert registered_context_providers[0]["id"] == PROVIDER_ID
+    assert registered_consolidation_jobs[0]["id"] == JOB_ID
     tool_names = {spec["name"] for spec in registered_tools}
     assert PLUGIN["ui"]["open"] == "/api/plugins/obsidian/app"
     assert "obsidian_list_notes" in tool_names
