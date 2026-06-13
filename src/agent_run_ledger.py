@@ -159,6 +159,65 @@ def read_events(session_id: str, *, limit: int | None = None) -> list[dict[str, 
     return events
 
 
+def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
+    """Build a compact inspect snapshot for one session's durable run ledger."""
+
+    events = read_events(session_id)
+    event_counts: dict[str, int] = {}
+    tools: dict[str, dict[str, Any]] = {}
+    status = None
+    started_at = None
+    updated_at = None
+    last_metrics = None
+
+    for event in events:
+        event_type = str(event.get("event") or "")
+        if event_type:
+            event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        ts = event.get("ts")
+        if ts:
+            started_at = started_at or ts
+            updated_at = ts
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        if event_type == "run_status":
+            status = payload.get("status") or status
+            continue
+        if event_type != "sse_event":
+            continue
+
+        payload_type = payload.get("type")
+        if payload_type == "metrics":
+            last_metrics = {
+                key: payload.get(key)
+                for key in ("input_tokens", "output_tokens", "total_tokens", "tokens_per_second", "usage_source")
+                if key in payload
+            }
+        tool = payload.get("tool")
+        if tool:
+            entry = tools.setdefault(str(tool), {"starts": 0, "outputs": 0, "blocked": 0, "last_exit_code": None})
+            if payload_type == "tool_start":
+                entry["starts"] += 1
+            elif payload_type == "tool_output":
+                entry["outputs"] += 1
+                entry["last_exit_code"] = payload.get("exit_code")
+                if payload.get("blocked"):
+                    entry["blocked"] += 1
+
+    tail_count = max(0, int(tail or 0))
+    return {
+        "session_id": str(session_id),
+        "exists": bool(events),
+        "status": status,
+        "started_at": started_at,
+        "updated_at": updated_at,
+        "event_count": len(events),
+        "event_counts": event_counts,
+        "tools": tools,
+        "last_metrics": last_metrics,
+        "tail": events[-tail_count:] if tail_count else [],
+    }
+
+
 def clear_events(session_id: str) -> None:
     """Test/support helper: remove one session's ledger file if present."""
 
