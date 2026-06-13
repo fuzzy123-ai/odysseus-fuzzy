@@ -19,13 +19,16 @@ import json
 import logging
 from typing import AsyncGenerator, Dict, Optional
 
+from src import agent_run_ledger
+
 logger = logging.getLogger(__name__)
 
 
 class _Run:
-    __slots__ = ("buffer", "subscribers", "status", "task", "evict_task")
+    __slots__ = ("session_id", "buffer", "subscribers", "status", "task", "evict_task")
 
-    def __init__(self) -> None:
+    def __init__(self, session_id: str) -> None:
+        self.session_id = session_id
         self.buffer: list = []          # ordered SSE event strings (replay log)
         self.subscribers: set = set()   # one asyncio.Queue per connected client
         self.status: str = "running"    # running | done | error | stopped
@@ -45,6 +48,10 @@ _EVICT_GRACE_S = 180
 def _publish(run: _Run, ev: str) -> None:
     """Append one SSE event and fan it out to every live subscriber."""
     run.buffer.append(ev)
+    try:
+        agent_run_ledger.append_sse_event(run.session_id, ev)
+    except Exception:
+        logger.debug("[agent-run-ledger] failed to append SSE event", exc_info=True)
     seq = len(run.buffer) - 1
     for q in list(run.subscribers):
         try:
@@ -126,6 +133,10 @@ async def _drain(session_id: str, agen: AsyncGenerator[str, None],
         )
         _publish(run, "data: [DONE]\n\n")
     finally:
+        try:
+            agent_run_ledger.append_status(session_id, run.status)
+        except Exception:
+            logger.debug("[agent-run-ledger] failed to append terminal status", exc_info=True)
         # Wake every subscriber with the end sentinel so their SSE closes.
         for q in list(run.subscribers):
             try:
@@ -149,8 +160,12 @@ def start(session_id: str, agen: AsyncGenerator[str, None]) -> _Run:
             prev_task = prev.task   # new run awaits this before it starts writing
         if prev.evict_task and not prev.evict_task.done():
             prev.evict_task.cancel()
-    run = _Run()
+    run = _Run(session_id)
     _RUNS[session_id] = run
+    try:
+        agent_run_ledger.append_run_started(session_id)
+    except Exception:
+        logger.debug("[agent-run-ledger] failed to append start event", exc_info=True)
     run.task = asyncio.create_task(_drain(session_id, agen, prev_task))
     return run
 

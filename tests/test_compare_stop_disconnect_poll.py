@@ -165,6 +165,32 @@ async def test_normal_completion_saves_exactly_once_not_partial():
     assert sink.saves == []
 
 
+@pytest.mark.asyncio
+async def test_detached_run_writes_durable_ledger(tmp_path, monkeypatch):
+    from src import agent_run_ledger
+
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    sink = _FakeSaveSink()
+    session_id = "sess-ledger"
+    agent_runs._RUNS.pop(session_id, None)
+
+    agen = _make_stream_with_save(sink, ["one"])
+    run = agent_runs.start(session_id, agen)
+    await run.task
+
+    events = agent_run_ledger.read_events(session_id)
+
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "sse_event",
+        "sse_event",
+        "run_status",
+    ]
+    assert events[1]["payload"] == {"event_name": "message", "type": "text", "data_chars": 3}
+    assert events[2]["payload"] == {"event_name": "message", "type": "done"}
+    assert events[3]["payload"] == {"status": "done"}
+
+
 # --------------------------------------------------------------------------- #
 # chat_stream: Compare panes must NOT be detached, so the Stop button (closing
 # the SSE) cancels the upstream generator promptly — exercising the same
