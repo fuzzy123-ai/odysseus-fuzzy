@@ -12,9 +12,12 @@ from src.user_time import (
 
 
 def teardown_function():
+    from src import settings
+
     clear_user_time_context()
     unregister_context_provider("demo.chat_context")
     unregister_context_provider("demo.warning_context")
+    settings._invalidate_caches()
 
 
 def test_current_datetime_prompt_uses_browser_timezone():
@@ -115,6 +118,31 @@ def test_chat_preface_skips_provider_context_in_incognito():
         message="Project status",
         session=None,
         incognito=True,
+        use_memory=False,
+        use_rag=False,
+    )
+
+    assert not any("Provider structured state:" in msg["content"] for msg in preface)
+
+
+def test_chat_preface_respects_context_provider_feature_flag(tmp_path, monkeypatch):
+    from src import settings
+
+    features_file = tmp_path / "features.json"
+    features_file.write_text('{"context_provider_preload": false}', encoding="utf-8")
+    monkeypatch.setattr(settings, "FEATURES_FILE", str(features_file))
+    settings._invalidate_caches()
+    register_context_provider({
+        "id": "demo.chat_context",
+        "label": "Demo Chat Context",
+        "capabilities": ["chat"],
+        "retrieve": lambda **kwargs: {"structured_state": {"disabled": False}},
+    })
+    processor = ChatProcessor(memory_manager=_Memory(), personal_docs_manager=_Docs())
+
+    preface, _, _ = processor.build_context_preface(
+        message="Project status",
+        session=None,
         use_memory=False,
         use_rag=False,
     )

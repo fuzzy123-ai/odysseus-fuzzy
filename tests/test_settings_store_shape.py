@@ -18,3 +18,8 @@ def test_load_features_falls_back_for_non_object_json(tmp_path, monkeypatch):
     settings._invalidate_caches()
 
     assert settings.load_features() == settings.DEFAULT_FEATURES
+
+
+def test_context_orchestrator_feature_flags_default_on():
+    assert settings.DEFAULT_FEATURES["context_provider_preload"] is True
+    assert settings.DEFAULT_FEATURES["consolidation_jobs"] is True

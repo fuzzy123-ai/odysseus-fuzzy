@@ -60,8 +60,10 @@ The active branch for this work is `feat/obsidian-plugin`. The implementation is
 - Done: added the generic Core plugin API for context providers and consolidation-job specs.
 - Done: moved shared Obsidian vault behavior into plugin-internal services.
 - Done: registered the Obsidian read-only context provider `obsidian.vault_context`.
-- Next: build the Core Context-Orchestrator that asks registered providers for budgeted context and assembles stable prompts for chat and agent mode.
-- Next: add preventive history compaction, persistent task state, and background consolidation jobs.
+- Done: built the Core Context-Orchestrator and wired generic provider preload into chat and agent prompts.
+- Done: added preventive compaction support with persistent task-state blocks.
+- Done: added generic background consolidation jobs and the non-destructive Obsidian vault report job.
+- Done: added rollout feature flags: `context_provider_preload` and `consolidation_jobs`.
 
 The Core must not import `plugins/obsidian` directly. Obsidian owns vault paths, lock state, owner isolation, Frontmatter, tags, graph rules, and snippet selection. Odysseus only calls generic provider/job interfaces.
 

@@ -159,6 +159,8 @@ Commit-Schnitt:
 
 ## Phase 4: Core Context-Orchestrator
 
+Status: umgesetzt. `src/context_orchestrator.py` enthaelt den generischen Budget-Split, Provider-Preload, stabile Provider-Systembloecke und finalen Trim-Guard. Chat und Agent nutzen den generischen Provider-Preload ohne Obsidian-Import im Core.
+
 Der Core baut eine zentrale Kontext-Pipeline, die normalen Chat und Agent-Mode gemeinsam versorgt.
 
 Pipeline:
@@ -199,6 +201,8 @@ Commit-Schnitt:
 
 ## Phase 5: Praeventive History-Kompaktierung und persistenter Task-State
 
+Status: umgesetzt. `src/context_compactor.py` erzeugt nach erfolgreicher Kompaktierung zusaetzlich einen persistenten Task-State-Systemblock mit `CURRENT_TASK`, `COMPLETED_STEPS`, `KNOWN_CONSTRAINTS` und `OPEN_QUESTIONS`.
+
 Bestehende Module `src/context_budget.py`, `src/context_compactor.py` und `src/model_context.py` werden weiterverwendet, aber ueber den Orchestrator gesteuert.
 
 Geplante Aenderungen:
@@ -224,6 +228,8 @@ Commit-Schnitt:
 - Ein Commit fuer Task-State und Kompaktierungsintegration.
 
 ## Phase 6: Background Consolidation
+
+Status: umgesetzt. `src/consolidation_runner.py` fuehrt registrierte Plugin-Consolidation-Jobs fehlerisoliert aus. Chat-Abschluss triggert Jobs mit Capability `chat_completed`, sofern das Feature-Flag aktiv ist. Das Obsidian-Plugin registriert `obsidian.vault_consolidation` und schreibt nur einen nicht-destruktiven Report unter `.obsidian/consolidation_report.json`.
 
 Gedachtnispflege laeuft nicht im heissen Chat-Pfad, sondern asynchron.
 
@@ -258,6 +264,8 @@ Commit-Schnitt:
 
 ## Phase 7: Dokumentation, Tests und Rollout
 
+Status: umgesetzt fuer den aktuellen Branch. Root-README, Obsidian-README und diese Plan-Datei beschreiben Core/Plugin-Grenzen, Provider, Consolidation-Jobs und Feature-Flags. Die Regressionstests decken Plugin-API, Provider-Preload, Agent/Chat-Prompt-Injektion, Task-State-Kompaktierung, Consolidation-Runner und Obsidian-Locked-Vault-Verhalten ab.
+
 Dokumentation:
 
 - Plugin-API-Doku fuer Context-Provider.
@@ -276,8 +284,9 @@ Testabdeckung:
 
 Rollout:
 
-- Feature-Flag fuer Orchestrator und Provider-Preload.
-- Fallback auf bestehenden Kontextpfad, falls Orchestrator deaktiviert ist.
+- Feature-Flag fuer Provider-Preload: `context_provider_preload`.
+- Feature-Flag fuer Background-Consolidation: `consolidation_jobs`.
+- Fallback auf bestehenden Kontextpfad, falls Provider-Preload deaktiviert ist.
 - Metriken/Logs fuer Provider-Treffer, Token-Budgets, Kompaktierung und Prefix-Stability-Warnings.
 
 ## Arbeits- und Commit-Zuordnung

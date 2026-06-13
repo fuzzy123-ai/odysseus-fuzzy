@@ -183,6 +183,8 @@ DEFAULT_FEATURES = {
     "rag": True,
     "sensitive_filter": True,
     "gallery": True,
+    "context_provider_preload": True,
+    "consolidation_jobs": True,
 }
 
 

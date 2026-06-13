@@ -1486,8 +1486,11 @@ def _inject_context_provider_messages(
     if not enabled:
         return messages
     try:
+        from src.settings import load_features
         from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
 
+        if not load_features().get("context_provider_preload", True):
+            return messages
         budget = split_context_budget(context_length or 4000)
         payloads, warnings = preload_provider_context(
             owner=owner,

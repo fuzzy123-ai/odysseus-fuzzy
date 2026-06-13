@@ -10,6 +10,7 @@ from src.youtube_handler import is_youtube_url
 from src.search import comprehensive_web_search, fetch_webpage_content
 from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
 from src.prompt_security import UNTRUSTED_CONTEXT_POLICY, untrusted_context_message
+from src.settings import load_features
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,7 @@ class ChatProcessor:
             "role": "system",
             "content": UNTRUSTED_CONTEXT_POLICY,
         })
-        if use_context_providers and not incognito:
+        if use_context_providers and not incognito and load_features().get("context_provider_preload", True):
             try:
                 budget = split_context_budget(context_budget_tokens or 4000)
                 provider_payloads, provider_warnings = preload_provider_context(

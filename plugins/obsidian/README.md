@@ -203,13 +203,10 @@ Implemented in the active Fuzzy/Odysseus branch:
 - Phase 1: generic Core plugin API for context providers and consolidation-job specs.
 - Phase 2: plugin-internal vault service layer reused by routes and agent tools.
 - Phase 3: `obsidian.vault_context` read-only provider with Frontmatter-first structured state, untrusted snippets, sources, warnings, stable cache key, and locked-vault safety.
-
-Planned next:
-
 - Phase 4: Core Context-Orchestrator for chat and agent mode with provider preloading, stable prompt prefix, token budgeting, and final overflow guard.
 - Phase 5: preventive history compaction and persistent task-state blocks.
-- Phase 6: background consolidation jobs for dedupe, conflict marking, structured fact suggestions, and non-destructive archival.
-- Phase 7: rollout docs, feature flags, prefix-stability tests, and browser smoke checks.
+- Phase 6: background consolidation jobs. The Obsidian job writes `.obsidian/consolidation_report.json` with duplicate-title candidates, orphan-note candidates, and frontmatter suggestions. It never deletes or rewrites notes.
+- Phase 7: rollout docs, feature flags, and regression tests. Core feature flags are `context_provider_preload` and `consolidation_jobs`.
 
 ## Install
 
@@ -273,6 +270,7 @@ node --check plugins/obsidian/frontend/main.js
 
 - `plugin.py` - Odysseus plugin manifest, setup hook, and agent tool handlers.
 - `backend/context_provider.py` - read-only vault context provider for the Odysseus context-orchestrator API.
+- `backend/consolidation_job.py` - non-destructive vault consolidation report job.
 - `backend/vault_service.py` - shared vault path, file, search, tree, and mutation helpers used by routes, tools, and the context provider.
 - `backend/routes.py` - FastAPI routes and request models.
 - `backend/vault_model.py` - tag extraction, vault indexing, graph construction, and manual relationships.

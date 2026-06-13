@@ -1000,18 +1000,20 @@ def run_post_response_tasks(
         }))
 
     if allow_background_extraction and not incognito and not compare_mode:
+        from src.settings import load_features
         from src.consolidation_runner import run_consolidation_jobs
-        asyncio.create_task(run_consolidation_jobs(
-            owner=owner,
-            capability="chat_completed",
-            trigger="chat.completed",
-            context={
-                "session_id": session_id,
-                "model": sess.model,
-                "user_message": message,
-                "response": full_response[:2000],
-            },
-        ))
+        if load_features().get("consolidation_jobs", True):
+            asyncio.create_task(run_consolidation_jobs(
+                owner=owner,
+                capability="chat_completed",
+                trigger="chat.completed",
+                context={
+                    "session_id": session_id,
+                    "model": sess.model,
+                    "user_message": message,
+                    "response": full_response[:2000],
+                },
+            ))
 
     # Auto-name
     if needs_auto_name(sess.name):
