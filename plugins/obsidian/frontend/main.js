@@ -36,6 +36,84 @@ let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
 let graphEdgeTypeFilter = 'all';
+const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters';
+let graphFilterState = {
+  mode: 'highlight',
+  nodes: { markdown: true, folder: true },
+  edges: { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
+  search: '',
+  tags: []
+};
+
+function resetGraphFilterState() {
+  graphFilterState = {
+    mode: 'highlight',
+    nodes: { markdown: true, folder: true },
+    edges: { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
+    search: '',
+    tags: []
+  };
+}
+
+function loadGraphFilterState() {
+  try {
+    const stored = localStorage.getItem(OBSIDIAN_GRAPH_FILTERS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      graphFilterState = {
+        mode: parsed.mode || 'highlight',
+        nodes: parsed.nodes || { markdown: true, folder: true },
+        edges: parsed.edges || { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
+        search: parsed.search || '',
+        tags: parsed.tags || []
+      };
+      return;
+    }
+  } catch (e) {
+    console.warn('Failed to load graph filter state:', e);
+  }
+  resetGraphFilterState();
+}
+
+function saveGraphFilterState() {
+  try {
+    localStorage.setItem(OBSIDIAN_GRAPH_FILTERS_KEY, JSON.stringify(graphFilterState));
+  } catch (e) {
+    console.warn('Failed to save graph filter state:', e);
+  }
+}
+
+function isNodeMatchingFilter(node) {
+  if (node.type === 'markdown' && graphFilterState.nodes.markdown === false) return false;
+  if (node.type === 'folder' && graphFilterState.nodes.folder === false) return false;
+
+  if (graphFilterState.search) {
+    const q = graphFilterState.search.toLowerCase();
+    const label = (node.label || node.id || '').toLowerCase();
+    const tagsStr = (node.tags || []).join(' ').toLowerCase();
+    if (!label.includes(q) && !node.id.toLowerCase().includes(q) && !tagsStr.includes(q)) {
+      return false;
+    }
+  }
+
+  if (graphFilterState.tags && graphFilterState.tags.length > 0) {
+    const nodeTags = node.tags || [];
+    const hasTagMatch = graphFilterState.tags.some(t => {
+      const cleanT = t.startsWith('#') ? t.slice(1).toLowerCase() : t.toLowerCase();
+      return nodeTags.some(nt => nt.toLowerCase().includes(cleanT));
+    });
+    if (!hasTagMatch) return false;
+  }
+
+  return true;
+}
+
+function isEdgeMatchingFilter(edge) {
+  const type = edge.type || 'link';
+  if (graphFilterState.edges[type] === false) return false;
+  return true;
+}
+
 let graphCytoscapeInstance = null;
 let graphCytoscapeLoadPromise = null;
 let projectPlanPreview = null;
@@ -55,6 +133,7 @@ const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer';
 const OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE = 'cytoscape';
 const OBSIDIAN_GRAPH_RENDERER_SVG = 'svg';
 const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js';
+const OBSIDIAN_GRAPH_WHEEL_SENSITIVITY = 0.55;
 const VAULT_ROOT_TREE_PATH = '__vault_root__';
 const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode';
 const OBSIDIAN_SURFACE_DEFAULT = 'sidebar';
@@ -385,6 +464,14 @@ function selectedFolderPath() {
   if (selected?.is_virtual_project_session || selected?.is_virtual_project_session_file) return '';
   if (selected?.is_dir) return selected.path;
   return '';
+}
+
+function isVaultRootSelected() {
+  return selectedTreePath === VAULT_ROOT_TREE_PATH;
+}
+
+function graphFocusPath() {
+  return isVaultRootSelected() ? '' : (currentNotePath || '');
 }
 
 function selectTreeItem(path) {
@@ -842,6 +929,8 @@ async function handleVaultSettingsAction(action) {
 
     if (action === 'reset-graph') {
       graphEdgeTypeFilter = 'all';
+      resetGraphFilterState();
+      saveGraphFilterState();
       setViewMode('graph');
       renderGraphView();
       showToast('Graph view reset');
@@ -920,6 +1009,19 @@ function applyObsidianSurfaceMode(mode) {
   if (panel) panel.dataset.surfaceMode = normalized;
   syncSurfaceModeControls(normalized);
   return normalized;
+}
+
+function initializeClosedObsidianSurface(mode = getStoredSurfaceMode()) {
+  const normalized = normalizeSurfaceMode(mode);
+  isPanelOpen = false;
+  minimizedSurfaceMode = null;
+  clearObsidianSurfaceClasses();
+  document.body.classList.remove('obsidian-open');
+  const panel = document.getElementById('obsidian-panel');
+  if (panel) panel.dataset.surfaceMode = normalized;
+  getObsidianModal()?.classList.add('hidden');
+  syncSurfaceModeControls(normalized);
+  setLauncherActive(false);
 }
 
 function resetObsidianWindowStyles() {
@@ -1620,6 +1722,9 @@ function buildTreeHTML(nodes, container, level) {
       header.appendChild(status);
     }
     if (isFolderSelected && !isInlineRenaming && !node.is_virtual_project_session && !node.is_virtual_root) {
+      const actions = document.createElement('span');
+      actions.className = 'tree-item-actions';
+
       const renameButton = document.createElement('button');
       renameButton.type = 'button';
       renameButton.className = 'tree-rename-button';
@@ -1631,7 +1736,22 @@ function buildTreeHTML(nodes, container, level) {
         e.stopPropagation();
         startInlineRenameItem(node.path);
       });
-      header.appendChild(renameButton);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'tree-delete-button';
+      deleteButton.title = 'Delete folder';
+      deleteButton.setAttribute('aria-label', 'Delete selected folder');
+      deleteButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+      deleteButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await deleteFolder(node.path);
+      });
+
+      actions.appendChild(renameButton);
+      actions.appendChild(deleteButton);
+      header.appendChild(actions);
     }
     if (isFileSelected && !isInlineRenaming && !node.is_virtual_project_session_file) {
       const actions = document.createElement('span');
@@ -1654,7 +1774,7 @@ function buildTreeHTML(nodes, container, level) {
       deleteButton.className = 'tree-delete-button';
       deleteButton.title = 'Delete note';
       deleteButton.setAttribute('aria-label', 'Delete selected note');
-      deleteButton.textContent = 'x';
+      deleteButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
       deleteButton.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1682,6 +1802,9 @@ function buildTreeHTML(nodes, container, level) {
       if (node.is_virtual_root) {
         selectedTreePath = VAULT_ROOT_TREE_PATH;
         renderFileTree();
+        if (currentViewMode === 'graph') {
+          renderGraphView();
+        }
         return;
       }
       if (node.is_virtual_project_session || node.is_virtual_project_session_file) {
@@ -1955,6 +2078,36 @@ async function deleteNote(path) {
   } catch (e) {
     console.error(e);
     showToast('Error deleting note');
+  }
+}
+
+async function deleteFolder(path) {
+  if (!path) return;
+  const confirm = await styledConfirm('Are you sure you want to delete this folder and all of its contents?', { confirmText: 'Delete', danger: true });
+  if (!confirm) return;
+
+  try {
+    const res = await fetch(`/api/plugins/obsidian/folder?path=${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      showToast('Folder deleted');
+      if (selectedTreePath === path) {
+        selectedTreePath = null;
+      }
+      if (currentNotePath && (currentNotePath === path || currentNotePath.startsWith(path + '/'))) {
+        currentNotePath = null;
+        document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+        document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+      }
+      await loadVaultFiles();
+      await refreshSearchResults();
+    } else {
+      showToast('Failed to delete folder');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting folder');
   }
 }
 
@@ -3369,7 +3522,8 @@ async function renderGraphView() {
 }
 
 async function fetchGraphData() {
-  const focus = currentNotePath ? `?focus=${encodeURIComponent(currentNotePath)}` : '';
+  const focusPath = graphFocusPath();
+  const focus = focusPath ? `?focus=${encodeURIComponent(focusPath)}` : '';
   const res = await fetch(`/api/plugins/obsidian/graph${focus}`);
   if (!res.ok) throw new Error(`Graph request failed: ${res.status}`);
   return res.json();
@@ -3429,9 +3583,7 @@ function prepareGraphData(graphData) {
   const allEdges = (graphData.graph?.edges || [])
     .filter(edge => markdownIds.has(edge.source) && markdownIds.has(edge.target));
   const edgeTypes = [...new Set(allEdges.map(edge => edge.type || 'link'))].sort();
-  const edges = graphEdgeTypeFilter === 'all'
-    ? allEdges
-    : allEdges.filter(edge => (edge.type || 'link') === graphEdgeTypeFilter);
+  const edges = allEdges;
 
   return {
     markdownNodes,
@@ -3442,19 +3594,141 @@ function prepareGraphData(graphData) {
 }
 
 function renderGraphShell(graph, prepared, renderer) {
-  const filterOptions = ['all', ...prepared.edgeTypes].map(type => (
-    `<option value="${escapeHtml(type)}" ${type === graphEdgeTypeFilter ? 'selected' : ''}>${escapeHtml(type.replace(/_/g, ' '))}</option>`
-  )).join('');
+  const edgeCheckboxes = ['wiki_link', 'filename_mention', 'shared_tag', 'manual', 'relates_to', 'depends_on', 'blocks', 'supports']
+    .map(type => {
+      const checked = graphFilterState.edges[type] !== false ? 'checked' : '';
+      const label = type.replace(/_/g, ' ');
+      return `
+        <label class="obsidian-filter-checkbox-label">
+          <input type="checkbox" data-filter-edge="${type}" ${checked}>
+          <span>${escapeHtml(label)}</span>
+        </label>
+      `;
+    }).join('');
+
+  const nodeMarkdownChecked = graphFilterState.nodes.markdown !== false ? 'checked' : '';
+  const nodeFolderChecked = graphFilterState.nodes.folder !== false ? 'checked' : '';
+
+  const modeOptions = [
+    { value: 'highlight', label: 'Highlight Matches' },
+    { value: 'show', label: 'Show Matches Only' },
+    { value: 'hide', label: 'Hide Matches' }
+  ].map(opt => `
+    <option value="${opt.value}" ${graphFilterState.mode === opt.value ? 'selected' : ''}>${opt.label}</option>
+  `).join('');
 
   graph.innerHTML = `
     <div class="obsidian-graph-controls">
-      <select id="obsidian-graph-filter" title="Filter graph edges">${filterOptions}</select>
+      <button class="obsidian-graph-filter-btn" id="obsidian-graph-filter-toggle" title="Graph Filters">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <span>Filters</span>
+      </button>
+      
+      <div class="obsidian-graph-filter-panel hidden" id="obsidian-graph-filter-panel">
+        <div class="obsidian-filter-section">
+          <label class="obsidian-filter-label">Filter Mode</label>
+          <select id="obsidian-graph-filter-mode">${modeOptions}</select>
+        </div>
+        
+        <div class="obsidian-filter-section">
+          <label class="obsidian-filter-label">Search Nodes</label>
+          <input type="text" id="obsidian-graph-filter-search" placeholder="Search title or content..." value="${escapeHtml(graphFilterState.search || '')}">
+        </div>
+
+        <div class="obsidian-filter-section">
+          <label class="obsidian-filter-label">Node Types</label>
+          <div class="obsidian-filter-group">
+            <label class="obsidian-filter-checkbox-label">
+              <input type="checkbox" id="obsidian-graph-filter-node-markdown" ${nodeMarkdownChecked}>
+              <span>Notes</span>
+            </label>
+            <label class="obsidian-filter-checkbox-label">
+              <input type="checkbox" id="obsidian-graph-filter-node-folder" ${nodeFolderChecked}>
+              <span>Folders</span>
+            </label>
+          </div>
+        </div>
+        
+        <div class="obsidian-filter-section">
+          <label class="obsidian-filter-label">Edge Types</label>
+          <div class="obsidian-filter-group grid-2">
+            ${edgeCheckboxes}
+          </div>
+        </div>
+
+        <div class="obsidian-filter-section">
+          <label class="obsidian-filter-label">Filter by Tags</label>
+          <input type="text" id="obsidian-graph-filter-tags" placeholder="e.g. project, type/concept" value="${escapeHtml((graphFilterState.tags || []).join(', '))}">
+        </div>
+
+        <button class="obsidian-graph-filter-reset-btn" id="obsidian-graph-filter-reset">Reset Filters</button>
+      </div>
     </div>
     <div class="obsidian-graph-canvas" id="obsidian-graph-canvas" data-graph-renderer="${escapeHtml(renderer)}"></div>
   `;
 
-  graph.querySelector('#obsidian-graph-filter')?.addEventListener('change', (e) => {
-    graphEdgeTypeFilter = e.target.value || 'all';
+  const toggleBtn = graph.querySelector('#obsidian-graph-filter-toggle');
+  const panel = graph.querySelector('#obsidian-graph-filter-panel');
+  toggleBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel?.classList.toggle('hidden');
+  });
+
+  panel?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  const closePanelOutside = (e) => {
+    if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+      panel.classList.add('hidden');
+    }
+  };
+  document.addEventListener('click', closePanelOutside);
+
+  graph.querySelector('#obsidian-graph-filter-mode')?.addEventListener('change', (e) => {
+    graphFilterState.mode = e.target.value;
+    saveGraphFilterState();
+    renderGraphView();
+  });
+
+  const searchInput = graph.querySelector('#obsidian-graph-filter-search');
+  searchInput?.addEventListener('input', () => {
+    graphFilterState.search = searchInput.value;
+    saveGraphFilterState();
+    renderGraphView();
+  });
+
+  graph.querySelector('#obsidian-graph-filter-node-markdown')?.addEventListener('change', (e) => {
+    graphFilterState.nodes.markdown = e.target.checked;
+    saveGraphFilterState();
+    renderGraphView();
+  });
+
+  graph.querySelector('#obsidian-graph-filter-node-folder')?.addEventListener('change', (e) => {
+    graphFilterState.nodes.folder = e.target.checked;
+    saveGraphFilterState();
+    renderGraphView();
+  });
+
+  graph.querySelectorAll('input[data-filter-edge]').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const edgeType = e.target.getAttribute('data-filter-edge');
+      graphFilterState.edges[edgeType] = e.target.checked;
+      saveGraphFilterState();
+      renderGraphView();
+    });
+  });
+
+  const tagsInput = graph.querySelector('#obsidian-graph-filter-tags');
+  tagsInput?.addEventListener('input', () => {
+    graphFilterState.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+    saveGraphFilterState();
+    renderGraphView();
+  });
+
+  graph.querySelector('#obsidian-graph-filter-reset')?.addEventListener('click', () => {
+    resetGraphFilterState();
+    saveGraphFilterState();
     renderGraphView();
   });
 }
@@ -3489,6 +3763,7 @@ async function loadCytoscape() {
 }
 
 function focusedProjectFolder() {
+  if (isVaultRootSelected()) return null;
   return currentNotePath ? directFolderForPath(currentNotePath) : null;
 }
 
@@ -3527,9 +3802,22 @@ function starPositions(prepared, width, height) {
 
 function cytoscapeElements(prepared, star = null) {
   const focusedFolder = directFolderForPath(currentNotePath);
+  
   const folderElements = prepared.folderNodes.map(node => {
     const parent = parentFolderForFolder(node.id);
     const isFocusedFolder = focusedFolder && (node.id === focusedFolder || focusedFolder.startsWith(`${node.id}/`));
+    const matches = isNodeMatchingFilter(node);
+    
+    let classes = ['obsidian-folder-node', isFocusedFolder ? 'obsidian-focused-project-folder' : ''];
+    if (graphFilterState.mode === 'show' && !matches) {
+      classes.push('hidden');
+    } else if (graphFilterState.mode === 'highlight') {
+      if (matches) classes.push('highlighted');
+      else classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && matches) {
+      classes.push('hidden');
+    }
+
     return {
       data: {
         id: node.id,
@@ -3537,13 +3825,29 @@ function cytoscapeElements(prepared, star = null) {
         type: 'folder',
         parent: parent || undefined,
       },
-      classes: ['obsidian-folder-node', isFocusedFolder ? 'obsidian-focused-project-folder' : ''].filter(Boolean).join(' '),
+      classes: classes.filter(Boolean).join(' '),
     };
   });
 
   const markdownElements = prepared.markdownNodes.map(node => {
     const parent = directFolderForPath(node.id);
     const isFocusedProjectNode = focusedFolder && (parent === focusedFolder || parent?.startsWith(`${focusedFolder}/`));
+    const matches = isNodeMatchingFilter(node);
+
+    let classes = [
+      node.id === currentNotePath ? 'obsidian-current-node' : '',
+      isFocusedProjectNode ? 'obsidian-focused-project-node' : '',
+      star?.hub === node.id ? 'obsidian-project-hub-node' : '',
+    ];
+    if (graphFilterState.mode === 'show' && !matches) {
+      classes.push('hidden');
+    } else if (graphFilterState.mode === 'highlight') {
+      if (matches) classes.push('highlighted');
+      else classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && matches) {
+      classes.push('hidden');
+    }
+
     const element = {
       data: {
         id: node.id,
@@ -3552,28 +3856,43 @@ function cytoscapeElements(prepared, star = null) {
         parent: parent || undefined,
         tags: (node.tags || []).join(', '),
       },
-      classes: [
-        node.id === currentNotePath ? 'obsidian-current-node' : '',
-        isFocusedProjectNode ? 'obsidian-focused-project-node' : '',
-        star?.hub === node.id ? 'obsidian-project-hub-node' : '',
-      ].filter(Boolean).join(' '),
+      classes: classes.filter(Boolean).join(' '),
     };
     const position = star?.positions?.get(node.id);
     if (position) element.position = position;
     return element;
   });
 
-  const edgeElements = prepared.edges.map((edge, index) => ({
-    data: {
-      id: `edge-${index}-${edge.source}-${edge.target}-${edge.type || 'link'}`,
-      source: edge.source,
-      target: edge.target,
-      type: edge.type || 'link',
-      reason: edge.reason || edge.type || 'link',
-      weight: edge.weight || '',
-    },
-    classes: `edge-${edge.type || 'link'}`,
-  }));
+  const edgeElements = prepared.edges.map((edge, index) => {
+    const sourceNode = prepared.markdownNodes.find(n => n.id === edge.source) || prepared.folderNodes.find(n => n.id === edge.source);
+    const targetNode = prepared.markdownNodes.find(n => n.id === edge.target) || prepared.folderNodes.find(n => n.id === edge.target);
+
+    const sourceMatches = sourceNode ? isNodeMatchingFilter(sourceNode) : true;
+    const targetMatches = targetNode ? isNodeMatchingFilter(targetNode) : true;
+    const edgeMatches = isEdgeMatchingFilter(edge) && sourceMatches && targetMatches;
+
+    let classes = [`edge-${edge.type || 'link'}`];
+    if (graphFilterState.mode === 'show' && !edgeMatches) {
+      classes.push('hidden');
+    } else if (graphFilterState.mode === 'highlight') {
+      if (edgeMatches) classes.push('highlighted');
+      else classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && edgeMatches) {
+      classes.push('hidden');
+    }
+
+    return {
+      data: {
+        id: `edge-${index}-${edge.source}-${edge.target}-${edge.type || 'link'}`,
+        source: edge.source,
+        target: edge.target,
+        type: edge.type || 'link',
+        reason: edge.reason || edge.type || 'link',
+        weight: edge.weight || '',
+      },
+      classes: classes.join(' '),
+    };
+  });
 
   return [...folderElements, ...markdownElements, ...edgeElements];
 }
@@ -3702,6 +4021,40 @@ function cytoscapeStyle(container) {
         'line-style': 'dashed',
       },
     },
+    {
+      selector: '.hidden',
+      style: {
+        'display': 'none',
+      },
+    },
+    {
+      selector: 'node.dimmed',
+      style: {
+        'opacity': 0.15,
+      },
+    },
+    {
+      selector: 'edge.dimmed',
+      style: {
+        'opacity': 0.08,
+      },
+    },
+    {
+      selector: 'node.highlighted',
+      style: {
+        'border-width': 3.5,
+        'border-color': accent,
+      },
+    },
+    {
+      selector: 'edge.highlighted',
+      style: {
+        'opacity': 0.8,
+        'width': 2.8,
+        'line-color': accent,
+        'target-arrow-color': accent,
+      },
+    },
   ];
 }
 
@@ -3736,7 +4089,7 @@ async function renderCytoscapeGraph(graph, prepared) {
       numIter: 1400,
     },
     style: cytoscapeStyle(canvas),
-    wheelSensitivity: 0.22,
+    wheelSensitivity: OBSIDIAN_GRAPH_WHEEL_SENSITIVITY,
     minZoom: 0.28,
     maxZoom: 2.4,
   });
@@ -3751,6 +4104,21 @@ async function renderCytoscapeGraph(graph, prepared) {
   graphCytoscapeInstance.on('mouseout', 'node, edge', () => {
     canvas.title = '';
   });
+
+  if (currentNotePath) {
+    const activeNode = graphCytoscapeInstance.getElementById(currentNotePath);
+    if (activeNode.length > 0) {
+      setTimeout(() => {
+        if (graphCytoscapeInstance) {
+          graphCytoscapeInstance.animate({
+            center: { eles: activeNode },
+            zoom: 1.15,
+            duration: 350
+          });
+        }
+      }, 50);
+    }
+  }
 }
 
 function renderSvgGraphFallback(graph, prepared) {
@@ -3788,9 +4156,23 @@ function renderSvgGraphFallback(graph, prepared) {
     const from = positions.get(edge.source);
     const to = positions.get(edge.target);
     if (!from || !to) return '';
+
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    const sourceMatches = sourceNode ? isNodeMatchingFilter(sourceNode) : true;
+    const targetMatches = targetNode ? isNodeMatchingFilter(targetNode) : true;
+    const edgeMatches = isEdgeMatchingFilter(edge) && sourceMatches && targetMatches;
+
     const type = escapeHtml(edge.type || 'link');
     const reason = escapeHtml(edge.reason || type);
-    return `<line class="obsidian-graph-edge edge-${type}" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}"><title>${reason}</title></line>`;
+
+    let edgeClass = `obsidian-graph-edge edge-${type}`;
+    if (graphFilterState.mode === 'show' && !edgeMatches) edgeClass += ' hidden';
+    else if (graphFilterState.mode === 'highlight') {
+      edgeClass += edgeMatches ? ' highlighted' : ' dimmed';
+    } else if (graphFilterState.mode === 'hide' && edgeMatches) edgeClass += ' hidden';
+
+    return `<line class="${edgeClass}" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}"><title>${reason}</title></line>`;
   }).join('');
 
   const nodeSvg = nodes.map(node => {
@@ -3800,13 +4182,22 @@ function renderSvgGraphFallback(graph, prepared) {
     const label = escapeHtml(path.replace(/\.md$/i, '').split('/').pop());
     const safePath = escapeHtml(path);
     const tags = escapeHtml((node.tags || []).slice(0, 4).join(', '));
+    const matches = isNodeMatchingFilter(node);
+
     const classes = [
       'obsidian-graph-node',
       isCurrent ? 'current' : '',
       star?.hub === path ? 'project-hub' : '',
-    ].filter(Boolean).join(' ');
+    ];
+    if (graphFilterState.mode === 'show' && !matches) classes.push('hidden');
+    else if (graphFilterState.mode === 'highlight') {
+      if (matches) classes.push('highlighted');
+      else classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && matches) classes.push('hidden');
+
+    const classesStr = classes.filter(Boolean).join(' ');
     return `
-      <g class="${classes}" data-path="${safePath}" tabindex="0" role="button">
+      <g class="${classesStr}" data-path="${safePath}" tabindex="0" role="button">
         <title>${safePath}${tags ? `\nTags: ${tags}` : ''}</title>
         <circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${isCurrent ? 18 : 13}"></circle>
         <text x="${pos.x.toFixed(1)}" y="${(pos.y + 30).toFixed(1)}">${label}</text>
@@ -3954,7 +4345,7 @@ function renderSearchResults(results) {
       deleteButton.className = 'tree-delete-button';
       deleteButton.title = 'Delete note';
       deleteButton.setAttribute('aria-label', 'Delete selected search result');
-      deleteButton.textContent = 'x';
+      deleteButton.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
       deleteButton.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4313,10 +4704,15 @@ function setupEventListeners() {
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function init() {
+  loadGraphFilterState();
   const standalone = isStandaloneMode();
   document.body.classList.toggle('obsidian-standalone', standalone);
   injectUIElements();
-  applyObsidianSurfaceMode(getStoredSurfaceMode());
+  if (standalone) {
+    applyObsidianSurfaceMode('fullscreen');
+  } else {
+    initializeClosedObsidianSurface();
+  }
   setupEventListeners();
   window.OdysseusObsidian = { openPanel, closePanel, togglePanel };
   if (standalone) {

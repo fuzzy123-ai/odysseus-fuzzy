@@ -7,15 +7,18 @@
 #obsidian-panel {
   --obsidian-panel-width: min(55vw, 960px);
   --obsidian-sidebar-width: 220px;
+  --obsidian-app-top: var(--odysseus-header-height, var(--topbar-height, 0px));
+  --obsidian-app-height: calc(100dvh - var(--obsidian-app-top));
   position: fixed;
-  top: 0;
+  top: var(--obsidian-app-top);
   right: 0;
   width: 0;
-  height: 100vh;
+  height: var(--obsidian-app-height);
   z-index: 254;
   display: flex;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  pointer-events: none;
 }
 
 #obsidian-modal {
@@ -35,10 +38,10 @@
 
 #obsidian-panel-backdrop {
   position: fixed;
-  top: 0;
+  top: var(--obsidian-app-top, 0);
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: var(--obsidian-app-height, 100dvh);
   background: rgba(0, 0, 0, 0.25);
   z-index: -1;
   opacity: 0;
@@ -59,7 +62,7 @@ body.obsidian-open #obsidian-panel-backdrop {
   width: var(--obsidian-panel-width);
   max-width: 1200px;
   min-width: 540px;
-  height: 100vh;
+  height: 100%;
   background: var(--bg);
   border-left: 1px solid var(--border);
   display: flex;
@@ -74,6 +77,7 @@ body.obsidian-open #obsidian-panel {
   width: var(--obsidian-panel-width);
   max-width: 1200px;
   min-width: 540px;
+  pointer-events: auto;
 }
 
 body.obsidian-open .obsidian-panel-content {
@@ -142,9 +146,14 @@ body.obsidian-fullscreen #obsidian-panel {
   width: auto;
   max-width: none;
   min-width: 0;
-  height: 100vh;
+  height: var(--obsidian-app-height);
   z-index: 245;
   overflow: hidden;
+  pointer-events: none;
+}
+
+body.obsidian-open.obsidian-fullscreen #obsidian-panel {
+  pointer-events: auto;
 }
 
 body.hamburger-right.obsidian-fullscreen #obsidian-panel {
@@ -168,7 +177,7 @@ body.obsidian-fullscreen .obsidian-panel-content {
   width: 100%;
   max-width: none;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
   max-height: none;
   border-left: 0;
   box-shadow: none;
@@ -2213,4 +2222,153 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
     width: auto;
     height: 1px;
   }
+}
+
+/* Graph Filter Panel Styles */
+.obsidian-graph-controls {
+  position: relative;
+  display: inline-block;
+}
+
+.obsidian-graph-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.obsidian-graph-filter-btn:hover {
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, var(--red)) 8%, var(--panel));
+}
+
+.obsidian-graph-filter-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  width: 280px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.obsidian-graph-filter-panel.hidden {
+  display: none !important;
+}
+
+.obsidian-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.obsidian-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+.obsidian-filter-section input[type="text"],
+.obsidian-filter-section select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.obsidian-filter-section input[type="text"]:focus,
+.obsidian-filter-section select:focus {
+  border-color: var(--accent, var(--red));
+  outline: none;
+}
+
+.obsidian-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.obsidian-filter-group.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.obsidian-filter-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.obsidian-filter-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent, var(--red));
+  cursor: pointer;
+  margin: 0;
+}
+
+.obsidian-graph-filter-reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted, #9ca3af);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.obsidian-graph-filter-reset-btn:hover {
+  border-color: var(--accent, var(--red));
+  color: var(--fg);
+}
+
+/* SVG Fallback Styles for Filters */
+.obsidian-graph-node.dimmed {
+  opacity: 0.15 !important;
+}
+
+.obsidian-graph-edge.dimmed {
+  opacity: 0.05 !important;
+}
+
+.obsidian-graph-node.hidden,
+.obsidian-graph-edge.hidden {
+  display: none !important;
+}
+
+.obsidian-graph-node.highlighted {
+  stroke: var(--accent, var(--red)) !important;
+  stroke-width: 2.5px !important;
+}
+
+.obsidian-graph-edge.highlighted {
+  stroke: var(--accent, var(--red)) !important;
+  stroke-width: 2.5px !important;
+  opacity: 0.8 !important;
 }

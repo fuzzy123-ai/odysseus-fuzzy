@@ -34,7 +34,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     paths = {getattr(route, "path", "") for route in app.router.routes}
 
     assert record.status == "loaded", record.error
-    assert record.public()["version"] == "0.9.0"
+    assert record.public()["version"] == "0.10.0-rc.1"
     assert record.public()["ui"] == {
         "open": "/api/plugins/obsidian/app",
         "label": "Open Vault",
@@ -93,7 +93,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "obsidian" in ui_loader_response.text
     from src.agent_loop import _loaded_plugins_prompt
 
-    assert "obsidian v0.9.0" in _loaded_plugins_prompt()
+    assert "obsidian v0.10.0-rc.1" in _loaded_plugins_prompt()
 
     manager.disable("obsidian")
     assert get_tool("obsidian_list_notes") is None
@@ -105,3 +105,60 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_undo") is None
     assert get_tool("obsidian_project_plan_preview") is None
     assert get_tool("obsidian_project_plan_apply") is None
+
+
+def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monkeypatch):
+    import shutil
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from fastapi.responses import JSONResponse
+
+    repo_root = Path(__file__).resolve().parents[1]
+    source = repo_root / "plugins" / "obsidian"
+    plugins_dir = tmp_path / "plugins"
+    target = plugins_dir / "obsidian"
+    shutil.copytree(
+        source,
+        target,
+        ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache"),
+    )
+    monkeypatch.setenv("ODYSSEUS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(plugin_system, "MANAGER", None)
+
+    app = FastAPI()
+    app.include_router(setup_plugin_routes())
+    manager = plugin_system.PluginManager(app=app, directory=str(plugins_dir))
+    monkeypatch.setattr(plugin_system, "MANAGER", manager)
+    manager.load_enabled(app)
+
+    # Add a mock AuthMiddleware simulating app.py behavior
+    class MockAuthMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            path = request.url.path
+            # /api/plugins/ui-loader.js is exempt, but others starting with /api/ are not
+            if path == "/api/plugins/ui-loader.js":
+                return await call_next(request)
+            
+            # Simple session check
+            cookie = request.cookies.get("session_token")
+            if not cookie or cookie != "valid_session":
+                if path.startswith("/api/"):
+                    return JSONResponse(status_code=401, content={"error": "Not authenticated"})
+            return await call_next(request)
+
+    app.add_middleware(MockAuthMiddleware)
+    client = TestClient(app)
+
+    # 1. UI Loader is exempt, should succeed
+    ui_loader_response = client.get("/api/plugins/ui-loader.js")
+    assert ui_loader_response.status_code == 200
+
+    # 2. Unauthenticated requests to obsidian routes should fail with 401
+    assert client.get("/api/plugins/obsidian/app").status_code == 401
+    assert client.get("/api/plugins/obsidian/web/main.js").status_code == 401
+    assert client.get("/api/plugins/obsidian/files").status_code == 401
+
+    # 3. Authenticated requests with cookie should succeed
+    client.cookies.set("session_token", "valid_session")
+    assert client.get("/api/plugins/obsidian/app").status_code == 200
+    assert client.get("/api/plugins/obsidian/web/main.js").status_code == 200
+

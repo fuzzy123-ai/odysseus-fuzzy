@@ -99,7 +99,7 @@ except ModuleNotFoundError:
 # Metadata manifest required by plugin loader
 PLUGIN = {
     "name": "obsidian",
-    "version": "0.9.0",
+    "version": "0.10.0-rc.1",
     "description": "Obsidian vault integration for direct editing and AI tool search/updates.",
     "category": "productivity",
     "permissions": ["filesystem"],

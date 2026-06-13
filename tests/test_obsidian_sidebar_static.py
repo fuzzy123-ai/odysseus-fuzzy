@@ -27,10 +27,11 @@ def test_obsidian_frontend_javascript_syntax_is_valid():
 
 def test_obsidian_plugin_loader_is_auth_exempt():
     app_py = (ROOT / "app.py").read_text(encoding="utf-8")
+    prefix_match = re.search(r"AUTH_EXEMPT_PREFIXES\s*=\s*\[(.*?)\]", app_py, re.S)
 
     assert '"/api/plugins/ui-loader.js"' in app_py
-    assert '"/api/plugins/obsidian"' in app_py
-    assert "AUTH_EXEMPT_PREFIXES" in app_py
+    assert prefix_match
+    assert '"/api/plugins/obsidian"' not in prefix_match.group(1)
 
 
 def test_obsidian_frontend_registers_sidebar_and_standalone_mode():
@@ -91,6 +92,14 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
     assert "function loadCytoscape()" in main_js
     assert "async function renderCytoscapeGraph(graph, prepared)" in main_js
     assert "function renderSvgGraphFallback(graph, prepared)" in main_js
+    assert "const OBSIDIAN_GRAPH_WHEEL_SENSITIVITY = 0.55" in main_js
+    assert "function isVaultRootSelected()" in main_js
+    assert "function graphFocusPath()" in main_js
+    assert "const focusPath = graphFocusPath();" in main_js
+    assert "return isVaultRootSelected() ? '' : (currentNotePath || '')" in main_js
+    assert "if (isVaultRootSelected()) return null;" in main_js
+    assert "wheelSensitivity: OBSIDIAN_GRAPH_WHEEL_SENSITIVITY" in main_js
+    assert "if (currentViewMode === 'graph') {\n          renderGraphView();" in main_js
     assert "Cytoscape graph failed, falling back to SVG" in main_js
     assert "function prepareGraphData(graphData)" in main_js
     assert "function directFolderForPath(path)" in main_js
@@ -212,6 +221,7 @@ def test_obsidian_surface_modes_contract():
     assert "const OBSIDIAN_SURFACE_MODES = ['sidebar', 'overlay', 'fullscreen']" in main_js
     assert "function normalizeSurfaceMode(mode)" in main_js
     assert "function getStoredSurfaceMode()" in main_js
+    assert "function initializeClosedObsidianSurface" in main_js
     assert "function changeObsidianSurfaceMode(mode)" in main_js
     assert 'id="obsidian-modal"' in main_js
     assert 'data-obsidian-surface-mode="sidebar"' in main_js
@@ -234,13 +244,40 @@ def test_obsidian_surface_modes_contract():
     assert '#minimized-dock:has(.minimized-dock-chip[data-modal-id="obsidian-modal"])' in style
     fullscreen_content = re.search(r"body\.obsidian-fullscreen \.obsidian-panel-content\s*\{(?P<body>.*?)\n\}", style, re.S)
     assert fullscreen_content
-    assert "height: 100vh" in fullscreen_content.group("body")
+    assert "height: 100%" in fullscreen_content.group("body")
     assert "max-height: none" in fullscreen_content.group("body")
     mobile_body = style[style.index("@media (max-width: 640px)"):]
     assert "body.obsidian-surface-overlay #obsidian-panel" in mobile_body
     assert "body.obsidian-fullscreen #obsidian-panel" in mobile_body
     assert "body.obsidian-surface-overlay .obsidian-panel-content" in mobile_body
     assert "body.obsidian-fullscreen .obsidian-panel-content" in mobile_body
+
+
+def test_obsidian_closed_boot_does_not_activate_overlay_or_fullscreen():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    init_body = re.search(r"function init\(\) \{(?P<body>.*?)\n\}", main_js, re.S)
+    assert init_body
+    assert "initializeClosedObsidianSurface();" in init_body.group("body")
+    assert "applyObsidianSurfaceMode(getStoredSurfaceMode())" not in init_body.group("body")
+
+    closed_body = re.search(r"function initializeClosedObsidianSurface.*?\{(?P<body>.*?)\n\}", main_js, re.S)
+    assert closed_body
+    assert "clearObsidianSurfaceClasses();" in closed_body.group("body")
+    assert "document.body.classList.remove('obsidian-open')" in closed_body.group("body")
+    assert "getObsidianModal()?.classList.add('hidden')" in closed_body.group("body")
+
+    panel_css = re.search(r"#obsidian-panel\s*\{(?P<body>.*?)\n\}", style, re.S)
+    assert panel_css
+    assert "--obsidian-app-height: calc(100dvh - var(--obsidian-app-top))" in panel_css.group("body")
+    assert "height: var(--obsidian-app-height)" in panel_css.group("body")
+    assert "pointer-events: none" in panel_css.group("body")
+
+    open_panel_css = re.search(r"body\.obsidian-open #obsidian-panel\s*\{(?P<body>.*?)\n\}", style, re.S)
+    assert open_panel_css
+    assert "pointer-events: auto" in open_panel_css.group("body")
+    assert "body.obsidian-open.obsidian-fullscreen #obsidian-panel" in style
 
 
 def test_obsidian_phase3_settings_menu_contract():

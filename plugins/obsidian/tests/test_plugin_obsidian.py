@@ -1320,3 +1320,52 @@ def test_plugin_setup_registration():
     assert "obsidian_vault_remove_password" in tool_names
     assert "obsidian_vault_export" in tool_names
     assert "obsidian_vault_import" in tool_names
+
+
+@pytest.mark.asyncio
+async def test_locked_vault_blocks_all_actions(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        set_password(tmpdir, "strong password")
+        lock_vault(tmpdir)
+
+        # Test list notes
+        res = await handle_list_notes("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test write note
+        res = await handle_write_note('{"path": "test.md", "content": "hello"}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test delete note
+        res = await handle_delete_note('{"path": "test.md", "confirm": true}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test list tags
+        res = await handle_list_tags("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test graph
+        res = await handle_graph("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test add relationship
+        res = await handle_add_relationship('{"source": "a.md", "target": "b.md", "confirm": true}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test search notes
+        res = await handle_search_notes('{"query": "hello"}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test history
+        res = await handle_history("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test project plan preview
+        res = await handle_project_plan_preview('{"title": "Proj", "kind": "software", "description": "desc"}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        # Test memory review preview
+        res = await handle_memory_review_preview('{"candidate": {"content": "memory"}, "action": "save_to_obsidian"}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
