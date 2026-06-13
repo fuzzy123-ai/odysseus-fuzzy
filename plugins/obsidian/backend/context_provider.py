@@ -15,6 +15,9 @@ MAX_ENRICHED_BACKLINKS = 3
 MAX_ENRICHED_SHARED_TAGS = 3
 MAX_ENRICHED_FOLDER = 2
 SHARED_TAG_EXCLUDED_PREFIXES = ("project/", "status/", "type/")
+BROAD_TAGS = {"ai", "ki", "llm", "project", "note", "notes", "memory", "obsidian"}
+CANONICAL_PREFIXES = ("AI Memory/Canonical/",)
+SUMMARY_PREFIXES = ("AI Memory/Summaries/", "AI Memory/Clusters/")
 
 
 def _estimate_text_tokens(text: str) -> int:
@@ -239,14 +242,22 @@ def _enrich_with_shared_tags(
 ) -> List[Dict[str, Any]]:
     """Notes with ≥2 shared tags, excluding project/status/type prefixes."""
     results = []
-    note_tags = {t for t in note.get("tags", []) if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)}
+    note_tags = {
+        t for t in note.get("tags", [])
+        if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)
+        and t.lower().lstrip("#") not in BROAD_TAGS
+    }
     if len(note_tags) < 2:
         return results
 
     for other in all_notes:
         if other["path"] == note["path"] or other["path"] in all_scored or other["path"] in enriched_paths:
             continue
-        other_tags = {t for t in other.get("tags", []) if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)}
+        other_tags = {
+            t for t in other.get("tags", [])
+            if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)
+            and t.lower().lstrip("#") not in BROAD_TAGS
+        }
         shared = note_tags & other_tags
         if len(shared) >= 2:
             results.append({
@@ -362,17 +373,24 @@ def _score_note(
     body: str,
     query_terms: List[str],
 ) -> Tuple[int, List[str]]:
+    base_bonus = _memory_tier_bonus(path, frontmatter)
     if not query_terms:
-        return 1, ["no query filter"]
+        reasons = ["no query filter"]
+        if base_bonus:
+            reasons.append("preferred memory tier")
+        return 1 + base_bonus, reasons
+    weighted_tags = " ".join(tag for tag in tags if tag.lower().lstrip("#") not in BROAD_TAGS).lower()
     haystacks = {
         "path": path.lower(),
         "title": title.lower(),
-        "tags": " ".join(tags).lower(),
+        "tags": weighted_tags,
         "frontmatter": json.dumps(frontmatter, sort_keys=True).lower(),
         "body": body.lower(),
     }
-    score = 0
+    score = base_bonus
     reasons: List[str] = []
+    if base_bonus:
+        reasons.append("preferred memory tier")
     weights = {"title": 8, "path": 6, "tags": 5, "frontmatter": 4, "body": 1}
     for term in query_terms:
         for name, haystack in haystacks.items():
@@ -381,6 +399,17 @@ def _score_note(
                 reasons.append(f"{term} in {name}")
                 break
     return score, sorted(set(reasons))
+
+
+def _memory_tier_bonus(path: str, frontmatter: Dict[str, Any]) -> int:
+    normalized = path.replace("\\", "/")
+    if normalized.startswith(CANONICAL_PREFIXES) or frontmatter.get("type") == "canonical":
+        return 12
+    if normalized.startswith(SUMMARY_PREFIXES) or frontmatter.get("type") in {"spark_summary", "cluster_summary"}:
+        return 7
+    if normalized.startswith("AI Memory/02 Entscheidungen"):
+        return 8
+    return 0
 
 
 def _best_snippet(body: str, query_terms: List[str]) -> str:

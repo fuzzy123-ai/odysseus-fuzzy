@@ -82,6 +82,22 @@ from .memory_review import (
     build_memory_review_plan,
     validate_memory_review_plan,
 )
+from .memory_capture import (
+    MemoryCaptureApplyRequest,
+    MemoryCaptureRequest,
+    MemoryCaptureValidationError,
+    apply_memory_capture_plan,
+    build_memory_capture_plan,
+    validate_memory_capture_plan,
+)
+from .memory_spark import (
+    SparkAnalyzeRequest,
+    SparkApplyRequest,
+    SparkValidationError,
+    analyze_memory_health,
+    apply_spark_plan,
+    build_spark_plan,
+)
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
@@ -1276,6 +1292,77 @@ async def memory_review_apply(req: MemoryReviewApplyRequest, request: Request):
         raise
     except MemoryReviewValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/memory-capture/preview")
+async def memory_capture_preview(req: MemoryCaptureRequest, request: Request):
+    """Build a normalized, non-destructive memory capture plan."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = build_memory_capture_plan(vault_dir, req)
+        return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    except MemoryCaptureValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/memory-capture/apply")
+async def memory_capture_apply(req: MemoryCaptureApplyRequest, request: Request):
+    """Apply a confirmed normalized memory capture plan."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    try:
+        plan = validate_memory_capture_plan(vault_dir, req.plan)
+        if plan.confirm_required and not req.confirm:
+            raise HTTPException(status_code=409, detail="Confirmation required before changing Obsidian notes")
+        return apply_memory_capture_plan(
+            vault_dir,
+            plan,
+            owner=current_owner(request),
+            actor=vault_actor(request),
+        )
+    except HTTPException:
+        raise
+    except MemoryCaptureValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/spark/analyze")
+async def spark_analyze(req: SparkAnalyzeRequest, request: Request):
+    """Analyze long-term memory health without changing the vault."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        health = analyze_memory_health(vault_dir, req)
+        return health.model_dump() if hasattr(health, "model_dump") else health.dict()
+    except SparkValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/spark/plan")
+async def spark_plan(req: SparkAnalyzeRequest, request: Request):
+    """Build a non-destructive Spark cleanup and canonicalization plan."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        plan = build_spark_plan(vault_dir, req)
+        return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    except SparkValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/spark/apply")
+async def spark_apply(req: SparkApplyRequest, request: Request):
+    """Apply selected low/medium-risk Spark actions with confirmation."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    try:
+        return apply_spark_plan(
+            vault_dir,
+            req,
+            owner=current_owner(request),
+            actor=vault_actor(request),
+        )
+    except SparkValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
 
 @router.post("/relationships")
 async def create_relationship(req: RelationshipRequest, request: Request):

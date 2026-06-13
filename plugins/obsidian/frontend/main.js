@@ -127,6 +127,10 @@ let memoryReviewDestination = { type: '', path: '' };
 let memoryReviewTags = [];
 let memoryTagPickerState = { index: 0, items: [] };
 let memoryDestinationPickerTab = 'folders';
+let sparkPlan = null;
+let sparkHealth = null;
+let sparkSelectedActions = new Set();
+let sparkActiveTab = 'health';
 let projectTemplateOptions = null;
 let gameDevConceptDraft = null;
 let projectPlanPreviewStreaming = false;
@@ -1381,6 +1385,9 @@ function injectUIElements() {
                 <button id="obsidian-memory-review" title="Memory Review">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.2 1.02 4.16 2.61 5.44.53.43.89 1.05.89 1.73V18h7v-.83c0-.68.36-1.3.89-1.73A6.98 6.98 0 0 0 19 10a7 7 0 0 0-7-7Z"/><path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/></svg>
                 </button>
+                <button id="obsidian-spark" title="KI Spark">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.56 8.5 21l-1.44-6.44L.62 13.12l6.44-1.44L8.5 5.24l1.44 6.44 6.44 1.44-6.44 1.44Z"/><path d="M18 8V2"/><path d="M21 5h-6"/><path d="M19 22v-4"/><path d="M21 20h-4"/></svg>
+                </button>
               </div>
               <div class="obsidian-search-box">
                 <input type="text" id="obsidian-search-input" placeholder="Search notes..." autocomplete="off">
@@ -1490,6 +1497,29 @@ function injectUIElements() {
                   </div>
                 </div>
                 <div class="obsidian-project-preview" id="obsidian-memory-preview-panel"></div>
+              </div>
+              <div class="obsidian-spark-panel hidden" id="obsidian-spark-panel">
+                <div class="obsidian-project-header">
+                  <div>
+                    <div class="obsidian-project-title">KI Spark</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-spark-subtitle">Memory health, cleanup plans, review queue, and canonicals</div>
+                  </div>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-spark-close" title="Close KI Spark">x</button>
+                </div>
+                <div class="obsidian-spark-toolbar">
+                  <div class="obsidian-spark-tabs" role="tablist">
+                    <button type="button" data-spark-tab="health">Health</button>
+                    <button type="button" data-spark-tab="plan">Plan</button>
+                    <button type="button" data-spark-tab="queue">Review Queue</button>
+                    <button type="button" data-spark-tab="canonicals">Canonicals</button>
+                  </div>
+                  <div class="obsidian-project-actions">
+                    <button type="button" id="obsidian-spark-analyze" class="btn btn-secondary">Analyze</button>
+                    <button type="button" id="obsidian-spark-plan" class="btn btn-secondary">Create plan</button>
+                    <button type="button" id="obsidian-spark-apply" class="btn btn-primary" disabled>Apply selected</button>
+                  </div>
+                </div>
+                <div class="obsidian-spark-content" id="obsidian-spark-content"></div>
               </div>
               <div class="obsidian-empty-state" id="obsidian-empty-state">
                 <span>Select a note to start editing or create a new one</span>
@@ -1927,6 +1957,7 @@ async function openNote(path) {
       // Update UI panels visibility
       document.getElementById('obsidian-project-planner')?.classList.add('hidden');
       document.getElementById('obsidian-memory-review-panel')?.classList.add('hidden');
+      document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
       document.getElementById('obsidian-empty-state').classList.add('hidden');
       document.getElementById('obsidian-editor-container').classList.remove('hidden');
 
@@ -2792,6 +2823,7 @@ async function showProjectPlanner({ preserveSession = false } = {}) {
   }
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
   planner.classList.remove('hidden');
   renderProjectFolderOptions();
   await loadProjectTemplateOptions().catch((e) => {
@@ -2840,6 +2872,7 @@ function showMemoryReview() {
   memoryReviewPreview = null;
   clearMemoryReviewDestination();
   document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   panel.classList.remove('hidden');
@@ -2857,6 +2890,265 @@ function closeMemoryReview() {
     document.getElementById('obsidian-editor-container')?.classList.remove('hidden');
   } else {
     document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+  }
+}
+
+function showSparkPanel() {
+  const panel = document.getElementById('obsidian-spark-panel');
+  if (!panel) return;
+  document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  document.getElementById('obsidian-memory-review-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+  document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  panel.classList.remove('hidden');
+  renderSparkPanel();
+  if (!sparkHealth) analyzeSpark();
+}
+
+function closeSparkPanel() {
+  document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
+  if (currentNotePath) {
+    document.getElementById('obsidian-editor-container')?.classList.remove('hidden');
+  } else {
+    document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+  }
+}
+
+function setSparkTab(tab) {
+  sparkActiveTab = ['health', 'plan', 'queue', 'canonicals'].includes(tab) ? tab : 'health';
+  renderSparkPanel();
+}
+
+function updateSparkApplyState() {
+  const applyBtn = document.getElementById('obsidian-spark-apply');
+  if (!applyBtn) return;
+  applyBtn.disabled = !sparkPlan || sparkSelectedActions.size === 0;
+}
+
+function sparkMetric(label, value) {
+  return `
+    <div class="obsidian-spark-metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+function renderSparkPanel() {
+  const content = document.getElementById('obsidian-spark-content');
+  if (!content) return;
+  document.querySelectorAll('[data-spark-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sparkTab === sparkActiveTab);
+  });
+  if (sparkActiveTab === 'health') {
+    content.innerHTML = renderSparkHealth();
+  } else if (sparkActiveTab === 'plan') {
+    content.innerHTML = renderSparkPlan();
+  } else if (sparkActiveTab === 'queue') {
+    content.innerHTML = renderSparkQueue();
+  } else {
+    content.innerHTML = renderSparkCanonicals();
+  }
+  bindSparkPanelActions();
+  updateSparkApplyState();
+}
+
+function renderSparkHealth() {
+  if (!sparkHealth) {
+    return '<div class="obsidian-project-loading">Run analysis to inspect long-term memory health.</div>';
+  }
+  const h = sparkHealth;
+  return `
+    <div class="obsidian-spark-metrics">
+      ${sparkMetric('Notes', h.total_notes || 0)}
+      ${sparkMetric('Tags', h.total_tags || 0)}
+      ${sparkMetric('Review queue', h.review_queue_count || 0)}
+      ${sparkMetric('Orphans', (h.orphan_notes || []).length)}
+      ${sparkMetric('No frontmatter', (h.missing_frontmatter || []).length)}
+      ${sparkMetric('Duplicate groups', (h.duplicate_candidates || []).length)}
+    </div>
+    ${h.truncated ? '<div class="obsidian-project-warnings"><div>Analysis was limited; scope Spark to a folder or tag for deeper cleanup.</div></div>' : ''}
+    <div class="obsidian-spark-grid">
+      ${sparkList('Largest tags', h.largest_tags || [], item => `#${item.name} (${item.count})`)}
+      ${sparkList('Broad tags', h.broad_tags || [], item => `#${item.name} (${item.count})`)}
+      ${sparkList('Orphan candidates', h.orphan_notes || [], item => item)}
+      ${sparkList('Missing frontmatter', h.missing_frontmatter || [], item => item)}
+    </div>
+  `;
+}
+
+function renderSparkPlan() {
+  if (!sparkPlan) {
+    return '<div class="obsidian-project-loading">Create a Spark plan to review cleanup actions.</div>';
+  }
+  const warnings = sparkPlan.warnings || [];
+  const actions = sparkPlan.actions || [];
+  return `
+    <div class="obsidian-project-summary">
+      <strong>${escapeHtml(sparkPlan.summary || 'Spark plan')}</strong>
+      <span>${escapeHtml(actions.length)} actions</span>
+      <span>${escapeHtml(sparkPlan.scope || 'vault')}</span>
+    </div>
+    ${warnings.length ? `<div class="obsidian-project-warnings">${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+    <div class="obsidian-spark-actions">
+      ${actions.length ? actions.map(action => renderSparkAction(action)).join('') : '<div class="obsidian-project-ok">No cleanup actions needed</div>'}
+    </div>
+  `;
+}
+
+function renderSparkAction(action) {
+  const selected = sparkSelectedActions.has(action.id);
+  const highRisk = action.risk === 'high';
+  const hasOps = action.operations && action.operations.length > 0;
+  const disabled = highRisk && !hasOps;
+  return `
+    <label class="obsidian-spark-action obsidian-spark-risk-${escapeHtml(action.risk || 'low')}">
+      <input type="checkbox" data-spark-action-id="${escapeHtml(action.id)}" ${selected ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <div>
+        <div class="obsidian-spark-action-head">
+          <strong>${escapeHtml(action.type || 'action')}</strong>
+          <span>${escapeHtml(action.risk || 'low')}</span>
+        </div>
+        <p>${escapeHtml(action.reason || '')}</p>
+        ${action.target_path ? `<code>${escapeHtml(action.target_path)}</code>` : ''}
+        ${(action.paths || []).length ? `<small>${escapeHtml(action.paths.slice(0, 5).join(', '))}</small>` : ''}
+        ${disabled ? '<small>No automatic operations — review this group manually.</small>' : ''}
+        ${highRisk && hasOps ? '<small>⚠ High-risk: content from secondaries will be merged and secondaries deleted.</small>' : ''}
+        ${action.preview_markdown ? `<details><summary>📋 Merge preview</summary><pre>${escapeHtml(action.preview_markdown)}</pre></details>` : ''}
+      </div>
+    </label>
+  `;
+}
+
+function renderSparkQueue() {
+  const queue = flattenNotes(vaultFiles).filter(path => path.startsWith('AI Memory/Review Queue/'));
+  return `
+    <div class="obsidian-project-summary">
+      <strong>Review Queue</strong>
+      <span>${escapeHtml(queue.length)} notes</span>
+    </div>
+    <div class="obsidian-spark-list">
+      ${queue.length ? queue.map(path => `<button type="button" data-spark-open-path="${escapeHtml(path)}">${escapeHtml(path)}</button>`).join('') : '<div class="obsidian-project-ok">Review queue is empty</div>'}
+    </div>
+  `;
+}
+
+function renderSparkCanonicals() {
+  const canonicals = [
+    'AI Memory/Canonical/User Preferences.md',
+    'AI Memory/Canonical/Odysseus Architecture.md',
+    'AI Memory/Canonical/Obsidian MCP Rules.md',
+    'AI Memory/Canonical/Open Decisions.md',
+    'AI Memory/02 Entscheidungen.md',
+    'AI Memory/03 Offene Fragen.md',
+  ];
+  const notes = flattenNotes(vaultFiles);
+  return `
+    <div class="obsidian-spark-list">
+      ${canonicals.map(path => {
+        const exists = notes.includes(path);
+        return `<button type="button" data-spark-open-path="${escapeHtml(path)}" ${exists ? '' : 'disabled'}>
+          <span>${escapeHtml(path)}</span>
+          <small>${exists ? 'available' : 'missing'}</small>
+        </button>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function sparkList(title, items, renderItem) {
+  return `
+    <div class="obsidian-spark-card">
+      <strong>${escapeHtml(title)}</strong>
+      ${items.length ? `<ul>${items.slice(0, 12).map(item => `<li>${escapeHtml(renderItem(item))}</li>`).join('')}</ul>` : '<p>None</p>'}
+    </div>
+  `;
+}
+
+function bindSparkPanelActions() {
+  document.querySelectorAll('[data-spark-action-id]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.checked) sparkSelectedActions.add(input.dataset.sparkActionId);
+      else sparkSelectedActions.delete(input.dataset.sparkActionId);
+      updateSparkApplyState();
+    });
+  });
+  document.querySelectorAll('[data-spark-open-path]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const path = btn.dataset.sparkOpenPath;
+      if (!path || btn.disabled) return;
+      closeSparkPanel();
+      await openNote(path);
+    });
+  });
+}
+
+async function analyzeSpark() {
+  const content = document.getElementById('obsidian-spark-content');
+  if (content) content.innerHTML = '<div class="obsidian-project-loading">Analyzing memory health...</div>';
+  try {
+    const res = await fetch('/api/plugins/obsidian/spark/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'vault', limit: 5000 }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Spark analysis failed');
+    sparkHealth = await res.json();
+    sparkActiveTab = 'health';
+    renderSparkPanel();
+  } catch (e) {
+    console.error('Spark analysis failed:', e);
+    if (content) content.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Spark analysis failed')}</div>`;
+  }
+}
+
+async function createSparkPlan() {
+  const content = document.getElementById('obsidian-spark-content');
+  if (content) content.innerHTML = '<div class="obsidian-project-loading">Creating Spark plan...</div>';
+  try {
+    const res = await fetch('/api/plugins/obsidian/spark/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'vault', limit: 5000 }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Spark plan failed');
+    sparkPlan = await res.json();
+    sparkHealth = sparkPlan.health || sparkHealth;
+    sparkSelectedActions = new Set();
+    sparkActiveTab = 'plan';
+    renderSparkPanel();
+  } catch (e) {
+    console.error('Spark plan failed:', e);
+    if (content) content.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Spark plan failed')}</div>`;
+  }
+}
+
+async function applySparkPlan() {
+  if (!sparkPlan || sparkSelectedActions.size === 0) return;
+  const ok = await styledConfirm('Apply selected Spark actions to the vault?', { confirmText: 'Apply' });
+  if (!ok) return;
+  const applyBtn = document.getElementById('obsidian-spark-apply');
+  if (applyBtn) applyBtn.disabled = true;
+  try {
+    const res = await fetch('/api/plugins/obsidian/spark/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan: sparkPlan,
+        confirm: true,
+        selected_action_ids: Array.from(sparkSelectedActions),
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Spark apply failed');
+    const result = await res.json();
+    showToast(`Applied ${result.applied_actions?.length || 0} Spark actions`);
+    sparkSelectedActions = new Set();
+    await loadVaultFiles();
+    await createSparkPlan();
+  } catch (e) {
+    console.error('Spark apply failed:', e);
+    showToast(e.message || 'Spark apply failed');
+    updateSparkApplyState();
   }
 }
 
@@ -4574,6 +4866,14 @@ function setupEventListeners() {
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
   document.getElementById('obsidian-memory-apply')?.addEventListener('click', applyMemoryReview);
+  document.getElementById('obsidian-spark')?.addEventListener('click', showSparkPanel);
+  document.getElementById('obsidian-spark-close')?.addEventListener('click', closeSparkPanel);
+  document.getElementById('obsidian-spark-analyze')?.addEventListener('click', analyzeSpark);
+  document.getElementById('obsidian-spark-plan')?.addEventListener('click', createSparkPlan);
+  document.getElementById('obsidian-spark-apply')?.addEventListener('click', applySparkPlan);
+  document.querySelectorAll('[data-spark-tab]').forEach(btn => {
+    btn.addEventListener('click', () => setSparkTab(btn.dataset.sparkTab));
+  });
   document.getElementById('obsidian-memory-action')?.addEventListener('change', handleMemoryActionChanged);
   document.getElementById('obsidian-memory-title')?.addEventListener('input', () => invalidateMemoryReviewPreview({ clearPanel: true }));
   document.getElementById('obsidian-memory-content')?.addEventListener('input', () => invalidateMemoryReviewPreview({ clearPanel: true }));

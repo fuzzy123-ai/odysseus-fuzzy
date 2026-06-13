@@ -2372,3 +2372,178 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   stroke-width: 2.5px !important;
   opacity: 0.8 !important;
 }
+
+/* KI Spark */
+.obsidian-spark-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 14px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.obsidian-spark-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.obsidian-spark-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.obsidian-spark-tabs button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted, #9ca3af);
+  border-radius: 4px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.obsidian-spark-tabs button.active {
+  color: var(--fg);
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, #d35f5f) 12%, transparent);
+}
+
+.obsidian-spark-content {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.obsidian-spark-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.obsidian-spark-metric,
+.obsidian-spark-card,
+.obsidian-spark-action {
+  border: 1px solid var(--border);
+  background: var(--panel, #17191f);
+  border-radius: 6px;
+}
+
+.obsidian-spark-metric {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.obsidian-spark-metric span,
+.obsidian-spark-action small {
+  color: var(--muted, #9ca3af);
+  font-size: 12px;
+}
+
+.obsidian-spark-metric strong {
+  font-size: 20px;
+}
+
+.obsidian-spark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.obsidian-spark-card {
+  padding: 10px;
+  min-width: 0;
+}
+
+.obsidian-spark-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.obsidian-spark-card li {
+  overflow-wrap: anywhere;
+  margin-bottom: 4px;
+}
+
+.obsidian-spark-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-spark-action {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+
+.obsidian-spark-action input {
+  margin-top: 3px;
+}
+
+.obsidian-spark-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.obsidian-spark-action-head span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.obsidian-spark-risk-high {
+  border-color: rgba(211, 95, 95, 0.55);
+}
+
+.obsidian-spark-risk-medium {
+  border-color: rgba(214, 160, 67, 0.55);
+}
+
+.obsidian-spark-action p {
+  margin: 6px 0;
+}
+
+.obsidian-spark-action code,
+.obsidian-spark-action pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.obsidian-spark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-spark-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel, #17191f);
+  color: var(--fg);
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.obsidian-spark-list button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

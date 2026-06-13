@@ -35,6 +35,20 @@ try:
         build_memory_review_plan,
         validate_memory_review_plan,
     )
+    from obsidian.backend.memory_capture import (
+        MemoryCapturePlan,
+        MemoryCaptureRequest,
+        apply_memory_capture_plan,
+        build_memory_capture_plan,
+        validate_memory_capture_plan,
+    )
+    from obsidian.backend.memory_spark import (
+        SparkAnalyzeRequest,
+        SparkApplyRequest,
+        analyze_memory_health,
+        apply_spark_plan,
+        build_spark_plan,
+    )
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from obsidian.backend.vault_security import (
         export_vault,
@@ -80,6 +94,20 @@ except ModuleNotFoundError:
         apply_memory_review_plan,
         build_memory_review_plan,
         validate_memory_review_plan,
+    )
+    from backend.memory_capture import (
+        MemoryCapturePlan,
+        MemoryCaptureRequest,
+        apply_memory_capture_plan,
+        build_memory_capture_plan,
+        validate_memory_capture_plan,
+    )
+    from backend.memory_spark import (
+        SparkAnalyzeRequest,
+        SparkApplyRequest,
+        analyze_memory_health,
+        apply_spark_plan,
+        build_spark_plan,
     )
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from backend.vault_security import (
@@ -688,6 +716,82 @@ async def handle_memory_review_apply(content: str, owner: Optional[str] = None, 
     except Exception as e:
         return {"error": f"Failed to apply memory review: {e}", "exit_code": 1}
 
+
+async def handle_memory_capture_preview(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Creates a normalized non-destructive memory capture preview."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = build_memory_capture_plan(vault_dir, MemoryCaptureRequest(**params))
+        payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to preview memory capture: {e}", "exit_code": 1}
+
+
+async def handle_memory_capture_apply(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Applies a confirmed normalized memory capture plan."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        raw_plan = params.get("plan")
+        if not isinstance(raw_plan, dict):
+            return {"error": "plan parameter is required.", "exit_code": 1}
+        if not _is_confirmed(params):
+            return _confirmation_required("changing Obsidian notes from memory capture")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = validate_memory_capture_plan(vault_dir, MemoryCapturePlan(**raw_plan))
+        result = apply_memory_capture_plan(
+            vault_dir,
+            plan,
+            owner=owner,
+            actor={"source": "obsidian_memory_capture_apply"},
+        )
+        return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to apply memory capture: {e}", "exit_code": 1}
+
+
+async def handle_spark_analyze(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Analyzes Obsidian long-term memory health without writing files."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        health = analyze_memory_health(vault_dir, SparkAnalyzeRequest(**params))
+        payload = health.model_dump() if hasattr(health, "model_dump") else health.dict()
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to analyze Spark memory health: {e}", "exit_code": 1}
+
+
+async def handle_spark_plan(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Creates a non-destructive Spark cleanup plan."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        plan = build_spark_plan(vault_dir, SparkAnalyzeRequest(**params))
+        payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to create Spark plan: {e}", "exit_code": 1}
+
+
+async def handle_spark_apply(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Applies selected confirmed low/medium-risk Spark actions."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        if not _is_confirmed(params):
+            return _confirmation_required("applying selected Spark memory cleanup actions")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        result = apply_spark_plan(
+            vault_dir,
+            SparkApplyRequest(**params),
+            owner=owner,
+            actor={"source": "obsidian_spark_apply"},
+        )
+        return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to apply Spark plan: {e}", "exit_code": 1}
+
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
     return {
         "name": name,
@@ -819,6 +923,40 @@ def setup(ctx):
             "plan": {"type": "object", "description": "Memory review plan returned by obsidian_memory_review_preview."},
             "confirm": {"type": "boolean", "description": "Must be true before changing Obsidian notes."},
         }, ["plan"], handle_memory_review_apply),
+        _tool_spec("obsidian_memory_capture_preview", "Normalize, classify, route, tag, and link a long-term memory candidate without writing to the vault.", {
+            "content": {"type": "string", "description": "Memory text to capture."},
+            "title": {"type": "string", "description": "Optional title."},
+            "kind": {"type": "string", "description": "decision, rule, preference, open_question, project_note, session_log, reference, or raw."},
+            "source": {"type": "string", "description": "agent, chat, manual, file, mail, or document."},
+            "source_ref": {"type": "string", "description": "Optional source reference."},
+            "project": {"type": "string", "description": "Optional project slug or name."},
+            "scope": {"type": "string", "description": "global, project, personal, technical, or session."},
+            "confidence": {"type": "string", "description": "low, medium, or high."},
+            "tags": {"type": "array", "items": {"type": "string"}, "description": "Requested tags."},
+            "link_paths": {"type": "array", "items": {"type": "string"}, "description": "Existing notes to link directly."},
+            "target": {"type": "string", "description": "auto, inbox, canonical, or append."},
+        }, ["content"], handle_memory_capture_preview),
+        _tool_spec("obsidian_memory_capture_apply", "Apply a confirmed normalized memory capture plan.", {
+            "plan": {"type": "object", "description": "Memory capture plan returned by obsidian_memory_capture_preview."},
+            "confirm": {"type": "boolean", "description": "Must be true before changing Obsidian notes."},
+        }, ["plan"], handle_memory_capture_apply),
+        _tool_spec("obsidian_spark_analyze", "Analyze Obsidian long-term memory health without changing the vault.", {
+            "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
+            "path": {"type": "string", "description": "Folder prefix or current note path for scoped analysis."},
+            "tag": {"type": "string", "description": "Tag for scoped analysis."},
+            "limit": {"type": "integer", "description": "Maximum notes to analyze."},
+        }, [], handle_spark_analyze),
+        _tool_spec("obsidian_spark_plan", "Create a non-destructive Spark cleanup and canonicalization plan.", {
+            "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
+            "path": {"type": "string", "description": "Folder prefix or current note path for scoped planning."},
+            "tag": {"type": "string", "description": "Tag for scoped planning."},
+            "limit": {"type": "integer", "description": "Maximum notes to analyze."},
+        }, [], handle_spark_plan),
+        _tool_spec("obsidian_spark_apply", "Apply selected low/medium-risk Spark actions with confirmation.", {
+            "plan": {"type": "object", "description": "Spark plan returned by obsidian_spark_plan."},
+            "confirm": {"type": "boolean", "description": "Must be true before changing Obsidian notes."},
+            "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Spark action IDs to apply."},
+        }, ["plan", "confirm", "selected_action_ids"], handle_spark_apply),
         _tool_spec("obsidian_create_folder", "Create a folder in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative folder path to create."},
         }, ["path"], handle_create_folder),

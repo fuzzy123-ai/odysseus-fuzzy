@@ -12,6 +12,20 @@ from .vault_model import (
     suggest_links,
     suggest_tags,
 )
+from .memory_capture import (
+    MemoryCaptureApplyRequest,
+    MemoryCaptureRequest,
+    apply_memory_capture_plan,
+    build_memory_capture_plan,
+    validate_memory_capture_plan,
+)
+from .memory_spark import (
+    SparkAnalyzeRequest,
+    SparkApplyRequest,
+    analyze_memory_health,
+    apply_spark_plan,
+    build_spark_plan,
+)
 
 
 @dataclass(frozen=True)
@@ -187,6 +201,33 @@ def _undo(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, An
     return result or {"success": False, "message": "Nothing to undo"}
 
 
+def _capture_memory(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    req = MemoryCaptureRequest(**args)
+    plan = build_memory_capture_plan(vault_dir, req)
+    if not req.confirm:
+        return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    plan = validate_memory_capture_plan(vault_dir, plan)
+    result = apply_memory_capture_plan(vault_dir, plan, owner=owner, actor=_actor(owner, source))
+    payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    payload["apply_result"] = result
+    return payload
+
+
+def _spark_analyze(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    health = analyze_memory_health(vault_dir, SparkAnalyzeRequest(**args))
+    return health.model_dump() if hasattr(health, "model_dump") else health.dict()
+
+
+def _spark_plan(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    plan = build_spark_plan(vault_dir, SparkAnalyzeRequest(**args))
+    return plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+
+
+def _spark_apply(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    result = apply_spark_plan(vault_dir, SparkApplyRequest(**args), owner=owner, actor=_actor(owner, source))
+    return result
+
+
 VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("vault_tree", "List the folder tree of the Obsidian vault.", _schema({
         "prefix": {"type": "string", "description": "Path prefix to filter, e.g. 'projects/'"},
@@ -240,6 +281,37 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("vault_undo", "Undo a previous destructive vault action.", _schema({
         "action_id": {"type": "string", "description": "Specific action ID, or omit for latest."},
     }), "write", _undo),
+    VaultToolSpec("vault_capture_memory", "Normalize and route a long-term memory capture. Defaults to preview; confirm=true applies the generated plan.", _schema({
+        "content": {"type": "string", "description": "Memory text to capture."},
+        "title": {"type": "string", "description": "Optional title."},
+        "kind": {"type": "string", "description": "decision, rule, preference, open_question, project_note, session_log, reference, or raw."},
+        "source": {"type": "string", "description": "agent, chat, manual, file, mail, or document."},
+        "source_ref": {"type": "string", "description": "Optional source reference."},
+        "project": {"type": "string", "description": "Optional project slug or name."},
+        "scope": {"type": "string", "description": "global, project, personal, technical, or session."},
+        "confidence": {"type": "string", "description": "low, medium, or high."},
+        "tags": {"type": "array", "items": {"type": "string"}, "description": "Requested tags."},
+        "link_paths": {"type": "array", "items": {"type": "string"}, "description": "Existing notes to link."},
+        "target": {"type": "string", "description": "auto, inbox, canonical, or append."},
+        "confirm": {"type": "boolean", "description": "When true, apply the generated capture plan."},
+    }, ["content"]), "write", _capture_memory),
+    VaultToolSpec("vault_spark_analyze", "Analyze long-term memory health without changing the vault.", _schema({
+        "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
+        "path": {"type": "string", "description": "Folder prefix or current note path for scoped analysis."},
+        "tag": {"type": "string", "description": "Tag for scoped analysis."},
+        "limit": {"type": "integer", "description": "Maximum notes to analyze."},
+    }), "read", _spark_analyze),
+    VaultToolSpec("vault_spark_plan", "Create a non-destructive Spark cleanup and canonicalization plan.", _schema({
+        "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
+        "path": {"type": "string", "description": "Folder prefix or current note path for scoped planning."},
+        "tag": {"type": "string", "description": "Tag for scoped planning."},
+        "limit": {"type": "integer", "description": "Maximum notes to analyze."},
+    }), "read", _spark_plan),
+    VaultToolSpec("vault_spark_apply", "Apply selected low/medium-risk Spark actions with confirmation.", _schema({
+        "plan": {"type": "object", "description": "Spark plan returned by vault_spark_plan."},
+        "confirm": {"type": "boolean", "description": "Must be true before changing the vault."},
+        "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Action IDs to apply."},
+    }, ["plan", "confirm", "selected_action_ids"]), "write", _spark_apply),
 ]
 
 VAULT_TOOL_BY_NAME = {spec.name: spec for spec in VAULT_TOOL_SPECS}

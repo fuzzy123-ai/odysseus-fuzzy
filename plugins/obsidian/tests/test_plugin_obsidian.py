@@ -24,6 +24,19 @@ from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidati
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
 from backend.tool_specs import DESTRUCTIVE_TOOL_NAMES, VAULT_TOOL_BY_NAME, VAULT_TOOL_SPECS, execute_vault_tool
+from backend.memory_capture import (
+    MemoryCaptureApplyRequest,
+    MemoryCaptureRequest,
+    apply_memory_capture_plan,
+    build_memory_capture_plan,
+)
+from backend.memory_spark import (
+    SparkAnalyzeRequest,
+    SparkApplyRequest,
+    analyze_memory_health,
+    apply_spark_plan,
+    build_spark_plan,
+)
 from backend.project_planning import (
     GameDevConceptDraftRequest,
     NEW_PROJECT_FOLDER_SENTINEL,
@@ -391,6 +404,100 @@ def test_current_owner_rejects_ownerless_api_token():
 
     assert exc.value.status_code == 403
     assert exc.value.detail == "API token has no owner"
+
+
+def test_memory_capture_preview_normalizes_without_writing():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        req = MemoryCaptureRequest(
+            content="Entscheidung: Externe KI nutzt Token -> User -> genau eine Vault.",
+            source="agent",
+            tags=["ai memory", "#obsidian"],
+        )
+
+        plan = build_memory_capture_plan(tmpdir, req)
+
+        assert plan.kind == "decision"
+        assert plan.action == "update_canonical"
+        assert plan.target_path == "AI Memory/02 Entscheidungen.md"
+        assert "#type/decision" in plan.tags
+        assert not os.path.exists(os.path.join(tmpdir, "AI Memory"))
+
+
+def test_memory_capture_apply_writes_confirmed_plan():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        req = MemoryCaptureRequest(
+            content="Regel: MCP-Clients duerfen keinen owner aus Tool-Argumenten setzen.",
+            kind="rule",
+            source="agent",
+            confidence="high",
+        )
+        plan = build_memory_capture_plan(tmpdir, req)
+
+        result = apply_memory_capture_plan(tmpdir, plan, owner="alice", actor={"source": "test"})
+
+        assert result["success"] is True
+        target = os.path.join(tmpdir, "AI Memory", "02 Entscheidungen.md")
+        with open(target, "r", encoding="utf-8") as handle:
+            content = handle.read()
+        assert "MCP-Clients duerfen keinen owner" in content
+        assert "type: canonical" in content
+
+
+def test_memory_capture_routes_medium_duplicate_to_review_queue():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.create_file(
+            tmpdir,
+            "Existing.md",
+            "# Token Vault Rule\n\nToken User Vault Zugriff ist sicherheitsrelevant.",
+            owner="alice",
+            tool="test",
+        )
+
+        plan = build_memory_capture_plan(
+            tmpdir,
+            MemoryCaptureRequest(
+                title="Token Vault Rule",
+                content="Token User Vault Zugriff ist sicherheitsrelevant.",
+                kind="rule",
+                source="agent",
+            ),
+        )
+
+        assert plan.action in {"discard_duplicate", "review_queue"}
+        assert plan.duplicate_candidates
+
+
+def test_spark_analyze_and_plan_find_memory_health_actions():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.create_file(tmpdir, "Loose.md", "# Loose\n\nNo links yet. #memory", owner="alice", tool="test")
+
+        health = analyze_memory_health(tmpdir, SparkAnalyzeRequest(limit=100))
+        plan = build_spark_plan(tmpdir, SparkAnalyzeRequest(limit=100))
+
+        assert health.total_notes == 1
+        assert "Loose.md" in health.orphan_notes
+        assert any(action.type == "update_canonical" for action in plan.actions)
+        assert all(action.risk in {"low", "medium", "high"} for action in plan.actions)
+
+
+def test_spark_apply_skips_high_risk_and_applies_selected_safe_actions():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.create_file(tmpdir, "Loose.md", "# Loose\n\nNo links yet. #memory", owner="alice", tool="test")
+        plan = build_spark_plan(tmpdir, SparkAnalyzeRequest(limit=100))
+        safe = next(action for action in plan.actions if action.operations and action.risk != "high")
+        high = next((action for action in plan.actions if action.risk == "high"), None)
+        selected = [safe.id] + ([high.id] if high else [])
+
+        result = apply_spark_plan(
+            tmpdir,
+            SparkApplyRequest(plan=plan, confirm=True, selected_action_ids=selected),
+            owner="alice",
+            actor={"source": "test"},
+        )
+
+        assert result["success"] is True
+        assert safe.id in result["applied_actions"]
+        assert os.path.exists(os.path.join(tmpdir, safe.target_path.replace("/", os.sep)))
 
 
 def test_snapshot_throttling_keeps_rapid_updates_from_churning_history(monkeypatch):
