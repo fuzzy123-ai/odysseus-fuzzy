@@ -1,15 +1,45 @@
 import hashlib
 import json
 import re
+from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import vault_service
-from .vault_model import extract_tags
+from .vault_model import extract_tags, search_semantic
 from .vault_security import VaultSecurityError
 
 
 PROVIDER_ID = "obsidian.vault_context"
 SNIPPET_CHARS = 700
+MAX_ENRICHED_BACKLINKS = 3
+MAX_ENRICHED_SHARED_TAGS = 3
+MAX_ENRICHED_FOLDER = 2
+SHARED_TAG_EXCLUDED_PREFIXES = ("project/", "status/", "type/")
+
+
+def _estimate_text_tokens(text: str) -> int:
+    """Use the same token estimator as the Odysseus context pipeline."""
+    from src.model_context import estimate_tokens
+
+    return estimate_tokens([{"role": "system", "content": text or ""}])
+
+
+def _trim_text_to_token_budget(text: str, budget_tokens: int) -> Tuple[str, int]:
+    """Trim text until it fits the caller's token budget."""
+    budget_tokens = max(0, int(budget_tokens or 0))
+    if budget_tokens <= 0:
+        return "", 0
+    text = text or ""
+    tokens = _estimate_text_tokens(text)
+    if tokens <= budget_tokens:
+        return text, tokens
+    # Start with the estimator's reciprocal, then tighten with exact checks.
+    candidate = text[:max(50, int(budget_tokens / 0.3))].rstrip()
+    tokens = _estimate_text_tokens(candidate)
+    while candidate and tokens > budget_tokens:
+        candidate = candidate[: max(0, int(len(candidate) * 0.85))].rstrip()
+        tokens = _estimate_text_tokens(candidate)
+    return candidate, tokens
 
 
 def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: str = "chat") -> Dict[str, Any]:
@@ -28,9 +58,12 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
         return payload
 
     query_terms = _query_terms(query)
-    max_chars = max(0, int(budget or 0) * 4)
+    budget = max(0, int(budget or 0))
+
     notes = []
+    all_paths = set()
     for path in vault_service.markdown_notes(vault_dir):
+        all_paths.add(path)
         try:
             content = vault_service.read_file(vault_dir, path)
         except OSError as exc:
@@ -53,21 +86,69 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
         })
 
     notes.sort(key=lambda item: (-item["score"], item["path"].lower()))
+
+    # Semantic fallback: if keyword search yields < 5 results, merge embedding-based matches
+    keyword_scored_paths = {n["path"] for n in notes}
+    if query_terms and len(notes) < 5:
+        try:
+            semantic_results = search_semantic(vault_dir, query, top_k=5)
+            for sr in semantic_results:
+                if sr["path"] in keyword_scored_paths:
+                    continue
+                try:
+                    content = vault_service.read_file(vault_dir, sr["path"])
+                except OSError:
+                    continue
+                frontmatter, body = parse_frontmatter(content)
+                tags = extract_tags(content, sr["path"])["tags"]
+                title = str(frontmatter.get("title") or _title_from_body(body) or _stem(sr["path"]))
+                notes.append({
+                    "path": sr["path"],
+                    "title": title,
+                    "tags": tags,
+                    "frontmatter": frontmatter,
+                    "body": body,
+                    "score": int(sr.get("score", 0.5) * 5),
+                    "reason": f"semantic match (cosine={sr.get('score', 0):.2f})",
+                })
+        except Exception:
+            pass
+
+    # Enrichment: backlinks, shared tags, folder context
+    all_scored = {n["path"]: n for n in notes}
+    enriched_paths: set = set()
+
+    for note in list(notes):
+        enriched = []
+        enriched.extend(_enrich_with_backlinks(note, vault_dir, all_scored, enriched_paths)[:MAX_ENRICHED_BACKLINKS])
+        enriched.extend(_enrich_with_shared_tags(note, notes, all_scored, enriched_paths)[:MAX_ENRICHED_SHARED_TAGS])
+        enriched.extend(_enrich_with_folder_context(note, notes, all_scored, enriched_paths)[:MAX_ENRICHED_FOLDER])
+        for e in enriched:
+            if e["path"] not in all_scored:
+                all_scored[e["path"]] = e
+                notes.append(e)
+                enriched_paths.add(e["path"])
+
+    # Re-sort after enrichments
+    notes.sort(key=lambda item: (-item["score"], item["path"].lower()))
+
     structured_state: Dict[str, Any] = {}
     snippets: List[Dict[str, Any]] = []
     sources: List[Dict[str, Any]] = []
-    used_chars = 0
+    used_tokens = 0
 
     for note in notes:
         if note["frontmatter"]:
             structured_state[note["path"]] = note["frontmatter"]
         snippet = _best_snippet(note["body"], query_terms)
-        if snippet and max_chars > 0:
-            remaining = max_chars - used_chars
+        if snippet and budget > 0:
+            remaining = budget - used_tokens
             if remaining <= 0:
                 break
-            snippet = snippet[: min(SNIPPET_CHARS, remaining)].rstrip()
-            used_chars += len(snippet)
+            snippet, snippet_tokens = _trim_text_to_token_budget(snippet, remaining)
+            if not snippet:
+                break
+            used_tokens += snippet_tokens
             snippets.append({
                 "path": note["path"],
                 "title": note["title"],
@@ -82,6 +163,23 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
             "reason": note["reason"],
         })
 
+    # Summary when many results: total_hits, top_tags, folder_distribution
+    summary = None
+    if len(notes) > len(snippets):
+        all_tags: Counter = Counter()
+        folder_counts: Counter = Counter()
+        for n in notes:
+            for tag in n.get("tags", []):
+                all_tags[tag] += 1
+            folder = "/".join(n["path"].replace("\\", "/").split("/")[:-1]) or "/"
+            folder_counts[folder] += 1
+        summary = {
+            "total_hits": len(notes),
+            "shown": len(snippets),
+            "top_tags": [{"name": t, "count": c} for t, c in all_tags.most_common(10)],
+            "folder_distribution": [{"folder": f, "count": c} for f, c in folder_counts.most_common(8)],
+        }
+
     payload = {
         "structured_state": structured_state,
         "snippets": snippets,
@@ -89,8 +187,109 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
         "warnings": warnings,
         "cache_key": "",
     }
+    if summary:
+        payload["summary"] = summary
     payload["cache_key"] = _cache_key(payload)
     return payload
+
+
+def _enrich_with_backlinks(
+    note: Dict[str, Any],
+    vault_dir: str,
+    all_scored: Dict[str, Any],
+    enriched_paths: set,
+) -> List[Dict[str, Any]]:
+    """Find notes that link to this note via Wiki-Links or Markdown links."""
+    results = []
+    note_path = note["path"]
+    note_stem = _stem(note_path).lower()
+    # Build patterns that match this note
+    import re as _re
+    wiki_pat = _re.compile(r"\[\[" + _re.escape(note_stem) + r"(?:\#[^\]]+)?(?:\|[^\]]+)?\]\]", _re.IGNORECASE)
+    md_pat = _re.compile(r"\[[^\]]*\]\(" + _re.escape(note_path) + r"(?:#[^)]+)?\)", _re.IGNORECASE)
+
+    for path in vault_service.markdown_notes(vault_dir):
+        if path == note_path or path in all_scored or path in enriched_paths:
+            continue
+        try:
+            content = vault_service.read_file(vault_dir, path)
+        except OSError:
+            continue
+        if wiki_pat.search(content) or md_pat.search(content):
+            frontmatter, body = parse_frontmatter(content)
+            tags = extract_tags(content, path)["tags"]
+            title = str(frontmatter.get("title") or _title_from_body(body) or _stem(path))
+            results.append({
+                "path": path,
+                "title": title,
+                "tags": tags,
+                "frontmatter": frontmatter,
+                "body": body,
+                "score": max(0, note["score"] - 1),
+                "reason": f"backlink → {note['title']}",
+            })
+    return results
+
+
+def _enrich_with_shared_tags(
+    note: Dict[str, Any],
+    all_notes: List[Dict[str, Any]],
+    all_scored: Dict[str, Any],
+    enriched_paths: set,
+) -> List[Dict[str, Any]]:
+    """Notes with ≥2 shared tags, excluding project/status/type prefixes."""
+    results = []
+    note_tags = {t for t in note.get("tags", []) if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)}
+    if len(note_tags) < 2:
+        return results
+
+    for other in all_notes:
+        if other["path"] == note["path"] or other["path"] in all_scored or other["path"] in enriched_paths:
+            continue
+        other_tags = {t for t in other.get("tags", []) if not any(t.startswith(p) for p in SHARED_TAG_EXCLUDED_PREFIXES)}
+        shared = note_tags & other_tags
+        if len(shared) >= 2:
+            results.append({
+                "path": other["path"],
+                "title": other["title"],
+                "tags": other["tags"],
+                "frontmatter": other["frontmatter"],
+                "body": other["body"],
+                "score": max(0, note["score"] - 2) + len(shared),
+                "reason": f"shared tags: {', '.join(sorted(shared)[:3])}",
+            })
+    results.sort(key=lambda x: -x["score"])
+    return results
+
+
+def _enrich_with_folder_context(
+    note: Dict[str, Any],
+    all_notes: List[Dict[str, Any]],
+    all_scored: Dict[str, Any],
+    enriched_paths: set,
+) -> List[Dict[str, Any]]:
+    """Notes in the same folder that aren't already included."""
+    results = []
+    note_folder = "/".join(note["path"].replace("\\", "/").split("/")[:-1])
+    if not note_folder:
+        return results
+
+    for other in all_notes:
+        if other["path"] == note["path"] or other["path"] in all_scored or other["path"] in enriched_paths:
+            continue
+        other_folder = "/".join(other["path"].replace("\\", "/").split("/")[:-1])
+        if other_folder == note_folder:
+            results.append({
+                "path": other["path"],
+                "title": other["title"],
+                "tags": other["tags"],
+                "frontmatter": other["frontmatter"],
+                "body": other["body"],
+                "score": max(0, note["score"] - 3),
+                "reason": f"same folder: {note_folder}",
+            })
+    results.sort(key=lambda x: -x["score"])
+    return results
 
 
 def provider_spec() -> Dict[str, Any]:

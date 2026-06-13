@@ -26,6 +26,16 @@ def _usage() -> int:
     print("  odysseus_api.py cookbook preset NAME", file=sys.stderr)
     print("  odysseus_api.py cookbook adopt SESSION_ID MODEL [HOST] [PORT]", file=sys.stderr)
     print("  odysseus_api.py cookbook stop SESSION_ID", file=sys.stderr)
+    print("  odysseus_api.py vault file-tree", file=sys.stderr)
+    print("  odysseus_api.py vault read PATH", file=sys.stderr)
+    print("  odysseus_api.py vault search QUERY [--max-results N]", file=sys.stderr)
+    print("  odysseus_api.py vault semantic QUERY", file=sys.stderr)
+    print("  odysseus_api.py vault tags", file=sys.stderr)
+    print("  odysseus_api.py vault related PATH", file=sys.stderr)
+    print("  odysseus_api.py vault recent [--since ISO] [--until ISO]", file=sys.stderr)
+    print("  odysseus_api.py vault frontmatter PATH", file=sys.stderr)
+    print("  odysseus_api.py vault write PATH CONTENT", file=sys.stderr)
+    print("  odysseus_api.py vault batch JSON", file=sys.stderr)
     print("  odysseus_api.py METHOD /api/codex/path [json-body]", file=sys.stderr)
     return 2
 
@@ -134,6 +144,74 @@ def main() -> int:
             method = "POST"
             path = f"/api/codex/cookbook/stop/{sys.argv[3]}"
             body = None
+        else:
+            return _usage()
+    elif command == "vault":
+        if len(sys.argv) < 3:
+            return _usage()
+        action = sys.argv[2].lower()
+        if action == "file-tree":
+            method = "GET"
+            path = "/api/plugins/obsidian/files"
+            body = None
+        elif action == "read" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            method = "GET"
+            path = f"/api/plugins/obsidian/file?path={quote(sys.argv[3])}"
+            body = None
+        elif action == "search" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            query = sys.argv[3]
+            max_results = ""
+            for i, a in enumerate(sys.argv):
+                if a == "--max-results" and i + 1 < len(sys.argv):
+                    max_results = f"&max_results={sys.argv[i+1]}"
+            method = "GET"
+            path = f"/api/plugins/obsidian/search?q={quote(query)}{max_results}"
+            body = None
+        elif action == "semantic" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            method = "GET"
+            path = f"/api/plugins/obsidian/search-semantic?q={quote(sys.argv[3])}"
+            body = None
+        elif action == "tags":
+            method = "GET"
+            path = "/api/plugins/obsidian/tags"
+            body = None
+        elif action == "related" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            method = "GET"
+            path = f"/api/plugins/obsidian/suggest-links?path={quote(sys.argv[3])}"
+            body = None
+        elif action == "recent":
+            query_parts = []
+            for i, a in enumerate(sys.argv):
+                if a == "--since" and i + 1 < len(sys.argv):
+                    from urllib.parse import quote
+                    query_parts.append(f"since={quote(sys.argv[i+1])}")
+                elif a == "--until" and i + 1 < len(sys.argv):
+                    from urllib.parse import quote
+                    query_parts.append(f"until={quote(sys.argv[i+1])}")
+            qs = "&".join(query_parts)
+            method = "GET"
+            path = f"/api/plugins/obsidian/files/recent{'?' + qs if qs else ''}"
+            body = None
+        elif action == "frontmatter" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            method = "GET"
+            path = f"/api/plugins/obsidian/file/frontmatter?path={quote(sys.argv[3])}"
+            body = None
+        elif action == "write" and len(sys.argv) >= 5:
+            from urllib.parse import quote
+            note_path = sys.argv[3]
+            content = sys.argv[4]
+            method = "POST"
+            path = "/api/plugins/obsidian/file"
+            body = json.dumps({"path": note_path, "content": content})
+        elif action == "batch" and len(sys.argv) >= 4:
+            method = "POST"
+            path = "/api/plugins/obsidian/batch"
+            body = sys.argv[3]  # raw JSON
         else:
             return _usage()
     else:

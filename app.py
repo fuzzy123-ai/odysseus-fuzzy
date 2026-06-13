@@ -351,6 +351,7 @@ if AUTH_ENABLED:
                         request.state.current_user = "api"
                         request.state.api_token = True
                         request.state.api_token_id = matched_id
+                        request.state.api_token_prefix = prefix
                         request.state.api_token_owner = matched_owner
                         request.state.api_token_scopes = matched_scopes
                         return await call_next(request)
@@ -1095,6 +1096,24 @@ async def _startup_event():
                 logger.warning(f"Nightly skill audit failed: {e}")
 
     _startup_tasks.append(asyncio.create_task(_skill_audit_nightly_loop()))
+
+    # Daily vault trash purge — deletes .trash/ entries older than TRASH_RETENTION_DAYS.
+    async def _vault_trash_purge_loop():
+        while True:
+            await asyncio.sleep(86400)  # 24 hours
+            try:
+                from plugins.obsidian.backend.vault_service import purge_all_vault_trash, TRASH_RETENTION_DAYS
+                result = await asyncio.to_thread(purge_all_vault_trash)
+                if result["purged"] > 0:
+                    logger.info(
+                        f"Vault trash purge: {result['purged']} date-dirs removed "
+                        f"({result['errors']} errors) across {result['vaults']} vaults "
+                        f"(retention={TRASH_RETENTION_DAYS}d)."
+                    )
+            except Exception as e:
+                logger.debug(f"Vault trash purge skipped: {e}")
+
+    _startup_tasks.append(asyncio.create_task(_vault_trash_purge_loop()))
 
     # Cookbook serve lifecycle — kills scheduler-launched serves whose
     # window-end has passed. Paired with the cookbook_serve builtin

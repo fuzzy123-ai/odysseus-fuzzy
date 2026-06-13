@@ -608,6 +608,7 @@ class McpManager:
             "memory",
             "rag",
             "email",
+            "vault",
         }
 
     def get_server_status(self, server_id: str) -> Dict:

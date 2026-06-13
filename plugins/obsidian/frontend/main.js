@@ -31,6 +31,8 @@ let vaultFiles = [];
 const expandedFolders = new Set();
 let autosaveTimeout = null;
 let searchTimeout = null;
+let vaultEvents = null;
+let vaultRefreshTimeout = null;
 let isPanelOpen = false;
 let currentViewMode = 'document';
 let tagCache = null;
@@ -1110,6 +1112,7 @@ function hideObsidianSurface({ unregisterOverlay = true, resetWindow = false } =
   document.body.classList.remove('obsidian-open', 'obsidian-fullscreen');
   minimizedSurfaceMode = null;
   closeSettingsMenu();
+  stopVaultEventStream();
   setLauncherActive(false);
   const modal = getObsidianModal();
   if (modal) {
@@ -1145,6 +1148,7 @@ function showObsidianSurface(mode = getStoredSurfaceMode()) {
   isPanelOpen = true;
   document.body.classList.add('obsidian-open');
   setLauncherActive(true);
+  startVaultEventStream();
   loadVaultFiles();
 }
 
@@ -1377,9 +1381,6 @@ function injectUIElements() {
                 <button id="obsidian-memory-review" title="Memory Review">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.2 1.02 4.16 2.61 5.44.53.43.89 1.05.89 1.73V18h7v-.83c0-.68.36-1.3.89-1.73A6.98 6.98 0 0 0 19 10a7 7 0 0 0-7-7Z"/><path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/></svg>
                 </button>
-                <button id="obsidian-refresh" title="Refresh Vault">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                </button>
               </div>
               <div class="obsidian-search-box">
                 <input type="text" id="obsidian-search-input" placeholder="Search notes..." autocomplete="off">
@@ -1605,6 +1606,46 @@ async function loadVaultFiles() {
     }
   } catch (e) {
     console.error('Failed to load vault files:', e);
+  }
+}
+
+function scheduleVaultRefresh(reason = 'vault_changed') {
+  if (vaultRefreshTimeout) clearTimeout(vaultRefreshTimeout);
+  vaultRefreshTimeout = setTimeout(async () => {
+    vaultRefreshTimeout = null;
+    await loadVaultFiles();
+    if (currentNotePath && !autosaveTimeout) {
+      await openNote(currentNotePath);
+    }
+    if (reason !== 'ready') {
+      console.debug('[obsidian] vault refreshed from event:', reason);
+    }
+  }, 250);
+}
+
+function startVaultEventStream() {
+  if (vaultEvents || typeof EventSource === 'undefined') return;
+  vaultEvents = new EventSource('/api/plugins/obsidian/vault/events');
+  vaultEvents.addEventListener('ready', () => {
+    scheduleVaultRefresh('ready');
+  });
+  vaultEvents.addEventListener('vault_changed', () => {
+    scheduleVaultRefresh('vault_changed');
+  });
+  vaultEvents.onerror = () => {
+    if (!vaultEvents) return;
+    console.warn('[obsidian] vault event stream interrupted; browser will retry');
+  };
+}
+
+function stopVaultEventStream() {
+  if (vaultRefreshTimeout) {
+    clearTimeout(vaultRefreshTimeout);
+    vaultRefreshTimeout = null;
+  }
+  if (vaultEvents) {
+    vaultEvents.close();
+    vaultEvents = null;
   }
 }
 
@@ -4562,15 +4603,6 @@ function setupEventListeners() {
     if (!e.target.closest('#obsidian-memory-destination-field')) {
       closeMemoryDestinationPicker();
     }
-  });
-
-  // Refresh
-  document.getElementById('obsidian-refresh')?.addEventListener('click', async () => {
-    await loadVaultFiles();
-    if (currentViewMode === 'graph') {
-      renderGraphView();
-    }
-    showToast('Vault refreshed');
   });
 
   document.getElementById('obsidian-header-view-toggle')?.addEventListener('change', (e) => {

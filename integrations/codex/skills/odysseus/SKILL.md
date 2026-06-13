@@ -139,3 +139,40 @@ python3 ~/plugins/odysseus/scripts/odysseus_api.py cookbook serve \
 ## Forbidden Bypass Pattern
 
 If you are about to reach the Odysseus host/container, import app internals, query the database, or call MCP helper modules directly, stop. Those paths bypass Odysseus Settings and token scopes. Ask the user to enable the relevant Codex Agent tool toggle instead.
+
+## Obsidian Vault
+
+The Codex API supports reading, searching, and modifying the user's Obsidian vault. All vault access requires the vault to be unlocked in Odysseus Settings.
+
+- `GET /api/plugins/obsidian/files` — List the vault file tree.
+- `GET /api/plugins/obsidian/file?path=...` — Read a note (returns `{"content": "..."}`).
+- `GET /api/plugins/obsidian/file/frontmatter?path=...` — Read only a note's YAML frontmatter.
+- `GET /api/plugins/obsidian/search?q=...&max_results=20&tag_filter=...` — Full-text search.
+- `GET /api/plugins/obsidian/search-semantic?q=...&top_k=10` — Semantic (embedding) search.
+- `GET /api/plugins/obsidian/tags` — List all vault tags.
+- `GET /api/plugins/obsidian/tags/suggest?prefix=...` — Autocomplete tags.
+- `GET /api/plugins/obsidian/graph?focus=...&tag=...` — Vault knowledge graph.
+- `GET /api/plugins/obsidian/suggest-links?path=...&top_k=5` — Find related notes.
+- `GET /api/plugins/obsidian/files/recent?since=ISO&until=ISO` — Recently modified notes.
+- `GET /api/plugins/obsidian/history` — Recent vault actions (for undo).
+
+Destructive operations (require `vault:write` or `vault:delete` token scope):
+
+- `POST /api/plugins/obsidian/file` — Create a note `{"path": "...", "content": "..."}`. Requires `vault:write`.
+- `PUT /api/plugins/obsidian/file` — Update a note. Requires `vault:write`.
+- `PUT /api/plugins/obsidian/file/frontmatter` — Merge frontmatter `{"path": "...", "frontmatter": {...}}`. Requires `vault:write`.
+- `DELETE /api/plugins/obsidian/file?path=...` — Soft-delete (→ `.trash/`). Requires `vault:delete`.
+- `POST /api/plugins/obsidian/batch` — Atomically create/update/delete multiple files. Supports `"dry_run": true` for preview. Requires `vault:write`.
+- `POST /api/plugins/obsidian/history/undo` — Undo the most recent reversible action.
+
+```bash
+python3 integrations/codex/scripts/odysseus_api.py vault file-tree
+python3 integrations/codex/scripts/odysseus_api.py vault read "projects/idea.md"
+python3 integrations/codex/scripts/odysseus_api.py vault search "query" --max-results 10
+python3 integrations/codex/scripts/odysseus_api.py vault semantic "semantic query"
+python3 integrations/codex/scripts/odysseus_api.py vault tags
+python3 integrations/codex/scripts/odysseus_api.py vault related "projects/idea.md"
+python3 integrations/codex/scripts/odysseus_api.py vault recent --since "2025-01-01"
+python3 integrations/codex/scripts/odysseus_api.py vault write "projects/new.md" "Content here"
+python3 integrations/codex/scripts/odysseus_api.py vault batch '{"operations":[...], "dry_run": true}'
+```

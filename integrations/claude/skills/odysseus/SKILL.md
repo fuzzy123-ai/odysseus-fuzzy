@@ -1,20 +1,20 @@
 ---
 name: odysseus
-description: Use when the user asks Claude Code to read or write Odysseus data (todos, email, calendar, memory, documents) or to launch/monitor/stop a Cookbook model-serve task through the scoped Claude Agent API. Requires ODYSSEUS_URL and ODYSSEUS_API_TOKEN.
+description: Use when the user asks Codex to read or write Odysseus data (todos, email, calendar, memory, documents) or to launch/monitor/stop a Cookbook model-serve task through the scoped Codex Agent API. Requires ODYSSEUS_URL and ODYSSEUS_API_TOKEN.
 ---
 
 # Odysseus
 
-Use this skill when a user asks to interact with Odysseus from Claude Code.
+Use this skill when a user asks to interact with Odysseus from Codex.
 
 ## Configuration
 
 Expect these environment variables:
 
 - `ODYSSEUS_URL`: Base URL for the user's Odysseus instance, for example `http://127.0.0.1:7000`.
-- `ODYSSEUS_API_TOKEN`: Scoped API token created in Odysseus Settings > Integrations > Add Integration > Claude Agent.
+- `ODYSSEUS_API_TOKEN`: Scoped API token created in Odysseus Settings > Integrations > Add Integration > Codex Agent.
 
-If either value is missing, do not guess credentials. Tell the user to create a Claude Agent token in Odysseus Settings and expose both values to the terminal session.
+If either value is missing, do not guess credentials. Tell the user to create a Codex Agent token in Odysseus Settings and expose both values to the terminal session.
 
 ## When to use what
 
@@ -27,7 +27,7 @@ If the user says "reminder" + a time, default to TODO with due_date. Only switch
 
 ## Safety
 
-- All Odysseus data access MUST go through the scoped HTTP API under `/api/codex/*` (the canonical scope-gated agent API, shared by all agent integrations).
+- All Odysseus data access MUST go through the scoped HTTP API under `/api/codex/*`.
 - Check `/api/codex/capabilities` before using a tool surface.
 - Treat `403` as an intentional Settings restriction. Do not work around it.
 - Do not use SSH, Docker, direct Python imports, SQLite queries, MCP internals, browser cookies, or local files to read/write Odysseus user data.
@@ -37,7 +37,7 @@ If the user says "reminder" + a time, default to TODO with due_date. Only switch
 
 ## Todos
 
-The scoped agent API supports todos/checklists:
+The Codex API supports todos/checklists:
 
 - `GET /api/codex/todos`
 - `POST /api/codex/todos`
@@ -45,9 +45,9 @@ The scoped agent API supports todos/checklists:
 Use the bundled helper script when available:
 
 ```bash
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py capabilities
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py todos list
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py todos add "Follow up"
+python3 integrations/codex/scripts/odysseus_api.py capabilities
+python3 integrations/codex/scripts/odysseus_api.py todos list
+python3 integrations/codex/scripts/odysseus_api.py todos add "Follow up"
 ```
 
 Supported todo actions are `list`, `add`, `update`, `delete`, and `toggle_item`.
@@ -55,14 +55,14 @@ Supported todo actions are `list`, `add`, `update`, `delete`, and `toggle_item`.
 **Reminders (todos with a due date)** — the backend parses natural language. Send `due_date` in the body via the generic POST so the time becomes a structured reminder, NOT a literal substring inside the title. The `todos add TITLE` shortcut only sets the title, so use the POST form for anything with a time:
 
 ```bash
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py POST /api/codex/todos '{"action":"add","title":"Call dentist","due_date":"tomorrow at 5pm"}'
+python3 integrations/codex/scripts/odysseus_api.py POST /api/codex/todos '{"action":"add","title":"Call dentist","due_date":"tomorrow at 5pm"}'
 ```
 
 The backend accepts both ISO timestamps and natural language like `"tomorrow 5pm"`, `"next Monday 9am"`, `"in 2 hours"`. It anchors to the user's timezone.
 
 ## Email
 
-The scoped agent API supports email reads:
+The Codex API supports scoped email reads:
 
 - `GET /api/codex/emails?folder=INBOX&limit=10&offset=0&filter=all`
 - `GET /api/codex/emails/{uid}?folder=INBOX`
@@ -70,11 +70,11 @@ The scoped agent API supports email reads:
 Use the bundled helper script when available:
 
 ```bash
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py emails list 5
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py emails read UID
+python3 integrations/codex/scripts/odysseus_api.py emails list 5
+python3 integrations/codex/scripts/odysseus_api.py emails read UID
 ```
 
-If `/api/codex/capabilities` does not show `email.read: true`, do not inspect email. Ask the user to enable Email read in the Claude Agent settings.
+If `/api/codex/capabilities` does not show `email.read: true`, do not inspect email. Ask the user to enable Email read in the Codex Agent settings.
 
 ## Memory
 
@@ -83,8 +83,8 @@ If `/api/codex/capabilities` does not show `email.read: true`, do not inspect em
 - `DELETE /api/codex/memory/{memory_id}` — remove a memory entry. Requires `memory:write`.
 
 ```bash
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py GET /api/codex/memory
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py POST /api/codex/memory '{"text":"User prefers SI units","category":"preference"}'
+python3 integrations/codex/scripts/odysseus_api.py GET /api/codex/memory
+python3 integrations/codex/scripts/odysseus_api.py POST /api/codex/memory '{"text":"User prefers SI units","category":"preference"}'
 ```
 
 ## Calendar
@@ -117,37 +117,62 @@ The Cookbook surface lets you reproduce what a human would do in Odysseus → Co
 - `POST /api/codex/cookbook/serve` — launch a serve task. Body matches `ServeRequest`: `{ repo_id, cmd, remote_host?, ssh_port?, env_prefix?, gpus?, platform? }`. The `cmd` is validated: leading binary must be `vllm`/`python3`/`sglang`/`llama-server`/`ollama`/`node`/`npx`. NEVER prefix with `cd …`, `source …`, or chain with `&&`/`||`/`;`/`$(...)` — the validator rejects shell metacharacters. The venv activation (`env_prefix`) is added automatically from the host's saved settings, so pass the bare binary + args. Requires `cookbook:launch`.
 - `POST /api/codex/cookbook/preset/{name}` — launch a saved preset by name. Reuses the working cmd + host the user already saved. Requires `cookbook:launch`.
 - `POST /api/codex/cookbook/adopt` — register an externally-launched tmux session into cookbook tracking. Body: `{ tmux_session, model, host?, port? }`. Use this when serve_model rejected a cmd and you fell back to direct ssh+tmux — without adoption, the session is invisible to the UI. Requires `cookbook:launch`.
-- `POST /api/codex/cookbook/stop/{session_id}` — kill the tmux session for that task. Requires `cookbook:launch`.
+- `POST /api/codex/cookbook/stop/{session_id}` — kill the tmux session. Requires `cookbook:launch`.
 
 ```bash
-# Survey what's running
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py cookbook tasks
-
-# Tail the failing one (sessionId from `cookbook tasks`)
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py cookbook output serve-abc12345 400
-
-# Stop the previous attempt before you try a new flag set
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py cookbook stop serve-abc12345
-
-# Relaunch with new flags. cmd MUST begin with one of the allowlisted binaries.
-python3 ~/.claude/skills/odysseus/scripts/odysseus_api.py cookbook serve \
+python3 ~/plugins/odysseus/scripts/odysseus_api.py cookbook tasks
+python3 ~/plugins/odysseus/scripts/odysseus_api.py cookbook output serve-abc12345 400
+python3 ~/plugins/odysseus/scripts/odysseus_api.py cookbook stop serve-abc12345
+python3 ~/plugins/odysseus/scripts/odysseus_api.py cookbook serve \
   /mnt/HADES/models/Qwen3.5-397B-A17B-AWQ \
   "vllm serve /mnt/HADES/models/Qwen3.5-397B-A17B-AWQ --host 0.0.0.0 --port 8001 --tensor-parallel-size 8 --max-model-len 262144 --gpu-memory-utilization 0.90 --dtype auto --max-num-seqs 8 --trust-remote-code --enable-expert-parallel --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3" \
   pewds@192.168.1.12
 ```
 
-**Debug loop pattern:** when a serve is failing, the productive sequence is
-
-1. `cookbook tasks` → find the failing sessionId.
-2. `cookbook output SID 600` → read the last 600 lines, find the actual root-cause line (often above the visible tail because tmux scrollback rolled — request a larger `tail` if the error references "above").
-3. `cookbook stop SID` — kill the previous attempt before relaunching; two serves on the same `--port` collide.
-4. `cookbook serve repo "new cmd"` — try the next variation. Wait ~20s, then `cookbook output` on the new sessionId.
+**Debug loop pattern:** `tasks` → `output SID 600` (find root cause; request larger `tail` if it references "above") → `stop SID` → `serve repo "new cmd"` → wait ~20s → `output` on the new sessionId.
 
 **Hard limits this surface enforces:**
-- `cookbook serve` cmd allowlist + shell-metacharacter rejection — you cannot run arbitrary shell, only model-server binaries.
-- `cookbook stop` only targets task sessionIds matching `[a-zA-Z0-9_-]+`.
-- The agent CAN spawn GPU-pinning long-lived processes — always `cookbook stop` your previous attempt before relaunching, and check `cookbook tasks` for collisions on the same `--port` before launching.
+- `cookbook serve` cmd allowlist + shell-metacharacter rejection.
+- `cookbook stop` requires sessionIds matching `[a-zA-Z0-9_-]+`.
+- Agent CAN spawn GPU-pinning long-lived processes — always `cookbook stop` your previous attempt before relaunching.
 
 ## Forbidden Bypass Pattern
 
-If you are about to reach the Odysseus host/container, import app internals, query the database, or call MCP helper modules directly, stop. Those paths bypass Odysseus Settings and token scopes. Ask the user to enable the relevant Claude Agent tool toggle instead.
+If you are about to reach the Odysseus host/container, import app internals, query the database, or call MCP helper modules directly, stop. Those paths bypass Odysseus Settings and token scopes. Ask the user to enable the relevant Codex Agent tool toggle instead.
+
+## Obsidian Vault
+
+The Codex API supports reading, searching, and modifying the user's Obsidian vault. All vault access requires the vault to be unlocked in Odysseus Settings.
+
+- `GET /api/plugins/obsidian/files` — List the vault file tree.
+- `GET /api/plugins/obsidian/file?path=...` — Read a note (returns `{"content": "..."}`).
+- `GET /api/plugins/obsidian/file/frontmatter?path=...` — Read only a note's YAML frontmatter.
+- `GET /api/plugins/obsidian/search?q=...&max_results=20&tag_filter=...` — Full-text search.
+- `GET /api/plugins/obsidian/search-semantic?q=...&top_k=10` — Semantic (embedding) search.
+- `GET /api/plugins/obsidian/tags` — List all vault tags.
+- `GET /api/plugins/obsidian/tags/suggest?prefix=...` — Autocomplete tags.
+- `GET /api/plugins/obsidian/graph?focus=...&tag=...` — Vault knowledge graph.
+- `GET /api/plugins/obsidian/suggest-links?path=...&top_k=5` — Find related notes.
+- `GET /api/plugins/obsidian/files/recent?since=ISO&until=ISO` — Recently modified notes.
+- `GET /api/plugins/obsidian/history` — Recent vault actions (for undo).
+
+Destructive operations (require `vault:write` or `vault:delete` token scope):
+
+- `POST /api/plugins/obsidian/file` — Create a note `{"path": "...", "content": "..."}`. Requires `vault:write`.
+- `PUT /api/plugins/obsidian/file` — Update a note. Requires `vault:write`.
+- `PUT /api/plugins/obsidian/file/frontmatter` — Merge frontmatter `{"path": "...", "frontmatter": {...}}`. Requires `vault:write`.
+- `DELETE /api/plugins/obsidian/file?path=...` — Soft-delete (→ `.trash/`). Requires `vault:delete`.
+- `POST /api/plugins/obsidian/batch` — Atomically create/update/delete multiple files. Supports `"dry_run": true` for preview. Requires `vault:write`.
+- `POST /api/plugins/obsidian/history/undo` — Undo the most recent reversible action.
+
+```bash
+python3 integrations/codex/scripts/odysseus_api.py vault file-tree
+python3 integrations/codex/scripts/odysseus_api.py vault read "projects/idea.md"
+python3 integrations/codex/scripts/odysseus_api.py vault search "query" --max-results 10
+python3 integrations/codex/scripts/odysseus_api.py vault semantic "semantic query"
+python3 integrations/codex/scripts/odysseus_api.py vault tags
+python3 integrations/codex/scripts/odysseus_api.py vault related "projects/idea.md"
+python3 integrations/codex/scripts/odysseus_api.py vault recent --since "2025-01-01"
+python3 integrations/codex/scripts/odysseus_api.py vault write "projects/new.md" "Content here"
+python3 integrations/codex/scripts/odysseus_api.py vault batch '{"operations":[...], "dry_run": true}'
+```

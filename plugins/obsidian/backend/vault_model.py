@@ -2,8 +2,11 @@ import hashlib
 import json
 import os
 import re
+import time
 from itertools import combinations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 _WIKI_LINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
@@ -356,3 +359,290 @@ def _filter_graph(graph: Dict[str, Any], allowed: set[str]) -> Dict[str, Any]:
     node_ids = allowed | {edge["source"] for edge in edges} | {edge["target"] for edge in edges}
     nodes = [node for node in graph["nodes"] if node["id"] in node_ids]
     return {"nodes": nodes, "edges": edges}
+
+
+# ── Embedding-based semantic search ──────────────────────────────────────────
+
+_EMBEDDING_CACHE_FILENAME = "embeddings.json"
+_EMBEDDING_CLIENT = None
+
+
+def _embedding_client():
+    """Lazy-init the embedding client (shared across calls)."""
+    global _EMBEDDING_CLIENT
+    if _EMBEDDING_CLIENT is None:
+        from src.embeddings import get_embedding_client
+        _EMBEDDING_CLIENT = get_embedding_client()
+    return _EMBEDDING_CLIENT
+
+
+def _embedding_cache_path(vault_dir: str) -> str:
+    return os.path.join(vault_dir, ".obsidian", _EMBEDDING_CACHE_FILENAME)
+
+
+def _load_embedding_cache(vault_dir: str) -> Dict[str, Any]:
+    """Load cached embeddings: {path: {"mtime": float, "vector": [float, ...]}}."""
+    path = _embedding_cache_path(vault_dir)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_embedding_cache(vault_dir: str, cache: Dict[str, Any]) -> None:
+    path = _embedding_cache_path(vault_dir)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(cache, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def _invalidate_stale_embeddings(vault_dir: str, cache: Dict[str, Any]) -> None:
+    """Remove cache entries whose source file no longer exists or has newer mtime."""
+    stale: List[str] = []
+    for rel_path, entry in cache.items():
+        abs_path = os.path.join(vault_dir, rel_path)
+        if not os.path.exists(abs_path):
+            stale.append(rel_path)
+            continue
+        actual_mtime = os.path.getmtime(abs_path)
+        if abs(actual_mtime - entry.get("mtime", 0)) > 1.0:
+            stale.append(rel_path)
+    for rel_path in stale:
+        cache.pop(rel_path, None)
+
+
+def build_vault_embedding_index(vault_dir: str) -> Tuple[np.ndarray, List[str], List[str]]:
+    """Build (or update) the vault embedding index.
+
+    Returns (matrix, paths, texts) where:
+      - matrix: (N, dim) float32 array of normalized embeddings
+      - paths:  N relative file paths
+      - texts:  N text contents (used for snippet extraction)
+    """
+    client = _embedding_client()
+    if client is None:
+        return np.array([], dtype="float32"), [], []
+
+    cache = _load_embedding_cache(vault_dir)
+    _invalidate_stale_embeddings(vault_dir, cache)
+
+    notes = markdown_notes(vault_dir)
+    paths: List[str] = []
+    texts: List[str] = []
+    vectors: List[np.ndarray] = []
+
+    for rel_path in notes:
+        abs_path = os.path.join(vault_dir, rel_path)
+        mtime = os.path.getmtime(abs_path)
+
+        if rel_path in cache and abs(cache[rel_path].get("mtime", 0) - mtime) < 1.0:
+            # Use cached embedding
+            vector = np.array(cache[rel_path]["vector"], dtype="float32")
+        else:
+            try:
+                content = _read_note(vault_dir, rel_path)
+            except OSError:
+                continue
+            if not content.strip():
+                continue
+            # Embed first 2000 chars for efficiency
+            snippet = content[:2000]
+            try:
+                emb = client.encode([snippet])
+                vector = emb[0]
+            except Exception:
+                continue
+            cache[rel_path] = {"mtime": mtime, "vector": vector.tolist()}
+
+        paths.append(rel_path)
+        texts.append(content_without_code(_read_note(vault_dir, rel_path)))
+        vectors.append(vector)
+
+    _save_embedding_cache(vault_dir, cache)
+
+    if not vectors:
+        return np.array([], dtype="float32"), [], []
+
+    matrix = np.stack(vectors, axis=0)
+    # Normalize for cosine similarity
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1, norms)
+    matrix = matrix / norms
+
+    return matrix, paths, texts
+
+
+def search_semantic(
+    vault_dir: str,
+    query: str,
+    top_k: int = 10,
+) -> List[Dict[str, Any]]:
+    """Semantic search over vault notes using embedding similarity.
+
+    Returns list of {path, score, snippet} sorted by descending cosine similarity.
+    """
+    client = _embedding_client()
+    if client is None:
+        return []
+
+    try:
+        query_vec = client.encode([query])[0]
+    except Exception:
+        return []
+
+    # Normalize query
+    qnorm = np.linalg.norm(query_vec)
+    if qnorm > 0:
+        query_vec = query_vec / qnorm
+
+    matrix, paths, texts = build_vault_embedding_index(vault_dir)
+
+    if matrix.size == 0:
+        return []
+
+    # Cosine similarity: matrix @ query_vec
+    scores = np.dot(matrix, query_vec)
+
+    # Get top-k indices
+    if len(scores) <= top_k:
+        top_indices = np.argsort(-scores)
+    else:
+        top_indices = np.argpartition(-scores, top_k)[:top_k]
+        top_indices = top_indices[np.argsort(-scores[top_indices])]
+
+    results: List[Dict[str, Any]] = []
+    for idx in top_indices:
+        score = float(scores[idx])
+        if score <= 0:
+            continue
+        path = paths[idx]
+        text = texts[idx] if idx < len(texts) else ""
+        snippet = text[:700] if text else ""
+        results.append({
+            "path": path,
+            "score": round(score, 4),
+            "snippet": snippet,
+        })
+
+    return results[:top_k]
+
+
+def suggest_links(
+    vault_dir: str,
+    path: str,
+    top_k: int = 5,
+) -> List[Dict[str, Any]]:
+    """Suggest related notes for a given vault path.
+
+    Combines three signals:
+    1. Shared tags (tag overlap count)
+    2. Graph distance (direct link → backlink → shared-link)
+    3. Semantic similarity (embedding cosine score)
+
+    Returns list of {path, score, reasons} sorted by descending combined score.
+    """
+    idx = build_vault_index(vault_dir)
+    graph_data = idx.get("graph", {})
+    edges = graph_data.get("edges", [])
+    # Build adjacency: source -> [targets]
+    graph: Dict[str, List[str]] = {}
+    for edge in edges:
+        src = edge.get("source", "")
+        tgt = edge.get("target", "")
+        if src and tgt:
+            graph.setdefault(src, []).append(tgt)
+
+    # Build note_tags dict from idx["notes"]: {path: [tags, ...]}
+    note_tags: Dict[str, List[str]] = {}
+    note_paths: List[str] = []
+    for note in idx.get("notes", []):
+        np = note.get("path", "")
+        if np:
+            note_paths.append(np)
+            note_tags[np] = note.get("tags", [])
+
+    target_tags = set(note_tags.get(path, []))
+    target_text = _read_note(vault_dir, path) or ""
+
+    candidates: Dict[str, Dict[str, Any]] = {}
+
+    for other in note_paths:
+        if other == path:
+            continue
+        other_abs = os.path.join(vault_dir, other)
+        if not os.path.isfile(other_abs) or not other.endswith(".md"):
+            continue
+
+        reasons: List[str] = []
+        score = 0.0
+
+        # 1. Shared tags (up to 3.0)
+        other_tags = set(note_tags.get(other, []))
+        shared = target_tags & other_tags
+        if shared:
+            tag_score = min(len(shared), 5) * 0.6
+            score += tag_score
+            reasons.append(f"tags:{','.join(sorted(list(shared)[:3]))}")
+
+        # 2. Graph distance (up to 2.0)
+        out_links = graph.get(path, [])
+        in_links = [s for s, tgts in graph.items() if path in tgts]
+        if other in out_links:
+            score += 2.0
+            reasons.append("direct-link")
+        elif other in in_links:
+            score += 1.5
+            reasons.append("backlink")
+        elif any(other in graph.get(link, []) for link in out_links):
+            score += 0.8
+            reasons.append("link-distance-2")
+
+        # 3. Semantic similarity (up to 1.0)
+        try:
+            client = _embedding_client()
+            if client and target_text:
+                tv = client.encode([target_text[:2000]])[0]
+                ov = client.encode([_read_note(vault_dir, other)[:2000] or ""])[0]
+                t_norm = np.linalg.norm(tv)
+                o_norm = np.linalg.norm(ov)
+                if t_norm > 0 and o_norm > 0:
+                    sim = float(np.dot(tv / t_norm, ov / o_norm))
+                    score += sim
+                    reasons.append(f"semantic:{round(sim,2)}")
+        except Exception:
+            pass
+
+        if reasons:
+            candidates[other] = {"score": round(score, 4), "reasons": reasons}
+
+    ranked = sorted(candidates.items(), key=lambda x: -x[1]["score"])[:top_k]
+    return [{"path": p, **v} for p, v in ranked]
+
+
+def suggest_tags(
+    vault_dir: str,
+    prefix: str = "",
+) -> List[Dict[str, Any]]:
+    """Suggest existing tags matching a prefix string.
+
+    Returns list of {name, count} sorted by descending usage count.
+    """
+    idx = build_vault_index(vault_dir)
+    tag_counts: Dict[str, int] = {}
+    for note in idx.get("notes", []):
+        for tag in note.get("tags", []):
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+    prefix_lower = prefix.strip().lower().lstrip("#")
+    matching = [
+        {"name": name, "count": count}
+        for name, count in tag_counts.items()
+        if (not prefix_lower) or name.lower().startswith(prefix_lower)
+    ]
+    matching.sort(key=lambda x: -x["count"])
+    return matching[:30]

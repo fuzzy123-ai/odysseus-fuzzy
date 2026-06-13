@@ -4,6 +4,7 @@ import sys
 import tempfile
 import zipfile
 import json
+import importlib
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -22,6 +23,7 @@ from backend import vault_service
 from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidation
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
+from backend.tool_specs import DESTRUCTIVE_TOOL_NAMES, VAULT_TOOL_BY_NAME, VAULT_TOOL_SPECS, execute_vault_tool
 from backend.project_planning import (
     GameDevConceptDraftRequest,
     NEW_PROJECT_FOLDER_SENTINEL,
@@ -56,8 +58,11 @@ from backend.vault_security import (
     unlock_vault,
     validate_archive_member,
 )
+from backend.vault_history import list_history
 from backend.vault_model import extract_tags
 from backend.performance_fixtures import create_large_vault_fixture, profile_graph_build
+from routes.api_token_routes import TOKEN_PROFILES, _normalize_scopes
+from src.model_context import estimate_tokens
 from plugin import (
     get_vault_path_by_owner,
     handle_create_folder,
@@ -90,6 +95,21 @@ from plugin import (
     PLUGIN,
     setup,
 )
+
+
+def test_vault_watch_signature_changes_when_file_changes():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        first = obsidian_routes._vault_watch_signature(tmpdir)
+        note_path = os.path.join(tmpdir, "note.md")
+        content = b"# Hello\n"
+        with open(note_path, "wb") as handle:
+            handle.write(content)
+
+        second = obsidian_routes._vault_watch_signature(tmpdir)
+
+    assert first != second
+    assert [entry[0] for entry in second[1]] == ["note.md"]
+    assert second[1][0][2] == len(content)
 
 
 @pytest.mark.asyncio
@@ -260,6 +280,22 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
         assert "Retrieval context" in payload["snippets"][0]["text"]
 
 
+def test_obsidian_context_provider_respects_token_budget(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Large.md"), "w", encoding="utf-8") as f:
+            f.write("# Large\n\n" + ("demo retrieval " * 400))
+
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+
+        payload = retrieve_vault_context("alice", "demo retrieval", 40, "chat")
+        snippet_tokens = estimate_tokens([
+            {"role": "system", "content": item["text"]}
+            for item in payload["snippets"]
+        ])
+
+        assert snippet_tokens <= 40
+
+
 def test_obsidian_context_provider_respects_locked_vault(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
@@ -280,6 +316,121 @@ def test_obsidian_context_provider_parses_frontmatter_lists():
 
     assert frontmatter == {"tags": ["alpha", "beta"], "published": True}
     assert body == "# Body"
+
+
+def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
+    names = [spec.name for spec in VAULT_TOOL_SPECS]
+
+    assert len(names) == len(set(names))
+    assert set(names) == set(VAULT_TOOL_BY_NAME)
+    assert {"vault_write", "vault_batch", "vault_delete", "vault_undo"} <= DESTRUCTIVE_TOOL_NAMES
+    assert all("owner" not in spec.input_schema.get("properties", {}) for spec in VAULT_TOOL_SPECS)
+
+
+def test_vault_tool_spec_executes_shared_service(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\nbody")
+
+        result = execute_vault_tool("vault_read", tmpdir, {"path": "Demo.md"}, "alice", {"source": "test"})
+
+        assert result == "# Demo\n\nbody"
+
+
+def test_vault_tool_spec_ignores_owner_argument():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\nbody")
+
+        result = execute_vault_tool(
+            "vault_status",
+            tmpdir,
+            {"owner": "mallory"},
+            "alice",
+            {"source": "test"},
+        )
+
+        assert result["owner"] == "alice"
+
+
+def test_vault_mcp_resolves_owner_from_trusted_environment(monkeypatch):
+    vault_server = importlib.import_module("mcp_servers.vault_server")
+    monkeypatch.setenv("ODYSSEUS_OWNER", "alice")
+    monkeypatch.setenv("ODYSSEUS_API_TOKEN", "ody_secret")
+    monkeypatch.setenv("ODYSSEUS_FALLBACK_OWNER", "mallory")
+
+    assert vault_server._resolve_owner() == "alice"
+
+
+def test_vault_mcp_rejects_token_context_without_owner(monkeypatch):
+    vault_server = importlib.import_module("mcp_servers.vault_server")
+    monkeypatch.delenv("ODYSSEUS_OWNER", raising=False)
+    monkeypatch.delenv("ODYSSEUS_FALLBACK_OWNER", raising=False)
+    monkeypatch.setenv("ODYSSEUS_API_TOKEN_ID", "tok_123")
+
+    with pytest.raises(PermissionError):
+        vault_server._resolve_owner()
+
+
+def test_vault_mcp_default_owner_is_local_legacy_only(monkeypatch):
+    vault_server = importlib.import_module("mcp_servers.vault_server")
+    monkeypatch.delenv("ODYSSEUS_OWNER", raising=False)
+    monkeypatch.delenv("ODYSSEUS_FALLBACK_OWNER", raising=False)
+    monkeypatch.delenv("ODYSSEUS_API_TOKEN", raising=False)
+    monkeypatch.delenv("ODYSSEUS_API_TOKEN_ID", raising=False)
+    monkeypatch.delenv("ODYSSEUS_API_TOKEN_PREFIX", raising=False)
+
+    assert vault_server._resolve_owner() == "default"
+
+
+def test_current_owner_rejects_ownerless_api_token():
+    request = SimpleNamespace(state=SimpleNamespace(api_token=True, api_token_owner=None))
+
+    with pytest.raises(HTTPException) as exc:
+        obsidian_routes.current_owner(request)
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "API token has no owner"
+
+
+def test_snapshot_throttling_keeps_rapid_updates_from_churning_history(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(vault_service, "SNAPSHOT_MIN_INTERVAL_SECONDS", 300)
+        vault_service.create_file(tmpdir, "Demo.md", "v1", owner="alice", tool="test")
+
+        vault_service.update_file(tmpdir, "Demo.md", "v2", owner="alice", tool="test")
+        vault_service.update_file(tmpdir, "Demo.md", "v3", owner="alice", tool="test")
+
+        snap_root = os.path.join(tmpdir, vault_service.SNAPSHOTS_DIR)
+        snapshots = []
+        for root, _dirs, files in os.walk(snap_root):
+            snapshots.extend([name for name in files if name.endswith(".md")])
+        assert len(snapshots) == 1
+
+
+def test_batch_operations_records_batch_id_and_actor_metadata():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.create_file(tmpdir, "Demo.md", "v1", owner="alice", tool="test")
+
+        result = vault_service.batch_operations(
+            tmpdir,
+            [{"action": "update_file", "path": "Demo.md", "content": "v2"}],
+            owner="alice",
+            tool="test_batch",
+            actor={"source": "api", "token_id": "tok1", "token_prefix": "ody_1234"},
+        )
+        history = list_history(tmpdir, limit=5)
+
+        assert result["success"] is True
+        assert result["batch_id"]
+        assert history[0]["batch_id"] == result["batch_id"]
+        assert history[0]["actor"]["token_id"] == "tok1"
+
+
+def test_obsidian_token_profiles_normalize_dependencies():
+    assert TOKEN_PROFILES["obsidian_readonly"] == ["vault:read"]
+    assert _normalize_scopes(profile="obsidian_writer") == ["vault:read", "vault:write"]
+    assert _normalize_scopes(profile="obsidian_maintenance") == ["vault:read", "vault:write", "vault:delete"]
 
 
 def test_obsidian_consolidation_job_writes_non_destructive_report(monkeypatch):

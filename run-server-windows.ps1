@@ -10,7 +10,8 @@ param(
     [string]$BindHost = "127.0.0.1",
     [string]$ChromaHost = "127.0.0.1",
     [int]$ChromaPort = 8100,
-    [switch]$EnableBuiltinMcp
+    [switch]$EnableBuiltinMcp,
+    [switch]$DisableBuiltinMcp
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,12 +49,11 @@ if (-not (Test-Path $venvPy)) {
 
 $env:CHROMADB_HOST = $ChromaHost
 $env:CHROMADB_PORT = [string]$ChromaPort
-if ($EnableBuiltinMcp) {
-    Remove-Item Env:ODYSSEUS_DISABLE_MCP -ErrorAction SilentlyContinue
-} else {
+if ($DisableBuiltinMcp) {
     $env:ODYSSEUS_DISABLE_MCP = "1"
+} else {
+    Remove-Item Env:ODYSSEUS_DISABLE_MCP -ErrorAction SilentlyContinue
 }
-$env:ODYSSEUS_DISABLE_USER_MCP = "1"
 
 Repair-PathEnvironmentKeys
 Add-Content -LiteralPath $tracePath -Value ("uvicorn-start {0} pid={1}" -f (Get-Date -Format o), $PID)

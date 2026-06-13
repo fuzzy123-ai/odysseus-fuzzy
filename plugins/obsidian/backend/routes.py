@@ -5,12 +5,32 @@ import json
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from src.auth_helpers import require_user
+from src.auth_helpers import effective_user, require_user
+
+VAULT_READ_SCOPE = "vault:read"
+VAULT_WRITE_SCOPE = "vault:write"
+VAULT_DELETE_SCOPE = "vault:delete"
+
+def _require_vault_scope(request: Request, required: str) -> str:
+    """Return the data owner if the caller has the required vault scope.
+    
+    For browser sessions, falls through to require_user (full access).
+    For API tokens, checks the token's scopes and raises 403 if missing.
+    """
+    if getattr(request.state, "api_token", False):
+        scopes = set(getattr(request.state, "api_token_scopes", []) or [])
+        if required not in scopes:
+            raise HTTPException(403, f"API token missing required scope: {required}")
+        owner = getattr(request.state, "api_token_owner", None)
+        if not owner:
+            raise HTTPException(403, "API token has no owner")
+        return owner
+    return require_user(request)
 
 from .vault_security import (
     VaultSecurityError,
@@ -30,6 +50,9 @@ from .vault_model import (
     graph_payload,
     load_manual_relationships,
     remove_manual_relationship,
+    search_semantic,
+    suggest_links,
+    suggest_tags,
 )
 from . import vault_service
 from .project_planning import (
@@ -120,6 +143,14 @@ class RelationshipRequest(BaseModel):
     type: str = "manual"
     reason: str = ""
 
+class FrontmatterMergeRequest(BaseModel):
+    path: str
+    frontmatter: Dict[str, Any]
+
+class BatchOperationRequest(BaseModel):
+    operations: List[Dict[str, Any]]
+    dry_run: bool = False
+
 class VaultPasswordRequest(BaseModel):
     password: str
 
@@ -148,7 +179,12 @@ def get_vault_path(request: Request) -> str:
     
     Uses multi-user isolation or 'default' if auth is disabled.
     """
-    username = require_user(request)
+    if getattr(request.state, "api_token", False):
+        username = getattr(request.state, "api_token_owner", None)
+        if not username:
+            raise HTTPException(403, "API token has no owner")
+    else:
+        username = require_user(request)
     return vault_service.vault_path_for_owner(username)
 
 def get_unlocked_vault_path(request: Request) -> str:
@@ -160,7 +196,19 @@ def get_unlocked_vault_path(request: Request) -> str:
     return vault_dir
 
 def current_owner(request: Request) -> str:
-    return require_user(request) or "default"
+    if getattr(request.state, "api_token", False) and not getattr(request.state, "api_token_owner", None):
+        raise HTTPException(403, "API token has no owner")
+    return effective_user(request) or "default"
+
+
+def vault_actor(request: Request, tool: str = "obsidian_api") -> Dict[str, Any]:
+    if not getattr(request.state, "api_token", False):
+        return {"source": tool}
+    return {
+        "source": tool,
+        "token_id": str(getattr(request.state, "api_token_id", "") or ""),
+        "token_prefix": str(getattr(request.state, "api_token_prefix", "") or ""),
+    }
 
 def vault_error(exc: VaultSecurityError) -> HTTPException:
     detail = str(exc)
@@ -172,6 +220,25 @@ def vault_error(exc: VaultSecurityError) -> HTTPException:
     elif "conflict" in detail.lower():
         status = 409
     return HTTPException(status_code=status, detail=detail)
+
+
+def _vault_watch_signature(vault_dir: str) -> Tuple[int, Tuple[Tuple[str, int, int], ...]]:
+    """Return a cheap snapshot for detecting vault file changes."""
+    entries: List[Tuple[str, int, int]] = []
+    ignored_dirs = {"__pycache__", ".trash", ".snapshots"}
+    for root, dirs, files in os.walk(vault_dir):
+        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        for filename in files:
+            abs_path = os.path.join(root, filename)
+            try:
+                stat = os.stat(abs_path)
+            except OSError:
+                continue
+            rel_path = os.path.relpath(abs_path, vault_dir).replace("\\", "/")
+            entries.append((rel_path, int(stat.st_mtime_ns), int(stat.st_size)))
+    entries.sort(key=lambda item: item[0].lower())
+    latest = max((entry[1] for entry in entries), default=0)
+    return latest, tuple(entries)
 
 
 def _resolve_obsidian_ai_endpoint(owner: str):
@@ -457,6 +524,64 @@ async def list_files(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/vault/events")
+async def vault_events(request: Request):
+    """Stream vault change notifications so the UI can refresh automatically."""
+    vault_dir = get_unlocked_vault_path(request)
+
+    async def event_stream():
+        last_signature = None
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                latest, signature = await asyncio.to_thread(_vault_watch_signature, vault_dir)
+                if last_signature is None:
+                    last_signature = signature
+                    yield f"event: ready\ndata: {json.dumps({'latest': latest})}\n\n"
+                elif signature != last_signature:
+                    last_signature = signature
+                    yield f"event: vault_changed\ndata: {json.dumps({'latest': latest})}\n\n"
+                else:
+                    yield ": keepalive\n\n"
+            except Exception as exc:
+                payload = json.dumps({"error": str(exc)})
+                yield f"event: error\ndata: {payload}\n\n"
+            await asyncio.sleep(1.5)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/files/recent")
+async def files_recent(request: Request, since: Optional[str] = None, until: Optional[str] = None):
+    """Return files filtered by modification time range (ISO dates)."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return vault_service.files_recent(vault_dir, since=since, until=until)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/files/changed")
+async def files_changed(request: Request, since: str):
+    """Return files modified since a date (excludes newly created files)."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return vault_service.files_changed(vault_dir, since=since)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/file")
 async def read_file(path: str, request: Request):
     """Read a specific file's content or serve binary assets."""
@@ -483,6 +608,7 @@ async def read_file(path: str, request: Request):
 async def create_file(req: FileWriteRequest, request: Request):
     """Create a new file in the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         vault_service.create_file(
             vault_dir,
@@ -490,6 +616,7 @@ async def create_file(req: FileWriteRequest, request: Request):
             req.content,
             owner=current_owner(request),
             tool="obsidian_api",
+            actor=vault_actor(request),
         )
         return {"success": True, "path": req.path}
     except FileExistsError:
@@ -503,6 +630,7 @@ async def create_file(req: FileWriteRequest, request: Request):
 async def update_file(req: FileWriteRequest, request: Request):
     """Update (autosave) an existing file in the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         vault_service.update_file(
             vault_dir,
@@ -510,6 +638,7 @@ async def update_file(req: FileWriteRequest, request: Request):
             req.content,
             owner=current_owner(request),
             tool="obsidian_api",
+            actor=vault_actor(request),
         )
         return {"success": True, "path": req.path}
     except FileNotFoundError:
@@ -525,8 +654,9 @@ async def update_file(req: FileWriteRequest, request: Request):
 async def delete_file(path: str, request: Request):
     """Delete a file from the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_DELETE_SCOPE)
     try:
-        vault_service.delete_file(vault_dir, path, owner=current_owner(request), tool="obsidian_api")
+        vault_service.delete_file(vault_dir, path, owner=current_owner(request), tool="obsidian_api", actor=vault_actor(request))
         return {"success": True}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
@@ -537,10 +667,45 @@ async def delete_file(path: str, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
 
+@router.get("/file/frontmatter")
+async def read_frontmatter(path: str, request: Request):
+    """Read only the YAML frontmatter of a markdown file (without the body)."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return {"path": path, "frontmatter": vault_service.read_frontmatter(vault_dir, path)}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read frontmatter: {e}")
+
+@router.put("/file/frontmatter")
+async def merge_frontmatter(req: FrontmatterMergeRequest, request: Request):
+    """Merge frontmatter keys into a markdown file (body unchanged)."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    try:
+        return vault_service.merge_frontmatter(
+            vault_dir,
+            req.path,
+            req.frontmatter,
+            owner=current_owner(request),
+            tool="obsidian_api",
+            actor=vault_actor(request),
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to merge frontmatter: {e}")
+
 @router.post("/folder")
 async def create_folder(req: FolderCreateRequest, request: Request):
     """Create a new folder in the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         vault_service.create_folder(vault_dir, req.path, owner=current_owner(request), tool="obsidian_api")
         return {"success": True, "path": req.path}
@@ -555,6 +720,7 @@ async def create_folder(req: FolderCreateRequest, request: Request):
 async def delete_folder(path: str, request: Request):
     """Recursively delete a folder from the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_DELETE_SCOPE)
     try:
         vault_service.delete_folder(vault_dir, path, owner=current_owner(request), tool="obsidian_api", recursive=True)
         return {"success": True}
@@ -571,6 +737,7 @@ async def delete_folder(path: str, request: Request):
 async def rename_item(req: RenameRequest, request: Request):
     """Rename or move a file/folder in the vault."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         vault_service.rename_item(
             vault_dir,
@@ -589,9 +756,32 @@ async def rename_item(req: RenameRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to rename: {e}")
 
+@router.post("/batch")
+async def batch_ops(req: BatchOperationRequest, request: Request):
+    """Execute multiple vault operations atomically with optional dry-run preview."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    try:
+        return vault_service.batch_operations(
+            vault_dir,
+            req.operations,
+            owner=current_owner(request),
+            tool="obsidian_api",
+            dry_run=req.dry_run,
+            actor=vault_actor(request),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch operation failed: {e}")
+
 @router.get("/search")
-async def search_vault(q: str, request: Request):
-    """Perform full-text search inside all markdown notes in the vault."""
+async def search_vault(q: str, request: Request, max_results: Optional[int] = None, tag_filter: Optional[str] = None):
+    """Perform full-text search inside all markdown notes in the vault.
+
+    - max_results: Limit the number of returned files (default unlimited).
+    - tag_filter:  Only search notes that carry this tag (exact, case-insensitive).
+    """
     vault_dir = get_unlocked_vault_path(request)
     results = []
     
@@ -600,14 +790,35 @@ async def search_vault(q: str, request: Request):
     
     try:
         for result in vault_service.search_markdown(vault_dir, q):
+            # Apply tag filter if specified
+            if tag_filter:
+                try:
+                    content = vault_service.read_file(vault_dir, result.path)
+                except OSError:
+                    continue
+                tags = extract_tags(content, result.path)["tags"]
+                tag_lower = tag_filter.strip().lower().lstrip("#")
+                if not any(t.lower() == tag_lower for t in tags):
+                    continue
             results.append({
                 "path": result.path,
                 "matches": [{"line": match.line, "text": match.text} for match in result.matches],
             })
+            if max_results and len(results) >= max_results:
+                break
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
         
     return results
+
+@router.get("/search-semantic")
+async def semantic_search_vault(q: str, request: Request, top_k: int = 10):
+    """Semantic (embedding-based) search across all markdown notes in the vault."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return search_semantic(vault_dir, q, top_k=top_k)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Semantic search failed: {e}")
 
 @router.get("/tags")
 async def list_tags(request: Request):
@@ -617,6 +828,15 @@ async def list_tags(request: Request):
         return build_vault_index(vault_dir)["tags"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build tags: {e}")
+
+@router.get("/tags/suggest")
+async def suggest_tags_route(request: Request, prefix: str = ""):
+    """Suggest existing tags matching a prefix."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return suggest_tags(vault_dir, prefix=prefix)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to suggest tags: {e}")
 
 @router.get("/graph")
 async def graph_vault(request: Request, focus: Optional[str] = None, tag: Optional[str] = None):
@@ -632,6 +852,15 @@ async def list_relationships(request: Request):
     """Return manually curated graph relationships."""
     vault_dir = get_unlocked_vault_path(request)
     return {"relationships": load_manual_relationships(vault_dir)}
+
+@router.get("/suggest-links")
+async def suggest_links_route(request: Request, path: str, top_k: int = 5):
+    """Suggest related notes for a given vault path."""
+    vault_dir = get_unlocked_vault_path(request)
+    try:
+        return suggest_links(vault_dir, path=path, top_k=top_k)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to suggest links: {e}")
 
 @router.get("/project-plan/templates")
 async def project_plan_templates(request: Request):

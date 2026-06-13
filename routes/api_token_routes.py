@@ -25,11 +25,19 @@ ALLOWED_SCOPES = {
     "calendar:write",
     "memory:read",
     "memory:write",
+    "vault:read",
+    "vault:write",
+    "vault:delete",
 }
 TOKEN_PROFILES = {
     "chat": ["chat"],
     "codex_todos": ["todos:read", "todos:write"],
     "codex_email_drafts": ["email:read", "email:draft", "documents:read", "documents:write"],
+    "codex_vault": ["vault:read", "vault:write"],
+    "obsidian_readonly": ["vault:read"],
+    "obsidian_memory_context": ["chat", "memory:read", "memory:write", "vault:read"],
+    "obsidian_writer": ["vault:read", "vault:write"],
+    "obsidian_maintenance": ["vault:read", "vault:write", "vault:delete"],
 }
 
 
@@ -65,6 +73,8 @@ def _normalize_scopes(scopes: str | list[str] | None = None, profile: str | None
     ensure_before("calendar:write", "calendar:read")
     ensure_before("memory:write", "memory:read")
     ensure_before("email:draft", "email:read")
+    ensure_before("vault:write", "vault:read")
+    ensure_before("vault:delete", "vault:read")
 
     return normalized or [DEFAULT_SCOPES]
 

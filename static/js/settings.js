@@ -4803,6 +4803,9 @@ async function initUnifiedIntegrations() {
       { key: 'calendar:write', label: 'Calendar write', detail: 'Create and update calendar events' },
       { key: 'memory:read', label: 'Memory', detail: 'Read memory when enabled' },
       { key: 'memory:write', label: 'Memory write', detail: 'Write memory when enabled' },
+      { key: 'vault:read', label: 'Vault', detail: 'Read and search the Obsidian vault' },
+      { key: 'vault:write', label: 'Vault write', detail: 'Create and update notes, frontmatter, folders in the Obsidian vault' },
+      { key: 'vault:delete', label: 'Vault delete', detail: 'Soft-delete notes from the Obsidian vault' },
       { key: 'cookbook:read', label: 'Cookbook', detail: 'List cookbook tasks + tail their tmux output (debug a model serve from outside the UI)' },
       { key: 'cookbook:launch', label: 'Cookbook launch', detail: 'Launch and stop cookbook serve tasks. Powerful: runs SSH commands on your configured servers, bounded by the same allowlist the UI uses (vllm/python3/sglang/llama-server/...)' },
     ];

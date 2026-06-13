@@ -17,6 +17,7 @@ param(
     [string]$ChromaHost = "127.0.0.1",
     [int]$ChromaPort = 8100,
     [switch]$EnableBuiltinMcp,
+    [switch]$DisableBuiltinMcp,
     [switch]$DryRun
 )
 
@@ -128,6 +129,9 @@ $args = @(
     "-ChromaHost", $ChromaHost,
     "-ChromaPort", [string]$ChromaPort
 )
+if ($DisableBuiltinMcp) {
+    $args += "-DisableBuiltinMcp"
+}
 if ($EnableBuiltinMcp) {
     $args += "-EnableBuiltinMcp"
 }
