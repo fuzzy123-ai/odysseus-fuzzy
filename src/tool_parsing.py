@@ -26,8 +26,7 @@ _TOOL_BLOCK_RE = re.compile(
 )
 
 
-def _tool_block_re():
-    """Build fenced-tool regex from built-ins plus runtime plugin tools."""
+def _known_tool_names() -> set[str]:
     names = set(TOOL_TAGS)
     try:
         from src.tool_registry import tool_names
@@ -35,8 +34,14 @@ def _tool_block_re():
         names.update(tool_names())
     except Exception:
         pass
+    return names
+
+
+def _tool_block_re() -> re.Pattern:
+    """Build fenced-tool regex from built-ins plus runtime plugin tools."""
+    names = sorted(_known_tool_names())
     return re.compile(
-        r"```(" + "|".join(re.escape(name) for name in sorted(names)) + r")\s*\n([\s\S]*?)```",
+        r"```(" + "|".join(re.escape(name) for name in names) + r")\s*\n([\s\S]*?)```",
         re.IGNORECASE,
     )
 
@@ -309,7 +314,7 @@ def _parse_tool_call_block(raw: str) -> Optional[ToolBlock]:
     tool_name = tool_match.group(1).lower()
     # Fall back to the raw name when it's a real tool but not in the alias
     # map, so known tools (e.g. manage_calendar) aren't silently dropped.
-    mapped = _TOOL_NAME_MAP.get(tool_name) or (tool_name if tool_name in TOOL_TAGS else None)
+    mapped = _TOOL_NAME_MAP.get(tool_name) or (tool_name if tool_name in _known_tool_names() else None)
     if not mapped:
         return None
 
@@ -442,7 +447,7 @@ def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
     return None
 
 
-def parse_tool_blocks(text: str) -> List[ToolBlock]:
+def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
     """Extract executable tool blocks from LLM response text.
 
     Supports multiple formats:
@@ -451,6 +456,17 @@ def parse_tool_blocks(text: str) -> List[ToolBlock]:
     3. XML-style <tool_call>/<invoke> blocks
     4. <tool_code> blocks (MiniMax-M2.5 style)
     5. DeepSeek DSML markup (normalized to <invoke> first)
+
+    `skip_fenced`: when True, Pattern 1 (fenced ```bash/```python/```json code
+    blocks) is not matched at all. Native function-calling models (GPT/Claude/
+    Grok/Qwen3/DeepSeek-V, etc.) commonly write illustrative fenced examples in
+    prose; for those models we trust the structured tool_calls channel for real
+    invocations and treat a bare fence as display text rather than an action
+    (issue #3222). Patterns 2-5 — explicit [TOOL_CALL]/<invoke>/<tool_code>/DSML
+    markup that leaked into content as text — stay fully active regardless,
+    since that markup is never an illustrative example and dropping it would
+    silently lose real calls (e.g. DeepSeek-V falling back to DSML when it
+    can't emit structured tool_calls).
     """
     blocks = []
 
@@ -458,31 +474,31 @@ def parse_tool_blocks(text: str) -> List[ToolBlock]:
     # XML patterns below catch it.
     text = _normalize_dsml(text)
 
-    # Pattern 1: fenced code blocks
-    tool_block_re = _tool_block_re()
-    for m in tool_block_re.finditer(text):
-        tag = m.group(1).lower()
-        content = m.group(2).strip()
-        if not content:
-            continue
-        # If a code block's content is an <invoke> XML call (some models wrap
-        # tool calls in ```python or ```xml fences), parse the invoke instead.
-        if '<invoke' in content:
-            for inv in _XML_INVOKE_RE.finditer(content):
-                block = _parse_xml_invoke(inv)
+    # Pattern 1: fenced code blocks (skipped when `skip_fenced` — see docstring).
+    if not skip_fenced:
+        for m in _tool_block_re().finditer(text):
+            tag = m.group(1).lower()
+            content = m.group(2).strip()
+            if not content:
+                continue
+            # If a code block's content is an <invoke> XML call (some models wrap
+            # tool calls in ```python or ```xml fences), parse the invoke instead.
+            if '<invoke' in content:
+                for inv in _XML_INVOKE_RE.finditer(content):
+                    block = _parse_xml_invoke(inv)
+                    if block:
+                        blocks.append(block)
+                # This fenced block is <invoke> markup, not literal code. Whether or
+                # not any call converted, never fall through to append the raw XML as
+                # a python/bash block — e.g. a hyphenated/namespaced tool name that
+                # _XML_INVOKE_RE's \w+ can't match would otherwise be executed as code.
+                continue
+            if tag in ("python", "bash"):
+                block = _parse_misfenced_web_lookup(content)
                 if block:
                     blocks.append(block)
-            # This fenced block is <invoke> markup, not literal code. Whether or
-            # not any call converted, never fall through to append the raw XML as
-            # a python/bash block — e.g. a hyphenated/namespaced tool name that
-            # _XML_INVOKE_RE's \w+ can't match would otherwise be executed as code.
-            continue
-        if tag in ("python", "bash"):
-            block = _parse_misfenced_web_lookup(content)
-            if block:
-                blocks.append(block)
-                continue
-        blocks.append(ToolBlock(tag, content))
+                    continue
+            blocks.append(ToolBlock(tag, content))
 
     # Pattern 2: [TOOL_CALL] blocks (only if no fenced blocks found)
     if not blocks:
@@ -516,12 +532,23 @@ def parse_tool_blocks(text: str) -> List[ToolBlock]:
     return blocks
 
 
-def strip_tool_blocks(text: str) -> str:
-    """Remove executable tool blocks from text for clean display."""
+def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
+    """Remove executable tool blocks from text for clean display.
+
+    `skip_fenced`: when True, fenced ```bash/```python/```json code blocks
+    (Pattern 1) are left intact instead of being stripped. This must mirror
+    whatever `skip_fenced` value `parse_tool_blocks` was called with for the
+    same response: if a fence wasn't executed as a tool call (because it's an
+    illustrative example from a native function-calling model), it shouldn't
+    vanish from the persisted/displayed text either — otherwise the example
+    streams once and then disappears on reload (issue #3222 follow-up).
+    Patterns 2-5 + DSML markup are always stripped, since that markup should
+    never reach the user regardless of whether it converted to a tool call.
+    """
     # Normalize DSML first so its markup gets stripped by the <invoke>
     # / <tool_call> removers below instead of leaking to the user.
     text = _normalize_dsml(text)
-    cleaned = _tool_block_re().sub('', text)
+    cleaned = text if skip_fenced else _tool_block_re().sub('', text)
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _TOOL_CODE_RE.sub('', cleaned)
