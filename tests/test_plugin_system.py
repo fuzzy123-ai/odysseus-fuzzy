@@ -7,12 +7,17 @@ on Odysseus internals.
 """
 import json
 import os
+from pathlib import Path
 import textwrap
 
 import pytest
 from fastapi import FastAPI
 
-from src.plugin_system import PluginManager
+from src.plugin_system import (
+    PluginManager,
+    get_consolidation_jobs,
+    get_context_providers,
+)
 
 
 def _write(pdir, pid, body):
@@ -41,6 +46,50 @@ BROKEN = '''
     PLUGIN = {"name": "Broken", "version": "1.0.0"}
     def setup(ctx):
         raise RuntimeError("boom")
+'''
+
+
+CONTEXT_PLUGIN = '''
+    PLUGIN = {"name": "Context Demo", "version": "0.1.0"}
+    def retrieve(owner, query, budget, mode):
+        return {
+            "owner": owner,
+            "query": query,
+            "budget": budget,
+            "mode": mode,
+            "snippets": ["demo"],
+        }
+    def run_consolidation(owner=None):
+        return {"owner": owner, "ok": True}
+    def setup(ctx):
+        ctx.register_context_provider({
+            "id": "demo.context",
+            "label": "Demo Context",
+            "priority": 25,
+            "capabilities": ["chat", "agent"],
+            "retrieve": retrieve,
+        })
+        ctx.register_consolidation_job({
+            "id": "demo.consolidate",
+            "label": "Demo Consolidation",
+            "priority": 5,
+            "capabilities": ["memory"],
+            "run": run_consolidation,
+        })
+'''
+
+
+BROKEN_CONTEXT_PLUGIN = '''
+    PLUGIN = {"name": "Broken Context", "version": "0.1.0"}
+    def retrieve(owner, query, budget, mode):
+        return {}
+    def setup(ctx):
+        ctx.register_context_provider({
+            "id": "broken.context",
+            "label": "Broken Context",
+            "retrieve": retrieve,
+        })
+        raise RuntimeError("boom after provider")
 '''
 
 
@@ -134,6 +183,47 @@ def test_shutdown_all_stops_services(env):
     assert mgr.records["demo"].module.counters["stop"] == 1 and _routes(app) == []
 
 
+def test_context_provider_and_consolidation_job_lifecycle(env):
+    pdir, _ = env
+    _write(pdir, "contextdemo", CONTEXT_PLUGIN)
+    app = FastAPI()
+    mgr = PluginManager(app=app, directory=pdir)
+
+    assert mgr.load_enabled(app) == 1
+
+    providers = get_context_providers()
+    assert [provider.id for provider in providers] == ["demo.context"]
+    provider = providers[0]
+    assert provider.plugin_id == "contextdemo"
+    assert provider.label == "Demo Context"
+    assert provider.priority == 25
+    assert provider.capabilities == ("chat", "agent")
+    assert provider.retrieve(owner="alice", query="hello", budget=128, mode="chat")["snippets"] == ["demo"]
+    assert get_context_providers(capability="agent") == [provider]
+    assert get_context_providers(capability="missing") == []
+
+    jobs = get_consolidation_jobs()
+    assert [job.id for job in jobs] == ["demo.consolidate"]
+    assert jobs[0].plugin_id == "contextdemo"
+    assert jobs[0].run(owner="alice") == {"owner": "alice", "ok": True}
+
+    mgr.disable("contextdemo")
+
+    assert get_context_providers() == []
+    assert get_consolidation_jobs() == []
+
+
+def test_context_provider_rolls_back_when_setup_fails(env):
+    pdir, _ = env
+    _write(pdir, "brokencontext", BROKEN_CONTEXT_PLUGIN)
+    app = FastAPI()
+    mgr = PluginManager(app=app, directory=pdir)
+
+    assert mgr.load_enabled(app) == 0
+    assert mgr.list()[0]["status"] == "error"
+    assert get_context_providers() == []
+
+
 OFF_NAMESPACE = '''
     PLUGIN = {"name": "OffNs", "version": "1.0.0"}
     def setup(ctx):
@@ -164,3 +254,13 @@ def test_ui_field_sanitized():
     assert _safe_ui({"ui": {"open": "//evil.com/x"}}) is None
     assert _safe_ui({"ui": {"open": 123}}) is None
     assert _safe_ui({}) is None
+
+
+def test_core_has_no_direct_obsidian_imports():
+    root = Path(__file__).resolve().parents[1]
+    offenders = []
+    for path in (root / "src").rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "plugins.obsidian" in text or "plugins/obsidian" in text:
+            offenders.append(path.relative_to(root).as_posix())
+    assert offenders == []

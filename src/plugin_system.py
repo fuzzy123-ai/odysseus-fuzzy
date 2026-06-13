@@ -52,6 +52,38 @@ logger = logging.getLogger(__name__)
 
 # A safe plugin id: used as a filesystem path component AND a Python import name.
 _ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$")
+_PROVIDER_ID_RE = re.compile(r"[A-Za-z0-9_.-]{1,128}$")
+
+
+@dataclass(frozen=True)
+class ContextProviderSpec:
+    """Read-only context contribution registered by a plugin.
+
+    The core treats providers generically; plugin-specific code owns retrieval,
+    permissions, locking, and source semantics behind the ``retrieve`` callable.
+    """
+    id: str
+    label: str
+    priority: int
+    capabilities: tuple[str, ...]
+    retrieve: Callable[..., Any]
+    plugin_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ConsolidationJobSpec:
+    """Background consolidation hook registered by a plugin."""
+    id: str
+    label: str
+    priority: int
+    capabilities: tuple[str, ...]
+    run: Callable[..., Any]
+    plugin_id: Optional[str] = None
+
+
+_CONTEXT_PROVIDERS: Dict[str, ContextProviderSpec] = {}
+_CONSOLIDATION_JOBS: Dict[str, ConsolidationJobSpec] = {}
+_REGISTRY_LOCK = threading.RLock()
 
 
 def plugins_dir() -> str:
@@ -77,6 +109,105 @@ def _state_path() -> str:
     return os.path.join(_data_root(), "plugins.json")
 
 
+def _spec_get(spec: Any, name: str, default: Any = None) -> Any:
+    if isinstance(spec, dict):
+        return spec.get(name, default)
+    return getattr(spec, name, default)
+
+
+def _normalize_capabilities(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, (list, tuple, set)):
+        raise TypeError("capabilities must be a list, tuple, or set of strings")
+    capabilities = tuple(str(item).strip() for item in value if str(item).strip())
+    return capabilities
+
+
+def _normalize_provider_spec(spec: Any, *, plugin_id: Optional[str] = None) -> ContextProviderSpec:
+    provider_id = str(_spec_get(spec, "id", "")).strip()
+    if not _PROVIDER_ID_RE.fullmatch(provider_id):
+        raise ValueError("context provider id must be 1-128 chars using letters, numbers, '.', '_' or '-'")
+    label = str(_spec_get(spec, "label", provider_id)).strip() or provider_id
+    priority = int(_spec_get(spec, "priority", 0) or 0)
+    retrieve = _spec_get(spec, "retrieve")
+    if not callable(retrieve):
+        raise TypeError("context provider retrieve must be callable")
+    return ContextProviderSpec(
+        id=provider_id,
+        label=label,
+        priority=priority,
+        capabilities=_normalize_capabilities(_spec_get(spec, "capabilities", ())),
+        retrieve=retrieve,
+        plugin_id=plugin_id or _spec_get(spec, "plugin_id"),
+    )
+
+
+def register_context_provider(spec: Any, *, plugin_id: Optional[str] = None) -> ContextProviderSpec:
+    """Register a plugin-owned read-only context provider."""
+    normalized = _normalize_provider_spec(spec, plugin_id=plugin_id)
+    with _REGISTRY_LOCK:
+        if normalized.id in _CONTEXT_PROVIDERS:
+            raise ValueError(f"context provider already registered: {normalized.id}")
+        _CONTEXT_PROVIDERS[normalized.id] = normalized
+    return normalized
+
+
+def unregister_context_provider(provider_id: str) -> None:
+    with _REGISTRY_LOCK:
+        _CONTEXT_PROVIDERS.pop(provider_id, None)
+
+
+def get_context_providers(*, capability: Optional[str] = None) -> List[ContextProviderSpec]:
+    with _REGISTRY_LOCK:
+        providers = list(_CONTEXT_PROVIDERS.values())
+    if capability is not None:
+        providers = [provider for provider in providers if capability in provider.capabilities]
+    return sorted(providers, key=lambda provider: (-provider.priority, provider.id))
+
+
+def _normalize_consolidation_job_spec(spec: Any, *, plugin_id: Optional[str] = None) -> ConsolidationJobSpec:
+    job_id = str(_spec_get(spec, "id", "")).strip()
+    if not _PROVIDER_ID_RE.fullmatch(job_id):
+        raise ValueError("consolidation job id must be 1-128 chars using letters, numbers, '.', '_' or '-'")
+    label = str(_spec_get(spec, "label", job_id)).strip() or job_id
+    priority = int(_spec_get(spec, "priority", 0) or 0)
+    run = _spec_get(spec, "run")
+    if not callable(run):
+        raise TypeError("consolidation job run must be callable")
+    return ConsolidationJobSpec(
+        id=job_id,
+        label=label,
+        priority=priority,
+        capabilities=_normalize_capabilities(_spec_get(spec, "capabilities", ())),
+        run=run,
+        plugin_id=plugin_id or _spec_get(spec, "plugin_id"),
+    )
+
+
+def register_consolidation_job(spec: Any, *, plugin_id: Optional[str] = None) -> ConsolidationJobSpec:
+    """Register a plugin-owned background consolidation job."""
+    normalized = _normalize_consolidation_job_spec(spec, plugin_id=plugin_id)
+    with _REGISTRY_LOCK:
+        if normalized.id in _CONSOLIDATION_JOBS:
+            raise ValueError(f"consolidation job already registered: {normalized.id}")
+        _CONSOLIDATION_JOBS[normalized.id] = normalized
+    return normalized
+
+
+def unregister_consolidation_job(job_id: str) -> None:
+    with _REGISTRY_LOCK:
+        _CONSOLIDATION_JOBS.pop(job_id, None)
+
+
+def get_consolidation_jobs(*, capability: Optional[str] = None) -> List[ConsolidationJobSpec]:
+    with _REGISTRY_LOCK:
+        jobs = list(_CONSOLIDATION_JOBS.values())
+    if capability is not None:
+        jobs = [job for job in jobs if capability in job.capabilities]
+    return sorted(jobs, key=lambda job: (-job.priority, job.id))
+
+
 # ---------------------------------------------------------------------------
 # PluginContext — the controlled surface a plugin's setup(ctx) receives
 # ---------------------------------------------------------------------------
@@ -92,6 +223,8 @@ class PluginContext:
     _routes: List[Any] = field(default_factory=list)
     _services: List["tuple[Optional[Callable], Optional[Callable]]"] = field(default_factory=list)
     _tools: List[str] = field(default_factory=list)
+    _context_providers: List[str] = field(default_factory=list)
+    _consolidation_jobs: List[str] = field(default_factory=list)
     _cleanups: List[Callable[[], None]] = field(default_factory=list)
 
     # -- routes -------------------------------------------------------------
@@ -136,6 +269,18 @@ class PluginContext:
             return
         registered = _rt(spec)
         self._tools.append(registered.name)
+
+    def register_context_provider(self, spec: Any) -> ContextProviderSpec:
+        """Register a read-only context provider owned by this plugin."""
+        registered = register_context_provider(spec, plugin_id=self.plugin_id)
+        self._context_providers.append(registered.id)
+        return registered
+
+    def register_consolidation_job(self, spec: Any) -> ConsolidationJobSpec:
+        """Register a background consolidation job owned by this plugin."""
+        registered = register_consolidation_job(spec, plugin_id=self.plugin_id)
+        self._consolidation_jobs.append(registered.id)
+        return registered
 
     def on_teardown(self, fn: Callable[[], None]) -> None:
         """Register an arbitrary cleanup callable run on teardown."""
@@ -281,11 +426,12 @@ class PluginManager:
                 data_dir=self._data_dir(rec.plugin_id),
                 logger=logging.getLogger("plugin." + rec.plugin_id),
             )
+            rec.ctx = ctx
             try:
                 setup = getattr(rec.module, "setup", None)
                 if callable(setup):
                     setup(ctx)
-                rec.ctx, rec.status, rec.error = ctx, "loaded", None
+                rec.status, rec.error = "loaded", None
                 logger.info("Plugin loaded: %s", rec.plugin_id)
                 return True
             except Exception:
@@ -325,6 +471,11 @@ class PluginManager:
                     _ut(name)
             except Exception:
                 pass
+        # context providers / consolidation jobs
+        for provider_id in reversed(ctx._context_providers):
+            unregister_context_provider(provider_id)
+        for job_id in reversed(ctx._consolidation_jobs):
+            unregister_consolidation_job(job_id)
         # plugin-level teardown hook
         try:
             td = getattr(rec.module, "teardown", None)
