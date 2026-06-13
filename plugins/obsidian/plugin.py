@@ -10,6 +10,7 @@ if _PLUGIN_DIR not in sys.path:
 
 try:
     from obsidian.backend.routes import _undo_entry, router
+    from obsidian.backend.context_provider import provider_spec
     from obsidian.backend.project_planning import (
         GameDevConceptDraftRequest,
         ProjectDescriptionImproveRequest,
@@ -54,6 +55,7 @@ try:
     from obsidian.backend import vault_service
 except ModuleNotFoundError:
     from backend.routes import _undo_entry, router
+    from backend.context_provider import provider_spec
     from backend.project_planning import (
         GameDevConceptDraftRequest,
         ProjectDescriptionImproveRequest,
@@ -718,11 +720,18 @@ def _register_tool(ctx, spec: dict) -> None:
         )
 
 
+def _register_context_provider(ctx) -> None:
+    register = getattr(ctx, "register_context_provider", None)
+    if callable(register):
+        register(provider_spec())
+
+
 def setup(ctx):
     """Setup hook to register endpoints and agent tools."""
     
     # 1. Register routes in FastAPI app
     ctx.add_router(router)
+    _register_context_provider(ctx)
 
     tools = [
         _tool_spec("obsidian_list_notes", "List all markdown notes in the user's Obsidian vault.", {}, [], handle_list_notes),

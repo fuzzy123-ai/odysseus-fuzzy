@@ -19,6 +19,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 
 import backend.routes as obsidian_routes
 from backend import vault_service
+from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
 from backend.project_planning import (
     GameDevConceptDraftRequest,
@@ -227,6 +228,57 @@ def test_vault_service_locking_blocks_unlocked_resolution(monkeypatch):
 
         with pytest.raises(VaultSecurityError):
             vault_service.unlocked_vault_path_for_owner("alice")
+
+
+def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "title: Demo Project\n"
+                "status: active\n"
+                "tags: [demo, retrieval]\n"
+                "---\n"
+                "# Demo\n\nRetrieval context belongs in this body snippet.\n"
+            )
+        with open(os.path.join(tmpdir, "Archive.md"), "w", encoding="utf-8") as f:
+            f.write("# Archive\n\nUnrelated note.")
+
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+
+        payload = retrieve_vault_context("alice", "demo retrieval", 128, "chat")
+        repeat = retrieve_vault_context("alice", "demo retrieval", 128, "chat")
+
+        assert payload["cache_key"] == repeat["cache_key"]
+        assert len(payload["cache_key"]) == 64
+        assert payload["structured_state"]["Projects/Demo.md"]["status"] == "active"
+        assert payload["snippets"][0]["path"] == "Projects/Demo.md"
+        assert payload["snippets"][0]["untrusted"] is True
+        assert payload["sources"][0]["path"] == "Projects/Demo.md"
+        assert "Retrieval context" in payload["snippets"][0]["text"]
+
+
+def test_obsidian_context_provider_respects_locked_vault(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        set_password(tmpdir, "strong password")
+        lock_vault(tmpdir)
+
+        payload = retrieve_vault_context("alice", "demo", 128, "chat")
+
+        assert payload["structured_state"] == {}
+        assert payload["snippets"] == []
+        assert payload["sources"] == []
+        assert "locked" in payload["warnings"][0]
+        assert len(payload["cache_key"]) == 64
+
+
+def test_obsidian_context_provider_parses_frontmatter_lists():
+    frontmatter, body = parse_frontmatter("---\ntags:\n- alpha\n- beta\npublished: true\n---\n# Body")
+
+    assert frontmatter == {"tags": ["alpha", "beta"], "published": True}
+    assert body == "# Body"
 
 
 def test_archive_member_validation_blocks_escape_paths():
@@ -1323,6 +1375,7 @@ def test_plugin_setup_registration():
     """Verify that setup registers routes and agent tools."""
     registered_routers = []
     registered_tools = []
+    registered_context_providers = []
 
     class MockContext:
         logger = SimpleNamespace(warning=lambda *args, **kwargs: None)
@@ -1333,10 +1386,14 @@ def test_plugin_setup_registration():
         def register_tool(self, spec):
             registered_tools.append(spec)
 
+        def register_context_provider(self, spec):
+            registered_context_providers.append(spec)
+
     ctx = MockContext()
     setup(ctx)
 
     assert len(registered_routers) == 1
+    assert registered_context_providers[0]["id"] == PROVIDER_ID
     tool_names = {spec["name"] for spec in registered_tools}
     assert PLUGIN["ui"]["open"] == "/api/plugins/obsidian/app"
     assert "obsidian_list_notes" in tool_names

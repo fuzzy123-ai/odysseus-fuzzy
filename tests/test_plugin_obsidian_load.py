@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 import src.plugin_system as plugin_system
 from src.tool_registry import get_tool
+from src.plugin_system import get_context_providers
 from routes.model_routes import setup_model_routes
 from routes.plugin_routes import setup_plugin_routes
 
@@ -65,6 +66,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_undo") is not None
     assert get_tool("obsidian_project_plan_preview") is not None
     assert get_tool("obsidian_project_plan_apply") is not None
+    assert any(provider.id == "obsidian.vault_context" for provider in get_context_providers())
     client = TestClient(app)
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
@@ -105,6 +107,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_undo") is None
     assert get_tool("obsidian_project_plan_preview") is None
     assert get_tool("obsidian_project_plan_apply") is None
+    assert all(provider.id != "obsidian.vault_context" for provider in get_context_providers())
 
 
 def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monkeypatch):
@@ -162,3 +165,4 @@ def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monk
     assert client.get("/api/plugins/obsidian/app").status_code == 200
     assert client.get("/api/plugins/obsidian/web/main.js").status_code == 200
 
+    manager.disable("obsidian")
