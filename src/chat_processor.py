@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from src.chat_helpers import extract_urls
 from src.youtube_handler import is_youtube_url
 from src.search import comprehensive_web_search, fetch_webpage_content
+from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
 from src.prompt_security import UNTRUSTED_CONTEXT_POLICY, untrusted_context_message
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,8 @@ class ChatProcessor:
         agent_mode: bool = False,
         incognito: bool = False,
         use_skills: bool = True,
+        use_context_providers: bool = True,
+        context_budget_tokens: Optional[int] = None,
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]], List[Dict[str, str]]]:
         """Build the context preface for LLM calls.
 
@@ -178,6 +181,8 @@ class ChatProcessor:
         """
         preface = []
         rag_sources = []
+        self._last_context_provider_payloads = []
+        self._last_context_provider_warnings = []
 
         # Add preset system prompt if specified
         if preset_system_prompt:
@@ -185,6 +190,26 @@ class ChatProcessor:
                 "role": "system",
                 "content": preset_system_prompt
             })
+        preface.append({
+            "role": "system",
+            "content": UNTRUSTED_CONTEXT_POLICY,
+        })
+        if use_context_providers and not incognito:
+            try:
+                budget = split_context_budget(context_budget_tokens or 4000)
+                provider_payloads, provider_warnings = preload_provider_context(
+                    owner=owner,
+                    query=message,
+                    budget_tokens=budget.providers,
+                    mode="agent" if agent_mode else "chat",
+                )
+                preface.extend(provider_messages(provider_payloads))
+                self._last_context_provider_payloads = provider_payloads
+                self._last_context_provider_warnings = provider_warnings
+                for warning in provider_warnings:
+                    logger.warning("Context provider warning: %s", warning)
+            except Exception as e:
+                logger.warning("Context provider preload failed: %s", e)
         if not agent_mode:
             try:
                 from src.user_time import current_datetime_prompt
@@ -194,10 +219,6 @@ class ChatProcessor:
                 })
             except Exception:
                 logger.debug("Failed to add current date/time context", exc_info=True)
-        preface.append({
-            "role": "system",
-            "content": UNTRUSTED_CONTEXT_POLICY,
-        })
 
         # Memory: pinned (always included) + extended (RAG-retrieved when relevant)
         self._last_used_memories = []  # track what was injected

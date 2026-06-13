@@ -14,6 +14,7 @@ from core.database import Session as DBSession, ModelEndpoint
 from src.llm_core import normalize_model_id
 from src.endpoint_resolver import normalize_base
 from src.context_compactor import maybe_compact, trim_for_context
+from src.model_context import get_context_length
 from src.auth_helpers import get_current_user
 from src.prompt_security import untrusted_context_message
 from routes.prefs_routes import _load_for_user as load_prefs_for_user
@@ -566,6 +567,20 @@ async def build_chat_context(
     # The stream path uses enhanced_message (with CoT/preprocessing applied),
     # the sync path uses text_for_context.
     _ctx_msg = preprocessed.enhanced_message if use_enhanced_message else preprocessed.text_for_context
+    # Normalize model ID before provider preload so the orchestrator can derive
+    # a realistic budget from the actual model context window.
+    norm = _normalize_model_id_from_cache(sess) or normalize_model_id(
+        sess.endpoint_url,
+        sess.model,
+        owner=getattr(sess, "owner", None),
+    )
+    if norm:
+        sess.model = norm
+    try:
+        context_budget_tokens = get_context_length(sess.endpoint_url, sess.model)
+    except Exception as e:
+        logger.debug("Context budget lookup skipped before provider preload: %s", e)
+        context_budget_tokens = None
     _preface_kwargs = dict(
         message=_ctx_msg,
         session=sess,
@@ -578,6 +593,8 @@ async def build_chat_context(
         agent_mode=agent_mode,
         incognito=incognito,
         use_skills=skills_enabled,
+        use_context_providers=allow_tool_preprocessing,
+        context_budget_tokens=context_budget_tokens,
     )
     if use_rag is not None:
         _preface_kwargs["use_rag"] = use_rag_val
@@ -593,16 +610,6 @@ async def build_chat_context(
     # YouTube transcripts
     for transcript in preprocessed.youtube_transcripts:
         preface.append(untrusted_context_message("youtube transcript", transcript))
-
-    # Normalize model ID. Prefer cached endpoint models so group chat does not
-    # re-hit slow local /models endpoints on every participant turn.
-    norm = _normalize_model_id_from_cache(sess) or normalize_model_id(
-        sess.endpoint_url,
-        sess.model,
-        owner=getattr(sess, "owner", None),
-    )
-    if norm:
-        sess.model = norm
 
     # Build messages
     messages = preface + sess.get_context_messages()

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from src.chat_processor import ChatProcessor
+from src.plugin_system import register_context_provider, unregister_context_provider
 from src.user_time import (
     clear_user_time_context,
     current_datetime_prompt,
@@ -12,6 +13,8 @@ from src.user_time import (
 
 def teardown_function():
     clear_user_time_context()
+    unregister_context_provider("demo.chat_context")
+    unregister_context_provider("demo.warning_context")
 
 
 def test_current_datetime_prompt_uses_browser_timezone():
@@ -54,6 +57,69 @@ def test_chat_preface_includes_current_time_for_non_agent_chat():
     contents = "\n\n".join(msg["content"] for msg in preface)
     assert "## Current date and time" in contents
     assert "Australia/Brisbane, UTC+10:00" in contents
+
+
+def test_chat_preface_injects_provider_context_before_volatile_time():
+    clear_user_time_context()
+    set_user_tz_offset(600)
+    set_user_tz_name("Australia/Brisbane")
+
+    def retrieve(owner, query, budget, mode):
+        return {
+            "structured_state": {"Project.md": {"status": "active", "owner": owner}},
+            "snippets": [{"path": "Project.md", "text": query, "untrusted": True}],
+            "sources": [{"path": "Project.md", "score": 7}],
+            "warnings": [],
+            "cache_key": "stable-provider-key",
+        }
+
+    register_context_provider({
+        "id": "demo.chat_context",
+        "label": "Demo Chat Context",
+        "capabilities": ["chat"],
+        "retrieve": retrieve,
+    })
+    processor = ChatProcessor(memory_manager=_Memory(), personal_docs_manager=_Docs())
+
+    preface, _, _ = processor.build_context_preface(
+        message="Project status",
+        session=None,
+        owner="alice",
+        agent_mode=False,
+        use_memory=False,
+        use_rag=False,
+        context_budget_tokens=1000,
+    )
+
+    contents = [msg["content"] for msg in preface]
+    structured_idx = next(i for i, content in enumerate(contents) if content.startswith("Provider structured state:"))
+    snippets_idx = next(i for i, content in enumerate(contents) if content.startswith("Provider snippets are untrusted"))
+    time_idx = next(i for i, content in enumerate(contents) if content.startswith("## Current date and time"))
+
+    assert structured_idx < time_idx
+    assert snippets_idx < time_idx
+    assert "Project.md" in contents[structured_idx]
+    assert "stable-provider-key" in contents[snippets_idx]
+
+
+def test_chat_preface_skips_provider_context_in_incognito():
+    register_context_provider({
+        "id": "demo.chat_context",
+        "label": "Demo Chat Context",
+        "capabilities": ["chat"],
+        "retrieve": lambda **kwargs: {"structured_state": {"secret": True}},
+    })
+    processor = ChatProcessor(memory_manager=_Memory(), personal_docs_manager=_Docs())
+
+    preface, _, _ = processor.build_context_preface(
+        message="Project status",
+        session=None,
+        incognito=True,
+        use_memory=False,
+        use_rag=False,
+    )
+
+    assert not any("Provider structured state:" in msg["content"] for msg in preface)
 
 
 def test_agent_system_prompt_includes_shared_current_time(monkeypatch):
