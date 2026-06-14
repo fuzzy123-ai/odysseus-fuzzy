@@ -114,6 +114,76 @@ def test_shell_classify_route_rejects_cross_site_requests():
     assert response.status_code == 403
 
 
+def test_shell_exec_returns_policy_metadata(monkeypatch):
+    import routes.shell_routes as shell_routes
+
+    async def fake_exec(command, timeout):
+        assert command == "npm install"
+        return {"stdout": "ok", "stderr": "", "exit_code": 0}
+
+    monkeypatch.setattr(shell_routes, "_exec_shell", fake_exec)
+    app = FastAPI()
+    app.include_router(setup_shell_routes())
+
+    response = TestClient(app).post(
+        "/api/shell/exec",
+        json={"command": "npm install"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["stdout"] == "ok"
+    assert body["policy"]["tier"] == "caution"
+    assert body["policy"]["audit"] is True
+
+
+def test_shell_stream_emits_policy_event_before_output(monkeypatch):
+    import routes.shell_routes as shell_routes
+
+    class FakeStream:
+        def __init__(self, chunks):
+            self._chunks = [chunk.encode("utf-8") for chunk in chunks]
+
+        async def read(self, _size):
+            if self._chunks:
+                return self._chunks.pop(0)
+            return b""
+
+    class FakeProcess:
+        stdout = FakeStream(["hello\n"])
+        stderr = FakeStream([])
+        returncode = 0
+
+        async def wait(self):
+            return self.returncode
+
+        def kill(self):
+            self.returncode = -9
+
+    async def fake_create_shell(*args, **kwargs):
+        return FakeProcess()
+
+    monkeypatch.setattr(shell_routes, "_create_shell", fake_create_shell)
+    app = FastAPI()
+    app.include_router(setup_shell_routes())
+
+    response = TestClient(app).post(
+        "/api/shell/stream",
+        json={"command": "git status"},
+    )
+
+    assert response.status_code == 200
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    assert events[0]["type"] == "shell_policy"
+    assert events[0]["policy"]["tier"] == "safe"
+    assert {"stream": "stdout", "data": "hello"} in events
+    assert events[-1] == {"exit_code": 0}
+
+
 class TestFindLineBreak:
     """Test line-break detection in byte buffers."""
 

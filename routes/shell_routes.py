@@ -823,10 +823,12 @@ def setup_shell_routes() -> APIRouter:
         if not cmd:
             return {"stdout": "", "stderr": "No command provided", "exit_code": 1}
 
+        policy = classify_shell_command(cmd).to_dict()
         logger.info("User shell exec requested: length=%d", len(cmd))
         result = await _exec_shell(
             cmd, timeout=req.timeout if req.timeout is not None else EXEC_TIMEOUT
         )
+        result["policy"] = policy
         return result
 
     @router.post("/api/shell/stream")
@@ -856,22 +858,34 @@ def setup_shell_routes() -> APIRouter:
         if use_tmux:
             # tmux is POSIX-only; Windows uses a detached-process + logfile tail
             # that preserves the "survives disconnect" behaviour.
+            policy = classify_shell_command(cmd).to_dict()
+
+            async def with_policy(gen):
+                yield f"data: {json.dumps({'type': 'shell_policy', 'policy': policy})}\n\n"
+                async for chunk in gen:
+                    yield chunk
+
             gen = (
                 _generate_win_detached(cmd, request)
                 if IS_WINDOWS
                 else _generate_tmux(cmd, request)
             )
-            return StreamingResponse(gen, media_type="text/event-stream")
+            return StreamingResponse(with_policy(gen), media_type="text/event-stream")
 
         if use_pty and not IS_WINDOWS:
-            return StreamingResponse(
-                _generate_pty(cmd, timeout, request),
-                media_type="text/event-stream",
-            )
+            policy = classify_shell_command(cmd).to_dict()
+
+            async def with_pty_policy():
+                yield f"data: {json.dumps({'type': 'shell_policy', 'policy': policy})}\n\n"
+                async for chunk in _generate_pty(cmd, timeout, request):
+                    yield chunk
+
+            return StreamingResponse(with_pty_policy(), media_type="text/event-stream")
         # Windows has no PTY; fall through to pipe streaming below (output still
         # streams line-by-line, just without live in-place progress-bar redraws).
 
         async def generate():
+            yield f"data: {json.dumps({'type': 'shell_policy', 'policy': classify_shell_command(cmd).to_dict()})}\n\n"
             proc = None
             reader_tasks = []
             try:
