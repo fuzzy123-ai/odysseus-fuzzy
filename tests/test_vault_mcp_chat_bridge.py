@@ -48,3 +48,22 @@ async def test_internal_vault_mcp_reports_locked_vault(monkeypatch, tmp_path):
 
     assert result["exit_code"] == 1
     assert "locked" in result["stderr"].lower()
+
+
+async def test_invalid_legacy_obsidian_mcp_call_feeds_back_suggestion():
+    desc, result = await execute_tool_block(
+        ToolBlock(
+            "invalid_tool_call",
+            json.dumps({
+                "tool": "obsidian_mcp__obsidian_file_create",
+                "suggestions": ["mcp__vault__obsidian_write_note"],
+                "arguments": {"path": "Test MCP Notiz.md", "content": "# Hi"},
+            }),
+        ),
+        owner="fuzzy",
+    )
+
+    assert desc == "invalid_tool_call: obsidian_mcp__obsidian_file_create"
+    assert result["exit_code"] == 1
+    assert "Ungültiger Tool-Befehl" in result["error"]
+    assert "mcp__vault__obsidian_write_note" in result["error"]

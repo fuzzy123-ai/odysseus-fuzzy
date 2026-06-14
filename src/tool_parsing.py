@@ -67,6 +67,10 @@ _XML_PARAM_RE = re.compile(
     r'<parameter\s+name=["\'](\w+)["\']>([\s\S]*?)</parameter>',
     re.IGNORECASE,
 )
+_DIRECT_XML_TOOL_RE = re.compile(
+    r"<([A-Za-z_][\w:.-]*(?:__[\w:.-]+|_mcp[\w:.-]*))\s*>\s*([\s\S]*?)</\1>",
+    re.IGNORECASE,
+)
 
 # Pattern 4: <tool_code> blocks (MiniMax-M2.5 style)
 # {tool => 'tool_name', args => '<param>value</param>'}
@@ -390,6 +394,22 @@ def _parse_xml_invoke(inv_match) -> Optional[ToolBlock]:
     return function_call_to_tool_block(tool_name, json.dumps(params))
 
 
+def _parse_direct_xml_tool(direct_match) -> Optional[ToolBlock]:
+    """Parse direct XML-ish tool tags such as <obsidian_mcp__tool>...</...>.
+
+    Some external MCP examples use the tool name itself as the XML tag rather
+    than Odysseus' native function-call name. We only convert recognizable
+    near-miss names into feedback blocks; truly unknown names stay ignored.
+    """
+    tool_name = direct_match.group(1).lower().replace("-", "_")
+    body = direct_match.group(2)
+    params = {}
+    for pm in re.finditer(r"<(\w+)>([\s\S]*?)</\1>", body):
+        params[pm.group(1)] = pm.group(2).strip()
+    from src.tool_schemas import invalid_tool_call_block
+    return invalid_tool_call_block(tool_name, params)
+
+
 def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
     """Parse a <tool_code>{tool => 'name', args => '...'}</tool_code> block (MiniMax style)."""
     # Extract tool name
@@ -519,6 +539,11 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
         if not blocks:
             for inv in _XML_INVOKE_RE.finditer(text):
                 block = _parse_xml_invoke(inv)
+                if block:
+                    blocks.append(block)
+        if not blocks:
+            for direct in _DIRECT_XML_TOOL_RE.finditer(text):
+                block = _parse_direct_xml_tool(direct)
                 if block:
                     blocks.append(block)
 

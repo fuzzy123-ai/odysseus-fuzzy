@@ -18,6 +18,55 @@ from src.tool_parsing import _TOOL_NAME_MAP
 logger = logging.getLogger(__name__)
 
 
+def invalid_tool_call_block(name: str, args: Optional[dict] = None) -> Optional[ToolBlock]:
+    """Return a feedback tool block for known-near-miss tool names.
+
+    Truly unknown tool names still return None elsewhere so random XML prose is
+    ignored. This path is only for recognizable legacy/foreign tool namespaces
+    where the model can recover if we feed back the canonical Odysseus name.
+    """
+    raw_name = str(name or "").strip()
+    lowered = raw_name.lower().replace("-", "_")
+    suggestions: list[str] = []
+    reason = "Unknown tool name."
+
+    aliases = {
+        "obsidian_mcp__obsidian_file_create": "mcp__vault__obsidian_write_note",
+        "obsidian_mcp__obsidian_note_create": "mcp__vault__obsidian_write_note",
+        "obsidian_mcp__obsidian_write_note": "mcp__vault__obsidian_write_note",
+        "obsidian_mcp__obsidian_file_read": "mcp__vault__obsidian_read_note",
+        "obsidian_mcp__obsidian_read_note": "mcp__vault__obsidian_read_note",
+        "obsidian_mcp__obsidian_search_notes": "mcp__vault__obsidian_search_notes",
+        "obsidian_mcp__obsidian_file_search": "mcp__vault__obsidian_search_notes",
+        "obsidian_mcp__obsidian_tree": "mcp__vault__obsidian_tree",
+    }
+    if lowered in aliases:
+        suggestions.append(aliases[lowered])
+        reason = "Legacy Obsidian MCP namespace is not registered in Odysseus."
+    elif lowered.startswith("obsidian_mcp__"):
+        suffix = lowered.split("__", 1)[1]
+        if "create" in suffix or "write" in suffix:
+            suggestions.append("mcp__vault__obsidian_write_note")
+        elif "read" in suffix:
+            suggestions.append("mcp__vault__obsidian_read_note")
+        elif "search" in suffix:
+            suggestions.append("mcp__vault__obsidian_search_notes")
+        elif "tree" in suffix or "list" in suffix:
+            suggestions.append("mcp__vault__obsidian_tree")
+        reason = "Legacy Obsidian MCP namespace is not registered in Odysseus."
+
+    if not suggestions:
+        return None
+
+    payload = {
+        "tool": raw_name,
+        "reason": reason,
+        "suggestions": suggestions,
+        "arguments": args or {},
+    }
+    return ToolBlock("invalid_tool_call", json.dumps(payload, ensure_ascii=False))
+
+
 def get_function_tool_schemas() -> list:
     """Return built-in plus dynamically registered plugin function schemas."""
     schemas = list(FUNCTION_TOOL_SCHEMAS)
@@ -1267,6 +1316,9 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
     if name in _BUILTIN_EMAIL_TOOLS:
         return ToolBlock(f"mcp__email__{name}", json.dumps(args) if args else "{}")
     if tool_type not in TOOL_TAGS:
+        feedback = invalid_tool_call_block(name, args)
+        if feedback:
+            return feedback
         logger.warning(f"Unknown function call: {name}")
         return None
 

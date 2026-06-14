@@ -691,6 +691,28 @@ async def _execute_tool_block_impl(
         logger.warning("Public tool policy blocked owner=%r tool=%s", owner, tool)
         return desc, result
 
+    if tool == "invalid_tool_call":
+        try:
+            payload = json.loads(content) if content else {}
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        bad_tool = str(payload.get("tool") or "unknown")
+        suggestions = payload.get("suggestions") if isinstance(payload.get("suggestions"), list) else []
+        suggestion_text = ", ".join(f"`{item}`" for item in suggestions if item)
+        desc = f"invalid_tool_call: {bad_tool}"
+        result = {
+            "error": (
+                f"Ungültiger Tool-Befehl `{bad_tool}`. "
+                + (f"Meintest du vielleicht {suggestion_text}? " if suggestion_text else "")
+                + "Bitte rufe den vorgeschlagenen Odysseus-Toolnamen mit denselben Argumenten erneut auf."
+            ),
+            "exit_code": 1,
+        }
+        logger.info("Invalid tool call feedback generated for tool=%s suggestions=%s", bad_tool, suggestions)
+        return desc, result
+
     # ask_user: the agent poses a multiple-choice question to the user to get a
     # decision/clarification. This is a pure UI-control marker — no subprocess,
     # no filesystem. It returns an `ask_user` payload that the agent loop turns

@@ -56,6 +56,29 @@ def test_function_call_to_tool_block_unknown_tool_returns_none():
     assert block is None
 
 
+def test_legacy_obsidian_mcp_function_call_returns_feedback_block():
+    block = function_call_to_tool_block(
+        "obsidian_mcp__obsidian_file_create",
+        '{"path": "Test MCP Notiz.md", "content": "# Hi"}',
+    )
+    assert block is not None
+    assert block.tool_type == "invalid_tool_call"
+    assert "mcp__vault__obsidian_write_note" in block.content
+
+
+def test_direct_legacy_obsidian_mcp_xml_returns_feedback_block():
+    text = (
+        "<obsidian_mcp__obsidian_file_create>"
+        "<path>Test MCP Notiz.md</path>"
+        "<content># Test MCP Notiz</content>"
+        "</obsidian_mcp__obsidian_file_create>"
+    )
+    blocks = parse_tool_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0].tool_type == "invalid_tool_call"
+    assert "mcp__vault__obsidian_write_note" in blocks[0].content
+
+
 def test_function_call_to_tool_block_invalid_json_returns_none():
     """Unparseable JSON arguments should result in returning None."""
     block = function_call_to_tool_block("web_search", '{"query": "valid json')  # invalid JSON
