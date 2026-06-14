@@ -1441,6 +1441,49 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   color: #b7e3c0;
 }
 
+.obsidian-memory-isolation {
+  border: 1px solid color-mix(in srgb, var(--red) 48%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 86%, var(--red) 6%);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+}
+
+.obsidian-memory-isolation strong {
+  font-size: 12px;
+}
+
+.obsidian-memory-isolation p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.obsidian-memory-isolation ul {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.obsidian-memory-isolation li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.obsidian-memory-isolation span {
+  color: var(--muted);
+  min-width: 0;
+}
+
 .obsidian-memory-tree-toolbar {
   display: flex;
   align-items: center;

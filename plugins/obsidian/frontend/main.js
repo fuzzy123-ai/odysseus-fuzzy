@@ -3030,6 +3030,23 @@ function renderMemoryRecordList(title, items = [], empty = 'No items') {
   `;
 }
 
+function renderRetrievalIsolationNotice({ conflicts = [], quarantined = [], needsReview = [], total = null } = {}) {
+  const isolated = (conflicts.length || 0) + (quarantined.length || 0) + (needsReview.length || 0);
+  const count = total === null ? isolated : total;
+  return `
+    <div class="obsidian-memory-isolation" data-memory-isolation="true">
+      <strong>Default retrieval isolation</strong>
+      <p>Conflict, review, stale, superseded, archived, and quarantined knowledge stays visible here but is excluded from default context when Freshness Gate filtering is active.</p>
+      <ul>
+        <li><span>Conflicts</span><b>${escapeHtml(conflicts.length || 0)}</b></li>
+        <li><span>Needs review</span><b>${escapeHtml(needsReview.length || 0)}</b></li>
+        <li><span>Quarantined</span><b>${escapeHtml(quarantined.length || 0)}</b></li>
+        <li><span>Isolated total</span><b>${escapeHtml(count || 0)}</b></li>
+      </ul>
+    </div>
+  `;
+}
+
 function renderMemoryTreeOverview() {
   if (!memoryTreeReport) {
     return '<div class="obsidian-project-loading">Run refresh to analyze the memory tree.</div>';
@@ -3065,6 +3082,11 @@ function renderKnowledgeAudit() {
       { label: 'Conflicts', value: summary.conflicts || 0 },
       { label: 'Quarantined', value: summary.quarantined || 0 },
     ])}
+    ${renderRetrievalIsolationNotice({
+      conflicts: channels.conflicts || [],
+      needsReview: channels.needs_review || [],
+      quarantined: channels.quarantined || [],
+    })}
     ${renderMemoryWarnings(knowledgeAuditReport)}
     <div class="obsidian-memory-tree-grid">
       ${renderMemoryStatusCounts('Statuses', summary.status_counts || {})}
@@ -3084,6 +3106,12 @@ function renderQuarantineList() {
       { label: 'Items', value: quarantineReport.summary?.total || 0 },
       { label: 'Gate', value: quarantineReport.enabled ? 'on' : 'off' },
     ])}
+    ${renderRetrievalIsolationNotice({
+      conflicts: (quarantineReport.items || []).filter(item => item.status === 'conflict' || item.channel === 'conflicts'),
+      quarantined: (quarantineReport.items || []).filter(item => item.status !== 'conflict' && item.channel !== 'conflicts'),
+      needsReview: [],
+      total: quarantineReport.summary?.total || 0,
+    })}
     ${renderMemoryWarnings(quarantineReport)}
     <div class="obsidian-memory-tree-grid">
       ${renderMemoryStatusCounts('By status', quarantineReport.summary?.by_status || {})}
