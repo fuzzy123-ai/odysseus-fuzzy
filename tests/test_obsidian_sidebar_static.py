@@ -493,6 +493,39 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert ".obsidian-memory-preview-summary" in style
 
 
+def test_obsidian_memory_tree_audit_ui_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    for marker in (
+        'id="obsidian-memory-tree"',
+        'id="obsidian-memory-tree-panel"',
+        'id="obsidian-memory-tree-refresh"',
+        'id="obsidian-memory-tree-content"',
+        'data-memory-tree-tab="tree"',
+        'data-memory-tree-tab="audit"',
+        'data-memory-tree-tab="quarantine"',
+        'data-memory-tree-tab="raptor"',
+    ):
+        assert marker in main_js
+
+    assert "function showMemoryTreePanel()" in main_js
+    assert "function loadMemoryTreeDashboard()" in main_js
+    assert "function renderMemoryTreeOverview()" in main_js
+    assert "function renderKnowledgeAudit()" in main_js
+    assert "function renderQuarantineList()" in main_js
+    assert "function renderRaptorStatus()" in main_js
+    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze')" in main_js
+    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit')" in main_js
+    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
+    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
+    assert "raptorReport.writes_supported ? 'yes' : 'no'" in main_js
+    assert ".obsidian-memory-tree-panel" in style
+    assert ".obsidian-memory-tree-tabs" in style
+    assert ".obsidian-memory-tree-metrics" in style
+    assert ".obsidian-memory-tree-card" in style
+
+
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 

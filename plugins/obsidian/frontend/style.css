@@ -787,7 +787,8 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 }
 
 .obsidian-project-planner,
-.obsidian-memory-review-panel {
+.obsidian-memory-review-panel,
+.obsidian-memory-tree-panel {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1438,6 +1439,152 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
 .obsidian-project-ok {
   color: #b7e3c0;
+}
+
+.obsidian-memory-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.obsidian-memory-tree-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.obsidian-memory-tree-tabs button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 9px;
+}
+
+.obsidian-memory-tree-tabs button:hover,
+.obsidian-memory-tree-tabs button.active,
+.obsidian-memory-tree-tabs button:focus-visible {
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
+  outline: none;
+}
+
+.obsidian-memory-tree-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.obsidian-memory-tree-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.obsidian-memory-tree-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.obsidian-memory-tree-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: 10px;
+}
+
+.obsidian-memory-tree-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.obsidian-memory-tree-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.obsidian-memory-tree-card code {
+  display: block;
+  margin-top: 7px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-memory-tree-card ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.obsidian-memory-tree-card li,
+.obsidian-memory-tree-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.obsidian-memory-tree-card li span,
+.obsidian-memory-tree-record span,
+.obsidian-memory-tree-record small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-memory-tree-card li b,
+.obsidian-memory-tree-record em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.obsidian-memory-tree-records {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-memory-tree-record {
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  padding-top: 8px;
+}
+
+.obsidian-memory-tree-record:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.obsidian-memory-tree-record div {
+  min-width: 0;
+}
+
+.obsidian-memory-tree-record small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .obsidian-project-files {
@@ -2212,6 +2359,16 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
   .obsidian-memory-preview-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .obsidian-memory-tree-metrics,
+  .obsidian-memory-tree-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .obsidian-memory-tree-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .obsidian-graph-controls {
