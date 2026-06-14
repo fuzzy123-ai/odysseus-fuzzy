@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import vault_service
 from .feature_flags import is_enabled
+from .freshness import audit_knowledge
 from .hybrid_retrieval import enrich_context_payload
 from .vault_model import extract_tags, search_semantic
 from .vault_security import VaultSecurityError
@@ -137,6 +138,11 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
 
     # Re-sort after enrichments
     notes.sort(key=lambda item: (-item["score"], item["path"].lower()))
+    freshness_excluded: List[Dict[str, Any]] = []
+    if is_enabled("obsidian_hybrid_retrieval_enabled"):
+        notes, freshness_excluded = _filter_notes_by_freshness_gate(vault_dir, notes)
+        if freshness_excluded:
+            warnings.append(f"Freshness Gate filtered {len(freshness_excluded)} stale/review/conflict/quarantined note(s) from retrieval.")
 
     structured_state: Dict[str, Any] = {}
     snippets: List[Dict[str, Any]] = []
@@ -193,11 +199,37 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
         "warnings": warnings,
         "cache_key": "",
     }
+    if freshness_excluded:
+        payload["_freshness_excluded"] = freshness_excluded[:25]
     if summary:
         payload["summary"] = summary
     payload = enrich_context_payload(vault_dir, payload, query)
     payload["cache_key"] = _cache_key(payload)
     return payload
+
+
+def _filter_notes_by_freshness_gate(vault_dir: str, notes: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    audit = audit_knowledge(vault_dir)
+    excluded_by_path: Dict[str, Dict[str, Any]] = {}
+    for channel in ("needs_review", "conflicts", "quarantined"):
+        for item in audit.get("channels", {}).get(channel, []):
+            excluded_by_path[item["path"]] = {**item, "channel": channel}
+    kept: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+    for note in notes:
+        record = excluded_by_path.get(note["path"])
+        if record:
+            excluded.append({
+                "path": note["path"],
+                "title": note.get("title", ""),
+                "score": note.get("score", 0),
+                "status": record.get("status", ""),
+                "channel": record.get("channel", ""),
+                "reason": record.get("reason", ""),
+            })
+        else:
+            kept.append(note)
+    return kept, excluded
 
 
 def _enrich_with_backlinks(

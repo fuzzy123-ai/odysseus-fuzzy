@@ -150,16 +150,28 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
 def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
     relevant_paths = {source.get("path") for source in payload.get("sources", []) if source.get("path")}
-    excluded = []
+    prefiltered = payload.pop("_freshness_excluded", []) or []
+    excluded = [
+        {
+            "path": item.get("path", ""),
+            "status": item.get("status", ""),
+            "channel": item.get("channel", ""),
+            "reason": item.get("reason", ""),
+        }
+        for item in prefiltered
+        if item.get("path")
+    ]
+    seen_excluded = {item["path"] for item in excluded}
     for channel in ("needs_review", "conflicts", "quarantined"):
         for item in audit["channels"].get(channel, []):
-            if item["path"] in relevant_paths or _query_mentions(query, item["path"]):
+            if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
                 excluded.append({
                     "path": item["path"],
                     "status": item["status"],
                     "channel": channel,
                     "reason": item["reason"],
                 })
+                seen_excluded.add(item["path"])
     memory = {
         "current": [
             {"path": item["path"], "status": item["status"], "policy": item["policy"]}
