@@ -365,27 +365,25 @@ def _check_vault_mcp_rate_limit(owner: Optional[str], tool_name: str) -> Optiona
 def _call_internal_vault_mcp(tool_name: str, args: Dict[str, Any], owner: Optional[str]) -> Dict[str, Any]:
     """Run the built-in vault MCP surface in-process with trusted owner scope."""
     try:
-        from plugins.obsidian.backend import vault_service
-        from plugins.obsidian.backend.tool_specs import (
-            DESTRUCTIVE_TOOL_NAMES,
-            execute_vault_tool,
-            format_tool_result as format_vault_tool_result,
-        )
+        from src.plugin_system import import_plugin_module
+
+        vault_service = import_plugin_module("obsidian", "backend.vault_service")
+        tool_specs = import_plugin_module("obsidian", "backend.tool_specs")
 
         effective_owner = owner or "default"
         vault_dir = vault_service.unlocked_vault_path_for_owner(effective_owner)
-        if tool_name in DESTRUCTIVE_TOOL_NAMES:
+        if tool_name in tool_specs.DESTRUCTIVE_TOOL_NAMES:
             rate_error = _check_vault_mcp_rate_limit(effective_owner, tool_name)
             if rate_error:
                 return {"stderr": f"Error: {rate_error}", "stdout": "", "exit_code": 1}
-        result = execute_vault_tool(
+        result = tool_specs.execute_vault_tool(
             tool_name,
             vault_dir,
             args or {},
             effective_owner,
             {"source": "mcp", "token_id": "", "token_prefix": ""},
         )
-        return {"stdout": format_vault_tool_result(result), "stderr": "", "exit_code": 0}
+        return {"stdout": tool_specs.format_tool_result(result), "stderr": "", "exit_code": 0}
     except KeyError as exc:
         return {"stderr": str(exc), "stdout": "", "exit_code": 1}
     except FileNotFoundError as exc:

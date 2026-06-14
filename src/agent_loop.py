@@ -1806,12 +1806,15 @@ def _detect_runaway_call(call_freq, threshold=15):
 
 def _ensure_orchestrator_state_doc(*, owner: Optional[str], session_id: Optional[str], goal: str) -> None:
     try:
-        from plugins.obsidian.backend import state_doc, vault_service
-        from plugins.obsidian.backend.vault_security import VaultSecurityError
+        from src.plugin_system import import_plugin_module
+
+        state_doc = import_plugin_module("obsidian", "backend.state_doc")
+        vault_service = import_plugin_module("obsidian", "backend.vault_service")
+        vault_security = import_plugin_module("obsidian", "backend.vault_security")
 
         try:
             vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
-        except VaultSecurityError:
+        except vault_security.VaultSecurityError:
             return
         if state_doc.read_state_doc(vault_dir) is None:
             state_doc.initialize_state_doc(
@@ -1861,13 +1864,16 @@ async def _run_orchestrator_reflector(
     round_num: Optional[int] = None,
 ) -> Optional[Dict]:
     try:
-        from plugins.obsidian.backend import state_doc, vault_service
-        from plugins.obsidian.backend.vault_security import VaultSecurityError
+        from src.plugin_system import import_plugin_module
         from src.reflector_agent import run_reflector_assessment
+
+        state_doc = import_plugin_module("obsidian", "backend.state_doc")
+        vault_service = import_plugin_module("obsidian", "backend.vault_service")
+        vault_security = import_plugin_module("obsidian", "backend.vault_security")
 
         try:
             vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
-        except VaultSecurityError:
+        except vault_security.VaultSecurityError:
             return None
         doc = state_doc.read_state_doc(vault_dir)
         if doc is None:

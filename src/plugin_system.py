@@ -43,6 +43,7 @@ import json
 import logging
 import os
 import re
+import sys
 import threading
 import traceback
 from dataclasses import dataclass, field
@@ -607,3 +608,30 @@ def load_plugins(app: Any) -> PluginManager:
 
 def get_manager() -> Optional[PluginManager]:
     return MANAGER
+
+
+def import_plugin_module(plugin_id: str, module_name: str) -> Any:
+    """Import a module from an installed plugin without hard-coding package paths."""
+    if not _ID_RE.match(str(plugin_id or "")):
+        raise ValueError("invalid plugin id")
+    module_name = str(module_name or "").strip()
+    if not module_name or module_name.startswith(".") or ".." in module_name:
+        raise ValueError("invalid plugin module")
+    plugin_root = ""
+    manager = get_manager()
+    if manager is not None:
+        rec = manager.records.get(plugin_id)
+        if rec is None:
+            manager.discover()
+            rec = manager.records.get(plugin_id)
+        if rec is not None:
+            plugin_root = os.path.dirname(rec.path)
+    if not plugin_root:
+        plugin_root = os.path.join(plugins_dir(), plugin_id)
+    if not os.path.isdir(plugin_root):
+        raise ModuleNotFoundError(f"plugin not installed: {plugin_id}")
+    if plugin_root not in sys.path:
+        sys.path.insert(0, plugin_root)
+    import importlib
+
+    return importlib.import_module(module_name)

@@ -143,12 +143,15 @@ def _parse_worker_json(raw: str) -> Dict[str, Any]:
 
 def _append_delegation(*, owner: Optional[str], session_id: Optional[str], task: str, status: str, summary: str) -> None:
     try:
-        from plugins.obsidian.backend import state_doc, vault_service
-        from plugins.obsidian.backend.vault_security import VaultSecurityError
+        from src.plugin_system import import_plugin_module
+
+        state_doc = import_plugin_module("obsidian", "backend.state_doc")
+        vault_service = import_plugin_module("obsidian", "backend.vault_service")
+        vault_security = import_plugin_module("obsidian", "backend.vault_security")
 
         try:
             vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
-        except VaultSecurityError:
+        except vault_security.VaultSecurityError:
             return
         if state_doc.read_state_doc(vault_dir) is None:
             state_doc.initialize_state_doc(
