@@ -10,6 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from routes.shell_routes import (
     _find_line_break,
@@ -24,6 +26,7 @@ from routes.shell_routes import (
     _ssh_base_argv,
     _venv_activate_prefix,
     DOCKER_IN_CONTAINER_HINT,
+    setup_shell_routes,
 )
 
 
@@ -80,6 +83,35 @@ async def test_generate_pty_reports_explicit_unsupported_error(monkeypatch):
         },
         {"exit_code": -1, "error": shell_routes.PTY_UNSUPPORTED_ERROR},
     ]
+
+
+def test_shell_classify_route_returns_policy_without_execution():
+    app = FastAPI()
+    app.include_router(setup_shell_routes())
+
+    response = TestClient(app).post(
+        "/api/shell/classify",
+        json={"command": "rm -rf build"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["tier"] == "danger"
+    assert body["requires_confirmation"] is True
+    assert body["blocked"] is False
+
+
+def test_shell_classify_route_rejects_cross_site_requests():
+    app = FastAPI()
+    app.include_router(setup_shell_routes())
+
+    response = TestClient(app).post(
+        "/api/shell/classify",
+        headers={"sec-fetch-site": "cross-site"},
+        json={"command": "git status"},
+    )
+
+    assert response.status_code == 403
 
 
 class TestFindLineBreak:

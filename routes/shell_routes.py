@@ -40,6 +40,7 @@ from core.platform_compat import (
     find_bash,
     git_bash_path,
 )
+from src.shell_policy import classify_shell_command
 
 
 def _require_admin(request: Request):
@@ -280,7 +281,8 @@ def _prepend_user_install_bins_to_path() -> None:
         candidates = [os.path.join(site.USER_BASE, "bin")]
     except Exception:
         candidates = []
-    candidates.append(os.path.expanduser("~/.local/bin"))
+    home = os.environ.get("HOME") or str(Path.home())
+    candidates.append(os.path.join(home, ".local", "bin"))
 
     parts = (
         os.environ.get("PATH", "").split(os.pathsep) if os.environ.get("PATH") else []
@@ -805,6 +807,13 @@ async def _generate_win_detached(cmd: str, request: Request):
 
 def setup_shell_routes() -> APIRouter:
     router = APIRouter(tags=["shell"])
+
+    @router.post("/api/shell/classify")
+    async def shell_classify(request: Request, req: ShellExecRequest) -> Dict[str, Any]:
+        """Return shell command risk metadata without executing it. Admin only."""
+        _require_admin(request)
+        _reject_cross_site(request)
+        return classify_shell_command(req.command).to_dict()
 
     @router.post("/api/shell/exec")
     async def shell_exec(request: Request, req: ShellExecRequest) -> Dict[str, Any]:
