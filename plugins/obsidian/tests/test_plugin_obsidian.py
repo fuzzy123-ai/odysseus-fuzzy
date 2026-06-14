@@ -26,6 +26,7 @@ from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidati
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.freshness import audit_knowledge, quarantine_list
 from backend.hybrid_retrieval import raptor_status
+from backend.knowledge_status import normalize_status
 from backend.memory_tree import analyze_memory_tree, memory_tree_status
 from backend.routes import secure_path, get_file_tree
 from backend.tool_specs import DESTRUCTIVE_TOOL_NAMES, VAULT_TOOL_BY_NAME, VAULT_TOOL_SPECS, execute_vault_tool
@@ -572,6 +573,11 @@ def test_unresolved_conflict_status_is_isolated_from_default_truth():
         assert quarantine["summary"]["by_status"]["conflict"] == 1
         assert quarantine["items"][0]["path"] == "Conflict.md"
         assert tree["nodes"][0]["status"] == "conflict"
+
+
+@pytest.mark.parametrize("raw", ["unresolved_conflict", "unresolved conflict", "unresolved-conflict", "conflicted"])
+def test_knowledge_status_aliases_normalize_to_conflict(raw):
+    assert normalize_status(raw) == "conflict"
 
 
 def test_raptor_status_is_read_only_and_disabled_by_default():
