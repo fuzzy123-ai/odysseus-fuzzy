@@ -557,6 +557,23 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
 
 
+def test_unresolved_conflict_status_is_isolated_from_default_truth():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Conflict.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: unresolved_conflict\nupdated: 2026-06-14\n---\n# Conflict\n")
+
+        audit = audit_knowledge(tmpdir)
+        quarantine = quarantine_list(tmpdir)
+        tree = analyze_memory_tree(tmpdir)
+
+        assert audit["summary"]["conflicts"] == 1
+        assert audit["channels"]["conflicts"][0]["path"] == "Conflict.md"
+        assert audit["channels"]["conflicts"][0]["status"] == "conflict"
+        assert quarantine["summary"]["by_status"]["conflict"] == 1
+        assert quarantine["items"][0]["path"] == "Conflict.md"
+        assert tree["nodes"][0]["status"] == "conflict"
+
+
 def test_raptor_status_is_read_only_and_disabled_by_default():
     with tempfile.TemporaryDirectory() as tmpdir:
         status = raptor_status(tmpdir)

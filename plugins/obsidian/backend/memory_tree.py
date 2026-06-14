@@ -19,6 +19,12 @@ DERIVED_PREFIXES = (
     "AI Memory/Clusters/",
     "AI Memory/Tree/",
 )
+STATUS_ALIASES = {
+    "unresolved conflict": "conflict",
+    "unresolved_conflict": "conflict",
+    "unresolved-conflict": "conflict",
+    "conflicted": "conflict",
+}
 WIKI_LINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
 MD_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)")
 
@@ -67,6 +73,7 @@ def _truth_level(path: str, frontmatter: Dict[str, Any]) -> str:
 
 def _status(frontmatter: Dict[str, Any]) -> str:
     raw = str(frontmatter.get("status") or "active").strip().lower()
+    raw = STATUS_ALIASES.get(raw, raw)
     if raw in {"active", "needs_review", "stale", "superseded", "conflict", "quarantined", "archived"}:
         return raw
     if raw in {"draft", "review", "todo"}:

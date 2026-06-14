@@ -9,6 +9,12 @@ from .feature_flags import all_flags, is_enabled
 
 
 EXCLUDED_STATUSES = {"stale", "superseded", "quarantined", "archived", "conflict"}
+STATUS_ALIASES = {
+    "unresolved conflict": "conflict",
+    "unresolved_conflict": "conflict",
+    "unresolved-conflict": "conflict",
+    "conflicted": "conflict",
+}
 NEEDS_REVIEW_STATUSES = {"needs_review", "review", "draft", "todo"}
 REVIEW_QUEUE_PREFIXES = ("AI Memory/Review Queue/", "AI Memory/Inbox/", "AI Memory/Quarantine/")
 
@@ -77,6 +83,7 @@ def _record(path: str, frontmatter: Dict[str, Any], content: str, mtime: str, st
 
 def _classify(path: str, frontmatter: Dict[str, Any], content: str, source_mtime: str) -> Dict[str, Any]:
     raw_status = str(frontmatter.get("status") or "active").strip().lower()
+    raw_status = STATUS_ALIASES.get(raw_status, raw_status)
     policy = _policy(path, frontmatter)
     verified = _parse_date(frontmatter.get("last_verified_at") or frontmatter.get("updated"))
     age = _age_days(verified)
