@@ -10,10 +10,10 @@ the user has NOT set an explicit budget, while still honouring an explicit setti
 exactly (clamped to the window). Pure and side-effect free so it is unit-testable.
 """
 
-# Generous ceiling so long-context models are unblocked without sending a
-# pathologically large prompt every agent turn. Tunable; chosen to fully cover
-# 128K models and give 1M models a large but bounded budget.
-DEFAULT_HARD_MAX = 200_000
+# Conservative ceiling for the auto-derived path. Long-context windows remain
+# available when the user explicitly raises the setting, but the default no
+# longer lets every long chat grow toward huge prefill prompts.
+DEFAULT_HARD_MAX = 32_000
 DEFAULT_BUDGET = 6000
 DEFAULT_HEADROOM = 0.85
 

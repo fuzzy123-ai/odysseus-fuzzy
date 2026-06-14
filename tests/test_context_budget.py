@@ -9,8 +9,8 @@ from src.context_budget import compute_input_token_budget, DEFAULT_HARD_MAX
 
 
 def test_default_scales_to_context_window():
-    # Not explicit, big window -> ~85% of the window (the old code capped at 6000).
-    assert compute_input_token_budget(6000, 128000, explicit=False) == int(128000 * 0.85)
+    # Not explicit, modest window -> ~85% of the window.
+    assert compute_input_token_budget(6000, 16000, explicit=False) == int(16000 * 0.85)
 
 
 def test_default_capped_at_hard_max_for_huge_windows():
@@ -56,7 +56,7 @@ def test_is_setting_overridden_reads_raw_saved_file(tmp_path, monkeypatch):
 
 def test_custom_hard_max_overrides_default_in_auto_branch():
     """A caller-supplied hard_max lifts the auto-derived ceiling."""
-    # Without override: 1M ctx -> capped at DEFAULT_HARD_MAX (200K)
+    # Without override: 1M ctx -> capped at DEFAULT_HARD_MAX.
     assert compute_input_token_budget(6000, 1_000_000, explicit=False) == DEFAULT_HARD_MAX
     # With explicit raise: 1M ctx -> 850K (85% of 1M), under the raised ceiling
     assert compute_input_token_budget(6000, 1_000_000, explicit=False, hard_max=900_000) == int(1_000_000 * 0.85)
@@ -64,10 +64,10 @@ def test_custom_hard_max_overrides_default_in_auto_branch():
 
 def test_custom_hard_max_lowers_default_for_cost_paranoid_setups():
     """A lower ceiling caps the auto-derived budget below the default."""
-    # 128K ctx, default ceiling 200K -> 85% of 128K = 108800
-    assert compute_input_token_budget(6000, 128_000, explicit=False) == int(128_000 * 0.85)
-    # Same ctx, ceiling lowered to 50K -> capped at 50K instead
-    assert compute_input_token_budget(6000, 128_000, explicit=False, hard_max=50_000) == 50_000
+    # 128K ctx, default ceiling -> capped at DEFAULT_HARD_MAX.
+    assert compute_input_token_budget(6000, 128_000, explicit=False) == DEFAULT_HARD_MAX
+    # Same ctx, ceiling lowered to 16K -> capped at 16K instead.
+    assert compute_input_token_budget(6000, 128_000, explicit=False, hard_max=16_000) == 16_000
 
 
 def test_hard_max_has_no_effect_on_explicit_branch():
@@ -86,7 +86,7 @@ def test_default_settings_registers_hard_max_key():
 def test_alias_map_registers_friendly_names():
     """`manage_settings` should accept 'hard max' and friends."""
     from pathlib import Path
-    src = Path("src/tool_implementations.py").read_text()
+    src = Path("src/tool_implementations.py").read_text(encoding="utf-8")
     assert '"hard max": "agent_input_token_hard_max"' in src
     assert '"token budget cap": "agent_input_token_hard_max"' in src
     assert '"input budget cap": "agent_input_token_hard_max"' in src

@@ -25,6 +25,7 @@ from src.context_compactor import (
     TASK_STATE_HEADER,
     _content_as_text,
     build_task_state_message,
+    get_compact_threshold,
     maybe_compact,
     trim_for_context,
 )
@@ -32,7 +33,19 @@ from src.context_compactor import (
 
 class TestCompactThreshold:
     def test_value(self):
-        assert COMPACT_THRESHOLD == 0.85
+        assert COMPACT_THRESHOLD == 0.65
+
+    def test_configured_threshold_is_clamped(self, monkeypatch):
+        import src.settings as settings
+
+        monkeypatch.setattr(settings, "get_setting", lambda key, default=None: 0.2)
+        assert get_compact_threshold() == 0.40
+
+        monkeypatch.setattr(settings, "get_setting", lambda key, default=None: 0.95)
+        assert get_compact_threshold() == 0.90
+
+        monkeypatch.setattr(settings, "get_setting", lambda key, default=None: 0.7)
+        assert get_compact_threshold() == 0.7
 
     def test_summary_max_tokens(self):
         assert SUMMARY_MAX_TOKENS == 1024

@@ -52,6 +52,16 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        database_path = ""
+        try:
+            row = cursor.execute("PRAGMA database_list").fetchone()
+            database_path = row[2] if row and len(row) > 2 else ""
+        except sqlite3.DatabaseError:
+            database_path = ""
+        if database_path:
+            cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 
 

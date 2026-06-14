@@ -109,7 +109,11 @@ DEFAULT_SETTINGS = {
     # setups, raise it on premium APIs with very large windows that you
     # want to actually use (e.g. 900_000 to fill a 1M-context model). See
     # `compute_input_token_budget` in src/context_budget.py.
-    "agent_input_token_hard_max": 200_000,
+    "agent_input_token_hard_max": 32_000,
+    "context_compact_threshold": 0.65,
+    "session_touch_interval_seconds": 60,
+    "session_cache_max": 100,
+    "session_context_message_limit": 200,
     "agent_stream_timeout_seconds": 300,
     # Extra directory roots that read_file / write_file may access, in
     # addition to the built-in project data/ and system temp dirs. Each

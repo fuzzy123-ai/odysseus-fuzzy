@@ -11,6 +11,8 @@ This is the single place that handles:
 import json
 import uuid
 import logging
+import time
+from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 
@@ -47,6 +49,22 @@ def _parse_msg_content(raw):
     return raw
 
 
+def _estimate_message_tokens_dict(message: dict) -> int:
+    meta = message.get("metadata")
+    if isinstance(meta, dict):
+        try:
+            cached = int(meta.get("estimated_tokens") or 0)
+        except (TypeError, ValueError):
+            cached = 0
+        if cached > 0:
+            return cached
+    from src.model_context import estimate_tokens
+    estimated = estimate_tokens([message])
+    if isinstance(meta, dict):
+        meta["estimated_tokens"] = estimated
+    return estimated
+
+
 class SessionManager:
     """
     Manages chat sessions with database persistence.
@@ -60,7 +78,8 @@ class SessionManager:
 
     def __init__(self, sessions_file: str = None):
         # sessions_file kept for backward compat, not used
-        self.sessions: Dict[str, Session] = {}
+        self.sessions: Dict[str, Session] = OrderedDict()
+        self._last_touch_at: Dict[str, float] = {}
         self.load_sessions()
 
     # ------------------------------------------------------------------
@@ -86,7 +105,7 @@ class SessionManager:
                 try:
                     session = self._db_to_session_meta(db_session)
                     if session is not None:
-                        self.sessions[db_session.id] = session
+                        self._cache_session(db_session.id, session)
                         loaded_count += 1
                 except Exception as e:
                     logger.error(f"Error loading session {db_session.id}: {e}")
@@ -96,9 +115,47 @@ class SessionManager:
 
         except Exception as e:
             logger.error(f"Error loading sessions: {e}")
-            self.sessions = {}
+            self.sessions = OrderedDict()
         finally:
             db.close()
+
+    def _session_cache_max(self) -> int:
+        try:
+            from src.settings import get_setting
+            value = int(get_setting("session_cache_max", 100) or 0)
+        except (TypeError, ValueError):
+            value = 100
+        return max(1, value)
+
+    def _context_message_limit(self) -> int:
+        try:
+            from src.settings import get_setting
+            value = int(get_setting("session_context_message_limit", 200) or 0)
+        except (TypeError, ValueError):
+            value = 200
+        return max(1, value)
+
+    def _cache_session(self, session_id: str, session: Session) -> None:
+        self.sessions[session_id] = session
+        self._mark_session_cache_used(session_id)
+        self._enforce_session_cache_limit()
+
+    def _mark_session_cache_used(self, session_id: str) -> None:
+        move_to_end = getattr(self.sessions, "move_to_end", None)
+        if callable(move_to_end) and session_id in self.sessions:
+            move_to_end(session_id)
+
+    def _enforce_session_cache_limit(self) -> None:
+        limit = self._session_cache_max()
+        while len(self.sessions) > limit:
+            if isinstance(self.sessions, OrderedDict):
+                session_id, _session = self.sessions.popitem(last=False)
+            else:
+                session_id = next(iter(self.sessions))
+                self.sessions.pop(session_id, None)
+            last_touches = getattr(self, "_last_touch_at", None)
+            if last_touches is not None:
+                last_touches.pop(session_id, None)
 
     def _db_to_session_meta(self, db_session: DbSession) -> Optional[Session]:
         """Build a Session with empty history. `get_session` will hydrate
@@ -183,6 +240,22 @@ class SessionManager:
         session.message_count = getattr(db_session, 'message_count', len(history))
         return session
 
+    def _db_message_to_context_dict(self, db_msg: DbChatMessage) -> dict:
+        meta = json.loads(db_msg.meta_data) if db_msg.meta_data else {}
+        if meta is None:
+            meta = {}
+        meta['_db_id'] = db_msg.id
+        meta.setdefault('timestamp', _message_timestamp_iso(db_msg.timestamp))
+        msg = ChatMessage(
+            role=db_msg.role,
+            content=_parse_msg_content(db_msg.content),
+            metadata=meta,
+        )
+        out = msg.to_dict()
+        if isinstance(out.get("metadata"), dict):
+            out["metadata"].setdefault("estimated_tokens", _estimate_message_tokens_dict(out))
+        return out
+
     # ------------------------------------------------------------------
     # Message operations
     # ------------------------------------------------------------------
@@ -224,6 +297,7 @@ class SessionManager:
             if message.metadata is None:
                 message.metadata = {}
             message.metadata.setdefault('timestamp', _message_timestamp_iso(msg_time))
+            message.metadata.setdefault('estimated_tokens', _estimate_message_tokens_dict(message.to_dict()))
             # Multimodal content (image/audio attachments) is a list — serialize
             # to JSON so the Text column can store it.  On reload, _db_to_session
             # detects the JSON-array prefix and parses it back.
@@ -315,6 +389,9 @@ class SessionManager:
             now = datetime.now(timezone.utc)
             for i, message in enumerate(messages):
                 msg_id = str(uuid.uuid4())
+                if message.metadata is None:
+                    message.metadata = {}
+                message.metadata.setdefault("estimated_tokens", _estimate_message_tokens_dict(message.to_dict()))
                 db_message = DbChatMessage(
                     id=msg_id,
                     session_id=session_id,
@@ -332,8 +409,6 @@ class SessionManager:
                     timestamp=now + timedelta(microseconds=i),
                 )
                 db.add(db_message)
-                if message.metadata is None:
-                    message.metadata = {}
                 message.metadata["_db_id"] = msg_id
 
             db_session = db.query(DbSession).filter(DbSession.id == session_id).first()
@@ -369,6 +444,7 @@ class SessionManager:
         if session_id not in self.sessions:
             self._load_session_from_db(session_id)
         else:
+            self._mark_session_cache_used(session_id)
             cached = self.sessions[session_id]
             # Lazy hydrate: metadata-only entries get their messages on first read.
             if not cached.history and getattr(cached, "message_count", 0) > 0:
@@ -425,14 +501,14 @@ class SessionManager:
 
             session = self._db_to_session(db_session, db)
             if session:
-                self.sessions[session_id] = session
+                self._cache_session(session_id, session)
             else:
                 # No messages — fall back to metadata-only entry so callers
                 # don't crash on KeyError for empty sessions.
                 meta = self._db_to_session_meta(db_session)
                 if meta is None:
                     raise KeyError(f"Session {session_id} could not be loaded")
-                self.sessions[session_id] = meta
+                self._cache_session(session_id, meta)
 
         except KeyError:
             raise
@@ -444,12 +520,27 @@ class SessionManager:
 
     def _touch_session(self, session_id: str):
         """Update last_accessed timestamp."""
+        try:
+            from src.settings import get_setting
+            interval = float(get_setting("session_touch_interval_seconds", 60) or 0)
+        except (TypeError, ValueError):
+            interval = 60.0
+        now_monotonic = time.monotonic()
+        last_touches = getattr(self, "_last_touch_at", None)
+        if last_touches is None:
+            last_touches = {}
+            self._last_touch_at = last_touches
+        last_touch = last_touches.get(session_id)
+        if interval > 0 and last_touch is not None and (now_monotonic - last_touch) < interval:
+            return
+
         db = SessionLocal()
         try:
             db_session = db.query(DbSession).filter(DbSession.id == session_id).first()
             if db_session:
                 db_session.last_accessed = datetime.now(timezone.utc)
                 db.commit()
+                last_touches[session_id] = now_monotonic
         except Exception as e:
             logger.error(f"Error updating last_accessed: {e}")
             db.rollback()
@@ -492,7 +583,7 @@ class SessionManager:
                 owner=owner,
             )
 
-            self.sessions[session_id] = session
+            self._cache_session(session_id, session)
             return session
 
         except Exception as e:
@@ -620,6 +711,76 @@ class SessionManager:
 
     def save_sessions(self):
         """No-op for DB compatibility."""
+
+    def get_recent_context_messages(
+        self,
+        session_id: str,
+        token_budget: int,
+        reserve_tokens: int = 512,
+        max_messages: Optional[int] = None,
+    ) -> list:
+        """Return recent LLM-context messages bounded by count and token budget.
+
+        This is for hot prompt-building paths. It avoids hydrating an entire
+        long session when a metadata-only cache entry can be served by querying
+        the newest message rows directly.
+        """
+        try:
+            budget = int(token_budget or 0) - int(reserve_tokens or 0)
+        except (TypeError, ValueError):
+            budget = 0
+        budget = max(256, budget)
+        limit = max_messages or self._context_message_limit()
+
+        messages = self._recent_context_messages_from_cache(session_id, limit)
+        if messages is None:
+            messages = self._recent_context_messages_from_db(session_id, limit)
+
+        selected = []
+        selected_tokens = 0
+        for msg in reversed(messages):
+            msg_tokens = _estimate_message_tokens_dict(msg)
+            if selected and selected_tokens + msg_tokens > budget:
+                break
+            selected.insert(0, msg)
+            selected_tokens += msg_tokens
+        return selected
+
+    def _recent_context_messages_from_cache(self, session_id: str, limit: int) -> Optional[list]:
+        session = self.sessions.get(session_id)
+        if session is None:
+            return None
+        self._mark_session_cache_used(session_id)
+        if not session.history:
+            return [] if getattr(session, "message_count", 0) == 0 else None
+        messages = []
+        for msg in session.history[-limit:]:
+            if (msg.metadata or {}).get("source") == "slash":
+                continue
+            messages.append(msg.to_dict())
+        return messages
+
+    def _recent_context_messages_from_db(self, session_id: str, limit: int) -> list:
+        db = SessionLocal()
+        try:
+            db_session = db.query(DbSession).filter(DbSession.id == session_id).first()
+            if db_session is None:
+                raise KeyError(f"Session {session_id} not found")
+            if session_id not in self.sessions:
+                self._cache_session(session_id, self._db_to_session_meta(db_session))
+
+            rows = db.query(DbChatMessage).filter(
+                DbChatMessage.session_id == session_id
+            ).order_by(DbChatMessage.timestamp.desc()).limit(limit).all()
+            messages = []
+            for db_msg in reversed(rows):
+                msg = self._db_message_to_context_dict(db_msg)
+                if (msg.get("metadata") or {}).get("source") == "slash":
+                    continue
+                messages.append(msg)
+            return messages
+        finally:
+            db.close()
 
     def ensure_task_session(self, session_id: str, name: str, endpoint_url: str, model: str, owner: str = None, task: object = None) -> Session:
         """Create a task session if it doesn't exist, or return the existing one.

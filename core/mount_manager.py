@@ -101,6 +101,11 @@ _ALLOWED_WRITE_EXTENSIONS = {
     ".ps1",
     ".bat",
     ".sql",
+    ".gd",
+    ".tscn",
+    ".tres",
+    ".godot",
+    ".gdshader",
 }
 
 _MAX_WRITE_BYTES = 1_000_000

@@ -36,10 +36,20 @@ def _content_as_text(content: Any) -> str:
     return ""
 
 
-COMPACT_THRESHOLD = 0.85  # Trigger compaction at 85% of context window
+COMPACT_THRESHOLD = 0.65  # Default trigger at 65% of context window
 SUMMARY_MAX_TOKENS = 1024
 SMALL_CONTEXT_LIMIT = 8192  # Models with context <= this get aggressive trimming
 TASK_STATE_HEADER = "[Persistent task state]"
+
+
+def get_compact_threshold() -> float:
+    """Return the configured compaction threshold, clamped to a safe range."""
+    try:
+        from src.settings import get_setting
+        value = float(get_setting("context_compact_threshold", COMPACT_THRESHOLD))
+    except (TypeError, ValueError):
+        value = COMPACT_THRESHOLD
+    return min(max(value, 0.40), 0.90)
 
 # Cursor-style self-summarization prompt — produces structured, dense summaries
 SELF_SUMMARY_SYSTEM_PROMPT = """You are summarizing a conversation to preserve context after compaction. Produce a structured summary that lets the conversation continue seamlessly.
@@ -382,7 +392,8 @@ async def maybe_compact(
     used = estimate_tokens(messages)
     pct = (used / context_length) * 100 if context_length else 0
 
-    if pct < COMPACT_THRESHOLD * 100:
+    threshold = get_compact_threshold()
+    if pct < threshold * 100:
         return messages, context_length, False
 
     logger.info(

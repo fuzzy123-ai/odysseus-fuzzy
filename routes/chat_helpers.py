@@ -619,8 +619,39 @@ async def build_chat_context(
     for transcript in preprocessed.youtube_transcripts:
         preface.append(untrusted_context_message("youtube transcript", transcript))
 
-    # Build messages
-    messages = preface + sess.get_context_messages()
+    # Build messages. Ask the SessionManager for a bounded recent history
+    # window when available so long sessions do not materialize or scan the
+    # entire transcript on every prompt-build path.
+    history_messages = None
+    try:
+        from core.models import get_session_manager_instance
+        from src.context_budget import DEFAULT_HARD_MAX
+        from src.model_context import estimate_tokens
+        from src.settings import get_setting
+
+        history_budget = int(context_budget_tokens or 0)
+        try:
+            cap = int(get_setting("agent_input_token_hard_max", DEFAULT_HARD_MAX) or DEFAULT_HARD_MAX)
+        except (TypeError, ValueError):
+            cap = DEFAULT_HARD_MAX
+        if cap > 0:
+            history_budget = min(history_budget or cap, cap)
+        preface_tokens = estimate_tokens(preface)
+        history_budget = max(1024, history_budget - preface_tokens)
+        manager = get_session_manager_instance()
+        if manager and hasattr(manager, "get_recent_context_messages"):
+            history_messages = manager.get_recent_context_messages(
+                session_id,
+                history_budget,
+                reserve_tokens=1024,
+            )
+    except Exception:
+        logger.debug("Budgeted session context lookup skipped", exc_info=True)
+
+    if history_messages is None:
+        history_messages = sess.get_context_messages()
+
+    messages = preface + history_messages
 
     # Current date/time — injected as a standalone *user*-role context message
     # placed immediately before the latest user turn, NOT folded into the

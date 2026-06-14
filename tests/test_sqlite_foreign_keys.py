@@ -40,3 +40,16 @@ def test_sqlite_foreign_keys_cascade():
     assert db.query(ChatMessage).count() == 0
     
     db.close()
+
+
+def test_sqlite_phase1_pragmas_for_file_db(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'phase1.db'}",
+        connect_args={"check_same_thread": False},
+    )
+
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+        assert conn.exec_driver_sql("PRAGMA busy_timeout").scalar() == 5000
+        assert conn.exec_driver_sql("PRAGMA synchronous").scalar() == 1
+        assert conn.exec_driver_sql("PRAGMA journal_mode").scalar().lower() == "wal"

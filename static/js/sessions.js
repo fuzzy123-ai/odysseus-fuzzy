@@ -17,7 +17,7 @@ let currentSessionId = null;
 let _sessionNavToken = 0;
 let _skipAutoSelect = false;
 
-const SIDEBAR_MAX_VISIBLE = 10;
+const SIDEBAR_MAX_VISIBLE = 5;
 const FOLDER_MAX_VISIBLE = 5;
 let _showAllSessions = false;
 let _expandedFolders = {};  // folderName -> true if "show more" clicked
@@ -269,6 +269,9 @@ function buildFolderSubmenu(sessionId, currentFolder, dropdown) {
 function createSessionItem(s) {
   const div = document.createElement('div');
   div.className = 'list-item session-item';
+  if (s.status) {
+    div.classList.add(s.status);
+  }
   div.setAttribute('role', 'option');
   div.setAttribute('tabindex', '-1');
   div.setAttribute('data-session-id', s.id);
@@ -726,6 +729,8 @@ function createSessionItem(s) {
       if (_isProcessing) {
         _starEl.classList.add('processing');
         _starEl.style.opacity = '1';
+        div.classList.add('working');
+        div.classList.remove('error', 'attention');
       } else if (_isDone) {
         _starEl.classList.add('notify');
         _starEl.style.opacity = '1';
@@ -2021,7 +2026,13 @@ function _updateResearchDots() {
     var listItem = star.closest('.list-item');
     star.classList.toggle('processing', isRunning);
     star.classList.toggle('notify', isCompleted);
-    if (listItem) listItem.classList.toggle('stream-complete', isCompleted);
+    if (listItem) {
+      listItem.classList.toggle('stream-complete', isCompleted);
+      listItem.classList.toggle('working', isRunning);
+      if (isRunning) {
+        listItem.classList.remove('error', 'attention');
+      }
+    }
 
     if (isRunning || isCompleted) {
       star.style.opacity = '1';

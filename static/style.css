@@ -1418,7 +1418,54 @@ body.bg-pattern-sparkles {
     }
     /* The dot doubles as the provider-logo holder; hide that logo in the
        done state so the solid notif dot doesn't collide with the SVG behind it. */
-    .session-star.notify svg { display: none; }
+    .session-star.notify:not(.provider-logo) svg { display: none; }
+
+    /* White glowing provider logo for completed and unread sessions */
+    .session-star.provider-logo.notify {
+      background: none !important;
+      border-color: transparent !important;
+      opacity: 1 !important;
+    }
+    .session-star.provider-logo.notify svg {
+      display: block !important;
+      color: #ffffff !important;
+      fill: #ffffff !important;
+      filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #fff) !important;
+      animation: provider-logo-glow 1.5s ease-in-out infinite alternate !important;
+    }
+    @keyframes provider-logo-glow {
+      from {
+        filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 5px #ffffff);
+      }
+      to {
+        filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 15px #ffffff);
+      }
+    }
+
+    /* Green pulsing animation for actively working chats */
+    .list-item.session-item.working .grow {
+      animation: text-green-pulse 2s infinite alternate !important;
+    }
+    @keyframes text-green-pulse {
+      from {
+        color: var(--fg);
+      }
+      to {
+        color: #4cd964 !important;
+        text-shadow: 0 0 8px rgba(76, 217, 100, 0.4);
+      }
+    }
+
+    /* Yellow text for chats requiring attention */
+    .list-item.session-item.attention .grow {
+      color: #ffcc00 !important;
+    }
+
+    /* Red text for chats where something went wrong */
+    .list-item.session-item.error .grow {
+      color: #ff3b30 !important;
+    }
+
     @keyframes research-done-pulse {
       0%, 100% { transform: scale(1); opacity: 1; }
       50% { transform: scale(1.5); opacity: 0.7; }

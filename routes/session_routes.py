@@ -258,6 +258,27 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
             last_msg_map = {}
             mode_map = {}
             msg_count_map = {}
+            status_map = {}
+            
+            from sqlalchemy import func
+            from core.database import ChatMessage as _DbMsg
+            from src import agent_runs
+            from src import agent_run_ledger
+
+            # Query the latest message for each session of this user
+            subq = db.query(_DbMsg.session_id, func.max(_DbMsg.timestamp).label("max_ts")).group_by(_DbMsg.session_id).subquery()
+            last_msgs = db.query(_DbMsg.session_id, _DbMsg.role, _DbMsg.content, _DbMsg.meta_data).join(
+                subq, (_DbMsg.session_id == subq.c.session_id) & (_DbMsg.timestamp == subq.c.max_ts)
+            ).all()
+            
+            last_msg_details = {}
+            for m in last_msgs:
+                last_msg_details[m.session_id] = {
+                    "role": m.role,
+                    "content": m.content or "",
+                    "meta_data": m.meta_data or ""
+                }
+
             q = db.query(DbSession.id, DbSession.folder, DbSession.total_input_tokens, DbSession.total_output_tokens, DbSession.is_important, DbSession.created_at, DbSession.updated_at, DbSession.last_message_at, DbSession.mode, DbSession.message_count).filter(DbSession.archived == False)
             q = owner_filter(q, DbSession, user)
             rows = q.all()
@@ -276,8 +297,40 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 )
                 mode_map[row.id] = row.mode
                 msg_count_map[row.id] = row.message_count or 0
+                
+                # Determine run status
+                sid = row.id
+                is_running = agent_runs.is_active(sid)
+                
+                # Check run ledger status
+                run_status = agent_runs.get_status(sid)
+                if not run_status:
+                    # check durable ledger status
+                    ledger = agent_run_ledger.summarize_run(sid, tail=1)
+                    run_status = ledger.get("status")
+                
+                is_error = (run_status == "error")
+                
+                # Determine is_attention (waiting for ask_user input)
+                is_attention = False
+                last_m = last_msg_details.get(sid)
+                if last_m and last_m["role"] == "assistant":
+                    content_str = last_m["content"]
+                    meta_str = last_m["meta_data"]
+                    if "ask_user" in content_str or "ask_user" in meta_str:
+                        is_attention = True
+                
+                # Select status
+                if is_running:
+                    status_map[sid] = "working"
+                elif is_error:
+                    status_map[sid] = "error"
+                elif is_attention:
+                    status_map[sid] = "attention"
+                else:
+                    status_map[sid] = "done"
+
             # Sessions with active documents that have content
-            from sqlalchemy import func
             doc_session_ids = set(
                 r[0] for r in owner_filter(
                     db.query(Document.session_id)
@@ -308,7 +361,8 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                      "has_documents": s.id in doc_session_ids,
                      "has_images": s.id in img_session_ids,
                      "mode": mode_map.get(s.id),
-                     "message_count": msg_count_map.get(s.id, 0)}
+                     "message_count": msg_count_map.get(s.id, 0),
+                     "status": status_map.get(s.id, "done")}
                     for s in user_sessions.values()
                     if not s.archived
                     and (s.name or "").strip() not in ("Nobody", "Incognito")

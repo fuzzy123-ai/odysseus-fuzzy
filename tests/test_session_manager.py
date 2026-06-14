@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pytest
 from unittest.mock import MagicMock, patch
 
-from core.session_manager import SessionManager
+import core.session_manager as session_manager_module
+from core.session_manager import SessionManager, _estimate_message_tokens_dict
 from core.models import Session, ChatMessage
 
 
@@ -192,3 +193,120 @@ class TestSessionIsolation:
         retrieved = sm.get_session("s1")
         assert len(retrieved.history) == 1
         assert retrieved.history[0].content == "hi"
+
+    def test_touch_session_is_throttled(self, sm, monkeypatch):
+        """Repeated read touches should not commit on every get_session path."""
+        import src.settings as settings
+
+        class FakeRow:
+            last_accessed = None
+
+        class FakeQuery:
+            def __init__(self, row):
+                self.row = row
+
+            def filter(self, *args, **kwargs):
+                return self
+
+            def first(self):
+                return self.row
+
+        class FakeDb:
+            def __init__(self):
+                self.row = FakeRow()
+                self.commits = 0
+                self.rollbacks = 0
+                self.closed = 0
+
+            def query(self, *args, **kwargs):
+                return FakeQuery(self.row)
+
+            def commit(self):
+                self.commits += 1
+
+            def rollback(self):
+                self.rollbacks += 1
+
+            def close(self):
+                self.closed += 1
+
+        fake_db = FakeDb()
+        monkeypatch.setattr(session_manager_module, "SessionLocal", lambda: fake_db)
+        monkeypatch.setattr(settings, "get_setting", lambda key, default=None: 60)
+
+        sm._touch_session("sid")
+        sm._touch_session("sid")
+
+        assert fake_db.commits == 1
+        assert fake_db.rollbacks == 0
+
+    def test_recent_context_messages_respects_limit_and_slash_filter(self, sm):
+        s = Session(id="s1", name="Test", endpoint_url="http://ep", model="model")
+        s.history = [
+            ChatMessage("user", "old"),
+            ChatMessage("assistant", "old reply"),
+            ChatMessage("user", "/setup", metadata={"source": "slash"}),
+            ChatMessage("assistant", "slash reply", metadata={"source": "slash"}),
+            ChatMessage("user", "recent question"),
+            ChatMessage("assistant", "recent answer"),
+        ]
+        s.message_count = len(s.history)
+        sm.sessions["s1"] = s
+
+        messages = sm.get_recent_context_messages(
+            "s1",
+            token_budget=10_000,
+            reserve_tokens=0,
+            max_messages=4,
+        )
+
+        assert [m["content"] for m in messages] == ["recent question", "recent answer"]
+
+    def test_recent_context_messages_keeps_latest_when_budget_is_tight(self, sm):
+        s = Session(id="s1", name="Test", endpoint_url="http://ep", model="model")
+        s.history = [
+            ChatMessage("user", "A" * 2000),
+            ChatMessage("assistant", "B" * 2000),
+            ChatMessage("user", "C" * 2000),
+        ]
+        s.message_count = len(s.history)
+        sm.sessions["s1"] = s
+
+        messages = sm.get_recent_context_messages(
+            "s1",
+            token_budget=700,
+            reserve_tokens=0,
+            max_messages=3,
+        )
+
+        assert len(messages) == 1
+        assert messages[0]["content"] == "C" * 2000
+
+    def test_session_cache_eviction_uses_configured_limit(self, sm, monkeypatch):
+        import src.settings as settings
+
+        monkeypatch.setattr(settings, "get_setting", lambda key, default=None: 2)
+
+        sm._cache_session("s1", Session(id="s1", name="A", endpoint_url="http://ep", model="m"))
+        sm._cache_session("s2", Session(id="s2", name="B", endpoint_url="http://ep", model="m"))
+        sm._cache_session("s3", Session(id="s3", name="C", endpoint_url="http://ep", model="m"))
+
+        assert "s1" not in sm.sessions
+        assert list(sm.sessions) == ["s2", "s3"]
+
+    def test_estimate_message_tokens_uses_cached_metadata(self):
+        msg = {
+            "role": "user",
+            "content": "A" * 10_000,
+            "metadata": {"estimated_tokens": 12},
+        }
+
+        assert _estimate_message_tokens_dict(msg) == 12
+
+    def test_estimate_message_tokens_populates_metadata(self):
+        msg = {"role": "user", "content": "hello", "metadata": {}}
+
+        estimated = _estimate_message_tokens_dict(msg)
+
+        assert estimated > 0
+        assert msg["metadata"]["estimated_tokens"] == estimated
