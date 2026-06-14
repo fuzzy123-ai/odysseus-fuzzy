@@ -118,6 +118,8 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
         if kind == "tool_output":
             summary["exit_code"] = payload.get("exit_code")
             summary["blocked"] = bool(payload.get("blocked", False))
+            if payload.get("screenshot"):
+                summary["has_screenshot"] = True
             output = payload.get("output")
             if output is not None:
                 summary["output_chars"] = len(str(output))

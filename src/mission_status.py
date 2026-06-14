@@ -12,6 +12,7 @@ _VERIFY_COMMAND_RE = re.compile(
     r"\b(pytest|node\s+--check|npm\s+(test|run\s+test)|playwright|browser|python\s+-m\s+pytest)\b",
     re.IGNORECASE,
 )
+_BROWSER_TOOLS = {"browser", "browser_check", "builtin_browser"}
 
 
 def summarize_mission(
@@ -108,7 +109,9 @@ def _is_worker_event(payload: dict[str, Any]) -> bool:
 
 
 def _is_verifier_event(payload: dict[str, Any]) -> bool:
-    if payload.get("tool") in {"browser", "browser_check"}:
+    if payload.get("tool") in _BROWSER_TOOLS:
+        return True
+    if payload.get("has_screenshot"):
         return True
     command = str(payload.get("command_preview") or "")
     return bool(command and _VERIFY_COMMAND_RE.search(command))

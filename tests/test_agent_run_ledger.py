@@ -49,6 +49,18 @@ def test_summarize_tool_start_adds_shell_policy_metadata():
     }
 
 
+def test_summarize_tool_output_records_screenshot_presence_not_data():
+    summary = agent_run_ledger.summarize_sse_event(
+        'data: {"type": "tool_output", "tool": "builtin_browser", "round": 1, '
+        '"exit_code": 0, "screenshot": "data:image/png;base64,secretpixels", "output": "page ok"}\n\n'
+    )
+
+    assert summary["type"] == "tool_output"
+    assert summary["tool"] == "builtin_browser"
+    assert summary["has_screenshot"] is True
+    assert "secretpixels" not in json.dumps(summary)
+
+
 def test_append_and_read_events_uses_safe_session_file(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
 
@@ -133,6 +145,30 @@ def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkey
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "worker done" not in json.dumps(snapshot)
     assert "passed" not in json.dumps(snapshot)
+
+
+def test_summarize_mission_treats_browser_screenshot_as_verification(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-browser-verification"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_start", "tool": "builtin_browser", "round": 1}\n\n',
+    )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "builtin_browser", "round": 1, '
+        '"exit_code": 0, "screenshot": "data:image/png;base64,secretpixels", "output": "visual ok"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "done"
+    assert snapshot["phases"]["verifier"]["starts"] == 1
+    assert "run_focused_verification" not in snapshot["next_actions"]
+    assert "secretpixels" not in json.dumps(snapshot)
 
 
 def test_summarize_mission_marks_missing_verification_as_next_action(tmp_path, monkeypatch):
