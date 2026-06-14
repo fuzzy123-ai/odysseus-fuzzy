@@ -13,6 +13,11 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Most built-in Python MCP servers have native/legacy wrappers and should not
+# be advertised as dynamic MCP tools. These built-ins intentionally keep their
+# qualified MCP surface visible to the chat agent.
+PROMPT_VISIBLE_BUILTIN_SERVERS = {"vault", "builtin_browser"}
+
 def _format_mcp_connection_error(name: str, command: str = "", args: Optional[List[str]] = None, error: Exception = None) -> str:
     """Return a user-actionable MCP connection error message."""
     args = args or []
@@ -99,6 +104,21 @@ _MCP_READONLY_VERBS = (
     "show", "view", "lookup", "count", "status", "info", "inspect", "summar",
 )
 
+_OBSIDIAN_READONLY_MCP_TOOLS = {
+    "obsidian_tree",
+    "obsidian_read_note",
+    "obsidian_search_notes",
+    "obsidian_search_semantic",
+    "obsidian_list_tags",
+    "obsidian_graph",
+    "obsidian_suggest_links",
+    "obsidian_recent_notes",
+    "obsidian_history",
+    "obsidian_vault_stats",
+    "obsidian_spark_analyze",
+    "obsidian_spark_plan",
+}
+
 
 def mcp_tool_is_readonly(tool: Dict) -> bool:
     """Classify an MCP tool as safe (non-mutating) for plan mode.
@@ -125,6 +145,8 @@ def mcp_tool_is_readonly(tool: Dict) -> bool:
         return False
     # No usable hint — heuristic on the tool name's leading verb.
     name = (tool.get("name") or "").lower()
+    if name in _OBSIDIAN_READONLY_MCP_TOOLS:
+        return True
     return name.startswith(_MCP_READONLY_VERBS)
 
 
@@ -538,9 +560,9 @@ class McpManager:
         """
         schemas = []
         for server_id, tools in self._tools.items():
-            # Skip builtin Python servers — they use the code-block tool format
-            # But include NPX-based builtins (like browser) which need function calling
-            if self.is_builtin(server_id) and server_id != "builtin_browser":
+            # Skip most builtin Python servers; only explicit builtins keep
+            # their qualified MCP function-calling surface visible.
+            if self.is_builtin(server_id) and server_id not in PROMPT_VISIBLE_BUILTIN_SERVERS:
                 continue
             conn = self._connections.get(server_id, {})
             server_name = conn.get("name", server_id)
@@ -638,9 +660,9 @@ class McpManager:
         lines = ["\n\nYou also have access to external MCP tool servers. These tools are called via native function calling:"]
         by_server = {}
         for t in tools:
-            # Skip builtin Python servers — they're already in the agent prompt
-            # But include NPX-based builtins (like browser) which aren't hardcoded
-            if self.is_builtin(t["server_id"]) and t["server_id"] != "builtin_browser":
+            # Skip most builtin Python servers; only explicit builtins keep
+            # their qualified MCP prompt surface visible.
+            if self.is_builtin(t["server_id"]) and t["server_id"] not in PROMPT_VISIBLE_BUILTIN_SERVERS:
                 continue
             if t.get("is_disabled"):
                 continue

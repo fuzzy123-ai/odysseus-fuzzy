@@ -132,3 +132,175 @@ async def test_orchestrator_agent_loop_initializes_state_doc_and_directive(monke
     assert any("Done." in chunk for chunk in chunks)
     assert captured["messages"][0]["content"].startswith("## ORCHESTRATOR MODE")
     assert (tmp_path / "_state" / "active_run.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_reflector_runs_on_compaction_signal(monkeypatch, tmp_path):
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path))
+    monkeypatch.setattr(al, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(al, "get_mcp_manager", lambda: None, raising=False)
+    monkeypatch.setattr(al, "estimate_tokens", lambda *a, **k: 10, raising=False)
+    calls = []
+
+    async def fake_reflector(**kwargs):
+        calls.append(kwargs)
+        return {"status": "ok"}
+
+    async def fake_stream(_candidates, messages, **kwargs):
+        yield "data: " + json.dumps({"delta": "Done."}) + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(al, "_run_orchestrator_reflector", fake_reflector, raising=False)
+    monkeypatch.setattr(al, "stream_llm_with_fallback", fake_stream, raising=False)
+
+    chunks = [
+        chunk async for chunk in al.stream_agent_loop(
+            "http://local.test/v1",
+            "local-model",
+            [{"role": "user", "content": "Coordinate after compaction."}],
+            headers={},
+            max_rounds=1,
+            owner="alice",
+            session_id="sess-compact",
+            orchestrator_mode=True,
+            context_was_compacted=True,
+        )
+    ]
+
+    assert chunks
+    assert [call["trigger"] for call in calls] == ["context_compacted"]
+
+
+@pytest.mark.asyncio
+async def test_reflector_not_called_outside_orchestrator_mode(monkeypatch):
+    monkeypatch.setattr(al, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(al, "get_mcp_manager", lambda: None, raising=False)
+    monkeypatch.setattr(al, "estimate_tokens", lambda *a, **k: 10, raising=False)
+    calls = []
+
+    async def fake_reflector(**kwargs):
+        calls.append(kwargs)
+        return {"status": "ok"}
+
+    async def fake_stream(_candidates, messages, **kwargs):
+        yield "data: " + json.dumps({"delta": "Done."}) + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(al, "_run_orchestrator_reflector", fake_reflector, raising=False)
+    monkeypatch.setattr(al, "stream_llm_with_fallback", fake_stream, raising=False)
+
+    chunks = [
+        chunk async for chunk in al.stream_agent_loop(
+            "http://local.test/v1",
+            "local-model",
+            [{"role": "user", "content": "Regular agent run."}],
+            headers={},
+            max_rounds=1,
+            owner="alice",
+            session_id="sess-normal",
+            context_was_compacted=True,
+        )
+    ]
+
+    assert chunks
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_reflector_runs_every_three_rounds(monkeypatch, tmp_path):
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path))
+    monkeypatch.setattr(al, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(al, "get_mcp_manager", lambda: None, raising=False)
+    monkeypatch.setattr(al, "estimate_tokens", lambda *a, **k: 10, raising=False)
+    reflector_calls = []
+    stream_calls = {"count": 0}
+
+    async def fake_reflector(**kwargs):
+        reflector_calls.append(kwargs)
+        return {"status": "ok"}
+
+    async def fake_execute(block, **kwargs):
+        return ("delegate", {"summary": "ok", "exit_code": 0})
+
+    async def fake_stream(_candidates, messages, **kwargs):
+        stream_calls["count"] += 1
+        if stream_calls["count"] <= 3:
+            yield "data: " + json.dumps({
+                "type": "tool_calls",
+                "calls": [{"name": "delegate", "arguments": json.dumps({"task": "check"})}],
+            }) + "\n\n"
+        else:
+            yield "data: " + json.dumps({"delta": "Done."}) + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(al, "_run_orchestrator_reflector", fake_reflector, raising=False)
+    monkeypatch.setattr(al, "execute_tool_block", fake_execute, raising=False)
+    monkeypatch.setattr(al, "stream_llm_with_fallback", fake_stream, raising=False)
+
+    chunks = [
+        chunk async for chunk in al.stream_agent_loop(
+            "http://local.test/v1",
+            "local-model",
+            [{"role": "user", "content": "Coordinate three rounds."}],
+            headers={},
+            max_rounds=4,
+            owner="alice",
+            session_id="sess-periodic",
+            orchestrator_mode=True,
+        )
+    ]
+
+    assert any("Done." in chunk for chunk in chunks)
+    assert [call["trigger"] for call in reflector_calls] == ["periodic"]
+    assert reflector_calls[0]["round_num"] == 3
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_reflector_runs_on_runaway_before_force_answer(monkeypatch, tmp_path):
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path))
+    monkeypatch.setattr(al, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(al, "get_mcp_manager", lambda: None, raising=False)
+    monkeypatch.setattr(al, "estimate_tokens", lambda *a, **k: 10, raising=False)
+    monkeypatch.setattr(al, "_detect_runaway_call", lambda call_freq, threshold=15: "delegate", raising=False)
+    reflector_calls = []
+    stream_calls = {"count": 0}
+
+    async def fake_reflector(**kwargs):
+        reflector_calls.append(kwargs)
+        return {"status": "risk"}
+
+    async def fake_execute(block, **kwargs):
+        return ("delegate", {"summary": "ok", "exit_code": 0})
+
+    async def fake_stream(_candidates, messages, **kwargs):
+        stream_calls["count"] += 1
+        if stream_calls["count"] == 1:
+            yield "data: " + json.dumps({
+                "type": "tool_calls",
+                "calls": [{"name": "delegate", "arguments": json.dumps({"task": "repeat"})}],
+            }) + "\n\n"
+        else:
+            yield "data: " + json.dumps({"delta": "Forced final."}) + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(al, "_run_orchestrator_reflector", fake_reflector, raising=False)
+    monkeypatch.setattr(al, "execute_tool_block", fake_execute, raising=False)
+    monkeypatch.setattr(al, "stream_llm_with_fallback", fake_stream, raising=False)
+
+    chunks = [
+        chunk async for chunk in al.stream_agent_loop(
+            "http://local.test/v1",
+            "local-model",
+            [{"role": "user", "content": "Trigger runaway."}],
+            headers={},
+            max_rounds=2,
+            owner="alice",
+            session_id="sess-runaway",
+            orchestrator_mode=True,
+        )
+    ]
+
+    assert any("Forced final." in chunk for chunk in chunks)
+    assert len(reflector_calls) == 1
+    assert reflector_calls[0]["trigger"].startswith("runaway:")
+    assert reflector_calls[0]["round_num"] == 1

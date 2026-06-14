@@ -23,6 +23,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
+$env:PYTHONIOENCODING = "utf-8"
 
 function Write-Step($msg) { Write-Host ""; Write-Host ("==> " + $msg) -ForegroundColor Cyan }
 

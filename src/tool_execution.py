@@ -33,6 +33,10 @@ from src.tool_utils import _truncate, get_mcp_manager
 # in ephemeral container layers that are lost on the next rebuild.
 _AGENT_WORKDIR = DATA_DIR
 
+_VAULT_MCP_RATE_LIMIT_BUCKETS: Dict[str, list[float]] = {}
+_VAULT_MCP_RATE_LIMIT_MAX = 10
+_VAULT_MCP_RATE_LIMIT_WINDOW = 60
+
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +312,62 @@ _ADMIN_TOOLS = {
 def _owner_is_admin(owner: Optional[str]) -> bool:
     """Mirror route-level admin behavior for agent tool execution."""
     return owner_is_admin_or_single_user(owner)
+
+
+def _parse_mcp_tool_name(qualified_name: str) -> tuple[Optional[str], Optional[str]]:
+    parts = str(qualified_name or "").split("__", 2)
+    if len(parts) != 3 or parts[0] != "mcp":
+        return None, None
+    return parts[1], parts[2]
+
+
+def _check_vault_mcp_rate_limit(owner: Optional[str], tool_name: str) -> Optional[str]:
+    now = time.time()
+    bucket_key = f"{owner or 'default'}:{tool_name}"
+    bucket = _VAULT_MCP_RATE_LIMIT_BUCKETS.setdefault(bucket_key, [])
+    bucket[:] = [t for t in bucket if now - t < _VAULT_MCP_RATE_LIMIT_WINDOW]
+    if len(bucket) >= _VAULT_MCP_RATE_LIMIT_MAX:
+        retry_after = int(_VAULT_MCP_RATE_LIMIT_WINDOW - (now - bucket[0]))
+        return (
+            f"Rate limit exceeded: {_VAULT_MCP_RATE_LIMIT_MAX} destructive vault ops "
+            f"per {_VAULT_MCP_RATE_LIMIT_WINDOW}s. Retry in {retry_after}s."
+        )
+    bucket.append(now)
+    return None
+
+
+def _call_internal_vault_mcp(tool_name: str, args: Dict[str, Any], owner: Optional[str]) -> Dict[str, Any]:
+    """Run the built-in vault MCP surface in-process with trusted owner scope."""
+    try:
+        from plugins.obsidian.backend import vault_service
+        from plugins.obsidian.backend.tool_specs import (
+            DESTRUCTIVE_TOOL_NAMES,
+            execute_vault_tool,
+            format_tool_result as format_vault_tool_result,
+        )
+
+        effective_owner = owner or "default"
+        vault_dir = vault_service.unlocked_vault_path_for_owner(effective_owner)
+        if tool_name in DESTRUCTIVE_TOOL_NAMES:
+            rate_error = _check_vault_mcp_rate_limit(effective_owner, tool_name)
+            if rate_error:
+                return {"stderr": f"Error: {rate_error}", "stdout": "", "exit_code": 1}
+        result = execute_vault_tool(
+            tool_name,
+            vault_dir,
+            args or {},
+            effective_owner,
+            {"source": "mcp", "token_id": "", "token_prefix": ""},
+        )
+        return {"stdout": format_vault_tool_result(result), "stderr": "", "exit_code": 0}
+    except KeyError as exc:
+        return {"stderr": str(exc), "stdout": "", "exit_code": 1}
+    except FileNotFoundError as exc:
+        return {"stderr": f"Not found: {exc}", "stdout": "", "exit_code": 1}
+    except OSError as exc:
+        return {"stderr": f"IO error: {exc}", "stdout": "", "exit_code": 1}
+    except Exception as exc:
+        return {"stderr": f"Error: {type(exc).__name__}: {exc}", "stdout": "", "exit_code": 1}
 
 # ---------------------------------------------------------------------------
 # MCP-backed tool helpers
@@ -881,20 +941,49 @@ async def _execute_tool_block_impl(
         result = await do_vault_unlock(content, owner=owner)
     elif tool.startswith("mcp__"):
         # MCP tool dispatch
-        mcp = get_mcp_manager()
-        if mcp:
-            try:
-                args = json.loads(content) if content.strip().startswith("{") else {}
-            except (json.JSONDecodeError, TypeError):
-                args = {}
-            desc = f"mcp: {tool}"
-            result = await mcp.call_tool(tool, args)
+        try:
+            args = json.loads(content) if content.strip().startswith("{") else {}
+        except (json.JSONDecodeError, TypeError):
+            args = {}
+        if not isinstance(args, dict):
+            args = {}
+        server_id, mcp_tool_name = _parse_mcp_tool_name(tool)
+        desc = f"mcp: {tool}"
+        if server_id == "vault" and mcp_tool_name:
+            result = _call_internal_vault_mcp(mcp_tool_name, args, owner)
         else:
-            desc = f"mcp: {tool}"
-            result = {"error": "MCP manager not available", "exit_code": 1}
+            mcp = get_mcp_manager()
+            if mcp:
+                result = await mcp.call_tool(tool, args)
+            else:
+                result = {"error": "MCP manager not available", "exit_code": 1}
     else:
-        desc = f"unknown: {tool}"
-        result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
+        try:
+            from src.tool_registry import execute_tool as execute_plugin_tool
+            from src.tool_registry import get_tool as get_plugin_tool
+
+            plugin_tool = get_plugin_tool(tool)
+        except Exception:
+            plugin_tool = None
+
+        if plugin_tool is not None:
+            if plugin_tool.permission == "admin" and not _owner_is_admin(owner):
+                desc = f"{tool}: BLOCKED"
+                result = {"error": f"Tool '{tool}' requires an admin user.", "exit_code": 1}
+                logger.warning("Admin plugin tool blocked for non-admin owner=%r tool=%s", owner, tool)
+            else:
+                desc = f"{tool}: plugin"
+                result = await execute_plugin_tool(
+                    tool,
+                    content,
+                    owner=owner,
+                    session_id=session_id,
+                    workspace=get_active_workspace(),
+                    progress_cb=progress_cb,
+                )
+        else:
+            desc = f"unknown: {tool}"
+            result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
 
     logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
     return desc, result

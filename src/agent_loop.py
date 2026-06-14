@@ -19,7 +19,12 @@ from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native
 from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.prompt_security import untrusted_context_message
-from src.tool_security import blocked_tools_for_owner, orchestrator_mode_disabled_tools, plan_mode_disabled_tools
+from src.tool_security import (
+    PUBLIC_MCP_SERVER_ALLOWLIST,
+    blocked_tools_for_owner,
+    orchestrator_mode_disabled_tools,
+    plan_mode_disabled_tools,
+)
 from src.tool_policy import GUIDE_ONLY_DIRECTIVE, ToolPolicy
 from src.tool_utils import _truncate, get_mcp_manager
 from src.agent_tools import (
@@ -641,7 +646,8 @@ _API_HOSTS = frozenset([
     "localhost", "127.0.0.1", "host.docker.internal",
 ])
 _MCP_KEYWORDS = frozenset(["mcp", "browse", "browser", "website", "calendar", "event", "email",
-                           "gmail", "screenshot", "navigate", "click", "miniflux", "rss", "feed"])
+                           "gmail", "screenshot", "navigate", "click", "miniflux", "rss", "feed",
+                           "obsidian", "vault", "note", "notes", "notiz"])
 _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens",
@@ -1826,6 +1832,79 @@ def _ensure_orchestrator_state_doc(*, owner: Optional[str], session_id: Optional
         logger.debug("[orchestrator] state-doc initialization skipped", exc_info=True)
 
 
+def _orchestrator_actions_snapshot(tool_events: list, *, limit: int = 6000) -> str:
+    if not tool_events:
+        return "(no tool actions recorded yet)"
+    parts = []
+    for event in tool_events[-20:]:
+        tool = event.get("tool", "?")
+        cmd = (event.get("command") or "").strip()
+        output = (event.get("output") or "").strip()
+        exit_code = event.get("exit_code")
+        head = f"round {event.get('round', '?')}: {tool}"
+        if cmd:
+            head += f" {cmd[:180]}"
+        if exit_code not in (None, 0):
+            head += f" (exit {exit_code})"
+        parts.append(head + ("\n" + output[:800] if output else ""))
+    snapshot = "\n\n".join(parts)
+    return snapshot[:limit] if len(snapshot) > limit else snapshot
+
+
+async def _run_orchestrator_reflector(
+    *,
+    owner: Optional[str],
+    session_id: Optional[str],
+    user_request: str,
+    tool_events: list,
+    trigger: str,
+    round_num: Optional[int] = None,
+) -> Optional[Dict]:
+    try:
+        from plugins.obsidian.backend import state_doc, vault_service
+        from plugins.obsidian.backend.vault_security import VaultSecurityError
+        from src.reflector_agent import run_reflector_assessment
+
+        try:
+            vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
+        except VaultSecurityError:
+            return None
+        doc = state_doc.read_state_doc(vault_dir)
+        if doc is None:
+            doc = state_doc.initialize_state_doc(
+                vault_dir,
+                owner=owner,
+                session_id=session_id,
+                goal=user_request,
+                checklist=["Reflect on current progress.", "Choose next step."],
+            )
+        result = await run_reflector_assessment(
+            owner=owner,
+            user_request=user_request,
+            state_doc_content=doc.content,
+            actions_snapshot=_orchestrator_actions_snapshot(tool_events),
+            trigger=trigger,
+            round_num=round_num,
+        )
+        if not result:
+            return None
+        state_doc.append_reflection_entry(
+            vault_dir,
+            owner=owner,
+            trigger=trigger,
+            status=str(result.get("status") or "ok"),
+            assessment=str(result.get("assessment") or ""),
+            risks=result.get("risks") if isinstance(result.get("risks"), list) else [],
+            next_step=str(result.get("next_step") or ""),
+            note=str(result.get("state_doc_note") or ""),
+            teacher_model=str(result.get("teacher_model") or ""),
+        )
+        return result
+    except Exception:
+        logger.debug("[orchestrator] reflector skipped", exc_info=True)
+        return None
+
+
 async def stream_agent_loop(
     endpoint_url: str,
     model: str,
@@ -1845,6 +1924,7 @@ async def stream_agent_loop(
     fallbacks: Optional[List[tuple]] = None,
     plan_mode: bool = False,
     orchestrator_mode: bool = False,
+    context_was_compacted: bool = False,
     approved_plan: Optional[str] = None,
     tool_policy: Optional[ToolPolicy] = None,
     workspace: Optional[str] = None,
@@ -1870,11 +1950,12 @@ async def stream_agent_loop(
             mcp_mgr = None
     guide_only = bool(tool_policy and tool_policy.mode == "guide_only")
     public_blocked_tools = blocked_tools_for_owner(owner)
+    public_mcp_allowlist = None
     if public_blocked_tools:
         disabled_tools.update(public_blocked_tools)
-        # MCP tools are namespaced dynamically, so hide all MCP schemas for
-        # public/non-admin users rather than trying to enumerate every tool.
-        mcp_mgr = None
+        # MCP tools are namespaced dynamically. Public users may use only the
+        # built-in vault MCP, which is owner-scoped below at execution time.
+        public_mcp_allowlist = PUBLIC_MCP_SERVER_ALLOWLIST
 
     if plan_mode:
         # Plan mode: investigate read-only, propose a plan, don't execute. The
@@ -1904,6 +1985,13 @@ async def stream_agent_loop(
         _retrieval_query[:200],
     )
     _mcp_disabled_map = _load_mcp_disabled_map() if mcp_mgr else {}
+    if mcp_mgr and public_mcp_allowlist is not None:
+        _mcp_tools_by_server: Dict[str, set] = {}
+        for _tool in mcp_mgr.get_all_tools({}):
+            _mcp_tools_by_server.setdefault(_tool["server_id"], set()).add(_tool["name"])
+        for _sid, _names in _mcp_tools_by_server.items():
+            if _sid not in public_mcp_allowlist:
+                _mcp_disabled_map.setdefault(_sid, set()).update(_names)
     if plan_mode and mcp_mgr:
         # Allow read-only MCP tools to investigate, block write/unknown ones:
         # hide them from the schemas AND reject them at runtime by qualified name.
@@ -2222,6 +2310,15 @@ async def stream_agent_loop(
     requested_model = model
     actual_model = model
     total_tool_calls = 0  # for budget enforcement
+    if orchestrator_mode and context_was_compacted and not _is_teacher_run:
+        await _run_orchestrator_reflector(
+            owner=owner,
+            session_id=session_id,
+            user_request=_last_user,
+            tool_events=tool_events,
+            trigger="context_compacted",
+            round_num=0,
+        )
 
     # Loop-breaker state. Small models (e.g. deepseek-v4-flash) can get
     # stuck firing the same tool call over and over with no text — burns
@@ -2705,6 +2802,15 @@ async def stream_agent_loop(
             reason = (f"calling {_runaway} with identical arguments over and over" if _runaway
                       else "repeating the same tool calls without new progress")
             logger.warning(f"[agent] loop-breaker tripped on round {round_num} ({reason}); sig={_sig[:80]!r}")
+            if orchestrator_mode and not _is_teacher_run:
+                await _run_orchestrator_reflector(
+                    owner=owner,
+                    session_id=session_id,
+                    user_request=_last_user,
+                    tool_events=tool_events,
+                    trigger="runaway:" + reason,
+                    round_num=round_num,
+                )
             # The model has been executing tools, so its results are already
             # in context. Force ONE tool-free round to converge: write the
             # answer from what it has, or state plainly what's blocking it.
@@ -3052,6 +3158,16 @@ async def stream_agent_loop(
         _append_tool_results(messages, round_response, native_tool_calls,
                              tool_results, tool_result_texts, used_native, round_num,
                              round_reasoning=round_reasoning)
+
+        if orchestrator_mode and not _is_teacher_run and round_num % 3 == 0:
+            await _run_orchestrator_reflector(
+                owner=owner,
+                session_id=session_id,
+                user_request=_last_user,
+                tool_events=tool_events,
+                trigger="periodic",
+                round_num=round_num,
+            )
 
         # Emit agent_step event
         yield (

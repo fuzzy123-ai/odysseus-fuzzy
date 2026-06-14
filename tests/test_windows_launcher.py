@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = ROOT / "launch-windows.ps1"
 RESTARTER = ROOT / "restart-windows.ps1"
 RUNNER = ROOT / "run-server-windows.ps1"
+WINDOWS_SCRIPTS = (LAUNCHER, RESTARTER, RUNNER)
 
 
 def _launcher_text() -> str:
@@ -44,6 +45,12 @@ def _assert_powershell_parses(script_name: str):
 
 def test_windows_launcher_parses_as_powershell():
     _assert_powershell_parses("launch-windows.ps1")
+
+
+def test_windows_scripts_force_utf8_python_stdio():
+    for script in WINDOWS_SCRIPTS:
+        text = script.read_text(encoding="utf-8")
+        assert '$env:PYTHONIOENCODING = "utf-8"' in text
 
 
 def test_windows_launcher_repairs_duplicate_path_keys_before_start_process():
@@ -125,4 +132,4 @@ def test_windows_server_runner_is_non_interactive_uvicorn_wrapper():
     assert "-m uvicorn app:app --host $BindHost --port $Port" in text
     assert "uvicorn-child" not in text
     assert "Repair-PathEnvironmentKeys" in text
-    assert "ODYSSEUS_DISABLE_USER_MCP" in text
+    assert "ODYSSEUS_DISABLE_MCP" in text

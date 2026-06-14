@@ -1188,6 +1188,7 @@ def setup_chat_routes(
                         fallbacks=_fallback_candidates,
                         plan_mode=plan_mode,
                         orchestrator_mode=orchestrator_mode,
+                        context_was_compacted=ctx.was_compacted,
                         approved_plan=approved_plan or None,
                         workspace=workspace or None,
                     ):

@@ -55,6 +55,7 @@ def initialize_state_doc(
         "## Checklist\n" + _format_checklist(checklist or []),
         "## Step Log\n",
         "## Delegations\n",
+        "## Reflections\n",
         "## Open Questions\n" + _format_bullets(open_questions or []),
     ]).rstrip() + "\n"
     _write_state_doc(vault_dir, frontmatter, body, owner=owner)
@@ -120,6 +121,43 @@ def append_delegation_entry(
     return updated
 
 
+def append_reflection_entry(
+    vault_dir: str,
+    *,
+    owner: Optional[str],
+    trigger: str,
+    status: str,
+    assessment: str = "",
+    risks: Optional[List[str]] = None,
+    next_step: str = "",
+    note: str = "",
+    teacher_model: str = "",
+) -> StateDoc:
+    doc = _require_state_doc(vault_dir)
+    reflected_at = utc_now_iso()
+    frontmatter = _touch(doc.frontmatter)
+    frontmatter["last_reflection_at"] = reflected_at
+    lines = [
+        f"- {reflected_at} [{_clean_inline(status)}] {_clean_inline(trigger)}",
+    ]
+    if teacher_model:
+        lines.append(f"  Teacher: {_clean_inline(teacher_model)}")
+    if assessment:
+        lines.append(f"  Assessment: {_clean_inline(assessment)}")
+    for risk in risks or []:
+        if risk:
+            lines.append(f"  Risk: {_clean_inline(risk)}")
+    if next_step:
+        lines.append(f"  Next: {_clean_inline(next_step)}")
+    if note:
+        lines.append(f"  Note: {_clean_inline(note)}")
+    body = _append_to_section(doc.body, "Reflections", "\n".join(lines))
+    _write_state_doc(vault_dir, frontmatter, body, owner=owner)
+    updated = read_state_doc(vault_dir)
+    assert updated is not None
+    return updated
+
+
 def _require_state_doc(vault_dir: str) -> StateDoc:
     doc = read_state_doc(vault_dir)
     if doc is None:
@@ -149,7 +187,9 @@ def _dump_frontmatter(frontmatter: Dict[str, Any]) -> str:
     for key in ("status", "owner", "session_id", "updated"):
         value = frontmatter.get(key, "")
         lines.append(f"{key}: {_yaml_scalar(value)}")
-    for key in sorted(k for k in frontmatter if k not in {"status", "owner", "session_id", "updated"}):
+    if "last_reflection_at" in frontmatter:
+        lines.append(f"last_reflection_at: {_yaml_scalar(frontmatter.get('last_reflection_at', ''))}")
+    for key in sorted(k for k in frontmatter if k not in {"status", "owner", "session_id", "updated", "last_reflection_at"}):
         lines.append(f"{key}: {_yaml_scalar(frontmatter[key])}")
     lines.append("---")
     return "\n".join(lines)

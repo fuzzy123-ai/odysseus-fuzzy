@@ -173,6 +173,48 @@ def test_state_doc_status_validation_and_update():
             state_doc.update_state_doc_status(tmpdir, owner=None, status="paused")
 
 
+def test_state_doc_append_reflection_updates_frontmatter_and_legacy_body():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        legacy_content = """---
+status: active
+owner: alice
+session_id: sess-legacy
+updated: 2026-01-01T00:00:00+00:00
+---
+# Active Run
+
+## Goal
+Keep going.
+
+## Delegations
+"""
+        vault_service.write_file(
+            tmpdir,
+            state_doc.STATE_DOC_PATH,
+            legacy_content,
+            owner="alice",
+            tool="test",
+        )
+
+        updated = state_doc.append_reflection_entry(
+            tmpdir,
+            owner="alice",
+            trigger="periodic",
+            status="risk",
+            assessment="Progress is drifting.",
+            risks=["Worker scope is broad."],
+            next_step="Delegate a narrower task.",
+            note="Refocus.",
+            teacher_model="teacher-model",
+        )
+
+        assert updated.frontmatter["last_reflection_at"]
+        assert "## Reflections" in updated.body
+        assert "[risk] periodic" in updated.body
+        assert "Teacher: teacher-model" in updated.body
+        assert "Risk: Worker scope is broad." in updated.body
+
+
 @pytest.mark.asyncio
 async def test_ai_status_returns_utility_model(monkeypatch):
     calls = []
@@ -384,7 +426,7 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
 
     assert len(names) == len(set(names))
     assert set(names) == set(VAULT_TOOL_BY_NAME)
-    assert {"vault_write", "vault_batch", "vault_delete", "vault_undo"} <= DESTRUCTIVE_TOOL_NAMES
+    assert {"obsidian_write_note", "vault_batch", "obsidian_delete_note", "obsidian_undo"} <= DESTRUCTIVE_TOOL_NAMES
     assert all("owner" not in spec.input_schema.get("properties", {}) for spec in VAULT_TOOL_SPECS)
 
 
@@ -393,7 +435,7 @@ def test_vault_tool_spec_executes_shared_service(monkeypatch):
         with open(os.path.join(tmpdir, "Demo.md"), "w", encoding="utf-8") as f:
             f.write("# Demo\n\nbody")
 
-        result = execute_vault_tool("vault_read", tmpdir, {"path": "Demo.md"}, "alice", {"source": "test"})
+        result = execute_vault_tool("obsidian_read_note", tmpdir, {"path": "Demo.md"}, "alice", {"source": "test"})
 
         assert result == "# Demo\n\nbody"
 
@@ -404,7 +446,7 @@ def test_vault_tool_spec_ignores_owner_argument():
             f.write("# Demo\n\nbody")
 
         result = execute_vault_tool(
-            "vault_status",
+            "obsidian_vault_stats",
             tmpdir,
             {"owner": "mallory"},
             "alice",
@@ -1752,6 +1794,7 @@ def test_plugin_setup_registration():
     assert registered_context_providers[0]["id"] == PROVIDER_ID
     assert registered_consolidation_jobs[0]["id"] == JOB_ID
     tool_names = {spec["name"] for spec in registered_tools}
+    permissions = {spec["name"]: spec.get("permission") for spec in registered_tools}
     assert PLUGIN["ui"]["open"] == "/api/plugins/obsidian/app"
     assert "obsidian_list_notes" in tool_names
     assert "obsidian_tree" in tool_names
@@ -1775,13 +1818,16 @@ def test_plugin_setup_registration():
     assert "obsidian_rename_item" in tool_names
     assert "obsidian_delete_note" in tool_names
     assert "obsidian_delete_folder" in tool_names
-    assert "obsidian_vault_status" in tool_names
     assert "obsidian_vault_set_password" in tool_names
     assert "obsidian_vault_lock" in tool_names
     assert "obsidian_vault_unlock" in tool_names
     assert "obsidian_vault_remove_password" in tool_names
     assert "obsidian_vault_export" in tool_names
     assert "obsidian_vault_import" in tool_names
+    assert permissions["obsidian_read_note"] == "user"
+    assert permissions["obsidian_write_note"] == "user"
+    assert permissions["obsidian_search_notes"] == "user"
+    assert permissions["obsidian_graph"] == "user"
 
 
 @pytest.mark.asyncio

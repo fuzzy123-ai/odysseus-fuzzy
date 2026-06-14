@@ -229,44 +229,44 @@ def _spark_apply(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[
 
 
 VAULT_TOOL_SPECS: List[VaultToolSpec] = [
-    VaultToolSpec("vault_tree", "List the folder tree of the Obsidian vault.", _schema({
+    VaultToolSpec("obsidian_tree", "List the folder tree of the Obsidian vault.", _schema({
         "prefix": {"type": "string", "description": "Path prefix to filter, e.g. 'projects/'"},
         "depth": {"type": "integer", "description": "Max folder depth."},
     }), "read", _tree),
-    VaultToolSpec("vault_read", "Read a markdown note from the vault.", _schema({
+    VaultToolSpec("obsidian_read_note", "Read a markdown note from the vault.", _schema({
         "path": {"type": "string", "description": "Path relative to the vault root."},
         "frontmatter_only": {"type": "boolean", "description": "Return only YAML frontmatter."},
     }, ["path"]), "read", _read),
-    VaultToolSpec("vault_search", "Full-text search across markdown notes.", _schema({
+    VaultToolSpec("obsidian_search_notes", "Full-text search across markdown notes.", _schema({
         "query": {"type": "string", "description": "Search query string."},
         "max_results": {"type": "integer", "description": "Max files to return."},
         "tag_filter": {"type": "string", "description": "Only include notes with this tag."},
     }, ["query"]), "read", _search),
-    VaultToolSpec("vault_semantic", "Semantic search across vault notes.", _schema({
+    VaultToolSpec("obsidian_search_semantic", "Semantic search across vault notes.", _schema({
         "query": {"type": "string", "description": "Natural language query."},
         "top_k": {"type": "integer", "description": "Number of results."},
     }, ["query"]), "read", _semantic),
-    VaultToolSpec("vault_tags", "List or suggest tags in the vault.", _schema({
+    VaultToolSpec("obsidian_list_tags", "List or suggest tags in the vault.", _schema({
         "prefix": {"type": "string", "description": "Optional prefix filter."},
     }), "read", _tags),
-    VaultToolSpec("vault_graph", "Return the vault graph.", _schema({
+    VaultToolSpec("obsidian_graph", "Return the vault graph.", _schema({
         "focus": {"type": "string", "description": "Focus note path."},
         "tag": {"type": "string", "description": "Filter graph to notes with this tag."},
     }), "read", _graph),
-    VaultToolSpec("vault_related", "Suggest notes related to a given note.", _schema({
+    VaultToolSpec("obsidian_suggest_links", "Suggest notes related to a given note.", _schema({
         "path": {"type": "string", "description": "Path to the note."},
         "top_k": {"type": "integer", "description": "Max suggestions."},
     }, ["path"]), "read", _related),
-    VaultToolSpec("vault_recent", "List recently modified notes.", _schema({
+    VaultToolSpec("obsidian_recent_notes", "List recently modified notes.", _schema({
         "since": {"type": "string", "description": "ISO datetime lower bound."},
         "until": {"type": "string", "description": "ISO datetime upper bound."},
     }), "read", _recent),
-    VaultToolSpec("vault_history", "Show recent vault action history.", _schema({
+    VaultToolSpec("obsidian_history", "Show recent vault action history.", _schema({
         "path": {"type": "string", "description": "Optional path filter."},
         "limit": {"type": "integer", "description": "Max entries."},
     }), "read", _history),
-    VaultToolSpec("vault_status", "Return vault status.", _schema({}), "read", _status),
-    VaultToolSpec("vault_write", "Create or update a markdown note.", _schema({
+    VaultToolSpec("obsidian_vault_stats", "Return vault status.", _schema({}), "read", _status),
+    VaultToolSpec("obsidian_write_note", "Create or update a markdown note.", _schema({
         "path": {"type": "string", "description": "Path relative to the vault root."},
         "content": {"type": "string", "description": "Full markdown content."},
         "frontmatter": {"type": "object", "description": "Frontmatter keys to merge."},
@@ -275,13 +275,13 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
         "operations": {"type": "array", "items": {"type": "object"}},
         "dry_run": {"type": "boolean", "description": "Preview without applying changes."},
     }, ["operations"]), "write", _batch),
-    VaultToolSpec("vault_delete", "Soft-delete a markdown note.", _schema({
+    VaultToolSpec("obsidian_delete_note", "Soft-delete a markdown note.", _schema({
         "path": {"type": "string", "description": "Path to delete."},
     }, ["path"]), "delete", _delete),
-    VaultToolSpec("vault_undo", "Undo a previous destructive vault action.", _schema({
+    VaultToolSpec("obsidian_undo", "Undo a previous destructive vault action.", _schema({
         "action_id": {"type": "string", "description": "Specific action ID, or omit for latest."},
     }), "write", _undo),
-    VaultToolSpec("vault_capture_memory", "Normalize and route a long-term memory capture. Defaults to preview; confirm=true applies the generated plan.", _schema({
+    VaultToolSpec("obsidian_memory_capture", "Normalize and route a long-term memory capture. Defaults to preview; confirm=true applies the generated plan.", _schema({
         "content": {"type": "string", "description": "Memory text to capture."},
         "title": {"type": "string", "description": "Optional title."},
         "kind": {"type": "string", "description": "decision, rule, preference, open_question, project_note, session_log, reference, or raw."},
@@ -295,19 +295,19 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
         "target": {"type": "string", "description": "auto, inbox, canonical, or append."},
         "confirm": {"type": "boolean", "description": "When true, apply the generated capture plan."},
     }, ["content"]), "write", _capture_memory),
-    VaultToolSpec("vault_spark_analyze", "Analyze long-term memory health without changing the vault.", _schema({
+    VaultToolSpec("obsidian_spark_analyze", "Analyze long-term memory health without changing the vault.", _schema({
         "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
         "path": {"type": "string", "description": "Folder prefix or current note path for scoped analysis."},
         "tag": {"type": "string", "description": "Tag for scoped analysis."},
         "limit": {"type": "integer", "description": "Maximum notes to analyze."},
     }), "read", _spark_analyze),
-    VaultToolSpec("vault_spark_plan", "Create a non-destructive Spark cleanup and canonicalization plan.", _schema({
+    VaultToolSpec("obsidian_spark_plan", "Create a non-destructive Spark cleanup and canonicalization plan.", _schema({
         "scope": {"type": "string", "description": "vault, folder, tag, or current_note."},
         "path": {"type": "string", "description": "Folder prefix or current note path for scoped planning."},
         "tag": {"type": "string", "description": "Tag for scoped planning."},
         "limit": {"type": "integer", "description": "Maximum notes to analyze."},
     }), "read", _spark_plan),
-    VaultToolSpec("vault_spark_apply", "Apply selected low/medium-risk Spark actions with confirmation.", _schema({
+    VaultToolSpec("obsidian_spark_apply", "Apply selected low/medium-risk Spark actions with confirmation.", _schema({
         "plan": {"type": "object", "description": "Spark plan returned by vault_spark_plan."},
         "confirm": {"type": "boolean", "description": "Must be true before changing the vault."},
         "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Action IDs to apply."},

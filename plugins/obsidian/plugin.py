@@ -792,7 +792,7 @@ async def handle_spark_apply(content: str, owner: Optional[str] = None, **kwargs
     except Exception as e:
         return {"error": f"Failed to apply Spark plan: {e}", "exit_code": 1}
 
-def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler):
+def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler, permission: str = "user"):
     return {
         "name": name,
         "tool_tag": name,
@@ -809,6 +809,7 @@ def _tool_spec(name: str, description: str, properties: dict, required: list[str
             },
         },
         "handler": handler,
+        "permission": permission,
     }
 
 def _register_tool(ctx, spec: dict) -> None:
@@ -972,7 +973,6 @@ def setup(ctx):
             "path": {"type": "string", "description": "The relative empty folder path to delete."},
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms deletion."},
         }, ["path"], handle_delete_folder),
-        _tool_spec("obsidian_vault_status", "Return Obsidian vault password-protection and lock status.", {}, [], handle_vault_status),
         _tool_spec("obsidian_vault_set_password", "Enable or replace password protection for the Obsidian vault.", {
             "password": {"type": "string", "description": "The vault password. Must not be logged or reused in URLs."},
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms changing password protection."},

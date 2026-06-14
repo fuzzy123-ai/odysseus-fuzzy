@@ -7,6 +7,8 @@ from typing import Optional, Set
 
 logger = logging.getLogger(__name__)
 
+PUBLIC_MCP_SERVER_ALLOWLIST = {"vault"}
+
 
 # Tools regular/public users must not execute directly. These either expose
 # server/runtime access, sensitive user data, external messaging, persistent
@@ -212,7 +214,11 @@ def is_public_blocked_tool(tool_name: Optional[str]) -> bool:
         return False
     if not isinstance(tool_name, str):
         return True
-    return tool_name in NON_ADMIN_BLOCKED_TOOLS or tool_name.startswith("mcp__")
+    if tool_name.startswith("mcp__"):
+        parts = tool_name.split("__", 2)
+        server_id = parts[1] if len(parts) == 3 else ""
+        return server_id not in PUBLIC_MCP_SERVER_ALLOWLIST
+    return tool_name in NON_ADMIN_BLOCKED_TOOLS
 
 
 def owner_is_admin_or_single_user(owner: Optional[str]) -> bool:

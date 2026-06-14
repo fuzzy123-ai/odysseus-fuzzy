@@ -55,7 +55,7 @@ TOOL_TAGS = {"bash", "python", "web_search", "web_fetch", "read_file", "write_fi
              "grep", "glob", "ls", "get_workspace",
              "create_document", "update_document", "edit_document",
              "search_chats",
-             "chat_with_model", "create_session", "list_sessions",
+             "chat_with_model", "create_session", "list_sessions", "delegate",
              "send_to_session",
              "pipeline",
              "manage_session", "manage_memory", "list_models",

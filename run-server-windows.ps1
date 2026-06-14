@@ -16,6 +16,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
+$env:PYTHONIOENCODING = "utf-8"
 
 $logDir = Join-Path $PSScriptRoot "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

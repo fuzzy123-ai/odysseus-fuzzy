@@ -10,6 +10,12 @@ import urllib.error
 import urllib.request
 
 
+def _configure_utf8_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def _usage() -> int:
     print("usage:", file=sys.stderr)
     print("  odysseus_api.py capabilities", file=sys.stderr)
@@ -223,7 +229,7 @@ def main() -> int:
 
     if not path.startswith("/"):
         path = "/" + path
-    if not path.startswith("/api/codex/"):
+    if not path.startswith(("/api/codex/", "/api/plugins/obsidian/")):
         print("refusing non-/api/codex path; use scoped Odysseus integration endpoints only", file=sys.stderr)
         return 2
 
@@ -249,7 +255,9 @@ def main() -> int:
     req = urllib.request.Request(base_url + path, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
-            print(resp.read().decode("utf-8"))
+            sys.stdout.buffer.write(resp.read())
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
             return 0
     except urllib.error.HTTPError as exc:
         text = exc.read().decode("utf-8", errors="replace")
@@ -261,4 +269,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _configure_utf8_stdio()
     raise SystemExit(main())
