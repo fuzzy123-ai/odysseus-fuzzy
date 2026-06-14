@@ -1,0 +1,14 @@
+{
+  "name": "obsidian",
+  "version": "0.10.0-rc.1",
+  "description": "Obsidian vault integration for Odysseus.",
+  "category": "productivity",
+  "entrypoint": "plugin.py",
+  "frontend": "/api/plugins/obsidian/web/main.js",
+  "permissions": ["filesystem"],
+  "ui": {
+    "open": "/api/plugins/obsidian/app",
+    "label": "Open Vault",
+    "script": "/api/plugins/obsidian/web/main.js"
+  }
+}
