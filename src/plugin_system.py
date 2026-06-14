@@ -432,7 +432,14 @@ class PluginManager:
                 if callable(setup):
                     setup(ctx)
                 rec.status, rec.error = "loaded", None
-                logger.info("Plugin loaded: %s", rec.plugin_id)
+                if ctx._tools:
+                    logger.info(
+                        "Plugin loaded: %s (registered %d tool(s))",
+                        rec.plugin_id,
+                        len(ctx._tools),
+                    )
+                else:
+                    logger.info("Plugin loaded: %s", rec.plugin_id)
                 return True
             except Exception:
                 rec.status, rec.error = "error", traceback.format_exc(limit=6)

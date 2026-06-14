@@ -107,7 +107,7 @@ def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
         _TOOLS[tool.name] = tool
         _bump_generation()
     _sync_legacy_schema_list(tool)
-    logger.info("Registered plugin tool: %s", tool.name)
+    logger.debug("Registered plugin tool: %s", tool.name)
     return tool
 
 

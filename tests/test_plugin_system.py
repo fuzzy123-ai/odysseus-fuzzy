@@ -79,6 +79,26 @@ CONTEXT_PLUGIN = '''
 '''
 
 
+TOOL_PLUGIN = '''
+    PLUGIN = {"name": "Tool Demo", "version": "0.1.0"}
+    def run(content, **kwargs):
+        return {"output": content, "exit_code": 0}
+    def setup(ctx):
+        ctx.register_tool({
+            "name": "tool_demo_one",
+            "description": "Demo tool one.",
+            "parameters": {"type": "object", "properties": {}},
+            "handler": run,
+        })
+        ctx.register_tool({
+            "name": "tool_demo_two",
+            "description": "Demo tool two.",
+            "parameters": {"type": "object", "properties": {}},
+            "handler": run,
+        })
+'''
+
+
 BROKEN_CONTEXT_PLUGIN = '''
     PLUGIN = {"name": "Broken Context", "version": "0.1.0"}
     def retrieve(owner, query, budget, mode):
@@ -125,6 +145,21 @@ def test_load_mounts_route_and_starts_service(env):
     assert mgr.load_enabled(app) == 1
     assert _routes(app) == ["/api/plugins/demo/ping"]
     assert mgr.list()[0]["status"] == "loaded"
+
+
+def test_plugin_tool_registration_logs_summary_not_each_tool(env, caplog):
+    pdir, _ = env
+    _write(pdir, "tooldemo", TOOL_PLUGIN)
+    app = FastAPI()
+    mgr = PluginManager(app=app, directory=pdir)
+
+    with caplog.at_level("INFO"):
+        assert mgr.load_enabled(app) == 1
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert "Plugin loaded: tooldemo (registered 2 tool(s))" in messages
+    assert not any(message.startswith("Registered plugin tool:") for message in messages)
+    mgr.shutdown_all()
 
 
 def test_disable_then_enable_toggles_routes_and_services(env):
