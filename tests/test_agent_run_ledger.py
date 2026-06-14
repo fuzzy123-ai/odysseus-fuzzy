@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src import agent_run_ledger
+from src.mission_status import summarize_mission
 
 
 def test_summarize_sse_delta_without_persisting_text():
@@ -82,6 +83,55 @@ def test_summarize_run_reports_status_tools_metrics_and_tail(tmp_path, monkeypat
     assert [event["event"] for event in summary["tail"]] == ["sse_event", "run_status"]
 
 
+def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-session"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_start", "tool": "delegate", "round": 1}\n\n',
+    )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "delegate", "round": 1, "exit_code": 0, "output": "worker done"}\n\n',
+    )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_start", "tool": "bash", "round": 2, "command": "python -m pytest tests/test_agent_run_ledger.py"}\n\n',
+    )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "bash", "round": 2, "exit_code": 0, "output": "passed"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    snapshot = summarize_mission(session_id, tail=1)
+
+    assert snapshot["status"] == "done"
+    assert snapshot["phases"]["manager"]["status"] == "done"
+    assert snapshot["phases"]["worker"]["status"] == "done"
+    assert snapshot["phases"]["worker"]["starts"] == 1
+    assert snapshot["phases"]["verifier"]["status"] == "done"
+    assert snapshot["phases"]["verifier"]["starts"] == 1
+    assert "run_focused_verification" not in snapshot["next_actions"]
+    assert "worker done" not in json.dumps(snapshot)
+    assert "passed" not in json.dumps(snapshot)
+
+
+def test_summarize_mission_marks_missing_verification_as_next_action(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-needs-verification"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_status(session_id, "done")
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "idle"
+    assert snapshot["next_actions"] == ["run_focused_verification"]
+
+
 def test_chat_run_ledger_route_returns_owner_scoped_summary(tmp_path, monkeypatch):
     import routes.chat_routes as chat_routes
 
@@ -111,6 +161,36 @@ def test_chat_run_ledger_route_returns_owner_scoped_summary(tmp_path, monkeypatc
     assert body["status"] == "done"
     assert body["active"] is False
     assert [event["event"] for event in body["tail"]] == ["run_status"]
+
+
+def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch):
+    import routes.chat_routes as chat_routes
+
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(chat_routes, "_verify_session_owner", lambda request, session_id: None)
+    monkeypatch.setattr(chat_routes.agent_runs, "is_active", lambda session_id: False)
+    monkeypatch.setattr(chat_routes.agent_runs, "get_status", lambda session_id: None)
+
+    agent_run_ledger.append_run_started("mission-route-session")
+    agent_run_ledger.append_status("mission-route-session", "done")
+
+    app = FastAPI()
+    app.include_router(chat_routes.setup_chat_routes(
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ))
+
+    response = TestClient(app).get("/api/chat/mission/mission-route-session?tail=1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mission_id"] == "mission-route-session"
+    assert body["phases"]["manager"]["status"] == "done"
+    assert body["next_actions"] == ["run_focused_verification"]
 
 
 def test_chat_run_ledger_route_404s_without_ledger_or_active_run(tmp_path, monkeypatch):

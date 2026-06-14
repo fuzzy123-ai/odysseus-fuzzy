@@ -17,6 +17,7 @@ from src.request_models import ChatRequest
 from src.llm_core import llm_call_async, stream_llm, stream_llm_with_fallback
 from src.agent_loop import stream_agent_loop
 from src import agent_run_ledger, agent_runs
+from src.mission_status import summarize_mission
 from src.model_context import estimate_tokens
 from src.chat_helpers import coerce_message_and_session
 from src.endpoint_resolver import normalize_base as _normalize_base, build_chat_url
@@ -1381,6 +1382,16 @@ def setup_chat_routes(
         if not summary["exists"] and not summary["active"]:
             raise HTTPException(404, "No run ledger for this session")
         return summary
+
+    @router.get("/api/chat/mission/{session_id}")
+    async def chat_mission_status(request: Request, session_id: str, tail: int = Query(20, ge=0, le=200)) -> Dict[str, Any]:
+        _verify_session_owner(request, session_id)
+        active = agent_runs.is_active(session_id)
+        memory_status = agent_runs.get_status(session_id)
+        snapshot = summarize_mission(session_id, tail=tail, active=active, memory_status=memory_status)
+        if not snapshot["ledger"]["exists"] and not snapshot["active"]:
+            raise HTTPException(404, "No mission snapshot for this session")
+        return snapshot
 
     # ------------------------------------------------------------------ #
     # POST /api/inject_context
