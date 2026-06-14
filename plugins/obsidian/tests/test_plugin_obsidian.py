@@ -493,6 +493,42 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert any("Freshness Gate filtered 1" in warning for warning in filtered_payload["warnings"])
 
 
+def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag_enabled(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: active\n"
+                "type: canonical\n"
+                "updated: 2026-06-14\n"
+                "---\n"
+                "# Active\n\nneedle current source.\n"
+            )
+        with open(os.path.join(tmpdir, "Conflict.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: unresolved_conflict\n"
+                "updated: 2026-06-14\n"
+                "---\n"
+                "# Conflict\n\nneedle conflicting source.\n"
+            )
+
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        monkeypatch.setattr("backend.context_provider.search_semantic", lambda *args, **kwargs: [])
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
+
+        payload = retrieve_vault_context("alice", "needle", 200, "chat")
+
+        assert [source["path"] for source in payload["sources"]] == ["Active.md"]
+        assert [snippet["path"] for snippet in payload["snippets"]] == ["Active.md"]
+        assert "Conflict.md" not in payload["structured_state"]
+        assert payload["memory"]["retrieval_filtering"] is True
+        assert payload["memory"]["excluded_relevant"][0]["path"] == "Conflict.md"
+        assert payload["memory"]["excluded_relevant"][0]["status"] == "conflict"
+        assert payload["memory"]["excluded_relevant"][0]["channel"] == "conflicts"
+        assert any("Freshness Gate filtered 1" in warning for warning in payload["warnings"])
+
+
 def test_obsidian_context_provider_respects_locked_vault(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
