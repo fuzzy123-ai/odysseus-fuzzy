@@ -4,6 +4,7 @@ import sys
 import tempfile
 import zipfile
 import json
+import hashlib
 import importlib
 from io import BytesIO
 from types import SimpleNamespace
@@ -530,6 +531,69 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
         assert status["enabled"] is False
         assert status["configured"] is False
         assert status["writes_supported"] is False
+
+
+def test_raptor_status_tracks_source_hash_lineage_without_writes():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Canon.md"), "w", encoding="utf-8") as f:
+            f.write("---\ntype: canonical\nupdated: 2026-06-14\n---\n# Canon\nStable source.\n")
+        source_hash = "sha256:" + hashlib.sha256(
+            "---\ntype: canonical\nupdated: 2026-06-14\n---\n# Canon\nStable source.\n".encode("utf-8")
+        ).hexdigest()
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"built_at": "2026-06-14T00:00:00Z", "source_hashes": {"Canon.md": source_hash}}, f)
+
+        before = set(os.listdir(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor")))
+        status = raptor_status(tmpdir)
+        after = set(os.listdir(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor")))
+
+        assert before == after
+        assert status["configured"] is True
+        assert status["dirty"] is False
+        assert status["tainted"] is False
+        assert status["lineage"]["source_count"] == 1
+        assert status["lineage"]["dirty_sources"] == []
+        assert status["lineage"]["missing_sources"] == []
+        assert status["lineage"]["tainted_sources"] == []
+
+
+def test_raptor_status_marks_changed_or_missing_sources_dirty():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Changed.md"), "w", encoding="utf-8") as f:
+            f.write("---\ntype: canonical\nupdated: 2026-06-14\n---\n# Changed\nNew content.\n")
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({
+                "source_hashes": {
+                    "Changed.md": "sha256:old",
+                    "Missing.md": "sha256:missing",
+                }
+            }, f)
+
+        status = raptor_status(tmpdir)
+
+        assert status["dirty"] is True
+        assert [item["path"] for item in status["lineage"]["dirty_sources"]] == ["Changed.md"]
+        assert status["lineage"]["missing_sources"] == ["Missing.md"]
+
+
+def test_raptor_status_marks_review_or_quarantined_sources_tainted():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = "---\nstatus: needs_review\n---\n# Candidate\nUnverified source.\n"
+        with open(os.path.join(tmpdir, "Candidate.md"), "w", encoding="utf-8") as f:
+            f.write(content)
+        source_hash = "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "summaries.json"), "w", encoding="utf-8") as f:
+            json.dump({"summaries": [{"source_hashes": {"Candidate.md": source_hash}}]}, f)
+
+        status = raptor_status(tmpdir)
+
+        assert status["dirty"] is False
+        assert status["tainted"] is True
+        assert status["lineage"]["tainted_sources"][0]["path"] == "Candidate.md"
+        assert status["lineage"]["tainted_sources"][0]["status"] == "needs_review"
 
 
 @pytest.mark.asyncio
