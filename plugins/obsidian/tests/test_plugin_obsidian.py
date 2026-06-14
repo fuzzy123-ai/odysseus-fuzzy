@@ -25,6 +25,7 @@ from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidati
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.routes import secure_path, get_file_tree
 from backend.tool_specs import DESTRUCTIVE_TOOL_NAMES, VAULT_TOOL_BY_NAME, VAULT_TOOL_SPECS, execute_vault_tool
+from backend.vault_rules import MAX_MARKDOWN_LINES, RULES_NOTE_PATH
 from backend.memory_capture import (
     MemoryCaptureApplyRequest,
     MemoryCaptureRequest,
@@ -325,12 +326,14 @@ def test_vault_service_tree_search_and_text_crud():
             tool="test",
         )
 
-        assert vault_service.markdown_notes(tmpdir) == ["Projects/Plan.md"]
+        notes = vault_service.markdown_notes(tmpdir)
+        assert "Projects/Plan.md" in notes
+        assert RULES_NOTE_PATH in notes
         assert vault_service.read_file(tmpdir, "Projects/Plan.md").startswith("# Plan")
 
         tree = vault_service.file_tree(tmpdir)
-        assert tree[0]["path"] == "Projects"
-        assert tree[0]["children"][0]["path"] == "Projects/Plan.md"
+        projects = next(item for item in tree if item["path"] == "Projects")
+        assert projects["children"][0]["path"] == "Projects/Plan.md"
 
         results = vault_service.search_markdown(tmpdir, "target")
         assert len(results) == 1
@@ -341,6 +344,51 @@ def test_vault_service_tree_search_and_text_crud():
         assert os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
         vault_service.delete_file(tmpdir, "Projects/Roadmap.md", owner="alice", tool="test")
         assert not os.path.exists(os.path.join(tmpdir, "Projects", "Roadmap.md"))
+
+
+def test_vault_write_enforces_rules_note_and_markdown_line_softcap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = "\n".join(f"line {i}" for i in range(MAX_MARKDOWN_LINES + 1))
+
+        result = vault_service.write_file(
+            tmpdir,
+            "Long.md",
+            content,
+            owner="alice",
+            tool="test",
+        )
+
+        assert result["success"] is True
+        assert result["line_count"] == MAX_MARKDOWN_LINES + 1
+        assert result["line_soft_cap"] == MAX_MARKDOWN_LINES
+        assert "softcap exceeded" in result["warning"]
+        assert os.path.exists(os.path.join(tmpdir, RULES_NOTE_PATH))
+
+
+def test_vault_batch_dry_run_does_not_create_rules_note_but_write_reports_softcap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = "\n".join(f"line {i}" for i in range(MAX_MARKDOWN_LINES + 1))
+
+        dry_run = vault_service.batch_operations(
+            tmpdir,
+            [{"action": "create_file", "path": "Long.md", "content": content}],
+            owner="alice",
+            tool="test",
+            dry_run=True,
+        )
+        assert dry_run["success"] is True
+        assert not os.path.exists(os.path.join(tmpdir, RULES_NOTE_PATH))
+
+        applied = vault_service.batch_operations(
+            tmpdir,
+            [{"action": "create_file", "path": "Long.md", "content": content}],
+            owner="alice",
+            tool="test",
+        )
+        assert applied["success"] is True
+        assert applied["results"][0]["line_count"] == MAX_MARKDOWN_LINES + 1
+        assert "softcap exceeded" in applied["warnings"][0]
+        assert os.path.exists(os.path.join(tmpdir, RULES_NOTE_PATH))
 
 
 def test_vault_service_locking_blocks_unlocked_resolution(monkeypatch):
@@ -735,6 +783,19 @@ async def test_tool_handlers_crud(monkeypatch):
         assert res["exit_code"] == 0
         assert "Project.md" in res["output"]
         assert "Line 1:" in res["output"]
+
+
+@pytest.mark.asyncio
+async def test_ai_write_note_surfaces_vault_rules_softcap_warning(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        content = "\n".join(f"line {i}" for i in range(MAX_MARKDOWN_LINES + 1))
+
+        res = await handle_write_note(json.dumps({"path": "Long.md", "content": content}))
+
+        assert res["exit_code"] == 0
+        assert "Warning:" in res["output"]
+        assert "softcap exceeded" in res["output"]
 
 
 @pytest.mark.asyncio

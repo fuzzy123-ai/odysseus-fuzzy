@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.constants import DATA_DIR
 
 from .vault_history import record_action
+from .vault_rules import apply_write_rule_metadata, ensure_rules_note
 from .vault_security import require_unlocked
 
 
@@ -130,6 +131,7 @@ def write_file(
     actor: Optional[Dict[str, Any]] = None,
     batch_id: Optional[str] = None,
 ) -> Dict[str, Any]:
+    ensure_rules_note(vault_dir)
     abs_path = secure_path(vault_dir, path)
     exists = os.path.exists(abs_path)
     if exists and os.path.isdir(abs_path):
@@ -152,7 +154,11 @@ def write_file(
         batch_id=batch_id,
         actor=actor,
     )
-    return {"success": True, "path": path, "created": not exists}
+    return apply_write_rule_metadata(
+        {"success": True, "path": path, "created": not exists},
+        path,
+        content,
+    )
 
 
 def create_file(
@@ -477,6 +483,7 @@ def merge_frontmatter(
     batch_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Merge new frontmatter keys into an existing markdown file (body unchanged)."""
+    ensure_rules_note(vault_dir)
     abs_path = secure_path(vault_dir, path)
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
@@ -521,7 +528,11 @@ def merge_frontmatter(
         batch_id=batch_id,
         actor=actor,
     )
-    return {"success": True, "path": path, "frontmatter": merged}
+    return apply_write_rule_metadata(
+        {"success": True, "path": path, "frontmatter": merged},
+        path,
+        new_content,
+    )
 
 
 # ── Batch operations ─────────────────────────────────────────────────────────
@@ -602,6 +613,7 @@ def batch_operations(
             "errors": errors,
         }
 
+    ensure_rules_note(vault_dir)
     batch_id = uuid.uuid4().hex
     before_after: Dict[str, Dict[str, Any]] = {}
 
@@ -623,7 +635,11 @@ def batch_operations(
                     fh.write(content)
                 tempfiles[tmp] = abs_path
                 before_after[path] = {"before": {}, "after": {"content": content}}
-                results.append({"action": "create_file", "path": path, "success": True})
+                results.append(apply_write_rule_metadata(
+                    {"action": "create_file", "path": path, "success": True},
+                    path,
+                    content,
+                ))
 
             elif action == "update_file":
                 content = op.get("content", "")
@@ -637,7 +653,11 @@ def batch_operations(
                     fh.write(content)
                 tempfiles[tmp] = abs_path
                 before_after[path] = {"before": {"content": before_content}, "after": {"content": content}}
-                results.append({"action": "update_file", "path": path, "success": True})
+                results.append(apply_write_rule_metadata(
+                    {"action": "update_file", "path": path, "success": True},
+                    path,
+                    content,
+                ))
 
             elif action == "delete_file":
                 if not os.path.exists(abs_path):
@@ -681,7 +701,11 @@ def batch_operations(
                     fh.write(new_content)
                 tempfiles[tmp] = abs_path
                 before_after[path] = {"before": {"content": content}, "after": {"content": new_content}}
-                results.append({"action": "merge_frontmatter", "path": path, "success": True})
+                results.append(apply_write_rule_metadata(
+                    {"action": "merge_frontmatter", "path": path, "success": True},
+                    path,
+                    new_content,
+                ))
 
         # All operations prepared — commit via os.replace()
         for tmp_path, final_path in tempfiles.items():
@@ -705,7 +729,11 @@ def batch_operations(
                 actor=actor,
             )
 
-        return {"success": True, "dry_run": False, "results": results, "count": len(results), "batch_id": batch_id}
+        warnings = [result["warning"] for result in results if result.get("warning")]
+        response = {"success": True, "dry_run": False, "results": results, "count": len(results), "batch_id": batch_id}
+        if warnings:
+            response["warnings"] = warnings
+        return response
 
     except (FileExistsError, FileNotFoundError, IsADirectoryError) as e:
         # Clean up tempfiles on failure

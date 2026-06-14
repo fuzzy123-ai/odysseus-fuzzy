@@ -258,14 +258,17 @@ async def handle_write_note(content: str, owner: Optional[str] = None, **kwargs)
         exists = os.path.exists(abs_path)
         if exists and not _is_confirmed(params):
             return _confirmation_required(f"overwriting {path}")
-        vault_service.write_file(
+        result = vault_service.write_file(
             vault_dir,
             path,
             note_content,
             owner=owner,
             tool="obsidian_write_note",
         )
-        return {"output": f"Successfully wrote note to {path}.", "exit_code": 0}
+        output = f"Successfully wrote note to {path}."
+        if result.get("warning"):
+            output += f"\nWarning: {result['warning']}"
+        return {"output": output, "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to write note: {e}", "exit_code": 1}
 

@@ -13,6 +13,7 @@ from src.tool_parsing import parse_tool_blocks
 from src.tool_registry import ToolSpec, get_tool, register_tool, unregister_tool
 from src.tool_schemas import function_call_to_tool_block
 from src.tool_security import blocked_tools_for_owner, is_public_blocked_tool
+from plugins.obsidian.backend.vault_rules import MAX_MARKDOWN_LINES, RULES_NOTE_PATH
 
 
 CANONICAL_VAULT_MCP_TOOLS = {
@@ -247,3 +248,21 @@ def test_obsidian_plugin_load_contract_registers_user_tools_and_logs_summary(obs
     assert f"Plugin loaded: obsidian (registered {len(tool_names)} tool(s))" in messages
     assert not any(message.startswith("Registered plugin tool:") for message in messages)
 
+
+def test_vault_rules_contract_creates_visible_rules_note_and_warns_on_large_markdown(tmp_path):
+    from plugins.obsidian.backend import vault_service
+
+    content = "\n".join(f"line {i}" for i in range(MAX_MARKDOWN_LINES + 1))
+
+    result = vault_service.write_file(
+        str(tmp_path),
+        "Oversized.md",
+        content,
+        owner="alice",
+        tool="contract",
+    )
+
+    assert (tmp_path / RULES_NOTE_PATH).exists()
+    assert result["line_count"] == MAX_MARKDOWN_LINES + 1
+    assert result["line_soft_cap"] == MAX_MARKDOWN_LINES
+    assert "Split this note" in result["warning"]

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from . import vault_service
 from .vault_model import build_vault_index, build_vault_embedding_index
+from .vault_rules import RULES_NOTE_PATH
 
 
 CANONICAL_PATHS = [
@@ -125,12 +126,12 @@ def analyze_memory_health(vault_dir: str, request: Optional[SparkAnalyzeRequest]
     ][:20]
 
     return SparkHealth(
-        total_notes=len(index.get("notes", [])),
-        total_tags=len(index.get("tags", [])),
+        total_notes=len(notes),
+        total_tags=len(tags),
         largest_tags=largest_tags,
         broad_tags=broad_tags,
         orphan_notes=orphan_notes,
-        review_queue_count=sum(1 for note in index.get("notes", []) if note.get("path", "").startswith("AI Memory/Review Queue/")),
+        review_queue_count=sum(1 for note in notes if note.get("path", "").startswith("AI Memory/Review Queue/")),
         canonical_coverage={path: os.path.exists(vault_service.secure_path(vault_dir, path)) for path in CANONICAL_PATHS},
         stale_open_questions=sorted(stale_open_questions, key=str.lower)[:50],
         missing_frontmatter=sorted(missing_frontmatter, key=str.lower)[:50],
@@ -323,6 +324,8 @@ def _filtered_notes(notes: List[Dict[str, Any]], request: SparkAnalyzeRequest) -
     result = []
     for note in notes:
         path = note.get("path", "")
+        if path == RULES_NOTE_PATH:
+            continue
         if any(part in IGNORED_DIRS for part in path.split("/")):
             continue
         if scope == "folder" and path_prefix and not path.startswith(path_prefix.rstrip("/") + "/"):
