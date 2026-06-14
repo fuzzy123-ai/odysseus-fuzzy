@@ -35,6 +35,47 @@ function _markIncognito(sid) {
   if (!ids.includes(sid)) { ids.push(sid); sessionStorage.setItem(_INCOGNITO_SESSIONS_KEY, JSON.stringify(ids)); }
 }
 function _isIncognitoSession(sid) { return _getIncognitoIds().includes(sid); }
+
+function _missionPhaseText(snapshot) {
+  const phases = (snapshot && snapshot.phases) || {};
+  return ['manager', 'worker', 'verifier']
+    .map((role) => {
+      const phase = phases[role] || {};
+      return `${role}: ${phase.status || 'idle'}`;
+    })
+    .join(' | ');
+}
+
+function _missionNextActionText(snapshot) {
+  const actions = Array.isArray(snapshot && snapshot.next_actions) ? snapshot.next_actions : [];
+  if (!actions.length) return '';
+  return ` Next: ${actions.map((action) => String(action).replace(/_/g, ' ')).join(', ')}`;
+}
+
+function _formatMissionSnapshot(snapshot) {
+  const status = (snapshot && snapshot.status) || 'unknown';
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionNextActionText(snapshot)}`;
+}
+
+async function inspectMissionStatus(sessionId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/chat/mission/${encodeURIComponent(sessionId)}?tail=8`, {
+      credentials: 'same-origin',
+    });
+    if (res.status === 404) {
+      uiModule.showToast('No mission status recorded for this session', 4000);
+      return;
+    }
+    if (!res.ok) {
+      throw new Error(`Mission status failed (${res.status})`);
+    }
+    const snapshot = await res.json();
+    uiModule.showToast(_formatMissionSnapshot(snapshot), { duration: 7000 });
+  } catch (e) {
+    console.error('Mission status failed:', e);
+    uiModule.showError(e && e.message ? e.message : 'Mission status failed');
+  }
+}
 async function _cleanupIncognitoSessions() {
   const ids = _getIncognitoIds();
   if (ids.length === 0) return;
@@ -460,6 +501,7 @@ function createSessionItem(s) {
   const _archiveIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>';
   const _deleteIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
   const _copyIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const _missionIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 7h6l1 2h9v7h-9l-1-2H4"/></svg>';
 
   const renameItem = document.createElement('div');
   renameItem.className = 'dropdown-item-compact';
@@ -536,6 +578,15 @@ function createSessionItem(s) {
     }
   });
 
+  const missionItem = document.createElement('div');
+  missionItem.className = 'dropdown-item-compact';
+  missionItem.innerHTML = _icon(_missionIcon) + '<span>Mission status</span>';
+  missionItem.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    dropdown.style.display = 'none';
+    await inspectMissionStatus(s.id);
+  });
+
   // Rename is already appended above (line 393)
 
   // "Select" — enter bulk select mode with this session pre-selected
@@ -562,6 +613,7 @@ function createSessionItem(s) {
   // Copy & Move to folder
   const folderItem = buildFolderSubmenu(s.id, s.folder, dropdown);
   dropdown.appendChild(copyItem);
+  dropdown.appendChild(missionItem);
   dropdown.appendChild(folderItem);
 
   // Separator before destructive actions

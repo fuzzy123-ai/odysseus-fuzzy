@@ -2,6 +2,7 @@ import sys
 import tempfile
 import types
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,6 +22,7 @@ _ENGINE = create_engine(
 )
 cdb.Base.metadata.create_all(_ENGINE)
 _TS = sessionmaker(bind=_ENGINE, autoflush=False, autocommit=False)
+_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _stub_multipart_if_missing(monkeypatch):
@@ -32,6 +34,15 @@ def _stub_multipart_if_missing(monkeypatch):
     stub = types.ModuleType("python_multipart")
     stub.__version__ = "0.0.20"
     monkeypatch.setitem(sys.modules, "python_multipart", stub)
+
+
+def test_session_menu_exposes_read_only_mission_status_action():
+    source = (_ROOT / "static" / "js" / "sessions.js").read_text(encoding="utf-8")
+
+    assert "Mission status" in source
+    assert "/api/chat/mission/${encodeURIComponent(sessionId)}?tail=8" in source
+    assert "No mission status recorded for this session" in source
+    assert "credentials: 'same-origin'" in source
 
 
 def test_list_sessions_status_calculation(monkeypatch):
