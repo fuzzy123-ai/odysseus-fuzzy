@@ -1,1 +1,0 @@
-# Obsidian plugin backend package
