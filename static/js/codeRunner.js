@@ -86,6 +86,24 @@ function showOutput(panel, text, isError) {
   }
 }
 
+function appendShellPolicy(panel, policy) {
+  if (!policy || !policy.tier) return;
+  const tier = String(policy.tier || 'unknown');
+  const detail = [
+    policy.reason ? String(policy.reason).replace(/_/g, ' ') : '',
+    policy.requires_confirmation ? 'confirmation required' : '',
+    policy.blocked ? 'blocked' : '',
+    policy.audit ? 'audit logged' : '',
+  ].filter(Boolean).join(' | ');
+  const el = document.createElement('div');
+  el.className = 'code-runner-policy';
+  el.setAttribute('data-shell-policy-tier', tier);
+  el.innerHTML = '<span>Shell policy</span><b></b><small></small>';
+  el.querySelector('b').textContent = tier;
+  el.querySelector('small').textContent = detail;
+  panel.appendChild(el);
+}
+
 /**
  * Legacy absolute-positioned copy button — replaced by the inline bar in
  * showOutput. Kept here as no-op so any earlier callers don't crash.
@@ -348,6 +366,7 @@ export async function runServer(code, panel, lang) {
       exitEl.textContent = 'Exit code: ' + data.exit_code;
       panel.appendChild(exitEl);
     }
+    appendShellPolicy(panel, data.policy);
   } catch (e) {
     showOutput(panel, 'Execution failed: ' + e.message, true);
   }

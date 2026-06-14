@@ -3911,6 +3911,33 @@ body.bg-pattern-sparkles {
     }
     .code-runner-error { color:var(--red); }
     .code-runner-loading { font-style:italic; color:var(--red); padding:4px 0; }
+    .code-runner-policy {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr);
+      gap: 7px;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .code-runner-policy b {
+      color: var(--fg);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .code-runner-policy small {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .code-runner-policy[data-shell-policy-tier="danger"] b,
+    .code-runner-policy[data-shell-policy-tier="blocked"] b {
+      color: var(--red);
+    }
     .code-runner-close {
       position:absolute; top:4px; right:4px;
       background:none; border:none; color:var(--fg);
