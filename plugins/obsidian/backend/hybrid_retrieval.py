@@ -152,12 +152,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     relevant_paths = {source.get("path") for source in payload.get("sources", []) if source.get("path")}
     prefiltered = payload.pop("_freshness_excluded", []) or []
     excluded = [
-        {
-            "path": item.get("path", ""),
-            "status": item.get("status", ""),
-            "channel": item.get("channel", ""),
-            "reason": item.get("reason", ""),
-        }
+        _exclusion_record(item)
         for item in prefiltered
         if item.get("path")
     ]
@@ -165,12 +160,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     for channel in ("needs_review", "conflicts", "quarantined"):
         for item in audit["channels"].get(channel, []):
             if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
-                excluded.append({
-                    "path": item["path"],
-                    "status": item["status"],
-                    "channel": channel,
-                    "reason": item["reason"],
-                })
+                excluded.append(_exclusion_record({**item, "channel": channel}))
                 seen_excluded.add(item["path"])
     memory = {
         "current": [
@@ -191,6 +181,18 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         warnings.append(f"Freshness Gate excluded {len(excluded)} relevant stale/conflicting/quarantined item(s).")
     payload["memory"] = memory
     return payload
+
+
+def _exclusion_record(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "path": item.get("path", ""),
+        "status": item.get("status", ""),
+        "channel": item.get("channel", ""),
+        "policy": item.get("policy", ""),
+        "reason": item.get("reason", ""),
+        "source_hash": item.get("source_hash", ""),
+        "source_mtime": item.get("source_mtime", ""),
+    }
 
 
 def _query_mentions(query: str, path: str) -> bool:

@@ -225,7 +225,10 @@ def _filter_notes_by_freshness_gate(vault_dir: str, notes: List[Dict[str, Any]])
                 "score": note.get("score", 0),
                 "status": record.get("status", ""),
                 "channel": record.get("channel", ""),
+                "policy": record.get("policy", ""),
                 "reason": record.get("reason", ""),
+                "source_hash": record.get("source_hash", ""),
+                "source_mtime": record.get("source_mtime", ""),
             })
         else:
             kept.append(note)

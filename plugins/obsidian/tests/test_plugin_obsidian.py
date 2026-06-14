@@ -490,6 +490,9 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert filtered_payload["memory"]["retrieval_filtering"] is True
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"
+        assert filtered_payload["memory"]["excluded_relevant"][0]["policy"] == "implementation_status"
+        assert filtered_payload["memory"]["excluded_relevant"][0]["source_hash"].startswith("sha256:")
+        assert filtered_payload["memory"]["excluded_relevant"][0]["source_mtime"].endswith("Z")
         assert any("Freshness Gate filtered 1" in warning for warning in filtered_payload["warnings"])
 
 
@@ -526,6 +529,8 @@ def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag
         assert payload["memory"]["excluded_relevant"][0]["path"] == "Conflict.md"
         assert payload["memory"]["excluded_relevant"][0]["status"] == "conflict"
         assert payload["memory"]["excluded_relevant"][0]["channel"] == "conflicts"
+        assert payload["memory"]["excluded_relevant"][0]["policy"] == "implementation_status"
+        assert payload["memory"]["excluded_relevant"][0]["source_hash"].startswith("sha256:")
         assert any("Freshness Gate filtered 1" in warning for warning in payload["warnings"])
 
 
