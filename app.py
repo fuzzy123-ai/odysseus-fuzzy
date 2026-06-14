@@ -685,6 +685,9 @@ app.include_router(setup_cookbook_routes())
 from routes.workspace_routes import setup_workspace_routes
 app.include_router(setup_workspace_routes())
 
+from routes.mount_routes import setup_mount_routes
+app.include_router(setup_mount_routes())
+
 # Hardware model fitting (cookbook "What Fits?" tab)
 from routes.hwfit_routes import setup_hwfit_routes
 app.include_router(setup_hwfit_routes())

@@ -140,7 +140,13 @@ def _tool_path_roots() -> list[str]:
     return out
 
 
-def _resolve_tool_path(raw_path: str) -> str:
+def _resolve_tool_path(
+    raw_path: str,
+    *,
+    owner: Optional[str] = None,
+    tool: Optional[str] = None,
+    mode: str = "read",
+) -> str:
     """Resolve and confine a model-supplied path.
 
     Order of checks:
@@ -155,11 +161,18 @@ def _resolve_tool_path(raw_path: str) -> str:
     When a workspace is active for this turn, paths are confined to it instead
     of the default allowlist (see _resolve_tool_path_in_workspace).
     """
+    if raw_path is None or not str(raw_path).strip():
+        raise ValueError("path is required")
+    try:
+        from core.path_resolver import is_virtual_mount_path, resolve_virtual_path
+        if is_virtual_mount_path(str(raw_path)):
+            return resolve_virtual_path(raw_path, owner=owner, tool=tool, mode=mode)
+    except ImportError:
+        pass
+
     ws = get_active_workspace()
     if ws:
         return _resolve_tool_path_in_workspace(ws, raw_path)
-    if raw_path is None or not str(raw_path).strip():
-        raise ValueError("path is required")
     expanded = os.path.expanduser(str(raw_path).strip())
     resolved = os.path.realpath(expanded)
 
@@ -274,7 +287,12 @@ def get_mcp_manager():
 
 
 
-def _resolve_search_root(raw_path: str) -> str:
+def _resolve_search_root(
+    raw_path: str,
+    *,
+    owner: Optional[str] = None,
+    tool: Optional[str] = None,
+) -> str:
     """Resolve + confine a code-nav path (grep/glob/ls).
 
     With a workspace active, the workspace folder is the root and a supplied
@@ -283,6 +301,13 @@ def _resolve_search_root(raw_path: str) -> str:
     global allowlist + sensitive-file policy.
     """
     raw = (raw_path or "").strip()
+    if raw:
+        try:
+            from core.path_resolver import is_virtual_mount_path, resolve_virtual_search_root
+            if is_virtual_mount_path(raw):
+                return resolve_virtual_search_root(raw, owner=owner, tool=tool)
+        except ImportError:
+            pass
     ws = get_active_workspace()
     if ws:
         return os.path.realpath(ws) if not raw else _resolve_tool_path_in_workspace(ws, raw)
@@ -442,11 +467,12 @@ async def _call_mcp_tool(
     tool: str,
     content: str,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
+    owner: Optional[str] = None,
 ) -> Dict:
     """Route a legacy tool call through the MCP manager, with direct fallbacks."""
     mcp = get_mcp_manager()
     if not mcp:
-        return await _direct_fallback(tool, content, progress_cb=progress_cb) or {"error": f"MCP manager not available for tool '{tool}'", "exit_code": 1}
+        return await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) or {"error": f"MCP manager not available for tool '{tool}'", "exit_code": 1}
 
     server_id, tool_name = _MCP_TOOL_MAP[tool]
     qualified = f"mcp__{server_id}__{tool_name}"
@@ -455,7 +481,7 @@ async def _call_mcp_tool(
 
     # If MCP server not connected, try direct fallback
     if isinstance(result, dict) and result.get("exit_code") == 1 and "not connected" in result.get("error", ""):
-        fallback = await _direct_fallback(tool, content, progress_cb=progress_cb)
+        fallback = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner)
         if fallback:
             return fallback
 
@@ -513,6 +539,7 @@ async def _direct_fallback(
     tool: str,
     content: str,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
+    owner: Optional[str] = None,
 ) -> Optional[Dict]:
     _subproc_env = {
         **os.environ,
@@ -526,6 +553,7 @@ async def _direct_fallback(
         ctx = {
             "progress_cb": progress_cb,
             "subproc_env": _subproc_env,
+            "owner": owner,
         }
 
         from src.agent_tools import TOOL_HANDLERS
@@ -824,12 +852,12 @@ async def _execute_tool_block_impl(
     if tool in _MCP_TOOL_MAP:
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
-        result = await _call_mcp_tool(tool, content, progress_cb=progress_cb)
+        result = await _call_mcp_tool(tool, content, progress_cb=progress_cb, owner=owner)
     elif tool in ("grep", "glob", "ls", "get_workspace"):
         # Code-navigation tools — no MCP server; run the direct implementation.
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
-        result = await _direct_fallback(tool, content, progress_cb=progress_cb) \
+        result = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool == "delegate":
         from src.delegate_tool import do_delegate
@@ -938,7 +966,7 @@ async def _execute_tool_block_impl(
         desc = "edit_image"
         result = await do_edit_image(content, owner=owner)
     elif tool == "edit_file":
-        result = await _direct_fallback(tool, content) or {"error": "edit failed", "exit_code": 1}
+        result = await _direct_fallback(tool, content, owner=owner) or {"error": "edit failed", "exit_code": 1}
         desc = result.get("output") or result.get("error") or "edit_file"
     elif tool == "trigger_research":
         desc = "trigger_research"

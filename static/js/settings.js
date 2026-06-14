@@ -38,6 +38,7 @@ function initTabs() {
       document.body.classList.toggle('settings-appearance-open', tab === 'appearance');
       syncAppearanceOpacity(tab === 'appearance');
       if (tab === 'ai') refreshAiModelEndpoints();
+      if (tab === 'mounts') loadMounts();
       if (tab === 'plugins') loadPlugins();
     });
   });
@@ -2203,6 +2204,7 @@ function initAll() {
   initEmailSettings();
   initEmailAccountsSettings();
   initReminderSettings();
+  initMounts();
   initUnifiedIntegrations();
 }
 
@@ -5211,6 +5213,186 @@ async function initUnifiedIntegrations() {
 }
 
 /* ── Plugins ── */
+let mountsInitialized = false;
+let mountsCache = [];
+
+async function mountJson(url, opts = {}) {
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    ...opts,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.error || `Mount API failed (${res.status})`);
+  return data;
+}
+
+function mountMsg(text, color = '') {
+  const msg = el('mounts-msg');
+  if (!msg) return;
+  msg.textContent = text || '';
+  msg.style.color = color;
+}
+
+function clearMountForm() {
+  const fields = {
+    'mount-name': '',
+    'mount-owner': 'default',
+    'mount-virtual-path': '/mnt/',
+    'mount-host-path': '',
+    'mount-allowed-tools': '',
+    'mount-description': '',
+  };
+  Object.entries(fields).forEach(([id, value]) => { const node = el(id); if (node) node.value = value; });
+  const readOnly = el('mount-read-only');
+  const enabled = el('mount-enabled');
+  if (readOnly) readOnly.checked = true;
+  if (enabled) enabled.checked = true;
+  const title = el('mounts-form-title');
+  if (title) title.textContent = 'Add Mount';
+  mountMsg('');
+}
+
+function fillMountForm(mount) {
+  const values = {
+    'mount-name': mount.name || '',
+    'mount-owner': mount.owner || 'default',
+    'mount-virtual-path': mount.virtual_path || '',
+    'mount-host-path': mount.host_path || '',
+    'mount-allowed-tools': (mount.allowed_tools || []).join(', '),
+    'mount-description': mount.description || '',
+  };
+  Object.entries(values).forEach(([id, value]) => { const node = el(id); if (node) node.value = value; });
+  const readOnly = el('mount-read-only');
+  const enabled = el('mount-enabled');
+  if (readOnly) readOnly.checked = !!mount.read_only;
+  if (enabled) enabled.checked = mount.enabled !== false;
+  const title = el('mounts-form-title');
+  if (title) title.textContent = `Edit ${mount.name || 'Mount'}`;
+  mountMsg('');
+}
+
+function collectMountForm() {
+  const tools = (el('mount-allowed-tools')?.value || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  return {
+    name: (el('mount-name')?.value || '').trim(),
+    owner: (el('mount-owner')?.value || 'default').trim() || 'default',
+    virtual_path: (el('mount-virtual-path')?.value || '').trim(),
+    host_path: (el('mount-host-path')?.value || '').trim(),
+    allowed_tools: tools,
+    description: (el('mount-description')?.value || '').trim(),
+    read_only: !!el('mount-read-only')?.checked,
+    enabled: !!el('mount-enabled')?.checked,
+  };
+}
+
+function renderMounts() {
+  const list = el('mounts-list');
+  if (!list) return;
+  if (!mountsCache.length) {
+    list.innerHTML = '<div class="admin-empty">No mounts configured</div>';
+    return;
+  }
+  list.innerHTML = mountsCache.map(mount => {
+    const tools = (mount.allowed_tools || []).length ? mount.allowed_tools.join(', ') : 'all file tools';
+    const state = mount.enabled === false ? 'Disabled' : (mount.read_only ? 'Read-only' : 'Writable');
+    return `<div class="admin-card" style="margin:0;padding:10px 12px;">
+      <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
+        <div style="min-width:0;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <strong>${esc(mount.virtual_path || mount.name || '')}</strong>
+            <span style="font-size:10px;border:1px solid var(--border);border-radius:5px;padding:1px 6px;opacity:0.75;">${esc(state)}</span>
+            <span style="font-size:10px;opacity:0.55;">${esc(mount.owner || 'default')}</span>
+          </div>
+          <div class="admin-toggle-sub" style="margin-top:3px;word-break:break-all;">${esc(mount.host_path || '')}</div>
+          <div class="admin-toggle-sub" style="margin-top:3px;">Tools: ${esc(tools)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="admin-btn-sm mount-edit-btn" data-owner="${esc(mount.owner || 'default')}" data-name="${esc(mount.name || '')}">Edit</button>
+          <button class="admin-btn-sm mount-validate-existing-btn" data-owner="${esc(mount.owner || 'default')}" data-name="${esc(mount.name || '')}">Validate</button>
+          <button class="admin-btn-delete mount-delete-btn" data-owner="${esc(mount.owner || 'default')}" data-name="${esc(mount.name || '')}">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadMounts() {
+  const list = el('mounts-list');
+  if (list) list.innerHTML = '<div class="admin-empty">Loading...</div>';
+  try {
+    const data = await mountJson('/api/mounts');
+    mountsCache = data.mounts || [];
+    renderMounts();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="admin-empty">Failed to load mounts: ${esc(err.message || err)}</div>`;
+  }
+}
+
+function initMounts() {
+  if (mountsInitialized) return;
+  mountsInitialized = true;
+  clearMountForm();
+  el('mount-clear-btn')?.addEventListener('click', clearMountForm);
+  el('mount-reload-btn')?.addEventListener('click', async () => {
+    try {
+      await mountJson('/api/mounts/reload', { method: 'POST' });
+      await loadMounts();
+      mountMsg('Mounts reloaded', 'var(--green,#50fa7b)');
+    } catch (err) {
+      mountMsg(err.message || 'Reload failed', 'var(--red)');
+    }
+  });
+  el('mount-validate-btn')?.addEventListener('click', async () => {
+    try {
+      await mountJson('/api/mounts/validate', { method: 'POST', body: JSON.stringify(collectMountForm()) });
+      mountMsg('Mount is valid', 'var(--green,#50fa7b)');
+    } catch (err) {
+      mountMsg(err.message || 'Validation failed', 'var(--red)');
+    }
+  });
+  el('mount-save-btn')?.addEventListener('click', async () => {
+    try {
+      await mountJson('/api/mounts', { method: 'POST', body: JSON.stringify(collectMountForm()) });
+      await loadMounts();
+      mountMsg('Mount saved', 'var(--green,#50fa7b)');
+    } catch (err) {
+      mountMsg(err.message || 'Save failed', 'var(--red)');
+    }
+  });
+  el('mounts-list')?.addEventListener('click', async (ev) => {
+    const edit = ev.target.closest('.mount-edit-btn');
+    const validate = ev.target.closest('.mount-validate-existing-btn');
+    const del = ev.target.closest('.mount-delete-btn');
+    const btn = edit || validate || del;
+    if (!btn) return;
+    const owner = btn.dataset.owner || 'default';
+    const name = btn.dataset.name || '';
+    const mount = mountsCache.find(m => (m.owner || 'default') === owner && m.name === name);
+    if (edit && mount) {
+      fillMountForm(mount);
+      return;
+    }
+    try {
+      if (validate) {
+        await mountJson(`/api/mounts/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/validate`, { method: 'POST' });
+        mountMsg('Mount is valid', 'var(--green,#50fa7b)');
+      } else if (del) {
+        if (!await uiModule.styledConfirm(`Delete mount "${name}"?`, { confirmText: 'Delete', danger: true })) return;
+        await mountJson(`/api/mounts/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        await loadMounts();
+        mountMsg('Mount deleted', 'var(--green,#50fa7b)');
+      }
+    } catch (err) {
+      mountMsg(err.message || 'Mount action failed', 'var(--red)');
+    }
+  });
+}
+
+/* ── Plugins ── */
 let pluginsInitialized = false;
 
 async function pluginJson(url, opts = {}) {
@@ -5401,6 +5583,7 @@ export function open(tab) {
   document.body.classList.toggle('settings-appearance-open', activeTab === 'appearance');
   syncAppearanceOpacity(activeTab === 'appearance');
   if (activeTab === 'ai') refreshAiModelEndpoints();
+  if (activeTab === 'mounts') loadMounts();
   if (activeTab === 'plugins') loadPlugins();
   if (ADMIN_TABS.has(activeTab) && window.adminModule && !window.adminModule._initialized) {
     window.adminModule._initData();

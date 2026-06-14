@@ -58,7 +58,7 @@ class EditFileTool:
         if not raw_path:
             return {"error": "edit_file: path required", "exit_code": 1}
         try:
-            path = _resolve_tool_path(raw_path)
+            path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="edit_file", mode="write")
         except ValueError as e:
             return {"error": f"edit_file: {e}", "exit_code": 1}
         if old == "":
@@ -118,7 +118,7 @@ class ReadFileTool:
             except (json.JSONDecodeError, TypeError, ValueError):
                 pass
         try:
-            path = _resolve_tool_path(raw_path)
+            path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="read_file", mode="read")
         except ValueError as e:
             return {"error": f"read_file: {e}", "exit_code": 1}
         try:
@@ -161,7 +161,7 @@ class WriteFileTool:
         raw_path = lines[0].strip()
         body = lines[1] if len(lines) > 1 else ""
         try:
-            path = _resolve_tool_path(raw_path)
+            path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="write_file", mode="write")
         except ValueError as e:
             return {"error": f"write_file: {e}", "exit_code": 1}
         try:
@@ -202,7 +202,7 @@ class LsTool:
         else:
             raw_path = _s.split("\n", 1)[0].strip()
         try:
-            root = _resolve_search_root(raw_path)
+            root = _resolve_search_root(raw_path, owner=ctx.get("owner"), tool="ls")
         except ValueError as e:
             return {"error": f"ls: {e}", "exit_code": 1}
 
@@ -254,7 +254,7 @@ class GlobTool:
         if not pattern:
             return {"error": "glob: pattern is required", "exit_code": 1}
         try:
-            root = _resolve_search_root(str(args.get("path", "")))
+            root = _resolve_search_root(str(args.get("path", "")), owner=ctx.get("owner"), tool="glob")
         except ValueError as e:
             return {"error": f"glob: {e}", "exit_code": 1}
 
@@ -313,7 +313,7 @@ class GrepTool:
             max_hits = _CODENAV_MAX_HITS
         max_hits = max(1, min(max_hits, _CODENAV_MAX_HITS))
         try:
-            root = _resolve_search_root(str(args.get("path", "")))
+            root = _resolve_search_root(str(args.get("path", "")), owner=ctx.get("owner"), tool="grep")
         except ValueError as e:
             return {"error": f"grep: {e}", "exit_code": 1}
 
