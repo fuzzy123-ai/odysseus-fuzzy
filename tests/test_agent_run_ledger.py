@@ -33,6 +33,22 @@ def test_summarize_tool_output_keeps_metadata_not_output():
     assert "very sensitive output" not in json.dumps(summary)
 
 
+def test_summarize_tool_start_adds_shell_policy_metadata():
+    summary = agent_run_ledger.summarize_sse_event(
+        'data: {"type": "tool_start", "tool": "bash", "round": 1, "command": "rm -rf build"}\n\n'
+    )
+
+    assert summary["type"] == "tool_start"
+    assert summary["command_preview"] == "rm -rf build"
+    assert summary["command_policy"] == {
+        "tier": "danger",
+        "reason": "dangerous_pattern",
+        "requires_confirmation": True,
+        "blocked": False,
+        "audit": True,
+    }
+
+
 def test_append_and_read_events_uses_safe_session_file(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
 

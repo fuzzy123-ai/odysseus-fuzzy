@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from src.constants import AGENT_RUN_LEDGER_DIR
+from src.shell_policy import classify_shell_command
 
 _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _MAX_PREVIEW_CHARS = 200
@@ -107,7 +108,13 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
         summary["tool"] = payload.get("tool")
         summary["round"] = payload.get("round")
         if kind == "tool_start" and payload.get("command"):
-            summary["command_preview"] = str(payload.get("command"))[:_MAX_PREVIEW_CHARS]
+            command = str(payload.get("command"))
+            summary["command_preview"] = command[:_MAX_PREVIEW_CHARS]
+            policy = classify_shell_command(command).to_dict()
+            summary["command_policy"] = {
+                key: policy[key]
+                for key in ("tier", "reason", "requires_confirmation", "blocked", "audit")
+            }
         if kind == "tool_output":
             summary["exit_code"] = payload.get("exit_code")
             summary["blocked"] = bool(payload.get("blocked", False))
