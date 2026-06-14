@@ -266,3 +266,20 @@ def test_vault_rules_contract_creates_visible_rules_note_and_warns_on_large_mark
     assert result["line_count"] == MAX_MARKDOWN_LINES + 1
     assert result["line_soft_cap"] == MAX_MARKDOWN_LINES
     assert "Split this note" in result["warning"]
+
+
+def test_vault_rules_are_documented_for_external_ai_clients():
+    from plugins.obsidian.backend.vault_rules import RULES_NOTE_CONTENT
+
+    root = Path(__file__).resolve().parents[1]
+    docs = [
+        RULES_NOTE_CONTENT,
+        (root / "plugins" / "obsidian" / "README.md").read_text(encoding="utf-8"),
+        (root / "integrations" / "codex" / "skills" / "odysseus" / "SKILL.md").read_text(encoding="utf-8"),
+        (root / "integrations" / "claude" / "skills" / "odysseus" / "SKILL.md").read_text(encoding="utf-8"),
+    ]
+
+    for text in docs:
+        assert "600" in text
+        assert "manageable AI context" in text
+        assert "split" in text.lower()

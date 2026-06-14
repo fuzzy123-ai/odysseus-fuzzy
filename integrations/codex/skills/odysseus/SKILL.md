@@ -144,6 +144,14 @@ If you are about to reach the Odysseus host/container, import app internals, que
 
 The Codex API supports reading, searching, and modifying the user's Obsidian vault. All vault access requires the vault to be unlocked in Odysseus Settings.
 
+Vault writing rules for external AI clients:
+
+- Keep each Markdown file at or below 600 lines.
+- The 600-line softcap keeps each note small enough for manageable AI context during retrieval, review, and follow-up edits.
+- If a note would exceed 600 lines, split it by topic, phase, date, or subcomponent and connect the parts with links or an index note.
+- Write responses may include `line_count`, `line_soft_cap`, and `warning`; treat a warning as an instruction to split or reorganize future writes.
+- The human-readable source of these rules is `AI Memory/Canonical/Vault Writing Rules.md` inside the vault.
+
 - `GET /api/plugins/obsidian/files` — List the vault file tree.
 - `GET /api/plugins/obsidian/file?path=...` — Read a note (returns `{"content": "..."}`).
 - `GET /api/plugins/obsidian/file/frontmatter?path=...` — Read only a note's YAML frontmatter.

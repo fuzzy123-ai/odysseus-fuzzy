@@ -97,6 +97,15 @@ The plugin registers Odysseus agent tools through `ctx.register_tool(...)` so AI
 
 Destructive or overwriting tool operations require explicit `confirm: true`.
 
+### Vault Writing Rules
+
+Odysseus maintains a visible rules note at `AI Memory/Canonical/Vault Writing Rules.md`.
+
+- Markdown files have a softcap of 600 lines per file.
+- The 600-line limit keeps each note small enough for manageable AI context during retrieval, review, and follow-up edits.
+- If content would exceed 600 lines, external AI clients should split it by topic, phase, date, or subcomponent and connect the parts with links or an index note.
+- Write responses may include `line_count`, `line_soft_cap`, and `warning`; agents should treat that warning as a request to split or reorganize future writes.
+
 ### Context Provider
 
 The plugin registers `obsidian.vault_context` through `ctx.register_context_provider(...)` when the host Odysseus fork exposes that API.

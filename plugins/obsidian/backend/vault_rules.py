@@ -32,8 +32,15 @@ These rules define how Odysseus agents should write information into this vault.
 ## Size
 
 - Keep individual Markdown files at or below {MAX_MARKDOWN_LINES} lines.
+- This keeps every file small enough to fit into a manageable AI context window during retrieval, review, and follow-up edits.
 - If a note would exceed {MAX_MARKDOWN_LINES} lines, split it by topic, phase, date, or subcomponent.
 - Use index notes to connect split files instead of creating one giant document.
+
+## External AI Agents
+
+- External AI clients that write through Odysseus, MCP, or scoped HTTP APIs must follow the same {MAX_MARKDOWN_LINES}-line Markdown softcap.
+- When a write response includes a line-count warning, treat it as an instruction to split the content before continuing.
+- Prefer several linked files with clear titles over one oversized note, so later agents can retrieve only the relevant context.
 
 ## Write Safety
 
