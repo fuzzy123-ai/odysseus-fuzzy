@@ -5242,12 +5242,20 @@ function clearMountForm() {
     'mount-host-path': '',
     'mount-allowed-tools': '',
     'mount-description': '',
+    'mount-write-extensions': '.md, .txt, .json, .yaml, .yml, .csv, .log, .py, .js, .ts, .css, .html',
+    'mount-max-bytes': '1000000',
   };
   Object.entries(fields).forEach(([id, value]) => { const node = el(id); if (node) node.value = value; });
   const readOnly = el('mount-read-only');
   const enabled = el('mount-enabled');
+  const writeEnabled = el('mount-write-enabled');
+  const createOnly = el('mount-create-only');
+  const backup = el('mount-backup');
   if (readOnly) readOnly.checked = true;
   if (enabled) enabled.checked = true;
+  if (writeEnabled) writeEnabled.checked = false;
+  if (createOnly) createOnly.checked = false;
+  if (backup) backup.checked = false;
   const title = el('mounts-form-title');
   if (title) title.textContent = 'Add Mount';
   mountMsg('');
@@ -5261,12 +5269,21 @@ function fillMountForm(mount) {
     'mount-host-path': mount.host_path || '',
     'mount-allowed-tools': (mount.allowed_tools || []).join(', '),
     'mount-description': mount.description || '',
+    'mount-write-extensions': ((mount.write_policy || {}).allowed_extensions || []).join(', '),
+    'mount-max-bytes': String((mount.write_policy || {}).max_bytes || 1000000),
   };
   Object.entries(values).forEach(([id, value]) => { const node = el(id); if (node) node.value = value; });
   const readOnly = el('mount-read-only');
   const enabled = el('mount-enabled');
+  const writePolicy = mount.write_policy || {};
+  const writeEnabled = el('mount-write-enabled');
+  const createOnly = el('mount-create-only');
+  const backup = el('mount-backup');
   if (readOnly) readOnly.checked = !!mount.read_only;
   if (enabled) enabled.checked = mount.enabled !== false;
+  if (writeEnabled) writeEnabled.checked = !!writePolicy.enabled;
+  if (createOnly) createOnly.checked = !!writePolicy.create_only;
+  if (backup) backup.checked = !!writePolicy.backup;
   const title = el('mounts-form-title');
   if (title) title.textContent = `Edit ${mount.name || 'Mount'}`;
   mountMsg('');
@@ -5274,6 +5291,10 @@ function fillMountForm(mount) {
 
 function collectMountForm() {
   const tools = (el('mount-allowed-tools')?.value || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  const writeExts = (el('mount-write-extensions')?.value || '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
@@ -5286,6 +5307,13 @@ function collectMountForm() {
     description: (el('mount-description')?.value || '').trim(),
     read_only: !!el('mount-read-only')?.checked,
     enabled: !!el('mount-enabled')?.checked,
+    write_policy: {
+      enabled: !!el('mount-write-enabled')?.checked,
+      create_only: !!el('mount-create-only')?.checked,
+      backup: !!el('mount-backup')?.checked,
+      allowed_extensions: writeExts,
+      max_bytes: parseInt(el('mount-max-bytes')?.value || '1000000', 10) || 1000000,
+    },
   };
 }
 
@@ -5298,7 +5326,8 @@ function renderMounts() {
   }
   list.innerHTML = mountsCache.map(mount => {
     const tools = (mount.allowed_tools || []).length ? mount.allowed_tools.join(', ') : 'all file tools';
-    const state = mount.enabled === false ? 'Disabled' : (mount.read_only ? 'Read-only' : 'Writable');
+    const writeEnabled = !!(mount.write_policy || {}).enabled;
+    const state = mount.enabled === false ? 'Disabled' : (writeEnabled ? 'Writable' : 'Read-only');
     return `<div class="admin-card" style="margin:0;padding:10px 12px;">
       <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
         <div style="min-width:0;">
@@ -5356,7 +5385,15 @@ function initMounts() {
   });
   el('mount-save-btn')?.addEventListener('click', async () => {
     try {
-      await mountJson('/api/mounts', { method: 'POST', body: JSON.stringify(collectMountForm()) });
+      const payload = collectMountForm();
+      if (payload.write_policy.enabled) {
+        const ok = await uiModule.styledConfirm(
+          `Enable writable access for "${payload.virtual_path}"?`,
+          { confirmText: 'Enable writes', danger: true }
+        );
+        if (!ok) return;
+      }
+      await mountJson('/api/mounts', { method: 'POST', body: JSON.stringify(payload) });
       await loadMounts();
       mountMsg('Mount saved', 'var(--green,#50fa7b)');
     } catch (err) {

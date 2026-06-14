@@ -2257,6 +2257,13 @@
                 <label class="admin-switch" title="Read-only"><input type="checkbox" id="mount-read-only" checked><span class="admin-slider"></span></label><span style="font-size:12px;opacity:0.75;">Read-only</span>
                 <label class="admin-switch" title="Enabled"><input type="checkbox" id="mount-enabled" checked><span class="admin-slider"></span></label><span style="font-size:12px;opacity:0.75;">Enabled</span>
               </div>
+              <div class="settings-row" style="align-items:center;gap:14px;">
+                <label class="admin-switch" title="Enable writes"><input type="checkbox" id="mount-write-enabled"><span class="admin-slider"></span></label><span style="font-size:12px;opacity:0.75;">Enable writes</span>
+                <label class="admin-switch" title="Create-only"><input type="checkbox" id="mount-create-only"><span class="admin-slider"></span></label><span style="font-size:12px;opacity:0.75;">Create-only</span>
+                <label class="admin-switch" title="Backup before overwrite"><input type="checkbox" id="mount-backup"><span class="admin-slider"></span></label><span style="font-size:12px;opacity:0.75;">Backup</span>
+              </div>
+              <div class="settings-row"><label class="settings-label">Write extensions</label><input id="mount-write-extensions" class="settings-input" placeholder=".md, .txt, .json"></div>
+              <div class="settings-row"><label class="settings-label">Max write bytes</label><input id="mount-max-bytes" class="settings-input" inputmode="numeric" placeholder="1000000"></div>
               <div class="settings-row" style="margin-top:6px;gap:6px;flex-wrap:wrap;">
                 <button class="admin-btn-add" id="mount-save-btn">Save Mount</button>
                 <button class="admin-btn-sm" id="mount-validate-btn">Validate</button>

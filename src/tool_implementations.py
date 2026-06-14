@@ -2223,6 +2223,7 @@ _APP_API_BLOCKLIST_PREFIXES = (
     "/api/tokens",         # api token mgmt (bare /api/tokens list+create must also block)
     "/api/admin",          # admin one-shots (wipe etc.)
     "/api/shell",          # host shell execution must stay behind named command tooling
+    "/api/mounts",         # mount management controls host filesystem exposure
     "/api/backup/restore", # destructive restore
 )
 

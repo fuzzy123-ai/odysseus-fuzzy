@@ -16,6 +16,26 @@ _CODENAV_SKIP_DIRS = frozenset({
 _CODENAV_MAX_HITS = 200
 _CODENAV_MAX_LINE = 400
 
+
+def _is_virtual_path(raw_path: str) -> bool:
+    try:
+        from core.path_resolver import is_virtual_mount_path
+        return is_virtual_mount_path(raw_path)
+    except Exception:
+        return False
+
+
+def _display_path(raw_path: str, resolved_path: str) -> str:
+    return raw_path.strip().replace("\\", "/") if _is_virtual_path(raw_path) else resolved_path
+
+
+def _tool_error(tool: str, exc: Exception) -> dict:
+    data = {"error": f"{tool}: {exc}", "exit_code": 1}
+    feedback = getattr(exc, "feedback", None)
+    if callable(feedback):
+        data["mount_feedback"] = feedback()
+    return data
+
 def _unified_diff(old: str, new: str, path: str) -> Optional[Dict[str, Any]]:
     if old == new:
         return None
@@ -60,7 +80,8 @@ class EditFileTool:
         try:
             path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="edit_file", mode="write")
         except ValueError as e:
-            return {"error": f"edit_file: {e}", "exit_code": 1}
+            return _tool_error("edit_file", e)
+        shown_path = _display_path(raw_path, path)
         if old == "":
             return {"error": "edit_file: old_string required (use write_file to create a file)", "exit_code": 1}
         if old == new:
@@ -76,30 +97,55 @@ class EditFileTool:
             if count > 1 and not replace_all:
                 return original, None, f"not_unique:{count}"
             updated = original.replace(old, new) if replace_all else original.replace(old, new, 1)
+            if _is_virtual_path(raw_path):
+                from core.path_resolver import resolve_virtual_path
+                resolve_virtual_path(
+                    raw_path,
+                    owner=ctx.get("owner"),
+                    tool="edit_file",
+                    mode="write",
+                    content_size=len(updated.encode("utf-8")),
+                )
             with open(path, "w", encoding="utf-8") as f:
                 f.write(updated)
             return original, updated, "ok"
 
         try:
+            if _is_virtual_path(raw_path):
+                from core.path_resolver import backup_virtual_target
+                await asyncio.to_thread(backup_virtual_target, raw_path, owner=ctx.get("owner"), target=path)
             original, updated, status = await asyncio.to_thread(_apply)
+            if _is_virtual_path(raw_path):
+                from core.path_resolver import audit_mount_write_success, verify_virtual_write_target, virtual_metadata
+                verify_virtual_write_target(raw_path, owner=ctx.get("owner"), tool="edit_file", target=path)
+                meta = virtual_metadata(raw_path, owner=ctx.get("owner"))
+                audit_mount_write_success(
+                    owner=ctx.get("owner"),
+                    mount=meta.get("mount"),
+                    virtual_path=meta.get("virtual_path") or raw_path,
+                    tool="edit_file",
+                    byte_count=len(updated or ""),
+                )
         except FileNotFoundError:
-            return {"error": f"edit_file: {path}: not found (use write_file to create it)", "exit_code": 1}
+            return {"error": f"edit_file: {shown_path}: not found (use write_file to create it)", "exit_code": 1}
         except (IsADirectoryError, UnicodeDecodeError):
-            return {"error": f"edit_file: {path}: not an editable text file", "exit_code": 1}
+            return {"error": f"edit_file: {shown_path}: not an editable text file", "exit_code": 1}
         except PermissionError:
-            return {"error": f"edit_file: {path}: permission denied", "exit_code": 1}
+            return {"error": f"edit_file: {shown_path}: permission denied", "exit_code": 1}
+        except ValueError as e:
+            return _tool_error("edit_file", e)
         except OSError as e:
-            return {"error": f"edit_file: {path}: {e}", "exit_code": 1}
+            return {"error": f"edit_file: {shown_path}: {e}", "exit_code": 1}
 
         if status == "not_found":
-            return {"error": f"edit_file: old_string not found in {path}. Read the file and match it exactly.", "exit_code": 1}
+            return {"error": f"edit_file: old_string not found in {shown_path}. Read the file and match it exactly.", "exit_code": 1}
         if status.startswith("not_unique"):
             n = status.split(":", 1)[1]
-            return {"error": f"edit_file: old_string is not unique in {path} ({n} matches). Add surrounding context or set replace_all=true.", "exit_code": 1}
+            return {"error": f"edit_file: old_string is not unique in {shown_path} ({n} matches). Add surrounding context or set replace_all=true.", "exit_code": 1}
 
         n = original.count(old)
-        result = {"output": f"Edited {path} ({n} replacement{'s' if n != 1 else ''})", "exit_code": 0}
-        diff = _unified_diff(original, updated, path)
+        result = {"output": f"Edited {shown_path} ({n} replacement{'s' if n != 1 else ''})", "exit_code": 0}
+        diff = _unified_diff(original, updated, shown_path)
         if diff:
             result["diff"] = diff
         return result
@@ -120,7 +166,8 @@ class ReadFileTool:
         try:
             path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="read_file", mode="read")
         except ValueError as e:
-            return {"error": f"read_file: {e}", "exit_code": 1}
+            return _tool_error("read_file", e)
+        shown_path = _display_path(raw_path, path)
         try:
             def _read():
                 if offset > 0 or limit > 0:
@@ -143,13 +190,13 @@ class ReadFileTool:
                     return f.read(MAX_READ_CHARS + 1)
             data = await asyncio.to_thread(_read)
         except FileNotFoundError:
-            return {"error": f"read_file: {path}: not found", "exit_code": 1}
+            return {"error": f"read_file: {shown_path}: not found", "exit_code": 1}
         except PermissionError:
-            return {"error": f"read_file: {path}: permission denied", "exit_code": 1}
+            return {"error": f"read_file: {shown_path}: permission denied", "exit_code": 1}
         except IsADirectoryError:
-            return {"error": f"read_file: {path}: is a directory (use ls)", "exit_code": 1}
+            return {"error": f"read_file: {shown_path}: is a directory (use ls)", "exit_code": 1}
         except OSError as e:
-            return {"error": f"read_file: {path}: {e}", "exit_code": 1}
+            return {"error": f"read_file: {shown_path}: {e}", "exit_code": 1}
         if not (offset > 0 or limit > 0) and len(data) > MAX_READ_CHARS:
             data = data[:MAX_READ_CHARS] + f"\n... [truncated at {MAX_READ_CHARS} chars]"
         return {"output": data, "exit_code": 0}
@@ -161,9 +208,10 @@ class WriteFileTool:
         raw_path = lines[0].strip()
         body = lines[1] if len(lines) > 1 else ""
         try:
-            path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="write_file", mode="write")
+            path = _resolve_tool_path(raw_path, owner=ctx.get("owner"), tool="write_file", mode="write", content_size=len(body.encode("utf-8")))
         except ValueError as e:
-            return {"error": f"write_file: {e}", "exit_code": 1}
+            return _tool_error("write_file", e)
+        shown_path = _display_path(raw_path, path)
         try:
             def _write():
                 old = ""
@@ -178,13 +226,29 @@ class WriteFileTool:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(body)
                 return old, len(body)
+            if _is_virtual_path(raw_path):
+                from core.path_resolver import backup_virtual_target
+                await asyncio.to_thread(backup_virtual_target, raw_path, owner=ctx.get("owner"), target=path)
             old_content, size = await asyncio.to_thread(_write)
+            if _is_virtual_path(raw_path):
+                from core.path_resolver import audit_mount_write_success, verify_virtual_write_target, virtual_metadata
+                verify_virtual_write_target(raw_path, owner=ctx.get("owner"), tool="write_file", target=path)
+                meta = virtual_metadata(raw_path, owner=ctx.get("owner"))
+                audit_mount_write_success(
+                    owner=ctx.get("owner"),
+                    mount=meta.get("mount"),
+                    virtual_path=meta.get("virtual_path") or raw_path,
+                    tool="write_file",
+                    byte_count=size,
+                )
         except PermissionError:
-            return {"error": f"write_file: {path}: permission denied", "exit_code": 1}
+            return {"error": f"write_file: {shown_path}: permission denied", "exit_code": 1}
+        except ValueError as e:
+            return _tool_error("write_file", e)
         except OSError as e:
-            return {"error": f"write_file: {path}: {e}", "exit_code": 1}
-        diff = _unified_diff(old_content, body, path)
-        result = {"output": f"Wrote {size} bytes to {path}", "exit_code": 0}
+            return {"error": f"write_file: {shown_path}: {e}", "exit_code": 1}
+        diff = _unified_diff(old_content, body, shown_path)
+        result = {"output": f"Wrote {size} bytes to {shown_path}", "exit_code": 0}
         if diff:
             result["diff"] = diff
         return result
@@ -204,11 +268,12 @@ class LsTool:
         try:
             root = _resolve_search_root(raw_path, owner=ctx.get("owner"), tool="ls")
         except ValueError as e:
-            return {"error": f"ls: {e}", "exit_code": 1}
+            return _tool_error("ls", e)
+        shown_root = _display_path(raw_path, root) if raw_path else root
 
         def _ls():
             if not os.path.isdir(root):
-                return None, f"ls: {root}: not a directory"
+                return None, f"ls: {shown_root}: not a directory"
             rows = []
             try:
                 with os.scandir(root) as it:
@@ -224,7 +289,7 @@ class LsTool:
             except (PermissionError, OSError) as _e:
                 return None, f"ls: {_e}"
             rows.sort(key=lambda r: (not r[0], r[1].lower()))
-            lines = [f"{root}:"]
+            lines = [f"{shown_root}:"]
             for is_dir, name, size in rows[:_CODENAV_MAX_HITS]:
                 lines.append(f"  {name}/" if is_dir else f"  {name}  ({size} B)")
             if len(rows) > _CODENAV_MAX_HITS:
@@ -256,7 +321,8 @@ class GlobTool:
         try:
             root = _resolve_search_root(str(args.get("path", "")), owner=ctx.get("owner"), tool="glob")
         except ValueError as e:
-            return {"error": f"glob: {e}", "exit_code": 1}
+            return _tool_error("glob", e)
+        shown_root = _display_path(str(args.get("path", "")), root) if str(args.get("path", "")) else root
 
         def _glob():
             from pathlib import Path
@@ -284,8 +350,11 @@ class GlobTool:
         if err:
             return {"error": err, "exit_code": 1}
         if not paths:
-            return {"output": f"No files matching {pattern!r} under {root}", "exit_code": 0}
-        out = "\n".join(paths)
+            return {"output": f"No files matching {pattern!r} under {shown_root}", "exit_code": 0}
+        if _is_virtual_path(str(args.get("path", ""))):
+            out = "\n".join(p.replace(root, shown_root, 1) for p in paths)
+        else:
+            out = "\n".join(paths)
         if len(paths) >= _CODENAV_MAX_HITS:
             out += f"\n... [capped at {_CODENAV_MAX_HITS} files]"
         return {"output": _truncate(out), "exit_code": 0}
@@ -315,7 +384,8 @@ class GrepTool:
         try:
             root = _resolve_search_root(str(args.get("path", "")), owner=ctx.get("owner"), tool="grep")
         except ValueError as e:
-            return {"error": f"grep: {e}", "exit_code": 1}
+            return _tool_error("grep", e)
+        shown_root = _display_path(str(args.get("path", "")), root) if str(args.get("path", "")) else root
 
         def _grep():
             import re as _re
@@ -373,8 +443,11 @@ class GrepTool:
         if err:
             return {"error": err, "exit_code": 1}
         if not lines:
-            return {"output": f"No matches for {pattern!r} under {root}", "exit_code": 0}
-        out = "\n".join(ln[:_CODENAV_MAX_LINE] for ln in lines)
+            return {"output": f"No matches for {pattern!r} under {shown_root}", "exit_code": 0}
+        if _is_virtual_path(str(args.get("path", ""))):
+            out = "\n".join(ln.replace(root, shown_root, 1)[:_CODENAV_MAX_LINE] for ln in lines)
+        else:
+            out = "\n".join(ln[:_CODENAV_MAX_LINE] for ln in lines)
         if len(lines) >= max_hits:
             out += f"\n... [capped at {max_hits} matches]"
         return {"output": _truncate(out), "exit_code": 0}

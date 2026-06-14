@@ -146,6 +146,7 @@ def _resolve_tool_path(
     owner: Optional[str] = None,
     tool: Optional[str] = None,
     mode: str = "read",
+    content_size: Optional[int] = None,
 ) -> str:
     """Resolve and confine a model-supplied path.
 
@@ -166,7 +167,7 @@ def _resolve_tool_path(
     try:
         from core.path_resolver import is_virtual_mount_path, resolve_virtual_path
         if is_virtual_mount_path(str(raw_path)):
-            return resolve_virtual_path(raw_path, owner=owner, tool=tool, mode=mode)
+            return resolve_virtual_path(raw_path, owner=owner, tool=tool, mode=mode, content_size=content_size)
     except ImportError:
         pass
 
