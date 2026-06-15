@@ -113,10 +113,13 @@ The plugin registers `obsidian.vault_context` through `ctx.register_context_prov
 Provider contract:
 
 - Input: `owner`, `query`, `budget`, and `mode`.
-- Output: `structured_state`, `snippets`, `sources`, `warnings`, and `cache_key`.
+- Output: `structured_state`, `snippets`, `sources`, `warnings`, `cache_key`, and read-only `memory` diagnostics.
+- Capabilities: `chat`, `agent`, `vault`, `markdown`, `memory`, `readiness`, `freshness_gate`, `raptor`, and `hybrid_retrieval`.
 - Frontmatter/properties are returned as structured state for machine-readable facts.
 - Markdown body excerpts are returned as untrusted snippets.
 - Sources include note path, title, tags, score, and match reason.
+- Memory diagnostics include `readiness_gate`, `retrieval_policy`, `freshness_isolation_flags`, `raptor_lineage_flags`, and `raptor_write_gate`.
+- Odysseus core forwards those diagnostics through a separate `Provider diagnostics` context message so readiness and isolation state are visible without duplicating note body content.
 - Identical vault/query/budget output produces a stable cache key.
 - Locked vaults return no note content and include a warning.
 
@@ -211,8 +214,8 @@ Implemented in the active Fuzzy/Odysseus branch:
 - Phase 0: current Obsidian UI/graph stabilization and release-candidate preparation.
 - Phase 1: generic Core plugin API for context providers and consolidation-job specs.
 - Phase 2: plugin-internal vault service layer reused by routes and agent tools.
-- Phase 3: `obsidian.vault_context` read-only provider with Frontmatter-first structured state, untrusted snippets, sources, warnings, stable cache key, and locked-vault safety.
-- Phase 4: Core Context-Orchestrator for chat and agent mode with provider preloading, stable prompt prefix, token budgeting, and final overflow guard.
+- Phase 3: `obsidian.vault_context` read-only provider with Frontmatter-first structured state, untrusted snippets, sources, warnings, stable cache key, memory/readiness diagnostics, and locked-vault safety.
+- Phase 4: Core Context-Orchestrator for chat and agent mode with provider preloading, provider capability metadata, provider diagnostics, stable prompt prefix, token budgeting, and final overflow guard.
 - Phase 5: preventive history compaction and persistent task-state blocks.
 - Phase 6: background consolidation jobs. The Obsidian job writes `.obsidian/consolidation_report.json` with duplicate-title candidates, orphan-note candidates, and frontmatter suggestions. It never deletes or rewrites notes.
 - Phase 7: rollout docs, feature flags, and regression tests. Core feature flags are `context_provider_preload` and `consolidation_jobs`.
@@ -278,7 +281,7 @@ node --check plugins/obsidian/frontend/main.js
 ## Files
 
 - `plugin.py` - Odysseus plugin manifest, setup hook, and agent tool handlers.
-- `backend/context_provider.py` - read-only vault context provider for the Odysseus context-orchestrator API.
+- `backend/context_provider.py` - read-only vault context provider for the Odysseus context-orchestrator API, including memory/readiness diagnostics.
 - `backend/consolidation_job.py` - non-destructive vault consolidation report job.
 - `backend/vault_service.py` - shared vault path, file, search, tree, and mutation helpers used by routes, tools, and the context provider.
 - `backend/routes.py` - FastAPI routes and request models.
