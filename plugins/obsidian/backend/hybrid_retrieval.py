@@ -153,19 +153,24 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
 
 def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
+    freshness_filtering = (
+        is_enabled("obsidian_hybrid_retrieval_enabled")
+        and is_enabled("obsidian_freshness_gate_enabled")
+    )
     relevant_paths = {source.get("path") for source in payload.get("sources", []) if source.get("path")}
     prefiltered = payload.pop("_freshness_excluded", []) or []
     excluded = [
         _exclusion_record(item)
         for item in prefiltered
         if item.get("path")
-    ]
+    ] if freshness_filtering else []
     seen_excluded = {item["path"] for item in excluded}
-    for channel in ("needs_review", "conflicts", "quarantined"):
-        for item in audit["channels"].get(channel, []):
-            if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
-                excluded.append(_exclusion_record({**item, "channel": channel}))
-                seen_excluded.add(item["path"])
+    if freshness_filtering:
+        for channel in ("needs_review", "conflicts", "quarantined"):
+            for item in audit["channels"].get(channel, []):
+                if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
+                    excluded.append(_exclusion_record({**item, "channel": channel}))
+                    seen_excluded.add(item["path"])
     memory = {
         "current": [
             {"path": item["path"], "status": item["status"], "policy": item["policy"]}
@@ -176,7 +181,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "conflicts": audit["channels"]["conflicts"][:25],
         "quarantined": audit["channels"]["quarantined"][:25],
         "excluded_relevant": excluded[:25],
-        "retrieval_filtering": is_enabled("obsidian_hybrid_retrieval_enabled"),
+        "retrieval_filtering": freshness_filtering,
         "raptor": raptor_status(vault_dir),
         "flags": all_flags(),
     }

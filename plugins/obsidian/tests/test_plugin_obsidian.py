@@ -496,6 +496,37 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert any("Freshness Gate filtered 1" in warning for warning in filtered_payload["warnings"])
 
 
+def test_obsidian_context_provider_keeps_default_context_when_freshness_gate_disabled(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: active\n"
+                "type: canonical\n"
+                "updated: 2026-06-14\n"
+                "---\n"
+                "# Active\n\nneedle current source.\n"
+            )
+        with open(os.path.join(tmpdir, "Stale.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: stale\n---\n# Stale\n\nneedle stale source.\n")
+
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        monkeypatch.setattr("backend.context_provider.search_semantic", lambda *args, **kwargs: [])
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_FRESHNESS_GATE_ENABLED", "false")
+
+        payload = retrieve_vault_context("alice", "needle", 200, "chat")
+
+        assert {source["path"] for source in payload["sources"]} == {"Active.md", "Stale.md"}
+        assert {snippet["path"] for snippet in payload["snippets"]} == {"Active.md", "Stale.md"}
+        assert "Stale.md" in payload["structured_state"]
+        assert payload["memory"]["retrieval_filtering"] is False
+        assert payload["memory"]["excluded_relevant"] == []
+        assert payload["memory"]["flags"]["obsidian_hybrid_retrieval_enabled"] is True
+        assert payload["memory"]["flags"]["obsidian_freshness_gate_enabled"] is False
+        assert not any("Freshness Gate filtered" in warning for warning in payload["warnings"])
+
+
 def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag_enabled(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:

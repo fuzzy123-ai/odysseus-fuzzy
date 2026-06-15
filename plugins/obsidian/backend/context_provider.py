@@ -138,8 +138,12 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
 
     # Re-sort after enrichments
     notes.sort(key=lambda item: (-item["score"], item["path"].lower()))
+    freshness_filtering = (
+        is_enabled("obsidian_hybrid_retrieval_enabled")
+        and is_enabled("obsidian_freshness_gate_enabled")
+    )
     freshness_excluded: List[Dict[str, Any]] = []
-    if is_enabled("obsidian_hybrid_retrieval_enabled"):
+    if freshness_filtering:
         notes, freshness_excluded = _filter_notes_by_freshness_gate(vault_dir, notes)
         if freshness_excluded:
             warnings.append(f"Freshness Gate filtered {len(freshness_excluded)} stale/review/conflict/quarantined note(s) from retrieval.")
