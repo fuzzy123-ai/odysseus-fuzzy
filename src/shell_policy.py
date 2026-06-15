@@ -59,13 +59,15 @@ CAUTION_COMMANDS = {
 }
 
 DANGER_RE = re.compile(
-    r"(^|\s)(rm\s+(-[A-Za-z]*r[A-Za-z]*f|-rf|-fr)\b|dd\s+|mkfs(\.\w+)?\b|"
+    r"(^|[\s\"'])(rm\s+(-[A-Za-z]*r[A-Za-z]*f|-rf|-fr)\b|dd\s+|mkfs(\.\w+)?\b|"
+    r"(remove-item|rm|del|erase|rmdir|rd)\b(?=[^\n;&|]*\s-(recurse|r)\b)(?=[^\n;&|]*\s-(force|fo)\b)|"
     r"chmod\s+777\b|chown\s+|sudo\b|kill(all)?\b|shutdown\b|reboot\b|"
     r":\s*\(\s*\)\s*\{|\s>\s*/dev/(sd|hd|nvme|mapper/))",
     re.IGNORECASE,
 )
 PIPE_TO_SHELL_RE = re.compile(
-    r"\b(base64\s+(-d|--decode)|curl\b|wget\b).*(\||&&).*\b(sh|bash|zsh|powershell)\b",
+    r"\b(base64\s+(-d|--decode)|curl\b|wget\b|iwr\b|irm\b|invoke-webrequest\b|invoke-restmethod\b)"
+    r".*(\||&&).*\b(sh|bash|zsh|powershell|pwsh|iex|invoke-expression)\b",
     re.IGNORECASE | re.DOTALL,
 )
 
