@@ -525,6 +525,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "Default retrieval isolation" in main_js
     assert "excluded from default context when Freshness Gate filtering is active" in main_js
     assert "default_retrieval" in main_js
+    assert "summary.default_retrieval" in main_js
+    assert "summary.isolated" in main_js
     assert "isolation_reason" in main_js
     assert "source_mtime" in main_js
     assert "source_hash" in main_js

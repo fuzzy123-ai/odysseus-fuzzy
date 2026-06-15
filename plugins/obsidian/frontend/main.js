@@ -3105,6 +3105,8 @@ function renderKnowledgeAudit() {
       { label: 'Needs review', value: summary.needs_review || 0 },
       { label: 'Conflicts', value: summary.conflicts || 0 },
       { label: 'Quarantined', value: summary.quarantined || 0 },
+      { label: 'Default retrieval', value: summary.default_retrieval || 0 },
+      { label: 'Isolated', value: summary.isolated || 0 },
     ])}
     ${renderRetrievalIsolationNotice({
       conflicts: channels.conflicts || [],
@@ -3129,6 +3131,8 @@ function renderQuarantineList() {
     ${memoryMetricGrid([
       { label: 'Items', value: quarantineReport.summary?.total || 0 },
       { label: 'Gate', value: quarantineReport.enabled ? 'on' : 'off' },
+      { label: 'Default retrieval', value: quarantineReport.summary?.default_retrieval || 0 },
+      { label: 'Isolated', value: quarantineReport.summary?.isolated || 0 },
     ])}
     ${renderRetrievalIsolationNotice({
       conflicts: (quarantineReport.items || []).filter(item => item.status === 'conflict' || item.channel === 'conflicts'),
