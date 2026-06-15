@@ -80,7 +80,10 @@ async def test_delegate_injects_provider_warning_context(monkeypatch, tmp_path):
     captured = {}
 
     def retrieve(**kwargs):
-        return {"warnings": ["vault locked"]}
+        return {
+            "memory": {"summary": {"warnings": ["vault locked", "vault locked"]}},
+            "warnings": [],
+        }
 
     register_context_provider({
         "id": "test.delegate_context",

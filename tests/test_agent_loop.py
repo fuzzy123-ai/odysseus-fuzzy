@@ -133,6 +133,37 @@ def test_agent_provider_context_injects_warning_messages():
     assert messages[-1]["content"] == "work"
 
 
+def test_agent_provider_context_injects_nested_memory_warnings():
+    from src.plugin_system import register_context_provider, unregister_context_provider
+
+    def retrieve(**kwargs):
+        return {
+            "memory": {"summary": {"warnings": ["Freshness Gate filtered 1 stale item(s)."]}},
+            "warnings": [],
+        }
+
+    register_context_provider({
+        "id": "demo.agent_context",
+        "label": "Demo Agent Context",
+        "capabilities": ["agent"],
+        "retrieve": retrieve,
+    })
+    try:
+        messages = _inject_context_provider_messages(
+            [{"role": "system", "content": "BASE"}, {"role": "user", "content": "work"}],
+            owner="alice",
+            query="work",
+            context_length=1000,
+        )
+    finally:
+        unregister_context_provider("demo.agent_context")
+
+    assert messages[0]["content"] == "BASE"
+    assert messages[1]["content"].startswith("Provider warnings:")
+    assert "demo.agent_context: Freshness Gate filtered 1 stale item(s)." in messages[1]["content"]
+    assert messages[-1]["content"] == "work"
+
+
 def test_agent_provider_context_skips_when_disabled():
     messages = [{"role": "system", "content": "BASE"}, {"role": "user", "content": "work"}]
 

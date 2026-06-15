@@ -140,7 +140,10 @@ def test_chat_preface_injects_provider_warnings():
         "id": "demo.warning_context",
         "label": "Demo Warning Context",
         "capabilities": ["chat"],
-        "retrieve": lambda **kwargs: {"warnings": ["vault locked"]},
+        "retrieve": lambda **kwargs: {
+            "memory": {"summary": {"warnings": ["vault locked", "vault locked"]}},
+            "warnings": [],
+        },
     })
     processor = ChatProcessor(memory_manager=_Memory(), personal_docs_manager=_Docs())
 
