@@ -23,6 +23,7 @@ import backend.routes as obsidian_routes
 from backend import vault_service
 from backend import state_doc
 import backend.memory_status as memory_status_backend
+import backend.tool_specs as tool_specs_backend
 from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidation
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.freshness import audit_knowledge, quarantine_list
@@ -1489,6 +1490,42 @@ def test_vault_tool_spec_executes_shared_service(monkeypatch):
         result = execute_vault_tool("obsidian_read_note", tmpdir, {"path": "Demo.md"}, "alice", {"source": "test"})
 
         assert result == "# Demo\n\nbody"
+
+
+def test_vault_tool_spec_exposes_unified_memory_status_contract(monkeypatch):
+    expected = {
+        "read_only": True,
+        "writes_supported": False,
+        "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+        "retrieval_policy": {"filtering_state": "audit_only"},
+        "freshness_isolation_flags": {"needs_review": True},
+        "raptor_lineage_flags": {"dirty": True},
+        "raptor_write_gate": {"state": "blocked", "writes_supported": False},
+        "warnings": ["Freshness Gate filtered 1 stale item(s)."],
+        "summary": {
+            "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+            "warnings": ["Freshness Gate filtered 1 stale item(s)."],
+        },
+    }
+    monkeypatch.setattr(tool_specs_backend, "memory_status", lambda vault_dir: expected)
+
+    result = execute_vault_tool(
+        "obsidian_memory_status",
+        "vault",
+        {"owner": "mallory"},
+        "alice",
+        {"source": "test"},
+    )
+
+    assert result is expected
+    assert result["read_only"] is True
+    assert result["writes_supported"] is False
+    assert result["warnings"] == result["summary"]["warnings"]
+    assert result["summary"]["readiness_gate"] == result["readiness_gate"]
+    assert result["retrieval_policy"]["filtering_state"] == "audit_only"
+    assert result["freshness_isolation_flags"]["needs_review"] is True
+    assert result["raptor_lineage_flags"]["dirty"] is True
+    assert result["raptor_write_gate"]["writes_supported"] is False
 
 
 def test_vault_tool_spec_ignores_owner_argument():
