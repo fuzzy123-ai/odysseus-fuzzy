@@ -1362,6 +1362,10 @@ def test_raptor_status_reports_invalid_readiness_gap():
         assert status["summary"]["invalid_sources"] == 1
         assert status["summary"]["readiness_state"] == "invalid"
         assert status["summary"]["readiness_gaps"] == 1
+        assert status["warnings"] == [
+            "RAPTOR index metadata is invalid; rebuild remains disabled in the MVP."
+        ]
+        assert status["summary"]["warnings"] == status["warnings"]
 
 
 def test_raptor_status_marks_review_or_quarantined_sources_tainted():

@@ -611,6 +611,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.writes_supported" in main_js
     assert "Lineage flags" in main_js
     assert "summary.writes_supported ?? raptorReport.writes_supported" in main_js
+    assert "renderMemoryWarnings(raptorReport)" in main_js
     assert "lineage.dirty_sources" in main_js
     assert "lineage.missing_sources" in main_js
     assert "lineage.tainted_sources" in main_js

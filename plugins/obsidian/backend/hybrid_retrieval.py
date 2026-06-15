@@ -159,6 +159,11 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
     readiness_signal = _readiness_signal("raptor", readiness)
     readiness_gate = readiness_gate_from_signals([readiness_signal])
     write_gate = _raptor_write_gate(flags)
+    warnings: List[str] = []
+    if invalid_index:
+        warnings.append("RAPTOR index metadata is invalid; rebuild remains disabled in the MVP.")
+    if invalid_summaries:
+        warnings.append("RAPTOR branch summaries metadata is invalid; rebuild remains disabled in the MVP.")
     return {
         "enabled": flags.get("obsidian_raptor_enabled", False),
         "configured": index_present or summaries_present,
@@ -190,8 +195,10 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_gate": readiness_gate,
             "write_gate": write_gate,
             "writes_supported": False,
+            "warnings": warnings,
         },
         "writes_supported": False,
+        "warnings": warnings,
         "message": "RAPTOR rebuild/write is disabled in the MVP; status is read-only.",
     }
 

@@ -3349,6 +3349,7 @@ function renderRaptorStatus() {
         <code>${escapeHtml(raptorReport.index_path || '')}</code>
         <code>${escapeHtml(raptorReport.summaries_path || '')}</code>
       </div>
+      ${renderMemoryWarnings(raptorReport)}
       ${renderMemoryRecordList('Dirty sources', raptorDirtySourceRecords(lineage), 'No dirty sources')}
       ${renderMemoryRecordList('Missing sources', raptorMissingSourceRecords(lineage), 'No missing sources')}
       ${renderMemoryRecordList('Tainted sources', raptorTaintedSourceRecords(lineage), 'No tainted sources')}
