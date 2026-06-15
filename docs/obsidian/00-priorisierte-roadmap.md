@@ -1,6 +1,6 @@
 # Odysseus Obsidian Plugin: Feature-Ready Roadmap
 
-Stand: 2026-06-12
+Stand: 2026-06-15
 
 Dieses Dokument ist die einzige aktive Planungsquelle fuer das Obsidian-Plugin. Die frueheren Einzelplaene zu Import/Export, Tags, Graph, Dateibaum, Editor, Settings, KI-Steuerung, Tests, Migration und Phase-Status wurden hier konsolidiert. Alte Planungsdateien sollen nicht wiederbelebt werden; neue Erkenntnisse gehoeren in diese Roadmap.
 
@@ -17,7 +17,7 @@ Das Obsidian-Plugin ist kein Fundament-Prototyp mehr. Es ist ein natives Odysseu
 - Memory Review mit Save-to-Obsidian-Preview und Apply
 - Cytoscape-basiertem Graph-Renderer mit SVG-Fallback
 
-Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer fehlen nicht mehr grosse Grundfunktionen, sondern Haertung, Vertragsklarheit, Graph-Interaktionen, Browser-Verifikation, Release-Dokumentation und einige bewusst abgegrenzte UX-Flows.
+Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Browser-Verifikation fuer Auth/App-Shell und den Full-App-Graph-Filter-Pfad ist dokumentiert gruen. Offene RC-Arbeit liegt jetzt vor allem in Release-Dokumentation, manueller Distributionspruefung, fokussierter Sicherheitsklarheit und dem finalen internen RC-Checkpoint.
 
 ## Aktueller Status
 
@@ -51,7 +51,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 - Unterstuetzte Relationship-Typen: `manual`, `relates_to`, `depends_on`, `blocks`, `supports`.
 - Cytoscape ist als lokales Asset gebuendelt; SVG bleibt Fallback.
 - Graph-Klick auf eine Markdown-Node oeffnet die Notiz; Klick auf die aktuelle Node wechselt zur Dokumentansicht.
-- Der aktuelle Arbeitsbaum enthaelt bereits einen Ansatz, bei dem Dateibaum-Klicks im Graph-Modus den Graph neu fokussieren und die aktuelle Notiz hervorheben. Das braucht noch Browser-Smoke und UX-Haertung.
+- Dateibaum-Klicks im Graph-Modus koennen den Graph neu fokussieren und die aktuelle Notiz hervorheben; isolierte und Full-App-Browser-Smokes fuer diesen Pfad sind dokumentiert gruen. Weitere UX-Haertung wie Zoom/Pan und Root-/Ordner-Sonderfaelle bleibt ein Restthema, aber kein offener Nachweis-Gap mehr.
 - Projektplanung unterstuetzt Templates, Prompt-Verbesserung, GameDev-Concept-Draft, Preview, Streaming, Sessions, Konflikterkennung und Apply.
 - Memory Review unterstuetzt `memory_only`, `save_to_obsidian`, `append_to_note` und `discard`.
 - Agent-Tools decken Kernaktionen, Graph, Relationships, History/Undo, Vault-Sicherheit, Projektplanung und Memory Review ab.
@@ -68,9 +68,6 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 ### Noch offen fuer Feature-Ready
 
-- App-Shell- und Auth-Browser-Smoke fuer `/api/plugins/obsidian/app` ist gruen: App-Shell/Web-Assets laden ohne Auth, CSP blockiert den Bootstrap nicht, Datenroute bleibt 401 ohne Session, echter Browser-Login funktioniert, `/files` liefert fuer die authentifizierte Smoke-Vault 200.
-- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt, Tree-Klick auf `Alpha.md` bleibt im Graph-Modus und ruft `/graph?focus=Alpha.md` erfolgreich auf. Ein isolierter Browser-Harness prueft Graph-Filter-Rendering mit echtem Cytoscape-Asset, `hidden`/`highlighted`-Klassen und sichtbarer Current-Node. Der Full-App-Smoke prueft zusaetzlich echte App-Routen, sichtbares Filter-Panel, `highlight`-Suche und `hide`-Suche.
-- Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select sind fuer den RC-MVP vorhanden.
 - API-/Tool-/UI-Vertragsmatrix, damit jede relevante UI-Aktion einem Route- und Tool-Weg zugeordnet ist.
 - Release-Blocker-Liste als pruefbare Checkliste.
 - Import-Dry-Run und Konfliktvorschau.
@@ -78,12 +75,13 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 - Memory Review: Queue, Duplikaterkennung und klare Speicherentscheidung.
 - Performance-Gate fuer groessere Vaults.
 - Release-Dokumentation fuer Installation, Update, Versionierung und bekannte Einschraenkungen.
+- Manuelle RC-Checks ausserhalb der bestehenden Browser-Smokes: frische Installation, Upgrade-Pfad, Export/Import in leerem Vault und Release-Zip-Struktur.
 
 ## Release-Ziel
 
 ### Zielversion
 
-Naechster sinnvoller Schnitt: `0.10.0-rc.1` oder `0.10.0`, je nach Ergebnis der Browser- und Auth-Smokes.
+Naechster sinnvoller Schnitt bleibt `0.10.0-rc.1` als interner RC-Checkpoint. `0.10.0` sollte erst nach bestaetigter manueller Distributionspruefung und expliziter Release-Freigabe folgen.
 
 `1.0.0` sollte erst kommen, wenn mindestens ein kompletter externer Installations- und Updatepfad getestet ist und die Graph-/Vault-Sicherheitsgates wiederholbar gruen sind.
 
@@ -456,9 +454,8 @@ Die folgenden Inhalte wurden in diese Roadmap uebernommen und sollen als einzeln
 
 ## Naechste konkrete Sequenz
 
-1. Aktuelle Arbeitsbaum-Aenderungen fuer Auth/Graph-Fokus testen.
-2. Graph-Filter-State designen und minimal implementieren: Edge-Type, Tag, Highlight/Hide.
-3. Tree-Klick-im-Graph-Modus im Browser pruefen und bei Bedarf Zoom/Pan auf aktuelle Node ergaenzen.
-4. Auth-Smoke fuer Plugin-Shell vs. Datenrouten ergaenzen.
-5. Release-Checkliste abarbeiten und Version/README/SECURITY/CONTRIBUTING fuer RC bereinigen.
-6. RC-Branch/Tag erst nach gruenen Tests und dokumentiertem Browser-Smoke schneiden.
+1. Interne RC-Readiness-Notiz mit aktuellem Commit, Teststand und Restrisiken aktuell halten.
+2. Release-Checkliste fuer README/SECURITY/CONTRIBUTING/Version synchron halten.
+3. Manuelle RC-Checks fuer frische Installation, Upgrade, Export/Import und Release-Zip priorisieren.
+4. Nur bei konkreter Regression weitere fokussierte Tests oder einen bounded Browser-Smoke starten.
+5. Push/PR/Tag erst nach expliziter Nutzerfreigabe.
