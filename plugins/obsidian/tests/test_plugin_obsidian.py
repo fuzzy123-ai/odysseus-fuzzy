@@ -97,6 +97,8 @@ from plugin import (
     handle_add_relationship,
     handle_delete_relationship,
     handle_history,
+    handle_memory_capture_apply,
+    handle_memory_capture_preview,
     handle_project_plan_apply,
     handle_project_plan_preview,
     handle_project_plan_templates,
@@ -111,6 +113,8 @@ from plugin import (
     handle_raptor_status,
     handle_read_note,
     handle_rename_item,
+    handle_spark_apply,
+    handle_spark_plan,
     handle_undo,
     handle_write_note,
     handle_search_notes,
@@ -1813,6 +1817,57 @@ def test_spark_apply_skips_high_risk_and_applies_selected_safe_actions():
         assert result["success"] is True
         assert safe.id in result["applied_actions"]
         assert os.path.exists(os.path.join(tmpdir, safe.target_path.replace("/", os.sep)))
+
+
+@pytest.mark.asyncio
+async def test_memory_capture_and_spark_tool_apply_require_confirmation(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+
+        capture_preview = await handle_memory_capture_preview(json.dumps({
+            "content": "Regel: Memory capture apply needs an explicit confirm gate.",
+            "kind": "rule",
+            "source": "agent",
+            "confidence": "high",
+        }), owner="alice")
+        assert capture_preview["exit_code"] == 0
+        capture_plan = json.loads(capture_preview["output"])
+
+        blocked_capture = await handle_memory_capture_apply(json.dumps({"plan": capture_plan}), owner="alice")
+        assert blocked_capture["exit_code"] == 1
+        assert "Confirmation required" in blocked_capture["error"]
+        assert not os.path.exists(os.path.join(tmpdir, "AI Memory"))
+
+        confirmed_capture = await handle_memory_capture_apply(
+            json.dumps({"plan": capture_plan, "confirm": True}),
+            owner="alice",
+        )
+        assert confirmed_capture["exit_code"] == 0
+        assert json.loads(confirmed_capture["output"])["success"] is True
+
+        vault_service.create_file(tmpdir, "Loose.md", "# Loose\n\nNo links yet. #memory", owner="alice", tool="test")
+        spark_plan = await handle_spark_plan('{"limit": 100}', owner="alice")
+        assert spark_plan["exit_code"] == 0
+        spark_payload = json.loads(spark_plan["output"])
+        safe_action = next(
+            action for action in spark_payload["actions"]
+            if action["operations"] and action["risk"] != "high"
+        )
+
+        blocked_spark = await handle_spark_apply(json.dumps({
+            "plan": spark_payload,
+            "selected_action_ids": [safe_action["id"]],
+        }), owner="alice")
+        assert blocked_spark["exit_code"] == 1
+        assert "Confirmation required" in blocked_spark["error"]
+
+        confirmed_spark = await handle_spark_apply(json.dumps({
+            "plan": spark_payload,
+            "confirm": True,
+            "selected_action_ids": [safe_action["id"]],
+        }), owner="alice")
+        assert confirmed_spark["exit_code"] == 0
+        assert safe_action["id"] in json.loads(confirmed_spark["output"])["applied_actions"]
 
 
 def test_snapshot_throttling_keeps_rapid_updates_from_churning_history(monkeypatch):
