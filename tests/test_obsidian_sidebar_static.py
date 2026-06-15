@@ -159,6 +159,48 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
     assert 'id="obsidian-relationship-delete"' not in main_js
 
 
+def test_obsidian_graph_filter_contract_and_current_node_visibility():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert "const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters'" in main_js
+    assert "let graphFilterState = {" in main_js
+    assert "function resetGraphFilterState()" in main_js
+    assert "function loadGraphFilterState()" in main_js
+    assert "function saveGraphFilterState()" in main_js
+    assert "function isNodeMatchingFilter(node)" in main_js
+    assert "function isEdgeMatchingFilter(edge)" in main_js
+    assert 'id="obsidian-graph-filter-toggle"' in main_js
+    assert 'id="obsidian-graph-filter-panel"' in main_js
+    assert 'id="obsidian-graph-filter-mode"' in main_js
+    assert 'id="obsidian-graph-filter-search"' in main_js
+    assert 'id="obsidian-graph-filter-node-markdown"' in main_js
+    assert 'id="obsidian-graph-filter-node-folder"' in main_js
+    assert 'data-filter-edge="${type}"' in main_js
+    assert 'id="obsidian-graph-filter-tags"' in main_js
+    assert 'id="obsidian-graph-filter-reset"' in main_js
+    assert "graphFilterState.mode = e.target.value" in main_js
+    assert "graphFilterState.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)" in main_js
+    assert "const isCurrentNode = node.id === currentNotePath;" in main_js
+    assert "graphFilterState.mode === 'show' && !matches && !isCurrentNode" in main_js
+    assert "else if (!isCurrentNode) classes.push('dimmed');" in main_js
+    assert "graphFilterState.mode === 'hide' && matches && !isCurrentNode" in main_js
+    assert "graphFilterState.mode === 'show' && !matches && !isCurrent" in main_js
+    assert "else if (!isCurrent) classes.push('dimmed');" in main_js
+    assert "graphFilterState.mode === 'hide' && matches && !isCurrent" in main_js
+
+    assert ".obsidian-graph-filter-panel" in style
+    assert ".obsidian-graph-node.dimmed" in style
+    assert ".obsidian-graph-edge.dimmed" in style
+    assert ".obsidian-graph-node.hidden" in style
+    assert ".obsidian-graph-node.highlighted" in style
+    assert "selector: '.hidden'" in main_js
+    assert "selector: 'node.dimmed'" in main_js
+    assert "selector: 'edge.dimmed'" in main_js
+    assert "selector: 'node.highlighted'" in main_js
+    assert "selector: 'edge.highlighted'" in main_js
+
+
 def test_obsidian_file_tree_selects_and_renames_folders():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")

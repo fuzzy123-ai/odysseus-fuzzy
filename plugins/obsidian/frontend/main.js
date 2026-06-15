@@ -4684,18 +4684,19 @@ function cytoscapeElements(prepared, star = null) {
     const parent = directFolderForPath(node.id);
     const isFocusedProjectNode = focusedFolder && (parent === focusedFolder || parent?.startsWith(`${focusedFolder}/`));
     const matches = isNodeMatchingFilter(node);
+    const isCurrentNode = node.id === currentNotePath;
 
     let classes = [
-      node.id === currentNotePath ? 'obsidian-current-node' : '',
+      isCurrentNode ? 'obsidian-current-node' : '',
       isFocusedProjectNode ? 'obsidian-focused-project-node' : '',
       star?.hub === node.id ? 'obsidian-project-hub-node' : '',
     ];
-    if (graphFilterState.mode === 'show' && !matches) {
+    if (graphFilterState.mode === 'show' && !matches && !isCurrentNode) {
       classes.push('hidden');
     } else if (graphFilterState.mode === 'highlight') {
       if (matches) classes.push('highlighted');
-      else classes.push('dimmed');
-    } else if (graphFilterState.mode === 'hide' && matches) {
+      else if (!isCurrentNode) classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && matches && !isCurrentNode) {
       classes.push('hidden');
     }
 
@@ -5040,11 +5041,11 @@ function renderSvgGraphFallback(graph, prepared) {
       isCurrent ? 'current' : '',
       star?.hub === path ? 'project-hub' : '',
     ];
-    if (graphFilterState.mode === 'show' && !matches) classes.push('hidden');
+    if (graphFilterState.mode === 'show' && !matches && !isCurrent) classes.push('hidden');
     else if (graphFilterState.mode === 'highlight') {
       if (matches) classes.push('highlighted');
-      else classes.push('dimmed');
-    } else if (graphFilterState.mode === 'hide' && matches) classes.push('hidden');
+      else if (!isCurrent) classes.push('dimmed');
+    } else if (graphFilterState.mode === 'hide' && matches && !isCurrent) classes.push('hidden');
 
     const classesStr = classes.filter(Boolean).join(' ');
     return `
