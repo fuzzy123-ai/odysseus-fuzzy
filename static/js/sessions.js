@@ -138,11 +138,17 @@ function _missionVerificationText(snapshot) {
 }
 
 function _missionReadinessText(snapshot) {
-  const signals = Array.isArray(snapshot?.summary?.readiness_signals)
-    ? snapshot.summary.readiness_signals
+  const byFamily = snapshot?.summary?.readiness_by_family || {};
+  const familySignals = Object.keys(byFamily).length
+    ? Object.entries(byFamily).map(([family, signal]) => ({ ...(signal || {}), family }))
     : [];
+  const signals = familySignals.length
+    ? familySignals
+    : (Array.isArray(snapshot?.summary?.readiness_signals)
+      ? snapshot.summary.readiness_signals
+      : []);
   if (!signals.length) return '';
-  const entries = signals.slice(0, 4).map((signal) => {
+  const entries = signals.slice(0, 6).map((signal) => {
     const family = String(signal.family || 'generic').replace(/_/g, ' ');
     const source = signal.source ? `/${String(signal.source).replace(/_/g, ' ')}` : '';
     const gaps = Array.isArray(signal.gaps)
