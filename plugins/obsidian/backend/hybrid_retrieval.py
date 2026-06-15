@@ -167,6 +167,7 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
 
 def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
+    audit_summary = dict(audit.get("summary") or {})
     freshness_filtering = (
         is_enabled("obsidian_hybrid_retrieval_enabled")
         and is_enabled("obsidian_freshness_gate_enabled")
@@ -185,7 +186,9 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
                 if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
                     excluded.append(_exclusion_record({**item, "channel": channel}))
                     seen_excluded.add(item["path"])
+    audit_summary["excluded_relevant"] = len(excluded)
     memory = {
+        "summary": audit_summary,
         "current": [
             {"path": item["path"], "status": item["status"], "policy": item["policy"]}
             for item in audit["channels"]["current"]
@@ -201,7 +204,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     }
     if excluded:
         warnings = payload.setdefault("warnings", [])
-        warnings.append(f"Freshness Gate excluded {len(excluded)} relevant stale/conflicting/quarantined item(s).")
+        warnings.append(f"Freshness Gate excluded {len(excluded)} relevant review/conflict/quarantined item(s).")
     payload["memory"] = memory
     return payload
 

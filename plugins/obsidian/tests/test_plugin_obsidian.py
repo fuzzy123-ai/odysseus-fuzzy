@@ -488,6 +488,11 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert [snippet["path"] for snippet in filtered_payload["snippets"]] == ["Active.md"]
         assert "Stale.md" not in filtered_payload["structured_state"]
         assert filtered_payload["memory"]["retrieval_filtering"] is True
+        assert filtered_payload["memory"]["summary"]["total"] == 2
+        assert filtered_payload["memory"]["summary"]["default_retrieval"] == 1
+        assert filtered_payload["memory"]["summary"]["isolated"] == 1
+        assert filtered_payload["memory"]["summary"]["excluded_relevant"] == 1
+        assert filtered_payload["memory"]["summary"]["status_counts"]["stale"] == 1
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"
         assert filtered_payload["memory"]["excluded_relevant"][0]["policy"] == "implementation_status"
@@ -522,6 +527,10 @@ def test_obsidian_context_provider_keeps_default_context_when_freshness_gate_dis
         assert "Stale.md" in payload["structured_state"]
         assert payload["memory"]["retrieval_filtering"] is False
         assert payload["memory"]["excluded_relevant"] == []
+        assert payload["memory"]["summary"]["total"] == 2
+        assert payload["memory"]["summary"]["default_retrieval"] == 1
+        assert payload["memory"]["summary"]["isolated"] == 1
+        assert payload["memory"]["summary"]["excluded_relevant"] == 0
         assert payload["memory"]["flags"]["obsidian_hybrid_retrieval_enabled"] is True
         assert payload["memory"]["flags"]["obsidian_freshness_gate_enabled"] is False
         assert not any("Freshness Gate filtered" in warning for warning in payload["warnings"])
@@ -557,6 +566,8 @@ def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag
         assert [snippet["path"] for snippet in payload["snippets"]] == ["Active.md"]
         assert "Conflict.md" not in payload["structured_state"]
         assert payload["memory"]["retrieval_filtering"] is True
+        assert payload["memory"]["summary"]["conflicts"] == 1
+        assert payload["memory"]["summary"]["excluded_relevant"] == 1
         assert payload["memory"]["excluded_relevant"][0]["path"] == "Conflict.md"
         assert payload["memory"]["excluded_relevant"][0]["status"] == "conflict"
         assert payload["memory"]["excluded_relevant"][0]["channel"] == "conflicts"
