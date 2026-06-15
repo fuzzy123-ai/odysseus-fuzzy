@@ -263,25 +263,30 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
     events = agent_run_ledger.read_events(session_id)
     signal = events[1]["payload"]["readiness_signal"]
     assert signal == {
+        "family": "raptor",
         "source": "readiness",
         "state": "tainted",
         "ready": False,
         "gaps": ["source_isolated_from_default_retrieval"],
         "gap_count": 1,
     }
+    assert events[1]["payload"]["readiness_signals"] == [signal]
 
     snapshot = summarize_mission(session_id)
 
     assert snapshot["phases"]["verifier"]["status"] == "blocked"
-    assert snapshot["phases"]["verifier"]["artifacts"] == {"readiness_check": 1}
-    assert snapshot["summary"]["verification_evidence"] == {"readiness_check": 1}
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"readiness_check": 1, "raptor_readiness": 1}
+    assert snapshot["summary"]["verification_evidence"] == {"readiness_check": 1, "raptor_readiness": 1}
     assert snapshot["summary"]["verification_satisfied"] is False
     assert snapshot["summary"]["verification_gaps"] == ["verification_blocked"]
+    assert snapshot["summary"]["readiness_signals"] == [signal]
     assert snapshot["summary"]["latest_blocker"] == {
         "role": "verifier",
         "kind": "readiness_signal",
         "tool": "obsidian_raptor_status",
         "reason": "readiness_gaps",
+        "family": "raptor",
+        "source": "readiness",
         "state": "tainted",
         "gaps": ["source_isolated_from_default_retrieval"],
         "gap_count": 1,
@@ -296,17 +301,58 @@ def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path
     agent_run_ledger.append_sse_event(
         session_id,
         'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
-        '"output": "{\\"memory\\":{\\"summary\\":{\\"raptor_readiness_state\\":\\"dirty\\",'
-        '\\"raptor_readiness_gaps\\":2}}}"}\n\n',
+        '"output": "{\\"memory\\":{\\"summary\\":{\\"freshness_readiness_state\\":\\"needs_review\\",'
+        '\\"freshness_readiness_gaps\\":2,\\"raptor_readiness_state\\":\\"dirty\\",'
+        '\\"raptor_readiness_gaps\\":1}}}"}\n\n',
     )
 
     events = agent_run_ledger.read_events(session_id)
     assert events[0]["payload"]["readiness_signal"] == {
+        "family": "freshness",
         "source": "summary",
-        "state": "dirty",
+        "state": "needs_review",
         "ready": False,
         "gaps": [],
         "gap_count": 2,
+    }
+    assert events[0]["payload"]["readiness_signals"] == [
+        {
+            "family": "freshness",
+            "source": "summary",
+            "state": "needs_review",
+            "ready": False,
+            "gaps": [],
+            "gap_count": 2,
+        },
+        {
+            "family": "raptor",
+            "source": "summary",
+            "state": "dirty",
+            "ready": False,
+            "gaps": [],
+            "gap_count": 1,
+        },
+    ]
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "blocked"
+    assert snapshot["phases"]["verifier"]["artifacts"] == {
+        "freshness_readiness": 1,
+        "raptor_readiness": 1,
+        "readiness_check": 2,
+    }
+    assert snapshot["summary"]["readiness_signals"] == events[0]["payload"]["readiness_signals"]
+    assert snapshot["summary"]["latest_blocker"] == {
+        "role": "verifier",
+        "kind": "readiness_signal",
+        "tool": "obsidian_context",
+        "reason": "readiness_gaps",
+        "family": "raptor",
+        "source": "summary",
+        "state": "dirty",
+        "gaps": [],
+        "gap_count": 1,
     }
 
 

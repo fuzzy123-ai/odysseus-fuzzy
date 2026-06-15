@@ -107,6 +107,7 @@ def _phase(role: str, status: str) -> dict[str, Any]:
         "policy_tiers": {},
         "last_command_policy": None,
         "last_blocker": None,
+        "readiness_signals": [],
         "latest_required_action": None,
         "started_at": None,
         "updated_at": None,
@@ -123,6 +124,7 @@ def _role_counts() -> dict[str, Any]:
         "policy_tiers": {},
         "last_command_policy": None,
         "last_blocker": None,
+        "readiness_signals": [],
         "latest_required_action": None,
         "started_at": None,
         "updated_at": None,
@@ -135,6 +137,8 @@ def _is_worker_event(payload: dict[str, Any]) -> bool:
 
 def _is_verifier_event(payload: dict[str, Any]) -> bool:
     if isinstance(payload.get("readiness_signal"), dict):
+        return True
+    if isinstance(payload.get("readiness_signals"), list):
         return True
     if payload.get("tool") in _BROWSER_TOOLS:
         return True
@@ -170,9 +174,17 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
     elif payload_type == "tool_output":
         counts["outputs"] += 1
         counts["last_exit_code"] = payload.get("exit_code")
-        signal = payload.get("readiness_signal") if isinstance(payload.get("readiness_signal"), dict) else None
-        if signal:
-            counts["artifacts"]["readiness_check"] = counts["artifacts"].get("readiness_check", 0) + 1
+        readiness_signals = _payload_readiness_signals(payload)
+        if readiness_signals:
+            counts["artifacts"]["readiness_check"] = (
+                counts["artifacts"].get("readiness_check", 0) + len(readiness_signals)
+            )
+            counts["readiness_signals"].extend(_sanitize_readiness_signal(signal) for signal in readiness_signals)
+            counts["readiness_signals"] = counts["readiness_signals"][-25:]
+        for signal in readiness_signals:
+            family = str(signal.get("family") or "generic")
+            artifact = f"{family}_readiness"
+            counts["artifacts"][artifact] = counts["artifacts"].get(artifact, 0) + 1
             if not signal.get("ready", False):
                 counts["blocked"] += 1
                 counts["last_blocker"] = _readiness_blocker(payload, signal)
@@ -192,6 +204,28 @@ def _verification_evidence_kind(payload: dict[str, Any]) -> str | None:
     if command and _VERIFY_COMMAND_RE.search(command):
         return "test_command"
     return None
+
+
+def _payload_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    signals = payload.get("readiness_signals")
+    if isinstance(signals, list):
+        return [signal for signal in signals if isinstance(signal, dict)]
+    signal = payload.get("readiness_signal")
+    if isinstance(signal, dict):
+        return [signal]
+    return []
+
+
+def _sanitize_readiness_signal(signal: dict[str, Any]) -> dict[str, Any]:
+    gaps = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
+    return {
+        "family": str(signal.get("family") or "generic"),
+        "source": str(signal.get("source") or "unknown"),
+        "state": str(signal.get("state") or "unknown"),
+        "ready": bool(signal.get("ready", False)),
+        "gaps": [str(item) for item in gaps[:10]],
+        "gap_count": int(signal.get("gap_count") or len(gaps)),
+    }
 
 
 def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -241,6 +275,8 @@ def _readiness_blocker(payload: dict[str, Any], signal: dict[str, Any]) -> dict[
         "kind": "readiness_signal",
         "tool": str(payload.get("tool") or ""),
         "reason": "readiness_gaps",
+        "family": str(signal.get("family") or "generic"),
+        "source": str(signal.get("source") or "unknown"),
         "state": str(signal.get("state") or "unknown"),
         "gaps": [str(item) for item in gaps[:10]],
         "gap_count": int(signal.get("gap_count") or len(gaps)),
@@ -274,6 +310,7 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "verification_satisfied": verification["satisfied"],
         "verification_evidence": verification["evidence"],
         "verification_gaps": verification["gaps"],
+        "readiness_signals": verifier.get("readiness_signals") or [],
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),

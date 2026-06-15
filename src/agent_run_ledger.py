@@ -123,9 +123,10 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
         output = payload.get("output")
         if output is not None:
             summary["output_chars"] = len(str(output))
-            readiness_signal = _readiness_signal_from_output(output)
-            if readiness_signal:
-                summary["readiness_signal"] = readiness_signal
+            readiness_signals = _readiness_signals_from_output(output, tool=payload.get("tool"))
+            if readiness_signals:
+                summary["readiness_signal"] = readiness_signals[0]
+                summary["readiness_signals"] = readiness_signals
 
     if kind in {"agent_step", "rounds_exhausted", "budget_exceeded"}:
         for key in ("round", "rounds", "limit", "used"):
@@ -146,56 +147,105 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
     return summary
 
 
-def _readiness_signal_from_output(output: Any) -> dict[str, Any] | None:
+def _readiness_signals_from_output(output: Any, *, tool: Any = None) -> list[dict[str, Any]]:
     try:
         payload = json.loads(str(output))
     except (TypeError, json.JSONDecodeError):
-        return None
+        return []
     if not isinstance(payload, dict):
-        return None
-    signal = _readiness_signal_from_mapping(payload)
-    if signal:
-        return signal
+        return []
+    family_hint = _readiness_family_from_text(tool)
+    signals = _readiness_signals_from_mapping(payload, family_hint=family_hint)
+    if signals:
+        return signals
     memory = payload.get("memory")
     if isinstance(memory, dict):
-        signal = _readiness_signal_from_mapping(memory)
-        if signal:
-            return signal
+        signals = _readiness_signals_from_mapping(memory, family_hint=family_hint)
+        if signals:
+            return signals
     summary = payload.get("summary")
     if isinstance(summary, dict):
-        return _readiness_signal_from_mapping(summary)
-    return None
+        return _readiness_signals_from_mapping(summary, family_hint=family_hint)
+    return []
 
 
-def _readiness_signal_from_mapping(payload: dict[str, Any]) -> dict[str, Any] | None:
+def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str = "generic") -> list[dict[str, Any]]:
+    signals: list[dict[str, Any]] = []
     readiness = payload.get("readiness")
     if isinstance(readiness, dict):
         state = str(readiness.get("state") or "unknown")
         gaps = _safe_gap_list(readiness.get("gaps"))
-        return {
+        signals.append({
+            "family": _readiness_family_from_payload(payload, family_hint),
             "source": "readiness",
             "state": state,
             "ready": bool(readiness.get("ready", state == "ready")),
             "gaps": gaps,
             "gap_count": len(gaps),
-        }
+        })
     summary = payload.get("summary")
     if isinstance(summary, dict):
-        nested = _readiness_signal_from_mapping(summary)
-        if nested:
-            return nested
-    state = payload.get("raptor_readiness_state") or payload.get("readiness_state")
+        signals.extend(_readiness_signals_from_mapping(summary, family_hint=family_hint))
+    signals.extend(_summary_readiness_signals(payload))
+    return _dedupe_readiness_signals(signals)
+
+
+def _summary_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    signals = []
+    for family in ("freshness", "raptor"):
+        state = payload.get(f"{family}_readiness_state")
+        if state:
+            gap_count = int(payload.get(f"{family}_readiness_gaps") or 0)
+            gaps = _safe_gap_list(payload.get(f"{family}_readiness_gap_names"))
+            signals.append({
+                "family": family,
+                "source": "summary",
+                "state": str(state),
+                "ready": str(state) == "ready" and gap_count == 0,
+                "gaps": gaps,
+                "gap_count": max(gap_count, len(gaps)),
+            })
+    state = payload.get("readiness_state")
     if state:
-        gap_count = int(payload.get("raptor_readiness_gaps") or payload.get("readiness_gaps") or 0)
-        gaps = _safe_gap_list(payload.get("raptor_readiness_gap_names") or payload.get("readiness_gap_names"))
-        return {
+        gap_count = int(payload.get("readiness_gaps") or 0)
+        gaps = _safe_gap_list(payload.get("readiness_gap_names"))
+        signals.append({
+            "family": "generic",
             "source": "summary",
             "state": str(state),
             "ready": str(state) == "ready" and gap_count == 0,
             "gaps": gaps,
             "gap_count": max(gap_count, len(gaps)),
-        }
-    return None
+        })
+    return signals
+
+
+def _readiness_family_from_payload(payload: dict[str, Any], family_hint: str = "generic") -> str:
+    kind = str(payload.get("kind") or payload.get("type") or payload.get("family") or "").lower()
+    if family_hint != "generic":
+        return family_hint
+    return _readiness_family_from_text(kind)
+
+
+def _readiness_family_from_text(value: Any) -> str:
+    kind = str(value or "").lower()
+    if "raptor" in kind:
+        return "raptor"
+    if "freshness" in kind or "quarantine" in kind:
+        return "freshness"
+    return "generic"
+
+
+def _dedupe_readiness_signals(signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped = []
+    seen = set()
+    for signal in signals:
+        key = (signal.get("family"), signal.get("source"), signal.get("state"), signal.get("gap_count"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(signal)
+    return deduped[:10]
 
 
 def _safe_gap_list(value: Any) -> list[str]:
