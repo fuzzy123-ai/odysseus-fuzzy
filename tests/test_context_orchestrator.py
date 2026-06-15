@@ -2,6 +2,7 @@ from src.context_orchestrator import (
     assemble_context,
     final_trim_guard,
     provider_messages,
+    provider_warning_messages,
     split_context_budget,
 )
 from src.plugin_system import register_context_provider, unregister_context_provider
@@ -10,6 +11,7 @@ from src.plugin_system import register_context_provider, unregister_context_prov
 def teardown_function():
     unregister_context_provider("demo.alpha")
     unregister_context_provider("demo.broken")
+    unregister_context_provider("demo.warning")
 
 
 def test_split_context_budget_uses_roadmap_ratios():
@@ -118,6 +120,15 @@ def test_provider_diagnostics_are_compacted_before_prompt_injection():
     assert ("x" * 501) not in diagnostics
 
 
+def test_provider_warning_messages_are_compacted_before_prompt_injection():
+    messages = provider_warning_messages(["vault locked", "x" * 600])
+
+    assert messages[0]["content"].startswith("Provider warnings:")
+    assert '"vault locked"' in messages[0]["content"]
+    assert ("x" * 500) in messages[0]["content"]
+    assert ("x" * 501) not in messages[0]["content"]
+
+
 def test_final_trim_guard_keeps_current_user_message():
     messages = [
         {"role": "system", "content": "Rules"},
@@ -155,3 +166,6 @@ def test_provider_failures_become_warnings():
 
     assert assembly.provider_payloads == []
     assert assembly.warnings == ["context provider demo.broken failed: nope"]
+    assert assembly.messages[0]["content"].startswith("Provider warnings:")
+    assert "context provider demo.broken failed: nope" in assembly.messages[0]["content"]
+    assert assembly.messages[-1]["content"] == "hello"

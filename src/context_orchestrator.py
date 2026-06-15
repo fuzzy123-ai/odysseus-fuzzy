@@ -15,6 +15,7 @@ from src.plugin_system import get_context_providers
 MAX_PROVIDER_DIAGNOSTIC_LIST_ITEMS = 20
 MAX_PROVIDER_DIAGNOSTIC_DICT_ITEMS = 40
 MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS = 500
+MAX_PROVIDER_WARNINGS = 20
 
 
 @dataclass(frozen=True)
@@ -146,6 +147,20 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
     return messages
 
 
+def provider_warning_messages(warnings: Iterable[str]) -> List[Dict[str, str]]:
+    compact_warnings = [
+        str(warning)[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
+        for warning in list(warnings or [])[:MAX_PROVIDER_WARNINGS]
+        if str(warning).strip()
+    ]
+    if not compact_warnings:
+        return []
+    return [{
+        "role": "system",
+        "content": "Provider warnings:\n" + _stable_json(compact_warnings),
+    }]
+
+
 def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
     memory = payload.get("memory")
     if not isinstance(memory, dict):
@@ -224,7 +239,12 @@ def assemble_context(
         budget_tokens=budget.providers,
         mode=mode,
     )
-    messages = list(system_messages) + provider_messages(payloads) + list(history_messages)
+    messages = (
+        list(system_messages)
+        + provider_messages(payloads)
+        + provider_warning_messages(warnings)
+        + list(history_messages)
+    )
     messages = final_trim_guard(messages, max_tokens=max(0, budget.total - budget.response))
     return ContextAssembly(messages=messages, provider_payloads=payloads, warnings=warnings, budget=budget)
 

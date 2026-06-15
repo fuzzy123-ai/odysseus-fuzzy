@@ -8,7 +8,12 @@ from typing import List, Dict, Any, Optional, Tuple
 from src.chat_helpers import extract_urls
 from src.youtube_handler import is_youtube_url
 from src.search import comprehensive_web_search, fetch_webpage_content
-from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
+from src.context_orchestrator import (
+    preload_provider_context,
+    provider_messages,
+    provider_warning_messages,
+    split_context_budget,
+)
 from src.prompt_security import UNTRUSTED_CONTEXT_POLICY, untrusted_context_message
 from src.settings import load_features
 
@@ -218,6 +223,7 @@ class ChatProcessor:
                     mode="agent" if agent_mode else "chat",
                 )
                 preface.extend(provider_messages(provider_payloads))
+                preface.extend(provider_warning_messages(provider_warnings))
                 self._last_context_provider_payloads = provider_payloads
                 self._last_context_provider_warnings = provider_warnings
                 for warning in provider_warnings:

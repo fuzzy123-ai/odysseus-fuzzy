@@ -1766,7 +1766,12 @@ def _inject_context_provider_messages(
         return messages
     try:
         from src.settings import load_features
-        from src.context_orchestrator import preload_provider_context, provider_messages, split_context_budget
+        from src.context_orchestrator import (
+            preload_provider_context,
+            provider_messages,
+            provider_warning_messages,
+            split_context_budget,
+        )
 
         if not load_features().get("context_provider_preload", True):
             return messages
@@ -1777,7 +1782,7 @@ def _inject_context_provider_messages(
             budget_tokens=budget.providers,
             mode="agent",
         )
-        injected = provider_messages(payloads)
+        injected = provider_messages(payloads) + provider_warning_messages(warnings)
         if not injected:
             for warning in warnings:
                 logger.warning("[agent] Context provider warning: %s", warning)

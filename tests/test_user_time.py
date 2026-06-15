@@ -135,6 +135,30 @@ def test_chat_preface_injects_provider_context_before_volatile_time():
     assert "stable-provider-key" in contents[snippets_idx]
 
 
+def test_chat_preface_injects_provider_warnings():
+    register_context_provider({
+        "id": "demo.warning_context",
+        "label": "Demo Warning Context",
+        "capabilities": ["chat"],
+        "retrieve": lambda **kwargs: {"warnings": ["vault locked"]},
+    })
+    processor = ChatProcessor(memory_manager=_Memory(), personal_docs_manager=_Docs())
+
+    preface, _, _ = processor.build_context_preface(
+        message="Project status",
+        session=None,
+        owner="alice",
+        use_memory=False,
+        use_rag=False,
+        context_budget_tokens=1000,
+    )
+
+    contents = [msg["content"] for msg in preface]
+    assert any(content.startswith("Provider warnings:") for content in contents)
+    assert any("demo.warning_context: vault locked" in content for content in contents)
+    assert processor._last_context_provider_warnings == ["demo.warning_context: vault locked"]
+
+
 def test_chat_preface_skips_provider_context_in_incognito():
     register_context_provider({
         "id": "demo.chat_context",
