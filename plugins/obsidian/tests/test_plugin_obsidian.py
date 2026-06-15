@@ -2771,6 +2771,15 @@ def test_plugin_setup_registration():
 
     assert len(registered_routers) == 1
     assert registered_context_providers[0]["id"] == PROVIDER_ID
+    assert {
+        "chat",
+        "agent",
+        "memory",
+        "readiness",
+        "freshness_gate",
+        "raptor",
+        "hybrid_retrieval",
+    } <= set(registered_context_providers[0]["capabilities"])
     assert registered_consolidation_jobs[0]["id"] == JOB_ID
     tool_names = {spec["name"] for spec in registered_tools}
     permissions = {spec["name"]: spec.get("permission") for spec in registered_tools}

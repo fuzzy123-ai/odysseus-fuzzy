@@ -351,7 +351,17 @@ def provider_spec() -> Dict[str, Any]:
         "id": PROVIDER_ID,
         "label": "Obsidian Vault Context",
         "priority": 50,
-        "capabilities": ["chat", "agent", "vault", "markdown"],
+        "capabilities": [
+            "chat",
+            "agent",
+            "vault",
+            "markdown",
+            "memory",
+            "readiness",
+            "freshness_gate",
+            "raptor",
+            "hybrid_retrieval",
+        ],
         "retrieve": retrieve_vault_context,
     }
 

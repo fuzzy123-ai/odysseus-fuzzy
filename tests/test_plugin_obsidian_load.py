@@ -76,7 +76,17 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_raptor_status") is not None
     assert get_tool("obsidian_project_plan_preview") is not None
     assert get_tool("obsidian_project_plan_apply") is not None
-    assert any(provider.id == "obsidian.vault_context" for provider in get_context_providers())
+    obsidian_providers = [provider for provider in get_context_providers() if provider.id == "obsidian.vault_context"]
+    assert obsidian_providers
+    assert {
+        "chat",
+        "agent",
+        "memory",
+        "readiness",
+        "freshness_gate",
+        "raptor",
+        "hybrid_retrieval",
+    } <= set(obsidian_providers[0].capabilities)
     client = TestClient(app)
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
