@@ -141,7 +141,7 @@ except ModuleNotFoundError:
 PLUGIN = {
     "name": "obsidian",
     "version": "0.10.0-rc.1",
-    "description": "Obsidian vault integration for direct editing and AI tool search/updates.",
+    "description": "Obsidian vault integration with dockable UI, graph tools, and agent workflows.",
     "category": "productivity",
     "permissions": ["filesystem"],
     "ui": {

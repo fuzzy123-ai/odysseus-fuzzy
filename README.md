@@ -52,7 +52,23 @@ To install the official Obsidian integration plugin into this fork:
 git clone -b dev https://github.com/fuzzy123-ai/Odysseus-plugin-obsidian.git plugins/obsidian
 ```
 
-Restart Odysseus after cloning. The plugin manager imports `plugins/obsidian/plugin.py`, registers the API routes, and exposes the UI entry at `/api/plugins/obsidian/app`.
+The current tracked Obsidian RC line is `0.10.0-rc.1`.
+
+Fresh install:
+
+1. Clone the plugin into `plugins/obsidian`.
+2. Restart Odysseus.
+3. Open the plugin from the Odysseus plugin settings UI or visit `/api/plugins/obsidian/app`.
+
+Upgrade an existing checkout:
+
+1. `cd plugins/obsidian`
+2. `git fetch --tags origin`
+3. `git checkout dev`
+4. `git pull --ff-only`
+5. Restart Odysseus so the plugin manager reloads `plugins/obsidian/plugin.py` and the frontend assets.
+
+The plugin manager imports `plugins/obsidian/plugin.py`, registers the API routes, and exposes the UI entry at `/api/plugins/obsidian/app`.
 
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).

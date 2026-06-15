@@ -6,6 +6,27 @@ This is a **standalone plugin** designed to be dynamically loaded into the Odyss
 
 It also registers a read-only context provider for the Odysseus context-orchestrator. This allows Odysseus to preload relevant vault context through a generic plugin API while keeping all Obsidian-specific rules self-contained inside this plugin.
 
+## Release Candidate `0.10.0-rc.1`
+
+This RC is the current internal release line for the Obsidian plugin on the `dev` branch.
+
+Included in this RC:
+
+- Dockable vault UI, standalone app page, Markdown editing, search, tags, graph, history, import/export, and agent tools.
+- Read-only context-provider integration for the Odysseus context orchestrator.
+- Non-destructive project-planning previews plus confirmed apply flows.
+- Memory review previews plus confirmed apply flows.
+
+Not included in this RC:
+
+- Vault-at-rest encryption for existing plaintext Markdown files on disk.
+- RAPTOR rebuild/write workflows.
+- Freshness Gate or quarantine write-side automation by default.
+
+Release metadata rule:
+
+- `plugins/obsidian/plugin.py` and `plugins/obsidian/plugin.json` must carry the same version string for every RC or release build.
+
 ## Feature Overview
 
 ### Vault Workspace UI
@@ -241,14 +262,32 @@ Restart Odysseus after cloning. The plugin manager imports `plugins/obsidian/plu
 
 The panel can be opened from the Odysseus plugin settings UI when the plugin is enabled.
 
+Host compatibility for this RC:
+
+- Supported host line: the `dev` branch of [`fuzzy123-ai/odysseus-fuzzy`](https://github.com/fuzzy123-ai/odysseus-fuzzy).
+- Expected install path: `plugins/obsidian`.
+- The plugin is loaded dynamically by the Odysseus plugin manager; no core code copy step is required.
+
 ## Upgrade
 
 For an existing checkout where the plugin already lives in `plugins/obsidian`:
 
 1. Keep your local Odysseus worktree clean or commit your changes first.
-2. Update the plugin checkout to the target commit on `dev`.
-3. Restart Odysseus so the plugin manager reloads `plugin.py` and the frontend assets.
-4. Re-run the focused RC checks that matter for your slice.
+2. Change into `plugins/obsidian`.
+3. Fetch the latest refs and tags from origin.
+4. Update the plugin checkout to the target commit on `dev`.
+5. Confirm that `plugin.py` and `plugin.json` still advertise the same version string.
+6. Restart Odysseus so the plugin manager reloads `plugin.py` and the frontend assets.
+7. Re-run the focused RC checks that matter for your slice.
+
+Example fast-forward upgrade:
+
+```powershell
+cd plugins/obsidian
+git fetch --tags origin
+git checkout dev
+git pull --ff-only
+```
 
 For the current RC line, the minimum focused verification is:
 
@@ -264,6 +303,7 @@ Before treating `0.10.0-rc.1` as an internal release candidate, manually confirm
 
 - Fresh install path works from a clean Odysseus checkout with `git clone -b dev ... plugins/obsidian`.
 - Existing `plugins/obsidian` checkout upgrades cleanly and still loads after restart.
+- `plugin.py` and `plugin.json` advertise the same RC version string.
 - A small vault export and import work without unexpected path leakage or reserved-file writes.
 - The standalone app page, authenticated vault load, and graph filter flows still match the documented smoke results.
 - Any release archive places the plugin files at the archive root so extracting it yields `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
