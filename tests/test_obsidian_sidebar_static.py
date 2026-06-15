@@ -515,6 +515,9 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "function renderKnowledgeAudit()" in main_js
     assert "function renderQuarantineList()" in main_js
     assert "function renderRaptorStatus()" in main_js
+    assert "function raptorDirtySourceRecords(lineage = {})" in main_js
+    assert "function raptorMissingSourceRecords(lineage = {})" in main_js
+    assert "function raptorTaintedSourceRecords(lineage = {})" in main_js
     assert "function renderRetrievalIsolationNotice(" in main_js
     assert "function renderMemoryRecordLineage(" in main_js
     assert "function renderMemoryRecordIsolation(" in main_js
@@ -539,6 +542,12 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
     assert "raptorReport.writes_supported ? 'yes' : 'no'" in main_js
+    assert "lineage.dirty_sources" in main_js
+    assert "lineage.missing_sources" in main_js
+    assert "lineage.tainted_sources" in main_js
+    assert "Dirty sources" in main_js
+    assert "Missing sources" in main_js
+    assert "Tainted sources" in main_js
     assert ".obsidian-memory-tree-panel" in style
     assert ".obsidian-memory-tree-tabs" in style
     assert ".obsidian-memory-tree-metrics" in style

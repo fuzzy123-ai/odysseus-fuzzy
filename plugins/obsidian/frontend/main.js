@@ -3168,10 +3168,36 @@ function renderQuarantineList() {
   `;
 }
 
+function raptorDirtySourceRecords(lineage = {}) {
+  return (lineage.dirty_sources || []).map(item => ({
+    path: item.path || 'Unknown source',
+    status: 'dirty',
+    reason: `Source hash changed: expected ${shortMemorySourceHash(item.expected || '') || 'unknown'}, actual ${shortMemorySourceHash(item.actual || '') || 'unknown'}.`,
+    source_hash: item.actual || '',
+  }));
+}
+
+function raptorMissingSourceRecords(lineage = {}) {
+  return (lineage.missing_sources || []).map(path => ({
+    path,
+    status: 'missing',
+    reason: 'Source listed in RAPTOR lineage is missing from the vault.',
+  }));
+}
+
+function raptorTaintedSourceRecords(lineage = {}) {
+  return (lineage.tainted_sources || []).map(item => ({
+    ...item,
+    status: item.status || 'tainted',
+    reason: item.reason || 'Freshness Gate isolates this source from default retrieval.',
+  }));
+}
+
 function renderRaptorStatus() {
   if (!raptorReport) {
     return '<div class="obsidian-project-loading">Run refresh to inspect RAPTOR status.</div>';
   }
+  const lineage = raptorReport.lineage || {};
   return `
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
@@ -3195,6 +3221,9 @@ function renderRaptorStatus() {
         <code>${escapeHtml(raptorReport.index_path || '')}</code>
         <code>${escapeHtml(raptorReport.summaries_path || '')}</code>
       </div>
+      ${renderMemoryRecordList('Dirty sources', raptorDirtySourceRecords(lineage), 'No dirty sources')}
+      ${renderMemoryRecordList('Missing sources', raptorMissingSourceRecords(lineage), 'No missing sources')}
+      ${renderMemoryRecordList('Tainted sources', raptorTaintedSourceRecords(lineage), 'No tainted sources')}
     </div>
   `;
 }
