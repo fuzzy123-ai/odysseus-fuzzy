@@ -1385,8 +1385,10 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
     } <= set(names)
     assert "obsidian_raptor_status" not in DESTRUCTIVE_TOOL_NAMES
     assert "readiness_gate" in memory_status_spec.description
+    assert "retrieval_policy" in memory_status_spec.description
     assert "freshness_isolation_flags" in memory_status_spec.description
     assert "raptor_lineage_flags" in memory_status_spec.description
+    assert "raptor_write_gate" in memory_status_spec.description
     assert all("owner" not in spec.input_schema.get("properties", {}) for spec in VAULT_TOOL_SPECS)
 
 
