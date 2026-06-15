@@ -188,6 +188,7 @@ function _missionMemoryDiagnosticsText(snapshot) {
   const retrievalPolicy = diagnostics.retrieval_policy || {};
   const freshnessFlags = diagnostics.freshness_isolation_flags || {};
   const raptorFlags = diagnostics.raptor_lineage_flags || {};
+  const raptorWriteGate = diagnostics.raptor_write_gate || {};
   const families = [
     ['Retrieval policy', retrievalPolicy, (policy) => {
       const details = [
@@ -199,6 +200,9 @@ function _missionMemoryDiagnosticsText(snapshot) {
     }],
     ['Freshness isolation', freshnessFlags],
     ['RAPTOR lineage', raptorFlags],
+    ['RAPTOR write gate', raptorWriteGate, (gate) => (
+      gate.state ? `RAPTOR write gate ${String(gate.state).replace(/_/g, ' ')}` : ''
+    )],
   ].map(([label, flags, formatter]) => {
     if (typeof formatter === 'function') return formatter(flags || {});
     const activeFlags = Object.entries(flags)

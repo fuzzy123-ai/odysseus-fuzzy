@@ -503,7 +503,11 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
         '\\"freshness_isolation_flags\\":{\\"needs_review\\":true,\\"conflicts\\":false,'
         '\\"quarantined\\":false,\\"isolated\\":true,\\"filtering_active\\":true},'
         '\\"raptor_lineage_flags\\":{\\"dirty\\":true,\\"missing\\":false,'
-        '\\"tainted\\":true,\\"invalid_index\\":false,\\"invalid_summaries\\":false}}"}\n\n',
+        '\\"tainted\\":true,\\"invalid_index\\":false,\\"invalid_summaries\\":false},'
+        '\\"raptor_write_gate\\":{\\"feature_flag\\":\\"obsidian_raptor_enabled\\",'
+        '\\"feature_enabled\\":false,\\"writes_supported\\":false,\\"state\\":\\"blocked\\",'
+        '\\"gaps\\":[\\"raptor_feature_flag_disabled\\",'
+        '\\"source_hash_lineage_verification_required\\"]}}"}\n\n',
     )
 
     events = agent_run_ledger.read_events(session_id)
@@ -528,7 +532,17 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
             "invalid_summaries": False,
             "missing": False,
             "tainted": True,
-        }
+        },
+        "raptor_write_gate": {
+            "feature_enabled": False,
+            "feature_flag": "obsidian_raptor_enabled",
+            "gaps": [
+                "raptor_feature_flag_disabled",
+                "source_hash_lineage_verification_required",
+            ],
+            "state": "blocked",
+            "writes_supported": False,
+        },
     }
     summary = agent_run_ledger.summarize_run(session_id)
     assert summary["memory_diagnostics"] == events[0]["payload"]["memory_diagnostics"]

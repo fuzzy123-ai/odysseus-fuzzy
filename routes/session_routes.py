@@ -55,6 +55,7 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
     active_flags = summary.get("memory_diagnostics_active_flags")
     memory_diagnostics = summary.get("memory_diagnostics") if isinstance(summary.get("memory_diagnostics"), dict) else {}
     retrieval_policy = memory_diagnostics.get("retrieval_policy") if isinstance(memory_diagnostics.get("retrieval_policy"), dict) else {}
+    raptor_write_gate = memory_diagnostics.get("raptor_write_gate") if isinstance(memory_diagnostics.get("raptor_write_gate"), dict) else {}
     retrieval_details = []
     if retrieval_policy:
         if retrieval_policy.get("filtering_state") is not None:
@@ -62,6 +63,8 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
         if "default_retrieval_is_filtered" in retrieval_policy:
             filtered = "yes" if retrieval_policy.get("default_retrieval_is_filtered") else "no"
             retrieval_details.append(f"default filtered {filtered}")
+    if raptor_write_gate and raptor_write_gate.get("state") is not None:
+        retrieval_details.append(f"raptor write gate {str(raptor_write_gate.get('state')).replace('_', ' ')}")
     if not isinstance(active_flags, dict) or not active_flags:
         suffix = f" ({', '.join(retrieval_details)})" if retrieval_details else ""
         return f"Memory diagnostics need attention{suffix}"

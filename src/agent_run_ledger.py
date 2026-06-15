@@ -195,6 +195,12 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
         or raptor.get("lineage_flags")
         or raptor_summary.get("lineage_flags")
     )
+    raptor_write_gate = (
+        memory.get("raptor_write_gate")
+        or summary.get("raptor_write_gate")
+        or raptor.get("write_gate")
+        or raptor_summary.get("write_gate")
+    )
     freshness_isolation_flags = (
         memory.get("freshness_isolation_flags")
         or summary.get("freshness_isolation_flags")
@@ -222,6 +228,8 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
             raptor_lineage_flags,
             allowed={"dirty", "missing", "tainted", "invalid_index", "invalid_summaries"},
         )
+    if isinstance(raptor_write_gate, dict):
+        diagnostics["raptor_write_gate"] = _safe_raptor_write_gate(raptor_write_gate)
     return diagnostics
 
 
@@ -239,6 +247,24 @@ def _safe_retrieval_policy(value: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError):
             policy["excluded_relevant_count"] = 0
     return policy
+
+
+def _safe_raptor_write_gate(value: dict[str, Any]) -> dict[str, Any]:
+    gate: dict[str, Any] = {}
+    state = value.get("state")
+    if state is not None:
+        gate["state"] = str(state)
+    if "feature_enabled" in value:
+        gate["feature_enabled"] = bool(value.get("feature_enabled"))
+    if "writes_supported" in value:
+        gate["writes_supported"] = bool(value.get("writes_supported"))
+    feature_flag = value.get("feature_flag")
+    if feature_flag is not None:
+        gate["feature_flag"] = str(feature_flag)
+    gaps = value.get("gaps")
+    if isinstance(gaps, list):
+        gate["gaps"] = [str(gap) for gap in gaps[:20]]
+    return gate
 
 
 def _safe_bool_flags(value: dict[str, Any], *, allowed: set[str]) -> dict[str, bool]:

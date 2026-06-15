@@ -115,7 +115,19 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
             "invalid_summaries": False,
             "missing": False,
             "tainted": False,
-        }
+        },
+        "raptor_write_gate": {
+            "feature_enabled": False,
+            "feature_flag": "obsidian_raptor_enabled",
+            "gaps": [
+                "raptor_feature_flag_disabled",
+                "source_hash_lineage_verification_required",
+                "dirty_summary_behavior_required",
+                "raptor_rebuild_write_disabled_in_mvp",
+            ],
+            "state": "blocked",
+            "writes_supported": False,
+        },
     }
     assert snapshot["summary"]["memory_diagnostics_state"] == "attention"
     assert snapshot["summary"]["memory_diagnostics_active_flags"] == {

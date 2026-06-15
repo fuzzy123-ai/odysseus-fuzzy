@@ -323,7 +323,7 @@ def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, A
 def _active_memory_diagnostic_flags(memory_diagnostics: dict[str, Any]) -> dict[str, list[str]]:
     active: dict[str, list[str]] = {}
     for family, flags in memory_diagnostics.items():
-        if family == "retrieval_policy":
+        if family in {"retrieval_policy", "raptor_write_gate"}:
             continue
         if not isinstance(flags, dict):
             continue

@@ -102,8 +102,10 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "default filtered" in source
     assert "diagnostics.freshness_isolation_flags" in source
     assert "diagnostics.raptor_lineage_flags" in source
+    assert "diagnostics.raptor_write_gate" in source
     assert "Freshness isolation" in source
     assert "RAPTOR lineage" in source
+    assert "RAPTOR write gate" in source
     assert "Memory diagnostics:" in source
     assert "_missionMemoryDiagnosticsText(snapshot)" in source
     assert "function _missionPolicyTierText(snapshot)" in source
@@ -204,6 +206,9 @@ def test_list_sessions_status_calculation(monkeypatch):
                     "filtering_state": "audit_only",
                     "default_retrieval_is_filtered": False,
                 },
+                "raptor_write_gate": {
+                    "state": "blocked",
+                },
             },
             "memory_diagnostics_active_flags": {
                 "freshness_isolation_flags": ["needs_review", "isolated"],
@@ -259,7 +264,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[memory_diagnostics_id]["status_reason"] == "memory_diagnostics_attention"
     assert res_map[memory_diagnostics_id]["status_message"] == (
         "Memory diagnostics need attention: freshness isolation: needs review, isolated; "
-        "retrieval audit only, default filtered no"
+        "retrieval audit only, default filtered no, raptor write gate blocked"
     )
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None
