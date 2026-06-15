@@ -3129,3 +3129,45 @@ async def test_locked_vault_blocks_all_actions(monkeypatch):
         # Test memory review preview
         res = await handle_memory_review_preview('{"candidate": {"content": "memory"}, "action": "save_to_obsidian"}')
         assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_locked_vault_blocks_route_level_content_surfaces(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        with open(os.path.join(tmpdir, "Secret.md"), "w", encoding="utf-8") as f:
+            f.write("# Secret\n\nhidden memory")
+        set_password(tmpdir, "strong password")
+        lock_vault(tmpdir)
+        request = SimpleNamespace(
+            state=SimpleNamespace(current_user="alice", api_token=False),
+            app=SimpleNamespace(state=SimpleNamespace(auth_manager=None)),
+            client=SimpleNamespace(host="127.0.0.1"),
+        )
+
+        async def assert_locked(awaitable):
+            with pytest.raises(HTTPException) as exc:
+                await awaitable
+            assert exc.value.status_code == 423
+            assert "locked" in str(exc.value.detail).lower()
+
+        await assert_locked(obsidian_routes.list_files(request))
+        await assert_locked(obsidian_routes.search_vault("hidden", request))
+        await assert_locked(obsidian_routes.list_tags(request))
+        await assert_locked(obsidian_routes.graph_vault(request))
+        await assert_locked(obsidian_routes.project_plan_templates(request))
+        await assert_locked(obsidian_routes.project_plan_preview(ProjectPlanRequest(
+            title="Locked Project",
+            kind="software",
+            description="Should not inspect a locked vault.",
+        ), request))
+        await assert_locked(obsidian_routes.memory_review_preview(MemoryReviewRequest(
+            candidate={"content": "locked memory"},
+            action="save_to_obsidian",
+        ), request))
+        await assert_locked(obsidian_routes.memory_capture_preview(MemoryCaptureRequest(
+            content="locked capture",
+            source="agent",
+        ), request))
+        await assert_locked(obsidian_routes.spark_analyze(SparkAnalyzeRequest(limit=10), request))
+        await assert_locked(obsidian_routes.memory_status_route(request))
