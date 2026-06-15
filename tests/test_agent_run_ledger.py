@@ -142,6 +142,14 @@ def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkey
     assert snapshot["phases"]["worker"]["starts"] == 1
     assert snapshot["phases"]["verifier"]["status"] == "done"
     assert snapshot["phases"]["verifier"]["starts"] == 1
+    assert snapshot["phases"]["verifier"]["policy_tiers"] == {"safe": 1}
+    assert snapshot["phases"]["verifier"]["last_command_policy"] == {
+        "tier": "safe",
+        "reason": "known_safe_command",
+        "requires_confirmation": False,
+        "blocked": False,
+        "audit": False,
+    }
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "worker done" not in json.dumps(snapshot)
     assert "passed" not in json.dumps(snapshot)

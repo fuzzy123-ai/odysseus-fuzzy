@@ -95,13 +95,24 @@ def _phase(role: str, status: str) -> dict[str, Any]:
         "outputs": 0,
         "blocked": 0,
         "last_exit_code": None,
+        "policy_tiers": {},
+        "last_command_policy": None,
         "started_at": None,
         "updated_at": None,
     }
 
 
 def _role_counts() -> dict[str, Any]:
-    return {"starts": 0, "outputs": 0, "blocked": 0, "last_exit_code": None, "started_at": None, "updated_at": None}
+    return {
+        "starts": 0,
+        "outputs": 0,
+        "blocked": 0,
+        "last_exit_code": None,
+        "policy_tiers": {},
+        "last_command_policy": None,
+        "started_at": None,
+        "updated_at": None,
+    }
 
 
 def _is_worker_event(payload: dict[str, Any]) -> bool:
@@ -121,6 +132,13 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
     payload_type = payload.get("type")
     if payload_type == "tool_start":
         counts["starts"] += 1
+        policy = _command_policy(payload)
+        if policy:
+            tier = str(policy.get("tier") or "unknown")
+            counts["policy_tiers"][tier] = counts["policy_tiers"].get(tier, 0) + 1
+            counts["last_command_policy"] = policy
+            if policy.get("blocked"):
+                counts["blocked"] += 1
         counts["started_at"] = counts["started_at"] or ts
         counts["updated_at"] = ts or counts["updated_at"]
     elif payload_type == "tool_output":
@@ -129,6 +147,17 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
         if payload.get("blocked") or payload.get("exit_code") not in (None, 0):
             counts["blocked"] += 1
         counts["updated_at"] = ts or counts["updated_at"]
+
+
+def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
+    policy = payload.get("command_policy")
+    if not isinstance(policy, dict) or not policy.get("tier"):
+        return None
+    return {
+        key: policy.get(key)
+        for key in ("tier", "reason", "requires_confirmation", "blocked", "audit")
+        if key in policy
+    }
 
 
 def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -> None:
