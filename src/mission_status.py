@@ -80,6 +80,7 @@ def summarize_mission(
         "memory_status": memory_status,
         "ledger": ledger,
         "phases": phases,
+        "dag": _dag(phases),
         "summary": _summary(status, phases),
         "next_actions": _next_actions(status, phases),
     }
@@ -238,6 +239,36 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
+    }
+
+
+def _dag(phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "nodes": [
+            _dag_node(phases["manager"]),
+            _dag_node(phases["worker"]),
+            _dag_node(phases["verifier"]),
+        ],
+        "edges": [
+            {"source": "manager", "target": "worker", "kind": "delegates"},
+            {"source": "worker", "target": "verifier", "kind": "handoff"},
+            {"source": "manager", "target": "verifier", "kind": "direct_verification"},
+        ],
+    }
+
+
+def _dag_node(phase: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": phase["role"],
+        "role": phase["role"],
+        "status": phase["status"],
+        "started_at": phase.get("started_at"),
+        "updated_at": phase.get("updated_at"),
+        "starts": phase.get("starts", 0),
+        "outputs": phase.get("outputs", 0),
+        "blocked": phase.get("blocked", 0),
+        "has_blocker": bool(phase.get("last_blocker")),
+        "has_required_action": bool(phase.get("latest_required_action")),
     }
 
 

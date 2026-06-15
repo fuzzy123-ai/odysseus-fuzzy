@@ -154,6 +154,14 @@ def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkey
     assert snapshot["summary"]["worker_status"] == "done"
     assert snapshot["summary"]["verifier_status"] == "done"
     assert snapshot["summary"]["policy_tiers"] == {"safe": 1}
+    assert [node["id"] for node in snapshot["dag"]["nodes"]] == ["manager", "worker", "verifier"]
+    assert snapshot["dag"]["edges"] == [
+        {"source": "manager", "target": "worker", "kind": "delegates"},
+        {"source": "worker", "target": "verifier", "kind": "handoff"},
+        {"source": "manager", "target": "verifier", "kind": "direct_verification"},
+    ]
+    assert snapshot["dag"]["nodes"][1]["starts"] == 1
+    assert snapshot["dag"]["nodes"][2]["status"] == "done"
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "worker done" not in json.dumps(snapshot)
     assert "passed" not in json.dumps(snapshot)
@@ -223,6 +231,9 @@ def test_summarize_mission_reports_latest_verifier_blocker(tmp_path, monkeypatch
         "exit_code": 1,
         "reason": "nonzero_exit_code",
     }
+    verifier_node = next(node for node in snapshot["dag"]["nodes"] if node["id"] == "verifier")
+    assert verifier_node["status"] == "blocked"
+    assert verifier_node["has_blocker"] is True
     assert "inspect_verification_failure" in snapshot["next_actions"]
     assert "failed details" not in json.dumps(snapshot)
 
@@ -248,6 +259,8 @@ def test_summarize_mission_reports_latest_required_action(tmp_path, monkeypatch)
     }
     assert snapshot["summary"]["latest_required_action"]["role"] == "verifier"
     assert snapshot["summary"]["latest_required_action"]["action"] == "confirm_shell_command"
+    verifier_node = next(node for node in snapshot["dag"]["nodes"] if node["id"] == "verifier")
+    assert verifier_node["has_required_action"] is True
     assert "confirm_shell_command" in snapshot["next_actions"]
 
 
@@ -309,6 +322,7 @@ def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch)
     body = response.json()
     assert body["mission_id"] == "mission-route-session"
     assert body["phases"]["manager"]["status"] == "done"
+    assert body["dag"]["edges"][0] == {"source": "manager", "target": "worker", "kind": "delegates"}
     assert body["summary"]["verifier_status"] == "idle"
     assert body["next_actions"] == ["run_focused_verification"]
 
