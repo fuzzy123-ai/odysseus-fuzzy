@@ -37,7 +37,6 @@ let isPanelOpen = false;
 let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
-let graphEdgeTypeFilter = 'all';
 const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters';
 let graphFilterState = {
   mode: 'highlight',
@@ -487,7 +486,17 @@ function isVaultRootSelected() {
 }
 
 function graphFocusPath() {
-  return isVaultRootSelected() ? '' : (currentNotePath || '');
+  if (isVaultRootSelected()) return '';
+  const selected = selectedTreePath ? findTreeNode(selectedTreePath) : null;
+  if (selected?.is_dir) return '';
+  return currentNotePath || '';
+}
+
+function focusedGraphFolderPath() {
+  if (isVaultRootSelected()) return null;
+  const selected = selectedTreePath ? findTreeNode(selectedTreePath) : null;
+  if (selected?.is_dir) return selected.path;
+  return currentNotePath ? directFolderForPath(currentNotePath) : null;
 }
 
 function selectTreeItem(path) {
@@ -950,7 +959,6 @@ async function handleVaultSettingsAction(action) {
     }
 
     if (action === 'reset-graph') {
-      graphEdgeTypeFilter = 'all';
       resetGraphFilterState();
       saveGraphFilterState();
       setViewMode('graph');
@@ -1932,6 +1940,9 @@ function buildTreeHTML(nodes, container, level) {
           expandedFolders.add(node.path);
         }
         renderFileTree();
+        if (currentViewMode === 'graph') {
+          renderGraphView();
+        }
       } else {
         selectTreeItem(node.path);
         openNote(node.path);
@@ -3848,6 +3859,7 @@ function renderMemoryReviewPreview(plan) {
   const files = plan.files || [];
   const tags = plan.new_tags || [];
   const notes = plan.suggested_notes || [];
+  const duplicates = plan.duplicate_candidates || [];
   const relationships = plan.relationships || [];
   const firstFile = files[0] || null;
   const titleWasProvided = Boolean((plan.candidate?.title || '').trim());
@@ -3874,6 +3886,10 @@ function renderMemoryReviewPreview(plan) {
       <div>
         <span>Relationships</span>
         <strong>${escapeHtml(relationships.length)}</strong>
+      </div>
+      <div>
+        <span>Duplicates</span>
+        <strong>${escapeHtml(duplicates.length)}</strong>
       </div>
     </div>
     ${conflicts.length ? `<div class="obsidian-project-conflicts" data-memory-conflicts="true">
@@ -3902,6 +3918,10 @@ function renderMemoryReviewPreview(plan) {
     ${notes.length ? `<div class="obsidian-project-new-tags">
       <strong>Suggested notes</strong>
       ${notes.map(item => `<div><code>${escapeHtml(item.path)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
+    </div>` : ''}
+    ${duplicates.length ? `<div class="obsidian-project-warnings" data-memory-duplicates="true">
+      <strong>Possible duplicates</strong>
+      ${duplicates.map(item => `<div><code>${escapeHtml(item.path)}</code> ${escapeHtml(item.reason)}</div>`).join('')}
     </div>` : ''}
     ${tags.length ? `<div class="obsidian-project-new-tags">
       <strong>New tags</strong>
@@ -4630,8 +4650,7 @@ async function loadCytoscape() {
 }
 
 function focusedProjectFolder() {
-  if (isVaultRootSelected()) return null;
-  return currentNotePath ? directFolderForPath(currentNotePath) : null;
+  return focusedGraphFolderPath();
 }
 
 function projectFolderNodes(prepared) {
@@ -4668,7 +4687,7 @@ function starPositions(prepared, width, height) {
 }
 
 function cytoscapeElements(prepared, star = null) {
-  const focusedFolder = directFolderForPath(currentNotePath);
+  const focusedFolder = focusedGraphFolderPath();
   
   const folderElements = prepared.folderNodes.map(node => {
     const parent = parentFolderForFolder(node.id);
@@ -4973,14 +4992,15 @@ async function renderCytoscapeGraph(graph, prepared) {
     canvas.title = '';
   });
 
-  if (currentNotePath) {
-    const activeNode = graphCytoscapeInstance.getElementById(currentNotePath);
+  const viewportTargetPath = focusedGraphFolderPath() || currentNotePath || '';
+  if (viewportTargetPath) {
+    const activeNode = graphCytoscapeInstance.getElementById(viewportTargetPath);
     if (activeNode.length > 0) {
       setTimeout(() => {
         if (graphCytoscapeInstance) {
           graphCytoscapeInstance.animate({
             center: { eles: activeNode },
-            zoom: 1.15,
+            zoom: activeNode.data('type') === 'folder' ? 0.92 : 1.15,
             duration: 350
           });
         }

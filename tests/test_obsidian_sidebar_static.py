@@ -146,9 +146,12 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
     assert "const OBSIDIAN_GRAPH_WHEEL_SENSITIVITY = 0.55" in main_js
     assert "function isVaultRootSelected()" in main_js
     assert "function graphFocusPath()" in main_js
+    assert "function focusedGraphFolderPath()" in main_js
     assert "const focusPath = graphFocusPath();" in main_js
-    assert "return isVaultRootSelected() ? '' : (currentNotePath || '')" in main_js
+    assert "if (isVaultRootSelected()) return '';" in main_js
+    assert "if (selected?.is_dir) return '';" in main_js
     assert "if (isVaultRootSelected()) return null;" in main_js
+    assert "if (selected?.is_dir) return selected.path;" in main_js
     assert "wheelSensitivity: OBSIDIAN_GRAPH_WHEEL_SENSITIVITY" in main_js
     assert "if (currentViewMode === 'graph') {\n          renderGraphView();" in main_js
     assert "Cytoscape graph failed, falling back to SVG" in main_js
@@ -174,6 +177,7 @@ def test_obsidian_graph_filter_contract_and_current_node_visibility():
 
     assert "const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters'" in main_js
     assert "let graphFilterState = {" in main_js
+    assert "let graphEdgeTypeFilter = 'all';" not in main_js
     assert "let graphFilterPanelOpen = false;" in main_js
     assert "let graphFilterOutsideClickHandler = null;" in main_js
     assert "function resetGraphFilterState()" in main_js
@@ -224,6 +228,7 @@ def test_obsidian_file_tree_selects_and_renames_folders():
     assert "selectedTreePath === node.path" in main_js
     assert "const isFolderSelected = node.is_dir && selectedTreePath === node.path" in main_js
     assert "const isFileSelected = !node.is_dir && isSelected" in main_js
+    assert "renderFileTree();\n        if (currentViewMode === 'graph') {\n          renderGraphView();\n        }" in main_js
     assert "function startInlineRenameItem(path)" in main_js
     assert "function startInlineRenameFolder(path)" in main_js
     assert "function inlineRenameTargetPath(oldPath, trimmedName, isFolder)" in main_js
@@ -735,12 +740,12 @@ def test_obsidian_memory_tree_audit_ui_contract():
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
-    assert "Set or replace password protection for this vault? This blocks plugin access, but it does not automatically encrypt existing vault files at rest on disk." in main_js
+    assert "Set or replace plugin password protection for this vault? This limits access through the plugin and tools, but it is not full disk encryption and does not automatically encrypt existing vault files at rest on disk." in main_js
     assert "Remove password protection from this vault?" in main_js
     assert "Export password:" in main_js
     assert "Current vault password:" in main_js
     assert "Archive password, if needed:" in main_js
-    assert "Vault password (plugin access only; existing vault files on disk are not automatically encrypted at rest):" in main_js
+    assert "Vault password for plugin access only. Existing vault files already on disk are not automatically encrypted at rest by this step:" in main_js
     assert "showToast('Vault password updated')" in main_js
     assert "showToast('Vault password removed')" in main_js
     assert "showToast(password" not in main_js

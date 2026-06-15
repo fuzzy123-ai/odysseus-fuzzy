@@ -63,6 +63,7 @@ class MemoryReviewPlan(BaseModel):
     files: List[MemoryReviewFile] = Field(default_factory=list)
     relationships: List[MemoryReviewRelationship] = Field(default_factory=list)
     suggested_notes: List[SuggestedNote] = Field(default_factory=list)
+    duplicate_candidates: List[SuggestedNote] = Field(default_factory=list)
     suggested_tags: List[str] = Field(default_factory=list)
     new_tags: List[MemoryReviewNewTag] = Field(default_factory=list)
     conflicts: List[Dict[str, str]] = Field(default_factory=list)
@@ -112,6 +113,7 @@ def build_memory_review_plan(
     existing_notes = {note["path"] for note in index.get("notes", [])}
     existing_tags = {tag["name"] for tag in index.get("tags", [])}
     suggested_notes = _suggest_notes(vault_dir, candidate, request.link_paths)
+    duplicate_candidates = _duplicate_candidates(candidate, suggested_notes)
     chosen_links = _chosen_links(request.link_paths, suggested_notes, existing_notes)
     suggested_tags = _suggest_tags(candidate, request.tags, existing_tags)
     tags = _schema_tags(note_type, status, request.project, source, request.tags, suggested_tags)
@@ -122,6 +124,7 @@ def build_memory_review_plan(
         target_folder=target_folder,
         target_note=target_note,
         suggested_notes=suggested_notes,
+        duplicate_candidates=duplicate_candidates,
         suggested_tags=suggested_tags,
         warnings=[],
         questions=[],
@@ -154,6 +157,8 @@ def build_memory_review_plan(
             content_preview=_content_preview(content),
             content=content,
         )]
+        if duplicate_candidates:
+            plan.warnings.append("Possible duplicate vault notes found; confirm that appending is better than creating another memory note.")
         return validate_memory_review_plan(vault_dir, plan, collect_conflicts=True)
 
     title = _title_for_candidate(candidate)
@@ -163,6 +168,8 @@ def build_memory_review_plan(
         links = [_wiki_link(suggested_notes[0].path)]
     if not links:
         plan.warnings.append("No strong existing note match found; review this as an inbox note before treating it as connected context.")
+    if duplicate_candidates:
+        plan.warnings.append("Possible duplicate vault notes found; review the suggested duplicates before creating another memory note.")
     frontmatter = {
         "type": note_type,
         "status": status,
@@ -485,6 +492,26 @@ def _suggest_notes(vault_dir: str, candidate: MemoryCandidate, requested_paths: 
     return suggestions[:5]
 
 
+def _duplicate_candidates(candidate: MemoryCandidate, suggestions: Iterable[SuggestedNote]) -> List[SuggestedNote]:
+    title_key = _comparable_title(candidate.title)
+    duplicates: List[SuggestedNote] = []
+    for suggestion in suggestions:
+        suggestion_key = _comparable_title(suggestion.title)
+        if title_key and suggestion_key == title_key:
+            duplicates.append(suggestion)
+            continue
+        if suggestion.score >= 8:
+            duplicates.append(suggestion)
+    deduped: List[SuggestedNote] = []
+    seen_paths: Set[str] = set()
+    for suggestion in duplicates:
+        if suggestion.path in seen_paths:
+            continue
+        seen_paths.add(suggestion.path)
+        deduped.append(suggestion)
+    return deduped[:3]
+
+
 def _suggest_tags(candidate: MemoryCandidate, requested_tags: Iterable[str], existing_tags: Set[str]) -> List[str]:
     requested = {normalize_tag_name(tag) for tag in requested_tags or []}
     tokens = _tokens(" ".join([candidate.title, candidate.content, candidate.source_ref]))
@@ -550,6 +577,10 @@ def _link_to_path(link: str) -> Optional[str]:
 def _tokens(value: str) -> Set[str]:
     stop = {"and", "the", "for", "mit", "der", "die", "das", "und", "ein", "eine", "ist", "soll"}
     return {token for token in re.findall(r"[a-z0-9]{3,}", value.lower()) if token not in stop}
+
+
+def _comparable_title(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", str(value or "").lower()))
 
 
 def _content_preview(content: str) -> str:
