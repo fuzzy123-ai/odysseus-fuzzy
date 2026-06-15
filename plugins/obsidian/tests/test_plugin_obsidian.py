@@ -2749,6 +2749,45 @@ async def test_project_plan_tools_preview_apply_and_graph(monkeypatch):
         assert os.path.exists(os.path.join(tmpdir, "fresh-project", "00 Projektuebersicht.md"))
 
 
+@pytest.mark.asyncio
+async def test_project_plan_apply_route_conflicts_return_409_before_writes(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
+        existing_path = os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md")
+        with open(existing_path, "w", encoding="utf-8") as f:
+            f.write("# Existing\n")
+
+        request_payload = ProjectPlanRequest(
+            target_folder="Projects/Demo",
+            title="Demo App",
+            description="Build again on top of an existing project.",
+            kind="software",
+        )
+        plan = build_project_plan(tmpdir, request_payload)
+        plan_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        request = SimpleNamespace(state=SimpleNamespace(api_token=False))
+
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+
+        def fail_apply(*args, **kwargs):
+            raise AssertionError("apply_project_plan should not run when conflicts are present")
+
+        monkeypatch.setattr(obsidian_routes, "apply_project_plan", fail_apply)
+
+        with pytest.raises(HTTPException) as exc:
+            await obsidian_routes.project_plan_apply(
+                obsidian_routes.ProjectPlanApplyRequest(plan=plan_payload, confirm=True),
+                request,
+            )
+
+        assert exc.value.status_code == 409
+        assert exc.value.detail["message"] == "Plan has file conflicts"
+        assert exc.value.detail["conflicts"]
+        with open(existing_path, "r", encoding="utf-8") as f:
+            assert f.read() == "# Existing\n"
+        assert not os.path.exists(os.path.join(tmpdir, ".obsidian", "history.json"))
+
+
 def test_memory_review_preview_reuses_tags_links_and_validates_schema():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
@@ -2861,6 +2900,55 @@ async def test_memory_review_tools_apply_create_append_history_and_graph(monkeyp
 
         history_res = await handle_history('{"limit": 20}', owner="alice")
         assert "obsidian_memory_review_apply" in history_res["output"]
+
+
+@pytest.mark.asyncio
+async def test_memory_review_apply_route_conflicts_return_409_before_writes(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\n#project/demo\n")
+
+        plan = build_memory_review_plan(tmpdir, MemoryReviewRequest(
+            candidate={
+                "title": "Demo retention decision",
+                "content": "Keep the memory review workflow linked to Demo.",
+                "source": "chat",
+            },
+            action="save_to_obsidian",
+            target_folder="Memory Review",
+            note_type="decision",
+            project="Demo",
+            tags=["#project/demo"],
+            link_paths=["Projects/Demo.md"],
+        ))
+        conflict_path = os.path.join(tmpdir, *plan.files[0].path.split("/"))
+        os.makedirs(os.path.dirname(conflict_path), exist_ok=True)
+        with open(conflict_path, "w", encoding="utf-8") as f:
+            f.write("# Existing conflict target\n")
+
+        plan_payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+        request = SimpleNamespace(state=SimpleNamespace(api_token=False))
+
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+
+        def fail_apply(*args, **kwargs):
+            raise AssertionError("apply_memory_review_plan should not run when conflicts are present")
+
+        monkeypatch.setattr(obsidian_routes, "apply_memory_review_plan", fail_apply)
+
+        with pytest.raises(HTTPException) as exc:
+            await obsidian_routes.memory_review_apply(
+                obsidian_routes.MemoryReviewApplyRequest(plan=plan_payload, confirm=True),
+                request,
+            )
+
+        assert exc.value.status_code == 409
+        assert exc.value.detail["message"] == "Memory review plan has file conflicts"
+        assert exc.value.detail["conflicts"]
+        with open(conflict_path, "r", encoding="utf-8") as f:
+            assert f.read() == "# Existing conflict target\n"
+        assert not os.path.exists(os.path.join(tmpdir, ".obsidian", "history.json"))
 
 
 @pytest.mark.asyncio
