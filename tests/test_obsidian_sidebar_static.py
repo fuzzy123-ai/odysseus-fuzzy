@@ -547,6 +547,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert 'data-memory-readiness-state="${escapeHtml(state)}"' in main_js
     assert "summary.readiness_families ?? summary.families" in main_js
     assert "summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length" in main_js
+    assert "summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0} families ready" in main_js
     assert "summary?.readiness_gap_names" in main_js
     assert "memoryStatusReport?.readiness_by_family || {}" in main_js
     assert 'data-memory-family-ready="${signal.ready ? \'true\' : \'false\'}"' in main_js

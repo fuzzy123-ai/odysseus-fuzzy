@@ -3326,7 +3326,7 @@ function renderMemoryTreePanel() {
   if (subtitle) {
     const summary = memoryStatusReport?.summary || {};
     subtitle.textContent = summary.readiness_state
-      ? `Memory readiness: ${summary.readiness_state} | ${summary.ready_families ?? 0}/${summary.families ?? 0} families ready | ${summary.readiness_gaps ?? 0} gaps`
+      ? `Memory readiness: ${summary.readiness_state} | ${summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0} families ready | ${summary.readiness_gaps ?? 0} gaps`
       : 'Memory tree, Freshness Gate, quarantine, and RAPTOR status';
   }
   document.querySelectorAll('[data-memory-tree-tab]').forEach(btn => {
