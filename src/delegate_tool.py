@@ -103,7 +103,7 @@ def _parse_args(content: str) -> Dict[str, Any]:
 
 def _provider_messages(*, owner: Optional[str], query: str, budget: int, context_length: int) -> List[Dict[str, str]]:
     try:
-        from src.context_orchestrator import preload_provider_context, provider_messages
+        from src.context_orchestrator import preload_provider_context, provider_messages, provider_warning_messages
 
         payloads, warnings = preload_provider_context(
             owner=owner,
@@ -113,7 +113,7 @@ def _provider_messages(*, owner: Optional[str], query: str, budget: int, context
         )
         for warning in warnings:
             logger.warning("[delegate] Context provider warning: %s", warning)
-        return provider_messages(payloads)
+        return provider_messages(payloads) + provider_warning_messages(warnings)
     except Exception as exc:
         logger.warning("[delegate] Context provider preload skipped: %s", exc)
         return []
