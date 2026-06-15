@@ -71,7 +71,7 @@ function _missionShellPolicyText(snapshot) {
 }
 
 function _missionArtifactText(snapshot) {
-  const artifacts = snapshot?.phases?.verifier?.artifacts || {};
+  const artifacts = snapshot?.summary?.verifier_artifacts || snapshot?.phases?.verifier?.artifacts || {};
   const entries = Object.entries(artifacts)
     .filter(([, count]) => Number(count || 0) > 0)
     .map(([kind, count]) => `${kind.replace(/_/g, ' ')}: ${count}`);
@@ -80,11 +80,16 @@ function _missionArtifactText(snapshot) {
 }
 
 function _missionPolicyTierText(snapshot) {
+  const summaryTiers = snapshot?.summary?.policy_tiers || {};
   const phases = snapshot?.phases || {};
-  const entries = ['worker', 'verifier']
-    .flatMap((role) => Object.entries(phases[role]?.policy_tiers || {})
+  const entries = Object.keys(summaryTiers).length
+    ? Object.entries(summaryTiers)
       .filter(([, count]) => Number(count || 0) > 0)
-      .map(([tier, count]) => `${role} ${tier}: ${count}`));
+      .map(([tier, count]) => `${tier}: ${count}`)
+    : ['worker', 'verifier']
+      .flatMap((role) => Object.entries(phases[role]?.policy_tiers || {})
+        .filter(([, count]) => Number(count || 0) > 0)
+        .map(([tier, count]) => `${role} ${tier}: ${count}`));
   if (!entries.length) return '';
   return ` Policy tiers: ${entries.join(', ')}.`;
 }

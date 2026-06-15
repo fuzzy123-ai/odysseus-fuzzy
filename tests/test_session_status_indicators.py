@@ -48,9 +48,11 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "confirmation required" in source
     assert "audit logged" in source
     assert "function _missionArtifactText(snapshot)" in source
+    assert "snapshot?.summary?.verifier_artifacts" in source
     assert "snapshot?.phases?.verifier?.artifacts" in source
     assert "Artifacts:" in source
     assert "function _missionPolicyTierText(snapshot)" in source
+    assert "snapshot?.summary?.policy_tiers" in source
     assert "phases[role]?.policy_tiers" in source
     assert "Policy tiers:" in source
 
