@@ -660,10 +660,19 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert before == after
         assert audit["summary"]["current"] == 1
         assert audit["filtering_state"] == "audit_only"
+        assert audit["readiness"]["ready"] is False
+        assert audit["readiness"]["state"] == "needs_review"
+        assert audit["readiness"]["gaps"] == [
+            "freshness_filtering_not_active",
+            "needs_review_items",
+            "quarantined_items",
+        ]
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
         assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
         assert audit["summary"]["filtering_state"] == "audit_only"
+        assert audit["summary"]["readiness_state"] == "needs_review"
+        assert audit["summary"]["readiness_gaps"] == 3
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in quarantine["items"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
@@ -671,10 +680,33 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert quarantine["flags"]["obsidian_freshness_gate_enabled"] is True
         assert quarantine["flags"]["obsidian_hybrid_retrieval_enabled"] is False
         assert quarantine["filtering_state"] == "audit_only"
+        assert quarantine["readiness"]["state"] == "needs_review"
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 3
         assert quarantine["summary"]["by_channel"] == {"needs_review": 1, "quarantined": 2}
         assert quarantine["summary"]["filtering_state"] == "audit_only"
+        assert quarantine["summary"]["readiness_state"] == "needs_review"
+        assert quarantine["summary"]["readiness_gaps"] == 3
+
+
+def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Current.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Current\n")
+
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
+
+        audit = audit_knowledge(tmpdir)
+
+        assert audit["filtering_state"] == "active"
+        assert audit["readiness"] == {
+            "ready": True,
+            "state": "ready",
+            "gaps": [],
+            "writes_supported": False,
+        }
+        assert audit["summary"]["readiness_state"] == "ready"
+        assert audit["summary"]["readiness_gaps"] == 0
 
 
 def test_unresolved_conflict_status_is_isolated_from_default_truth():

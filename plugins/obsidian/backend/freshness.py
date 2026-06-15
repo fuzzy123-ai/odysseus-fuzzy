@@ -141,10 +141,16 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
     isolated_total = sum(len(channels[name]) for name in ("needs_review", "conflicts", "quarantined"))
     flags = all_flags()
     filtering_state = freshness_filtering_state(flags)
+    readiness = _freshness_readiness(
+        enabled=flags["obsidian_freshness_gate_enabled"],
+        filtering_state=filtering_state,
+        channels=channels,
+    )
     return {
         "enabled": flags["obsidian_freshness_gate_enabled"],
         "flags": flags,
         "filtering_state": filtering_state,
+        "readiness": readiness,
         "channels": channels,
         "summary": {
             "total": sum(len(values) for values in channels.values()),
@@ -157,8 +163,47 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "status_counts": dict(sorted(status_counts.items())),
             "isolation_counts": dict(sorted(isolation_counts.items())),
             "filtering_state": filtering_state,
+            "readiness_state": readiness["state"],
+            "readiness_gaps": len(readiness["gaps"]),
         },
         "warnings": warnings,
+    }
+
+
+def _freshness_readiness(
+    *,
+    enabled: bool,
+    filtering_state: str,
+    channels: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    gaps = []
+    if not enabled:
+        gaps.append("freshness_gate_disabled")
+    if filtering_state != "active":
+        gaps.append("freshness_filtering_not_active")
+    if channels["needs_review"]:
+        gaps.append("needs_review_items")
+    if channels["conflicts"]:
+        gaps.append("conflict_items")
+    if channels["quarantined"]:
+        gaps.append("quarantined_items")
+    if not enabled:
+        state = "disabled"
+    elif channels["conflicts"]:
+        state = "conflicts"
+    elif channels["needs_review"]:
+        state = "needs_review"
+    elif channels["quarantined"]:
+        state = "quarantined"
+    elif filtering_state != "active":
+        state = "audit_only"
+    else:
+        state = "ready"
+    return {
+        "ready": state == "ready",
+        "state": state,
+        "gaps": gaps,
+        "writes_supported": False,
     }
 
 
@@ -170,6 +215,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
         "enabled": audit["enabled"],
         "flags": audit["flags"],
         "filtering_state": audit.get("filtering_state", "disabled"),
+        "readiness": audit.get("readiness", {}),
         "items": items,
         "summary": {
             "total": len(items),
@@ -178,6 +224,8 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "by_status": dict(sorted(Counter(item["status"] for item in items).items())),
             "by_channel": dict(sorted(Counter(item["channel"] for item in items).items())),
             "filtering_state": audit.get("filtering_state", "disabled"),
+            "readiness_state": audit.get("readiness", {}).get("state", "unknown"),
+            "readiness_gaps": len(audit.get("readiness", {}).get("gaps") or []),
         },
         "warnings": audit["warnings"],
     }

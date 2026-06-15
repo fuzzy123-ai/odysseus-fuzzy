@@ -3123,9 +3123,11 @@ function renderKnowledgeAudit() {
   }
   const summary = knowledgeAuditReport.summary || {};
   const channels = knowledgeAuditReport.channels || {};
+  const readiness = knowledgeAuditReport.readiness || {};
   return `
     ${memoryMetricGrid([
       { label: 'Current', value: summary.current || 0 },
+      { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
       { label: 'Needs review', value: summary.needs_review || 0 },
       { label: 'Conflicts', value: summary.conflicts || 0 },
       { label: 'Quarantined', value: summary.quarantined || 0 },
@@ -3140,6 +3142,7 @@ function renderKnowledgeAudit() {
     })}
     ${renderMemoryWarnings(knowledgeAuditReport)}
     <div class="obsidian-memory-tree-grid">
+      ${renderMemoryStatusCounts('Review gaps', (readiness.gaps || []).reduce((acc, gap) => ({ ...acc, [gap]: 1 }), {}))}
       ${renderMemoryStatusCounts('Statuses', summary.status_counts || {})}
       ${renderMemoryStatusCounts('Isolated statuses', summary.isolation_counts || {})}
       ${renderMemoryRecordList('Needs review', channels.needs_review || [], 'No review items')}
@@ -3153,10 +3156,12 @@ function renderQuarantineList() {
   if (!quarantineReport) {
     return '<div class="obsidian-project-loading">Run refresh to load quarantine records.</div>';
   }
+  const readiness = quarantineReport.readiness || {};
   return `
     ${memoryMetricGrid([
       { label: 'Items', value: quarantineReport.summary?.total || 0 },
       { label: 'Gate', value: quarantineReport.enabled ? 'on' : 'off' },
+      { label: 'Readiness', value: quarantineReport.summary?.readiness_state || readiness.state || 'unknown' },
       { label: 'Default retrieval', value: quarantineReport.summary?.default_retrieval || 0 },
       { label: 'Isolated', value: quarantineReport.summary?.isolated || 0 },
     ])}
@@ -3169,6 +3174,7 @@ function renderQuarantineList() {
     })}
     ${renderMemoryWarnings(quarantineReport)}
     <div class="obsidian-memory-tree-grid">
+      ${renderMemoryStatusCounts('Review gaps', (readiness.gaps || []).reduce((acc, gap) => ({ ...acc, [gap]: 1 }), {}))}
       ${renderMemoryStatusCounts('By status', quarantineReport.summary?.by_status || {})}
       ${renderMemoryStatusCounts('By channel', quarantineReport.summary?.by_channel || {})}
       ${renderMemoryRecordList('Isolated from default retrieval', quarantineReport.items || [], 'No quarantined knowledge')}
