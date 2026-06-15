@@ -1174,16 +1174,26 @@ async def test_memory_tree_agent_tools_are_read_only(monkeypatch):
         with open(os.path.join(tmpdir, "Fact.md"), "w", encoding="utf-8") as f:
             f.write("---\nstatus: archived\n---\n# Fact\n")
 
-        assert (await handle_memory_tree_status("", owner="alice"))["exit_code"] == 0
+        memory_tree_status_res = await handle_memory_tree_status("", owner="alice")
+        assert memory_tree_status_res["exit_code"] == 0
+        assert "readiness_gate" in json.loads(memory_tree_status_res["output"])
         memory_status_res = await handle_memory_status("", owner="alice")
         assert memory_status_res["exit_code"] == 0
-        assert '"read_only": true' in memory_status_res["output"]
+        memory_status_payload = json.loads(memory_status_res["output"])
+        assert memory_status_payload["read_only"] is True
+        assert "readiness_gate" in memory_status_payload
         assert (await handle_memory_tree_analyze("{}", owner="alice"))["exit_code"] == 0
-        assert (await handle_knowledge_audit("", owner="alice"))["exit_code"] == 0
+        audit_res = await handle_knowledge_audit("", owner="alice")
+        assert audit_res["exit_code"] == 0
+        assert "readiness_gate" in json.loads(audit_res["output"])
         quarantine = await handle_quarantine_list("", owner="alice")
         assert quarantine["exit_code"] == 0
+        quarantine_payload = json.loads(quarantine["output"])
         assert "Fact.md" in quarantine["output"]
-        assert (await handle_raptor_status("", owner="alice"))["exit_code"] == 0
+        assert "readiness_gate" in quarantine_payload
+        raptor_res = await handle_raptor_status("", owner="alice")
+        assert raptor_res["exit_code"] == 0
+        assert "readiness_gate" in json.loads(raptor_res["output"])
 
 
 def test_obsidian_context_provider_parses_frontmatter_lists():
