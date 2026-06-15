@@ -53,6 +53,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/obsidian/relationships" in paths
     assert "/api/plugins/obsidian/history" in paths
     assert "/api/plugins/obsidian/history/undo" in paths
+    assert "/api/plugins/obsidian/memory/status" in paths
+    assert "/api/plugins/obsidian/memory-tree/analyze" in paths
+    assert "/api/plugins/obsidian/knowledge-audit" in paths
+    assert "/api/plugins/obsidian/quarantine" in paths
+    assert "/api/plugins/obsidian/raptor/status" in paths
     assert "/api/plugins/obsidian/project-plan/templates" in paths
     assert "/api/plugins/obsidian/project-plan/preview" in paths
     assert "/api/plugins/obsidian/project-plan/apply" in paths
@@ -64,6 +69,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_add_relationship") is not None
     assert get_tool("obsidian_history") is not None
     assert get_tool("obsidian_undo") is not None
+    assert get_tool("obsidian_memory_status") is not None
+    assert get_tool("obsidian_memory_tree_status") is not None
+    assert get_tool("obsidian_knowledge_audit") is not None
+    assert get_tool("obsidian_quarantine_list") is not None
+    assert get_tool("obsidian_raptor_status") is not None
     assert get_tool("obsidian_project_plan_preview") is not None
     assert get_tool("obsidian_project_plan_apply") is not None
     assert any(provider.id == "obsidian.vault_context" for provider in get_context_providers())
@@ -87,6 +97,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert visible_tools["obsidian_graph"]["desc"]
     assert "obsidian_add_relationship" in visible_tools
     assert "obsidian_undo" in visible_tools
+    assert "obsidian_memory_status" in visible_tools
+    assert "obsidian_memory_tree_status" in visible_tools
+    assert "obsidian_knowledge_audit" in visible_tools
+    assert "obsidian_quarantine_list" in visible_tools
+    assert "obsidian_raptor_status" in visible_tools
     assert "obsidian_project_plan_preview" in visible_tools
     assert "obsidian_project_plan_apply" in visible_tools
     ui_loader_response = TestClient(app).get("/api/plugins/ui-loader.js")
@@ -105,6 +120,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_add_relationship") is None
     assert get_tool("obsidian_history") is None
     assert get_tool("obsidian_undo") is None
+    assert get_tool("obsidian_memory_status") is None
+    assert get_tool("obsidian_memory_tree_status") is None
+    assert get_tool("obsidian_knowledge_audit") is None
+    assert get_tool("obsidian_quarantine_list") is None
+    assert get_tool("obsidian_raptor_status") is None
     assert get_tool("obsidian_project_plan_preview") is None
     assert get_tool("obsidian_project_plan_apply") is None
     assert all(provider.id != "obsidian.vault_context" for provider in get_context_providers())
