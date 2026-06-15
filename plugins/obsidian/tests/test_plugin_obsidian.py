@@ -611,6 +611,10 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert filtered_payload["memory"]["excluded_relevant"][0]["source_hash"].startswith("sha256:")
         assert filtered_payload["memory"]["excluded_relevant"][0]["source_mtime"].endswith("Z")
         assert any("Freshness Gate filtered 1" in warning for warning in filtered_payload["warnings"])
+        assert any(
+            "Freshness Gate filtered 1" in warning
+            for warning in filtered_payload["memory"]["summary"]["warnings"]
+        )
 
 
 def test_obsidian_context_provider_keeps_default_context_when_freshness_gate_disabled(monkeypatch):
@@ -697,6 +701,10 @@ def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag
         assert payload["memory"]["excluded_relevant"][0]["policy"] == "implementation_status"
         assert payload["memory"]["excluded_relevant"][0]["source_hash"].startswith("sha256:")
         assert any("Freshness Gate filtered 1" in warning for warning in payload["warnings"])
+        assert any(
+            "Freshness Gate filtered 1" in warning
+            for warning in payload["memory"]["summary"]["warnings"]
+        )
 
 
 def test_obsidian_context_provider_respects_locked_vault(monkeypatch):

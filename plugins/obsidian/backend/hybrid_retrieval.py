@@ -340,6 +340,14 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant_count": len(excluded),
     }
     audit_summary["retrieval_policy"] = retrieval_policy
+    summary_warnings = [
+        str(warning).strip()
+        for warning in [
+            *(audit.get("warnings") or []),
+            *(raptor.get("warnings") or []),
+        ]
+        if str(warning).strip()
+    ]
     memory = {
         "summary": audit_summary,
         "current": [
@@ -364,8 +372,25 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "flags": flags,
     }
     if excluded:
-        warnings = payload.setdefault("warnings", [])
-        warnings.append(f"Freshness Gate excluded {len(excluded)} relevant review/conflict/quarantined item(s).")
+        payload_warning_list = payload.setdefault("warnings", [])
+        payload_warning_list.append(
+            f"Freshness Gate excluded {len(excluded)} relevant review/conflict/quarantined item(s)."
+        )
+    payload_warnings = [
+        str(warning).strip()
+        for warning in payload.get("warnings") or []
+        if str(warning).strip()
+    ]
+    merged_warnings = []
+    seen_warnings = set()
+    for warning in [*summary_warnings, *payload_warnings]:
+        if warning in seen_warnings:
+            continue
+        seen_warnings.add(warning)
+        merged_warnings.append(warning)
+        if len(merged_warnings) >= 25:
+            break
+    audit_summary["warnings"] = merged_warnings
     payload["memory"] = memory
     return payload
 
