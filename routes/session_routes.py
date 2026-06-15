@@ -259,6 +259,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
             mode_map = {}
             msg_count_map = {}
             status_map = {}
+            status_reason_map = {}
             
             from sqlalchemy import func
             from core.database import ChatMessage as _DbMsg
@@ -320,6 +321,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     meta_str = last_m["meta_data"]
                     if "ask_user" in content_str or "ask_user" in meta_str:
                         is_attention = True
+                        status_reason_map[sid] = "ask_user"
                 if not is_running and not is_error and not is_attention and not ledger:
                     ledger = agent_run_ledger.summarize_run(sid, tail=1)
                 if not is_running and not is_error and not is_attention and ledger.get("exists"):
@@ -329,18 +331,22 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                         readiness_gate = (mission.get("summary") or {}).get("readiness_gate") or {}
                         if readiness_gate.get("state") == "blocked":
                             is_attention = True
+                            status_reason_map[sid] = "readiness_gate_blocked"
                     except Exception:
                         pass
                 
                 # Select status
                 if is_running:
                     status_map[sid] = "working"
+                    status_reason_map.pop(sid, None)
                 elif is_error:
                     status_map[sid] = "error"
+                    status_reason_map[sid] = "run_error"
                 elif is_attention:
                     status_map[sid] = "attention"
                 else:
                     status_map[sid] = "done"
+                    status_reason_map.pop(sid, None)
 
             # Sessions with active documents that have content
             doc_session_ids = set(
@@ -374,7 +380,8 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                      "has_images": s.id in img_session_ids,
                      "mode": mode_map.get(s.id),
                      "message_count": msg_count_map.get(s.id, 0),
-                     "status": status_map.get(s.id, "done")}
+                     "status": status_map.get(s.id, "done"),
+                     "status_reason": status_reason_map.get(s.id)}
                     for s in user_sessions.values()
                     if not s.archived
                     and (s.name or "").strip() not in ("Nobody", "Incognito")

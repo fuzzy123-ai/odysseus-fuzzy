@@ -459,6 +459,10 @@ function createSessionItem(s) {
   if (s.status) {
     div.classList.add(s.status);
   }
+  if (s.status_reason) {
+    div.dataset.statusReason = s.status_reason;
+    div.title = String(s.status_reason).replace(/_/g, ' ');
+  }
   div.setAttribute('role', 'option');
   div.setAttribute('tabindex', '-1');
   div.setAttribute('data-session-id', s.id);
