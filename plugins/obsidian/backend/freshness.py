@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from . import vault_service
-from .feature_flags import all_flags, is_enabled
+from .feature_flags import all_flags, freshness_filtering_state
 from .knowledge_status import normalize_status
 
 
@@ -139,9 +139,12 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
     )
     default_retrieval = len(channels["current"])
     isolated_total = sum(len(channels[name]) for name in ("needs_review", "conflicts", "quarantined"))
+    flags = all_flags()
+    filtering_state = freshness_filtering_state(flags)
     return {
-        "enabled": is_enabled("obsidian_freshness_gate_enabled"),
-        "flags": all_flags(),
+        "enabled": flags["obsidian_freshness_gate_enabled"],
+        "flags": flags,
+        "filtering_state": filtering_state,
         "channels": channels,
         "summary": {
             "total": sum(len(values) for values in channels.values()),
@@ -153,6 +156,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "isolated": isolated_total,
             "status_counts": dict(sorted(status_counts.items())),
             "isolation_counts": dict(sorted(isolation_counts.items())),
+            "filtering_state": filtering_state,
         },
         "warnings": warnings,
     }
@@ -165,6 +169,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
     return {
         "enabled": audit["enabled"],
         "flags": audit["flags"],
+        "filtering_state": audit.get("filtering_state", "disabled"),
         "items": items,
         "summary": {
             "total": len(items),
@@ -172,6 +177,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "isolated": len(items),
             "by_status": dict(sorted(Counter(item["status"] for item in items).items())),
             "by_channel": dict(sorted(Counter(item["channel"] for item in items).items())),
+            "filtering_state": audit.get("filtering_state", "disabled"),
         },
         "warnings": audit["warnings"],
     }

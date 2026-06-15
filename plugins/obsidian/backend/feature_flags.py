@@ -34,3 +34,12 @@ def is_enabled(flag: str) -> bool:
 
 def all_flags() -> Dict[str, bool]:
     return {flag: is_enabled(flag) for flag in DEFAULT_FLAGS}
+
+
+def freshness_filtering_state(flags: Dict[str, bool] | None = None) -> str:
+    values = flags or all_flags()
+    if not values.get("obsidian_freshness_gate_enabled", False):
+        return "disabled"
+    if values.get("obsidian_hybrid_retrieval_enabled", False):
+        return "active"
+    return "audit_only"

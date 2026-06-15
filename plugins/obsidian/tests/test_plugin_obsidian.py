@@ -441,6 +441,8 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
         assert "Retrieval context" in payload["snippets"][0]["text"]
         assert "memory" in payload
         assert payload["memory"]["retrieval_filtering"] is False
+        assert payload["memory"]["filtering_state"] == "audit_only"
+        assert payload["memory"]["summary"]["filtering_state"] == "audit_only"
         assert payload["memory"]["raptor"]["writes_supported"] is False
 
 
@@ -480,6 +482,7 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         default_payload = retrieve_vault_context("alice", "needle", 200, "chat")
         assert {source["path"] for source in default_payload["sources"]} == {"Active.md", "Stale.md"}
         assert default_payload["memory"]["retrieval_filtering"] is False
+        assert default_payload["memory"]["filtering_state"] == "audit_only"
 
         monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
         filtered_payload = retrieve_vault_context("alice", "needle", 200, "chat")
@@ -488,10 +491,12 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert [snippet["path"] for snippet in filtered_payload["snippets"]] == ["Active.md"]
         assert "Stale.md" not in filtered_payload["structured_state"]
         assert filtered_payload["memory"]["retrieval_filtering"] is True
+        assert filtered_payload["memory"]["filtering_state"] == "active"
         assert filtered_payload["memory"]["summary"]["total"] == 2
         assert filtered_payload["memory"]["summary"]["default_retrieval"] == 1
         assert filtered_payload["memory"]["summary"]["isolated"] == 1
         assert filtered_payload["memory"]["summary"]["excluded_relevant"] == 1
+        assert filtered_payload["memory"]["summary"]["filtering_state"] == "active"
         assert filtered_payload["memory"]["summary"]["status_counts"]["stale"] == 1
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"
@@ -526,11 +531,13 @@ def test_obsidian_context_provider_keeps_default_context_when_freshness_gate_dis
         assert {snippet["path"] for snippet in payload["snippets"]} == {"Active.md", "Stale.md"}
         assert "Stale.md" in payload["structured_state"]
         assert payload["memory"]["retrieval_filtering"] is False
+        assert payload["memory"]["filtering_state"] == "disabled"
         assert payload["memory"]["excluded_relevant"] == []
         assert payload["memory"]["summary"]["total"] == 2
         assert payload["memory"]["summary"]["default_retrieval"] == 1
         assert payload["memory"]["summary"]["isolated"] == 1
         assert payload["memory"]["summary"]["excluded_relevant"] == 0
+        assert payload["memory"]["summary"]["filtering_state"] == "disabled"
         assert payload["memory"]["flags"]["obsidian_hybrid_retrieval_enabled"] is True
         assert payload["memory"]["flags"]["obsidian_freshness_gate_enabled"] is False
         assert not any("Freshness Gate filtered" in warning for warning in payload["warnings"])
@@ -566,6 +573,7 @@ def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag
         assert [snippet["path"] for snippet in payload["snippets"]] == ["Active.md"]
         assert "Conflict.md" not in payload["structured_state"]
         assert payload["memory"]["retrieval_filtering"] is True
+        assert payload["memory"]["filtering_state"] == "active"
         assert payload["memory"]["summary"]["conflicts"] == 1
         assert payload["memory"]["summary"]["excluded_relevant"] == 1
         assert payload["memory"]["excluded_relevant"][0]["path"] == "Conflict.md"
@@ -647,18 +655,22 @@ def test_freshness_audit_and_quarantine_are_read_only():
 
         assert before == after
         assert audit["summary"]["current"] == 1
+        assert audit["filtering_state"] == "audit_only"
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
         assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
+        assert audit["summary"]["filtering_state"] == "audit_only"
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in quarantine["items"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
         assert any(item["path"] == "AI Memory/Quarantine/Held.md" for item in quarantine["items"])
         assert quarantine["flags"]["obsidian_freshness_gate_enabled"] is True
         assert quarantine["flags"]["obsidian_hybrid_retrieval_enabled"] is False
+        assert quarantine["filtering_state"] == "audit_only"
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 3
         assert quarantine["summary"]["by_channel"] == {"needs_review": 1, "quarantined": 2}
+        assert quarantine["summary"]["filtering_state"] == "audit_only"
 
 
 def test_unresolved_conflict_status_is_isolated_from_default_truth():

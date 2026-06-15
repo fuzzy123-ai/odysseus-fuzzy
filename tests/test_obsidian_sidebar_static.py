@@ -527,6 +527,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert 'data-memory-record-isolation="true"' in main_js
     assert "Default retrieval isolation" in main_js
     assert "function memoryFreshnessFilteringState(report = {})" in main_js
+    assert "report.filtering_state || report.summary?.filtering_state" in main_js
+    assert "String(rawState).replace(/_/g, '-')" in main_js
     assert 'data-memory-isolation-state="${escapeHtml(filtering.state)}"' in main_js
     assert "active filtering" in main_js
     assert "audit only" in main_js

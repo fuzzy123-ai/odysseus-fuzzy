@@ -3058,7 +3058,10 @@ function memoryFreshnessFilteringState(report = {}) {
   const flags = report.flags || {};
   const gateEnabled = report.enabled !== false && flags.obsidian_freshness_gate_enabled !== false;
   const hybridEnabled = flags.obsidian_hybrid_retrieval_enabled === true;
-  const state = gateEnabled && hybridEnabled ? 'active' : (gateEnabled ? 'audit-only' : 'disabled');
+  const rawState = report.filtering_state || report.summary?.filtering_state || '';
+  const state = rawState
+    ? String(rawState).replace(/_/g, '-')
+    : (gateEnabled && hybridEnabled ? 'active' : (gateEnabled ? 'audit-only' : 'disabled'));
   return {
     state,
     label: state === 'active' ? 'active filtering' : (state === 'audit-only' ? 'audit only' : 'disabled'),

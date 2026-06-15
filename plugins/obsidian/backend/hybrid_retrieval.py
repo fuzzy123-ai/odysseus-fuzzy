@@ -3,7 +3,7 @@ import os
 import hashlib
 from typing import Any, Dict
 
-from .feature_flags import all_flags, is_enabled
+from .feature_flags import all_flags, freshness_filtering_state, is_enabled
 from .freshness import audit_knowledge
 from . import vault_service
 
@@ -168,9 +168,10 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
 def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
     audit_summary = dict(audit.get("summary") or {})
+    flags = all_flags()
+    filtering_state = freshness_filtering_state(flags)
     freshness_filtering = (
-        is_enabled("obsidian_hybrid_retrieval_enabled")
-        and is_enabled("obsidian_freshness_gate_enabled")
+        filtering_state == "active"
     )
     relevant_paths = {source.get("path") for source in payload.get("sources", []) if source.get("path")}
     prefiltered = payload.pop("_freshness_excluded", []) or []
@@ -187,6 +188,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
                     excluded.append(_exclusion_record({**item, "channel": channel}))
                     seen_excluded.add(item["path"])
     audit_summary["excluded_relevant"] = len(excluded)
+    audit_summary["filtering_state"] = filtering_state
     memory = {
         "summary": audit_summary,
         "current": [
@@ -199,8 +201,9 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "quarantined": audit["channels"]["quarantined"][:25],
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
+        "filtering_state": filtering_state,
         "raptor": raptor_status(vault_dir),
-        "flags": all_flags(),
+        "flags": flags,
     }
     if excluded:
         warnings = payload.setdefault("warnings", [])
