@@ -103,6 +103,24 @@ Feature-ready bedeutet hier:
 
 Diese Punkte blockieren den Release Candidate.
 
+### Teststrategie fuer den RC
+
+Die aktuelle Obsidian-Implementierung ist sicherheits- und vertragslastig. Deshalb bleibt hohe Testabdeckung wichtig, aber die Abdeckung soll nicht weiter durch dieselbe Invariante auf zu vielen Ebenen wachsen.
+
+Leitlinien fuer neue und geaenderte RC-Tests:
+
+- Sicherheits- und Datenintegritaetsregeln zuerst als zentrale Policy-/Backend-Tests absichern.
+- Pro kritischem Surface nur schlanke Vertragschecks behalten: wenige kanonische Tool-/Route-/UI-Smokes statt dieselbe Invariante an jeder einzelnen Eintrittsstelle erneut voll auszuformulieren.
+- `tests/test_obsidian_sidebar_static.py` nur fuer statische oder runtime-schwer testbare Vertraege verwenden; neues Verhalten bevorzugt ueber echte Runtime-Tests absichern.
+- `plugins/obsidian/tests/test_plugin_obsidian.py` nicht weiter als Catch-all aufblasen; neue Abdeckung soll bevorzugt in fachlich engeren Dateien landen, sobald ein Split moeglich ist.
+- Wenn dieselbe Policy bereits direkt gegen `vault_security.py`, Lock-Guards oder Apply-Guards getestet wird, braucht nicht jeder Handler nochmals einen vollstaendigen Langtest.
+
+Bevorzugte Testpyramide fuer Obsidian:
+
+1. Zentrale Unit-/Service-Tests fuer Policy und Validierung.
+2. Schlanke Route-/Tool-Contract-Tests fuer wenige reprasentative Surfaces.
+3. Kleine Zahl von Browser- oder Full-App-Smokes fuer echte End-to-End-Vertraege.
+
 ### P0.1 Auth und Plugin-Routing
 
 Ist-Anschluss:
@@ -234,7 +252,7 @@ Sollstand:
 Arbeit:
 
 1. Sicherheits-Testmatrix aus den alten Planungsdokumenten als Tests/Release-Checklist abbilden.
-2. Gesperrte-Vault-Leak-Test fuer Graph/Tags/Search/Project/Memory ist fuer Tool- und Route-Level ergaenzt.
+2. Gesperrte-Vault-Leak-Test fuer Graph/Tags/Search/Project/Memory auf zentrale Policy plus wenige kanonische Surface-Contracts konsolidieren; keine weitere ungebremste Vervielfachung derselben Sperrlogik in jeder Schicht.
 3. Import-Dry-Run als P1 planen, aber RC mindestens mit sicherem Import-Verhalten dokumentieren.
 4. Passwort-Setzen/Ersetzen im UI ist mit unmissverstaendlicher At-Rest-Warnung versehen; ein blosses README-/Release-Notes-Statement reicht fuer RC nicht aus.
 5. Release Notes mit klarer Einschraenkung: aktueller Passwortschutz schuetzt den Zugriff im Plugin, ist aber kein vollstaendig verschluesselter Vault-at-rest, falls Daten unverschluesselt auf Platte liegen.
@@ -397,6 +415,7 @@ Grundsatz:
 | `S12-import-archive-hardening` | Import-Sicherheitsmatrix und reservierte Archivfaelle vor dem spaeteren Dry-Run haerten | `plugins/obsidian/backend/import_export.py`, `plugins/obsidian/tests/test_plugin_obsidian.py`, `docs/obsidian/00-priorisierte-roadmap.md` | kann parallel zu reinem Release-/Doc-Work laufen | ja | 2-3 |
 | `S13-project-plan-backend-apply-options` | Selektives Apply sowie kontrollierte Merge/Overwrite-Entscheidungen zuerst backendseitig vorbereiten | `plugins/obsidian/backend/project_planning.py`, `plugins/obsidian/tests/test_plugin_obsidian.py` | P0-Konfliktblockade bleibt bis Abschluss unveraendert aktiv | ja | 3 |
 | `S14-memory-review-queue-backend` | Queue-, Dedupe- und Quellen-Normalisierung fuer Memory Review zunaechst im Backend stabilisieren | `plugins/obsidian/backend/memory_review.py`, `plugins/obsidian/tests/test_plugin_obsidian.py` | darf bestaetigungspflichtige Apply-Grenzen nicht lockern | ja | 3 |
+| `S15-test-layering-refactor` | Obsidian-Teststrategie auf zentrale Policy-Tests, schlanke Surface-Contracts und kleinere Testdateien umstellen | `plugins/obsidian/tests/test_plugin_obsidian.py`, `tests/test_obsidian_sidebar_static.py`, ggf. neue `plugins/obsidian/tests/test_*` Dateien, `tests/TESTING_STANDARD.md` | sollte keine Produktlogik aendern; erst nach RC-P0-Haertung oder in kleinen rein-testbezogenen Slices | bedingt | 3 |
 
 ### Empfohlene Parallel-Batches
 
@@ -422,6 +441,7 @@ Batch 3: nach P0-Stabilisierung
 - `S8-memory-review-productization`
 - `S13-project-plan-backend-apply-options`
 - `S14-memory-review-queue-backend`
+- `S15-test-layering-refactor`
 
 ### Wo Parallelisierung keine gute Idee ist
 
@@ -437,6 +457,8 @@ Die folgenden Kombinationen sollten nicht parallel laufen, auch wenn sie auf dem
 - `S11-locked-vault-regression-matrix`, `S12-import-archive-hardening`, `S13-project-plan-backend-apply-options` und `S14-memory-review-queue-backend` nicht blind parallel untereinander
   - alle koennen `plugins/obsidian/tests/test_plugin_obsidian.py` beruehren
   - hier gilt: entweder klare Testblock-Aufteilung oder nacheinander
+- `S15-test-layering-refactor` nicht parallel zu produktiven Security-/Memory-/Project-Slices, die dieselben Obsidian-Testfiles umbauen
+  - sonst mischen sich Teststruktur-Rewrite und Fachlogik-Aenderung
 - `S7-project-plan-conflicts` nicht parallel zu `S13-project-plan-backend-apply-options`
   - `S13` ist bewusst der risikoaermere Backend-Vorbau fuer dasselbe Thema
 - `S8-memory-review-productization` nicht parallel zu `S14-memory-review-queue-backend`
@@ -513,6 +535,7 @@ Primaer fuer schnellere Durchlaeufe, Dokumentation, Runbooks und spaeter einen k
 4. `S2-security-ui-docs`
 5. `S4-graph-focus`
 6. `S8-memory-review-productization`
+7. `S15-test-layering-refactor` nur fuer UI-/Contract-Testsplit oder read-only Vorarbeit
 
 Regeln fuer Alice:
 
@@ -521,6 +544,7 @@ Regeln fuer Alice:
 - `S2` erst starten, wenn Alice nicht mehr an `README.md` oder `plugins/obsidian/README.md` aus `S3`, `S9` oder `S10` arbeitet.
 - `S4` erst starten, wenn Bob nicht mehr an `tests/test_obsidian_sidebar_static.py` arbeitet und kein anderer Agent `plugins/obsidian/frontend/main.js` owned.
 - `S8` erst nach P0-Stabilisierung und nicht parallel zu `S14`.
+- `S15` nur dann uebernehmen, wenn Alice keine konkurrierenden Aenderungen an `tests/test_obsidian_sidebar_static.py` oder den betroffenen Obsidian-Testfiles mehr offen hat.
 
 #### Bob-Track
 
@@ -532,6 +556,7 @@ Primaer fuer Auth, Backend-Haertung, Testmatrizen und spaeter die backendlastige
 4. `S6-performance-gate`
 5. `S13-project-plan-backend-apply-options`
 6. `S14-memory-review-queue-backend`
+7. `S15-test-layering-refactor` nur fuer Backend-/Policy-Testsplit oder read-only Vorarbeit
 
 Regeln fuer Bob:
 
@@ -540,6 +565,7 @@ Regeln fuer Bob:
 - `S6` ist der beste Lueckenfueller, wenn Bob auf einen Handoff warten muss und measurement-only bleiben kann.
 - `S13` erst nach P0-Stabilisierung und nicht parallel zu `S7`.
 - `S14` erst nach P0-Stabilisierung und nicht parallel zu `S8`.
+- `S15` nur dann uebernehmen, wenn Bob keine konkurrierenden Aenderungen an `plugins/obsidian/tests/test_plugin_obsidian.py` mehr offen hat.
 
 #### Gemeinsame Cross-Track-Regeln
 
@@ -547,6 +573,7 @@ Regeln fuer Bob:
 - Bob zieht nicht in `README.md`, `plugin.py`, `plugin.json` oder `plugins/obsidian/README.md`.
 - Alice zieht nicht in `app.py`, `plugins/obsidian/backend/routes.py` oder `tests/test_obsidian_sidebar_static.py`, solange Bob dort aktiv ist.
 - Die echten Stoppschilder bleiben `plugins/obsidian/frontend/main.js`, `tests/test_obsidian_sidebar_static.py` und `plugins/obsidian/tests/test_plugin_obsidian.py`.
+- Teststrategie-Aenderungen selbst sind ein eigener Slice und werden nicht "nebenbei" in Produkt-Slices mitgezogen.
 
 ### Zwei-Agenten-Plan nach Phase
 
@@ -561,6 +588,7 @@ Zur schnellen Orientierung fuer den Master-Agent gilt fuer den Rest der Roadmap 
 | Graph-Phase | `S4-graph-focus` | Pause oder read-only Review | nein als Doppel-Implementierung | Frontend-Hot-File solo ownen |
 | P0+ Produktisierung | `S8-memory-review-productization` | `S13-project-plan-backend-apply-options` | ja | getrennte Fachbereiche |
 | Abschluss P1 | Pause oder UI-Followups zu Memory | `S14-memory-review-queue-backend` | bedingt | nicht parallel zu `S8`, falls dieselbe Memory-Logik aktiv geaendert wird |
+| Test-Refactor | UI-/Contract-Testsplit fuer `S15` | Backend-/Policy-Testsplit fuer `S15` | nein ohne expliziten Dateisplit | erst nach stabilen Produkt-Slices |
 
 ### Vordefinierte Agenten
 

@@ -48,6 +48,9 @@ Every new or refactored test should be:
 - **Small** - understandable quickly; one behavior per test where practical.
 - **Backed by shared helpers only when duplication is proven** - not abstracted
   preemptively.
+- **Layer-appropriate** - proven at the lowest useful layer first, instead of
+  repeating the same invariant across policy, route, tool, static, and browser
+  tests without a clear reason.
 
 ## Test taxonomy
 
@@ -133,6 +136,34 @@ Prefer tests that exercise real behavior over tests that inspect source code.
 - Do not convert source-text assertions to behavioral ones in the *same* PR that
   moves files or changes unrelated setup.
 
+## Layering policy
+
+Do not treat every layer as if it needs the full same proof.
+
+- Prove an invariant at the most central useful layer first.
+  Example: path validation belongs primarily in the validation/security module,
+  not as a long repeated assertion on every route that eventually calls it.
+- Add route/tool tests to pin the public contract, but keep them representative.
+  One or a few canonical entry points are usually enough unless different
+  surfaces genuinely have different behavior.
+- Reserve browser or full-app tests for end-to-end contracts that unit/route
+  tests cannot establish well.
+- Reserve static/source-text tests for invariants that are genuinely hard to
+  exercise at runtime.
+
+Signals that a test addition is probably over-layered:
+
+- the same failure expectation is being asserted in backend, route, tool, and
+  static tests with almost identical setup
+- a catch-all file grows because it is the easiest place to paste the next case
+- a new regression adds many surface tests but no central policy test
+
+When in doubt, prefer this order:
+
+1. central policy/service test
+2. one representative route or tool contract test
+3. one smoke test only if the end-to-end path itself is important
+
 ## Helper & factory extraction rules
 
 - Extract a shared helper only when the duplicated shape is **proven** - the same
@@ -166,6 +197,8 @@ Prefer tests that exercise real behavior over tests that inspect source code.
   pattern.
 - Distinguish a stale test expectation from a real production-policy change before
   "fixing" a failing test - never edit a test to match a regression.
+- Do not mix "add new product coverage" with "restructure oversized catch-all
+  tests" in the same slice unless the refactor is trivial and tightly bounded.
 
 ## Validation expectations
 
@@ -206,6 +239,15 @@ tests/
 Suggested move order: **js / cli first → security / routes / services → split
 oversized catch-all files last.** Each move is mechanical (no assertion changes
 in the same PR), with an identical pass set before and after.
+
+For Obsidian-sized feature areas, avoid growing a single omnibus file forever.
+Once one file becomes the default home for unrelated security, memory, project,
+import, and route cases, prefer splitting by responsibility, for example:
+
+- backend/policy tests
+- route contract tests
+- tool contract tests
+- static/runtime-hard contract tests
 
 ## Related: CI-hardening track (tracked separately)
 

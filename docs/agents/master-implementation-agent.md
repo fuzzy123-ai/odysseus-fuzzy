@@ -18,6 +18,7 @@ It should:
 - split work into small slices
 - avoid overlapping files when another agent is already active
 - delegate one focused task per worker
+- keep test scope proportional to the implementation slice
 - review summaries and risks
 - decide the next slice or handoff
 - keep the active run state current
@@ -38,6 +39,22 @@ The master agent should not:
 - run shell commands itself
 - bypass worker delegation for implementation work
 - fan out broad overlapping tasks to multiple workers
+- ask multiple workers to restate the same security or contract invariant at tool, route, and UI levels in parallel
+
+## Test Layering Rules
+
+For Obsidian RC work, test growth must follow a layering strategy instead of adding the same invariant everywhere.
+
+- prefer one central policy/backend test over many near-identical surface tests
+- keep only a small number of canonical route/tool contract tests per invariant
+- reserve static/source-text tests for contracts that are hard to drive at runtime
+- do not grow `plugins/obsidian/tests/test_plugin_obsidian.py` as the default destination for every new regression
+- when a slice changes product logic and test structure, split that into separate slices unless the change is tiny
+
+If an invariant is already proven directly in a backend policy module such as vault security, lock guards, or apply guards, the next worker should usually add:
+
+- zero or one representative route/tool contract test
+- not a full matrix of equivalent tests across every entry surface
 
 ## Recommended Slice Board
 
@@ -53,6 +70,7 @@ Use these slices as the default implementation lanes for the current Obsidian RC
 | `S6-performance-gate` | measure and document large-vault thresholds | `tests/`, `docs/obsidian/00-priorisierte-roadmap.md` | yes if measurement-only |
 | `S7-project-plan-conflicts` | merge/overwrite flow after P0 | `plugins/obsidian/backend/project_planning.py`, `routes.py`, `frontend/main.js` | yes after P0 stability |
 | `S8-memory-review-productization` | queue, dedupe, UX hardening | `plugins/obsidian/backend/memory_review.py`, `frontend/main.js` | yes after P0 stability |
+| `S15-test-layering-refactor` | split oversized Obsidian tests and reduce duplicate surface coverage | `plugins/obsidian/tests/test_plugin_obsidian.py`, `tests/test_obsidian_sidebar_static.py`, new focused test files | only with explicit ownership |
 
 ## Suggested Execution Order
 
@@ -72,6 +90,7 @@ Batch 3:
 
 - `S7-project-plan-conflicts`
 - `S8-memory-review-productization`
+- `S15-test-layering-refactor`
 
 ## Delegation Contract
 
@@ -80,6 +99,7 @@ Each worker should receive:
 - exactly one slice
 - explicit non-goals
 - explicit file ownership boundaries
+- explicit test-layer guidance for the slice
 - expected output as summary plus findings
 
 Recommended delegate payload:
@@ -107,6 +127,7 @@ Recommended manual conventions inside the note:
 - prefix slice names consistently, for example `S2-security-ui-docs`
 - include likely file ownership in delegation summaries
 - mark overlap risk explicitly when another agent may be active
+- record whether the slice adds policy tests, surface-contract tests, or only smoke coverage
 
 Example delegation summary line:
 
@@ -121,6 +142,7 @@ Use the reflector to catch:
 - worker drift outside the assigned slice
 - overlapping file ownership
 - too-broad delegation scopes
+- duplicate test coverage of the same invariant across multiple layers
 - stalled orchestration loops
 - repeated delegation without integration decisions
 
@@ -133,5 +155,6 @@ The master agent is working correctly when:
 - active slices are clearly separated
 - another active agent is treated as a real coordination constraint
 - workers stay narrow and file-bounded
+- workers do not inflate the same invariant across backend, route, tool, and static tests without a clear reason
 - state-doc history is readable enough for handoff
 - no two workers are sent into the same hot files without an explicit decision
