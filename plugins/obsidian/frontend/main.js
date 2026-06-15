@@ -3198,12 +3198,17 @@ function renderRaptorStatus() {
     return '<div class="obsidian-project-loading">Run refresh to inspect RAPTOR status.</div>';
   }
   const lineage = raptorReport.lineage || {};
+  const summary = raptorReport.summary || {};
   return `
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
       { label: 'Configured', value: raptorReport.configured ? 'yes' : 'no' },
-      { label: 'Dirty', value: raptorReport.dirty ? 'yes' : 'no' },
-      { label: 'Writes', value: raptorReport.writes_supported ? 'yes' : 'no' },
+      { label: 'Sources', value: summary.source_count ?? lineage.source_count ?? 0 },
+      { label: 'Dirty', value: summary.dirty_sources ?? (lineage.dirty_sources || []).length },
+      { label: 'Missing', value: summary.missing_sources ?? (lineage.missing_sources || []).length },
+      { label: 'Tainted', value: summary.tainted_sources ?? (lineage.tainted_sources || []).length },
+      { label: 'Invalid', value: summary.invalid_sources ?? ((raptorReport.invalid_index ? 1 : 0) + (raptorReport.invalid_summaries ? 1 : 0)) },
+      { label: 'Writes', value: (summary.writes_supported ?? raptorReport.writes_supported) ? 'yes' : 'no' },
     ])}
     <div class="obsidian-memory-tree-grid">
       <div class="obsidian-memory-tree-card">

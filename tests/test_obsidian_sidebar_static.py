@@ -541,7 +541,14 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
-    assert "raptorReport.writes_supported ? 'yes' : 'no'" in main_js
+    assert "const summary = raptorReport.summary || {}" in main_js
+    assert "summary.source_count" in main_js
+    assert "summary.dirty_sources" in main_js
+    assert "summary.missing_sources" in main_js
+    assert "summary.tainted_sources" in main_js
+    assert "summary.invalid_sources" in main_js
+    assert "summary.writes_supported" in main_js
+    assert "summary.writes_supported ?? raptorReport.writes_supported" in main_js
     assert "lineage.dirty_sources" in main_js
     assert "lineage.missing_sources" in main_js
     assert "lineage.tainted_sources" in main_js
