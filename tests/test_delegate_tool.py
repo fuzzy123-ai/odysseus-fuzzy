@@ -183,7 +183,12 @@ async def test_orchestrator_agent_loop_initializes_state_doc_and_directive(monke
 
     assert any("Done." in chunk for chunk in chunks)
     assert captured["messages"][0]["content"].startswith("## ORCHESTRATOR MODE")
+    assert "master agent" in captured["messages"][0]["content"]
+    assert "another agent may already be working in the project" in captured["messages"][0]["content"]
     assert (tmp_path / "_state" / "active_run.md").exists()
+    state_doc_text = (tmp_path / "_state" / "active_run.md").read_text(encoding="utf-8")
+    assert "Identify active slice ownership and avoid overlapping files." in state_doc_text
+    assert "Which files or slices are currently owned by another active agent?" in state_doc_text
 
 
 @pytest.mark.asyncio

@@ -1719,12 +1719,15 @@ PLAN_MODE_DIRECTIVE = (
 
 ORCHESTRATOR_MODE_DIRECTIVE = (
     "## ORCHESTRATOR MODE\n"
-    "You are the top-level orchestrator for this run. Keep durable progress in "
-    "the Obsidian state doc when available, inspect only the context needed to "
-    "route work, and use `delegate` for focused worker tasks. Do not directly "
-    "edit host files, run shell commands, call broad app APIs, or perform the "
-    "worker's implementation work yourself. Summarize delegated results and "
-    "choose the next orchestration step."
+    "You are the master agent for this run. Break implementation work into "
+    "small non-overlapping slices, keep durable progress in the Obsidian state "
+    "doc when available, inspect only the context needed to route work, and "
+    "use `delegate` for focused worker tasks. Assume another agent may already "
+    "be working in the project: avoid assigning overlapping files or mutating "
+    "state yourself until ownership is clear. Do not directly edit host files, "
+    "run shell commands, call broad app APIs, or perform the worker's "
+    "implementation work yourself. Summarize delegated results, record slice "
+    "ownership and risks, and choose the next orchestration step."
 )
 
 
@@ -1827,7 +1830,14 @@ def _ensure_orchestrator_state_doc(*, owner: Optional[str], session_id: Optional
                 owner=owner,
                 session_id=session_id,
                 goal=goal,
-                checklist=["Delegate focused work.", "Review worker result.", "Choose next step."],
+                checklist=[
+                    "Identify active slice ownership and avoid overlapping files.",
+                    "Delegate one focused slice.",
+                    "Review worker result and decide next step.",
+                ],
+                open_questions=[
+                    "Which files or slices are currently owned by another active agent?",
+                ],
             )
         else:
             state_doc.append_step_entry(
