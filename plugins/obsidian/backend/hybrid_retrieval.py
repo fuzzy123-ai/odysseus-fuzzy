@@ -216,6 +216,19 @@ def _raptor_readiness(
     }
 
 
+def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
+    gaps = [str(gap) for gap in readiness.get("gaps") or []]
+    state = str(readiness.get("state") or "unknown")
+    return {
+        "family": family,
+        "source": "readiness",
+        "state": state,
+        "ready": bool(readiness.get("ready", state == "ready")),
+        "gaps": gaps,
+        "gap_count": len(gaps),
+    }
+
+
 def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
     audit_summary = dict(audit.get("summary") or {})
@@ -264,6 +277,10 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
+        "readiness_signals": [
+            _readiness_signal("freshness", freshness_readiness),
+            _readiness_signal("raptor", raptor_readiness),
+        ],
         "raptor": raptor,
         "flags": flags,
     }

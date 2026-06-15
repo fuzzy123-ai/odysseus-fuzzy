@@ -171,6 +171,15 @@ def _readiness_signals_from_output(output: Any, *, tool: Any = None) -> list[dic
 
 def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str = "generic") -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
+    explicit = payload.get("readiness_signals")
+    if isinstance(explicit, list):
+        signals.extend(
+            _readiness_signal_from_explicit(signal, family_hint=family_hint)
+            for signal in explicit
+            if isinstance(signal, dict)
+        )
+        if signals:
+            return _dedupe_readiness_signals(signals)
     readiness = payload.get("readiness")
     if isinstance(readiness, dict):
         state = str(readiness.get("state") or "unknown")
@@ -188,6 +197,21 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
         signals.extend(_readiness_signals_from_mapping(summary, family_hint=family_hint))
     signals.extend(_summary_readiness_signals(payload))
     return _dedupe_readiness_signals(signals)
+
+
+def _readiness_signal_from_explicit(signal: dict[str, Any], *, family_hint: str = "generic") -> dict[str, Any]:
+    state = str(signal.get("state") or "unknown")
+    gaps = _safe_gap_list(signal.get("gaps"))
+    gap_count = int(signal.get("gap_count") or len(gaps))
+    family = str(signal.get("family") or family_hint or "generic")
+    return {
+        "family": family,
+        "source": str(signal.get("source") or "readiness"),
+        "state": state,
+        "ready": bool(signal.get("ready", state == "ready" and gap_count == 0)),
+        "gaps": gaps,
+        "gap_count": max(gap_count, len(gaps)),
+    }
 
 
 def _summary_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:

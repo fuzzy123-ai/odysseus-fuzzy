@@ -452,6 +452,24 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
         assert payload["memory"]["summary"]["raptor_readiness_state"] == "not_configured"
         assert payload["memory"]["summary"]["raptor_readiness_gaps"] == 1
         assert payload["memory"]["summary"]["raptor_readiness_gap_names"] == ["raptor_index_missing"]
+        assert payload["memory"]["readiness_signals"] == [
+            {
+                "family": "freshness",
+                "source": "readiness",
+                "state": "needs_review",
+                "ready": False,
+                "gaps": ["freshness_filtering_not_active", "needs_review_items"],
+                "gap_count": 2,
+            },
+            {
+                "family": "raptor",
+                "source": "readiness",
+                "state": "not_configured",
+                "ready": False,
+                "gaps": ["raptor_index_missing"],
+                "gap_count": 1,
+            },
+        ]
         assert payload["memory"]["raptor"]["writes_supported"] is False
 
 
