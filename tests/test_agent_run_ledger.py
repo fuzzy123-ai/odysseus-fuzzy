@@ -507,7 +507,9 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
         '\\"raptor_write_gate\\":{\\"feature_flag\\":\\"obsidian_raptor_enabled\\",'
         '\\"feature_enabled\\":false,\\"writes_supported\\":false,\\"state\\":\\"blocked\\",'
         '\\"gaps\\":[\\"raptor_feature_flag_disabled\\",'
-        '\\"source_hash_lineage_verification_required\\"]}}"}\n\n',
+        '\\"source_hash_lineage_verification_required\\"]},'
+        '\\"warnings\\":[\\"Freshness Gate filtered 2 stale item(s).\\",'
+        '\\"Freshness Gate filtered 2 stale item(s).\\"]}"}\n\n',
     )
 
     events = agent_run_ledger.read_events(session_id)
@@ -544,17 +546,22 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
             "writes_supported": False,
         },
     }
+    assert events[0]["payload"]["memory_warnings"] == ["Freshness Gate filtered 2 stale item(s)."]
     summary = agent_run_ledger.summarize_run(session_id)
     assert summary["memory_diagnostics"] == events[0]["payload"]["memory_diagnostics"]
+    assert summary["memory_warnings"] == events[0]["payload"]["memory_warnings"]
 
     snapshot = summarize_mission(session_id)
     assert snapshot["summary"]["memory_diagnostics"] == summary["memory_diagnostics"]
+    assert snapshot["summary"]["memory_warnings"] == ["Freshness Gate filtered 2 stale item(s)."]
+    assert snapshot["summary"]["memory_warnings_state"] == "attention"
     assert snapshot["summary"]["memory_diagnostics_state"] == "attention"
     assert snapshot["summary"]["memory_diagnostics_active_flags"] == {
         "freshness_isolation_flags": ["isolated", "needs_review"],
         "raptor_lineage_flags": ["dirty", "tainted"],
     }
     assert "inspect_memory_diagnostics" in snapshot["next_actions"]
+    assert "inspect_memory_warnings" in snapshot["next_actions"]
 
 
 def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):

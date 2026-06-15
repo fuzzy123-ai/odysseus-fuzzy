@@ -84,6 +84,16 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
     return f"Memory diagnostics need attention: {'; '.join(entries)}" if entries else "Memory diagnostics need attention"
 
 
+def _memory_warnings_status_message(summary: dict | None) -> str | None:
+    if not isinstance(summary, dict) or summary.get("memory_warnings_state") != "attention":
+        return None
+    warnings = summary.get("memory_warnings") if isinstance(summary.get("memory_warnings"), list) else []
+    shown = [str(warning) for warning in warnings[:2] if str(warning).strip()]
+    if len(warnings) > 2:
+        shown.append(f"+{len(warnings) - 2} more")
+    return f"Memory warnings: {'; '.join(shown)}" if shown else "Memory warnings need attention"
+
+
 def _content_to_text(content) -> str:
     """Flatten a message's content to plain text for text-based exports.
 
@@ -376,6 +386,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     try:
                         from src.mission_status import summarize_mission
                         readiness_gate = ledger.get("readiness_gate")
+                        mission = None
                         status_message = _readiness_gate_status_message(readiness_gate)
                         if status_message is None:
                             mission = summarize_mission(sid, tail=0, active=False, memory_status=run_status)
@@ -386,11 +397,19 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                             status_reason_map[sid] = "readiness_gate_blocked"
                             status_message_map[sid] = status_message
                         else:
+                            if mission is None:
+                                mission = summarize_mission(sid, tail=0, active=False, memory_status=run_status)
                             status_message = _memory_diagnostics_status_message(mission.get("summary") or {})
                             if status_message is not None:
                                 is_attention = True
                                 status_reason_map[sid] = "memory_diagnostics_attention"
                                 status_message_map[sid] = status_message
+                            else:
+                                status_message = _memory_warnings_status_message(mission.get("summary") or {})
+                                if status_message is not None:
+                                    is_attention = True
+                                    status_reason_map[sid] = "memory_warnings_attention"
+                                    status_message_map[sid] = status_message
                     except Exception:
                         pass
                 

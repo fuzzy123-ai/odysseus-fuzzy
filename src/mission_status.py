@@ -297,6 +297,11 @@ def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, A
     gate = readiness_gate(readiness_signals)
     memory_diagnostics = dict((ledger or {}).get("memory_diagnostics") or {})
     memory_diagnostics_active_flags = _active_memory_diagnostic_flags(memory_diagnostics)
+    memory_warnings = [
+        str(warning)
+        for warning in ((ledger or {}).get("memory_warnings") or [])
+        if str(warning).strip()
+    ][:25]
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -314,6 +319,8 @@ def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, A
         "memory_diagnostics": memory_diagnostics,
         "memory_diagnostics_state": "attention" if memory_diagnostics_active_flags else "clear",
         "memory_diagnostics_active_flags": memory_diagnostics_active_flags,
+        "memory_warnings": memory_warnings,
+        "memory_warnings_state": "attention" if memory_warnings else "clear",
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
@@ -429,6 +436,8 @@ def _next_actions(status: str, phases: dict[str, dict[str, Any]], summary: dict[
         actions.append("resolve_readiness_gaps")
     if summary.get("memory_diagnostics_state") == "attention":
         actions.append("inspect_memory_diagnostics")
+    if summary.get("memory_warnings_state") == "attention":
+        actions.append("inspect_memory_warnings")
     if phases["verifier"]["status"] == "blocked":
         actions.append("inspect_verification_failure")
     if phases["verifier"].get("latest_required_action"):

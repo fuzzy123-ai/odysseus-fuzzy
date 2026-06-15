@@ -20,6 +20,8 @@ from src.shell_policy import classify_shell_command
 
 _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _MAX_PREVIEW_CHARS = 200
+_MAX_MEMORY_WARNINGS = 25
+_MAX_MEMORY_WARNING_CHARS = 500
 
 
 def _now_iso() -> str:
@@ -131,6 +133,9 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
             memory_diagnostics = _memory_diagnostics_from_output(output)
             if memory_diagnostics:
                 summary["memory_diagnostics"] = memory_diagnostics
+            memory_warnings = _memory_warnings_from_output(output)
+            if memory_warnings:
+                summary["memory_warnings"] = memory_warnings
 
     if kind in {"agent_step", "rounds_exhausted", "budget_exceeded"}:
         for key in ("round", "rounds", "limit", "used"):
@@ -231,6 +236,37 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
     if isinstance(raptor_write_gate, dict):
         diagnostics["raptor_write_gate"] = _safe_raptor_write_gate(raptor_write_gate)
     return diagnostics
+
+
+def _memory_warnings_from_output(output: Any) -> list[str]:
+    try:
+        payload = json.loads(str(output))
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+
+    candidates: list[Any] = []
+    for container in (
+        payload,
+        payload.get("memory") if isinstance(payload.get("memory"), dict) else {},
+        payload.get("summary") if isinstance(payload.get("summary"), dict) else {},
+    ):
+        warnings = container.get("warnings") if isinstance(container, dict) else None
+        if isinstance(warnings, list):
+            candidates.extend(warnings)
+
+    seen: set[str] = set()
+    compact: list[str] = []
+    for warning in candidates:
+        text = str(warning).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        compact.append(text[:_MAX_MEMORY_WARNING_CHARS])
+        if len(compact) >= _MAX_MEMORY_WARNINGS:
+            break
+    return compact
 
 
 def _safe_retrieval_policy(value: dict[str, Any]) -> dict[str, Any]:
@@ -486,6 +522,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
     updated_at = None
     last_metrics = None
     memory_diagnostics: dict[str, Any] = {}
+    memory_warnings: list[str] = []
     readiness_signals: list[dict[str, Any]] = []
 
     for event in events:
@@ -528,6 +565,14 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
                 diagnostics = payload.get("memory_diagnostics")
                 if isinstance(diagnostics, dict):
                     memory_diagnostics.update(diagnostics)
+                warnings = payload.get("memory_warnings")
+                if isinstance(warnings, list):
+                    for warning in warnings:
+                        text = str(warning).strip()
+                        if text and text not in memory_warnings:
+                            memory_warnings.append(text[:_MAX_MEMORY_WARNING_CHARS])
+                            if len(memory_warnings) >= _MAX_MEMORY_WARNINGS:
+                                break
 
     readiness_signals = _dedupe_readiness_signals([
         _readiness_signal_from_explicit(signal)
@@ -547,6 +592,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
         "readiness_by_family": readiness_by_family(readiness_signals),
         "readiness_gate": readiness_gate(readiness_signals),
         "memory_diagnostics": memory_diagnostics,
+        "memory_warnings": memory_warnings,
         "last_metrics": last_metrics,
         "tail": events[-tail_count:] if tail_count else [],
     }

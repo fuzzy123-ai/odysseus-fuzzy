@@ -63,7 +63,7 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "tool": "obsidian_context",
         "round": 1,
         "exit_code": 0,
-        "output": json.dumps({"memory": memory}),
+        "output": json.dumps({"memory": memory, "warnings": ["Freshness Gate filtered 1 stale item(s)."]}),
     }
 
     agent_run_ledger.append_run_started(session_id)
@@ -136,7 +136,10 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "freshness_isolation_flags": ["isolated", "needs_review"],
         "raptor_lineage_flags": ["dirty"],
     }
+    assert snapshot["summary"]["memory_warnings"] == ["Freshness Gate filtered 1 stale item(s)."]
+    assert snapshot["summary"]["memory_warnings_state"] == "attention"
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
     assert snapshot["summary"]["latest_blocker"]["gaps"] == ["source_hash_changed"]
     assert "resolve_readiness_gaps" in snapshot["next_actions"]
     assert "inspect_memory_diagnostics" in snapshot["next_actions"]
+    assert "inspect_memory_warnings" in snapshot["next_actions"]

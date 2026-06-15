@@ -214,6 +214,14 @@ function _missionMemoryDiagnosticsText(snapshot) {
   return ` Memory diagnostics: ${families.join('; ')}.`;
 }
 
+function _missionMemoryWarningsText(snapshot) {
+  const warnings = snapshot?.summary?.memory_warnings || [];
+  if (!Array.isArray(warnings) || !warnings.length) return '';
+  const shown = warnings.slice(0, 3).map((warning) => String(warning));
+  if (warnings.length > 3) shown.push(`+${warnings.length - 3} more`);
+  return ` Memory warnings: ${shown.join('; ')}.`;
+}
+
 function _missionPolicyTierText(snapshot) {
   const summaryTiers = snapshot?.summary?.policy_tiers || {};
   const phases = snapshot?.phases || {};
@@ -231,13 +239,14 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionMemoryDiagnosticsText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionMemoryDiagnosticsText(snapshot)}${_missionMemoryWarningsText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 function _sessionStatusReasonLabel(session) {
   const reason = session?.status_reason || '';
   if (reason === 'readiness_gate_blocked') return 'Readiness';
   if (reason === 'memory_diagnostics_attention') return 'Memory';
+  if (reason === 'memory_warnings_attention') return 'Memory';
   if (reason === 'ask_user') return 'Input';
   if (reason === 'run_error') return 'Error';
   return String(reason).replace(/_/g, ' ');
