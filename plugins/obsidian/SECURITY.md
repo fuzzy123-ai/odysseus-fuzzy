@@ -17,6 +17,15 @@ The current release-candidate scope includes a few explicit limits:
 - Risky write paths such as imports, project-plan apply flows, memory-review apply flows, and destructive file operations should only be used with the existing confirmation gates intact.
 - Authenticated plugin data routes must stay protected even when the standalone app shell and static assets are allowed to load before login.
 
+## RC Operator Checklist
+
+Before calling the current RC line ready for wider internal use, confirm:
+
+1. `plugin.py` and `plugin.json` advertise the same `0.10.0-rc.1` version string.
+2. The install path, upgrade path, and release-archive layout in the READMEs still match the actual distribution flow.
+3. Password-protection wording in the UI and docs still states that plugin access control is not full at-rest encryption for existing plaintext vault files.
+4. Authenticated plugin data routes remain gated even if the standalone app shell and static assets are allowed to load before login.
+
 ## Reporting a Vulnerability
 
 Please report vulnerabilities responsibly and privately.

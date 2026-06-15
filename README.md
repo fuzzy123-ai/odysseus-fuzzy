@@ -70,6 +70,21 @@ Upgrade an existing checkout:
 
 The plugin manager imports `plugins/obsidian/plugin.py`, registers the API routes, and exposes the UI entry at `/api/plugins/obsidian/app`.
 
+Manual RC runbook for the Obsidian plugin:
+
+1. Fresh install: clone into `plugins/obsidian`, restart Odysseus, then open `/api/plugins/obsidian/app`.
+2. Upgrade: run the fast-forward update steps above, restart Odysseus, and confirm the plugin still opens.
+3. Version sync: confirm `plugins/obsidian/plugin.py` and `plugins/obsidian/plugin.json` both advertise `0.10.0-rc.1`.
+4. Release ZIP check: if shipping an archive, extract it into a temp folder and confirm the archive root contains `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
+5. Evidence to capture: checked commit SHA, plugin version string, whether fresh install passed, whether upgrade passed, and whether ZIP layout matched expectations.
+
+Current RC restrictions to keep in mind:
+
+1. Vault password protection blocks plugin access, but it is not full at-rest encryption for plaintext vault files already on disk.
+2. Destructive or bulk write paths should stay behind the existing confirmation gates during the RC cycle.
+3. Plugin app-shell availability must not weaken authentication on plugin data routes.
+4. The plugin README and `plugins/obsidian/SECURITY.md` carry the more detailed RC checklist and security notes.
+
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).
 

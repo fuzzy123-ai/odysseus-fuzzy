@@ -308,6 +308,102 @@ Before treating `0.10.0-rc.1` as an internal release candidate, manually confirm
 - The standalone app page, authenticated vault load, and graph filter flows still match the documented smoke results.
 - Any release archive places the plugin files at the archive root so extracting it yields `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
 
+Current RC residual risks to keep visible:
+
+- Vault password protection is an access-control layer for the plugin and tools, not full disk encryption for existing plaintext Markdown files.
+- Import, project-plan apply, memory-review apply, and destructive note operations still depend on confirmation-gate discipline.
+- The standalone app shell may load before login, but authenticated data routes must remain protected.
+
+## RC Distribution Runbook
+
+Use this as the short manual distribution pass for the current RC line.
+
+### 1. Fresh install
+
+From a clean Odysseus checkout:
+
+```powershell
+git clone -b dev https://github.com/fuzzy123-ai/Odysseus-plugin-obsidian.git plugins/obsidian
+```
+
+Then:
+
+1. Restart Odysseus.
+2. Open `/api/plugins/obsidian/app`.
+3. Confirm the plugin UI shell loads without missing asset errors.
+
+Evidence to record:
+
+- Host checkout commit SHA.
+- Plugin checkout commit SHA.
+- Observed plugin version string.
+- Pass/fail for plugin app load.
+
+### 2. Upgrade existing checkout
+
+From an Odysseus checkout where the plugin already exists:
+
+```powershell
+cd plugins/obsidian
+git fetch --tags origin
+git checkout dev
+git pull --ff-only
+```
+
+Then:
+
+1. Restart Odysseus.
+2. Re-open `/api/plugins/obsidian/app`.
+3. Confirm `plugin.py` and `plugin.json` still advertise the same version string.
+
+Evidence to record:
+
+- Previous plugin commit SHA if known.
+- New plugin commit SHA.
+- Version string from `plugin.py`.
+- Version string from `plugin.json`.
+- Pass/fail for post-upgrade app load.
+
+### 3. Release ZIP layout check
+
+If distributing a ZIP outside git:
+
+1. Extract the archive into a temp folder.
+2. Confirm the extraction root contains `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
+3. Confirm there is no extra wrapper directory above those files.
+4. Confirm local-only artifacts such as `__pycache__/`, `.obsidian/`, and temporary smoke-output files are absent.
+
+Evidence to record:
+
+- Archive filename under review.
+- Pass/fail for root layout.
+- Pass/fail for local-artifact absence.
+- Notes on any unexpected extra files.
+
+### 4. Minimal release evidence template
+
+Record the result in this shape:
+
+```text
+RC line: 0.10.0-rc.1
+Host commit: <sha>
+Plugin commit: <sha>
+Version sync: pass|fail
+Fresh install: pass|fail
+Upgrade: pass|fail
+ZIP layout: pass|fail
+Notes: <short note>
+```
+
+## RC Checklist Sync
+
+Keep these documents aligned for each RC checkpoint:
+
+1. `README.md`: install path, upgrade path, RC runbook summary, and top-level restrictions.
+2. `plugins/obsidian/README.md`: RC scope, manual checks, distribution runbook, archive layout, and plugin-specific residual risks.
+3. `plugins/obsidian/SECURITY.md`: supported RC line, security notes, and vulnerability-reporting path.
+4. `plugins/obsidian/plugin.py` plus `plugins/obsidian/plugin.json`: identical version string for the active RC line.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:

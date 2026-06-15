@@ -915,13 +915,13 @@ async function handleVaultSettingsAction(action) {
 
     if (action === 'set-password') {
       const confirmed = await styledConfirm(
-        'Set or replace password protection for this vault? This blocks plugin access, but it does not automatically encrypt existing vault files at rest on disk.',
-        { confirmText: 'Set password' }
+        'Set or replace plugin password protection for this vault? This limits access through the plugin and tools, but it is not full disk encryption and does not automatically encrypt existing vault files at rest on disk.',
+        { confirmText: 'Continue' }
       );
       if (!confirmed) return;
       const password = await styledPrompt(
-        'Vault password (plugin access only; existing vault files on disk are not automatically encrypted at rest):',
-        { confirmText: 'Save' }
+        'Vault password for plugin access only. Existing vault files already on disk are not automatically encrypted at rest by this step:',
+        { confirmText: 'Set password' }
       );
       if (!password) return;
       const res = await fetch('/api/plugins/obsidian/vault/password', {
