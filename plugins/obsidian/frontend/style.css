@@ -1456,6 +1456,20 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   font-size: 12px;
 }
 
+.obsidian-memory-isolation > small {
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.obsidian-memory-isolation[data-memory-isolation-state="active"] > small {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+  color: #b7e3c0;
+}
+
 .obsidian-memory-isolation p {
   color: var(--muted);
   font-size: 12px;

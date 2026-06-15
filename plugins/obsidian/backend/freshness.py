@@ -158,6 +158,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
     items.sort(key=lambda item: item["path"].lower())
     return {
         "enabled": audit["enabled"],
+        "flags": audit["flags"],
         "items": items,
         "summary": {
             "total": len(items),

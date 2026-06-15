@@ -635,6 +635,8 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
         assert any(item["path"] == "AI Memory/Quarantine/Held.md" for item in quarantine["items"])
+        assert quarantine["flags"]["obsidian_freshness_gate_enabled"] is True
+        assert quarantine["flags"]["obsidian_hybrid_retrieval_enabled"] is False
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 2
 

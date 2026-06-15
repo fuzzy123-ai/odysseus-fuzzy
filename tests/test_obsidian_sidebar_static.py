@@ -523,7 +523,11 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert 'data-memory-lineage="true"' in main_js
     assert 'data-memory-record-isolation="true"' in main_js
     assert "Default retrieval isolation" in main_js
-    assert "excluded from default context when Freshness Gate filtering is active" in main_js
+    assert "function memoryFreshnessFilteringState(report = {})" in main_js
+    assert 'data-memory-isolation-state="${escapeHtml(filtering.state)}"' in main_js
+    assert "active filtering" in main_js
+    assert "audit only" in main_js
+    assert "Default context is unchanged because hybrid Freshness filtering is off." in main_js
     assert "default_retrieval" in main_js
     assert "summary.default_retrieval" in main_js
     assert "summary.isolated" in main_js
@@ -540,6 +544,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert ".obsidian-memory-tree-metrics" in style
     assert ".obsidian-memory-tree-card" in style
     assert ".obsidian-memory-isolation" in style
+    assert '.obsidian-memory-isolation[data-memory-isolation-state="active"] > small' in style
     assert ".obsidian-memory-lineage" in style
     assert ".obsidian-memory-record-isolation" in style
 

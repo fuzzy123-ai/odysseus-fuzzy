@@ -3054,13 +3054,31 @@ function renderMemoryRecordList(title, items = [], empty = 'No items') {
   `;
 }
 
-function renderRetrievalIsolationNotice({ conflicts = [], quarantined = [], needsReview = [], total = null } = {}) {
+function memoryFreshnessFilteringState(report = {}) {
+  const flags = report.flags || {};
+  const gateEnabled = report.enabled !== false && flags.obsidian_freshness_gate_enabled !== false;
+  const hybridEnabled = flags.obsidian_hybrid_retrieval_enabled === true;
+  const state = gateEnabled && hybridEnabled ? 'active' : (gateEnabled ? 'audit-only' : 'disabled');
+  return {
+    state,
+    label: state === 'active' ? 'active filtering' : (state === 'audit-only' ? 'audit only' : 'disabled'),
+    description: state === 'active'
+      ? 'Conflict, review, stale, superseded, archived, and quarantined knowledge stays visible here but is excluded from default context.'
+      : (state === 'audit-only'
+        ? 'Conflict, review, stale, superseded, archived, and quarantined knowledge stays visible here. Default context is unchanged because hybrid Freshness filtering is off.'
+        : 'Freshness Gate is disabled. Audit records are shown here for visibility, but default context is unchanged.'),
+  };
+}
+
+function renderRetrievalIsolationNotice({ conflicts = [], quarantined = [], needsReview = [], total = null, report = {} } = {}) {
   const isolated = (conflicts.length || 0) + (quarantined.length || 0) + (needsReview.length || 0);
   const count = total === null ? isolated : total;
+  const filtering = memoryFreshnessFilteringState(report);
   return `
-    <div class="obsidian-memory-isolation" data-memory-isolation="true">
+    <div class="obsidian-memory-isolation" data-memory-isolation="true" data-memory-isolation-state="${escapeHtml(filtering.state)}">
       <strong>Default retrieval isolation</strong>
-      <p>Conflict, review, stale, superseded, archived, and quarantined knowledge stays visible here but is excluded from default context when Freshness Gate filtering is active.</p>
+      <small>${escapeHtml(filtering.label)}</small>
+      <p>${escapeHtml(filtering.description)}</p>
       <ul>
         <li><span>Conflicts</span><b>${escapeHtml(conflicts.length || 0)}</b></li>
         <li><span>Needs review</span><b>${escapeHtml(needsReview.length || 0)}</b></li>
@@ -3112,6 +3130,7 @@ function renderKnowledgeAudit() {
       conflicts: channels.conflicts || [],
       needsReview: channels.needs_review || [],
       quarantined: channels.quarantined || [],
+      report: knowledgeAuditReport,
     })}
     ${renderMemoryWarnings(knowledgeAuditReport)}
     <div class="obsidian-memory-tree-grid">
@@ -3139,6 +3158,7 @@ function renderQuarantineList() {
       quarantined: (quarantineReport.items || []).filter(item => item.status !== 'conflict' && item.channel !== 'conflicts'),
       needsReview: [],
       total: quarantineReport.summary?.total || 0,
+      report: quarantineReport,
     })}
     ${renderMemoryWarnings(quarantineReport)}
     <div class="obsidian-memory-tree-grid">
