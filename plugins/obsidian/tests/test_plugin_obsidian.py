@@ -501,6 +501,8 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
         assert payload["memory"]["freshness_isolation_flags"] == payload["memory"]["summary"]["isolation_flags"]
         assert payload["memory"]["raptor_lineage_flags"] == payload["memory"]["summary"]["raptor_lineage_flags"]
         assert payload["memory"]["raptor_lineage_flags"] == payload["memory"]["raptor"]["lineage_flags"]
+        assert payload["memory"]["raptor_write_gate"] == payload["memory"]["summary"]["raptor_write_gate"]
+        assert payload["memory"]["raptor_write_gate"] == payload["memory"]["raptor"]["write_gate"]
         assert payload["memory"]["raptor"]["writes_supported"] is False
 
 
@@ -599,6 +601,8 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert filtered_payload["memory"]["freshness_isolation_flags"] == filtered_payload["memory"]["summary"]["isolation_flags"]
         assert filtered_payload["memory"]["raptor_lineage_flags"] == filtered_payload["memory"]["summary"]["raptor_lineage_flags"]
         assert filtered_payload["memory"]["raptor_lineage_flags"] == filtered_payload["memory"]["raptor"]["lineage_flags"]
+        assert filtered_payload["memory"]["raptor_write_gate"] == filtered_payload["memory"]["summary"]["raptor_write_gate"]
+        assert filtered_payload["memory"]["raptor_write_gate"] == filtered_payload["memory"]["raptor"]["write_gate"]
         assert filtered_payload["memory"]["summary"]["status_counts"]["stale"] == 1
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"

@@ -45,6 +45,8 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     assert memory["freshness_isolation_flags"] == memory["summary"]["isolation_flags"]
     assert memory["raptor_lineage_flags"] == memory["summary"]["raptor_lineage_flags"]
     assert memory["raptor_lineage_flags"] == memory["raptor"]["lineage_flags"]
+    assert memory["raptor_write_gate"] == memory["summary"]["raptor_write_gate"]
+    assert memory["raptor_write_gate"] == memory["raptor"]["write_gate"]
     assert memory["retrieval_policy"] == memory["summary"]["retrieval_policy"]
     assert memory["retrieval_policy"] == {
         "filtering_state": "audit_only",
