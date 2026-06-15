@@ -285,6 +285,8 @@ tests/
 
 The archive should not introduce an extra top-level wrapper directory if the intended install target is already `plugins/obsidian`.
 
+Before packaging a release archive, remove generated local-only artifacts such as `__pycache__/`, `.obsidian/`, or any temporary smoke/output files. They are not part of the distributable plugin layout.
+
 ## Configuration
 
 By default, vaults are stored per user under Odysseus' data directory:
