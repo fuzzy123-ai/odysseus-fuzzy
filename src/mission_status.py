@@ -327,10 +327,21 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "verification_evidence": verification["evidence"],
         "verification_gaps": verification["gaps"],
         "readiness_signals": verifier.get("readiness_signals") or [],
+        "readiness_by_family": _readiness_by_family(verifier.get("readiness_signals") or []),
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
     }
+
+
+def _readiness_by_family(signals: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for signal in signals:
+        if not isinstance(signal, dict):
+            continue
+        sanitized = _sanitize_readiness_signal(signal)
+        grouped[sanitized["family"]] = sanitized
+    return dict(sorted(grouped.items()))
 
 
 def _verification_gate(status: str, verifier: dict[str, Any]) -> dict[str, Any]:

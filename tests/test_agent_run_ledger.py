@@ -343,6 +343,24 @@ def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path
         "readiness_check": 2,
     }
     assert snapshot["summary"]["readiness_signals"] == events[0]["payload"]["readiness_signals"]
+    assert snapshot["summary"]["readiness_by_family"] == {
+        "freshness": {
+            "family": "freshness",
+            "source": "summary",
+            "state": "needs_review",
+            "ready": False,
+            "gaps": [],
+            "gap_count": 2,
+        },
+        "raptor": {
+            "family": "raptor",
+            "source": "summary",
+            "state": "dirty",
+            "ready": False,
+            "gaps": [],
+            "gap_count": 1,
+        },
+    }
     assert snapshot["summary"]["latest_blocker"] == {
         "role": "verifier",
         "kind": "readiness_signal",
