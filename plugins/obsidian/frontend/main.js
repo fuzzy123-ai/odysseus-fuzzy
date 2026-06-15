@@ -3138,6 +3138,7 @@ function renderKnowledgeAudit() {
     ${renderMemoryWarnings(knowledgeAuditReport)}
     <div class="obsidian-memory-tree-grid">
       ${renderMemoryStatusCounts('Statuses', summary.status_counts || {})}
+      ${renderMemoryStatusCounts('Isolated statuses', summary.isolation_counts || {})}
       ${renderMemoryRecordList('Needs review', channels.needs_review || [], 'No review items')}
       ${renderMemoryRecordList('Conflicts', channels.conflicts || [], 'No conflicts')}
       ${renderMemoryRecordList('Quarantined', channels.quarantined || [], 'No quarantined items')}

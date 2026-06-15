@@ -538,6 +538,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "{ label: 'Default retrieval', value: summary.default_retrieval || 0 }" in main_js
     assert "{ label: 'Isolated', value: summary.isolated || 0 }" in main_js
     assert "renderMemoryStatusCounts('Isolated statuses', summary.isolation_counts || {})" in main_js
+    assert "renderMemoryStatusCounts('Statuses', summary.status_counts || {})" in main_js
     assert "needsReview: (quarantineReport.items || []).filter(item => item.channel === 'needs_review')" in main_js
     assert "renderMemoryStatusCounts('By channel', quarantineReport.summary?.by_channel || {})" in main_js
     assert "isolation_reason" in main_js

@@ -649,6 +649,7 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert audit["summary"]["current"] == 1
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
+        assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in quarantine["items"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])

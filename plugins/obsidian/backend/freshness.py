@@ -132,6 +132,11 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
     for values in channels.values():
         values.sort(key=lambda item: item["path"].lower())
     status_counts = Counter(item["status"] for values in channels.values() for item in values)
+    isolation_counts = Counter(
+        item["status"]
+        for name in ("needs_review", "conflicts", "quarantined")
+        for item in channels[name]
+    )
     default_retrieval = len(channels["current"])
     isolated_total = sum(len(channels[name]) for name in ("needs_review", "conflicts", "quarantined"))
     return {
@@ -147,6 +152,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "default_retrieval": default_retrieval,
             "isolated": isolated_total,
             "status_counts": dict(sorted(status_counts.items())),
+            "isolation_counts": dict(sorted(isolation_counts.items())),
         },
         "warnings": warnings,
     }
