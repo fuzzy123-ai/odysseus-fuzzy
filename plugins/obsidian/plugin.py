@@ -24,6 +24,7 @@ try:
         build_project_plan,
         generate_project_plan_content,
         improve_project_description_with_ai,
+        prepare_project_plan_for_apply,
         template_options,
         validate_gamedev_concept_gate,
         validate_project_plan,
@@ -88,6 +89,7 @@ except ModuleNotFoundError:
         build_project_plan,
         generate_project_plan_content,
         improve_project_description_with_ai,
+        prepare_project_plan_for_apply,
         template_options,
         validate_gamedev_concept_gate,
         validate_project_plan,
@@ -633,7 +635,11 @@ async def handle_project_plan_apply(content: str, owner: Optional[str] = None, *
         if not isinstance(raw_plan, dict):
             return {"error": "plan parameter is required.", "exit_code": 1}
         vault_dir = get_unlocked_vault_path_by_owner(owner)
-        plan = validate_project_plan(vault_dir, ProjectPlan(**raw_plan), collect_conflicts=True)
+        plan = prepare_project_plan_for_apply(
+            vault_dir,
+            ProjectPlan(**raw_plan),
+            selected_paths=params.get("selected_paths") or [],
+        )
         if plan.conflicts:
             return {
                 "error": "Project plan has file conflicts and cannot be applied without a future merge flow.",
@@ -974,6 +980,7 @@ def setup(ctx):
         _tool_spec("obsidian_project_plan_apply", "Create files and relationships from a confirmed Obsidian project plan preview.", {
             "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms creating multiple project files."},
+            "selected_paths": {"type": "array", "items": {"type": "string"}, "description": "Optional subset of planned file paths to create. Unselected planned files and their internal relationships are skipped."},
         }, ["plan"], handle_project_plan_apply),
         _tool_spec("obsidian_memory_review_preview", "Preview a memory review decision, including Save-to-Obsidian note content, reused tags, links, and graph relationships.", {
             "candidate": {"type": "object", "description": "Memory candidate with title, content, source, source_ref, and risk."},

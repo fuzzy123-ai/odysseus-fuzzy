@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.auth_helpers import effective_user, require_user
 
@@ -71,6 +71,7 @@ from .project_planning import (
     generate_project_plan_content,
     improve_project_description_with_ai,
     normalize_project_target_folder,
+    prepare_project_plan_for_apply,
     slugify_project,
     template_options,
     validate_gamedev_concept_gate,
@@ -191,6 +192,7 @@ class ProjectPlanSessionApplyRequest(BaseModel):
     plan: Optional[ProjectPlan] = None
     confirm: bool = False
     confirm_conflicts: bool = False
+    selected_paths: List[str] = Field(default_factory=list)
 
 # --- Helper Functions ---
 def get_vault_path(request: Request) -> str:
@@ -428,7 +430,7 @@ def _update_project_plan_session(vault_dir: str, session_id: str, **updates: Any
     return session
 
 def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApplyRequest) -> Dict[str, Any]:
-    plan = validate_project_plan(vault_dir, req.plan, collect_conflicts=True)
+    plan = prepare_project_plan_for_apply(vault_dir, req.plan, selected_paths=req.selected_paths)
     if plan.conflicts:
         raise HTTPException(status_code=409, detail={"message": "Plan has file conflicts", "conflicts": plan.conflicts})
     if not req.confirm:
@@ -1124,7 +1126,12 @@ async def project_plan_session_apply(session_id: str, req: ProjectPlanSessionApp
         result = _apply_project_plan_to_vault(
             vault_dir,
             owner,
-            ProjectPlanApplyRequest(plan=plan_payload, confirm=req.confirm, confirm_conflicts=req.confirm_conflicts),
+            ProjectPlanApplyRequest(
+                plan=plan_payload,
+                confirm=req.confirm,
+                confirm_conflicts=req.confirm_conflicts,
+                selected_paths=req.selected_paths,
+            ),
         )
         session.update({
             "status": "created",

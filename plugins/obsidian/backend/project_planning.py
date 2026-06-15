@@ -284,6 +284,7 @@ class ProjectPlanApplyRequest(BaseModel):
     plan: ProjectPlan
     confirm: bool = False
     confirm_conflicts: bool = False
+    selected_paths: List[str] = Field(default_factory=list)
 
 
 class ProjectPlanValidationError(ValueError):
@@ -527,8 +528,55 @@ def validate_project_plan(
     return plan
 
 
-def apply_project_plan(vault_dir: str, plan: ProjectPlan) -> Dict[str, Any]:
-    plan = validate_project_plan(vault_dir, plan, collect_conflicts=True)
+def select_project_plan_files(plan: ProjectPlan, selected_paths: Iterable[str]) -> ProjectPlan:
+    requested = [normalize_relative_path(path) for path in selected_paths or [] if str(path or "").strip()]
+    if not requested:
+        return plan
+
+    available = {normalize_relative_path(file.path): file for file in plan.files}
+    missing = [path for path in requested if path not in available]
+    if missing:
+        raise ProjectPlanValidationError(f"Selected project plan paths do not exist in the plan: {', '.join(missing)}")
+
+    selected_set = set(requested)
+    all_planned_paths = {normalize_relative_path(file.path) for file in plan.files}
+    kept_files = [file.model_copy(deep=True) for file in plan.files if normalize_relative_path(file.path) in selected_set]
+    kept_relationships = []
+    for relationship in plan.relationships:
+        source = normalize_relative_path(relationship.source)
+        target = normalize_relative_path(relationship.target)
+        if source in all_planned_paths and source not in selected_set:
+            continue
+        if target in all_planned_paths and target not in selected_set:
+            continue
+        kept_relationships.append(relationship.model_copy(deep=True))
+
+    warnings = list(plan.warnings)
+    if len(kept_files) != len(plan.files):
+        warnings.append("Apply is limited to the selected project files; unselected planned files and their internal relationships were skipped.")
+
+    payload = plan.model_dump() if hasattr(plan, "model_dump") else plan.dict()
+    payload["files"] = [file.model_dump() if hasattr(file, "model_dump") else file.dict() for file in kept_files]
+    payload["relationships"] = [
+        relationship.model_dump() if hasattr(relationship, "model_dump") else relationship.dict()
+        for relationship in kept_relationships
+    ]
+    payload["warnings"] = warnings
+    return ProjectPlan(**payload)
+
+
+def prepare_project_plan_for_apply(
+    vault_dir: str,
+    plan: ProjectPlan,
+    *,
+    selected_paths: Optional[Iterable[str]] = None,
+) -> ProjectPlan:
+    scoped = select_project_plan_files(plan, selected_paths or [])
+    return validate_project_plan(vault_dir, scoped, collect_conflicts=True)
+
+
+def apply_project_plan(vault_dir: str, plan: ProjectPlan, *, selected_paths: Optional[Iterable[str]] = None) -> Dict[str, Any]:
+    plan = prepare_project_plan_for_apply(vault_dir, plan, selected_paths=selected_paths)
     if plan.conflicts:
         raise ProjectPlanValidationError("Plan has file conflicts")
 
