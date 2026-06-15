@@ -556,10 +556,15 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "memoryStatusReport?.readiness_by_family || {}" in main_js
     assert 'data-memory-family-ready="${signal.ready ? \'true\' : \'false\'}"' in main_js
     assert "memoryTreeReport.readiness" in main_js
+    assert "const gate = memoryTreeReport.readiness_gate || summary.readiness_gate || {}" in main_js
+    assert "{ label: 'Gate', value: gate.state || 'unknown' }" in main_js
     assert "{ label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length }" in main_js
     assert "renderMemoryStatusCounts('Readiness gaps'" in main_js
     assert "knowledgeAuditReport.readiness" in main_js
+    assert "const gate = knowledgeAuditReport.readiness_gate || summary.readiness_gate || {}" in main_js
     assert "quarantineReport.readiness" in main_js
+    assert "const gate = quarantineReport.readiness_gate || quarantineReport.summary?.readiness_gate || {}" in main_js
+    assert "{ label: 'Gate state', value: gate.state || 'unknown' }" in main_js
     assert "{ label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' }" in main_js
     assert "{ label: 'Readiness', value: quarantineReport.summary?.readiness_state || readiness.state || 'unknown' }" in main_js
     assert "renderMemoryStatusCounts('Review gaps'" in main_js
@@ -576,6 +581,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
     assert "const summary = raptorReport.summary || {}" in main_js
+    assert "const gate = raptorReport.readiness_gate || summary.readiness_gate || {}" in main_js
     assert "summary.source_count" in main_js
     assert "summary.dirty_sources" in main_js
     assert "summary.missing_sources" in main_js

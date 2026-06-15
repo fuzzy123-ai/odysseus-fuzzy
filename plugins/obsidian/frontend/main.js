@@ -3169,10 +3169,12 @@ function renderMemoryTreeOverview() {
   }
   const summary = memoryTreeReport.summary || {};
   const readiness = memoryTreeReport.readiness || {};
+  const gate = memoryTreeReport.readiness_gate || summary.readiness_gate || {};
   return `
     ${memoryMetricGrid([
       { label: 'Notes', value: summary.total_notes || 0 },
       { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
+      { label: 'Gate', value: gate.state || 'unknown' },
       { label: 'Branches', value: summary.branch_candidates || 0 },
       { label: 'Default retrieval', value: summary.default_retrieval || 0 },
       { label: 'Isolated', value: summary.isolated || 0 },
@@ -3199,10 +3201,12 @@ function renderKnowledgeAudit() {
   const summary = knowledgeAuditReport.summary || {};
   const channels = knowledgeAuditReport.channels || {};
   const readiness = knowledgeAuditReport.readiness || {};
+  const gate = knowledgeAuditReport.readiness_gate || summary.readiness_gate || {};
   return `
     ${memoryMetricGrid([
       { label: 'Current', value: summary.current || 0 },
       { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
+      { label: 'Gate', value: gate.state || 'unknown' },
       { label: 'Needs review', value: summary.needs_review || 0 },
       { label: 'Conflicts', value: summary.conflicts || 0 },
       { label: 'Quarantined', value: summary.quarantined || 0 },
@@ -3232,10 +3236,12 @@ function renderQuarantineList() {
     return '<div class="obsidian-project-loading">Run refresh to load quarantine records.</div>';
   }
   const readiness = quarantineReport.readiness || {};
+  const gate = quarantineReport.readiness_gate || quarantineReport.summary?.readiness_gate || {};
   return `
     ${memoryMetricGrid([
       { label: 'Items', value: quarantineReport.summary?.total || 0 },
       { label: 'Gate', value: quarantineReport.enabled ? 'on' : 'off' },
+      { label: 'Gate state', value: gate.state || 'unknown' },
       { label: 'Readiness', value: quarantineReport.summary?.readiness_state || readiness.state || 'unknown' },
       { label: 'Default retrieval', value: quarantineReport.summary?.default_retrieval || 0 },
       { label: 'Isolated', value: quarantineReport.summary?.isolated || 0 },
@@ -3289,11 +3295,13 @@ function renderRaptorStatus() {
   const lineage = raptorReport.lineage || {};
   const summary = raptorReport.summary || {};
   const readiness = raptorReport.readiness || {};
+  const gate = raptorReport.readiness_gate || summary.readiness_gate || {};
   return `
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
       { label: 'Configured', value: raptorReport.configured ? 'yes' : 'no' },
       { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
+      { label: 'Gate', value: gate.state || 'unknown' },
       { label: 'Sources', value: summary.source_count ?? lineage.source_count ?? 0 },
       { label: 'Dirty', value: summary.dirty_sources ?? (lineage.dirty_sources || []).length },
       { label: 'Missing', value: summary.missing_sources ?? (lineage.missing_sources || []).length },
