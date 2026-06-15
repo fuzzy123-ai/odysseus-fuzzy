@@ -22,6 +22,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 import backend.routes as obsidian_routes
 from backend import vault_service
 from backend import state_doc
+import backend.memory_status as memory_status_backend
 from backend.consolidation_job import JOB_ID, REPORT_PATH, run_vault_consolidation
 from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_vault_context
 from backend.freshness import audit_knowledge, quarantine_list
@@ -866,6 +867,54 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         }
         assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
         assert status["summary"]["writes_supported"] is False
+        assert status["summary"]["warnings"] == status["warnings"]
+
+
+def test_memory_status_preserves_compact_layer_warnings(monkeypatch):
+    base_signal = {
+        "family": "somt",
+        "source": "readiness",
+        "state": "warnings",
+        "ready": False,
+        "gaps": ["somt_warnings_present"],
+        "gap_count": 1,
+    }
+    monkeypatch.setattr(memory_status_backend, "memory_tree_status", lambda vault_dir: {
+        "enabled": True,
+        "readiness": {"state": "warnings", "gaps": ["somt_warnings_present"]},
+        "readiness_signals": [base_signal],
+        "summary": {"warnings": ["somt warning"]},
+        "flags": {},
+        "warnings": ["somt warning", "somt warning"],
+    })
+    monkeypatch.setattr(memory_status_backend, "audit_knowledge", lambda vault_dir: {
+        "enabled": True,
+        "flags": {},
+        "filtering_state": "active",
+        "readiness_signals": [],
+        "summary": {"filtering_state": "active", "default_retrieval": 0, "isolated": 0},
+        "warnings": ["freshness warning"],
+    })
+    monkeypatch.setattr(memory_status_backend, "quarantine_list", lambda vault_dir: {
+        "enabled": True,
+        "flags": {},
+        "summary": {"total": 0},
+        "warnings": ["freshness warning"],
+    })
+    monkeypatch.setattr(memory_status_backend, "raptor_status", lambda vault_dir: {
+        "enabled": False,
+        "flags": {},
+        "summary": {},
+        "lineage_flags": {},
+        "write_gate": {},
+        "warnings": ["raptor warning"],
+    })
+
+    status = memory_status_backend.memory_status("vault")
+
+    assert status["warnings"] == ["somt warning", "freshness warning", "raptor warning"]
+    assert status["summary"]["warnings"] == status["warnings"]
+    assert status["readiness_gate"]["gaps"] == ["somt_warnings_present"]
 
 
 async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
@@ -896,6 +945,22 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert status["summary"]["freshness_isolation_flags"] == status["freshness_isolation_flags"]
         assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
         assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
+
+
+def test_memory_tree_status_preserves_analysis_warnings(monkeypatch):
+    monkeypatch.setattr("backend.memory_tree.analyze_memory_tree", lambda vault_dir, limit=200: {
+        "enabled": True,
+        "storage": {"mode": "vault"},
+        "readiness": {"state": "warnings", "gaps": ["somt_warnings_present"]},
+        "readiness_signals": [],
+        "readiness_gate": {"state": "blocked", "gaps": ["somt_warnings_present"]},
+        "summary": {"total_notes": 0},
+        "issues": [],
+        "flags": {},
+        "warnings": ["Could not read Hidden.md"],
+    })
+
+    assert memory_tree_status("vault")["warnings"] == ["Could not read Hidden.md"]
 
 
 async def test_memory_layer_routes_expose_readiness_gates(monkeypatch):

@@ -67,6 +67,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "default_retrieval_is_filtered": filtering_state == "active",
         "isolated_knowledge_retained_in_audit": True,
     }
+    warnings = _warnings(somt, freshness, quarantine, raptor)
     return {
         "read_only": True,
         "writes_supported": False,
@@ -100,9 +101,10 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "raptor_lineage_flags": raptor_lineage_flags,
             "raptor_write_gate": raptor_write_gate,
             "writes_supported": False,
+            "warnings": warnings,
         },
         "flags": flags,
-        "warnings": _warnings(somt, freshness, quarantine, raptor),
+        "warnings": warnings,
     }
 
 
@@ -200,7 +202,14 @@ def _readiness_gap_names(signals: List[Dict[str, Any]]) -> List[str]:
 
 def _warnings(*payloads: Dict[str, Any]) -> List[str]:
     warnings: List[str] = []
+    seen = set()
     for payload in payloads:
         for warning in payload.get("warnings") or []:
-            warnings.append(str(warning))
+            text = str(warning).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            warnings.append(text)
+            if len(warnings) >= 25:
+                return warnings
     return warnings[:25]

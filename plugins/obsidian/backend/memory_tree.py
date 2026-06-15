@@ -329,6 +329,7 @@ def memory_tree_status(vault_dir: str) -> Dict[str, Any]:
         "summary": report["summary"],
         "issue_counts": dict(Counter(issue["type"] for issue in report["issues"])),
         "flags": report["flags"],
+        "warnings": report.get("warnings", []),
     }
 
 
