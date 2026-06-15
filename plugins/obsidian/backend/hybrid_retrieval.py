@@ -272,6 +272,9 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     audit_summary["readiness_state"] = "blocked" if any(not signal.get("ready", False) for signal in readiness_signals) else "ready"
     audit_summary["readiness_gaps"] = sum(int(signal.get("gap_count") or 0) for signal in readiness_signals)
     audit_summary["readiness_gap_names"] = _readiness_gap_names(readiness_signals)
+    readiness_by_family = _readiness_by_family(readiness_signals)
+    readiness_gate = _readiness_gate(readiness_by_family, audit_summary["readiness_gap_names"])
+    audit_summary["readiness_gate"] = readiness_gate
     memory = {
         "summary": audit_summary,
         "current": [
@@ -286,7 +289,8 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
         "readiness_signals": readiness_signals,
-        "readiness_by_family": _readiness_by_family(readiness_signals),
+        "readiness_by_family": readiness_by_family,
+        "readiness_gate": readiness_gate,
         "raptor": raptor,
         "flags": flags,
     }
@@ -315,6 +319,24 @@ def _readiness_by_family(signals: List[Dict[str, Any]]) -> Dict[str, Dict[str, A
         family = str(signal.get("family") or "generic")
         grouped[family] = signal
     return dict(sorted(grouped.items()))
+
+
+def _readiness_gate(by_family: Dict[str, Dict[str, Any]], gaps: List[str]) -> Dict[str, Any]:
+    blocked = sorted(
+        family
+        for family, signal in by_family.items()
+        if not signal.get("ready", False)
+    )
+    required = bool(by_family)
+    return {
+        "required": required,
+        "satisfied": not blocked,
+        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
+        "families": len(by_family),
+        "ready_families": len(by_family) - len(blocked),
+        "blocked_families": blocked,
+        "gaps": gaps,
+    }
 
 
 def _readiness_gap_names(signals: List[Dict[str, Any]]) -> List[str]:
