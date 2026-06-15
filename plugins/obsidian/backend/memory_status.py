@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
 from .memory_tree import memory_tree_status
+from .readiness import readiness_gate_from_family
 
 
 def memory_status(vault_dir: str) -> Dict[str, Any]:
@@ -27,7 +28,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         if not signal.get("ready", False)
     ]
     readiness_gap_names = _readiness_gap_names(readiness_signals)
-    readiness_gate = _readiness_gate(readiness_by_family, blocked, readiness_gap_names)
+    readiness_gate = readiness_gate_from_family(readiness_by_family, readiness_gap_names)
     families = {
         "somt": _family_status(somt),
         "freshness": _family_status(freshness),
@@ -141,23 +142,6 @@ def _ready_value(value: Any, state: str) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "ready"}
     return bool(value)
-
-
-def _readiness_gate(
-    readiness_by_family: Dict[str, Dict[str, Any]],
-    blocked: List[str],
-    gaps: List[str],
-) -> Dict[str, Any]:
-    required = bool(readiness_by_family)
-    return {
-        "required": required,
-        "satisfied": not blocked,
-        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
-        "families": len(readiness_by_family),
-        "ready_families": len(readiness_by_family) - len(blocked),
-        "blocked_families": sorted(blocked),
-        "gaps": gaps,
-    }
 
 
 def _dedupe_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

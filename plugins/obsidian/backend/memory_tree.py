@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from . import vault_service
 from .feature_flags import all_flags, is_enabled
 from .knowledge_status import normalize_status
+from .readiness import readiness_gate_from_signals
 from .vault_model import extract_tags
 
 
@@ -285,7 +286,7 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
         warnings=warnings,
     )
     readiness_signal = _readiness_signal("somt", readiness)
-    readiness_gate = _readiness_gate([readiness_signal])
+    readiness_gate = readiness_gate_from_signals([readiness_signal])
     return {
         "enabled": flags["obsidian_somt_enabled"],
         "storage": {
@@ -369,35 +370,4 @@ def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
         "ready": bool(readiness.get("ready", state == "ready")),
         "gaps": gaps,
         "gap_count": len(gaps),
-    }
-
-
-def _readiness_gate(signals: List[Dict[str, Any]]) -> Dict[str, Any]:
-    by_family = {
-        str(signal.get("family") or "generic"): signal
-        for signal in signals
-    }
-    blocked = sorted(
-        family
-        for family, signal in by_family.items()
-        if not signal.get("ready", False)
-    )
-    gaps: List[str] = []
-    seen = set()
-    for signal in by_family.values():
-        for gap in signal.get("gaps") or []:
-            name = str(gap or "").strip()
-            if not name or name in seen:
-                continue
-            seen.add(name)
-            gaps.append(name)
-    required = bool(by_family)
-    return {
-        "required": required,
-        "satisfied": not blocked,
-        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
-        "families": len(by_family),
-        "ready_families": len(by_family) - len(blocked),
-        "blocked_families": blocked,
-        "gaps": gaps,
     }

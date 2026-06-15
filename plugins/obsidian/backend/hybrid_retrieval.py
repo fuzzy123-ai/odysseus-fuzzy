@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 from .feature_flags import all_flags, freshness_filtering_state, is_enabled
 from .freshness import audit_knowledge
+from .readiness import readiness_gate_from_family, readiness_gate_from_signals
 from . import vault_service
 
 
@@ -148,7 +149,7 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         lineage_status=lineage_status,
     )
     readiness_signal = _readiness_signal("raptor", readiness)
-    readiness_gate = _readiness_gate(_readiness_by_family([readiness_signal]), readiness_signal["gaps"])
+    readiness_gate = readiness_gate_from_signals([readiness_signal])
     return {
         "enabled": is_enabled("obsidian_raptor_enabled"),
         "configured": index_present or summaries_present,
@@ -278,7 +279,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     audit_summary["readiness_gaps"] = sum(int(signal.get("gap_count") or 0) for signal in readiness_signals)
     audit_summary["readiness_gap_names"] = _readiness_gap_names(readiness_signals)
     readiness_by_family = _readiness_by_family(readiness_signals)
-    readiness_gate = _readiness_gate(readiness_by_family, audit_summary["readiness_gap_names"])
+    readiness_gate = readiness_gate_from_family(readiness_by_family, audit_summary["readiness_gap_names"])
     audit_summary["readiness_gate"] = readiness_gate
     memory = {
         "summary": audit_summary,
@@ -324,24 +325,6 @@ def _readiness_by_family(signals: List[Dict[str, Any]]) -> Dict[str, Dict[str, A
         family = str(signal.get("family") or "generic")
         grouped[family] = signal
     return dict(sorted(grouped.items()))
-
-
-def _readiness_gate(by_family: Dict[str, Dict[str, Any]], gaps: List[str]) -> Dict[str, Any]:
-    blocked = sorted(
-        family
-        for family, signal in by_family.items()
-        if not signal.get("ready", False)
-    )
-    required = bool(by_family)
-    return {
-        "required": required,
-        "satisfied": not blocked,
-        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
-        "families": len(by_family),
-        "ready_families": len(by_family) - len(blocked),
-        "blocked_families": blocked,
-        "gaps": gaps,
-    }
 
 
 def _readiness_gap_names(signals: List[Dict[str, Any]]) -> List[str]:
