@@ -1482,6 +1482,12 @@ body.bg-pattern-sparkles {
       background: rgba(255, 204, 0, 0.08);
     }
 
+    .list-item.session-item .session-status-reason-memory_diagnostics_attention {
+      border-color: rgba(74, 222, 128, 0.42);
+      color: #86efac;
+      background: rgba(74, 222, 128, 0.08);
+    }
+
     .list-item.session-item .session-status-reason-ask_user {
       border-color: rgba(76, 156, 255, 0.42);
       color: #7fb5ff;

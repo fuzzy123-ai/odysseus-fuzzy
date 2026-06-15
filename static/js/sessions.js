@@ -223,6 +223,7 @@ function _formatMissionSnapshot(snapshot) {
 function _sessionStatusReasonLabel(session) {
   const reason = session?.status_reason || '';
   if (reason === 'readiness_gate_blocked') return 'Readiness';
+  if (reason === 'memory_diagnostics_attention') return 'Memory';
   if (reason === 'ask_user') return 'Input';
   if (reason === 'run_error') return 'Error';
   return String(reason).replace(/_/g, ' ');

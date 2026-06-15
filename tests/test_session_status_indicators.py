@@ -58,10 +58,12 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "s.status_message || String(s.status_reason).replace(/_/g, ' ')" in source
     assert "function _sessionStatusReasonLabel(session)" in source
     assert "reason === 'readiness_gate_blocked'" in source
+    assert "reason === 'memory_diagnostics_attention'" in source
     assert "statusBadge.className = `session-status-reason session-status-reason-${reasonClass}`" in source
     assert "statusBadge.textContent = _sessionStatusReasonLabel(s)" in source
     assert ".list-item.session-item .session-status-reason" in style
     assert ".session-status-reason-readiness_gate_blocked" in style
+    assert ".session-status-reason-memory_diagnostics_attention" in style
     assert "function _missionRequiredActionText(snapshot)" in source
     assert "snapshot?.summary?.latest_required_action" in source
     assert "Required:" in source
@@ -122,6 +124,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     attention_id = str(uuid.uuid4())
     readiness_id = str(uuid.uuid4())
     ledger_readiness_id = str(uuid.uuid4())
+    memory_diagnostics_id = str(uuid.uuid4())
     done_id = str(uuid.uuid4())
 
     db = _TS()
@@ -140,6 +143,8 @@ def test_list_sessions_status_calculation(monkeypatch):
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=ledger_readiness_id, owner="alice", name="ledger readiness chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
+        db.add(DbSession(id=memory_diagnostics_id, owner="alice", name="memory diagnostics chat",
+                         endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=done_id, owner="alice", name="done chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         
@@ -152,6 +157,7 @@ def test_list_sessions_status_calculation(monkeypatch):
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=error_id, role="assistant", content="failed before"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=readiness_id, role="assistant", content="readiness blocked"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=ledger_readiness_id, role="assistant", content="ledger readiness blocked"))
+        db.add(DbMsg(id=str(uuid.uuid4()), session_id=memory_diagnostics_id, role="assistant", content="memory diagnostics"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=done_id, role="assistant", content="completed successfully"))
 
         db.commit()
@@ -162,7 +168,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     monkeypatch.setattr(agent_runs, "is_active", lambda sid: sid == working_id)
     monkeypatch.setattr(agent_runs, "get_status", lambda sid: (
         "error" if sid == error_id
-        else "done" if sid in {readiness_id, ledger_readiness_id}
+        else "done" if sid in {readiness_id, ledger_readiness_id, memory_diagnostics_id}
         else None
     ))
     monkeypatch.setattr(agent_run_ledger, "summarize_run", lambda sid, tail=1: (
@@ -175,6 +181,7 @@ def test_list_sessions_status_calculation(monkeypatch):
                 "gaps": ["source_hash_changed", "source_missing"],
             },
         } if sid == ledger_readiness_id
+        else {"exists": True, "status": "done"} if sid == memory_diagnostics_id
         else {"exists": True, "status": "done"} if sid == readiness_id
         else {}
     ))
@@ -186,6 +193,13 @@ def test_list_sessions_status_calculation(monkeypatch):
             "raptor_index_missing",
             "source_hash_changed",
         ]}}} if sid == readiness_id
+        else {"summary": {
+            "readiness_gate": {"state": "not_applicable"},
+            "memory_diagnostics_state": "attention",
+            "memory_diagnostics_active_flags": {
+                "freshness_isolation_flags": ["needs_review", "isolated"],
+            },
+        }} if sid == memory_diagnostics_id
         else {"summary": {"readiness_gate": {"state": "not_applicable"}}}
     ))
 
@@ -196,6 +210,7 @@ def test_list_sessions_status_calculation(monkeypatch):
         attention_id: MagicMock(id=attention_id, name="attention chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         readiness_id: MagicMock(id=readiness_id, name="readiness chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         ledger_readiness_id: MagicMock(id=ledger_readiness_id, name="ledger readiness chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
+        memory_diagnostics_id: MagicMock(id=memory_diagnostics_id, name="memory diagnostics chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         done_id: MagicMock(id=done_id, name="done chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
     }
     
@@ -230,6 +245,11 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[ledger_readiness_id]["status_reason"] == "readiness_gate_blocked"
     assert res_map[ledger_readiness_id]["status_message"] == (
         "Readiness gate blocked: source hash changed, source missing"
+    )
+    assert res_map[memory_diagnostics_id]["status"] == "attention"
+    assert res_map[memory_diagnostics_id]["status_reason"] == "memory_diagnostics_attention"
+    assert res_map[memory_diagnostics_id]["status_message"] == (
+        "Memory diagnostics need attention: freshness isolation: needs review, isolated"
     )
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None

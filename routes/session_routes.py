@@ -49,6 +49,26 @@ def _readiness_gate_status_message(gate: dict | None) -> str | None:
     return f"Readiness gate blocked: {gap_text}" if gap_text else "Readiness gate blocked"
 
 
+def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
+    if not isinstance(summary, dict) or summary.get("memory_diagnostics_state") != "attention":
+        return None
+    active_flags = summary.get("memory_diagnostics_active_flags")
+    if not isinstance(active_flags, dict) or not active_flags:
+        return "Memory diagnostics need attention"
+    entries: list[str] = []
+    for family, flags in active_flags.items():
+        if not isinstance(flags, list):
+            continue
+        shown_flags = [str(flag).replace("_", " ") for flag in flags[:3]]
+        if len(flags) > 3:
+            shown_flags.append(f"+{len(flags) - 3} more")
+        flag_text = ", ".join(shown_flags)
+        if flag_text:
+            family_label = str(family).removesuffix("_flags").replace("_", " ")
+            entries.append(f"{family_label}: {flag_text}")
+    return f"Memory diagnostics need attention: {'; '.join(entries)}" if entries else "Memory diagnostics need attention"
+
+
 def _content_to_text(content) -> str:
     """Flatten a message's content to plain text for text-based exports.
 
@@ -350,6 +370,12 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                             is_attention = True
                             status_reason_map[sid] = "readiness_gate_blocked"
                             status_message_map[sid] = status_message
+                        else:
+                            status_message = _memory_diagnostics_status_message(mission.get("summary") or {})
+                            if status_message is not None:
+                                is_attention = True
+                                status_reason_map[sid] = "memory_diagnostics_attention"
+                                status_message_map[sid] = status_message
                     except Exception:
                         pass
                 
