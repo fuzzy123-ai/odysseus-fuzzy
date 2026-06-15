@@ -315,6 +315,8 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
     worker = phases["worker"]
     verifier = phases["verifier"]
     verification = _verification_gate(status, verifier)
+    readiness_signals = verifier.get("readiness_signals") or []
+    readiness_gate = _readiness_gate(readiness_signals)
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -326,8 +328,9 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "verification_satisfied": verification["satisfied"],
         "verification_evidence": verification["evidence"],
         "verification_gaps": verification["gaps"],
-        "readiness_signals": verifier.get("readiness_signals") or [],
-        "readiness_by_family": _readiness_by_family(verifier.get("readiness_signals") or []),
+        "readiness_gate": readiness_gate,
+        "readiness_signals": readiness_signals,
+        "readiness_by_family": _readiness_by_family(readiness_signals),
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
@@ -342,6 +345,40 @@ def _readiness_by_family(signals: list[dict[str, Any]]) -> dict[str, dict[str, A
         sanitized = _sanitize_readiness_signal(signal)
         grouped[sanitized["family"]] = sanitized
     return dict(sorted(grouped.items()))
+
+
+def _readiness_gate(signals: list[dict[str, Any]]) -> dict[str, Any]:
+    sanitized = [
+        _sanitize_readiness_signal(signal)
+        for signal in signals
+        if isinstance(signal, dict)
+    ]
+    by_family = {
+        signal["family"]: signal
+        for signal in sanitized
+    }
+    family_signals = list(by_family.values())
+    blocked = [signal for signal in family_signals if not signal.get("ready", False)]
+    gaps: list[str] = []
+    seen = set()
+    for signal in blocked:
+        names = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
+        candidates = names or ([signal.get("family")] if signal.get("gap_count") else [])
+        for candidate in candidates:
+            name = str(candidate or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            gaps.append(name)
+    return {
+        "required": bool(sanitized),
+        "satisfied": not blocked,
+        "state": "ready" if sanitized and not blocked else ("blocked" if blocked else "not_applicable"),
+        "families": len(family_signals),
+        "ready_families": len(family_signals) - len(blocked),
+        "blocked_families": sorted({signal["family"] for signal in blocked}),
+        "gaps": gaps[:25],
+    }
 
 
 def _verification_gate(status: str, verifier: dict[str, Any]) -> dict[str, Any]:
@@ -426,6 +463,8 @@ def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
         actions.append(phases["worker"]["latest_required_action"]["action"])
     if phases["verifier"]["status"] == "idle" and status == "done":
         actions.append("run_focused_verification")
+    if any(not _signal_ready(signal) for signal in phases["verifier"].get("readiness_signals") or []):
+        actions.append("resolve_readiness_gaps")
     if phases["verifier"]["status"] == "blocked":
         actions.append("inspect_verification_failure")
     if phases["verifier"].get("latest_required_action"):

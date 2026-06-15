@@ -279,6 +279,15 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
     assert snapshot["summary"]["verification_evidence"] == {"readiness_check": 1, "raptor_readiness": 1}
     assert snapshot["summary"]["verification_satisfied"] is False
     assert snapshot["summary"]["verification_gaps"] == ["verification_blocked"]
+    assert snapshot["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 1,
+        "ready_families": 0,
+        "blocked_families": ["raptor"],
+        "gaps": ["source_isolated_from_default_retrieval"],
+    }
     assert snapshot["summary"]["readiness_signals"] == [signal]
     assert snapshot["summary"]["latest_blocker"] == {
         "role": "verifier",
@@ -291,7 +300,38 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
         "gaps": ["source_isolated_from_default_retrieval"],
         "gap_count": 1,
     }
+    assert "resolve_readiness_gaps" in snapshot["next_actions"]
     assert "inspect_verification_failure" in snapshot["next_actions"]
+
+
+def test_summarize_mission_marks_readiness_gate_satisfied(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-readiness-gate-ready"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness_by_family\\":{'
+        '\\"freshness\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"ready\\",'
+        '\\"ready\\":true,\\"gaps\\":[],\\"gap_count\\":0},'
+        '\\"raptor\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"ready\\",'
+        '\\"ready\\":true,\\"gaps\\":[],\\"gap_count\\":0}}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": True,
+        "state": "ready",
+        "families": 2,
+        "ready_families": 2,
+        "blocked_families": [],
+        "gaps": [],
+    }
+    assert "resolve_readiness_gaps" not in snapshot["next_actions"]
 
 
 def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path, monkeypatch):
@@ -360,6 +400,15 @@ def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path
             "gaps": [],
             "gap_count": 1,
         },
+    }
+    assert snapshot["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 2,
+        "ready_families": 0,
+        "blocked_families": ["freshness", "raptor"],
+        "gaps": ["freshness", "raptor"],
     }
     assert snapshot["summary"]["latest_blocker"] == {
         "role": "verifier",

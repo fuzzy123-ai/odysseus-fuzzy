@@ -75,6 +75,9 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "summary.verification_gaps" in source
     assert "Verification:" in source
     assert "function _missionReadinessText(snapshot)" in source
+    assert "summary?.readiness_gate" in source
+    assert "gate ${String(gate.state || 'unknown').replace(/_/g, ' ')}" in source
+    assert "families ready" in source
     assert "summary?.readiness_signals" in source
     assert "summary?.readiness_by_family" in source
     assert "Object.entries(byFamily)" in source

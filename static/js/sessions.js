@@ -142,6 +142,7 @@ function _missionVerificationText(snapshot) {
 }
 
 function _missionReadinessText(snapshot) {
+  const gate = snapshot?.summary?.readiness_gate || {};
   const byFamily = snapshot?.summary?.readiness_by_family || {};
   const familySignals = Object.keys(byFamily).length
     ? Object.entries(byFamily).map(([family, signal]) => ({ ...(signal || {}), family }))
@@ -151,7 +152,16 @@ function _missionReadinessText(snapshot) {
     : (Array.isArray(snapshot?.summary?.readiness_signals)
       ? snapshot.summary.readiness_signals
       : []);
-  if (!signals.length) return '';
+  if (!signals.length && !gate.required) return '';
+  const gateDetails = gate.required
+    ? [
+      `gate ${String(gate.state || 'unknown').replace(/_/g, ' ')}`,
+      `${Number(gate.ready_families || 0)}/${Number(gate.families || 0)} families ready`,
+      Array.isArray(gate.gaps) && gate.gaps.length
+        ? `gaps ${gate.gaps.slice(0, 3).map((gap) => String(gap).replace(/_/g, ' ')).join(', ')}`
+        : '',
+    ].filter(Boolean).join(', ')
+    : '';
   const entries = signals.slice(0, 6).map((signal) => {
     const family = String(signal.family || 'generic').replace(/_/g, ' ');
     const source = signal.source ? `/${String(signal.source).replace(/_/g, ' ')}` : '';
@@ -169,7 +179,7 @@ function _missionReadinessText(snapshot) {
     ].filter(Boolean).join(', ');
     return `${family}${source}${details ? ` (${details})` : ''}`;
   });
-  return ` Readiness: ${entries.join(' | ')}.`;
+  return ` Readiness: ${[gateDetails, entries.join(' | ')].filter(Boolean).join('; ')}.`;
 }
 
 function _missionPolicyTierText(snapshot) {
