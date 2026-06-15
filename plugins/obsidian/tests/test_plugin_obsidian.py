@@ -708,6 +708,63 @@ def test_obsidian_context_provider_filters_unresolved_conflicts_when_hybrid_flag
         )
 
 
+def test_obsidian_context_provider_filters_needs_review_when_hybrid_flag_enabled(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: active\n"
+                "type: canonical\n"
+                "updated: 2026-06-14\n"
+                "---\n"
+                "# Active\n\nneedle current source.\n"
+            )
+        with open(os.path.join(tmpdir, "Review.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: needs_review\n"
+                "updated: 2026-06-14\n"
+                "---\n"
+                "# Review\n\nneedle unverified source.\n"
+            )
+
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        monkeypatch.setattr("backend.context_provider.search_semantic", lambda *args, **kwargs: [])
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
+
+        payload = retrieve_vault_context("alice", "needle", 200, "chat")
+
+        assert [source["path"] for source in payload["sources"]] == ["Active.md"]
+        assert [snippet["path"] for snippet in payload["snippets"]] == ["Active.md"]
+        assert "Review.md" not in payload["structured_state"]
+        assert payload["memory"]["retrieval_filtering"] is True
+        assert payload["memory"]["filtering_state"] == "active"
+        assert payload["memory"]["retrieval_policy"] == {
+            "filtering_state": "active",
+            "default_retrieval_is_filtered": True,
+            "isolated_knowledge_retained_in_audit": True,
+            "excluded_relevant_count": 1,
+        }
+        assert payload["memory"]["summary"]["needs_review"] == 1
+        assert payload["memory"]["summary"]["isolated"] == 1
+        assert payload["memory"]["summary"]["excluded_relevant"] == 1
+        assert payload["memory"]["summary"]["freshness_readiness_gap_names"] == ["needs_review_items"]
+        assert payload["memory"]["freshness_isolation_flags"]["needs_review"] is True
+        assert payload["memory"]["needs_review"][0]["path"] == "Review.md"
+        assert payload["memory"]["needs_review"][0]["status"] == "needs_review"
+        assert payload["memory"]["excluded_relevant"][0]["path"] == "Review.md"
+        assert payload["memory"]["excluded_relevant"][0]["status"] == "needs_review"
+        assert payload["memory"]["excluded_relevant"][0]["channel"] == "needs_review"
+        assert payload["memory"]["excluded_relevant"][0]["policy"] == "implementation_status"
+        assert payload["memory"]["excluded_relevant"][0]["source_hash"].startswith("sha256:")
+        assert payload["memory"]["excluded_relevant"][0]["source_mtime"].endswith("Z")
+        assert any("Freshness Gate filtered 1" in warning for warning in payload["warnings"])
+        assert any(
+            "Freshness Gate filtered 1" in warning
+            for warning in payload["memory"]["summary"]["warnings"]
+        )
+
+
 def test_obsidian_context_provider_respects_locked_vault(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
