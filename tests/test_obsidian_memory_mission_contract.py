@@ -22,6 +22,11 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     context = retrieve_vault_context("alice", "needle", 256, "chat")
     memory = context["memory"]
     assert memory["summary"]["readiness_state"] == "blocked"
+    assert memory["summary"]["readiness_gap_names"] == [
+        "freshness_filtering_not_active",
+        "needs_review_items",
+        "raptor_index_missing",
+    ]
     assert set(memory["readiness_by_family"]) == {"freshness", "raptor"}
 
     ledger_dir = tmp_path / "ledger"
@@ -48,4 +53,10 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "readiness_check": 2,
     }
     assert set(snapshot["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
+    assert snapshot["summary"]["readiness_by_family"]["freshness"]["gaps"] == [
+        "freshness_filtering_not_active",
+        "needs_review_items",
+    ]
+    assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["raptor_index_missing"]
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
+    assert snapshot["summary"]["latest_blocker"]["gaps"] == ["raptor_index_missing"]
