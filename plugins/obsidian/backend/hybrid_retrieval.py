@@ -268,6 +268,13 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
                     excluded.append(_exclusion_record({**item, "channel": channel}))
                     seen_excluded.add(item["path"])
     raptor = raptor_status(vault_dir)
+    freshness_isolation_flags = dict(audit.get("isolation_flags") or audit_summary.get("isolation_flags") or {})
+    raptor_summary = raptor.get("summary") if isinstance(raptor.get("summary"), dict) else {}
+    raptor_lineage_flags = dict(
+        raptor.get("lineage_flags")
+        or raptor_summary.get("lineage_flags")
+        or {}
+    )
     raptor_readiness = raptor.get("readiness") if isinstance(raptor.get("readiness"), dict) else {}
     freshness_readiness = audit.get("readiness") if isinstance(audit.get("readiness"), dict) else {}
     freshness_gaps = [str(gap) for gap in freshness_readiness.get("gaps") or []]
@@ -280,6 +287,8 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     audit_summary["raptor_readiness_state"] = raptor_readiness.get("state", "unknown")
     audit_summary["raptor_readiness_gaps"] = len(raptor_gaps)
     audit_summary["raptor_readiness_gap_names"] = raptor_gaps
+    audit_summary["freshness_isolation_flags"] = freshness_isolation_flags
+    audit_summary["raptor_lineage_flags"] = raptor_lineage_flags
     readiness_signals = [
         _readiness_signal("freshness", freshness_readiness),
         _readiness_signal("raptor", raptor_readiness),
@@ -303,6 +312,8 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
+        "freshness_isolation_flags": freshness_isolation_flags,
+        "raptor_lineage_flags": raptor_lineage_flags,
         "readiness_signals": readiness_signals,
         "readiness_by_family": readiness_by_family,
         "readiness_gate": readiness_gate,

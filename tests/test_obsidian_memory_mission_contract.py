@@ -41,6 +41,10 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "invalid_index": False,
         "invalid_summaries": False,
     }
+    assert memory["freshness_isolation_flags"] == memory["summary"]["freshness_isolation_flags"]
+    assert memory["freshness_isolation_flags"] == memory["summary"]["isolation_flags"]
+    assert memory["raptor_lineage_flags"] == memory["summary"]["raptor_lineage_flags"]
+    assert memory["raptor_lineage_flags"] == memory["raptor"]["lineage_flags"]
 
     ledger_dir = tmp_path / "ledger"
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(ledger_dir))

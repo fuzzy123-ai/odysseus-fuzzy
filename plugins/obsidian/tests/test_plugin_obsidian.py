@@ -497,6 +497,10 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
             ],
         }
         assert payload["memory"]["summary"]["readiness_gate"] == payload["memory"]["readiness_gate"]
+        assert payload["memory"]["freshness_isolation_flags"] == payload["memory"]["summary"]["freshness_isolation_flags"]
+        assert payload["memory"]["freshness_isolation_flags"] == payload["memory"]["summary"]["isolation_flags"]
+        assert payload["memory"]["raptor_lineage_flags"] == payload["memory"]["summary"]["raptor_lineage_flags"]
+        assert payload["memory"]["raptor_lineage_flags"] == payload["memory"]["raptor"]["lineage_flags"]
         assert payload["memory"]["raptor"]["writes_supported"] is False
 
 
@@ -574,6 +578,10 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
             "gaps": ["quarantined_items", "raptor_index_missing"],
         }
         assert filtered_payload["memory"]["summary"]["readiness_gate"] == filtered_payload["memory"]["readiness_gate"]
+        assert filtered_payload["memory"]["freshness_isolation_flags"] == filtered_payload["memory"]["summary"]["freshness_isolation_flags"]
+        assert filtered_payload["memory"]["freshness_isolation_flags"] == filtered_payload["memory"]["summary"]["isolation_flags"]
+        assert filtered_payload["memory"]["raptor_lineage_flags"] == filtered_payload["memory"]["summary"]["raptor_lineage_flags"]
+        assert filtered_payload["memory"]["raptor_lineage_flags"] == filtered_payload["memory"]["raptor"]["lineage_flags"]
         assert filtered_payload["memory"]["summary"]["status_counts"]["stale"] == 1
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"
