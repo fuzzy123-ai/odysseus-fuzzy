@@ -242,6 +242,15 @@ def _raptor_readiness(
         gaps.append("source_missing")
     if lineage_status["tainted_sources"]:
         gaps.append("source_isolated_from_default_retrieval")
+    if dirty and not (
+        lineage_status["dirty_sources"]
+        or lineage_status["missing_sources"]
+        or invalid_index
+        or invalid_summaries
+    ):
+        gaps.append("raptor_metadata_dirty")
+    if tainted and not (lineage_status["tainted_sources"] or invalid_index or invalid_summaries):
+        gaps.append("raptor_metadata_tainted")
     if invalid_index or invalid_summaries:
         state = "invalid"
     elif not configured:

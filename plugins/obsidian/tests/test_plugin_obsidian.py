@@ -1360,6 +1360,26 @@ def test_raptor_status_marks_changed_or_missing_sources_dirty():
         assert status["summary"]["readiness_gate"] == status["readiness_gate"]
 
 
+def test_raptor_status_reports_dirty_tainted_metadata_gaps():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"dirty": True, "tainted": True, "source_hashes": {}}, f)
+
+        status = raptor_status(tmpdir)
+
+        assert status["dirty"] is True
+        assert status["tainted"] is True
+        assert status["lineage"]["dirty_sources"] == []
+        assert status["lineage"]["tainted_sources"] == []
+        assert status["readiness"]["ready"] is False
+        assert status["readiness"]["state"] == "dirty"
+        assert status["readiness"]["gaps"] == ["raptor_metadata_dirty", "raptor_metadata_tainted"]
+        assert status["readiness_gate"]["gaps"] == ["raptor_metadata_dirty", "raptor_metadata_tainted"]
+        assert status["summary"]["readiness_gap_names"] == ["raptor_metadata_dirty", "raptor_metadata_tainted"]
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
+
+
 def test_raptor_status_reports_invalid_readiness_gap():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
