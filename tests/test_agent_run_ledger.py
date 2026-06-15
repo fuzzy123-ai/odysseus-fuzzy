@@ -720,6 +720,56 @@ def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch)
     assert body["next_actions"] == ["run_focused_verification"]
 
 
+def test_chat_mission_route_returns_readiness_gate_snapshot(tmp_path, monkeypatch):
+    import routes.chat_routes as chat_routes
+
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(chat_routes, "_verify_session_owner", lambda request, session_id: None)
+    monkeypatch.setattr(chat_routes.agent_runs, "is_active", lambda session_id: False)
+    monkeypatch.setattr(chat_routes.agent_runs, "get_status", lambda session_id: None)
+
+    agent_run_ledger.append_run_started("mission-route-readiness")
+    agent_run_ledger.append_sse_event(
+        "mission-route-readiness",
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness_by_family\\":{'
+        '\\"freshness\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",'
+        '\\"ready\\":false,\\"gaps\\":[\\"needs_review_items\\"],\\"gap_count\\":1},'
+        '\\"raptor\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"ready\\",'
+        '\\"ready\\":true,\\"gaps\\":[],\\"gap_count\\":0}}}"}\n\n',
+    )
+    agent_run_ledger.append_status("mission-route-readiness", "done")
+
+    app = FastAPI()
+    app.include_router(chat_routes.setup_chat_routes(
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ))
+
+    response = TestClient(app).get("/api/chat/mission/mission-route-readiness?tail=1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 2,
+        "ready_families": 1,
+        "blocked_families": ["freshness"],
+        "gaps": ["needs_review_items"],
+    }
+    verifier_node = next(node for node in body["dag"]["nodes"] if node["id"] == "verifier")
+    assert verifier_node["readiness_state"] == "blocked"
+    assert verifier_node["readiness_blocked"] is True
+    assert verifier_node["readiness_gaps"] == 1
+    assert "resolve_readiness_gaps" in body["next_actions"]
+
+
 def test_chat_run_ledger_route_404s_without_ledger_or_active_run(tmp_path, monkeypatch):
     import routes.chat_routes as chat_routes
 
