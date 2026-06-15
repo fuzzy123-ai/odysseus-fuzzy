@@ -185,12 +185,22 @@ function _missionReadinessText(snapshot) {
 
 function _missionMemoryDiagnosticsText(snapshot) {
   const diagnostics = snapshot?.summary?.memory_diagnostics || {};
+  const retrievalPolicy = diagnostics.retrieval_policy || {};
   const freshnessFlags = diagnostics.freshness_isolation_flags || {};
   const raptorFlags = diagnostics.raptor_lineage_flags || {};
   const families = [
+    ['Retrieval policy', retrievalPolicy, (policy) => {
+      const details = [
+        policy.filtering_state ? `state ${String(policy.filtering_state).replace(/_/g, ' ')}` : '',
+        `default filtered ${policy.default_retrieval_is_filtered ? 'yes' : 'no'}`,
+        policy.isolated_knowledge_retained_in_audit ? 'audit retains isolated knowledge' : '',
+      ].filter(Boolean);
+      return details.length ? `Retrieval policy ${details.join(', ')}` : '';
+    }],
     ['Freshness isolation', freshnessFlags],
     ['RAPTOR lineage', raptorFlags],
-  ].map(([label, flags]) => {
+  ].map(([label, flags, formatter]) => {
+    if (typeof formatter === 'function') return formatter(flags || {});
     const activeFlags = Object.entries(flags)
       .filter(([, value]) => value === true)
       .map(([name]) => name.replace(/_/g, ' '));

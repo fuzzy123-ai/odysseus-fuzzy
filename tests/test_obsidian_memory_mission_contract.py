@@ -45,6 +45,13 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     assert memory["freshness_isolation_flags"] == memory["summary"]["isolation_flags"]
     assert memory["raptor_lineage_flags"] == memory["summary"]["raptor_lineage_flags"]
     assert memory["raptor_lineage_flags"] == memory["raptor"]["lineage_flags"]
+    assert memory["retrieval_policy"] == memory["summary"]["retrieval_policy"]
+    assert memory["retrieval_policy"] == {
+        "filtering_state": "audit_only",
+        "default_retrieval_is_filtered": False,
+        "isolated_knowledge_retained_in_audit": True,
+        "excluded_relevant_count": 0,
+    }
 
     ledger_dir = tmp_path / "ledger"
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(ledger_dir))
@@ -89,6 +96,12 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     ]
     assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["source_hash_changed"]
     assert snapshot["summary"]["memory_diagnostics"] == {
+        "retrieval_policy": {
+            "default_retrieval_is_filtered": False,
+            "excluded_relevant_count": 0,
+            "filtering_state": "audit_only",
+            "isolated_knowledge_retained_in_audit": True,
+        },
         "freshness_isolation_flags": {
             "conflicts": False,
             "filtering_active": False,

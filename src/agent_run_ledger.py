@@ -203,7 +203,15 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
         or freshness.get("isolation_flags")
         or freshness_summary.get("isolation_flags")
     )
+    retrieval_policy = (
+        memory.get("retrieval_policy")
+        or summary.get("retrieval_policy")
+        or freshness.get("retrieval_policy")
+        or freshness_summary.get("retrieval_policy")
+    )
     diagnostics: dict[str, Any] = {}
+    if isinstance(retrieval_policy, dict):
+        diagnostics["retrieval_policy"] = _safe_retrieval_policy(retrieval_policy)
     if isinstance(freshness_isolation_flags, dict):
         diagnostics["freshness_isolation_flags"] = _safe_bool_flags(
             freshness_isolation_flags,
@@ -215,6 +223,22 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
             allowed={"dirty", "missing", "tainted", "invalid_index", "invalid_summaries"},
         )
     return diagnostics
+
+
+def _safe_retrieval_policy(value: dict[str, Any]) -> dict[str, Any]:
+    policy: dict[str, Any] = {}
+    filtering_state = value.get("filtering_state")
+    if filtering_state is not None:
+        policy["filtering_state"] = str(filtering_state)
+    for key in ("default_retrieval_is_filtered", "isolated_knowledge_retained_in_audit"):
+        if key in value:
+            policy[key] = bool(value.get(key))
+    if "excluded_relevant_count" in value:
+        try:
+            policy["excluded_relevant_count"] = max(0, int(value.get("excluded_relevant_count") or 0))
+        except (TypeError, ValueError):
+            policy["excluded_relevant_count"] = 0
+    return policy
 
 
 def _safe_bool_flags(value: dict[str, Any], *, allowed: set[str]) -> dict[str, bool]:
