@@ -38,6 +38,17 @@ def _public_model(name: str, model: str) -> str:
     return model
 
 
+def _readiness_gate_status_message(gate: dict | None) -> str | None:
+    if not isinstance(gate, dict) or gate.get("state") != "blocked":
+        return None
+    gaps = gate.get("gaps") if isinstance(gate.get("gaps"), list) else []
+    shown_gaps = [str(gap).replace("_", " ") for gap in gaps[:3]]
+    if len(gaps) > 3:
+        shown_gaps.append(f"+{len(gaps) - 3} more")
+    gap_text = ", ".join(shown_gaps)
+    return f"Readiness gate blocked: {gap_text}" if gap_text else "Readiness gate blocked"
+
+
 def _content_to_text(content) -> str:
     """Flatten a message's content to plain text for text-based exports.
 
@@ -329,20 +340,16 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 if not is_running and not is_error and not is_attention and ledger.get("exists"):
                     try:
                         from src.mission_status import summarize_mission
-                        mission = summarize_mission(sid, tail=0, active=False, memory_status=run_status)
-                        readiness_gate = (mission.get("summary") or {}).get("readiness_gate") or {}
-                        if readiness_gate.get("state") == "blocked":
+                        readiness_gate = ledger.get("readiness_gate")
+                        status_message = _readiness_gate_status_message(readiness_gate)
+                        if status_message is None:
+                            mission = summarize_mission(sid, tail=0, active=False, memory_status=run_status)
+                            readiness_gate = (mission.get("summary") or {}).get("readiness_gate") or {}
+                            status_message = _readiness_gate_status_message(readiness_gate)
+                        if status_message is not None:
                             is_attention = True
                             status_reason_map[sid] = "readiness_gate_blocked"
-                            gaps = readiness_gate.get("gaps") if isinstance(readiness_gate.get("gaps"), list) else []
-                            shown_gaps = [str(gap).replace("_", " ") for gap in gaps[:3]]
-                            if len(gaps) > 3:
-                                shown_gaps.append(f"+{len(gaps) - 3} more")
-                            gap_text = ", ".join(shown_gaps)
-                            status_message_map[sid] = (
-                                f"Readiness gate blocked: {gap_text}" if gap_text
-                                else "Readiness gate blocked"
-                            )
+                            status_message_map[sid] = status_message
                     except Exception:
                         pass
                 

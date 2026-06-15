@@ -113,6 +113,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     error_id = str(uuid.uuid4())
     attention_id = str(uuid.uuid4())
     readiness_id = str(uuid.uuid4())
+    ledger_readiness_id = str(uuid.uuid4())
     done_id = str(uuid.uuid4())
 
     db = _TS()
@@ -129,6 +130,8 @@ def test_list_sessions_status_calculation(monkeypatch):
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=readiness_id, owner="alice", name="readiness chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
+        db.add(DbSession(id=ledger_readiness_id, owner="alice", name="ledger readiness chat",
+                         endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=done_id, owner="alice", name="done chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         
@@ -140,6 +143,7 @@ def test_list_sessions_status_calculation(monkeypatch):
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=working_id, role="user", content="hello"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=error_id, role="assistant", content="failed before"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=readiness_id, role="assistant", content="readiness blocked"))
+        db.add(DbMsg(id=str(uuid.uuid4()), session_id=ledger_readiness_id, role="assistant", content="ledger readiness blocked"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=done_id, role="assistant", content="completed successfully"))
 
         db.commit()
@@ -150,11 +154,19 @@ def test_list_sessions_status_calculation(monkeypatch):
     monkeypatch.setattr(agent_runs, "is_active", lambda sid: sid == working_id)
     monkeypatch.setattr(agent_runs, "get_status", lambda sid: (
         "error" if sid == error_id
-        else "done" if sid == readiness_id
+        else "done" if sid in {readiness_id, ledger_readiness_id}
         else None
     ))
     monkeypatch.setattr(agent_run_ledger, "summarize_run", lambda sid, tail=1: (
         {"status": "error"} if sid == error_id
+        else {
+            "exists": True,
+            "status": "done",
+            "readiness_gate": {
+                "state": "blocked",
+                "gaps": ["source_hash_changed", "source_missing"],
+            },
+        } if sid == ledger_readiness_id
         else {"exists": True, "status": "done"} if sid == readiness_id
         else {}
     ))
@@ -175,6 +187,7 @@ def test_list_sessions_status_calculation(monkeypatch):
         error_id: MagicMock(id=error_id, name="error chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         attention_id: MagicMock(id=attention_id, name="attention chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         readiness_id: MagicMock(id=readiness_id, name="readiness chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
+        ledger_readiness_id: MagicMock(id=ledger_readiness_id, name="ledger readiness chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         done_id: MagicMock(id=done_id, name="done chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
     }
     
@@ -204,6 +217,11 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[readiness_id]["status_message"] == (
         "Readiness gate blocked: freshness filtering not active, needs review items, "
         "raptor index missing, +1 more"
+    )
+    assert res_map[ledger_readiness_id]["status"] == "attention"
+    assert res_map[ledger_readiness_id]["status_reason"] == "readiness_gate_blocked"
+    assert res_map[ledger_readiness_id]["status_message"] == (
+        "Readiness gate blocked: source hash changed, source missing"
     )
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None
