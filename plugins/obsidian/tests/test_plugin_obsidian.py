@@ -445,6 +445,13 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
         assert payload["memory"]["retrieval_filtering"] is False
         assert payload["memory"]["filtering_state"] == "audit_only"
         assert payload["memory"]["summary"]["filtering_state"] == "audit_only"
+        assert payload["memory"]["summary"]["readiness_state"] == "blocked"
+        assert payload["memory"]["summary"]["readiness_gaps"] == 3
+        assert payload["memory"]["summary"]["readiness_gap_names"] == [
+            "freshness_filtering_not_active",
+            "needs_review_items",
+            "raptor_index_missing",
+        ]
         assert payload["memory"]["summary"]["freshness_readiness_state"] == "needs_review"
         assert payload["memory"]["summary"]["freshness_readiness_gaps"] == 2
         assert payload["memory"]["summary"]["freshness_readiness_gap_names"] == [
@@ -530,6 +537,12 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert filtered_payload["memory"]["summary"]["isolated"] == 1
         assert filtered_payload["memory"]["summary"]["excluded_relevant"] == 1
         assert filtered_payload["memory"]["summary"]["filtering_state"] == "active"
+        assert filtered_payload["memory"]["summary"]["readiness_state"] == "blocked"
+        assert filtered_payload["memory"]["summary"]["readiness_gaps"] == 2
+        assert filtered_payload["memory"]["summary"]["readiness_gap_names"] == [
+            "quarantined_items",
+            "raptor_index_missing",
+        ]
         assert filtered_payload["memory"]["summary"]["freshness_readiness_state"] == "quarantined"
         assert filtered_payload["memory"]["summary"]["freshness_readiness_gaps"] == 1
         assert filtered_payload["memory"]["summary"]["freshness_readiness_gap_names"] == ["quarantined_items"]

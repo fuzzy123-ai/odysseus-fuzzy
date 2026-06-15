@@ -269,6 +269,9 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         _readiness_signal("freshness", freshness_readiness),
         _readiness_signal("raptor", raptor_readiness),
     ]
+    audit_summary["readiness_state"] = "blocked" if any(not signal.get("ready", False) for signal in readiness_signals) else "ready"
+    audit_summary["readiness_gaps"] = sum(int(signal.get("gap_count") or 0) for signal in readiness_signals)
+    audit_summary["readiness_gap_names"] = _readiness_gap_names(readiness_signals)
     memory = {
         "summary": audit_summary,
         "current": [
@@ -312,6 +315,19 @@ def _readiness_by_family(signals: List[Dict[str, Any]]) -> Dict[str, Dict[str, A
         family = str(signal.get("family") or "generic")
         grouped[family] = signal
     return dict(sorted(grouped.items()))
+
+
+def _readiness_gap_names(signals: List[Dict[str, Any]]) -> List[str]:
+    names: List[str] = []
+    seen = set()
+    for signal in signals:
+        for gap in signal.get("gaps") or []:
+            name = str(gap or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            names.append(name)
+    return names[:25]
 
 
 def _query_mentions(query: str, path: str) -> bool:
