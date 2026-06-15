@@ -215,9 +215,13 @@ function _missionMemoryDiagnosticsText(snapshot) {
 }
 
 function _missionMemoryWarningsText(snapshot) {
-  const warnings = snapshot?.summary?.memory_warnings || [];
-  if (!Array.isArray(warnings) || !warnings.length) return '';
-  const shown = warnings.slice(0, 3).map((warning) => String(warning));
+  const rawWarnings = snapshot?.summary?.memory_warnings || [];
+  if (!Array.isArray(rawWarnings) || !rawWarnings.length) return '';
+  const warnings = rawWarnings
+    .map((warning) => String(warning).trim())
+    .filter(Boolean);
+  if (!warnings.length) return '';
+  const shown = warnings.slice(0, 3);
   if (warnings.length > 3) shown.push(`+${warnings.length - 3} more`);
   return ` Memory warnings: ${shown.join('; ')}.`;
 }

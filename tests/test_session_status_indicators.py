@@ -112,6 +112,8 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "_missionMemoryDiagnosticsText(snapshot)" in source
     assert "function _missionMemoryWarningsText(snapshot)" in source
     assert "summary?.memory_warnings" in source
+    assert "const rawWarnings = snapshot?.summary?.memory_warnings || []" in source
+    assert ".map((warning) => String(warning).trim())" in source
     assert "Memory warnings:" in source
     assert "_missionMemoryWarningsText(snapshot)" in source
     assert "function _missionPolicyTierText(snapshot)" in source
@@ -230,7 +232,9 @@ def test_list_sessions_status_calculation(monkeypatch):
             "memory_diagnostics_state": "clear",
             "memory_warnings_state": "attention",
             "memory_warnings": [
+                "",
                 "Freshness Gate filtered 2 stale item(s).",
+                "  ",
                 "Could not audit Projects/Demo.md",
                 "Extra warning",
             ],

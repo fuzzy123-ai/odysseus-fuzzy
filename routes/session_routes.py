@@ -87,8 +87,12 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
 def _memory_warnings_status_message(summary: dict | None) -> str | None:
     if not isinstance(summary, dict) or summary.get("memory_warnings_state") != "attention":
         return None
-    warnings = summary.get("memory_warnings") if isinstance(summary.get("memory_warnings"), list) else []
-    shown = [str(warning) for warning in warnings[:2] if str(warning).strip()]
+    warnings = [
+        text
+        for warning in (summary.get("memory_warnings") if isinstance(summary.get("memory_warnings"), list) else [])
+        if (text := str(warning).strip())
+    ]
+    shown = warnings[:2]
     if len(warnings) > 2:
         shown.append(f"+{len(warnings) - 2} more")
     return f"Memory warnings: {'; '.join(shown)}" if shown else "Memory warnings need attention"
