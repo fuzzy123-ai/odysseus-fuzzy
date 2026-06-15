@@ -95,8 +95,11 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "Readiness:" in source
     assert "function _missionMemoryDiagnosticsText(snapshot)" in source
     assert "summary?.memory_diagnostics" in source
+    assert "diagnostics.freshness_isolation_flags" in source
     assert "diagnostics.raptor_lineage_flags" in source
-    assert "Memory diagnostics: RAPTOR lineage" in source
+    assert "Freshness isolation" in source
+    assert "RAPTOR lineage" in source
+    assert "Memory diagnostics:" in source
     assert "_missionMemoryDiagnosticsText(snapshot)" in source
     assert "function _missionPolicyTierText(snapshot)" in source
     assert "snapshot?.summary?.policy_tiers" in source

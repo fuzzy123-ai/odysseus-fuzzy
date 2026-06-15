@@ -186,14 +186,29 @@ def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
         return {}
     raptor = memory.get("raptor") if isinstance(memory.get("raptor"), dict) else {}
     summary = memory.get("summary") if isinstance(memory.get("summary"), dict) else {}
+    freshness = memory.get("freshness") if isinstance(memory.get("freshness"), dict) else {}
     raptor_summary = raptor.get("summary") if isinstance(raptor.get("summary"), dict) else {}
+    freshness_summary = freshness.get("summary") if isinstance(freshness.get("summary"), dict) else {}
     raptor_lineage_flags = (
         memory.get("raptor_lineage_flags")
         or summary.get("raptor_lineage_flags")
         or raptor.get("lineage_flags")
         or raptor_summary.get("lineage_flags")
     )
+    freshness_isolation_flags = (
+        memory.get("freshness_isolation_flags")
+        or summary.get("freshness_isolation_flags")
+        or memory.get("isolation_flags")
+        or summary.get("isolation_flags")
+        or freshness.get("isolation_flags")
+        or freshness_summary.get("isolation_flags")
+    )
     diagnostics: dict[str, Any] = {}
+    if isinstance(freshness_isolation_flags, dict):
+        diagnostics["freshness_isolation_flags"] = _safe_bool_flags(
+            freshness_isolation_flags,
+            allowed={"needs_review", "conflicts", "quarantined", "isolated", "filtering_active"},
+        )
     if isinstance(raptor_lineage_flags, dict):
         diagnostics["raptor_lineage_flags"] = _safe_bool_flags(
             raptor_lineage_flags,

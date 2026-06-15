@@ -85,6 +85,13 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     ]
     assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["source_hash_changed"]
     assert snapshot["summary"]["memory_diagnostics"] == {
+        "freshness_isolation_flags": {
+            "conflicts": False,
+            "filtering_active": False,
+            "isolated": True,
+            "needs_review": True,
+            "quarantined": False,
+        },
         "raptor_lineage_flags": {
             "dirty": True,
             "invalid_index": False,

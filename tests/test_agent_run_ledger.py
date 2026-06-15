@@ -497,6 +497,8 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
         'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
         '"output": "{\\"readiness_gate\\":{\\"required\\":true,\\"state\\":\\"blocked\\",'
         '\\"blocked_families\\":[\\"raptor\\"],\\"gaps\\":[\\"source_hash_changed\\"]},'
+        '\\"freshness_isolation_flags\\":{\\"needs_review\\":true,\\"conflicts\\":false,'
+        '\\"quarantined\\":false,\\"isolated\\":true,\\"filtering_active\\":false},'
         '\\"raptor_lineage_flags\\":{\\"dirty\\":true,\\"missing\\":false,'
         '\\"tainted\\":true,\\"invalid_index\\":false,\\"invalid_summaries\\":false}}"}\n\n',
     )
@@ -504,6 +506,13 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
     events = agent_run_ledger.read_events(session_id)
 
     assert events[0]["payload"]["memory_diagnostics"] == {
+        "freshness_isolation_flags": {
+            "conflicts": False,
+            "filtering_active": False,
+            "isolated": True,
+            "needs_review": True,
+            "quarantined": False,
+        },
         "raptor_lineage_flags": {
             "dirty": True,
             "invalid_index": False,

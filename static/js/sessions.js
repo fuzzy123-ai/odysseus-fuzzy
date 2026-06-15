@@ -185,12 +185,19 @@ function _missionReadinessText(snapshot) {
 
 function _missionMemoryDiagnosticsText(snapshot) {
   const diagnostics = snapshot?.summary?.memory_diagnostics || {};
+  const freshnessFlags = diagnostics.freshness_isolation_flags || {};
   const raptorFlags = diagnostics.raptor_lineage_flags || {};
-  const activeFlags = Object.entries(raptorFlags)
-    .filter(([, value]) => value === true)
-    .map(([name]) => name.replace(/_/g, ' '));
-  if (!activeFlags.length) return '';
-  return ` Memory diagnostics: RAPTOR lineage ${activeFlags.join(', ')}.`;
+  const families = [
+    ['Freshness isolation', freshnessFlags],
+    ['RAPTOR lineage', raptorFlags],
+  ].map(([label, flags]) => {
+    const activeFlags = Object.entries(flags)
+      .filter(([, value]) => value === true)
+      .map(([name]) => name.replace(/_/g, ' '));
+    return activeFlags.length ? `${label} ${activeFlags.join(', ')}` : '';
+  }).filter(Boolean);
+  if (!families.length) return '';
+  return ` Memory diagnostics: ${families.join('; ')}.`;
 }
 
 function _missionPolicyTierText(snapshot) {
