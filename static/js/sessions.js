@@ -183,6 +183,16 @@ function _missionReadinessText(snapshot) {
   return ` Readiness: ${[gateDetails, entries.join(' | ')].filter(Boolean).join('; ')}.`;
 }
 
+function _missionMemoryDiagnosticsText(snapshot) {
+  const diagnostics = snapshot?.summary?.memory_diagnostics || {};
+  const raptorFlags = diagnostics.raptor_lineage_flags || {};
+  const activeFlags = Object.entries(raptorFlags)
+    .filter(([, value]) => value === true)
+    .map(([name]) => name.replace(/_/g, ' '));
+  if (!activeFlags.length) return '';
+  return ` Memory diagnostics: RAPTOR lineage ${activeFlags.join(', ')}.`;
+}
+
 function _missionPolicyTierText(snapshot) {
   const summaryTiers = snapshot?.summary?.policy_tiers || {};
   const phases = snapshot?.phases || {};
@@ -200,7 +210,7 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionMemoryDiagnosticsText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 function _sessionStatusReasonLabel(session) {
