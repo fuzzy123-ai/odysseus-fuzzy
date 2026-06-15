@@ -4,6 +4,10 @@ from typing import Any, Dict
 
 from .vault_model import graph_payload
 
+LARGE_VAULT_RC_NOTE_COUNT = 120
+LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS = 700.0
+LARGE_VAULT_RC_WORST_THRESHOLD_MS = 1200.0
+
 
 def create_large_vault_fixture(vault_dir: str, note_count: int = 120) -> Dict[str, Any]:
     """Create deterministic markdown notes for graph/index performance checks."""
@@ -41,4 +45,23 @@ def profile_graph_build(vault_dir: str) -> Dict[str, Any]:
         "elapsed_ms": elapsed_ms,
         "nodes": len(graph["nodes"]),
         "edges": len(graph["edges"]),
+    }
+
+
+def profile_graph_build_baseline(vault_dir: str, runs: int = 4) -> Dict[str, Any]:
+    """Return warm-run timings for a deterministic RC-sized large vault fixture."""
+    # Warm cache/filesystem/path imports once before measuring repeated runs.
+    warmup = profile_graph_build(vault_dir)
+    samples = [profile_graph_build(vault_dir)["elapsed_ms"] for _ in range(max(runs, 1))]
+    ordered = sorted(samples)
+    median = ordered[len(ordered) // 2] if len(ordered) % 2 else round((ordered[len(ordered) // 2 - 1] + ordered[len(ordered) // 2]) / 2, 2)
+    return {
+        "warmup_elapsed_ms": warmup["elapsed_ms"],
+        "runs": len(samples),
+        "samples_ms": samples,
+        "median_ms": median,
+        "max_ms": max(samples),
+        "min_ms": min(samples),
+        "nodes": warmup["nodes"],
+        "edges": warmup["edges"],
     }

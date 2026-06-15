@@ -83,7 +83,14 @@ from backend.vault_security import (
 )
 from backend.vault_history import list_history
 from backend.vault_model import extract_tags
-from backend.performance_fixtures import create_large_vault_fixture, profile_graph_build
+from backend.performance_fixtures import (
+    LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS,
+    LARGE_VAULT_RC_NOTE_COUNT,
+    LARGE_VAULT_RC_WORST_THRESHOLD_MS,
+    create_large_vault_fixture,
+    profile_graph_build,
+    profile_graph_build_baseline,
+)
 from routes.api_token_routes import TOKEN_PROFILES, _normalize_scopes
 from src.model_context import estimate_tokens
 from plugin import (
@@ -3085,6 +3092,18 @@ def test_large_vault_fixture_produces_retrievable_graph_baseline():
         assert profile["nodes"] >= 48
         assert profile["edges"] >= 48
         assert profile["elapsed_ms"] >= 0
+
+
+def test_large_vault_graph_build_meets_rc_thresholds():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fixture = create_large_vault_fixture(tmpdir, note_count=LARGE_VAULT_RC_NOTE_COUNT)
+        baseline = profile_graph_build_baseline(tmpdir, runs=4)
+
+        assert fixture["note_count"] == LARGE_VAULT_RC_NOTE_COUNT
+        assert baseline["nodes"] >= LARGE_VAULT_RC_NOTE_COUNT
+        assert baseline["edges"] >= LARGE_VAULT_RC_NOTE_COUNT
+        assert baseline["median_ms"] <= LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS
+        assert baseline["max_ms"] <= LARGE_VAULT_RC_WORST_THRESHOLD_MS
 
 
 @pytest.mark.asyncio
