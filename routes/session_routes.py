@@ -53,8 +53,18 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
     if not isinstance(summary, dict) or summary.get("memory_diagnostics_state") != "attention":
         return None
     active_flags = summary.get("memory_diagnostics_active_flags")
+    memory_diagnostics = summary.get("memory_diagnostics") if isinstance(summary.get("memory_diagnostics"), dict) else {}
+    retrieval_policy = memory_diagnostics.get("retrieval_policy") if isinstance(memory_diagnostics.get("retrieval_policy"), dict) else {}
+    retrieval_details = []
+    if retrieval_policy:
+        if retrieval_policy.get("filtering_state") is not None:
+            retrieval_details.append(f"retrieval {str(retrieval_policy.get('filtering_state')).replace('_', ' ')}")
+        if "default_retrieval_is_filtered" in retrieval_policy:
+            filtered = "yes" if retrieval_policy.get("default_retrieval_is_filtered") else "no"
+            retrieval_details.append(f"default filtered {filtered}")
     if not isinstance(active_flags, dict) or not active_flags:
-        return "Memory diagnostics need attention"
+        suffix = f" ({', '.join(retrieval_details)})" if retrieval_details else ""
+        return f"Memory diagnostics need attention{suffix}"
     entries: list[str] = []
     for family, flags in active_flags.items():
         if not isinstance(flags, list):
@@ -66,6 +76,8 @@ def _memory_diagnostics_status_message(summary: dict | None) -> str | None:
         if flag_text:
             family_label = str(family).removesuffix("_flags").replace("_", " ")
             entries.append(f"{family_label}: {flag_text}")
+    if retrieval_details:
+        entries.append(", ".join(retrieval_details))
     return f"Memory diagnostics need attention: {'; '.join(entries)}" if entries else "Memory diagnostics need attention"
 
 

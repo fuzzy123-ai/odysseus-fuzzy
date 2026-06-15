@@ -199,6 +199,12 @@ def test_list_sessions_status_calculation(monkeypatch):
         else {"summary": {
             "readiness_gate": {"state": "not_applicable"},
             "memory_diagnostics_state": "attention",
+            "memory_diagnostics": {
+                "retrieval_policy": {
+                    "filtering_state": "audit_only",
+                    "default_retrieval_is_filtered": False,
+                },
+            },
             "memory_diagnostics_active_flags": {
                 "freshness_isolation_flags": ["needs_review", "isolated"],
             },
@@ -252,7 +258,8 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[memory_diagnostics_id]["status"] == "attention"
     assert res_map[memory_diagnostics_id]["status_reason"] == "memory_diagnostics_attention"
     assert res_map[memory_diagnostics_id]["status_message"] == (
-        "Memory diagnostics need attention: freshness isolation: needs review, isolated"
+        "Memory diagnostics need attention: freshness isolation: needs review, isolated; "
+        "retrieval audit only, default filtered no"
     )
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None
