@@ -412,7 +412,7 @@ Akzeptanz:
 - Editor: Markdown schreiben, Autosave, Preview, Wiki-Link, Tag-Badge.
 - Graph: Cytoscape sichtbar, SVG-Fallback erzwingbar, aktuelle Node markiert.
 - Graph: Datei im Tree anklicken waehrend Graph aktiv ist; Node bleibt/ wird hervorgehoben.
-- Graph: Filter hide/show/highlight fuer mindestens Edge-Type und Tag.
+- Graph: Filter hide/show/highlight fuer mindestens Edge-Type und Tag. Isolierter Harness ist gruen; Full-App-Smoke bleibt vor Tag/PR offen.
 - Project planning: Preview, Streaming, Session Reload, Apply.
 - Memory Review: Preview, Save-to-Obsidian, Append-to-Note, Apply.
 - Vault lock: Nach Lock keine Inhalte ueber Files/Tags/Graph/Search/Project/Memory sichtbar.
@@ -432,6 +432,7 @@ Akzeptanz:
 - Graph-Fokus basiert aktuell stark auf `currentNotePath`; Ordnerselektion und Vault-Root brauchen klare Sonderregeln.
 - Cytoscape-Layout kann bei grossen Vaults teuer werden; Large-Vault-Grenzwerte fehlen.
 - Static-Contract-Tests sind wertvoll, ersetzen aber keine Browser-Smokes.
+- Full-App-Graph-Filter-Smoke ist noch kein gruenes Gate. Der letzte bounded Versuch erreichte den App-Start, war aber wegen eines Playwright-Harness-Reuse-Fehlers nicht verwertbar; vor Release-Tag/PR muss dieser Smoke in einem frischen Browser-Harness wiederholt werden.
 - Auth-Exempt-Regeln fuer Plugin-Shell vs. Plugin-Datenrouten sind sicherheitsrelevant und muessen klein bleiben.
 - Passwortschutz darf nicht als vollstaendige Verschluesselung-at-rest verkauft werden, solange das nicht explizit implementiert und getestet ist.
 - Projektplanung und Memory Review haben viele Schreibpfade; Konflikt- und Preview-UX muss vor Release glasklar bleiben.
