@@ -180,6 +180,15 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
         )
         if signals:
             return _dedupe_readiness_signals(signals)
+    by_family = payload.get("readiness_by_family")
+    if isinstance(by_family, dict):
+        signals.extend(
+            _readiness_signal_from_explicit({**signal, "family": family}, family_hint=family_hint)
+            for family, signal in by_family.items()
+            if isinstance(signal, dict)
+        )
+        if signals:
+            return _dedupe_readiness_signals(signals)
     readiness = payload.get("readiness")
     if isinstance(readiness, dict):
         state = str(readiness.get("state") or "unknown")

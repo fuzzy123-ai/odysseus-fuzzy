@@ -411,6 +411,54 @@ def test_agent_run_ledger_prefers_explicit_memory_readiness_signals(tmp_path, mo
     ]
 
 
+def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-readiness-by-family"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
+        '"output": "{\\"memory\\":{\\"readiness_by_family\\":{'
+        '\\"freshness\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",'
+        '\\"ready\\":false,\\"gaps\\":[\\"needs_review_items\\"],\\"gap_count\\":1},'
+        '\\"raptor\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"not_configured\\",'
+        '\\"ready\\":false,\\"gaps\\":[\\"raptor_index_missing\\"],\\"gap_count\\":1}}}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+
+    assert events[1]["payload"]["readiness_signals"] == [
+        {
+            "family": "freshness",
+            "source": "readiness",
+            "state": "needs_review",
+            "ready": False,
+            "gaps": ["needs_review_items"],
+            "gap_count": 1,
+        },
+        {
+            "family": "raptor",
+            "source": "readiness",
+            "state": "not_configured",
+            "ready": False,
+            "gaps": ["raptor_index_missing"],
+            "gap_count": 1,
+        },
+    ]
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["artifacts"] == {
+        "freshness_readiness": 1,
+        "raptor_readiness": 1,
+        "readiness_check": 2,
+    }
+    assert set(snapshot["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
+    assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
+
+
 def test_agent_run_ledger_uses_memory_status_hint_for_summary_readiness(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-memory-status-summary-readiness"
