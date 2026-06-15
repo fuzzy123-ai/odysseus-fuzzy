@@ -183,12 +183,13 @@ if AUTH_ENABLED:
         "/api/health",
         "/api/version",
         "/api/plugins/ui-loader.js",
+        "/api/plugins/obsidian/app",
         "/login",
     }
-    # The plugin UI loader is safe to serve without route auth, but plugin API
-    # routes must still pass through AuthMiddleware so request.state.current_user
-    # is available to their own require_user() checks.
-    AUTH_EXEMPT_PREFIXES = ["/static"]
+    # Plugin shell and asset routes are safe to serve without route auth, but
+    # plugin data routes must still pass through AuthMiddleware so
+    # request.state.current_user is available to their own require_user() checks.
+    AUTH_EXEMPT_PREFIXES = ["/static", "/api/plugins/obsidian/web/"]
     # Dynamic paths whose own handler proves identity via a path-embedded
     # secret instead of the session/bearer auth. The route handler at
     # routes/task_routes.py validates the per-task `webhook_token` itself

@@ -3,6 +3,10 @@ import re
 import shutil
 import subprocess
 
+from fastapi.testclient import TestClient
+
+from tests.helpers.import_state import clear_module, preserve_import_state
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,8 +34,35 @@ def test_obsidian_plugin_loader_is_auth_exempt():
     prefix_match = re.search(r"AUTH_EXEMPT_PREFIXES\s*=\s*\[(.*?)\]", app_py, re.S)
 
     assert '"/api/plugins/ui-loader.js"' in app_py
+    assert '"/api/plugins/obsidian/app"' in app_py
     assert prefix_match
+    assert '"/api/plugins/obsidian/web/"' in prefix_match.group(1)
     assert '"/api/plugins/obsidian"' not in prefix_match.group(1)
+
+
+def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
+    with preserve_import_state("app", "src.database", "src.webhook_manager"):
+        clear_module("app")
+        clear_module("src.database")
+        clear_module("src.webhook_manager")
+        from app import app
+        from plugins.obsidian.backend.routes import router as obsidian_router
+
+        if not any(getattr(route, "path", "") == "/api/plugins/obsidian/app" for route in app.routes):
+            app.include_router(obsidian_router)
+
+        client = TestClient(app)
+
+        app_response = client.get("/api/plugins/obsidian/app")
+        assert app_response.status_code == 200
+        assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" in app_response.text
+
+        asset_response = client.get("/api/plugins/obsidian/web/main.js")
+        assert asset_response.status_code == 200
+        assert "function init()" in asset_response.text
+
+        data_response = client.get("/api/plugins/obsidian/files")
+        assert data_response.status_code == 401
 
 
 def test_obsidian_frontend_registers_sidebar_and_standalone_mode():
