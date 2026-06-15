@@ -723,6 +723,17 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
         assert status["lineage"]["dirty_sources"] == []
         assert status["lineage"]["missing_sources"] == []
         assert status["lineage"]["tainted_sources"] == []
+        assert status["lineage"]["summary"] == {
+            "source_count": 1,
+            "dirty": 0,
+            "missing": 0,
+            "tainted": 0,
+        }
+        assert status["summary"]["source_count"] == 1
+        assert status["summary"]["dirty_sources"] == 0
+        assert status["summary"]["missing_sources"] == 0
+        assert status["summary"]["tainted_sources"] == 0
+        assert status["summary"]["writes_supported"] is False
 
 
 def test_raptor_status_marks_changed_or_missing_sources_dirty():
@@ -743,6 +754,10 @@ def test_raptor_status_marks_changed_or_missing_sources_dirty():
         assert status["dirty"] is True
         assert [item["path"] for item in status["lineage"]["dirty_sources"]] == ["Changed.md"]
         assert status["lineage"]["missing_sources"] == ["Missing.md"]
+        assert status["lineage"]["summary"]["dirty"] == 1
+        assert status["lineage"]["summary"]["missing"] == 1
+        assert status["summary"]["dirty_sources"] == 1
+        assert status["summary"]["missing_sources"] == 1
 
 
 def test_raptor_status_marks_review_or_quarantined_sources_tainted():
@@ -765,6 +780,8 @@ def test_raptor_status_marks_review_or_quarantined_sources_tainted():
         assert status["lineage"]["tainted_sources"][0]["policy"] == "implementation_status"
         assert status["lineage"]["tainted_sources"][0]["source_hash"] == source_hash
         assert status["lineage"]["tainted_sources"][0]["source_mtime"].endswith("Z")
+        assert status["lineage"]["summary"]["tainted"] == 1
+        assert status["summary"]["tainted_sources"] == 1
 
 
 @pytest.mark.asyncio

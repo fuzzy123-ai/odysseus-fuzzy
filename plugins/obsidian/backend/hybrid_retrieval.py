@@ -98,6 +98,12 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
         "dirty_sources": dirty_sources,
         "missing_sources": missing_sources,
         "tainted_sources": tainted_sources,
+        "summary": {
+            "source_count": len(lineage),
+            "dirty": len(dirty_sources),
+            "missing": len(missing_sources),
+            "tainted": len(tainted_sources),
+        },
     }
 
 
@@ -146,6 +152,14 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "dirty": dirty,
         "tainted": tainted,
         "lineage": lineage_status,
+        "summary": {
+            "source_count": lineage_status["summary"]["source_count"],
+            "dirty_sources": lineage_status["summary"]["dirty"],
+            "missing_sources": lineage_status["summary"]["missing"],
+            "tainted_sources": lineage_status["summary"]["tainted"],
+            "invalid_sources": int(bool(invalid_index)) + int(bool(invalid_summaries)),
+            "writes_supported": False,
+        },
         "writes_supported": False,
         "message": "RAPTOR rebuild/write is disabled in the MVP; status is read-only.",
     }
