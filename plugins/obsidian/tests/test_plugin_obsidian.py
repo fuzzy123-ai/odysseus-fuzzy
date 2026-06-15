@@ -931,6 +931,25 @@ def test_memory_status_preserves_compact_layer_warnings(monkeypatch):
     assert status["readiness_gate"]["gaps"] == ["somt_warnings_present"]
 
 
+def test_memory_status_propagates_raptor_metadata_gaps():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"dirty": True, "tainted": True, "source_hashes": {}}, f)
+
+        status = memory_status(tmpdir)
+
+        assert status["readiness_by_family"]["raptor"]["gaps"] == [
+            "raptor_metadata_dirty",
+            "raptor_metadata_tainted",
+        ]
+        assert "raptor_metadata_dirty" in status["readiness_gate"]["gaps"]
+        assert "raptor_metadata_tainted" in status["readiness_gate"]["gaps"]
+        assert "raptor_metadata_dirty" in status["summary"]["readiness_gap_names"]
+        assert "raptor_metadata_tainted" in status["summary"]["readiness_gap_names"]
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
+
+
 async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
