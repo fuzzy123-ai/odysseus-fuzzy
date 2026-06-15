@@ -153,6 +153,10 @@ def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkey
     assert snapshot["summary"]["status"] == "done"
     assert snapshot["summary"]["worker_status"] == "done"
     assert snapshot["summary"]["verifier_status"] == "done"
+    assert snapshot["summary"]["verification_required"] is True
+    assert snapshot["summary"]["verification_satisfied"] is True
+    assert snapshot["summary"]["verification_evidence"] == {"test_command": 1}
+    assert snapshot["summary"]["verification_gaps"] == []
     assert snapshot["summary"]["policy_tiers"] == {"safe": 1}
     assert [node["id"] for node in snapshot["dag"]["nodes"]] == ["manager", "worker", "verifier"]
     assert snapshot["dag"]["edges"] == [
@@ -187,8 +191,10 @@ def test_summarize_mission_treats_browser_screenshot_as_verification(tmp_path, m
 
     assert snapshot["phases"]["verifier"]["status"] == "done"
     assert snapshot["phases"]["verifier"]["starts"] == 1
-    assert snapshot["phases"]["verifier"]["artifacts"] == {"screenshot": 1}
-    assert snapshot["summary"]["verifier_artifacts"] == {"screenshot": 1}
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"browser_check": 1, "screenshot": 1}
+    assert snapshot["summary"]["verifier_artifacts"] == {"browser_check": 1, "screenshot": 1}
+    assert snapshot["summary"]["verification_satisfied"] is True
+    assert snapshot["summary"]["verification_evidence"] == {"browser_check": 1, "screenshot": 1}
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "secretpixels" not in json.dumps(snapshot)
 
@@ -203,6 +209,9 @@ def test_summarize_mission_marks_missing_verification_as_next_action(tmp_path, m
     snapshot = summarize_mission(session_id)
 
     assert snapshot["phases"]["verifier"]["status"] == "idle"
+    assert snapshot["summary"]["verification_required"] is True
+    assert snapshot["summary"]["verification_satisfied"] is False
+    assert snapshot["summary"]["verification_gaps"] == ["focused_verification_missing"]
     assert snapshot["next_actions"] == ["run_focused_verification"]
 
 
@@ -259,6 +268,9 @@ def test_summarize_mission_reports_latest_required_action(tmp_path, monkeypatch)
     }
     assert snapshot["summary"]["latest_required_action"]["role"] == "verifier"
     assert snapshot["summary"]["latest_required_action"]["action"] == "confirm_shell_command"
+    assert snapshot["summary"]["verification_required"] is False
+    assert snapshot["summary"]["verification_satisfied"] is False
+    assert snapshot["summary"]["verification_evidence"] == {"test_command": 1}
     verifier_node = next(node for node in snapshot["dag"]["nodes"] if node["id"] == "verifier")
     assert verifier_node["has_required_action"] is True
     assert "confirm_shell_command" in snapshot["next_actions"]
@@ -324,6 +336,9 @@ def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch)
     assert body["phases"]["manager"]["status"] == "done"
     assert body["dag"]["edges"][0] == {"source": "manager", "target": "worker", "kind": "delegates"}
     assert body["summary"]["verifier_status"] == "idle"
+    assert body["summary"]["verification_required"] is True
+    assert body["summary"]["verification_satisfied"] is False
+    assert body["summary"]["verification_gaps"] == ["focused_verification_missing"]
     assert body["next_actions"] == ["run_focused_verification"]
 
 

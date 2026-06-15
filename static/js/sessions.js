@@ -117,6 +117,22 @@ function _missionArtifactText(snapshot) {
   return ` Artifacts: ${entries.join(', ')}.`;
 }
 
+function _missionVerificationText(snapshot) {
+  const summary = snapshot?.summary || {};
+  if (!summary.verification_required && !summary.verification_satisfied) return '';
+  const state = summary.verification_satisfied ? 'satisfied' : 'pending';
+  const evidence = Object.entries(summary.verification_evidence || {})
+    .filter(([, count]) => Number(count || 0) > 0)
+    .map(([kind, count]) => `${kind.replace(/_/g, ' ')}: ${count}`);
+  const gaps = Array.isArray(summary.verification_gaps)
+    ? summary.verification_gaps.map((gap) => String(gap).replace(/_/g, ' '))
+    : [];
+  const parts = [`Verification: ${state}`];
+  if (evidence.length) parts.push(`evidence ${evidence.join(', ')}`);
+  if (gaps.length) parts.push(`gaps ${gaps.join(', ')}`);
+  return ` ${parts.join('; ')}.`;
+}
+
 function _missionPolicyTierText(snapshot) {
   const summaryTiers = snapshot?.summary?.policy_tiers || {};
   const phases = snapshot?.phases || {};
@@ -134,7 +150,7 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {

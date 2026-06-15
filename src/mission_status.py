@@ -138,7 +138,7 @@ def _is_verifier_event(payload: dict[str, Any]) -> bool:
         return True
     if payload.get("has_screenshot"):
         return True
-    command = str(payload.get("command_preview") or "")
+    command = str(payload.get("command_preview") or payload.get("command") or "")
     return bool(command and _VERIFY_COMMAND_RE.search(command))
 
 
@@ -150,6 +150,9 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
     payload_type = payload.get("type")
     if payload_type == "tool_start":
         counts["starts"] += 1
+        evidence = _verification_evidence_kind(payload)
+        if evidence:
+            counts["artifacts"][evidence] = counts["artifacts"].get(evidence, 0) + 1
         policy = _command_policy(payload)
         if policy:
             tier = str(policy.get("tier") or "unknown")
@@ -171,6 +174,16 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
             counts["blocked"] += 1
             counts["last_blocker"] = _blocker("tool_output", payload)
         counts["updated_at"] = ts or counts["updated_at"]
+
+
+def _verification_evidence_kind(payload: dict[str, Any]) -> str | None:
+    tool = str(payload.get("tool") or "")
+    if tool in _BROWSER_TOOLS:
+        return "browser_check"
+    command = str(payload.get("command_preview") or payload.get("command") or "")
+    if command and _VERIFY_COMMAND_RE.search(command):
+        return "test_command"
+    return None
 
 
 def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -229,6 +242,7 @@ def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -
 def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
     worker = phases["worker"]
     verifier = phases["verifier"]
+    verification = _verification_gate(status, verifier)
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -236,9 +250,33 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "worker_blocked": worker["blocked"],
         "verifier_blocked": verifier["blocked"],
         "verifier_artifacts": dict(verifier.get("artifacts") or {}),
+        "verification_required": verification["required"],
+        "verification_satisfied": verification["satisfied"],
+        "verification_evidence": verification["evidence"],
+        "verification_gaps": verification["gaps"],
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
+    }
+
+
+def _verification_gate(status: str, verifier: dict[str, Any]) -> dict[str, Any]:
+    required = status == "done"
+    evidence = dict(verifier.get("artifacts") or {})
+    satisfied = verifier.get("status") == "done" and bool(evidence)
+    gaps: list[str] = []
+    if required and not satisfied:
+        if verifier.get("status") == "idle":
+            gaps.append("focused_verification_missing")
+        elif verifier.get("status") == "blocked":
+            gaps.append("verification_blocked")
+        else:
+            gaps.append("verification_incomplete")
+    return {
+        "required": required,
+        "satisfied": satisfied,
+        "evidence": evidence,
+        "gaps": gaps,
     }
 
 
