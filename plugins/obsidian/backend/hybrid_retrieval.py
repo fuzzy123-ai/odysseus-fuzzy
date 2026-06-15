@@ -3,7 +3,7 @@ import os
 import hashlib
 from typing import Any, Dict
 
-from .feature_flags import all_flags, freshness_filtering_state, is_enabled
+from .feature_flags import all_flags, freshness_filtering_state
 from .freshness import audit_knowledge
 from .readiness import readiness_gate_from_family, readiness_gate_from_signals
 from . import vault_service
@@ -109,6 +109,7 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
 
 
 def raptor_status(vault_dir: str) -> Dict[str, Any]:
+    flags = all_flags()
     index_path = os.path.join(vault_dir, RAPTOR_INDEX_PATH)
     summaries_path = os.path.join(vault_dir, RAPTOR_SUMMARIES_PATH)
     index_present = os.path.exists(index_path)
@@ -157,8 +158,9 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
     )
     readiness_signal = _readiness_signal("raptor", readiness)
     readiness_gate = readiness_gate_from_signals([readiness_signal])
+    write_gate = _raptor_write_gate(flags)
     return {
-        "enabled": is_enabled("obsidian_raptor_enabled"),
+        "enabled": flags.get("obsidian_raptor_enabled", False),
         "configured": index_present or summaries_present,
         "index_present": index_present,
         "summaries_present": summaries_present,
@@ -172,6 +174,7 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "readiness": readiness,
         "readiness_signals": [readiness_signal],
         "readiness_gate": readiness_gate,
+        "write_gate": write_gate,
         "lineage": lineage_status,
         "lineage_flags": lineage_flags,
         "summary": {
@@ -185,10 +188,28 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_gaps": len(readiness["gaps"]),
             "readiness_gap_names": readiness_signal["gaps"],
             "readiness_gate": readiness_gate,
+            "write_gate": write_gate,
             "writes_supported": False,
         },
         "writes_supported": False,
         "message": "RAPTOR rebuild/write is disabled in the MVP; status is read-only.",
+    }
+
+
+def _raptor_write_gate(flags: Dict[str, bool]) -> Dict[str, Any]:
+    gaps = [
+        "source_hash_lineage_verification_required",
+        "dirty_summary_behavior_required",
+        "raptor_rebuild_write_disabled_in_mvp",
+    ]
+    if not flags.get("obsidian_raptor_enabled", False):
+        gaps.insert(0, "raptor_feature_flag_disabled")
+    return {
+        "feature_flag": "obsidian_raptor_enabled",
+        "feature_enabled": bool(flags.get("obsidian_raptor_enabled", False)),
+        "writes_supported": False,
+        "state": "blocked",
+        "gaps": gaps,
     }
 
 

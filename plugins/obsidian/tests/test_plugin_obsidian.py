@@ -1089,6 +1089,41 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
         assert status["summary"]["readiness_state"] == "not_configured"
         assert status["summary"]["readiness_gaps"] == 1
         assert status["summary"]["readiness_gate"] == status["readiness_gate"]
+        assert status["write_gate"] == {
+            "feature_flag": "obsidian_raptor_enabled",
+            "feature_enabled": False,
+            "writes_supported": False,
+            "state": "blocked",
+            "gaps": [
+                "raptor_feature_flag_disabled",
+                "source_hash_lineage_verification_required",
+                "dirty_summary_behavior_required",
+                "raptor_rebuild_write_disabled_in_mvp",
+            ],
+        }
+        assert status["summary"]["write_gate"] == status["write_gate"]
+
+
+def test_raptor_write_gate_stays_blocked_when_feature_flag_enabled(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED", "true")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        status = raptor_status(tmpdir)
+
+        assert status["enabled"] is True
+        assert status["writes_supported"] is False
+        assert status["summary"]["writes_supported"] is False
+        assert status["write_gate"] == {
+            "feature_flag": "obsidian_raptor_enabled",
+            "feature_enabled": True,
+            "writes_supported": False,
+            "state": "blocked",
+            "gaps": [
+                "source_hash_lineage_verification_required",
+                "dirty_summary_behavior_required",
+                "raptor_rebuild_write_disabled_in_mvp",
+            ],
+        }
+        assert status["summary"]["write_gate"] == status["write_gate"]
 
 
 def test_raptor_status_tracks_source_hash_lineage_without_writes():

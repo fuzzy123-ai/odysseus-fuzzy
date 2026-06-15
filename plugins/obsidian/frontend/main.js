@@ -3306,6 +3306,7 @@ function renderRaptorStatus() {
   const summary = raptorReport.summary || {};
   const readiness = raptorReport.readiness || {};
   const gate = raptorReport.readiness_gate || summary.readiness_gate || {};
+  const writeGate = raptorReport.write_gate || summary.write_gate || {};
   const lineageFlags = raptorReport.lineage_flags || summary.lineage_flags || {};
   const activeLineageFlags = Object.entries(lineageFlags)
     .filter(([, value]) => value === true)
@@ -3323,6 +3324,7 @@ function renderRaptorStatus() {
       { label: 'Invalid', value: summary.invalid_sources ?? ((raptorReport.invalid_index ? 1 : 0) + (raptorReport.invalid_summaries ? 1 : 0)) },
       { label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length },
       { label: 'Lineage flags', value: activeLineageFlags.length ? activeLineageFlags.join(', ') : 'clear' },
+      { label: 'Write gate', value: writeGate.state || 'blocked' },
       { label: 'Writes', value: (summary.writes_supported ?? raptorReport.writes_supported) ? 'yes' : 'no' },
     ])}
     <div class="obsidian-memory-tree-grid">
@@ -3338,6 +3340,7 @@ function renderRaptorStatus() {
       <div class="obsidian-memory-tree-card">
         <strong>Policy</strong>
         <p>${escapeHtml(raptorReport.message || 'RAPTOR status is read-only.')}</p>
+        <p>${escapeHtml((writeGate.gaps || []).length ? `Write gate: ${(writeGate.gaps || []).join(', ')}` : 'RAPTOR writes are not enabled.')}</p>
         <p>${escapeHtml((readiness.gaps || []).length ? `Review gaps: ${(readiness.gaps || []).join(', ')}` : 'No RAPTOR readiness gaps detected.')}</p>
         <code>${escapeHtml(raptorReport.index_path || '')}</code>
         <code>${escapeHtml(raptorReport.summaries_path || '')}</code>

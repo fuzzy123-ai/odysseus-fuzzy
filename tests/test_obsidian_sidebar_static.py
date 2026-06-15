@@ -588,6 +588,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
     assert "const summary = raptorReport.summary || {}" in main_js
     assert "const gate = raptorReport.readiness_gate || summary.readiness_gate || {}" in main_js
+    assert "const writeGate = raptorReport.write_gate || summary.write_gate || {}" in main_js
     assert "const lineageFlags = raptorReport.lineage_flags || summary.lineage_flags || {}" in main_js
     assert "activeLineageFlags.length ? activeLineageFlags.join(', ') : 'clear'" in main_js
     assert "summary.source_count" in main_js
@@ -599,6 +600,9 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.readiness_state" in main_js
     assert "summary.readiness_gaps" in main_js
     assert "Review gaps:" in main_js
+    assert "Write gate" in main_js
+    assert "Write gate:" in main_js
+    assert "writeGate.gaps" in main_js
     assert "summary.writes_supported" in main_js
     assert "Lineage flags" in main_js
     assert "summary.writes_supported ?? raptorReport.writes_supported" in main_js
