@@ -423,7 +423,7 @@ def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
         '\\"freshness\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",'
         '\\"ready\\":false,\\"gaps\\":[\\"needs_review_items\\"],\\"gap_count\\":1},'
         '\\"raptor\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"not_configured\\",'
-        '\\"ready\\":false,\\"gaps\\":[\\"raptor_index_missing\\"],\\"gap_count\\":1}}}}"}\n\n',
+        '\\"ready\\":false,\\"readiness_gap_names\\":[\\"raptor_index_missing\\"],\\"gap_count\\":1}}}}"}\n\n',
     )
     agent_run_ledger.append_status(session_id, "done")
 

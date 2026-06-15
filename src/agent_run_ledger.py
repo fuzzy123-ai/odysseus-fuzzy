@@ -211,6 +211,8 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
 def _readiness_signal_from_explicit(signal: dict[str, Any], *, family_hint: str = "generic") -> dict[str, Any]:
     state = str(signal.get("state") or "unknown")
     gaps = _safe_gap_list(signal.get("gaps"))
+    if not gaps:
+        gaps = _safe_gap_list(signal.get("readiness_gap_names"))
     gap_count = int(signal.get("gap_count") or len(gaps))
     family = str(signal.get("family") or family_hint or "generic")
     return {
