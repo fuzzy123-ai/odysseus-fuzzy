@@ -411,6 +411,39 @@ def test_agent_run_ledger_prefers_explicit_memory_readiness_signals(tmp_path, mo
     ]
 
 
+def test_agent_run_ledger_uses_memory_status_hint_for_summary_readiness(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-status-summary-readiness"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"summary\\":{\\"readiness_state\\":\\"blocked\\",\\"readiness_gaps\\":2,'
+        '\\"readiness_gap_names\\":[\\"freshness\\",\\"raptor\\"]}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+    signal = events[1]["payload"]["readiness_signal"]
+
+    assert signal == {
+        "family": "memory",
+        "source": "summary",
+        "state": "blocked",
+        "ready": False,
+        "gaps": ["freshness", "raptor"],
+        "gap_count": 2,
+    }
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "blocked"
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"memory_readiness": 1, "readiness_check": 1}
+    assert snapshot["summary"]["readiness_by_family"]["memory"] == signal
+    assert snapshot["summary"]["latest_blocker"]["family"] == "memory"
+
+
 def test_summarize_mission_treats_somt_readiness_as_verification_gap(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-somt-readiness-gap"

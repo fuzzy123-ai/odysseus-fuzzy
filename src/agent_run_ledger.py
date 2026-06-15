@@ -195,7 +195,7 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
     summary = payload.get("summary")
     if isinstance(summary, dict):
         signals.extend(_readiness_signals_from_mapping(summary, family_hint=family_hint))
-    signals.extend(_summary_readiness_signals(payload))
+    signals.extend(_summary_readiness_signals(payload, family_hint=family_hint))
     return _dedupe_readiness_signals(signals)
 
 
@@ -214,7 +214,7 @@ def _readiness_signal_from_explicit(signal: dict[str, Any], *, family_hint: str 
     }
 
 
-def _summary_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _summary_readiness_signals(payload: dict[str, Any], *, family_hint: str = "generic") -> list[dict[str, Any]]:
     signals = []
     for family in ("freshness", "raptor"):
         state = payload.get(f"{family}_readiness_state")
@@ -233,8 +233,9 @@ def _summary_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if state:
         gap_count = int(payload.get("readiness_gaps") or 0)
         gaps = _safe_gap_list(payload.get("readiness_gap_names"))
+        family = family_hint if family_hint != "generic" else "generic"
         signals.append({
-            "family": "generic",
+            "family": family,
             "source": "summary",
             "state": str(state),
             "ready": str(state) == "ready" and gap_count == 0,
@@ -255,6 +256,8 @@ def _readiness_family_from_text(value: Any) -> str:
     kind = str(value or "").lower()
     if "somt" in kind or "memory_tree" in kind or "memory-tree" in kind:
         return "somt"
+    if "memory_status" in kind or "memory-status" in kind or "memory status" in kind:
+        return "memory"
     if "raptor" in kind:
         return "raptor"
     if "freshness" in kind or "quarantine" in kind:
