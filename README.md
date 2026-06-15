@@ -24,6 +24,7 @@ The Plugin API supports:
 - `ctx.add_router(...)` - Registers custom plugin-owned FastAPI routes.
 - `ctx.register_tool(...)` - Registers custom agent-callable plugin tools.
 - `ctx.register_context_provider(...)` - Registers read-only context preloading providers (e.g., to pull note summaries into prompts).
+  Provider diagnostics and warnings are injected as separate compact context messages, distinct from untrusted provider snippets.
 - `ctx.register_consolidation_job(...)` - Registers background memory consolidation and optimization routines.
 - Manifest UI integration (e.g., `PLUGIN["ui"]["open"]`) for customized frontends.
 
