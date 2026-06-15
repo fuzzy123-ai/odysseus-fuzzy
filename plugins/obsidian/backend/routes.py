@@ -133,18 +133,7 @@ APP_HTML = """<!doctype html>
   </style>
 </head>
 <body data-obsidian-standalone="true">
-  <script type="module">
-    window.ODYSSEUS_OBSIDIAN_STANDALONE = true;
-    import "/api/plugins/obsidian/web/main.js";
-    const openObsidian = () => {
-      window.OdysseusObsidian?.openPanel?.();
-    };
-    if (document.readyState === "loading") {
-      window.addEventListener("DOMContentLoaded", openObsidian, { once: true });
-    } else {
-      openObsidian();
-    }
-  </script>
+  <script type="module" src="/api/plugins/obsidian/web/app.js"></script>
 </body>
 </html>"""
 

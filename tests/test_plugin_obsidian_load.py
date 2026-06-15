@@ -90,8 +90,12 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     client = TestClient(app)
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
-    assert "ODYSSEUS_OBSIDIAN_STANDALONE" in app_response.text
-    assert "/api/plugins/obsidian/web/main.js" in app_response.text
+    assert "/api/plugins/obsidian/web/app.js" in app_response.text
+    assert "ODYSSEUS_OBSIDIAN_STANDALONE" not in app_response.text
+    app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
+    assert app_asset_response.status_code == 200
+    assert "ODYSSEUS_OBSIDIAN_STANDALONE" in app_asset_response.text
+    assert "/api/plugins/obsidian/web/main.js" in app_asset_response.text
     asset_response = client.get("/api/plugins/obsidian/web/main.js")
     assert asset_response.status_code == 200
     assert "obsidian-panel" in asset_response.text

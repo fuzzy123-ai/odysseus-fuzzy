@@ -55,11 +55,17 @@ def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
 
         app_response = client.get("/api/plugins/obsidian/app")
         assert app_response.status_code == 200
-        assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" in app_response.text
+        assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in app_response.text
+        assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" not in app_response.text
 
         asset_response = client.get("/api/plugins/obsidian/web/main.js")
         assert asset_response.status_code == 200
         assert "function init()" in asset_response.text
+
+        app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
+        assert app_asset_response.status_code == 200
+        assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" in app_asset_response.text
+        assert "await import('/api/plugins/obsidian/web/main.js')" in app_asset_response.text
 
         data_response = client.get("/api/plugins/obsidian/files")
         assert data_response.status_code == 401
@@ -717,6 +723,6 @@ def test_obsidian_app_page_boots_standalone_panel():
     from plugins.obsidian.backend.routes import APP_HTML
 
     assert 'data-obsidian-standalone="true"' in APP_HTML
-    assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" in APP_HTML
-    assert 'import "/api/plugins/obsidian/web/main.js"' in APP_HTML
-    assert 'document.readyState === "loading"' in APP_HTML
+    assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in APP_HTML
+    assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" not in APP_HTML
+    assert 'import "/api/plugins/obsidian/web/main.js"' not in APP_HTML
