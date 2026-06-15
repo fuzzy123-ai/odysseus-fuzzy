@@ -137,6 +137,28 @@ function _missionVerificationText(snapshot) {
   return ` ${parts.join('; ')}.`;
 }
 
+function _missionReadinessText(snapshot) {
+  const signals = Array.isArray(snapshot?.summary?.readiness_signals)
+    ? snapshot.summary.readiness_signals
+    : [];
+  if (!signals.length) return '';
+  const entries = signals.slice(0, 4).map((signal) => {
+    const family = String(signal.family || 'generic').replace(/_/g, ' ');
+    const source = signal.source ? `/${String(signal.source).replace(/_/g, ' ')}` : '';
+    const gaps = Array.isArray(signal.gaps)
+      ? signal.gaps.slice(0, 2).map((gap) => String(gap).replace(/_/g, ' '))
+      : [];
+    const gapCount = Number(signal.gap_count || gaps.length || 0);
+    const details = [
+      signal.state ? `state ${String(signal.state).replace(/_/g, ' ')}` : '',
+      gapCount ? `${gapCount} gap${gapCount === 1 ? '' : 's'}` : '',
+      gaps.length ? `gaps ${gaps.join(', ')}` : '',
+    ].filter(Boolean).join(', ');
+    return `${family}${source}${details ? ` (${details})` : ''}`;
+  });
+  return ` Readiness: ${entries.join(' | ')}.`;
+}
+
 function _missionPolicyTierText(snapshot) {
   const summaryTiers = snapshot?.summary?.policy_tiers || {};
   const phases = snapshot?.phases || {};
@@ -154,7 +176,7 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {

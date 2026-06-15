@@ -72,6 +72,9 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "summary.verification_evidence" in source
     assert "summary.verification_gaps" in source
     assert "Verification:" in source
+    assert "function _missionReadinessText(snapshot)" in source
+    assert "summary?.readiness_signals" in source
+    assert "Readiness:" in source
     assert "function _missionPolicyTierText(snapshot)" in source
     assert "snapshot?.summary?.policy_tiers" in source
     assert "phases[role]?.policy_tiers" in source
