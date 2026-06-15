@@ -301,6 +301,7 @@ def _readiness_blocker(payload: dict[str, Any], signal: dict[str, Any]) -> dict[
 
 def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -> None:
     phase.update(counts)
+    phase["readiness_gate"] = _readiness_gate(phase.get("readiness_signals") or [])
     if counts["starts"] == 0 and counts["outputs"] == 0:
         phase["status"] = "idle"
     elif counts["blocked"] > 0:
@@ -417,6 +418,8 @@ def _dag(phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 def _dag_node(phase: dict[str, Any]) -> dict[str, Any]:
+    readiness_gate = phase.get("readiness_gate") if isinstance(phase.get("readiness_gate"), dict) else {}
+    readiness_gaps = readiness_gate.get("gaps") if isinstance(readiness_gate.get("gaps"), list) else []
     return {
         "id": phase["role"],
         "role": phase["role"],
@@ -428,6 +431,9 @@ def _dag_node(phase: dict[str, Any]) -> dict[str, Any]:
         "blocked": phase.get("blocked", 0),
         "has_blocker": bool(phase.get("last_blocker")),
         "has_required_action": bool(phase.get("latest_required_action")),
+        "readiness_state": readiness_gate.get("state", "not_applicable"),
+        "readiness_blocked": readiness_gate.get("state") == "blocked",
+        "readiness_gaps": len(readiness_gaps),
     }
 
 

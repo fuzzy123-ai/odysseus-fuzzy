@@ -52,6 +52,7 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "DAG:" in source
     assert "has_required_action" in source
     assert "has_blocker" in source
+    assert "node.readiness_blocked" in source
     assert "function _missionRequiredActionText(snapshot)" in source
     assert "snapshot?.summary?.latest_required_action" in source
     assert "Required:" in source

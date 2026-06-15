@@ -55,6 +55,7 @@ function _missionDagText(snapshot) {
       const flags = [
         node.has_required_action ? 'required' : '',
         node.has_blocker ? 'blocked' : '',
+        node.readiness_blocked ? 'readiness' : '',
       ].filter(Boolean);
       return `${node.role || node.id}: ${node.status || 'idle'}${flags.length ? ` (${flags.join(', ')})` : ''}`;
     });

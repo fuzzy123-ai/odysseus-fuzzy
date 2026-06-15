@@ -276,6 +276,7 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
 
     assert snapshot["phases"]["verifier"]["status"] == "blocked"
     assert snapshot["phases"]["verifier"]["artifacts"] == {"readiness_check": 1, "raptor_readiness": 1}
+    assert snapshot["phases"]["verifier"]["readiness_gate"] == snapshot["summary"]["readiness_gate"]
     assert snapshot["summary"]["verification_evidence"] == {"readiness_check": 1, "raptor_readiness": 1}
     assert snapshot["summary"]["verification_satisfied"] is False
     assert snapshot["summary"]["verification_gaps"] == ["verification_blocked"]
@@ -302,6 +303,10 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
     }
     assert "resolve_readiness_gaps" in snapshot["next_actions"]
     assert "inspect_verification_failure" in snapshot["next_actions"]
+    verifier_node = next(node for node in snapshot["dag"]["nodes"] if node["id"] == "verifier")
+    assert verifier_node["readiness_state"] == "blocked"
+    assert verifier_node["readiness_blocked"] is True
+    assert verifier_node["readiness_gaps"] == 1
 
 
 def test_summarize_mission_marks_readiness_gate_satisfied(tmp_path, monkeypatch):
@@ -332,6 +337,10 @@ def test_summarize_mission_marks_readiness_gate_satisfied(tmp_path, monkeypatch)
         "gaps": [],
     }
     assert "resolve_readiness_gaps" not in snapshot["next_actions"]
+    verifier_node = next(node for node in snapshot["dag"]["nodes"] if node["id"] == "verifier")
+    assert verifier_node["readiness_state"] == "ready"
+    assert verifier_node["readiness_blocked"] is False
+    assert verifier_node["readiness_gaps"] == 0
 
 
 def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path, monkeypatch):
