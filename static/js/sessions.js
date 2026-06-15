@@ -203,6 +203,14 @@ function _formatMissionSnapshot(snapshot) {
   return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionVerificationText(snapshot)}${_missionReadinessText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
+function _sessionStatusReasonLabel(session) {
+  const reason = session?.status_reason || '';
+  if (reason === 'readiness_gate_blocked') return 'Readiness';
+  if (reason === 'ask_user') return 'Input';
+  if (reason === 'run_error') return 'Error';
+  return String(reason).replace(/_/g, ' ');
+}
+
 async function inspectMissionStatus(sessionId) {
   try {
     const res = await fetch(`${API_BASE}/api/chat/mission/${encodeURIComponent(sessionId)}?tail=8`, {
@@ -920,6 +928,14 @@ function createSessionItem(s) {
   });
 
   div.appendChild(span);
+  if (s.status_reason && !isOpenClaw) {
+    const statusBadge = document.createElement('span');
+    const reasonClass = String(s.status_reason).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    statusBadge.className = `session-status-reason session-status-reason-${reasonClass}`;
+    statusBadge.textContent = _sessionStatusReasonLabel(s);
+    statusBadge.title = s.status_message || statusBadge.textContent;
+    div.appendChild(statusBadge);
+  }
 
   // Apply processing/completed state to the star dot
   var _isProcessing = _researchingSessions.has(s.id) || _streamingSessions.has(s.id);

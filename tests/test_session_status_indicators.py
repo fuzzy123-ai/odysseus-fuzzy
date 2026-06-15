@@ -38,6 +38,7 @@ def _stub_multipart_if_missing(monkeypatch):
 
 def test_session_menu_exposes_read_only_mission_status_action():
     source = (_ROOT / "static" / "js" / "sessions.js").read_text(encoding="utf-8")
+    style = (_ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
     assert "Mission status" in source
     assert "/api/chat/mission/${encodeURIComponent(sessionId)}?tail=8" in source
@@ -55,6 +56,12 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "node.readiness_blocked" in source
     assert "div.dataset.statusReason = s.status_reason" in source
     assert "s.status_message || String(s.status_reason).replace(/_/g, ' ')" in source
+    assert "function _sessionStatusReasonLabel(session)" in source
+    assert "reason === 'readiness_gate_blocked'" in source
+    assert "statusBadge.className = `session-status-reason session-status-reason-${reasonClass}`" in source
+    assert "statusBadge.textContent = _sessionStatusReasonLabel(s)" in source
+    assert ".list-item.session-item .session-status-reason" in style
+    assert ".session-status-reason-readiness_gate_blocked" in style
     assert "function _missionRequiredActionText(snapshot)" in source
     assert "snapshot?.summary?.latest_required_action" in source
     assert "Required:" in source

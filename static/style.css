@@ -1461,9 +1461,42 @@ body.bg-pattern-sparkles {
       color: #ffcc00 !important;
     }
 
+    .list-item.session-item .session-status-reason {
+      flex-shrink: 0;
+      max-width: 82px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 1px 5px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 6px;
+      font-size: 10px;
+      line-height: 1.35;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .list-item.session-item .session-status-reason-readiness_gate_blocked {
+      border-color: rgba(255, 204, 0, 0.42);
+      color: #ffcc00;
+      background: rgba(255, 204, 0, 0.08);
+    }
+
+    .list-item.session-item .session-status-reason-ask_user {
+      border-color: rgba(76, 156, 255, 0.42);
+      color: #7fb5ff;
+      background: rgba(76, 156, 255, 0.08);
+    }
+
     /* Red text for chats where something went wrong */
     .list-item.session-item.error .grow {
       color: #ff3b30 !important;
+    }
+
+    .list-item.session-item .session-status-reason-run_error {
+      border-color: rgba(255, 59, 48, 0.42);
+      color: #ff6b63;
+      background: rgba(255, 59, 48, 0.08);
     }
 
     @keyframes research-done-pulse {
