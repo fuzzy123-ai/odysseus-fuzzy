@@ -175,6 +175,7 @@ def test_summarize_mission_treats_browser_screenshot_as_verification(tmp_path, m
 
     assert snapshot["phases"]["verifier"]["status"] == "done"
     assert snapshot["phases"]["verifier"]["starts"] == 1
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"screenshot": 1}
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "secretpixels" not in json.dumps(snapshot)
 

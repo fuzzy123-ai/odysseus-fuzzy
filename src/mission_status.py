@@ -95,6 +95,7 @@ def _phase(role: str, status: str) -> dict[str, Any]:
         "outputs": 0,
         "blocked": 0,
         "last_exit_code": None,
+        "artifacts": {},
         "policy_tiers": {},
         "last_command_policy": None,
         "started_at": None,
@@ -108,6 +109,7 @@ def _role_counts() -> dict[str, Any]:
         "outputs": 0,
         "blocked": 0,
         "last_exit_code": None,
+        "artifacts": {},
         "policy_tiers": {},
         "last_command_policy": None,
         "started_at": None,
@@ -144,6 +146,8 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
     elif payload_type == "tool_output":
         counts["outputs"] += 1
         counts["last_exit_code"] = payload.get("exit_code")
+        if payload.get("has_screenshot"):
+            counts["artifacts"]["screenshot"] = counts["artifacts"].get("screenshot", 0) + 1
         if payload.get("blocked") or payload.get("exit_code") not in (None, 0):
             counts["blocked"] += 1
         counts["updated_at"] = ts or counts["updated_at"]
