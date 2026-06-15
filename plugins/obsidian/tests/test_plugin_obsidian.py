@@ -900,8 +900,13 @@ def test_memory_status_preserves_compact_layer_warnings(monkeypatch):
         "flags": {},
         "filtering_state": "active",
         "readiness_signals": [],
-        "summary": {"filtering_state": "active", "default_retrieval": 0, "isolated": 0},
-        "warnings": ["freshness warning"],
+        "summary": {
+            "filtering_state": "active",
+            "default_retrieval": 0,
+            "isolated": 0,
+            "warnings": ["freshness warning"],
+        },
+        "warnings": [],
     })
     monkeypatch.setattr(memory_status_backend, "quarantine_list", lambda vault_dir: {
         "enabled": True,

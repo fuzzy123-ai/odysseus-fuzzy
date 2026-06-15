@@ -204,12 +204,14 @@ def _warnings(*payloads: Dict[str, Any]) -> List[str]:
     warnings: List[str] = []
     seen = set()
     for payload in payloads:
-        for warning in payload.get("warnings") or []:
-            text = str(warning).strip()
-            if not text or text in seen:
-                continue
-            seen.add(text)
-            warnings.append(text)
-            if len(warnings) >= 25:
-                return warnings
+        summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+        for container in (payload, summary):
+            for warning in container.get("warnings") or []:
+                text = str(warning).strip()
+                if not text or text in seen:
+                    continue
+                seen.add(text)
+                warnings.append(text)
+                if len(warnings) >= 25:
+                    return warnings
     return warnings[:25]
