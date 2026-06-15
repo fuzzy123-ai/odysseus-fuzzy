@@ -238,8 +238,12 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
                 if item["path"] not in seen_excluded and (item["path"] in relevant_paths or _query_mentions(query, item["path"])):
                     excluded.append(_exclusion_record({**item, "channel": channel}))
                     seen_excluded.add(item["path"])
+    raptor = raptor_status(vault_dir)
+    raptor_readiness = raptor.get("readiness") if isinstance(raptor.get("readiness"), dict) else {}
     audit_summary["excluded_relevant"] = len(excluded)
     audit_summary["filtering_state"] = filtering_state
+    audit_summary["raptor_readiness_state"] = raptor_readiness.get("state", "unknown")
+    audit_summary["raptor_readiness_gaps"] = len(raptor_readiness.get("gaps") or [])
     memory = {
         "summary": audit_summary,
         "current": [
@@ -253,7 +257,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
-        "raptor": raptor_status(vault_dir),
+        "raptor": raptor,
         "flags": flags,
     }
     if excluded:
