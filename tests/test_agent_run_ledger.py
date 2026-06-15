@@ -150,6 +150,10 @@ def test_summarize_mission_infers_worker_and_verifier_lifecycle(tmp_path, monkey
         "blocked": False,
         "audit": False,
     }
+    assert snapshot["summary"]["status"] == "done"
+    assert snapshot["summary"]["worker_status"] == "done"
+    assert snapshot["summary"]["verifier_status"] == "done"
+    assert snapshot["summary"]["policy_tiers"] == {"safe": 1}
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "worker done" not in json.dumps(snapshot)
     assert "passed" not in json.dumps(snapshot)
@@ -176,6 +180,7 @@ def test_summarize_mission_treats_browser_screenshot_as_verification(tmp_path, m
     assert snapshot["phases"]["verifier"]["status"] == "done"
     assert snapshot["phases"]["verifier"]["starts"] == 1
     assert snapshot["phases"]["verifier"]["artifacts"] == {"screenshot": 1}
+    assert snapshot["summary"]["verifier_artifacts"] == {"screenshot": 1}
     assert "run_focused_verification" not in snapshot["next_actions"]
     assert "secretpixels" not in json.dumps(snapshot)
 
@@ -251,6 +256,7 @@ def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch)
     body = response.json()
     assert body["mission_id"] == "mission-route-session"
     assert body["phases"]["manager"]["status"] == "done"
+    assert body["summary"]["verifier_status"] == "idle"
     assert body["next_actions"] == ["run_focused_verification"]
 
 

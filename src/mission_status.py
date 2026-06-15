@@ -74,6 +74,7 @@ def summarize_mission(
         "memory_status": memory_status,
         "ledger": ledger,
         "phases": phases,
+        "summary": _summary(status, phases),
         "next_actions": _next_actions(status, phases),
     }
 
@@ -174,6 +175,28 @@ def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -
         phase["status"] = "running"
     else:
         phase["status"] = "done"
+
+
+def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    worker = phases["worker"]
+    verifier = phases["verifier"]
+    return {
+        "status": status,
+        "worker_status": worker["status"],
+        "verifier_status": verifier["status"],
+        "worker_blocked": worker["blocked"],
+        "verifier_blocked": verifier["blocked"],
+        "verifier_artifacts": dict(verifier.get("artifacts") or {}),
+        "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
+    }
+
+
+def _merge_counts(*groups: dict[str, Any]) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for group in groups:
+        for key, value in group.items():
+            merged[str(key)] = merged.get(str(key), 0) + int(value or 0)
+    return dict(sorted(merged.items()))
 
 
 def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
