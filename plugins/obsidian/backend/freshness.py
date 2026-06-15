@@ -154,7 +154,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
 
 def quarantine_list(vault_dir: str) -> Dict[str, Any]:
     audit = audit_knowledge(vault_dir)
-    items = audit["channels"]["quarantined"] + audit["channels"]["conflicts"]
+    items = audit["channels"]["needs_review"] + audit["channels"]["conflicts"] + audit["channels"]["quarantined"]
     items.sort(key=lambda item: item["path"].lower())
     return {
         "enabled": audit["enabled"],
@@ -165,6 +165,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "default_retrieval": 0,
             "isolated": len(items),
             "by_status": dict(sorted(Counter(item["status"] for item in items).items())),
+            "by_channel": dict(sorted(Counter(item["channel"] for item in items).items())),
         },
         "warnings": audit["warnings"],
     }

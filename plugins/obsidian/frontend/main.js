@@ -3158,14 +3158,15 @@ function renderQuarantineList() {
     ])}
     ${renderRetrievalIsolationNotice({
       conflicts: (quarantineReport.items || []).filter(item => item.status === 'conflict' || item.channel === 'conflicts'),
-      quarantined: (quarantineReport.items || []).filter(item => item.status !== 'conflict' && item.channel !== 'conflicts'),
-      needsReview: [],
+      quarantined: (quarantineReport.items || []).filter(item => item.channel === 'quarantined'),
+      needsReview: (quarantineReport.items || []).filter(item => item.channel === 'needs_review'),
       total: quarantineReport.summary?.total || 0,
       report: quarantineReport,
     })}
     ${renderMemoryWarnings(quarantineReport)}
     <div class="obsidian-memory-tree-grid">
       ${renderMemoryStatusCounts('By status', quarantineReport.summary?.by_status || {})}
+      ${renderMemoryStatusCounts('By channel', quarantineReport.summary?.by_channel || {})}
       ${renderMemoryRecordList('Isolated from default retrieval', quarantineReport.items || [], 'No quarantined knowledge')}
     </div>
   `;
