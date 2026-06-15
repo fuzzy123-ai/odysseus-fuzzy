@@ -162,6 +162,10 @@ app.add_middleware(_RequestTimeoutMiddleware)
 
 # ========= AUTH =========
 from routes.auth_routes import setup_auth_routes, SESSION_COOKIE
+from plugins.obsidian.backend.routes import (
+    OBSIDIAN_APP_SHELL_ALIASES,
+    OBSIDIAN_WEB_ASSET_PREFIX,
+)
 
 auth_manager = AuthManager()
 app.state.auth_manager = auth_manager
@@ -183,13 +187,13 @@ if AUTH_ENABLED:
         "/api/health",
         "/api/version",
         "/api/plugins/ui-loader.js",
-        "/api/plugins/obsidian/app",
         "/login",
     }
+    AUTH_EXEMPT_EXACT.update(OBSIDIAN_APP_SHELL_ALIASES)
     # Plugin shell and asset routes are safe to serve without route auth, but
     # plugin data routes must still pass through AuthMiddleware so
     # request.state.current_user is available to their own require_user() checks.
-    AUTH_EXEMPT_PREFIXES = ["/static", "/api/plugins/obsidian/web/"]
+    AUTH_EXEMPT_PREFIXES = ["/static", OBSIDIAN_WEB_ASSET_PREFIX]
     # Dynamic paths whose own handler proves identity via a path-embedded
     # secret instead of the session/bearer auth. The route handler at
     # routes/task_routes.py validates the per-task `webhook_token` itself

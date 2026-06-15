@@ -31,13 +31,15 @@ def test_obsidian_frontend_javascript_syntax_is_valid():
 
 def test_obsidian_plugin_loader_is_auth_exempt():
     app_py = (ROOT / "app.py").read_text(encoding="utf-8")
-    prefix_match = re.search(r"AUTH_EXEMPT_PREFIXES\s*=\s*\[(.*?)\]", app_py, re.S)
+    routes_py = (ROOT / "plugins" / "obsidian" / "backend" / "routes.py").read_text(encoding="utf-8")
 
     assert '"/api/plugins/ui-loader.js"' in app_py
-    assert '"/api/plugins/obsidian/app"' in app_py
-    assert prefix_match
-    assert '"/api/plugins/obsidian/web/"' in prefix_match.group(1)
-    assert '"/api/plugins/obsidian"' not in prefix_match.group(1)
+    assert "AUTH_EXEMPT_EXACT.update(OBSIDIAN_APP_SHELL_ALIASES)" in app_py
+    assert 'AUTH_EXEMPT_PREFIXES = ["/static", OBSIDIAN_WEB_ASSET_PREFIX]' in app_py
+    assert 'OBSIDIAN_APP_SHELL_PATH = "/api/plugins/obsidian/app"' in routes_py
+    assert 'OBSIDIAN_APP_SHELL_ALIASES = (' in routes_py
+    assert 'OBSIDIAN_WEB_ASSET_PREFIX = "/api/plugins/obsidian/web/"' in routes_py
+    assert '"/api/plugins/obsidian"' not in app_py
 
 
 def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
@@ -58,6 +60,10 @@ def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
         assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in app_response.text
         assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" not in app_response.text
 
+        app_slash_response = client.get("/api/plugins/obsidian/app/", follow_redirects=False)
+        assert app_slash_response.status_code == 200
+        assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in app_slash_response.text
+
         asset_response = client.get("/api/plugins/obsidian/web/main.js")
         assert asset_response.status_code == 200
         assert "function init()" in asset_response.text
@@ -69,6 +75,9 @@ def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
 
         data_response = client.get("/api/plugins/obsidian/files")
         assert data_response.status_code == 401
+
+        data_slash_response = client.get("/api/plugins/obsidian/files/")
+        assert data_slash_response.status_code == 401
 
 
 def test_obsidian_frontend_registers_sidebar_and_standalone_mode():

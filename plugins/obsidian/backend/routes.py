@@ -108,6 +108,13 @@ from .memory_tree import analyze_memory_tree, memory_tree_status
 
 router = APIRouter(prefix="/api/plugins/obsidian")
 
+OBSIDIAN_APP_SHELL_PATH = "/api/plugins/obsidian/app"
+OBSIDIAN_APP_SHELL_ALIASES = (
+    OBSIDIAN_APP_SHELL_PATH,
+    f"{OBSIDIAN_APP_SHELL_PATH}/",
+)
+OBSIDIAN_WEB_ASSET_PREFIX = "/api/plugins/obsidian/web/"
+
 APP_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -458,6 +465,7 @@ def get_file_tree(dir_path: str, base_path: str) -> List[Dict[str, Any]]:
 # --- Endpoints ---
 
 @router.get("/app")
+@router.get("/app/")
 async def obsidian_app():
     """Serve a standalone entry page for the plugin manager's Open button."""
     return HTMLResponse(APP_HTML)
