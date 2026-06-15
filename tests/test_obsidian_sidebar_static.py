@@ -534,6 +534,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "default_retrieval" in main_js
     assert "summary.default_retrieval" in main_js
     assert "summary.isolated" in main_js
+    assert "{ label: 'Default retrieval', value: summary.default_retrieval || 0 }" in main_js
+    assert "{ label: 'Isolated', value: summary.isolated || 0 }" in main_js
     assert "isolation_reason" in main_js
     assert "source_mtime" in main_js
     assert "source_hash" in main_js

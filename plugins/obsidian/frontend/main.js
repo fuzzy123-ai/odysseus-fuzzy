@@ -3098,6 +3098,8 @@ function renderMemoryTreeOverview() {
     ${memoryMetricGrid([
       { label: 'Notes', value: summary.total_notes || 0 },
       { label: 'Branches', value: summary.branch_candidates || 0 },
+      { label: 'Default retrieval', value: summary.default_retrieval || 0 },
+      { label: 'Isolated', value: summary.isolated || 0 },
       { label: 'Issues', value: (memoryTreeReport.issues || []).length },
       { label: 'Writes', value: memoryTreeReport.storage?.writes_performed ? 'yes' : 'no' },
     ])}
