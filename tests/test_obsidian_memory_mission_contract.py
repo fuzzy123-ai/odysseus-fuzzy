@@ -17,6 +17,12 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "---\nstatus: needs_review\n---\n# Review\n\nneedle review.\n",
         encoding="utf-8",
     )
+    raptor_dir = vault_dir / ".obsidian" / "odysseus" / "raptor"
+    raptor_dir.mkdir(parents=True)
+    (raptor_dir / "index.json").write_text(
+        json.dumps({"source_hashes": {"Active.md": "sha256:stale"}}),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: str(vault_dir))
 
     context = retrieve_vault_context("alice", "needle", 256, "chat")
@@ -25,9 +31,16 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     assert memory["summary"]["readiness_gap_names"] == [
         "freshness_filtering_not_active",
         "needs_review_items",
-        "raptor_index_missing",
+        "source_hash_changed",
     ]
     assert set(memory["readiness_by_family"]) == {"freshness", "raptor"}
+    assert memory["raptor"]["lineage_flags"] == {
+        "dirty": True,
+        "missing": False,
+        "tainted": False,
+        "invalid_index": False,
+        "invalid_summaries": False,
+    }
 
     ledger_dir = tmp_path / "ledger"
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(ledger_dir))
@@ -62,7 +75,7 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "gaps": [
             "freshness_filtering_not_active",
             "needs_review_items",
-            "raptor_index_missing",
+            "source_hash_changed",
         ],
     }
     assert set(snapshot["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
@@ -70,7 +83,16 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "freshness_filtering_not_active",
         "needs_review_items",
     ]
-    assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["raptor_index_missing"]
+    assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["source_hash_changed"]
+    assert snapshot["summary"]["memory_diagnostics"] == {
+        "raptor_lineage_flags": {
+            "dirty": True,
+            "invalid_index": False,
+            "invalid_summaries": False,
+            "missing": False,
+            "tainted": False,
+        }
+    }
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
-    assert snapshot["summary"]["latest_blocker"]["gaps"] == ["raptor_index_missing"]
+    assert snapshot["summary"]["latest_blocker"]["gaps"] == ["source_hash_changed"]
     assert "resolve_readiness_gaps" in snapshot["next_actions"]

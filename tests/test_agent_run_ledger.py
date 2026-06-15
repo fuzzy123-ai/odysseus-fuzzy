@@ -488,6 +488,37 @@ def test_agent_run_ledger_prefers_explicit_memory_readiness_signals(tmp_path, mo
     ]
 
 
+def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-diagnostics"
+
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness_gate\\":{\\"required\\":true,\\"state\\":\\"blocked\\",'
+        '\\"blocked_families\\":[\\"raptor\\"],\\"gaps\\":[\\"source_hash_changed\\"]},'
+        '\\"raptor_lineage_flags\\":{\\"dirty\\":true,\\"missing\\":false,'
+        '\\"tainted\\":true,\\"invalid_index\\":false,\\"invalid_summaries\\":false}}"}\n\n',
+    )
+
+    events = agent_run_ledger.read_events(session_id)
+
+    assert events[0]["payload"]["memory_diagnostics"] == {
+        "raptor_lineage_flags": {
+            "dirty": True,
+            "invalid_index": False,
+            "invalid_summaries": False,
+            "missing": False,
+            "tainted": True,
+        }
+    }
+    summary = agent_run_ledger.summarize_run(session_id)
+    assert summary["memory_diagnostics"] == events[0]["payload"]["memory_diagnostics"]
+
+    snapshot = summarize_mission(session_id)
+    assert snapshot["summary"]["memory_diagnostics"] == summary["memory_diagnostics"]
+
+
 def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-memory-readiness-by-family"

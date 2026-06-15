@@ -128,6 +128,9 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
             if readiness_signals:
                 summary["readiness_signal"] = readiness_signals[0]
                 summary["readiness_signals"] = readiness_signals
+            memory_diagnostics = _memory_diagnostics_from_output(output)
+            if memory_diagnostics:
+                summary["memory_diagnostics"] = memory_diagnostics
 
     if kind in {"agent_step", "rounds_exhausted", "budget_exceeded"}:
         for key in ("round", "rounds", "limit", "used"):
@@ -169,6 +172,42 @@ def _readiness_signals_from_output(output: Any, *, tool: Any = None) -> list[dic
     if isinstance(summary, dict):
         return _readiness_signals_from_mapping(summary, family_hint=family_hint)
     return []
+
+
+def _memory_diagnostics_from_output(output: Any) -> dict[str, Any]:
+    try:
+        payload = json.loads(str(output))
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    memory = payload.get("memory") if isinstance(payload.get("memory"), dict) else payload
+    if not isinstance(memory, dict):
+        return {}
+    raptor = memory.get("raptor") if isinstance(memory.get("raptor"), dict) else {}
+    summary = memory.get("summary") if isinstance(memory.get("summary"), dict) else {}
+    raptor_summary = raptor.get("summary") if isinstance(raptor.get("summary"), dict) else {}
+    raptor_lineage_flags = (
+        memory.get("raptor_lineage_flags")
+        or summary.get("raptor_lineage_flags")
+        or raptor.get("lineage_flags")
+        or raptor_summary.get("lineage_flags")
+    )
+    diagnostics: dict[str, Any] = {}
+    if isinstance(raptor_lineage_flags, dict):
+        diagnostics["raptor_lineage_flags"] = _safe_bool_flags(
+            raptor_lineage_flags,
+            allowed={"dirty", "missing", "tainted", "invalid_index", "invalid_summaries"},
+        )
+    return diagnostics
+
+
+def _safe_bool_flags(value: dict[str, Any], *, allowed: set[str]) -> dict[str, bool]:
+    return {
+        key: bool(value.get(key))
+        for key in sorted(allowed)
+        if key in value
+    }
 
 
 def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str = "generic") -> list[dict[str, Any]]:
@@ -381,6 +420,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
     started_at = None
     updated_at = None
     last_metrics = None
+    memory_diagnostics: dict[str, Any] = {}
     readiness_signals: list[dict[str, Any]] = []
 
     for event in events:
@@ -420,6 +460,9 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
                     readiness_signals.extend(signal for signal in signals if isinstance(signal, dict))
                 elif isinstance(payload.get("readiness_signal"), dict):
                     readiness_signals.append(payload["readiness_signal"])
+                diagnostics = payload.get("memory_diagnostics")
+                if isinstance(diagnostics, dict):
+                    memory_diagnostics.update(diagnostics)
 
     readiness_signals = _dedupe_readiness_signals([
         _readiness_signal_from_explicit(signal)
@@ -438,6 +481,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
         "readiness_signals": readiness_signals,
         "readiness_by_family": readiness_by_family(readiness_signals),
         "readiness_gate": readiness_gate(readiness_signals),
+        "memory_diagnostics": memory_diagnostics,
         "last_metrics": last_metrics,
         "tail": events[-tail_count:] if tail_count else [],
     }

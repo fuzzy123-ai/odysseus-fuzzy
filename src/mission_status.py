@@ -82,7 +82,7 @@ def summarize_mission(
         "ledger": ledger,
         "phases": phases,
         "dag": _dag(phases),
-        "summary": _summary(status, phases),
+        "summary": _summary(status, phases, ledger),
         "next_actions": _next_actions(status, phases),
     }
 
@@ -285,12 +285,13 @@ def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -
         phase["status"] = "done"
 
 
-def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, Any] | None = None) -> dict[str, Any]:
     worker = phases["worker"]
     verifier = phases["verifier"]
     verification = _verification_gate(status, verifier)
     readiness_signals = verifier.get("readiness_signals") or []
     gate = readiness_gate(readiness_signals)
+    memory_diagnostics = dict((ledger or {}).get("memory_diagnostics") or {})
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -305,6 +306,7 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "readiness_gate": gate,
         "readiness_signals": readiness_signals,
         "readiness_by_family": readiness_by_family(readiness_signals),
+        "memory_diagnostics": memory_diagnostics,
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
