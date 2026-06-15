@@ -27,6 +27,7 @@ from backend.context_provider import PROVIDER_ID, parse_frontmatter, retrieve_va
 from backend.freshness import audit_knowledge, quarantine_list
 from backend.hybrid_retrieval import raptor_status
 from backend.knowledge_status import normalize_status
+from backend.memory_status import memory_status
 from backend.memory_tree import analyze_memory_tree, memory_tree_status
 from backend.routes import secure_path, get_file_tree
 from backend.tool_specs import DESTRUCTIVE_TOOL_NAMES, VAULT_TOOL_BY_NAME, VAULT_TOOL_SPECS, execute_vault_tool
@@ -101,6 +102,7 @@ from plugin import (
     handle_memory_review_preview,
     handle_list_relationships,
     handle_knowledge_audit,
+    handle_memory_status,
     handle_memory_tree_analyze,
     handle_memory_tree_status,
     handle_quarantine_list,
@@ -689,6 +691,32 @@ def test_memory_tree_analyzer_is_read_only_and_reports_candidates():
         assert status["readiness_signals"] == report["readiness_signals"]
 
 
+def test_memory_status_aggregates_read_only_readiness_layers():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Active\n")
+        with open(os.path.join(tmpdir, "Review.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: needs_review\n---\n# Review\n")
+
+        before = set(os.listdir(tmpdir))
+        status = memory_status(tmpdir)
+        after = set(os.listdir(tmpdir))
+
+        assert before == after
+        assert status["read_only"] is True
+        assert status["writes_supported"] is False
+        assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
+        assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert status["summary"]["families"] == 3
+        assert status["summary"]["ready_families"] == 0
+        assert status["summary"]["blocked_families"] == ["freshness", "raptor", "somt"]
+        assert status["summary"]["readiness_state"] == "blocked"
+        assert status["summary"]["default_retrieval"] == 1
+        assert status["summary"]["isolated"] == 1
+        assert status["summary"]["quarantine_items"] == 1
+        assert status["summary"]["writes_supported"] is False
+
+
 def test_freshness_audit_and_quarantine_are_read_only():
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Current.md"), "w", encoding="utf-8") as f:
@@ -1002,6 +1030,9 @@ async def test_memory_tree_agent_tools_are_read_only(monkeypatch):
             f.write("---\nstatus: archived\n---\n# Fact\n")
 
         assert (await handle_memory_tree_status("", owner="alice"))["exit_code"] == 0
+        memory_status_res = await handle_memory_status("", owner="alice")
+        assert memory_status_res["exit_code"] == 0
+        assert '"read_only": true' in memory_status_res["output"]
         assert (await handle_memory_tree_analyze("{}", owner="alice"))["exit_code"] == 0
         assert (await handle_knowledge_audit("", owner="alice"))["exit_code"] == 0
         quarantine = await handle_quarantine_list("", owner="alice")
@@ -1025,6 +1056,7 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
     assert {"obsidian_write_note", "vault_batch", "obsidian_delete_note", "obsidian_undo"} <= DESTRUCTIVE_TOOL_NAMES
     assert {
         "obsidian_memory_tree_status",
+        "obsidian_memory_status",
         "obsidian_memory_tree_analyze",
         "obsidian_knowledge_audit",
         "obsidian_quarantine_list",
@@ -2432,6 +2464,7 @@ def test_plugin_setup_registration():
     assert "obsidian_memory_review_preview" in tool_names
     assert "obsidian_memory_review_apply" in tool_names
     assert "obsidian_memory_tree_status" in tool_names
+    assert "obsidian_memory_status" in tool_names
     assert "obsidian_memory_tree_analyze" in tool_names
     assert "obsidian_knowledge_audit" in tool_names
     assert "obsidian_quarantine_list" in tool_names

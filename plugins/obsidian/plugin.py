@@ -51,6 +51,7 @@ try:
     )
     from obsidian.backend.freshness import audit_knowledge, quarantine_list
     from obsidian.backend.hybrid_retrieval import raptor_status
+    from obsidian.backend.memory_status import memory_status
     from obsidian.backend.memory_tree import analyze_memory_tree, memory_tree_status
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from obsidian.backend.vault_security import (
@@ -114,6 +115,7 @@ except ModuleNotFoundError:
     )
     from backend.freshness import audit_knowledge, quarantine_list
     from backend.hybrid_retrieval import raptor_status
+    from backend.memory_status import memory_status
     from backend.memory_tree import analyze_memory_tree, memory_tree_status
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
     from backend.vault_security import (
@@ -811,6 +813,15 @@ async def handle_memory_tree_status(content: str, owner: Optional[str] = None, *
         return {"error": f"Failed to read memory tree status: {e}", "exit_code": 1}
 
 
+async def handle_memory_status(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns unified read-only memory readiness across derived layers."""
+    try:
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        return {"output": json.dumps(memory_status(vault_dir), ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to read memory status: {e}", "exit_code": 1}
+
+
 async def handle_memory_tree_analyze(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Builds a read-only SOMT candidate report without writing derived files."""
     try:
@@ -1014,6 +1025,7 @@ def setup(ctx):
             "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Spark action IDs to apply."},
         }, ["plan", "confirm", "selected_action_ids"], handle_spark_apply),
         _tool_spec("obsidian_memory_tree_status", "Return read-only SOMT index health, status counts, and branch overview.", {}, [], handle_memory_tree_status),
+        _tool_spec("obsidian_memory_status", "Return unified read-only memory readiness across SOMT, Freshness Gate, quarantine, and RAPTOR.", {}, [], handle_memory_status),
         _tool_spec("obsidian_memory_tree_analyze", "Analyze the vault into a read-only SOMT candidate report without writing derived files.", {
             "limit": {"type": "integer", "description": "Optional maximum number of notes to analyze."},
         }, [], handle_memory_tree_analyze),

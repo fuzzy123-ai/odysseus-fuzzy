@@ -28,6 +28,7 @@ from .memory_spark import (
 )
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
+from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
 
@@ -235,6 +236,10 @@ def _memory_tree_status(vault_dir: str, args: Dict[str, Any], owner: str, source
     return memory_tree_status(vault_dir)
 
 
+def _memory_status(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    return memory_status(vault_dir)
+
+
 def _memory_tree_analyze(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
     return analyze_memory_tree(vault_dir, limit=args.get("limit"))
 
@@ -336,6 +341,7 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
         "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Action IDs to apply."},
     }, ["plan", "confirm", "selected_action_ids"]), "write", _spark_apply),
     VaultToolSpec("obsidian_memory_tree_status", "Return read-only SOMT index health, status counts, and branch overview.", _schema({}), "read", _memory_tree_status),
+    VaultToolSpec("obsidian_memory_status", "Return unified read-only memory readiness across SOMT, Freshness Gate, quarantine, and RAPTOR.", _schema({}), "read", _memory_status),
     VaultToolSpec("obsidian_memory_tree_analyze", "Analyze the vault into a read-only SOMT candidate report without writing derived files.", _schema({
         "limit": {"type": "integer", "description": "Optional maximum number of notes to analyze."},
     }), "read", _memory_tree_analyze),

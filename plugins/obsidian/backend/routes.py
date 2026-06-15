@@ -100,6 +100,7 @@ from .memory_spark import (
 )
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
+from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
 router = APIRouter(prefix="/api/plugins/obsidian")
@@ -1372,6 +1373,13 @@ async def memory_tree(request: Request):
     """Return read-only SOMT health and branch summary."""
     vault_dir = get_unlocked_vault_path(request)
     return memory_tree_status(vault_dir)
+
+
+@router.get("/memory/status")
+async def memory_status_route(request: Request):
+    """Return read-only status across SOMT, Freshness Gate, quarantine, and RAPTOR."""
+    vault_dir = get_unlocked_vault_path(request)
+    return memory_status(vault_dir)
 
 
 @router.post("/memory-tree/analyze")
