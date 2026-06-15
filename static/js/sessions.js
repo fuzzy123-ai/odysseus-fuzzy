@@ -46,6 +46,22 @@ function _missionPhaseText(snapshot) {
     .join(' | ');
 }
 
+function _missionDagText(snapshot) {
+  const nodes = Array.isArray(snapshot?.dag?.nodes) ? snapshot.dag.nodes : [];
+  const entries = ['manager', 'worker', 'verifier']
+    .map((role) => nodes.find((node) => node.id === role || node.role === role))
+    .filter(Boolean)
+    .map((node) => {
+      const flags = [
+        node.has_required_action ? 'required' : '',
+        node.has_blocker ? 'blocked' : '',
+      ].filter(Boolean);
+      return `${node.role || node.id}: ${node.status || 'idle'}${flags.length ? ` (${flags.join(', ')})` : ''}`;
+    });
+  if (!entries.length) return '';
+  return ` DAG: ${entries.join(' -> ')}.`;
+}
+
 function _missionNextActionText(snapshot) {
   const actions = Array.isArray(snapshot && snapshot.next_actions) ? snapshot.next_actions : [];
   if (!actions.length) return '';
@@ -118,7 +134,7 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionDagText(snapshot)}${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {
