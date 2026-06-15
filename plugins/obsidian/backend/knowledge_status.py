@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 STATUS_ALIASES = {
+    "archive": "archived",
+    "deprecated": "superseded",
+    "obsolete": "superseded",
+    "quarantine": "quarantined",
+    "retired": "archived",
+    "superseded by newer note": "superseded",
     "unresolved conflict": "conflict",
     "unresolved_conflict": "conflict",
     "unresolved-conflict": "conflict",

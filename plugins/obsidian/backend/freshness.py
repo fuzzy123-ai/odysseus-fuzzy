@@ -11,7 +11,8 @@ from .knowledge_status import normalize_status
 
 EXCLUDED_STATUSES = {"stale", "superseded", "quarantined", "archived", "conflict"}
 NEEDS_REVIEW_STATUSES = {"needs_review", "review", "draft", "todo"}
-REVIEW_QUEUE_PREFIXES = ("AI Memory/Review Queue/", "AI Memory/Inbox/", "AI Memory/Quarantine/")
+REVIEW_QUEUE_PREFIXES = ("AI Memory/Review Queue/", "AI Memory/Inbox/")
+QUARANTINE_PREFIXES = ("AI Memory/Quarantine/",)
 
 
 def _source_hash(content: str) -> str:
@@ -87,8 +88,10 @@ def _classify(path: str, frontmatter: Dict[str, Any], content: str, source_mtime
         return _record(path, frontmatter, content, source_mtime, raw_status, f"Frontmatter status is {raw_status}.", "quarantined")
     if raw_status in NEEDS_REVIEW_STATUSES:
         return _record(path, frontmatter, content, source_mtime, "needs_review", f"Frontmatter status is {raw_status}.", "needs_review")
+    if normalized.startswith(QUARANTINE_PREFIXES):
+        return _record(path, frontmatter, content, source_mtime, "quarantined", "Note lives in the quarantine folder.", "quarantined")
     if normalized.startswith(REVIEW_QUEUE_PREFIXES):
-        return _record(path, frontmatter, content, source_mtime, "needs_review", "Note lives in a review, inbox, or quarantine folder.", "needs_review")
+        return _record(path, frontmatter, content, source_mtime, "needs_review", "Note lives in a review or inbox folder.", "needs_review")
     if frontmatter.get("confidence") == "low":
         return _record(path, frontmatter, content, source_mtime, "needs_review", "Low confidence frontmatter.", "needs_review")
     if policy == "session_log":

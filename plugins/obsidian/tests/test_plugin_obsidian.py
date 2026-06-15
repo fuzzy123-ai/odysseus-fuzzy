@@ -587,6 +587,9 @@ def test_freshness_audit_and_quarantine_are_read_only():
         os.makedirs(os.path.join(tmpdir, "AI Memory", "Review Queue"), exist_ok=True)
         with open(os.path.join(tmpdir, "AI Memory", "Review Queue", "Candidate.md"), "w", encoding="utf-8") as f:
             f.write("---\nconfidence: low\n---\n# Candidate\n")
+        os.makedirs(os.path.join(tmpdir, "AI Memory", "Quarantine"), exist_ok=True)
+        with open(os.path.join(tmpdir, "AI Memory", "Quarantine", "Held.md"), "w", encoding="utf-8") as f:
+            f.write("---\nupdated: 2026-06-14\n---\n# Held\n")
 
         before = set(os.listdir(tmpdir))
         audit = audit_knowledge(tmpdir)
@@ -597,6 +600,7 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert audit["summary"]["current"] == 1
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
+        assert any(item["path"] == "AI Memory/Quarantine/Held.md" for item in quarantine["items"])
 
 
 def test_unresolved_conflict_status_is_isolated_from_default_truth():
@@ -619,6 +623,30 @@ def test_unresolved_conflict_status_is_isolated_from_default_truth():
 @pytest.mark.parametrize("raw", ["unresolved_conflict", "unresolved conflict", "unresolved-conflict", "conflicted"])
 def test_knowledge_status_aliases_normalize_to_conflict(raw):
     assert normalize_status(raw) == "conflict"
+
+
+@pytest.mark.parametrize(("raw", "normalized"), [
+    ("deprecated", "superseded"),
+    ("obsolete", "superseded"),
+    ("quarantine", "quarantined"),
+    ("archive", "archived"),
+    ("retired", "archived"),
+])
+def test_knowledge_status_aliases_normalize_to_isolated_statuses(raw, normalized):
+    assert normalize_status(raw) == normalized
+
+
+def test_freshness_gate_isolates_status_aliases():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Deprecated.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: deprecated\nupdated: 2026-06-14\n---\n# Deprecated\n")
+
+        audit = audit_knowledge(tmpdir)
+        quarantine = quarantine_list(tmpdir)
+
+        assert audit["summary"]["quarantined"] == 1
+        assert audit["channels"]["quarantined"][0]["status"] == "superseded"
+        assert quarantine["summary"]["by_status"]["superseded"] == 1
 
 
 def test_raptor_status_is_read_only_and_disabled_by_default():
