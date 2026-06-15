@@ -58,8 +58,8 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 ### Teilweise erledigt
 
-- Graph-Filter existieren nur als einfacher Edge-Type-Select. Es fehlt ein dynamisches Filter-/Highlight-Panel fuer Node-Typen, Edge-Typen, Tags, Ordner, Suchbegriffe und Sichtbarkeitsmodi.
-- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Isolierte Chrome-Smokes bestaetigen sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen, Node-/Edge-Payload und Tree-Klick-im-Graph-Modus mit echter Login-Session. Ein isolierter Browser-Harness bestaetigt, dass Graph-Filter `hidden`/`highlighted` setzen und die aktuelle Node nicht ausblenden oder dimmen. Offen bleibt der Full-App-Graph-Filter-Smoke.
+- Graph-Filter existieren als kompaktes Panel fuer Node-Typen, Edge-Typen, Tags, Suchbegriffe und Hide/Show/Highlight-Modi.
+- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Isolierte Chrome-Smokes bestaetigen sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen, Node-/Edge-Payload und Tree-Klick-im-Graph-Modus mit echter Login-Session. Ein isolierter Browser-Harness bestaetigt, dass Graph-Filter `hidden`/`highlighted` setzen und die aktuelle Node nicht ausblenden oder dimmen. Der Full-App-Graph-Filter-Smoke ist gruen fuer echte App, echte Vault-Daten, Cytoscape, offenes Filter-Panel, Highlight-Suche und Hide-Suche.
 - Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Chrome-Smokes fuer App-Shell, CSP-kompatiblen Bootstrap, unauthentifizierte Datenroute-401, echten Browser-Login und authentifizierte Vault-Datenroute sind gruen.
 - Large-Vault-Performance hat Fixtures und Baselines, ist aber noch kein Release-Gate mit Grenzwerten.
 - Mobile UI ist abgesichert fuer Header/Settings/Graph-Grundbedienung, aber nicht fuer volle Vault-Navigation und Drag-and-drop.
@@ -69,8 +69,8 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 ### Noch offen fuer Feature-Ready
 
 - App-Shell- und Auth-Browser-Smoke fuer `/api/plugins/obsidian/app` ist gruen: App-Shell/Web-Assets laden ohne Auth, CSP blockiert den Bootstrap nicht, Datenroute bleibt 401 ohne Session, echter Browser-Login funktioniert, `/files` liefert fuer die authentifizierte Smoke-Vault 200.
-- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt, Tree-Klick auf `Alpha.md` bleibt im Graph-Modus und ruft `/graph?focus=Alpha.md` erfolgreich auf. Ein isolierter Browser-Harness prueft Graph-Filter-Rendering mit echtem Cytoscape-Asset, `hidden`/`highlighted`-Klassen und sichtbarer Current-Node. Offen bleibt der Full-App-Graph-Filter-Smoke.
-- Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select.
+- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt, Tree-Klick auf `Alpha.md` bleibt im Graph-Modus und ruft `/graph?focus=Alpha.md` erfolgreich auf. Ein isolierter Browser-Harness prueft Graph-Filter-Rendering mit echtem Cytoscape-Asset, `hidden`/`highlighted`-Klassen und sichtbarer Current-Node. Der Full-App-Smoke prueft zusaetzlich echte App-Routen, sichtbares Filter-Panel, `highlight`-Suche und `hide`-Suche.
+- Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select sind fuer den RC-MVP vorhanden.
 - API-/Tool-/UI-Vertragsmatrix, damit jede relevante UI-Aktion einem Route- und Tool-Weg zugeordnet ist.
 - Release-Blocker-Liste als pruefbare Checkliste.
 - Import-Dry-Run und Konfliktvorschau.
@@ -412,7 +412,7 @@ Akzeptanz:
 - Editor: Markdown schreiben, Autosave, Preview, Wiki-Link, Tag-Badge.
 - Graph: Cytoscape sichtbar, SVG-Fallback erzwingbar, aktuelle Node markiert.
 - Graph: Datei im Tree anklicken waehrend Graph aktiv ist; Node bleibt/ wird hervorgehoben.
-- Graph: Filter hide/show/highlight fuer mindestens Edge-Type und Tag. Isolierter Harness ist gruen; Full-App-Smoke bleibt vor Tag/PR offen.
+- Graph: Filter hide/show/highlight fuer mindestens Edge-Type und Tag. Isolierter Harness und Full-App-Smoke sind gruen.
 - Project planning: Preview, Streaming, Session Reload, Apply.
 - Memory Review: Preview, Save-to-Obsidian, Append-to-Note, Apply.
 - Vault lock: Nach Lock keine Inhalte ueber Files/Tags/Graph/Search/Project/Memory sichtbar.
@@ -428,11 +428,11 @@ Akzeptanz:
 
 ## Bekannte Risiken und Code-Probleme
 
-- Graph-Filter-State ist noch zu simpel und steckt in globalen Frontend-Variablen. Das wird mit Node-/Tag-/Highlight-Filtern schnell unuebersichtlich.
+- Graph-Filter-State ist fuer den RC-MVP ausreichend, steckt aber noch in globalen Frontend-Variablen. Das wird mit weiteren Node-/Tag-/Highlight-Filtern schnell unuebersichtlich.
 - Graph-Fokus basiert aktuell stark auf `currentNotePath`; Ordnerselektion und Vault-Root brauchen klare Sonderregeln.
 - Cytoscape-Layout kann bei grossen Vaults teuer werden; Large-Vault-Grenzwerte fehlen.
 - Static-Contract-Tests sind wertvoll, ersetzen aber keine Browser-Smokes.
-- Full-App-Graph-Filter-Smoke ist noch kein gruenes Gate. Der letzte bounded Versuch erreichte den App-Start, war aber wegen eines Playwright-Harness-Reuse-Fehlers nicht verwertbar; vor Release-Tag/PR muss dieser Smoke in einem frischen Browser-Harness wiederholt werden.
+- Full-App-Graph-Filter-Smoke ist gruen mit frischem Browser-Harness; verbleibende Browser-Warnungen betreffen Favicon-404 und Cytoscape-Wheel-Sensitivity, nicht den Filtervertrag.
 - Auth-Exempt-Regeln fuer Plugin-Shell vs. Plugin-Datenrouten sind sicherheitsrelevant und muessen klein bleiben.
 - Passwortschutz darf nicht als vollstaendige Verschluesselung-at-rest verkauft werden, solange das nicht explizit implementiert und getestet ist.
 - Projektplanung und Memory Review haben viele Schreibpfade; Konflikt- und Preview-UX muss vor Release glasklar bleiben.

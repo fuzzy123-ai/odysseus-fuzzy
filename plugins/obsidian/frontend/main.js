@@ -46,6 +46,8 @@ let graphFilterState = {
   search: '',
   tags: []
 };
+let graphFilterPanelOpen = false;
+let graphFilterOutsideClickHandler = null;
 
 function resetGraphFilterState() {
   graphFilterState = {
@@ -4459,6 +4461,7 @@ function renderGraphShell(graph, prepared, renderer) {
 
   const nodeMarkdownChecked = graphFilterState.nodes.markdown !== false ? 'checked' : '';
   const nodeFolderChecked = graphFilterState.nodes.folder !== false ? 'checked' : '';
+  const panelOpenClass = graphFilterPanelOpen ? '' : ' hidden';
 
   const modeOptions = [
     { value: 'highlight', label: 'Highlight Matches' },
@@ -4475,7 +4478,7 @@ function renderGraphShell(graph, prepared, renderer) {
         <span>Filters</span>
       </button>
       
-      <div class="obsidian-graph-filter-panel hidden" id="obsidian-graph-filter-panel">
+      <div class="obsidian-graph-filter-panel${panelOpenClass}" id="obsidian-graph-filter-panel">
         <div class="obsidian-filter-section">
           <label class="obsidian-filter-label">Filter Mode</label>
           <select id="obsidian-graph-filter-mode">${modeOptions}</select>
@@ -4522,19 +4525,26 @@ function renderGraphShell(graph, prepared, renderer) {
   const panel = graph.querySelector('#obsidian-graph-filter-panel');
   toggleBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    panel?.classList.toggle('hidden');
+    graphFilterPanelOpen = !graphFilterPanelOpen;
+    panel?.classList.toggle('hidden', !graphFilterPanelOpen);
   });
 
   panel?.addEventListener('click', (e) => {
     e.stopPropagation();
   });
 
-  const closePanelOutside = (e) => {
-    if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
-      panel.classList.add('hidden');
+  if (graphFilterOutsideClickHandler) {
+    document.removeEventListener('click', graphFilterOutsideClickHandler);
+  }
+  graphFilterOutsideClickHandler = (e) => {
+    const currentPanel = document.getElementById('obsidian-graph-filter-panel');
+    const currentToggle = document.getElementById('obsidian-graph-filter-toggle');
+    if (graphFilterPanelOpen && currentPanel && currentToggle && !currentPanel.contains(e.target) && e.target !== currentToggle && !currentToggle.contains(e.target)) {
+      graphFilterPanelOpen = false;
+      currentPanel.classList.add('hidden');
     }
   };
-  document.addEventListener('click', closePanelOutside);
+  document.addEventListener('click', graphFilterOutsideClickHandler);
 
   graph.querySelector('#obsidian-graph-filter-mode')?.addEventListener('change', (e) => {
     graphFilterState.mode = e.target.value;

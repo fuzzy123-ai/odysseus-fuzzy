@@ -165,6 +165,8 @@ def test_obsidian_graph_filter_contract_and_current_node_visibility():
 
     assert "const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters'" in main_js
     assert "let graphFilterState = {" in main_js
+    assert "let graphFilterPanelOpen = false;" in main_js
+    assert "let graphFilterOutsideClickHandler = null;" in main_js
     assert "function resetGraphFilterState()" in main_js
     assert "function loadGraphFilterState()" in main_js
     assert "function saveGraphFilterState()" in main_js
@@ -179,6 +181,8 @@ def test_obsidian_graph_filter_contract_and_current_node_visibility():
     assert 'data-filter-edge="${type}"' in main_js
     assert 'id="obsidian-graph-filter-tags"' in main_js
     assert 'id="obsidian-graph-filter-reset"' in main_js
+    assert "document.removeEventListener('click', graphFilterOutsideClickHandler)" in main_js
+    assert "panel?.classList.toggle('hidden', !graphFilterPanelOpen)" in main_js
     assert "graphFilterState.mode = e.target.value" in main_js
     assert "graphFilterState.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)" in main_js
     assert "const isCurrentNode = node.id === currentNotePath;" in main_js
