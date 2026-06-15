@@ -75,6 +75,20 @@ def _status(frontmatter: Dict[str, Any]) -> str:
     return "active"
 
 
+def _default_retrieval(status: str) -> bool:
+    return status == "active"
+
+
+def _isolation_reason(status: str) -> str:
+    if _default_retrieval(status):
+        return ""
+    if status == "conflict":
+        return "Unresolved conflict knowledge is isolated from default retrieval."
+    if status == "needs_review":
+        return "Knowledge awaiting review is isolated from default retrieval."
+    return f"{status.replace('_', ' ').title()} knowledge is isolated from default retrieval."
+
+
 def _parent_id(path: str, tags: List[str]) -> Optional[str]:
     parts = path.replace("\\", "/").split("/")
     if len(parts) > 1:
@@ -104,6 +118,7 @@ def _read_notes(vault_dir: str) -> tuple[List[Dict[str, Any]], List[str]]:
         except OSError as exc:
             warnings.append(f"Could not read {path}: {exc}")
             continue
+        status = _status(frontmatter)
         notes.append({
             "id": _node_id(path),
             "parent_id": _parent_id(path, tags),
@@ -113,7 +128,9 @@ def _read_notes(vault_dir: str) -> tuple[List[Dict[str, Any]], List[str]]:
             "source_paths": [path],
             "child_ids": [],
             "tags": tags,
-            "status": _status(frontmatter),
+            "status": status,
+            "default_retrieval": _default_retrieval(status),
+            "isolation_reason": _isolation_reason(status),
             "truth_level": _truth_level(path, frontmatter),
             "confidence": frontmatter.get("confidence", "medium"),
             "freshness_policy": frontmatter.get("freshness_policy") or _default_policy(path, frontmatter),

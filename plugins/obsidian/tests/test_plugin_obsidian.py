@@ -574,6 +574,7 @@ def test_memory_tree_analyzer_is_read_only_and_reports_candidates():
         assert report["storage"]["writes_performed"] is False
         assert report["summary"]["total_notes"] == 2
         assert any(node["truth_level"] == "canonical" for node in report["nodes"])
+        assert any(node["status"] == "active" and node["default_retrieval"] is True for node in report["nodes"])
         assert any(issue["type"] == "missing_frontmatter" and issue["path"] == "Loose.md" for issue in report["issues"])
         assert status["summary"]["total_notes"] == 2
 
@@ -618,6 +619,8 @@ def test_unresolved_conflict_status_is_isolated_from_default_truth():
         assert quarantine["summary"]["by_status"]["conflict"] == 1
         assert quarantine["items"][0]["path"] == "Conflict.md"
         assert tree["nodes"][0]["status"] == "conflict"
+        assert tree["nodes"][0]["default_retrieval"] is False
+        assert "Unresolved conflict" in tree["nodes"][0]["isolation_reason"]
 
 
 @pytest.mark.parametrize("raw", ["unresolved_conflict", "unresolved conflict", "unresolved-conflict", "conflicted"])
