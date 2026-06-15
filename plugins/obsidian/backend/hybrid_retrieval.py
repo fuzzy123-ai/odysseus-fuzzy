@@ -265,6 +265,10 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     audit_summary["raptor_readiness_state"] = raptor_readiness.get("state", "unknown")
     audit_summary["raptor_readiness_gaps"] = len(raptor_gaps)
     audit_summary["raptor_readiness_gap_names"] = raptor_gaps
+    readiness_signals = [
+        _readiness_signal("freshness", freshness_readiness),
+        _readiness_signal("raptor", raptor_readiness),
+    ]
     memory = {
         "summary": audit_summary,
         "current": [
@@ -278,10 +282,8 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
-        "readiness_signals": [
-            _readiness_signal("freshness", freshness_readiness),
-            _readiness_signal("raptor", raptor_readiness),
-        ],
+        "readiness_signals": readiness_signals,
+        "readiness_by_family": _readiness_by_family(readiness_signals),
         "raptor": raptor,
         "flags": flags,
     }
@@ -302,6 +304,14 @@ def _exclusion_record(item: Dict[str, Any]) -> Dict[str, Any]:
         "source_hash": item.get("source_hash", ""),
         "source_mtime": item.get("source_mtime", ""),
     }
+
+
+def _readiness_by_family(signals: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for signal in signals:
+        family = str(signal.get("family") or "generic")
+        grouped[family] = signal
+    return dict(sorted(grouped.items()))
 
 
 def _query_mentions(query: str, path: str) -> bool:

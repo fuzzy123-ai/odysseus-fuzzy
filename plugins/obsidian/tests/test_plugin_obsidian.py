@@ -472,6 +472,10 @@ def test_obsidian_context_provider_returns_stable_vault_context(monkeypatch):
                 "gap_count": 1,
             },
         ]
+        assert payload["memory"]["readiness_by_family"] == {
+            "freshness": payload["memory"]["readiness_signals"][0],
+            "raptor": payload["memory"]["readiness_signals"][1],
+        }
         assert payload["memory"]["raptor"]["writes_supported"] is False
 
 
@@ -532,6 +536,7 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert filtered_payload["memory"]["summary"]["raptor_readiness_state"] == "not_configured"
         assert filtered_payload["memory"]["summary"]["raptor_readiness_gaps"] == 1
         assert filtered_payload["memory"]["summary"]["raptor_readiness_gap_names"] == ["raptor_index_missing"]
+        assert set(filtered_payload["memory"]["readiness_by_family"]) == {"freshness", "raptor"}
         assert filtered_payload["memory"]["summary"]["status_counts"]["stale"] == 1
         assert filtered_payload["memory"]["excluded_relevant"][0]["path"] == "Stale.md"
         assert filtered_payload["memory"]["excluded_relevant"][0]["status"] == "stale"
