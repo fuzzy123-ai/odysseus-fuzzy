@@ -175,6 +175,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "readiness_gaps": len(readiness["gaps"]),
             "readiness_gap_names": readiness_signal["gaps"],
             "readiness_gate": readiness_gate,
+            "warnings": warnings,
         },
         "warnings": warnings,
     }
@@ -268,6 +269,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "readiness_gaps": len(audit.get("readiness", {}).get("gaps") or []),
             "readiness_gap_names": list(audit.get("readiness", {}).get("gaps") or []),
             "readiness_gate": audit.get("readiness_gate", {}),
+            "warnings": audit["warnings"],
         },
         "warnings": audit["warnings"],
     }

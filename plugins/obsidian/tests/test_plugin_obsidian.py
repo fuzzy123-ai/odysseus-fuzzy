@@ -1057,6 +1057,7 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert audit["summary"]["readiness_state"] == "needs_review"
         assert audit["summary"]["readiness_gaps"] == 3
         assert audit["summary"]["readiness_gate"] == audit["readiness_gate"]
+        assert audit["summary"]["warnings"] == audit["warnings"]
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in quarantine["items"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
@@ -1076,6 +1077,7 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert quarantine["summary"]["readiness_state"] == "needs_review"
         assert quarantine["summary"]["readiness_gaps"] == 3
         assert quarantine["summary"]["readiness_gate"] == audit["readiness_gate"]
+        assert quarantine["summary"]["warnings"] == quarantine["warnings"]
 
 
 def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatch):
