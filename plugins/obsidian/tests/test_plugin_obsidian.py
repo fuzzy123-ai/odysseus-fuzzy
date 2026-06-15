@@ -1134,6 +1134,14 @@ def test_raptor_status_marks_changed_or_missing_sources_dirty():
         assert status["lineage"]["summary"]["missing"] == 1
         assert status["summary"]["dirty_sources"] == 1
         assert status["summary"]["missing_sources"] == 1
+        assert status["lineage_flags"] == {
+            "dirty": True,
+            "missing": True,
+            "tainted": False,
+            "invalid_index": False,
+            "invalid_summaries": False,
+        }
+        assert status["summary"]["lineage_flags"] == status["lineage_flags"]
         assert status["readiness"]["ready"] is False
         assert status["readiness"]["state"] == "dirty"
         assert status["readiness"]["gaps"] == ["source_hash_changed", "source_missing"]
@@ -1154,6 +1162,8 @@ def test_raptor_status_reports_invalid_readiness_gap():
 
         assert status["dirty"] is True
         assert status["tainted"] is True
+        assert status["lineage_flags"]["invalid_index"] is True
+        assert status["summary"]["lineage_flags"] == status["lineage_flags"]
         assert status["readiness"]["ready"] is False
         assert status["readiness"]["state"] == "invalid"
         assert status["readiness"]["gaps"] == ["raptor_index_invalid"]
@@ -1176,6 +1186,14 @@ def test_raptor_status_marks_review_or_quarantined_sources_tainted():
 
         assert status["dirty"] is False
         assert status["tainted"] is True
+        assert status["lineage_flags"] == {
+            "dirty": False,
+            "missing": False,
+            "tainted": True,
+            "invalid_index": False,
+            "invalid_summaries": False,
+        }
+        assert status["summary"]["lineage_flags"] == status["lineage_flags"]
         assert status["lineage"]["tainted_sources"][0]["path"] == "Candidate.md"
         assert status["lineage"]["tainted_sources"][0]["status"] == "needs_review"
         assert status["lineage"]["tainted_sources"][0]["channel"] == "needs_review"

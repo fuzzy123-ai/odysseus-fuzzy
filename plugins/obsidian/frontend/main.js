@@ -3296,6 +3296,10 @@ function renderRaptorStatus() {
   const summary = raptorReport.summary || {};
   const readiness = raptorReport.readiness || {};
   const gate = raptorReport.readiness_gate || summary.readiness_gate || {};
+  const lineageFlags = raptorReport.lineage_flags || summary.lineage_flags || {};
+  const activeLineageFlags = Object.entries(lineageFlags)
+    .filter(([, value]) => value === true)
+    .map(([name]) => name.replace(/_/g, ' '));
   return `
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
@@ -3308,6 +3312,7 @@ function renderRaptorStatus() {
       { label: 'Tainted', value: summary.tainted_sources ?? (lineage.tainted_sources || []).length },
       { label: 'Invalid', value: summary.invalid_sources ?? ((raptorReport.invalid_index ? 1 : 0) + (raptorReport.invalid_summaries ? 1 : 0)) },
       { label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length },
+      { label: 'Lineage flags', value: activeLineageFlags.length ? activeLineageFlags.join(', ') : 'clear' },
       { label: 'Writes', value: (summary.writes_supported ?? raptorReport.writes_supported) ? 'yes' : 'no' },
     ])}
     <div class="obsidian-memory-tree-grid">

@@ -140,6 +140,13 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         dirty = True
     if lineage_status["tainted_sources"]:
         tainted = True
+    lineage_flags = {
+        "dirty": bool(lineage_status["dirty_sources"]),
+        "missing": bool(lineage_status["missing_sources"]),
+        "tainted": bool(lineage_status["tainted_sources"]),
+        "invalid_index": bool(invalid_index),
+        "invalid_summaries": bool(invalid_summaries),
+    }
     readiness = _raptor_readiness(
         configured=index_present or summaries_present,
         dirty=dirty,
@@ -166,12 +173,14 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "readiness_signals": [readiness_signal],
         "readiness_gate": readiness_gate,
         "lineage": lineage_status,
+        "lineage_flags": lineage_flags,
         "summary": {
             "source_count": lineage_status["summary"]["source_count"],
             "dirty_sources": lineage_status["summary"]["dirty"],
             "missing_sources": lineage_status["summary"]["missing"],
             "tainted_sources": lineage_status["summary"]["tainted"],
             "invalid_sources": int(bool(invalid_index)) + int(bool(invalid_summaries)),
+            "lineage_flags": lineage_flags,
             "readiness_state": readiness["state"],
             "readiness_gaps": len(readiness["gaps"]),
             "readiness_gap_names": readiness_signal["gaps"],
