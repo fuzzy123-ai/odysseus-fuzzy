@@ -823,6 +823,30 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
 
 
+async def test_memory_layer_routes_expose_readiness_gates(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Fact.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: needs_review\n---\n# Fact\n")
+
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        request = SimpleNamespace()
+
+        tree = await obsidian_routes.memory_tree(request)
+        analyze = await obsidian_routes.memory_tree_analyze(request)
+        audit = await obsidian_routes.knowledge_audit(request)
+        quarantine = await obsidian_routes.quarantine(request)
+        raptor = await obsidian_routes.raptor_status_route(request)
+
+        for payload in (tree, analyze, audit, quarantine, raptor):
+            assert payload["readiness_gate"]["required"] is True
+            assert payload["summary"]["readiness_gate"] == payload["readiness_gate"]
+
+        assert tree["readiness_gate"]["blocked_families"] == ["somt"]
+        assert audit["readiness_gate"]["blocked_families"] == ["freshness"]
+        assert quarantine["readiness_gate"] == audit["readiness_gate"]
+        assert raptor["readiness_gate"]["blocked_families"] == ["raptor"]
+
+
 def test_freshness_audit_and_quarantine_are_read_only():
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Current.md"), "w", encoding="utf-8") as f:
