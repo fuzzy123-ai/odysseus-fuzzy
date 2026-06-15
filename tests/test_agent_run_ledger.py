@@ -255,7 +255,7 @@ def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path,
     agent_run_ledger.append_sse_event(
         session_id,
         'data: {"type": "tool_output", "tool": "obsidian_raptor_status", "round": 1, "exit_code": 0, '
-        '"output": "{\\"readiness\\":{\\"ready\\":false,\\"state\\":\\"tainted\\",'
+        '"output": "{\\"readiness\\":{\\"ready\\":\\"false\\",\\"state\\":\\"tainted\\",'
         '\\"gaps\\":[\\"source_isolated_from_default_retrieval\\"]}}"}\n\n',
     )
     agent_run_ledger.append_status(session_id, "done")
@@ -364,9 +364,9 @@ def test_agent_run_ledger_prefers_explicit_memory_readiness_signals(tmp_path, mo
         session_id,
         'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
         '"output": "{\\"memory\\":{\\"readiness_signals\\":[{\\"family\\":\\"freshness\\",'
-        '\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",\\"ready\\":false,'
+        '\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",\\"ready\\":\\"false\\",'
         '\\"gaps\\":[\\"needs_review_items\\"]},{\\"family\\":\\"raptor\\",'
-        '\\"source\\":\\"readiness\\",\\"state\\":\\"not_configured\\",\\"ready\\":false,'
+        '\\"source\\":\\"readiness\\",\\"state\\":\\"not_configured\\",\\"ready\\":\\"false\\",'
         '\\"gaps\\":[\\"raptor_index_missing\\"],\\"gap_count\\":1}],\\"summary\\":{'
         '\\"freshness_readiness_state\\":\\"ready\\",\\"freshness_readiness_gaps\\":0}}}"}\n\n',
     )

@@ -188,7 +188,7 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
             "family": _readiness_family_from_payload(payload, family_hint),
             "source": "readiness",
             "state": state,
-            "ready": bool(readiness.get("ready", state == "ready")),
+            "ready": _safe_ready(readiness.get("ready"), default=state == "ready"),
             "gaps": gaps,
             "gap_count": len(gaps),
         })
@@ -208,7 +208,7 @@ def _readiness_signal_from_explicit(signal: dict[str, Any], *, family_hint: str 
         "family": family,
         "source": str(signal.get("source") or "readiness"),
         "state": state,
-        "ready": bool(signal.get("ready", state == "ready" and gap_count == 0)),
+        "ready": _safe_ready(signal.get("ready"), default=state == "ready" and gap_count == 0),
         "gaps": gaps,
         "gap_count": max(gap_count, len(gaps)),
     }
@@ -280,6 +280,22 @@ def _safe_gap_list(value: Any) -> list[str]:
         for item in value[:10]
         if isinstance(item, (str, int, float))
     ]
+
+
+def _safe_ready(value: Any, *, default: bool) -> bool:
+    if value is None:
+        return bool(default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "ready"}:
+            return True
+        if normalized in {"false", "0", "no", "not_ready", "blocked"}:
+            return False
+    return bool(default)
 
 
 def append_sse_event(session_id: str, sse: str) -> dict[str, Any] | None:

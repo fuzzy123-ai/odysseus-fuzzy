@@ -185,7 +185,7 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
             family = str(signal.get("family") or "generic")
             artifact = f"{family}_readiness"
             counts["artifacts"][artifact] = counts["artifacts"].get(artifact, 0) + 1
-            if not signal.get("ready", False):
+            if not _signal_ready(signal):
                 counts["blocked"] += 1
                 counts["last_blocker"] = _readiness_blocker(payload, signal)
         if payload.get("has_screenshot"):
@@ -222,10 +222,26 @@ def _sanitize_readiness_signal(signal: dict[str, Any]) -> dict[str, Any]:
         "family": str(signal.get("family") or "generic"),
         "source": str(signal.get("source") or "unknown"),
         "state": str(signal.get("state") or "unknown"),
-        "ready": bool(signal.get("ready", False)),
+        "ready": _signal_ready(signal),
         "gaps": [str(item) for item in gaps[:10]],
         "gap_count": int(signal.get("gap_count") or len(gaps)),
     }
+
+
+def _signal_ready(signal: dict[str, Any]) -> bool:
+    value = signal.get("ready")
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "ready"}:
+            return True
+        if normalized in {"false", "0", "no", "not_ready", "blocked"}:
+            return False
+    state = str(signal.get("state") or "").lower()
+    return state == "ready" and int(signal.get("gap_count") or 0) == 0
 
 
 def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
