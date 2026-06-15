@@ -614,6 +614,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "renderMemoryWarnings(raptorReport)" in main_js
     assert "report?.summary?.warnings" in main_js
     assert "Array.from(new Set(" in main_js
+    assert ".flatMap(report => [...(report?.warnings || []), ...(report?.summary?.warnings || [])])" in main_js
+    assert ".map(item => item.trim())" in main_js
     assert "lineage.dirty_sources" in main_js
     assert "lineage.missing_sources" in main_js
     assert "lineage.tainted_sources" in main_js

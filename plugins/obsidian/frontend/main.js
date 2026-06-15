@@ -3002,8 +3002,9 @@ function renderMemoryWarnings(...reports) {
   const warnings = Array.from(new Set(
     reports
       .flatMap(report => [...(report?.warnings || []), ...(report?.summary?.warnings || [])])
-      .filter(Boolean)
       .map(item => String(item))
+      .map(item => item.trim())
+      .filter(Boolean)
   ));
   if (!warnings.length) return '';
   return `<div class="obsidian-project-warnings">${warnings.slice(0, 8).map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>`;
