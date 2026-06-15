@@ -54,6 +54,7 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "isolated_knowledge_retained_in_audit": True,
         "excluded_relevant_count": 0,
     }
+    memory["summary"]["warnings"] = ["Freshness Gate filtered 1 stale item(s)."]
 
     ledger_dir = tmp_path / "ledger"
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(ledger_dir))
@@ -63,7 +64,7 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "tool": "obsidian_context",
         "round": 1,
         "exit_code": 0,
-        "output": json.dumps({"memory": memory, "warnings": ["Freshness Gate filtered 1 stale item(s)."]}),
+        "output": json.dumps({"memory": memory}),
     }
 
     agent_run_ledger.append_run_started(session_id)
