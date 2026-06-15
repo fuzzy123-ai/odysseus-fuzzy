@@ -14,6 +14,9 @@ _VERIFY_COMMAND_RE = re.compile(
     re.IGNORECASE,
 )
 _BROWSER_TOOLS = {"browser", "browser_check", "builtin_browser"}
+_MEMORY_DIAGNOSTIC_OK_FLAGS = {
+    "freshness_isolation_flags": {"filtering_active"},
+}
 
 
 def summarize_mission(
@@ -73,6 +76,7 @@ def summarize_mission(
     elif ledger.get("exists"):
         phases["manager"]["status"] = "done"
 
+    summary = _summary(status, phases, ledger)
     return {
         "mission_id": str(session_id),
         "session_id": str(session_id),
@@ -82,8 +86,8 @@ def summarize_mission(
         "ledger": ledger,
         "phases": phases,
         "dag": _dag(phases),
-        "summary": _summary(status, phases, ledger),
-        "next_actions": _next_actions(status, phases),
+        "summary": summary,
+        "next_actions": _next_actions(status, phases, summary),
     }
 
 
@@ -292,6 +296,7 @@ def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, A
     readiness_signals = verifier.get("readiness_signals") or []
     gate = readiness_gate(readiness_signals)
     memory_diagnostics = dict((ledger or {}).get("memory_diagnostics") or {})
+    memory_diagnostics_active_flags = _active_memory_diagnostic_flags(memory_diagnostics)
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -307,10 +312,28 @@ def _summary(status: str, phases: dict[str, dict[str, Any]], ledger: dict[str, A
         "readiness_signals": readiness_signals,
         "readiness_by_family": readiness_by_family(readiness_signals),
         "memory_diagnostics": memory_diagnostics,
+        "memory_diagnostics_state": "attention" if memory_diagnostics_active_flags else "clear",
+        "memory_diagnostics_active_flags": memory_diagnostics_active_flags,
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
     }
+
+
+def _active_memory_diagnostic_flags(memory_diagnostics: dict[str, Any]) -> dict[str, list[str]]:
+    active: dict[str, list[str]] = {}
+    for family, flags in memory_diagnostics.items():
+        if not isinstance(flags, dict):
+            continue
+        ok_flags = _MEMORY_DIAGNOSTIC_OK_FLAGS.get(str(family), set())
+        family_flags = sorted(
+            str(flag)
+            for flag, value in flags.items()
+            if value is True and str(flag) not in ok_flags
+        )
+        if family_flags:
+            active[str(family)] = family_flags
+    return active
 
 
 def _verification_gate(status: str, verifier: dict[str, Any]) -> dict[str, Any]:
@@ -390,7 +413,7 @@ def _latest_phase_value(key: str, phases: dict[str, dict[str, Any]]) -> dict[str
     }
 
 
-def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
+def _next_actions(status: str, phases: dict[str, dict[str, Any]], summary: dict[str, Any]) -> list[str]:
     actions: list[str] = []
     if status == "running":
         actions.append("watch_or_resume_stream")
@@ -402,6 +425,8 @@ def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
         actions.append("run_focused_verification")
     if any(not signal_ready(signal) for signal in phases["verifier"].get("readiness_signals") or []):
         actions.append("resolve_readiness_gaps")
+    if summary.get("memory_diagnostics_state") == "attention":
+        actions.append("inspect_memory_diagnostics")
     if phases["verifier"]["status"] == "blocked":
         actions.append("inspect_verification_failure")
     if phases["verifier"].get("latest_required_action"):

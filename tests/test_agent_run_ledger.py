@@ -498,7 +498,7 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
         '"output": "{\\"readiness_gate\\":{\\"required\\":true,\\"state\\":\\"blocked\\",'
         '\\"blocked_families\\":[\\"raptor\\"],\\"gaps\\":[\\"source_hash_changed\\"]},'
         '\\"freshness_isolation_flags\\":{\\"needs_review\\":true,\\"conflicts\\":false,'
-        '\\"quarantined\\":false,\\"isolated\\":true,\\"filtering_active\\":false},'
+        '\\"quarantined\\":false,\\"isolated\\":true,\\"filtering_active\\":true},'
         '\\"raptor_lineage_flags\\":{\\"dirty\\":true,\\"missing\\":false,'
         '\\"tainted\\":true,\\"invalid_index\\":false,\\"invalid_summaries\\":false}}"}\n\n',
     )
@@ -508,7 +508,7 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
     assert events[0]["payload"]["memory_diagnostics"] == {
         "freshness_isolation_flags": {
             "conflicts": False,
-            "filtering_active": False,
+            "filtering_active": True,
             "isolated": True,
             "needs_review": True,
             "quarantined": False,
@@ -526,6 +526,12 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
 
     snapshot = summarize_mission(session_id)
     assert snapshot["summary"]["memory_diagnostics"] == summary["memory_diagnostics"]
+    assert snapshot["summary"]["memory_diagnostics_state"] == "attention"
+    assert snapshot["summary"]["memory_diagnostics_active_flags"] == {
+        "freshness_isolation_flags": ["isolated", "needs_review"],
+        "raptor_lineage_flags": ["dirty", "tainted"],
+    }
+    assert "inspect_memory_diagnostics" in snapshot["next_actions"]
 
 
 def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
