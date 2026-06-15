@@ -86,6 +86,38 @@ def test_provider_messages_are_stable_for_identical_payloads():
     assert first == second
 
 
+def test_provider_diagnostics_are_compacted_before_prompt_injection():
+    payload = {
+        "memory": {
+            "summary": {"readiness_state": "blocked", "filtering_state": "audit_only"},
+            "readiness_gate": {
+                "state": "blocked",
+                "gaps": [f"gap_{i}" for i in range(25)],
+            },
+            "retrieval_policy": {
+                "filtering_state": "audit_only",
+                "note": "x" * 600,
+            },
+        },
+    }
+
+    messages = provider_messages([
+        type("P", (), {
+            "provider_id": "demo.alpha",
+            "plugin_id": "demo",
+            "capabilities": ("chat", "memory", "readiness"),
+            "payload": payload,
+        })(),
+    ])
+
+    diagnostics = messages[0]["content"]
+    assert diagnostics.startswith("Provider diagnostics:")
+    assert '"gap_19"' in diagnostics
+    assert '"gap_20"' not in diagnostics
+    assert ("x" * 500) in diagnostics
+    assert ("x" * 501) not in diagnostics
+
+
 def test_final_trim_guard_keeps_current_user_message():
     messages = [
         {"role": "system", "content": "Rules"},

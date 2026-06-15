@@ -12,6 +12,10 @@ from typing import Any, Dict, Iterable, List, Optional
 from src.model_context import estimate_tokens
 from src.plugin_system import get_context_providers
 
+MAX_PROVIDER_DIAGNOSTIC_LIST_ITEMS = 20
+MAX_PROVIDER_DIAGNOSTIC_DICT_ITEMS = 40
+MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS = 500
+
 
 @dataclass(frozen=True)
 class ContextBudget:
@@ -150,7 +154,7 @@ def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
     summary = memory.get("summary")
     if isinstance(summary, dict):
         diagnostics["summary"] = {
-            key: summary[key]
+            key: _compact_diagnostic_value(summary[key])
             for key in (
                 "readiness_state",
                 "readiness_gaps",
@@ -170,10 +174,37 @@ def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
         "raptor_write_gate",
     ):
         value = memory.get(key)
-        if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
-            if value is not None:
-                diagnostics[key] = value
+        compact_value = _compact_diagnostic_value(value)
+        if compact_value is not None:
+            diagnostics[key] = compact_value
     return diagnostics
+
+
+def _compact_diagnostic_value(value: Any, *, depth: int = 0) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        return value[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
+    if depth >= 4:
+        return str(value)[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
+    if isinstance(value, list):
+        return [
+            compact
+            for item in value[:MAX_PROVIDER_DIAGNOSTIC_LIST_ITEMS]
+            if (compact := _compact_diagnostic_value(item, depth=depth + 1)) is not None
+        ]
+    if isinstance(value, dict):
+        compact_dict: Dict[str, Any] = {}
+        for key in sorted(value, key=lambda item: str(item))[:MAX_PROVIDER_DIAGNOSTIC_DICT_ITEMS]:
+            compact = _compact_diagnostic_value(value.get(key), depth=depth + 1)
+            if compact is not None:
+                compact_dict[str(key)] = compact
+        return compact_dict
+    return str(value)[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
 
 
 def assemble_context(
