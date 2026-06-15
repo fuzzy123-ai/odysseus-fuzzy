@@ -151,8 +151,11 @@ function _missionReadinessText(snapshot) {
   const entries = signals.slice(0, 6).map((signal) => {
     const family = String(signal.family || 'generic').replace(/_/g, ' ');
     const source = signal.source ? `/${String(signal.source).replace(/_/g, ' ')}` : '';
-    const gaps = Array.isArray(signal.gaps)
-      ? signal.gaps.slice(0, 2).map((gap) => String(gap).replace(/_/g, ' '))
+    const gapNames = Array.isArray(signal.gaps) && signal.gaps.length
+      ? signal.gaps
+      : (Array.isArray(signal.readiness_gap_names) ? signal.readiness_gap_names : []);
+    const gaps = gapNames.length
+      ? gapNames.slice(0, 3).map((gap) => String(gap).replace(/_/g, ' '))
       : [];
     const gapCount = Number(signal.gap_count || gaps.length || 0);
     const details = [

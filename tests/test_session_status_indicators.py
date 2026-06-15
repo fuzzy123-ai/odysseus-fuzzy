@@ -76,6 +76,7 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "summary?.readiness_signals" in source
     assert "summary?.readiness_by_family" in source
     assert "Object.entries(byFamily)" in source
+    assert "signal.readiness_gap_names" in source
     assert "Readiness:" in source
     assert "function _missionPolicyTierText(snapshot)" in source
     assert "snapshot?.summary?.policy_tiers" in source
