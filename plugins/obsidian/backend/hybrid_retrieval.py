@@ -139,6 +139,14 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         dirty = True
     if lineage_status["tainted_sources"]:
         tainted = True
+    readiness = _raptor_readiness(
+        configured=index_present or summaries_present,
+        dirty=dirty,
+        tainted=tainted,
+        invalid_index=invalid_index,
+        invalid_summaries=invalid_summaries,
+        lineage_status=lineage_status,
+    )
     return {
         "enabled": is_enabled("obsidian_raptor_enabled"),
         "configured": index_present or summaries_present,
@@ -151,6 +159,7 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "last_built": last_built,
         "dirty": dirty,
         "tainted": tainted,
+        "readiness": readiness,
         "lineage": lineage_status,
         "summary": {
             "source_count": lineage_status["summary"]["source_count"],
@@ -158,10 +167,52 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
             "missing_sources": lineage_status["summary"]["missing"],
             "tainted_sources": lineage_status["summary"]["tainted"],
             "invalid_sources": int(bool(invalid_index)) + int(bool(invalid_summaries)),
+            "readiness_state": readiness["state"],
+            "readiness_gaps": len(readiness["gaps"]),
             "writes_supported": False,
         },
         "writes_supported": False,
         "message": "RAPTOR rebuild/write is disabled in the MVP; status is read-only.",
+    }
+
+
+def _raptor_readiness(
+    *,
+    configured: bool,
+    dirty: bool,
+    tainted: bool,
+    invalid_index: bool,
+    invalid_summaries: bool,
+    lineage_status: Dict[str, Any],
+) -> Dict[str, Any]:
+    gaps = []
+    if not configured:
+        gaps.append("raptor_index_missing")
+    if invalid_index:
+        gaps.append("raptor_index_invalid")
+    if invalid_summaries:
+        gaps.append("raptor_summaries_invalid")
+    if lineage_status["dirty_sources"]:
+        gaps.append("source_hash_changed")
+    if lineage_status["missing_sources"]:
+        gaps.append("source_missing")
+    if lineage_status["tainted_sources"]:
+        gaps.append("source_isolated_from_default_retrieval")
+    if invalid_index or invalid_summaries:
+        state = "invalid"
+    elif not configured:
+        state = "not_configured"
+    elif dirty:
+        state = "dirty"
+    elif tainted:
+        state = "tainted"
+    else:
+        state = "ready"
+    return {
+        "ready": state == "ready",
+        "state": state,
+        "gaps": gaps,
+        "writes_supported": False,
     }
 
 

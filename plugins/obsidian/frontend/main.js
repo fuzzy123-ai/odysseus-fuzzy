@@ -3207,15 +3207,18 @@ function renderRaptorStatus() {
   }
   const lineage = raptorReport.lineage || {};
   const summary = raptorReport.summary || {};
+  const readiness = raptorReport.readiness || {};
   return `
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
       { label: 'Configured', value: raptorReport.configured ? 'yes' : 'no' },
+      { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
       { label: 'Sources', value: summary.source_count ?? lineage.source_count ?? 0 },
       { label: 'Dirty', value: summary.dirty_sources ?? (lineage.dirty_sources || []).length },
       { label: 'Missing', value: summary.missing_sources ?? (lineage.missing_sources || []).length },
       { label: 'Tainted', value: summary.tainted_sources ?? (lineage.tainted_sources || []).length },
       { label: 'Invalid', value: summary.invalid_sources ?? ((raptorReport.invalid_index ? 1 : 0) + (raptorReport.invalid_summaries ? 1 : 0)) },
+      { label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length },
       { label: 'Writes', value: (summary.writes_supported ?? raptorReport.writes_supported) ? 'yes' : 'no' },
     ])}
     <div class="obsidian-memory-tree-grid">
@@ -3231,6 +3234,7 @@ function renderRaptorStatus() {
       <div class="obsidian-memory-tree-card">
         <strong>Policy</strong>
         <p>${escapeHtml(raptorReport.message || 'RAPTOR status is read-only.')}</p>
+        <p>${escapeHtml((readiness.gaps || []).length ? `Review gaps: ${(readiness.gaps || []).join(', ')}` : 'No RAPTOR readiness gaps detected.')}</p>
         <code>${escapeHtml(raptorReport.index_path || '')}</code>
         <code>${escapeHtml(raptorReport.summaries_path || '')}</code>
       </div>

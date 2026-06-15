@@ -556,6 +556,10 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.missing_sources" in main_js
     assert "summary.tainted_sources" in main_js
     assert "summary.invalid_sources" in main_js
+    assert "raptorReport.readiness" in main_js
+    assert "summary.readiness_state" in main_js
+    assert "summary.readiness_gaps" in main_js
+    assert "Review gaps:" in main_js
     assert "summary.writes_supported" in main_js
     assert "summary.writes_supported ?? raptorReport.writes_supported" in main_js
     assert "lineage.dirty_sources" in main_js

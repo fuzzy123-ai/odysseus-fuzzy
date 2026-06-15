@@ -733,6 +733,14 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
         assert status["enabled"] is False
         assert status["configured"] is False
         assert status["writes_supported"] is False
+        assert status["readiness"] == {
+            "ready": False,
+            "state": "not_configured",
+            "gaps": ["raptor_index_missing"],
+            "writes_supported": False,
+        }
+        assert status["summary"]["readiness_state"] == "not_configured"
+        assert status["summary"]["readiness_gaps"] == 1
 
 
 def test_raptor_status_tracks_source_hash_lineage_without_writes():
@@ -754,6 +762,12 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
         assert status["configured"] is True
         assert status["dirty"] is False
         assert status["tainted"] is False
+        assert status["readiness"] == {
+            "ready": True,
+            "state": "ready",
+            "gaps": [],
+            "writes_supported": False,
+        }
         assert status["lineage"]["source_count"] == 1
         assert status["lineage"]["dirty_sources"] == []
         assert status["lineage"]["missing_sources"] == []
@@ -768,6 +782,8 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
         assert status["summary"]["dirty_sources"] == 0
         assert status["summary"]["missing_sources"] == 0
         assert status["summary"]["tainted_sources"] == 0
+        assert status["summary"]["readiness_state"] == "ready"
+        assert status["summary"]["readiness_gaps"] == 0
         assert status["summary"]["writes_supported"] is False
 
 
@@ -793,6 +809,29 @@ def test_raptor_status_marks_changed_or_missing_sources_dirty():
         assert status["lineage"]["summary"]["missing"] == 1
         assert status["summary"]["dirty_sources"] == 1
         assert status["summary"]["missing_sources"] == 1
+        assert status["readiness"]["ready"] is False
+        assert status["readiness"]["state"] == "dirty"
+        assert status["readiness"]["gaps"] == ["source_hash_changed", "source_missing"]
+        assert status["summary"]["readiness_state"] == "dirty"
+        assert status["summary"]["readiness_gaps"] == 2
+
+
+def test_raptor_status_reports_invalid_readiness_gap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            f.write("{not json")
+
+        status = raptor_status(tmpdir)
+
+        assert status["dirty"] is True
+        assert status["tainted"] is True
+        assert status["readiness"]["ready"] is False
+        assert status["readiness"]["state"] == "invalid"
+        assert status["readiness"]["gaps"] == ["raptor_index_invalid"]
+        assert status["summary"]["invalid_sources"] == 1
+        assert status["summary"]["readiness_state"] == "invalid"
+        assert status["summary"]["readiness_gaps"] == 1
 
 
 def test_raptor_status_marks_review_or_quarantined_sources_tainted():
@@ -817,6 +856,11 @@ def test_raptor_status_marks_review_or_quarantined_sources_tainted():
         assert status["lineage"]["tainted_sources"][0]["source_mtime"].endswith("Z")
         assert status["lineage"]["summary"]["tainted"] == 1
         assert status["summary"]["tainted_sources"] == 1
+        assert status["readiness"]["ready"] is False
+        assert status["readiness"]["state"] == "tainted"
+        assert status["readiness"]["gaps"] == ["source_isolated_from_default_retrieval"]
+        assert status["summary"]["readiness_state"] == "tainted"
+        assert status["summary"]["readiness_gaps"] == 1
 
 
 @pytest.mark.asyncio
