@@ -794,6 +794,14 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["summary"]["default_retrieval"] == 1
         assert status["summary"]["isolated"] == 1
         assert status["summary"]["quarantine_items"] == 1
+        assert status["raptor_lineage_flags"] == {
+            "dirty": False,
+            "missing": False,
+            "tainted": False,
+            "invalid_index": False,
+            "invalid_summaries": False,
+        }
+        assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
         assert status["summary"]["writes_supported"] is False
 
 
@@ -821,6 +829,7 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert "conflict_items" in status["readiness_gate"]["gaps"]
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
 
 
 async def test_memory_layer_routes_expose_readiness_gates(monkeypatch):

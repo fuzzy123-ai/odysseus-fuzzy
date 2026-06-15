@@ -48,6 +48,10 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         or _mapping(quarantine.get("summary")).get("filtering_state")
         or "disabled"
     )
+    raptor_lineage_flags = _mapping(
+        raptor.get("lineage_flags")
+        or _mapping(raptor.get("summary")).get("lineage_flags")
+    )
     return {
         "read_only": True,
         "writes_supported": False,
@@ -56,6 +60,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "readiness_signals": readiness_signals,
         "readiness_by_family": dict(sorted(readiness_by_family.items())),
         "readiness_gate": readiness_gate,
+        "raptor_lineage_flags": raptor_lineage_flags,
         "summary": {
             "families": len(readiness_by_family),
             "status_families": len(families),
@@ -72,6 +77,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "isolated": freshness.get("summary", {}).get("isolated", 0),
             "quarantine_items": quarantine.get("summary", {}).get("total", 0),
             "raptor_sources": raptor.get("summary", {}).get("source_count", 0),
+            "raptor_lineage_flags": raptor_lineage_flags,
             "writes_supported": False,
         },
         "flags": flags,

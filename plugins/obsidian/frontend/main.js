@@ -3060,6 +3060,10 @@ function renderUnifiedMemoryStatus() {
   const summary = memoryStatusReport.summary || {};
   const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {};
   const state = summary.readiness_state || 'unknown';
+  const raptorLineageFlags = memoryStatusReport.raptor_lineage_flags || summary.raptor_lineage_flags || {};
+  const activeRaptorLineageFlags = Object.entries(raptorLineageFlags)
+    .filter(([, value]) => value === true)
+    .map(([name]) => name.replace(/_/g, ' '));
   return `
     <div class="obsidian-memory-status-band" data-memory-readiness-state="${escapeHtml(state)}">
       ${memoryMetricGrid([
@@ -3073,6 +3077,7 @@ function renderUnifiedMemoryStatus() {
         { label: 'Isolated', value: summary.isolated ?? 0 },
         { label: 'Quarantine', value: summary.quarantine_items ?? 0 },
         { label: 'RAPTOR sources', value: summary.raptor_sources ?? 0 },
+        { label: 'RAPTOR lineage', value: activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear' },
         { label: 'Writes', value: summary.writes_supported ? 'yes' : 'no' },
       ])}
       ${renderMemoryReadinessFamilies()}
