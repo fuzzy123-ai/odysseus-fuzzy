@@ -66,6 +66,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "filtering_state": filtering_state,
         "default_retrieval_is_filtered": filtering_state == "active",
         "isolated_knowledge_retained_in_audit": True,
+        "excluded_relevant_count": 0,
     }
     warnings = _warnings(somt, freshness, quarantine, raptor)
     return {

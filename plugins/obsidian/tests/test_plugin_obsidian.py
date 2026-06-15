@@ -898,6 +898,7 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             "filtering_state": "audit_only",
             "default_retrieval_is_filtered": False,
             "isolated_knowledge_retained_in_audit": True,
+            "excluded_relevant_count": 0,
         }
         assert status["summary"]["retrieval_policy"] == status["retrieval_policy"]
         assert status["summary"]["default_retrieval"] == 1
