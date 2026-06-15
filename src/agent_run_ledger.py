@@ -190,6 +190,11 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
         )
         if signals:
             return _dedupe_readiness_signals(signals)
+    readiness_gate = payload.get("readiness_gate")
+    if isinstance(readiness_gate, dict):
+        signals.extend(_readiness_signals_from_gate(readiness_gate, family_hint=family_hint))
+        if signals:
+            return _dedupe_readiness_signals(signals)
     readiness = payload.get("readiness")
     if isinstance(readiness, dict):
         state = str(readiness.get("state") or "unknown")
@@ -207,6 +212,31 @@ def _readiness_signals_from_mapping(payload: dict[str, Any], *, family_hint: str
         signals.extend(_readiness_signals_from_mapping(summary, family_hint=family_hint))
     signals.extend(_summary_readiness_signals(payload, family_hint=family_hint))
     return _dedupe_readiness_signals(signals)
+
+
+def _readiness_signals_from_gate(gate: dict[str, Any], *, family_hint: str = "generic") -> list[dict[str, Any]]:
+    if gate.get("required") is False and not gate.get("blocked_families"):
+        return []
+    state = str(gate.get("state") or "unknown")
+    gaps = _safe_gap_list(gate.get("gaps"))
+    blocked = [
+        str(family)
+        for family in gate.get("blocked_families") or []
+        if isinstance(family, (str, int, float))
+    ]
+    families = blocked or [family_hint if family_hint != "generic" else "generic"]
+    ready = state == "ready" and not gaps and not blocked
+    return [
+        {
+            "family": family,
+            "source": "readiness_gate",
+            "state": state,
+            "ready": ready and family not in blocked,
+            "gaps": gaps,
+            "gap_count": len(gaps),
+        }
+        for family in families[:10]
+    ]
 
 
 def _readiness_signal_from_explicit(signal: dict[str, Any], *, family_hint: str = "generic") -> dict[str, Any]:

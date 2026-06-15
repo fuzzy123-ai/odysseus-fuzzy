@@ -536,6 +536,58 @@ def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
 
 
+def test_agent_run_ledger_extracts_readiness_gate_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-readiness-gate-only"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
+        '"output": "{\\"memory\\":{\\"readiness_gate\\":{'
+        '\\"required\\":true,\\"satisfied\\":false,\\"state\\":\\"blocked\\",'
+        '\\"families\\":2,\\"ready_families\\":0,'
+        '\\"blocked_families\\":[\\"freshness\\",\\"raptor\\"],'
+        '\\"gaps\\":[\\"freshness_filtering_not_active\\",\\"raptor_index_missing\\"]}}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+
+    assert events[1]["payload"]["readiness_signals"] == [
+        {
+            "family": "freshness",
+            "source": "readiness_gate",
+            "state": "blocked",
+            "ready": False,
+            "gaps": ["freshness_filtering_not_active", "raptor_index_missing"],
+            "gap_count": 2,
+        },
+        {
+            "family": "raptor",
+            "source": "readiness_gate",
+            "state": "blocked",
+            "ready": False,
+            "gaps": ["freshness_filtering_not_active", "raptor_index_missing"],
+            "gap_count": 2,
+        },
+    ]
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 2,
+        "ready_families": 0,
+        "blocked_families": ["freshness", "raptor"],
+        "gaps": ["freshness_filtering_not_active", "raptor_index_missing"],
+    }
+    assert set(snapshot["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
+    assert "resolve_readiness_gaps" in snapshot["next_actions"]
+
+
 def test_agent_run_ledger_treats_context_memory_summary_as_memory_family(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-context-memory-summary"
