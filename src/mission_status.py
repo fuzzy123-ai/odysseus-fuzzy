@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from src import agent_run_ledger
+from src.readiness_gate import readiness_by_family, readiness_gate, sanitize_readiness_signal, signal_ready
 
 
 _VERIFY_COMMAND_RE = re.compile(
@@ -179,13 +180,13 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
             counts["artifacts"]["readiness_check"] = (
                 counts["artifacts"].get("readiness_check", 0) + len(readiness_signals)
             )
-            counts["readiness_signals"].extend(_sanitize_readiness_signal(signal) for signal in readiness_signals)
+            counts["readiness_signals"].extend(sanitize_readiness_signal(signal) for signal in readiness_signals)
             counts["readiness_signals"] = counts["readiness_signals"][-25:]
         for signal in readiness_signals:
             family = str(signal.get("family") or "generic")
             artifact = f"{family}_readiness"
             counts["artifacts"][artifact] = counts["artifacts"].get(artifact, 0) + 1
-            if not _signal_ready(signal):
+            if not signal_ready(signal):
                 counts["blocked"] += 1
                 counts["last_blocker"] = _readiness_blocker(payload, signal)
         if payload.get("has_screenshot"):
@@ -214,34 +215,6 @@ def _payload_readiness_signals(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(signal, dict):
         return [signal]
     return []
-
-
-def _sanitize_readiness_signal(signal: dict[str, Any]) -> dict[str, Any]:
-    gaps = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
-    return {
-        "family": str(signal.get("family") or "generic"),
-        "source": str(signal.get("source") or "unknown"),
-        "state": str(signal.get("state") or "unknown"),
-        "ready": _signal_ready(signal),
-        "gaps": [str(item) for item in gaps[:10]],
-        "gap_count": int(signal.get("gap_count") or len(gaps)),
-    }
-
-
-def _signal_ready(signal: dict[str, Any]) -> bool:
-    value = signal.get("ready")
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes", "ready"}:
-            return True
-        if normalized in {"false", "0", "no", "not_ready", "blocked"}:
-            return False
-    state = str(signal.get("state") or "").lower()
-    return state == "ready" and int(signal.get("gap_count") or 0) == 0
 
 
 def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -301,7 +274,7 @@ def _readiness_blocker(payload: dict[str, Any], signal: dict[str, Any]) -> dict[
 
 def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -> None:
     phase.update(counts)
-    phase["readiness_gate"] = _readiness_gate(phase.get("readiness_signals") or [])
+    phase["readiness_gate"] = readiness_gate(phase.get("readiness_signals") or [])
     if counts["starts"] == 0 and counts["outputs"] == 0:
         phase["status"] = "idle"
     elif counts["blocked"] > 0:
@@ -317,7 +290,7 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
     verifier = phases["verifier"]
     verification = _verification_gate(status, verifier)
     readiness_signals = verifier.get("readiness_signals") or []
-    readiness_gate = _readiness_gate(readiness_signals)
+    gate = readiness_gate(readiness_signals)
     return {
         "status": status,
         "worker_status": worker["status"],
@@ -329,56 +302,12 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "verification_satisfied": verification["satisfied"],
         "verification_evidence": verification["evidence"],
         "verification_gaps": verification["gaps"],
-        "readiness_gate": readiness_gate,
+        "readiness_gate": gate,
         "readiness_signals": readiness_signals,
-        "readiness_by_family": _readiness_by_family(readiness_signals),
+        "readiness_by_family": readiness_by_family(readiness_signals),
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
         "latest_blocker": _latest_phase_value("last_blocker", phases),
         "latest_required_action": _latest_phase_value("latest_required_action", phases),
-    }
-
-
-def _readiness_by_family(signals: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
-    for signal in signals:
-        if not isinstance(signal, dict):
-            continue
-        sanitized = _sanitize_readiness_signal(signal)
-        grouped[sanitized["family"]] = sanitized
-    return dict(sorted(grouped.items()))
-
-
-def _readiness_gate(signals: list[dict[str, Any]]) -> dict[str, Any]:
-    sanitized = [
-        _sanitize_readiness_signal(signal)
-        for signal in signals
-        if isinstance(signal, dict)
-    ]
-    by_family = {
-        signal["family"]: signal
-        for signal in sanitized
-    }
-    family_signals = list(by_family.values())
-    blocked = [signal for signal in family_signals if not signal.get("ready", False)]
-    gaps: list[str] = []
-    seen = set()
-    for signal in blocked:
-        names = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
-        candidates = names or ([signal.get("family")] if signal.get("gap_count") else [])
-        for candidate in candidates:
-            name = str(candidate or "").strip()
-            if not name or name in seen:
-                continue
-            seen.add(name)
-            gaps.append(name)
-    return {
-        "required": bool(sanitized),
-        "satisfied": not blocked,
-        "state": "ready" if sanitized and not blocked else ("blocked" if blocked else "not_applicable"),
-        "families": len(family_signals),
-        "ready_families": len(family_signals) - len(blocked),
-        "blocked_families": sorted({signal["family"] for signal in blocked}),
-        "gaps": gaps[:25],
     }
 
 
@@ -469,7 +398,7 @@ def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
         actions.append(phases["worker"]["latest_required_action"]["action"])
     if phases["verifier"]["status"] == "idle" and status == "done":
         actions.append("run_focused_verification")
-    if any(not _signal_ready(signal) for signal in phases["verifier"].get("readiness_signals") or []):
+    if any(not signal_ready(signal) for signal in phases["verifier"].get("readiness_signals") or []):
         actions.append("resolve_readiness_gaps")
     if phases["verifier"]["status"] == "blocked":
         actions.append("inspect_verification_failure")

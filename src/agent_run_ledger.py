@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from src.constants import AGENT_RUN_LEDGER_DIR
+from src.readiness_gate import readiness_by_family, readiness_gate
 from src.shell_policy import classify_shell_command
 
 _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_.-]+")
@@ -319,14 +320,6 @@ def _dedupe_readiness_signals(signals: list[dict[str, Any]]) -> list[dict[str, A
     return deduped[:10]
 
 
-def _readiness_by_family(signals: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    grouped = {}
-    for signal in signals:
-        if isinstance(signal, dict):
-            grouped[str(signal.get("family") or "generic")] = signal
-    return dict(sorted(grouped.items()))
-
-
 def _safe_gap_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -443,7 +436,8 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
         "event_counts": event_counts,
         "tools": tools,
         "readiness_signals": readiness_signals,
-        "readiness_by_family": _readiness_by_family(readiness_signals),
+        "readiness_by_family": readiness_by_family(readiness_signals),
+        "readiness_gate": readiness_gate(readiness_signals),
         "last_metrics": last_metrics,
         "tail": events[-tail_count:] if tail_count else [],
     }
