@@ -27,6 +27,7 @@ class ProviderPayload:
     provider_id: str
     plugin_id: Optional[str]
     payload: Dict[str, Any]
+    capabilities: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ def preload_provider_context(
             provider_id=provider.id,
             plugin_id=provider.plugin_id,
             payload=payload,
+            capabilities=provider.capabilities,
         ))
     return payloads, warnings
 
@@ -96,6 +98,7 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
             structured_state.append({
                 "provider_id": item.provider_id,
                 "plugin_id": item.plugin_id,
+                "capabilities": list(getattr(item, "capabilities", ()) or ()),
                 "cache_key": payload.get("cache_key", ""),
                 "state": state,
             })
@@ -104,6 +107,7 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
             snippets.append({
                 "provider_id": item.provider_id,
                 "plugin_id": item.plugin_id,
+                "capabilities": list(getattr(item, "capabilities", ()) or ()),
                 "cache_key": payload.get("cache_key", ""),
                 "sources": payload.get("sources") or [],
                 "snippets": provider_snippets,
