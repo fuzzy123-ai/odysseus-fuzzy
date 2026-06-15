@@ -43,6 +43,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "blocked_families": sorted(blocked),
             "readiness_state": "ready" if not blocked else "blocked",
             "readiness_gaps": sum(int(signal.get("gap_count") or 0) for signal in readiness_signals),
+            "readiness_gap_names": _readiness_gap_names(readiness_signals),
             "somt_notes": somt.get("summary", {}).get("total_notes", 0),
             "default_retrieval": freshness.get("summary", {}).get("default_retrieval", 0),
             "isolated": freshness.get("summary", {}).get("isolated", 0),
@@ -126,6 +127,21 @@ def _dedupe_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         seen.add(key)
         deduped.append(signal)
     return deduped
+
+
+def _readiness_gap_names(signals: List[Dict[str, Any]]) -> List[str]:
+    names: List[str] = []
+    seen = set()
+    for signal in signals:
+        gaps = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
+        candidates = gaps or ([] if signal.get("ready") else [signal.get("family")])
+        for candidate in candidates:
+            name = str(candidate or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            names.append(name)
+    return names[:25]
 
 
 def _warnings(*payloads: Dict[str, Any]) -> List[str]:
