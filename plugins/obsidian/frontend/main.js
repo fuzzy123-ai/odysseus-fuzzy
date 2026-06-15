@@ -3059,7 +3059,8 @@ function renderUnifiedMemoryStatus() {
     <div class="obsidian-memory-status-band" data-memory-readiness-state="${escapeHtml(state)}">
       ${memoryMetricGrid([
         { label: 'Readiness', value: state },
-        { label: 'Ready families', value: `${summary.ready_families ?? 0}/${summary.families ?? 0}` },
+        { label: 'Ready families', value: `${summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0}` },
+        { label: 'Status families', value: summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length },
         { label: 'Gaps', value: summary.readiness_gaps ?? 0 },
         { label: 'Default retrieval', value: summary.default_retrieval ?? 0 },
         { label: 'Isolated', value: summary.isolated ?? 0 },

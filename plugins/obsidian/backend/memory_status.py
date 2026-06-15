@@ -26,19 +26,22 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         for family, signal in readiness_by_family.items()
         if not signal.get("ready", False)
     ]
+    families = {
+        "somt": _family_status(somt),
+        "freshness": _family_status(freshness),
+        "quarantine": _family_status(quarantine),
+        "raptor": _family_status(raptor),
+    }
     return {
         "read_only": True,
         "writes_supported": False,
-        "families": {
-            "somt": _family_status(somt),
-            "freshness": _family_status(freshness),
-            "quarantine": _family_status(quarantine),
-            "raptor": _family_status(raptor),
-        },
+        "families": families,
         "readiness_signals": readiness_signals,
         "readiness_by_family": dict(sorted(readiness_by_family.items())),
         "summary": {
             "families": len(readiness_by_family),
+            "status_families": len(families),
+            "readiness_families": len(readiness_by_family),
             "ready_families": len(readiness_by_family) - len(blocked),
             "blocked_families": sorted(blocked),
             "readiness_state": "ready" if not blocked else "blocked",

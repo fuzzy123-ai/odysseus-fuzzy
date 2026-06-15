@@ -713,6 +713,8 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
         assert status["summary"]["families"] == 3
+        assert status["summary"]["status_families"] == 4
+        assert status["summary"]["readiness_families"] == 3
         assert status["summary"]["ready_families"] == 0
         assert status["summary"]["blocked_families"] == ["freshness", "raptor", "somt"]
         assert status["summary"]["readiness_state"] == "blocked"
