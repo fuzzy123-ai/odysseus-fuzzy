@@ -79,9 +79,19 @@ function _missionArtifactText(snapshot) {
   return ` Artifacts: ${entries.join(', ')}.`;
 }
 
+function _missionPolicyTierText(snapshot) {
+  const phases = snapshot?.phases || {};
+  const entries = ['worker', 'verifier']
+    .flatMap((role) => Object.entries(phases[role]?.policy_tiers || {})
+      .filter(([, count]) => Number(count || 0) > 0)
+      .map(([tier, count]) => `${role} ${tier}: ${count}`));
+  if (!entries.length) return '';
+  return ` Policy tiers: ${entries.join(', ')}.`;
+}
+
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {
