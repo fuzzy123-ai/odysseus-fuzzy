@@ -174,10 +174,11 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
 
 def provider_warning_messages(warnings: Iterable[str]) -> List[Dict[str, str]]:
     compact_warnings = [
-        str(warning)[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
-        for warning in list(warnings or [])[:MAX_PROVIDER_WARNINGS]
-        if str(warning).strip()
+        text[:MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS]
+        for warning in warnings or []
+        if (text := str(warning).strip())
     ]
+    compact_warnings = compact_warnings[:MAX_PROVIDER_WARNINGS]
     if not compact_warnings:
         return []
     return [{

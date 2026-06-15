@@ -121,12 +121,21 @@ def test_provider_diagnostics_are_compacted_before_prompt_injection():
 
 
 def test_provider_warning_messages_are_compacted_before_prompt_injection():
-    messages = provider_warning_messages(["vault locked", "x" * 600])
+    messages = provider_warning_messages(["", "  ", "vault locked", "x" * 600])
 
     assert messages[0]["content"].startswith("Provider warnings:")
+    assert '""' not in messages[0]["content"]
     assert '"vault locked"' in messages[0]["content"]
     assert ("x" * 500) in messages[0]["content"]
     assert ("x" * 501) not in messages[0]["content"]
+
+
+def test_provider_warning_messages_caps_after_filtering_blanks():
+    messages = provider_warning_messages([""] * 25 + [f"warning {idx}" for idx in range(25)])
+
+    assert '"warning 0"' in messages[0]["content"]
+    assert '"warning 19"' in messages[0]["content"]
+    assert '"warning 20"' not in messages[0]["content"]
 
 
 def test_final_trim_guard_keeps_current_user_message():
