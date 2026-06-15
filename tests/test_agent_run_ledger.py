@@ -459,6 +459,39 @@ def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
 
 
+def test_agent_run_ledger_treats_context_memory_summary_as_memory_family(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-context-memory-summary"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
+        '"output": "{\\"memory\\":{\\"summary\\":{\\"readiness_state\\":\\"blocked\\",'
+        '\\"readiness_gaps\\":2,\\"readiness_gap_names\\":[\\"freshness_filtering_not_active\\",'
+        '\\"raptor_index_missing\\"]}}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+    signal = events[1]["payload"]["readiness_signal"]
+
+    assert signal == {
+        "family": "memory",
+        "source": "summary",
+        "state": "blocked",
+        "ready": False,
+        "gaps": ["freshness_filtering_not_active", "raptor_index_missing"],
+        "gap_count": 2,
+    }
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"memory_readiness": 1, "readiness_check": 1}
+    assert snapshot["summary"]["readiness_by_family"]["memory"] == signal
+    assert snapshot["summary"]["latest_blocker"]["family"] == "memory"
+
+
 def test_agent_run_ledger_uses_memory_status_hint_for_summary_readiness(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-memory-status-summary-readiness"

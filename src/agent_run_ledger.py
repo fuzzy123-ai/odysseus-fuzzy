@@ -160,7 +160,8 @@ def _readiness_signals_from_output(output: Any, *, tool: Any = None) -> list[dic
         return signals
     memory = payload.get("memory")
     if isinstance(memory, dict):
-        signals = _readiness_signals_from_mapping(memory, family_hint=family_hint)
+        memory_family_hint = "memory" if family_hint == "generic" else family_hint
+        signals = _readiness_signals_from_mapping(memory, family_hint=memory_family_hint)
         if signals:
             return signals
     summary = payload.get("summary")
