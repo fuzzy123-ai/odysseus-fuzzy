@@ -57,7 +57,7 @@ It also registers a read-only context provider for the Odysseus context-orchestr
 - Plugin password protection gates access through the plugin and tool APIs. It is not full vault-at-rest encryption for plaintext Markdown files already present on disk.
 - RAPTOR status, lineage, dirty/tainted source metadata, and write-gate diagnostics are read-only in this release candidate. RAPTOR rebuild/write workflows remain disabled until explicitly enabled and tested.
 - Freshness Gate quarantine and isolation workflows are audit/readiness surfaces by default. Hybrid retrieval filtering remains feature-flagged and backward-compatible with the existing context-provider contract.
-- Browser smoke verification is partially complete: the standalone app shell loads with a CSP-compatible external bootstrap, plugin web assets return 200, and unauthenticated data routes remain 401. Authenticated vault-data loading, Cytoscape rendering, graph focus, and graph filters still require browser smoke verification before tagging a release candidate.
+- Browser smoke verification is partially complete: the standalone app shell loads with a CSP-compatible external bootstrap, plugin web assets return 200, unauthenticated data routes remain 401, and an isolated test-vault smoke verifies visible Cytoscape graph layout with correct node/edge payload. Authenticated vault-data loading, current-node graph focus, file-switch graph focus, and graph filters still require browser smoke verification before tagging a release candidate.
 
 ### History and Undo
 

@@ -59,7 +59,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 ### Teilweise erledigt
 
 - Graph-Filter existieren nur als einfacher Edge-Type-Select. Es fehlt ein dynamisches Filter-/Highlight-Panel fuer Node-Typen, Edge-Typen, Tags, Ordner, Suchbegriffe und Sichtbarkeitsmodi.
-- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten.
+- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Ein isolierter Chrome-Smoke mit Test-Vault bestaetigt sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen und Node-/Edge-Payload; authentifizierte Graph-Fokus-Smokes bleiben offen.
 - Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Ein Chrome-Smoke fuer App-Shell, CSP-kompatiblen Bootstrap und unauthentifizierte Datenroute-401 ist gruen; authentifizierte Vault-Daten- und Graph-Smokes bleiben offen.
 - Large-Vault-Performance hat Fixtures und Baselines, ist aber noch kein Release-Gate mit Grenzwerten.
 - Mobile UI ist abgesichert fuer Header/Settings/Graph-Grundbedienung, aber nicht fuer volle Vault-Navigation und Drag-and-drop.
@@ -69,7 +69,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 ### Noch offen fuer Feature-Ready
 
 - App-Shell-Browser-Smoke fuer `/api/plugins/obsidian/app` ist gruen: App-Shell/Web-Assets laden ohne Auth, CSP blockiert den Bootstrap nicht, Datenroute bleibt 401 ohne Session. Authentifizierte Vault-Daten- und Graph-Smokes bleiben offen.
-- Browser-Smoke fuer Cytoscape: Asset geladen, Graph sichtbar, aktuelle Node markiert, Dateiwechsel im Graph-Modus fokussiert die neue Datei.
+- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault teilweise gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt. Offen bleiben aktuelle Node-Markierung, Dateiwechsel im Graph-Modus und authentifizierter Smoke.
 - Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select.
 - API-/Tool-/UI-Vertragsmatrix, damit jede relevante UI-Aktion einem Route- und Tool-Weg zugeordnet ist.
 - Release-Blocker-Liste als pruefbare Checkliste.

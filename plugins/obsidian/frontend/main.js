@@ -1579,8 +1579,8 @@ function injectUIElements() {
                   </div>
                   <div class="obsidian-pane obsidian-preview-pane" id="obsidian-rendered-preview"></div>
                 </div>
-                <div class="obsidian-graph-view hidden" id="obsidian-graph-view"></div>
               </div>
+              <div class="obsidian-graph-view hidden" id="obsidian-graph-view"></div>
             </div>
           </div>
         </div>
@@ -2012,14 +2012,27 @@ async function openNote(path) {
 
 function setViewMode(mode) {
   currentViewMode = mode === 'graph' ? 'graph' : 'document';
+  const editor = document.getElementById('obsidian-editor-container');
+  const empty = document.getElementById('obsidian-empty-state');
   const panes = document.querySelector('.obsidian-editor-panes');
   const graph = document.getElementById('obsidian-graph-view');
   const toolbar = document.getElementById('obsidian-editor-toolbar');
   const toggle = document.getElementById('obsidian-header-view-toggle');
   if (toggle) toggle.checked = currentViewMode === 'graph';
-  toolbar?.classList.toggle('hidden', currentViewMode === 'graph');
-  panes?.classList.toggle('hidden', currentViewMode === 'graph');
-  graph?.classList.toggle('hidden', currentViewMode !== 'graph');
+  const graphMode = currentViewMode === 'graph';
+  toolbar?.classList.toggle('hidden', graphMode);
+  panes?.classList.toggle('hidden', graphMode);
+  graph?.classList.toggle('hidden', !graphMode);
+  if (graphMode) {
+    editor?.classList.add('hidden');
+    empty?.classList.add('hidden');
+  } else if (currentNotePath) {
+    editor?.classList.remove('hidden');
+    empty?.classList.add('hidden');
+  } else {
+    editor?.classList.add('hidden');
+    empty?.classList.remove('hidden');
+  }
   if (currentViewMode === 'graph') {
     renderGraphView();
   }

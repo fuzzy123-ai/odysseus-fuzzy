@@ -101,8 +101,13 @@ def test_obsidian_frontend_smoke_contract_has_rendered_app_parts():
     assert "openPanel();" in main_js
     assert "loadVaultFiles();" in main_js
     assert "renderGraphView();" in main_js
+    assert "const editor = document.getElementById('obsidian-editor-container')" in main_js
+    assert "const empty = document.getElementById('obsidian-empty-state')" in main_js
     assert "const toolbar = document.getElementById('obsidian-editor-toolbar')" in main_js
-    assert "toolbar?.classList.toggle('hidden', currentViewMode === 'graph')" in main_js
+    assert "const graphMode = currentViewMode === 'graph'" in main_js
+    assert "toolbar?.classList.toggle('hidden', graphMode)" in main_js
+    assert "editor?.classList.add('hidden')" in main_js
+    assert "empty?.classList.add('hidden')" in main_js
     assert ".obsidian-panel-content" in style
     assert ".obsidian-graph-controls" in style
     assert ".obsidian-settings-menu" in style
