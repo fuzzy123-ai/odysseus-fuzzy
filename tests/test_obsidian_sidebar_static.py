@@ -550,6 +550,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "activeFreshnessIsolationFlags.length ? activeFreshnessIsolationFlags.join(', ') : 'clear'" in main_js
     assert "const raptorLineageFlags = memoryStatusReport.raptor_lineage_flags || summary.raptor_lineage_flags || {}" in main_js
     assert "activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear'" in main_js
+    assert "const raptorWriteGate = memoryStatusReport.raptor_write_gate || summary.raptor_write_gate || {}" in main_js
+    assert "RAPTOR write gate" in main_js
     assert "{ label: 'Gate', value: gate.state || 'unknown' }" in main_js
     assert "Freshness isolation" in main_js
     assert "RAPTOR lineage" in main_js

@@ -818,6 +818,19 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             "invalid_summaries": False,
         }
         assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
+        assert status["raptor_write_gate"] == {
+            "feature_flag": "obsidian_raptor_enabled",
+            "feature_enabled": False,
+            "writes_supported": False,
+            "state": "blocked",
+            "gaps": [
+                "raptor_feature_flag_disabled",
+                "source_hash_lineage_verification_required",
+                "dirty_summary_behavior_required",
+                "raptor_rebuild_write_disabled_in_mvp",
+            ],
+        }
+        assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
         assert status["summary"]["writes_supported"] is False
 
 
@@ -847,6 +860,7 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
         assert status["summary"]["freshness_isolation_flags"] == status["freshness_isolation_flags"]
         assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
+        assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
 
 
 async def test_memory_layer_routes_expose_readiness_gates(monkeypatch):

@@ -52,6 +52,10 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         raptor.get("lineage_flags")
         or _mapping(raptor.get("summary")).get("lineage_flags")
     )
+    raptor_write_gate = _mapping(
+        raptor.get("write_gate")
+        or _mapping(raptor.get("summary")).get("write_gate")
+    )
     freshness_isolation_flags = _mapping(
         freshness.get("isolation_flags")
         or _mapping(freshness.get("summary")).get("isolation_flags")
@@ -68,6 +72,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "readiness_gate": readiness_gate,
         "freshness_isolation_flags": freshness_isolation_flags,
         "raptor_lineage_flags": raptor_lineage_flags,
+        "raptor_write_gate": raptor_write_gate,
         "summary": {
             "families": len(readiness_by_family),
             "status_families": len(families),
@@ -86,6 +91,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "freshness_isolation_flags": freshness_isolation_flags,
             "raptor_sources": raptor.get("summary", {}).get("source_count", 0),
             "raptor_lineage_flags": raptor_lineage_flags,
+            "raptor_write_gate": raptor_write_gate,
             "writes_supported": False,
         },
         "flags": flags,

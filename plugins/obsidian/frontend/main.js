@@ -3068,6 +3068,7 @@ function renderUnifiedMemoryStatus() {
   const activeRaptorLineageFlags = Object.entries(raptorLineageFlags)
     .filter(([, value]) => value === true)
     .map(([name]) => name.replace(/_/g, ' '));
+  const raptorWriteGate = memoryStatusReport.raptor_write_gate || summary.raptor_write_gate || {};
   return `
     <div class="obsidian-memory-status-band" data-memory-readiness-state="${escapeHtml(state)}">
       ${memoryMetricGrid([
@@ -3083,6 +3084,7 @@ function renderUnifiedMemoryStatus() {
         { label: 'Quarantine', value: summary.quarantine_items ?? 0 },
         { label: 'RAPTOR sources', value: summary.raptor_sources ?? 0 },
         { label: 'RAPTOR lineage', value: activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear' },
+        { label: 'RAPTOR write gate', value: raptorWriteGate.state || 'blocked' },
         { label: 'Writes', value: summary.writes_supported ? 'yes' : 'no' },
       ])}
       ${renderMemoryReadinessFamilies()}
