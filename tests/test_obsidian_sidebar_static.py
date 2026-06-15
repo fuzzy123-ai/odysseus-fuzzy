@@ -515,6 +515,10 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "function renderKnowledgeAudit()" in main_js
     assert "function renderQuarantineList()" in main_js
     assert "function renderRaptorStatus()" in main_js
+    assert "function renderUnifiedMemoryStatus()" in main_js
+    assert "function renderMemoryReadinessFamilies()" in main_js
+    assert "function renderMemoryReadinessGaps()" in main_js
+    assert "function memoryReadinessGapNames()" in main_js
     assert "function raptorDirtySourceRecords(lineage = {})" in main_js
     assert "function raptorMissingSourceRecords(lineage = {})" in main_js
     assert "function raptorTaintedSourceRecords(lineage = {})" in main_js
@@ -539,6 +543,13 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.isolation_counts" in main_js
     assert "{ label: 'Default retrieval', value: summary.default_retrieval || 0 }" in main_js
     assert "{ label: 'Isolated', value: summary.isolated || 0 }" in main_js
+    assert "memoryStatusReport.summary || {}" in main_js
+    assert 'data-memory-readiness-state="${escapeHtml(state)}"' in main_js
+    assert "summary.readiness_families ?? summary.families" in main_js
+    assert "summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length" in main_js
+    assert "summary?.readiness_gap_names" in main_js
+    assert "memoryStatusReport?.readiness_by_family || {}" in main_js
+    assert 'data-memory-family-ready="${signal.ready ? \'true\' : \'false\'}"' in main_js
     assert "memoryTreeReport.readiness" in main_js
     assert "{ label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length }" in main_js
     assert "renderMemoryStatusCounts('Readiness gaps'" in main_js
@@ -554,6 +565,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "isolation_reason" in main_js
     assert "source_mtime" in main_js
     assert "source_hash" in main_js
+    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory/status')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
@@ -580,6 +592,9 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert ".obsidian-memory-tree-tabs" in style
     assert ".obsidian-memory-tree-metrics" in style
     assert ".obsidian-memory-tree-card" in style
+    assert ".obsidian-memory-status-band" in style
+    assert ".obsidian-memory-status-families" in style
+    assert ".obsidian-memory-status-gaps" in style
     assert ".obsidian-memory-isolation" in style
     assert '.obsidian-memory-isolation[data-memory-isolation-state="active"] > small' in style
     assert ".obsidian-memory-lineage" in style
