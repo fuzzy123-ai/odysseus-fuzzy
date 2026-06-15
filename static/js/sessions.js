@@ -70,9 +70,18 @@ function _missionShellPolicyText(snapshot) {
   return '';
 }
 
+function _missionArtifactText(snapshot) {
+  const artifacts = snapshot?.phases?.verifier?.artifacts || {};
+  const entries = Object.entries(artifacts)
+    .filter(([, count]) => Number(count || 0) > 0)
+    .map(([kind, count]) => `${kind.replace(/_/g, ' ')}: ${count}`);
+  if (!entries.length) return '';
+  return ` Artifacts: ${entries.join(', ')}.`;
+}
+
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {

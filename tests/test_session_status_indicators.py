@@ -47,6 +47,9 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "payload.command_policy" in source
     assert "confirmation required" in source
     assert "audit logged" in source
+    assert "function _missionArtifactText(snapshot)" in source
+    assert "snapshot?.phases?.verifier?.artifacts" in source
+    assert "Artifacts:" in source
 
 
 def test_list_sessions_status_calculation(monkeypatch):
