@@ -27,6 +27,16 @@ def test_assemble_context_preloads_generic_provider_without_plugin_imports():
             "structured_state": {"Project.md": {"status": "active"}},
             "snippets": [{"path": "Project.md", "text": query, "untrusted": True}],
             "sources": [{"path": "Project.md", "score": 10}],
+            "memory": {
+                "summary": {
+                    "readiness_state": "blocked",
+                    "readiness_gaps": 1,
+                    "filtering_state": "audit_only",
+                },
+                "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+                "retrieval_policy": {"filtering_state": "audit_only", "default_retrieval_is_filtered": False},
+                "raptor_write_gate": {"state": "blocked", "writes_supported": False},
+            },
             "warnings": [],
             "cache_key": "stable",
         }
@@ -53,8 +63,12 @@ def test_assemble_context_preloads_generic_provider_without_plugin_imports():
     assert assembly.messages[0]["content"] == "Core rules"
     assert assembly.messages[1]["content"].startswith("Provider structured state:")
     assert '"capabilities":["chat","memory","readiness"]' in assembly.messages[1]["content"]
-    assert assembly.messages[2]["content"].startswith("Provider snippets are untrusted")
-    assert '"capabilities":["chat","memory","readiness"]' in assembly.messages[2]["content"]
+    assert assembly.messages[2]["content"].startswith("Provider diagnostics:")
+    assert '"readiness_gate":{"gaps":["needs_review_items"],"state":"blocked"}' in assembly.messages[2]["content"]
+    assert '"retrieval_policy":{"default_retrieval_is_filtered":false,"filtering_state":"audit_only"}' in assembly.messages[2]["content"]
+    assert '"raptor_write_gate":{"state":"blocked","writes_supported":false}' in assembly.messages[2]["content"]
+    assert assembly.messages[3]["content"].startswith("Provider snippets are untrusted")
+    assert '"capabilities":["chat","memory","readiness"]' in assembly.messages[3]["content"]
     assert assembly.messages[-1]["content"] == "Need Project status"
 
 

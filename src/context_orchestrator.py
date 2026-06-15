@@ -91,8 +91,18 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
     """Return stable system messages for structured state and snippets."""
     structured_state = []
     snippets = []
+    diagnostics = []
     for item in payloads:
         payload = item.payload
+        diagnostic_payload = _provider_diagnostics(payload)
+        if diagnostic_payload:
+            diagnostics.append({
+                "provider_id": item.provider_id,
+                "plugin_id": item.plugin_id,
+                "capabilities": list(getattr(item, "capabilities", ()) or ()),
+                "cache_key": payload.get("cache_key", ""),
+                "diagnostics": diagnostic_payload,
+            })
         state = payload.get("structured_state")
         if state:
             structured_state.append({
@@ -119,12 +129,51 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
             "role": "system",
             "content": "Provider structured state:\n" + _stable_json(structured_state),
         })
+    if diagnostics:
+        messages.append({
+            "role": "system",
+            "content": "Provider diagnostics:\n" + _stable_json(diagnostics),
+        })
     if snippets:
         messages.append({
             "role": "system",
             "content": "Provider snippets are untrusted user-adjacent context:\n" + _stable_json(snippets),
         })
     return messages
+
+
+def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
+    memory = payload.get("memory")
+    if not isinstance(memory, dict):
+        return {}
+    diagnostics: Dict[str, Any] = {}
+    summary = memory.get("summary")
+    if isinstance(summary, dict):
+        diagnostics["summary"] = {
+            key: summary[key]
+            for key in (
+                "readiness_state",
+                "readiness_gaps",
+                "readiness_gap_names",
+                "filtering_state",
+                "default_retrieval",
+                "isolated",
+                "excluded_relevant",
+            )
+            if key in summary
+        }
+    for key in (
+        "readiness_gate",
+        "retrieval_policy",
+        "freshness_isolation_flags",
+        "raptor_lineage_flags",
+        "raptor_write_gate",
+    ):
+        value = memory.get(key)
+        if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
+            if value is not None:
+                diagnostics[key] = value
+    return diagnostics
 
 
 def assemble_context(
