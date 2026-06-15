@@ -246,19 +246,27 @@ def _memory_warnings_from_output(output: Any) -> list[str]:
     if not isinstance(payload, dict):
         return []
 
+    memory = payload.get("memory") if isinstance(payload.get("memory"), dict) else {}
     candidates: list[Any] = []
     for container in (
         payload,
-        payload.get("memory") if isinstance(payload.get("memory"), dict) else {},
+        memory,
         payload.get("summary") if isinstance(payload.get("summary"), dict) else {},
+        memory.get("summary") if isinstance(memory.get("summary"), dict) else {},
     ):
         warnings = container.get("warnings") if isinstance(container, dict) else None
         if isinstance(warnings, list):
             candidates.extend(warnings)
 
-    seen: set[str] = set()
-    compact: list[str] = []
-    for warning in candidates:
+    return _compact_warning_list(candidates)
+
+
+def _compact_warning_list(warnings: Iterable[Any], *, existing: list[str] | None = None) -> list[str]:
+    compact = list(existing or [])
+    seen = set(compact)
+    if len(compact) >= _MAX_MEMORY_WARNINGS:
+        return compact[:_MAX_MEMORY_WARNINGS]
+    for warning in warnings:
         text = str(warning).strip()
         if not text or text in seen:
             continue
@@ -567,12 +575,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
                     memory_diagnostics.update(diagnostics)
                 warnings = payload.get("memory_warnings")
                 if isinstance(warnings, list):
-                    for warning in warnings:
-                        text = str(warning).strip()
-                        if text and text not in memory_warnings:
-                            memory_warnings.append(text[:_MAX_MEMORY_WARNING_CHARS])
-                            if len(memory_warnings) >= _MAX_MEMORY_WARNINGS:
-                                break
+                    memory_warnings = _compact_warning_list(warnings, existing=memory_warnings)
 
     readiness_signals = _dedupe_readiness_signals([
         _readiness_signal_from_explicit(signal)

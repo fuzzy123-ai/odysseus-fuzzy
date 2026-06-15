@@ -564,6 +564,38 @@ def test_agent_run_ledger_extracts_memory_diagnostics(tmp_path, monkeypatch):
     assert "inspect_memory_warnings" in snapshot["next_actions"]
 
 
+def test_agent_run_ledger_caps_memory_warnings_across_events(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-warning-cap"
+
+    first_output = {"warnings": [f"warning_{idx}" for idx in range(24)]}
+    second_output = {
+        "memory": {
+            "summary": {
+                "warnings": [f"warning_{idx}" for idx in range(23, 30)]
+            }
+        }
+    }
+    for output in (first_output, second_output):
+        event = {
+            "type": "tool_output",
+            "tool": "obsidian_memory_status",
+            "round": 1,
+            "exit_code": 0,
+            "output": json.dumps(output),
+        }
+        agent_run_ledger.append_sse_event(session_id, f"data: {json.dumps(event)}\n\n")
+
+    events = agent_run_ledger.read_events(session_id)
+    assert events[1]["payload"]["memory_warnings"] == [f"warning_{idx}" for idx in range(23, 30)]
+
+    summary = agent_run_ledger.summarize_run(session_id)
+    assert len(summary["memory_warnings"]) == 25
+    assert summary["memory_warnings"][0] == "warning_0"
+    assert summary["memory_warnings"][-1] == "warning_24"
+    assert "warning_25" not in summary["memory_warnings"]
+
+
 def test_agent_run_ledger_extracts_readiness_by_family(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-memory-readiness-by-family"
