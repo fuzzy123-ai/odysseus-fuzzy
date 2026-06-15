@@ -61,7 +61,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Browser-Ve
 - Graph-Filter existieren als kompaktes Panel fuer Node-Typen, Edge-Typen, Tags, Suchbegriffe und Hide/Show/Highlight-Modi.
 - Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Isolierte Chrome-Smokes bestaetigen sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen, Node-/Edge-Payload und Tree-Klick-im-Graph-Modus mit echter Login-Session. Ein isolierter Browser-Harness bestaetigt, dass Graph-Filter `hidden`/`highlighted` setzen und die aktuelle Node nicht ausblenden oder dimmen. Der Full-App-Graph-Filter-Smoke ist gruen fuer echte App, echte Vault-Daten, Cytoscape, offenes Filter-Panel, Highlight-Suche und Hide-Suche.
 - Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Chrome-Smokes fuer App-Shell, CSP-kompatiblen Bootstrap, unauthentifizierte Datenroute-401, echten Browser-Login und authentifizierte Vault-Datenroute sind gruen.
-- Large-Vault-Performance hat Fixtures und Baselines, ist aber noch kein Release-Gate mit Grenzwerten.
+- Large-Vault-Performance hat Fixtures, Baselines und jetzt auch ein quantifiziertes RC-Gate fuer den Graph-Build auf einer deterministischen 120-Note-Fixture. Offene Restfrage bleibt die Uebertragbarkeit auf deutlich groessere reale Vaults.
 - Mobile UI ist abgesichert fuer Header/Settings/Graph-Grundbedienung, aber nicht fuer volle Vault-Navigation und Drag-and-drop.
 - Projektplanung kann bestehende Zielkonflikte erkennen, aber noch nicht mergen, ueberschreiben oder selektiv einzelne Preview-Dateien anwenden.
 - Memory Review kann einzelne Kandidaten verarbeiten, aber noch keine Queue und keine klare Core-Memory-vs-Obsidian-Produktentscheidung.
@@ -73,7 +73,6 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Browser-Ve
 - Import-Dry-Run und Konfliktvorschau.
 - Projektplanung: Merge/Overwrite/selektiver Apply.
 - Memory Review: Queue, Duplikaterkennung und klare Speicherentscheidung.
-- Performance-Gate fuer groessere Vaults.
 - Release-Dokumentation fuer Installation, Update, Versionierung und bekannte Einschraenkungen.
 - Manuelle RC-Checks ausserhalb der bestehenden Browser-Smokes: frische Installation, Upgrade-Pfad, Export/Import in leerem Vault und Release-Zip-Struktur.
 
@@ -96,6 +95,7 @@ Feature-ready bedeutet hier:
 - Projektplanung und Memory Review schreiben nur nach Preview und Bestaetigung.
 - Agent-Tools koennen dieselben Kernaktionen ausfuehren wie die UI und halten dieselben Sicherheitsgrenzen ein.
 - Gesperrte Vaults leaken keine Inhalte ueber Datei-, Tag-, Graph-, Projekt- oder Memory-Routen.
+- Performance fuer grosse Vaults hat dokumentierte Messpunkte und einen expliziten RC-Schwellwert statt nur gefuehlter "noch okay"-Einschaetzungen.
 - Browser-, Backend-, statische UI- und Sicherheits-Smokes sind dokumentiert und reproduzierbar.
 - Keine veralteten Planungsdokumente widersprechen dieser Roadmap.
 
@@ -193,6 +193,7 @@ Sollstand:
   - `hide`: passende Elemente werden ausgeblendet.
 - Filterzustand soll lokal persistiert werden, aber pro Vault/Session nicht verwirrend wirken.
 - Keine Toolbar-Ueberladung: Filter als kompaktes Panel/Popover in der Graphansicht.
+- Altlasten wie separate globale Filtervariablen duerfen nicht parallel zu einem zentralen Graph-State weiterleben, weil sonst Filterkombinationen inkonsistent werden.
 
 Nicht-Ziel fuer RC:
 
@@ -209,7 +210,8 @@ Arbeit:
 5. Graph-Filter-Panel bauen: Checkboxes fuer Edge/Node, Tag-Suche, Suchfeld, Modus-Schalter.
 6. "Reset graph filters" im Settings-Menue auf neuen State umstellen.
 7. Agent-Tool/Route pruefen: Reicht `obsidian_graph` mit Query-Parametern oder braucht es einen Filter-Preview-Toolvertrag?
-8. Tests fuer State, DOM-Contracts und Backend-Payload ergaenzen.
+8. Legacy-Globals fuer Graph-Filter konsequent entfernen oder in den zentralen State migrieren.
+9. Tests fuer State, DOM-Contracts und Backend-Payload ergaenzen.
 
 Testgate:
 
@@ -227,19 +229,24 @@ Sollstand:
 - Gesperrte Vaults blockieren Tags, Graph, Datei, Projektplanung und Memory Review.
 - Apply-Flows ueberschreiben keine bestehenden Dateien still.
 - Undo verweigert unsichere Ruecksetzungen, wenn Inhalte nachtraeglich geaendert wurden.
+- Das Sicherheitsmodell wird nicht nur in Doku, sondern auch im UI klar erklaert: Passwortschutz sperrt Plugin-Zugriff, verschluesselt aber bestehende Vault-Dateien auf Platte nicht automatisch at-rest.
 
 Arbeit:
 
 1. Sicherheits-Testmatrix aus den alten Planungsdokumenten als Tests/Release-Checklist abbilden.
 2. Gesperrte-Vault-Leak-Test fuer Graph/Tags/Search/Project/Memory ist fuer Tool- und Route-Level ergaenzt.
 3. Import-Dry-Run als P1 planen, aber RC mindestens mit sicherem Import-Verhalten dokumentieren.
-4. Release Notes mit klarer Einschraenkung: aktueller Passwortschutz schuetzt den Zugriff im Plugin, ist aber kein vollstaendig verschluesselter Vault-at-rest, falls Daten unverschluesselt auf Platte liegen.
+4. Passwort-Setzen/Ersetzen im UI ist mit unmissverstaendlicher At-Rest-Warnung versehen; ein blosses README-/Release-Notes-Statement reicht fuer RC nicht aus.
+5. Release Notes mit klarer Einschraenkung: aktueller Passwortschutz schuetzt den Zugriff im Plugin, ist aber kein vollstaendig verschluesselter Vault-at-rest, falls Daten unverschluesselt auf Platte liegen.
+6. Projektplanung-/Memory-Apply-Fallback ist explizit als "hart blockieren mit 409, kein stilles Overwrite" abgesichert und in Route-/Tool-Tests sichtbar gehalten.
 
 Testgate:
 
 - Plugin-Backend-Tests fuer Vault Security.
 - Neuer Leak-Test, falls noch nicht abgedeckt.
 - Manuelle Review von DOM/Toast/History fuer Passwortstrings.
+- Manueller UI-Check: Passwortdialog nennt die Nicht-Verschluesselung-at-rest explizit vor dem Speichern. Der statische Frontend-Vertrag ist bereits gruen; ein weiterer Live-Klicknachweis bleibt optional.
+- Konflikt-Check: Projektplanung/Memory-Apply bei vorhandenen Dateien bleibt strikt blockiert und schreibt nichts. Tool- und Route-Level-Tests sind gruen.
 
 ### P0.5 Release-Dokumentation und Distribution
 
@@ -256,7 +263,7 @@ Arbeit:
 1. Dokumentationsdateien vor Release auf Encoding-Artefakte pruefen. `plugins/obsidian/CONTRIBUTING.md` wurde in diesem Cleanup bereinigt.
 2. `plugin.py` und `plugin.json` Version bei Release-Schnitt synchron halten; aktuell beide `0.10.0-rc.1`.
 3. Bekannte Einschraenkungen in README oder Release Notes ergaenzen.
-4. Installationspfad aus README pruefen: Repositoryname ist aktuell `Odysseus-plugin-obisidan`; Schreibweise bewusst bestaetigen oder korrigieren.
+4. Installationspfad in Root-README und Plugin-README konsistent halten; der aktuelle Clone-Pfad verwendet bereits `Odysseus-plugin-obsidian` und sollte vor Release nicht wieder regressieren.
 
 ## P1 Feature-Haertung
 
@@ -286,6 +293,7 @@ Akzeptanz:
 - Nutzer kann vorhandenes Projekt erweitern, ohne Dateien zu verlieren.
 - Konflikte zeigen Ziel, Grund und sichere Auswahloptionen.
 - Agent kann denselben Plan als Tool vorschlagen und erst nach Bestaetigung anwenden.
+- Bis diese P1-Arbeit erledigt ist, bleibt der P0-Fallback unveraendert streng: bestehende Dateien fuehren zu Konfliktlisten und einem blockierenden `409`, nie zu implizitem Merge oder Overwrite.
 
 ### P1.2 Memory Review produktreif machen
 
@@ -411,6 +419,7 @@ Akzeptanz:
 - Graph: Cytoscape sichtbar, SVG-Fallback erzwingbar, aktuelle Node markiert.
 - Graph: Datei im Tree anklicken waehrend Graph aktiv ist; Node bleibt/ wird hervorgehoben.
 - Graph: Filter hide/show/highlight fuer mindestens Edge-Type und Tag. Isolierter Harness und Full-App-Smoke sind gruen.
+- Passwortschutz: Set-/Replace-Dialog zeigt die Nicht-Verschluesselung-at-rest explizit an.
 - Project planning: Preview, Streaming, Session Reload, Apply.
 - Memory Review: Preview, Save-to-Obsidian, Append-to-Note, Apply.
 - Vault lock: Nach Lock keine Inhalte ueber Files/Tags/Graph/Search/Project/Memory sichtbar.
@@ -423,18 +432,19 @@ Akzeptanz:
 - Passwortgeschuetzter Export/Import.
 - Release-Zip-Struktur pruefen.
 - README-Installationspfad pruefen.
+- Performance-Messung mit definierter Vault-Groesse gegen die RC-Grenzwerte dokumentieren. Die deterministische 120-Note-Fixture ist als Testgate hinterlegt.
 
 ## Bekannte Risiken und Code-Probleme
 
-- Graph-Filter-State ist fuer den RC-MVP ausreichend, steckt aber noch in globalen Frontend-Variablen. Das wird mit weiteren Node-/Tag-/Highlight-Filtern schnell unuebersichtlich.
+- Graph-Filter-State ist teilweise zentralisiert, aber noch nicht vollstaendig konsolidiert; verbleibende globale Altlasten wie separate Filtervariablen sind Technical Debt und duerfen fuer den RC nicht weiter anwachsen.
 - Graph-Fokus basiert aktuell stark auf `currentNotePath`; Ordnerselektion und Vault-Root brauchen klare Sonderregeln.
-- Cytoscape-Layout kann bei grossen Vaults teuer werden; Large-Vault-Grenzwerte fehlen.
+- Cytoscape-Layout kann bei grossen Vaults teuer werden; fuer die RC-Fixture existieren jetzt harte Grenzwerte, aber fuer deutlich groessere reale Vaults fehlen noch weitergehende Erfahrungswerte.
 - Static-Contract-Tests sind wertvoll, ersetzen aber keine Browser-Smokes.
 - Full-App-Graph-Filter-Smoke ist gruen mit frischem Browser-Harness; verbleibende Browser-Warnungen betreffen Favicon-404 und Cytoscape-Wheel-Sensitivity, nicht den Filtervertrag.
 - Auth-Exempt-Regeln fuer Plugin-Shell vs. Plugin-Datenrouten sind sicherheitsrelevant und muessen klein bleiben.
-- Passwortschutz darf nicht als vollstaendige Verschluesselung-at-rest verkauft werden, solange das nicht explizit implementiert und getestet ist.
+- Passwortschutz darf nicht als vollstaendige Verschluesselung-at-rest verkauft werden; die Einschraenkung ist in README/SECURITY bereits dokumentiert, aber im UI-Set-Password-Flow noch nicht deutlich genug.
 - Projektplanung und Memory Review haben viele Schreibpfade; Konflikt- und Preview-UX muss vor Release glasklar bleiben.
-- Alter Repositoryname `Odysseus-plugin-obisidan` ist vermutlich bewusst bestehend, sieht aber wie ein Tippfehler aus und sollte vor oeffentlichem Release bestaetigt werden.
+- Root-README nutzt bereits den korrigierten Repositorynamen `Odysseus-plugin-obsidian`; die Roadmap darf hier keinen veralteten Unsicherheitsstand mehr spiegeln.
 
 ## Konsolidierte Alt-Dokumente
 
