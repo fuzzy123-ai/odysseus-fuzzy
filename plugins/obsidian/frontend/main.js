@@ -3027,6 +3027,12 @@ function renderMemoryRecordLineage(item = {}) {
   return `<small class="obsidian-memory-lineage" data-memory-lineage="true">${escapeHtml(meta.join(' | '))}</small>`;
 }
 
+function renderMemoryRecordIsolation(item = {}) {
+  if (item.default_retrieval !== false && !item.isolation_reason) return '';
+  const reason = item.isolation_reason || 'Excluded from default retrieval.';
+  return `<small class="obsidian-memory-record-isolation" data-memory-record-isolation="true">${escapeHtml(reason)}</small>`;
+}
+
 function renderMemoryRecordList(title, items = [], empty = 'No items') {
   return `
     <div class="obsidian-memory-tree-card">
@@ -3037,6 +3043,7 @@ function renderMemoryRecordList(title, items = [], empty = 'No items') {
             <div>
               <span>${escapeHtml(item.path || item.title || item.id || 'Untitled')}</span>
               <small>${escapeHtml(item.reason || item.status || item.kind || '')}</small>
+              ${renderMemoryRecordIsolation(item)}
               ${renderMemoryRecordLineage(item)}
             </div>
             <em>${escapeHtml(item.status || item.channel || item.kind || '')}</em>

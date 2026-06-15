@@ -1634,6 +1634,10 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   opacity: 0.82;
 }
 
+.obsidian-memory-record-isolation {
+  color: color-mix(in srgb, var(--red) 70%, var(--muted));
+}
+
 .obsidian-project-files {
   display: flex;
   flex-direction: column;
