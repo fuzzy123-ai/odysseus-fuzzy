@@ -241,12 +241,16 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     raptor = raptor_status(vault_dir)
     raptor_readiness = raptor.get("readiness") if isinstance(raptor.get("readiness"), dict) else {}
     freshness_readiness = audit.get("readiness") if isinstance(audit.get("readiness"), dict) else {}
+    freshness_gaps = [str(gap) for gap in freshness_readiness.get("gaps") or []]
+    raptor_gaps = [str(gap) for gap in raptor_readiness.get("gaps") or []]
     audit_summary["excluded_relevant"] = len(excluded)
     audit_summary["filtering_state"] = filtering_state
     audit_summary["freshness_readiness_state"] = freshness_readiness.get("state", "unknown")
-    audit_summary["freshness_readiness_gaps"] = len(freshness_readiness.get("gaps") or [])
+    audit_summary["freshness_readiness_gaps"] = len(freshness_gaps)
+    audit_summary["freshness_readiness_gap_names"] = freshness_gaps
     audit_summary["raptor_readiness_state"] = raptor_readiness.get("state", "unknown")
-    audit_summary["raptor_readiness_gaps"] = len(raptor_readiness.get("gaps") or [])
+    audit_summary["raptor_readiness_gaps"] = len(raptor_gaps)
+    audit_summary["raptor_readiness_gap_names"] = raptor_gaps
     memory = {
         "summary": audit_summary,
         "current": [
