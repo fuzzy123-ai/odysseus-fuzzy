@@ -122,6 +122,7 @@ from plugin import (
     handle_vault_export,
     handle_vault_import,
     handle_vault_lock,
+    handle_vault_remove_password,
     handle_vault_set_password,
     handle_vault_status,
     handle_vault_unlock,
@@ -3056,6 +3057,57 @@ async def test_ai_vault_password_and_encrypted_archive_flow(monkeypatch):
 
         assert import_res["exit_code"] == 0
         assert os.path.exists(os.path.join(dst, "Project.md"))
+
+
+@pytest.mark.asyncio
+async def test_vault_password_values_do_not_leak_to_outputs_state_or_history(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        secret = "unique vault password 27349"
+        export_secret = "unique export password 81273"
+
+        set_res = await handle_vault_set_password(json.dumps({
+            "password": secret,
+            "confirm": True,
+        }), owner="alice")
+        assert set_res["exit_code"] == 0
+        assert secret not in set_res.get("output", "")
+        assert secret not in set_res.get("error", "")
+
+        state_path = os.path.join(tmpdir, ".odysseus-vault.json")
+        with open(state_path, "r", encoding="utf-8") as f:
+            state_content = f.read()
+        assert secret not in state_content
+        assert "password_hash" in state_content
+
+        lock_res = await handle_vault_lock("", owner="alice")
+        assert lock_res["exit_code"] == 0
+
+        unlock_res = await handle_vault_unlock(json.dumps({"password": secret}), owner="alice")
+        assert unlock_res["exit_code"] == 0
+        assert secret not in unlock_res.get("output", "")
+        assert secret not in unlock_res.get("error", "")
+
+        export_res = await handle_vault_export(json.dumps({
+            "password": export_secret,
+            "confirm": True,
+        }), owner="alice")
+        assert export_res["exit_code"] == 0
+        assert export_secret not in export_res.get("output", "")
+        assert export_secret not in export_res.get("error", "")
+
+        history_res = await handle_history('{"limit": 20}', owner="alice")
+        assert history_res["exit_code"] == 0
+        assert secret not in history_res["output"]
+        assert export_secret not in history_res["output"]
+
+        remove_res = await handle_vault_remove_password(json.dumps({
+            "password": secret,
+            "confirm": True,
+        }), owner="alice")
+        assert remove_res["exit_code"] == 0
+        assert secret not in remove_res.get("output", "")
+        assert secret not in remove_res.get("error", "")
 
 
 def test_plugin_setup_registration():
