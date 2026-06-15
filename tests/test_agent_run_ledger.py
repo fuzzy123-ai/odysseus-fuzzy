@@ -865,6 +865,53 @@ def test_chat_mission_route_returns_readiness_gate_snapshot(tmp_path, monkeypatc
     assert "resolve_readiness_gaps" in body["next_actions"]
 
 
+def test_chat_mission_route_accepts_readiness_gate_only_payload(tmp_path, monkeypatch):
+    import routes.chat_routes as chat_routes
+
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(chat_routes, "_verify_session_owner", lambda request, session_id: None)
+    monkeypatch.setattr(chat_routes.agent_runs, "is_active", lambda session_id: False)
+    monkeypatch.setattr(chat_routes.agent_runs, "get_status", lambda session_id: None)
+
+    agent_run_ledger.append_run_started("mission-route-gate-only")
+    agent_run_ledger.append_sse_event(
+        "mission-route-gate-only",
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness_gate\\":{'
+        '\\"required\\":true,\\"satisfied\\":false,\\"state\\":\\"blocked\\",'
+        '\\"families\\":2,\\"ready_families\\":0,'
+        '\\"blocked_families\\":[\\"freshness\\",\\"raptor\\"],'
+        '\\"gaps\\":[\\"freshness_filtering_not_active\\",\\"raptor_index_missing\\"]}}"}\n\n',
+    )
+    agent_run_ledger.append_status("mission-route-gate-only", "done")
+
+    app = FastAPI()
+    app.include_router(chat_routes.setup_chat_routes(
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ))
+
+    response = TestClient(app).get("/api/chat/mission/mission-route-gate-only?tail=1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 2,
+        "ready_families": 0,
+        "blocked_families": ["freshness", "raptor"],
+        "gaps": ["freshness_filtering_not_active", "raptor_index_missing"],
+    }
+    assert set(body["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
+    assert "resolve_readiness_gaps" in body["next_actions"]
+
+
 def test_chat_run_ledger_route_404s_without_ledger_or_active_run(tmp_path, monkeypatch):
     import routes.chat_routes as chat_routes
 
