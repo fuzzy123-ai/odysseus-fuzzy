@@ -71,6 +71,11 @@ def test_agent_provider_context_inserts_after_primary_system_prompt():
             "structured_state": {"Agent.md": {"owner": owner, "query": query}},
             "snippets": [{"path": "Agent.md", "text": "agent context", "untrusted": True}],
             "sources": [{"path": "Agent.md", "score": 5}],
+            "memory": {
+                "summary": {"readiness_state": "blocked", "filtering_state": "audit_only"},
+                "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+                "retrieval_policy": {"filtering_state": "audit_only", "default_retrieval_is_filtered": False},
+            },
             "warnings": [],
             "cache_key": "agent-stable",
         }
@@ -93,7 +98,10 @@ def test_agent_provider_context_inserts_after_primary_system_prompt():
 
     assert messages[0]["content"] == "BASE"
     assert messages[1]["content"].startswith("Provider structured state:")
-    assert messages[2]["content"].startswith("Provider snippets are untrusted")
+    assert messages[2]["content"].startswith("Provider diagnostics:")
+    assert '"readiness_gate":{"gaps":["needs_review_items"],"state":"blocked"}' in messages[2]["content"]
+    assert '"retrieval_policy":{"default_retrieval_is_filtered":false,"filtering_state":"audit_only"}' in messages[2]["content"]
+    assert messages[3]["content"].startswith("Provider snippets are untrusted")
     assert messages[-1]["content"] == "work"
 
 
