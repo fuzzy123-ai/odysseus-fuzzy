@@ -539,6 +539,9 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.isolation_counts" in main_js
     assert "{ label: 'Default retrieval', value: summary.default_retrieval || 0 }" in main_js
     assert "{ label: 'Isolated', value: summary.isolated || 0 }" in main_js
+    assert "memoryTreeReport.readiness" in main_js
+    assert "{ label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length }" in main_js
+    assert "renderMemoryStatusCounts('Readiness gaps'" in main_js
     assert "knowledgeAuditReport.readiness" in main_js
     assert "quarantineReport.readiness" in main_js
     assert "{ label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' }" in main_js

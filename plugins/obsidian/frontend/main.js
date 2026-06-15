@@ -3097,17 +3097,21 @@ function renderMemoryTreeOverview() {
     return '<div class="obsidian-project-loading">Run refresh to analyze the memory tree.</div>';
   }
   const summary = memoryTreeReport.summary || {};
+  const readiness = memoryTreeReport.readiness || {};
   return `
     ${memoryMetricGrid([
       { label: 'Notes', value: summary.total_notes || 0 },
+      { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
       { label: 'Branches', value: summary.branch_candidates || 0 },
       { label: 'Default retrieval', value: summary.default_retrieval || 0 },
       { label: 'Isolated', value: summary.isolated || 0 },
       { label: 'Issues', value: (memoryTreeReport.issues || []).length },
+      { label: 'Gaps', value: summary.readiness_gaps ?? (readiness.gaps || []).length },
       { label: 'Writes', value: memoryTreeReport.storage?.writes_performed ? 'yes' : 'no' },
     ])}
     ${renderMemoryWarnings(memoryTreeReport)}
     <div class="obsidian-memory-tree-grid">
+      ${renderMemoryStatusCounts('Readiness gaps', (readiness.gaps || []).reduce((acc, gap) => ({ ...acc, [gap]: 1 }), {}))}
       ${renderMemoryStatusCounts('Status', summary.status_counts || {})}
       ${renderMemoryStatusCounts('Isolated statuses', summary.isolation_counts || {})}
       ${renderMemoryStatusCounts('Truth levels', summary.truth_level_counts || {})}
