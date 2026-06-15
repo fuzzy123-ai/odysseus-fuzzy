@@ -411,6 +411,48 @@ def test_agent_run_ledger_prefers_explicit_memory_readiness_signals(tmp_path, mo
     ]
 
 
+def test_summarize_mission_treats_somt_readiness_as_verification_gap(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-somt-readiness-gap"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_memory_tree_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness\\":{\\"ready\\":false,\\"state\\":\\"needs_review\\",'
+        '\\"gaps\\":[\\"somt_issues_present\\"]}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+    signal = events[1]["payload"]["readiness_signal"]
+    assert signal == {
+        "family": "somt",
+        "source": "readiness",
+        "state": "needs_review",
+        "ready": False,
+        "gaps": ["somt_issues_present"],
+        "gap_count": 1,
+    }
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "blocked"
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"readiness_check": 1, "somt_readiness": 1}
+    assert snapshot["summary"]["readiness_by_family"]["somt"] == signal
+    assert snapshot["summary"]["latest_blocker"] == {
+        "role": "verifier",
+        "kind": "readiness_signal",
+        "tool": "obsidian_memory_tree_status",
+        "reason": "readiness_gaps",
+        "family": "somt",
+        "source": "readiness",
+        "state": "needs_review",
+        "gaps": ["somt_issues_present"],
+        "gap_count": 1,
+    }
+
+
 def test_summarize_mission_reports_latest_required_action(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-confirm-required"

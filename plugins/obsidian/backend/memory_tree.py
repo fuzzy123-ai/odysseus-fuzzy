@@ -266,6 +266,7 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
     if limit is not None:
         notes = notes[: max(0, int(limit))]
     graph_edges = _graph_edges(notes)
+    issues = _issues(notes, graph_edges)
     status_counts = Counter(note["status"] for note in notes)
     truth_counts = Counter(note["truth_level"] for note in notes)
     default_retrieval = sum(1 for note in notes if note["default_retrieval"])
@@ -276,14 +277,23 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
         if status != "active"
     }
     public_nodes = [{k: v for k, v in note.items() if not k.startswith("_")} for note in notes]
+    flags = all_flags()
+    readiness = _somt_readiness(
+        enabled=flags["obsidian_somt_enabled"],
+        total_notes=len(notes),
+        issues=issues,
+        warnings=warnings,
+    )
     return {
-        "enabled": is_enabled("obsidian_somt_enabled"),
+        "enabled": flags["obsidian_somt_enabled"],
         "storage": {
             "index": SOMT_INDEX_PATH,
             "report": SOMT_REPORT_PATH,
             "writes_performed": False,
         },
-        "flags": all_flags(),
+        "flags": flags,
+        "readiness": readiness,
+        "readiness_signals": [_readiness_signal("somt", readiness)],
         "summary": {
             "total_notes": len(notes),
             "status_counts": dict(sorted(status_counts.items())),
@@ -292,10 +302,12 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
             "default_retrieval": default_retrieval,
             "isolated": isolated,
             "isolation_counts": isolation_counts,
+            "readiness_state": readiness["state"],
+            "readiness_gaps": len(readiness["gaps"]),
         },
         "nodes": public_nodes,
         "branches": _branch_candidates(notes),
-        "issues": _issues(notes, graph_edges),
+        "issues": issues,
         "warnings": warnings,
     }
 
@@ -305,7 +317,50 @@ def memory_tree_status(vault_dir: str) -> Dict[str, Any]:
     return {
         "enabled": report["enabled"],
         "storage": report["storage"],
+        "readiness": report["readiness"],
+        "readiness_signals": report["readiness_signals"],
         "summary": report["summary"],
         "issue_counts": dict(Counter(issue["type"] for issue in report["issues"])),
         "flags": report["flags"],
+    }
+
+
+def _somt_readiness(*, enabled: bool, total_notes: int, issues: List[Dict[str, Any]], warnings: List[str]) -> Dict[str, Any]:
+    gaps: List[str] = []
+    if not enabled:
+        gaps.append("somt_disabled")
+    if total_notes == 0:
+        gaps.append("somt_no_notes")
+    if issues:
+        gaps.append("somt_issues_present")
+    if warnings:
+        gaps.append("somt_warnings_present")
+    if not enabled:
+        state = "disabled"
+    elif total_notes == 0:
+        state = "empty"
+    elif issues:
+        state = "needs_review"
+    elif warnings:
+        state = "warnings"
+    else:
+        state = "ready"
+    return {
+        "ready": state == "ready",
+        "state": state,
+        "gaps": gaps,
+        "writes_supported": False,
+    }
+
+
+def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
+    gaps = [str(gap) for gap in readiness.get("gaps") or []]
+    state = str(readiness.get("state") or "unknown")
+    return {
+        "family": family,
+        "source": "readiness",
+        "state": state,
+        "ready": bool(readiness.get("ready", state == "ready")),
+        "gaps": gaps,
+        "gap_count": len(gaps),
     }

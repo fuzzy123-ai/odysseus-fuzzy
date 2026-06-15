@@ -253,6 +253,8 @@ def _readiness_family_from_payload(payload: dict[str, Any], family_hint: str = "
 
 def _readiness_family_from_text(value: Any) -> str:
     kind = str(value or "").lower()
+    if "somt" in kind or "memory_tree" in kind or "memory-tree" in kind:
+        return "somt"
     if "raptor" in kind:
         return "raptor"
     if "freshness" in kind or "quarantine" in kind:
