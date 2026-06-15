@@ -93,15 +93,34 @@ def test_summarize_run_reports_status_tools_metrics_and_tail(tmp_path, monkeypat
         session_id,
         'data: {"type": "metrics", "data": {"input_tokens": 10, "output_tokens": 4, "total_tokens": 14, "usage_source": "real"}}\n\n',
     )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 2, "exit_code": 0, '
+        '"output": "{\\"readiness_by_family\\":{\\"freshness\\":{\\"source\\":\\"readiness\\",'
+        '\\"state\\":\\"needs_review\\",\\"ready\\":false,\\"gaps\\":[\\"needs_review_items\\"],'
+        '\\"gap_count\\":1}}}"}\n\n',
+    )
     agent_run_ledger.append_status(session_id, "done")
 
     summary = agent_run_ledger.summarize_run(session_id, tail=2)
 
     assert summary["exists"] is True
     assert summary["status"] == "done"
-    assert summary["event_count"] == 5
-    assert summary["event_counts"] == {"run_started": 1, "sse_event": 3, "run_status": 1}
+    assert summary["event_count"] == 6
+    assert summary["event_counts"] == {"run_started": 1, "sse_event": 4, "run_status": 1}
     assert summary["tools"]["bash"] == {"starts": 1, "outputs": 1, "blocked": 0, "last_exit_code": 0}
+    assert summary["tools"]["obsidian_memory_status"] == {"starts": 0, "outputs": 1, "blocked": 0, "last_exit_code": 0}
+    assert summary["readiness_signals"] == [
+        {
+            "family": "freshness",
+            "source": "readiness",
+            "state": "needs_review",
+            "ready": False,
+            "gaps": ["needs_review_items"],
+            "gap_count": 1,
+        }
+    ]
+    assert summary["readiness_by_family"]["freshness"] == summary["readiness_signals"][0]
     assert summary["last_metrics"] == {
         "input_tokens": 10,
         "output_tokens": 4,

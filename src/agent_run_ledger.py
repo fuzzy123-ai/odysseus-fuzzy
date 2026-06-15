@@ -289,6 +289,14 @@ def _dedupe_readiness_signals(signals: list[dict[str, Any]]) -> list[dict[str, A
     return deduped[:10]
 
 
+def _readiness_by_family(signals: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    grouped = {}
+    for signal in signals:
+        if isinstance(signal, dict):
+            grouped[str(signal.get("family") or "generic")] = signal
+    return dict(sorted(grouped.items()))
+
+
 def _safe_gap_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -350,6 +358,7 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
     started_at = None
     updated_at = None
     last_metrics = None
+    readiness_signals: list[dict[str, Any]] = []
 
     for event in events:
         event_type = str(event.get("event") or "")
@@ -383,7 +392,16 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
                 entry["last_exit_code"] = payload.get("exit_code")
                 if payload.get("blocked"):
                     entry["blocked"] += 1
+                signals = payload.get("readiness_signals")
+                if isinstance(signals, list):
+                    readiness_signals.extend(signal for signal in signals if isinstance(signal, dict))
+                elif isinstance(payload.get("readiness_signal"), dict):
+                    readiness_signals.append(payload["readiness_signal"])
 
+    readiness_signals = _dedupe_readiness_signals([
+        _readiness_signal_from_explicit(signal)
+        for signal in readiness_signals
+    ])
     tail_count = max(0, int(tail or 0))
     return {
         "session_id": str(session_id),
@@ -394,6 +412,8 @@ def summarize_run(session_id: str, *, tail: int = 20) -> dict[str, Any]:
         "event_count": len(events),
         "event_counts": event_counts,
         "tools": tools,
+        "readiness_signals": readiness_signals,
+        "readiness_by_family": _readiness_by_family(readiness_signals),
         "last_metrics": last_metrics,
         "tail": events[-tail_count:] if tail_count else [],
     }
