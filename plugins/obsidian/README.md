@@ -52,6 +52,13 @@ It also registers a read-only context provider for the Odysseus context-orchestr
 - Optional encrypted ZIP exports.
 - ZIP import with archive member validation to block escape paths and reserved internal files.
 
+### RC Limitations
+
+- Plugin password protection gates access through the plugin and tool APIs. It is not full vault-at-rest encryption for plaintext Markdown files already present on disk.
+- RAPTOR status, lineage, dirty/tainted source metadata, and write-gate diagnostics are read-only in this release candidate. RAPTOR rebuild/write workflows remain disabled until explicitly enabled and tested.
+- Freshness Gate quarantine and isolation workflows are audit/readiness surfaces by default. Hybrid retrieval filtering remains feature-flagged and backward-compatible with the existing context-provider contract.
+- Browser smoke verification is still required before tagging a release candidate, especially for authenticated app loading, Cytoscape rendering, graph focus, and graph filters.
+
 ### History and Undo
 
 - Vault changes are recorded in `.obsidian/history.json`.

@@ -25,7 +25,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 - Plugin-Struktur liegt unter `plugins/obsidian/`.
 - `plugin.py` enthaelt Manifest, `setup(ctx)`, Router-Registrierung und Agent-Tool-Registrierung.
-- `plugin.json` beschreibt Name, Version `0.9.0`, Frontend und UI-Entry.
+- `plugin.json` und `plugin.py` beschreiben Name, Version `0.10.0-rc.1`, Frontend und UI-Entry.
 - UI-Entry ist `/api/plugins/obsidian/app`.
 - Frontend-Assets werden ueber `/api/plugins/obsidian/web/{filename:path}` ausgeliefert.
 - Der alte direkte Plugin-Loader-Ansatz ist nicht mehr Zielarchitektur.
@@ -60,7 +60,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 - Graph-Filter existieren nur als einfacher Edge-Type-Select. Es fehlt ein dynamisches Filter-/Highlight-Panel fuer Node-Typen, Edge-Typen, Tags, Ordner, Suchbegriffe und Sichtbarkeitsmodi.
 - Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten.
-- Auth-Verhalten fuer Plugin-UI und Plugin-API ist in Bewegung: UI-Loader darf unauthentifiziert laden, Plugin-API-Routen sollen aber durch AuthMiddleware laufen, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Das muss mit echten Auth-Smokes abgesichert werden.
+- Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Der echte Browser-Smoke bleibt offen.
 - Large-Vault-Performance hat Fixtures und Baselines, ist aber noch kein Release-Gate mit Grenzwerten.
 - Mobile UI ist abgesichert fuer Header/Settings/Graph-Grundbedienung, aber nicht fuer volle Vault-Navigation und Drag-and-drop.
 - Projektplanung kann bestehende Zielkonflikte erkennen, aber noch nicht mergen, ueberschreiben oder selektiv einzelne Preview-Dateien anwenden.
@@ -68,7 +68,7 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 ### Noch offen fuer Feature-Ready
 
-- Authentifizierter Browser-Smoke fuer `/api/plugins/obsidian/app`.
+- Authentifizierter Browser-Smoke fuer `/api/plugins/obsidian/app`; TestClient prueft bereits App-Shell/Web-Asset 200 und Datenroute 401 ohne Session.
 - Browser-Smoke fuer Cytoscape: Asset geladen, Graph sichtbar, aktuelle Node markiert, Dateiwechsel im Graph-Modus fokussiert die neue Datei.
 - Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select.
 - API-/Tool-/UI-Vertragsmatrix, damit jede relevante UI-Aktion einem Route- und Tool-Weg zugeordnet ist.
@@ -233,7 +233,7 @@ Sollstand:
 Arbeit:
 
 1. Sicherheits-Testmatrix aus den alten Planungsdokumenten als Tests/Release-Checklist abbilden.
-2. Gesperrte-Vault-Leak-Test fuer Graph/Tags/Search/Project/Memory pruefen oder ergaenzen.
+2. Gesperrte-Vault-Leak-Test fuer Graph/Tags/Search/Project/Memory ist fuer Tool- und Route-Level ergaenzt.
 3. Import-Dry-Run als P1 planen, aber RC mindestens mit sicherem Import-Verhalten dokumentieren.
 4. Release Notes mit klarer Einschraenkung: aktueller Passwortschutz schuetzt den Zugriff im Plugin, ist aber kein vollstaendig verschluesselter Vault-at-rest, falls Daten unverschluesselt auf Platte liegen.
 
@@ -256,7 +256,7 @@ Sollstand:
 Arbeit:
 
 1. Dokumentationsdateien vor Release auf Encoding-Artefakte pruefen. `plugins/obsidian/CONTRIBUTING.md` wurde in diesem Cleanup bereinigt.
-2. `plugin.py` und `plugin.json` Version bei Release-Schnitt synchron halten.
+2. `plugin.py` und `plugin.json` Version bei Release-Schnitt synchron halten; aktuell beide `0.10.0-rc.1`.
 3. Bekannte Einschraenkungen in README oder Release Notes ergaenzen.
 4. Installationspfad aus README pruefen: Repositoryname ist aktuell `Odysseus-plugin-obisidan`; Schreibweise bewusst bestaetigen oder korrigieren.
 
