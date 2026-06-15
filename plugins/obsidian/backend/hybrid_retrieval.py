@@ -240,8 +240,11 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
                     seen_excluded.add(item["path"])
     raptor = raptor_status(vault_dir)
     raptor_readiness = raptor.get("readiness") if isinstance(raptor.get("readiness"), dict) else {}
+    freshness_readiness = audit.get("readiness") if isinstance(audit.get("readiness"), dict) else {}
     audit_summary["excluded_relevant"] = len(excluded)
     audit_summary["filtering_state"] = filtering_state
+    audit_summary["freshness_readiness_state"] = freshness_readiness.get("state", "unknown")
+    audit_summary["freshness_readiness_gaps"] = len(freshness_readiness.get("gaps") or [])
     audit_summary["raptor_readiness_state"] = raptor_readiness.get("state", "unknown")
     audit_summary["raptor_readiness_gaps"] = len(raptor_readiness.get("gaps") or [])
     memory = {
