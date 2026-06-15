@@ -717,6 +717,20 @@ def test_freshness_audit_and_quarantine_are_read_only():
             "needs_review_items",
             "quarantined_items",
         ]
+        assert audit["readiness_signals"] == [
+            {
+                "family": "freshness",
+                "source": "readiness",
+                "state": "needs_review",
+                "ready": False,
+                "gaps": [
+                    "freshness_filtering_not_active",
+                    "needs_review_items",
+                    "quarantined_items",
+                ],
+                "gap_count": 3,
+            }
+        ]
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
         assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
@@ -731,6 +745,7 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert quarantine["flags"]["obsidian_hybrid_retrieval_enabled"] is False
         assert quarantine["filtering_state"] == "audit_only"
         assert quarantine["readiness"]["state"] == "needs_review"
+        assert quarantine["readiness_signals"] == audit["readiness_signals"]
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 3
         assert quarantine["summary"]["by_channel"] == {"needs_review": 1, "quarantined": 2}
@@ -755,6 +770,16 @@ def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatc
             "gaps": [],
             "writes_supported": False,
         }
+        assert audit["readiness_signals"] == [
+            {
+                "family": "freshness",
+                "source": "readiness",
+                "state": "ready",
+                "ready": True,
+                "gaps": [],
+                "gap_count": 0,
+            }
+        ]
         assert audit["summary"]["readiness_state"] == "ready"
         assert audit["summary"]["readiness_gaps"] == 0
 
@@ -825,6 +850,16 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
             "gaps": ["raptor_index_missing"],
             "writes_supported": False,
         }
+        assert status["readiness_signals"] == [
+            {
+                "family": "raptor",
+                "source": "readiness",
+                "state": "not_configured",
+                "ready": False,
+                "gaps": ["raptor_index_missing"],
+                "gap_count": 1,
+            }
+        ]
         assert status["summary"]["readiness_state"] == "not_configured"
         assert status["summary"]["readiness_gaps"] == 1
 
@@ -854,6 +889,16 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
             "gaps": [],
             "writes_supported": False,
         }
+        assert status["readiness_signals"] == [
+            {
+                "family": "raptor",
+                "source": "readiness",
+                "state": "ready",
+                "ready": True,
+                "gaps": [],
+                "gap_count": 0,
+            }
+        ]
         assert status["lineage"]["source_count"] == 1
         assert status["lineage"]["dirty_sources"] == []
         assert status["lineage"]["missing_sources"] == []

@@ -160,6 +160,7 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "dirty": dirty,
         "tainted": tainted,
         "readiness": readiness,
+        "readiness_signals": [_readiness_signal("raptor", readiness)],
         "lineage": lineage_status,
         "summary": {
             "source_count": lineage_status["summary"]["source_count"],

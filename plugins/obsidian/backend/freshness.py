@@ -151,6 +151,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
         "flags": flags,
         "filtering_state": filtering_state,
         "readiness": readiness,
+        "readiness_signals": [_readiness_signal("freshness", readiness)],
         "channels": channels,
         "summary": {
             "total": sum(len(values) for values in channels.values()),
@@ -167,6 +168,19 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "readiness_gaps": len(readiness["gaps"]),
         },
         "warnings": warnings,
+    }
+
+
+def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
+    gaps = [str(gap) for gap in readiness.get("gaps") or []]
+    state = str(readiness.get("state") or "unknown")
+    return {
+        "family": family,
+        "source": "readiness",
+        "state": state,
+        "ready": bool(readiness.get("ready", state == "ready")),
+        "gaps": gaps,
+        "gap_count": len(gaps),
     }
 
 
@@ -216,6 +230,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
         "flags": audit["flags"],
         "filtering_state": audit.get("filtering_state", "disabled"),
         "readiness": audit.get("readiness", {}),
+        "readiness_signals": audit.get("readiness_signals", []),
         "items": items,
         "summary": {
             "total": len(items),
