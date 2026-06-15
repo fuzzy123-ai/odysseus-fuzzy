@@ -59,8 +59,8 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 ### Teilweise erledigt
 
 - Graph-Filter existieren nur als einfacher Edge-Type-Select. Es fehlt ein dynamisches Filter-/Highlight-Panel fuer Node-Typen, Edge-Typen, Tags, Ordner, Suchbegriffe und Sichtbarkeitsmodi.
-- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Ein isolierter Chrome-Smoke mit Test-Vault bestaetigt sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen und Node-/Edge-Payload; authentifizierte Graph-Fokus-Smokes bleiben offen.
-- Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Ein Chrome-Smoke fuer App-Shell, CSP-kompatiblen Bootstrap und unauthentifizierte Datenroute-401 ist gruen; authentifizierte Vault-Daten- und Graph-Smokes bleiben offen.
+- Graph-Fokus und aktueller Knoten sind technisch begonnen, aber noch nicht als fertiger UX-Vertrag abgesichert: Tree-Klick soll im Graph bleiben, den Knoten highlighten, optional dorthin zoomen/pannen und Nachbarschaft sichtbar halten. Isolierte Chrome-Smokes bestaetigen sichtbaren Graph-View, Cytoscape-Canvas-Dimensionen, Node-/Edge-Payload und Tree-Klick-im-Graph-Modus mit echter Login-Session. Offen bleiben strengere visuelle Current-Node-Markierung und Graph-Filter-Smokes.
+- Auth-Verhalten fuer Plugin-UI und Plugin-API ist technisch gepinnt: UI-Loader, App-Shell und Plugin-Web-Assets duerfen unauthentifiziert laden; Plugin-Datenrouten laufen weiter durch AuthMiddleware, damit `request.state.current_user` fuer `require_user()` vorhanden ist. Chrome-Smokes fuer App-Shell, CSP-kompatiblen Bootstrap, unauthentifizierte Datenroute-401, echten Browser-Login und authentifizierte Vault-Datenroute sind gruen.
 - Large-Vault-Performance hat Fixtures und Baselines, ist aber noch kein Release-Gate mit Grenzwerten.
 - Mobile UI ist abgesichert fuer Header/Settings/Graph-Grundbedienung, aber nicht fuer volle Vault-Navigation und Drag-and-drop.
 - Projektplanung kann bestehende Zielkonflikte erkennen, aber noch nicht mergen, ueberschreiben oder selektiv einzelne Preview-Dateien anwenden.
@@ -68,8 +68,8 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Dafuer feh
 
 ### Noch offen fuer Feature-Ready
 
-- App-Shell-Browser-Smoke fuer `/api/plugins/obsidian/app` ist gruen: App-Shell/Web-Assets laden ohne Auth, CSP blockiert den Bootstrap nicht, Datenroute bleibt 401 ohne Session. Authentifizierte Vault-Daten- und Graph-Smokes bleiben offen.
-- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault teilweise gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt. Offen bleiben aktuelle Node-Markierung, Dateiwechsel im Graph-Modus und authentifizierter Smoke.
+- App-Shell- und Auth-Browser-Smoke fuer `/api/plugins/obsidian/app` ist gruen: App-Shell/Web-Assets laden ohne Auth, CSP blockiert den Bootstrap nicht, Datenroute bleibt 401 ohne Session, echter Browser-Login funktioniert, `/files` liefert fuer die authentifizierte Smoke-Vault 200.
+- Browser-Smoke fuer Cytoscape ist fuer eine isolierte Test-Vault gruen: Asset geladen, Graph-View sichtbar, Canvas dimensioniert, Node-/Edge-Payload korrekt, Tree-Klick auf `Alpha.md` bleibt im Graph-Modus und ruft `/graph?focus=Alpha.md` erfolgreich auf. Offen bleiben visuelle Current-Node-Markierung und Graph-Filter-Smoke.
 - Dynamische Graph-Filter mit Hide/Show/Highlight statt nur Edge-Type-Select.
 - API-/Tool-/UI-Vertragsmatrix, damit jede relevante UI-Aktion einem Route- und Tool-Weg zugeordnet ist.
 - Release-Blocker-Liste als pruefbare Checkliste.
