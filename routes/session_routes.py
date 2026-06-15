@@ -304,6 +304,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 
                 # Check run ledger status
                 run_status = agent_runs.get_status(sid)
+                ledger = {}
                 if not run_status:
                     # check durable ledger status
                     ledger = agent_run_ledger.summarize_run(sid, tail=1)
@@ -319,6 +320,17 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     meta_str = last_m["meta_data"]
                     if "ask_user" in content_str or "ask_user" in meta_str:
                         is_attention = True
+                if not is_running and not is_error and not is_attention and not ledger:
+                    ledger = agent_run_ledger.summarize_run(sid, tail=1)
+                if not is_running and not is_error and not is_attention and ledger.get("exists"):
+                    try:
+                        from src.mission_status import summarize_mission
+                        mission = summarize_mission(sid, tail=0, active=False, memory_status=run_status)
+                        readiness_gate = (mission.get("summary") or {}).get("readiness_gate") or {}
+                        if readiness_gate.get("state") == "blocked":
+                            is_attention = True
+                    except Exception:
+                        pass
                 
                 # Select status
                 if is_running:

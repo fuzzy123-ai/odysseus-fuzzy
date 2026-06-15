@@ -103,6 +103,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     working_id = str(uuid.uuid4())
     error_id = str(uuid.uuid4())
     attention_id = str(uuid.uuid4())
+    readiness_id = str(uuid.uuid4())
     done_id = str(uuid.uuid4())
 
     db = _TS()
@@ -117,6 +118,8 @@ def test_list_sessions_status_calculation(monkeypatch):
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=attention_id, owner="alice", name="attention chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
+        db.add(DbSession(id=readiness_id, owner="alice", name="readiness chat",
+                         endpoint_url="http://localhost", model="gpt-4", archived=False))
         db.add(DbSession(id=done_id, owner="alice", name="done chat",
                          endpoint_url="http://localhost", model="gpt-4", archived=False))
         
@@ -127,6 +130,7 @@ def test_list_sessions_status_calculation(monkeypatch):
         # Add normal messages for the other sessions
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=working_id, role="user", content="hello"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=error_id, role="assistant", content="failed before"))
+        db.add(DbMsg(id=str(uuid.uuid4()), session_id=readiness_id, role="assistant", content="readiness blocked"))
         db.add(DbMsg(id=str(uuid.uuid4()), session_id=done_id, role="assistant", content="completed successfully"))
 
         db.commit()
@@ -135,14 +139,28 @@ def test_list_sessions_status_calculation(monkeypatch):
 
     # Mock agent_runs behavior
     monkeypatch.setattr(agent_runs, "is_active", lambda sid: sid == working_id)
-    monkeypatch.setattr(agent_runs, "get_status", lambda sid: "error" if sid == error_id else None)
-    monkeypatch.setattr(agent_run_ledger, "summarize_run", lambda sid, tail=1: {"status": "error"} if sid == error_id else {})
+    monkeypatch.setattr(agent_runs, "get_status", lambda sid: (
+        "error" if sid == error_id
+        else "done" if sid == readiness_id
+        else None
+    ))
+    monkeypatch.setattr(agent_run_ledger, "summarize_run", lambda sid, tail=1: (
+        {"status": "error"} if sid == error_id
+        else {"exists": True, "status": "done"} if sid == readiness_id
+        else {}
+    ))
+    from src import mission_status
+    monkeypatch.setattr(mission_status, "summarize_mission", lambda sid, **kwargs: (
+        {"summary": {"readiness_gate": {"state": "blocked"}}} if sid == readiness_id
+        else {"summary": {"readiness_gate": {"state": "not_applicable"}}}
+    ))
 
     # Mock session_manager
     session_dict = {
         working_id: MagicMock(id=working_id, name="working chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         error_id: MagicMock(id=error_id, name="error chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         attention_id: MagicMock(id=attention_id, name="attention chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
+        readiness_id: MagicMock(id=readiness_id, name="readiness chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
         done_id: MagicMock(id=done_id, name="done chat", model="gpt-4", endpoint_url="http://localhost", rag=False, archived=False),
     }
     
@@ -161,4 +179,5 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[working_id]["status"] == "working"
     assert res_map[error_id]["status"] == "error"
     assert res_map[attention_id]["status"] == "attention"
+    assert res_map[readiness_id]["status"] == "attention"
     assert res_map[done_id]["status"] == "done"
