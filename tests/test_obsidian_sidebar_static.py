@@ -546,9 +546,12 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "memoryStatusReport.summary || {}" in main_js
     assert 'data-memory-readiness-state="${escapeHtml(state)}"' in main_js
     assert "const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {}" in main_js
+    assert "const freshnessIsolationFlags = memoryStatusReport.freshness_isolation_flags || summary.freshness_isolation_flags || {}" in main_js
+    assert "activeFreshnessIsolationFlags.length ? activeFreshnessIsolationFlags.join(', ') : 'clear'" in main_js
     assert "const raptorLineageFlags = memoryStatusReport.raptor_lineage_flags || summary.raptor_lineage_flags || {}" in main_js
     assert "activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear'" in main_js
     assert "{ label: 'Gate', value: gate.state || 'unknown' }" in main_js
+    assert "Freshness isolation" in main_js
     assert "RAPTOR lineage" in main_js
     assert "memoryStatusReport?.readiness_gate?.gaps || memoryStatusReport?.summary?.readiness_gate?.gaps" in main_js
     assert "summary.readiness_families ?? summary.families" in main_js

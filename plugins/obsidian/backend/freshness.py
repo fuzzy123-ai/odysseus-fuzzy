@@ -149,6 +149,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
     )
     readiness_signal = _readiness_signal("freshness", readiness)
     readiness_gate = readiness_gate_from_signals([readiness_signal])
+    isolation_flags = _isolation_flags(channels, filtering_state)
     return {
         "enabled": flags["obsidian_freshness_gate_enabled"],
         "flags": flags,
@@ -156,6 +157,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
         "readiness": readiness,
         "readiness_signals": [readiness_signal],
         "readiness_gate": readiness_gate,
+        "isolation_flags": isolation_flags,
         "channels": channels,
         "summary": {
             "total": sum(len(values) for values in channels.values()),
@@ -167,6 +169,7 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "isolated": isolated_total,
             "status_counts": dict(sorted(status_counts.items())),
             "isolation_counts": dict(sorted(isolation_counts.items())),
+            "isolation_flags": isolation_flags,
             "filtering_state": filtering_state,
             "readiness_state": readiness["state"],
             "readiness_gaps": len(readiness["gaps"]),
@@ -174,6 +177,19 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "readiness_gate": readiness_gate,
         },
         "warnings": warnings,
+    }
+
+
+def _isolation_flags(channels: Dict[str, List[Dict[str, Any]]], filtering_state: str) -> Dict[str, bool]:
+    needs_review = bool(channels["needs_review"])
+    conflicts = bool(channels["conflicts"])
+    quarantined = bool(channels["quarantined"])
+    return {
+        "needs_review": needs_review,
+        "conflicts": conflicts,
+        "quarantined": quarantined,
+        "isolated": needs_review or conflicts or quarantined,
+        "filtering_active": filtering_state == "active",
     }
 
 
@@ -238,6 +254,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
         "readiness": audit.get("readiness", {}),
         "readiness_signals": audit.get("readiness_signals", []),
         "readiness_gate": audit.get("readiness_gate", {}),
+        "isolation_flags": audit.get("isolation_flags", {}),
         "items": items,
         "summary": {
             "total": len(items),
@@ -245,6 +262,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "isolated": len(items),
             "by_status": dict(sorted(Counter(item["status"] for item in items).items())),
             "by_channel": dict(sorted(Counter(item["channel"] for item in items).items())),
+            "isolation_flags": audit.get("isolation_flags", {}),
             "filtering_state": audit.get("filtering_state", "disabled"),
             "readiness_state": audit.get("readiness", {}).get("state", "unknown"),
             "readiness_gaps": len(audit.get("readiness", {}).get("gaps") or []),

@@ -794,6 +794,14 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["summary"]["default_retrieval"] == 1
         assert status["summary"]["isolated"] == 1
         assert status["summary"]["quarantine_items"] == 1
+        assert status["freshness_isolation_flags"] == {
+            "needs_review": True,
+            "conflicts": False,
+            "quarantined": False,
+            "isolated": True,
+            "filtering_active": False,
+        }
+        assert status["summary"]["freshness_isolation_flags"] == status["freshness_isolation_flags"]
         assert status["raptor_lineage_flags"] == {
             "dirty": False,
             "missing": False,
@@ -829,6 +837,7 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert "conflict_items" in status["readiness_gate"]["gaps"]
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert status["summary"]["freshness_isolation_flags"] == status["freshness_isolation_flags"]
         assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
 
 
@@ -914,6 +923,14 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
         assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
+        assert audit["isolation_flags"] == {
+            "needs_review": True,
+            "conflicts": False,
+            "quarantined": True,
+            "isolated": True,
+            "filtering_active": False,
+        }
+        assert audit["summary"]["isolation_flags"] == audit["isolation_flags"]
         assert audit["summary"]["filtering_state"] == "audit_only"
         assert audit["summary"]["readiness_state"] == "needs_review"
         assert audit["summary"]["readiness_gaps"] == 3
@@ -931,6 +948,8 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 3
         assert quarantine["summary"]["by_channel"] == {"needs_review": 1, "quarantined": 2}
+        assert quarantine["isolation_flags"] == audit["isolation_flags"]
+        assert quarantine["summary"]["isolation_flags"] == audit["isolation_flags"]
         assert quarantine["summary"]["filtering_state"] == "audit_only"
         assert quarantine["summary"]["readiness_state"] == "needs_review"
         assert quarantine["summary"]["readiness_gaps"] == 3
@@ -952,6 +971,13 @@ def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatc
             "state": "ready",
             "gaps": [],
             "writes_supported": False,
+        }
+        assert audit["isolation_flags"] == {
+            "needs_review": False,
+            "conflicts": False,
+            "quarantined": False,
+            "isolated": False,
+            "filtering_active": True,
         }
         assert audit["readiness_signals"] == [
             {

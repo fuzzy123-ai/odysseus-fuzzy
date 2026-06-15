@@ -3060,6 +3060,10 @@ function renderUnifiedMemoryStatus() {
   const summary = memoryStatusReport.summary || {};
   const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {};
   const state = summary.readiness_state || 'unknown';
+  const freshnessIsolationFlags = memoryStatusReport.freshness_isolation_flags || summary.freshness_isolation_flags || {};
+  const activeFreshnessIsolationFlags = Object.entries(freshnessIsolationFlags)
+    .filter(([name, value]) => value === true && name !== 'filtering_active')
+    .map(([name]) => name.replace(/_/g, ' '));
   const raptorLineageFlags = memoryStatusReport.raptor_lineage_flags || summary.raptor_lineage_flags || {};
   const activeRaptorLineageFlags = Object.entries(raptorLineageFlags)
     .filter(([, value]) => value === true)
@@ -3075,6 +3079,7 @@ function renderUnifiedMemoryStatus() {
         { label: 'Gaps', value: summary.readiness_gaps ?? 0 },
         { label: 'Default retrieval', value: summary.default_retrieval ?? 0 },
         { label: 'Isolated', value: summary.isolated ?? 0 },
+        { label: 'Freshness isolation', value: activeFreshnessIsolationFlags.length ? activeFreshnessIsolationFlags.join(', ') : 'clear' },
         { label: 'Quarantine', value: summary.quarantine_items ?? 0 },
         { label: 'RAPTOR sources', value: summary.raptor_sources ?? 0 },
         { label: 'RAPTOR lineage', value: activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear' },
