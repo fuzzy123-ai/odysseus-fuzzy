@@ -270,6 +270,11 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
     truth_counts = Counter(note["truth_level"] for note in notes)
     default_retrieval = sum(1 for note in notes if note["default_retrieval"])
     isolated = len(notes) - default_retrieval
+    isolation_counts = {
+        status: count
+        for status, count in sorted(status_counts.items())
+        if status != "active"
+    }
     public_nodes = [{k: v for k, v in note.items() if not k.startswith("_")} for note in notes]
     return {
         "enabled": is_enabled("obsidian_somt_enabled"),
@@ -286,6 +291,7 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
             "branch_candidates": len(_branch_candidates(notes)),
             "default_retrieval": default_retrieval,
             "isolated": isolated,
+            "isolation_counts": isolation_counts,
         },
         "nodes": public_nodes,
         "branches": _branch_candidates(notes),
