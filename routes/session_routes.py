@@ -260,6 +260,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
             msg_count_map = {}
             status_map = {}
             status_reason_map = {}
+            status_message_map = {}
             
             from sqlalchemy import func
             from core.database import ChatMessage as _DbMsg
@@ -322,6 +323,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     if "ask_user" in content_str or "ask_user" in meta_str:
                         is_attention = True
                         status_reason_map[sid] = "ask_user"
+                        status_message_map[sid] = "Waiting for user input"
                 if not is_running and not is_error and not is_attention and not ledger:
                     ledger = agent_run_ledger.summarize_run(sid, tail=1)
                 if not is_running and not is_error and not is_attention and ledger.get("exists"):
@@ -332,6 +334,12 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                         if readiness_gate.get("state") == "blocked":
                             is_attention = True
                             status_reason_map[sid] = "readiness_gate_blocked"
+                            gaps = readiness_gate.get("gaps") if isinstance(readiness_gate.get("gaps"), list) else []
+                            gap_text = ", ".join(str(gap).replace("_", " ") for gap in gaps[:3])
+                            status_message_map[sid] = (
+                                f"Readiness gate blocked: {gap_text}" if gap_text
+                                else "Readiness gate blocked"
+                            )
                     except Exception:
                         pass
                 
@@ -339,14 +347,17 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 if is_running:
                     status_map[sid] = "working"
                     status_reason_map.pop(sid, None)
+                    status_message_map.pop(sid, None)
                 elif is_error:
                     status_map[sid] = "error"
                     status_reason_map[sid] = "run_error"
+                    status_message_map[sid] = "Run failed"
                 elif is_attention:
                     status_map[sid] = "attention"
                 else:
                     status_map[sid] = "done"
                     status_reason_map.pop(sid, None)
+                    status_message_map.pop(sid, None)
 
             # Sessions with active documents that have content
             doc_session_ids = set(
@@ -381,7 +392,8 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                      "mode": mode_map.get(s.id),
                      "message_count": msg_count_map.get(s.id, 0),
                      "status": status_map.get(s.id, "done"),
-                     "status_reason": status_reason_map.get(s.id)}
+                     "status_reason": status_reason_map.get(s.id),
+                     "status_message": status_message_map.get(s.id)}
                     for s in user_sessions.values()
                     if not s.archived
                     and (s.name or "").strip() not in ("Nobody", "Incognito")

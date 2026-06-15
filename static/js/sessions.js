@@ -461,7 +461,7 @@ function createSessionItem(s) {
   }
   if (s.status_reason) {
     div.dataset.statusReason = s.status_reason;
-    div.title = String(s.status_reason).replace(/_/g, ' ');
+    div.title = s.status_message || String(s.status_reason).replace(/_/g, ' ');
   }
   div.setAttribute('role', 'option');
   div.setAttribute('tabindex', '-1');

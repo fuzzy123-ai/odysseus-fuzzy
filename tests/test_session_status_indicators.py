@@ -54,7 +54,7 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "has_blocker" in source
     assert "node.readiness_blocked" in source
     assert "div.dataset.statusReason = s.status_reason" in source
-    assert "String(s.status_reason).replace(/_/g, ' ')" in source
+    assert "s.status_message || String(s.status_reason).replace(/_/g, ' ')" in source
     assert "function _missionRequiredActionText(snapshot)" in source
     assert "snapshot?.summary?.latest_required_action" in source
     assert "Required:" in source
@@ -153,7 +153,7 @@ def test_list_sessions_status_calculation(monkeypatch):
     ))
     from src import mission_status
     monkeypatch.setattr(mission_status, "summarize_mission", lambda sid, **kwargs: (
-        {"summary": {"readiness_gate": {"state": "blocked"}}} if sid == readiness_id
+        {"summary": {"readiness_gate": {"state": "blocked", "gaps": ["freshness_filtering_not_active", "needs_review_items"]}}} if sid == readiness_id
         else {"summary": {"readiness_gate": {"state": "not_applicable"}}}
     ))
 
@@ -180,11 +180,16 @@ def test_list_sessions_status_calculation(monkeypatch):
     
     assert res_map[working_id]["status"] == "working"
     assert res_map[working_id]["status_reason"] is None
+    assert res_map[working_id]["status_message"] is None
     assert res_map[error_id]["status"] == "error"
     assert res_map[error_id]["status_reason"] == "run_error"
+    assert res_map[error_id]["status_message"] == "Run failed"
     assert res_map[attention_id]["status"] == "attention"
     assert res_map[attention_id]["status_reason"] == "ask_user"
+    assert res_map[attention_id]["status_message"] == "Waiting for user input"
     assert res_map[readiness_id]["status"] == "attention"
     assert res_map[readiness_id]["status_reason"] == "readiness_gate_blocked"
+    assert res_map[readiness_id]["status_message"] == "Readiness gate blocked: freshness filtering not active, needs review items"
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None
+    assert res_map[done_id]["status_message"] is None
