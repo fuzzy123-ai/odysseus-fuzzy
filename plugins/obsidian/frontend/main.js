@@ -3106,6 +3106,7 @@ function renderMemoryTreeOverview() {
     ${renderMemoryWarnings(memoryTreeReport)}
     <div class="obsidian-memory-tree-grid">
       ${renderMemoryStatusCounts('Status', summary.status_counts || {})}
+      ${renderMemoryStatusCounts('Isolated statuses', summary.isolation_counts || {})}
       ${renderMemoryStatusCounts('Truth levels', summary.truth_level_counts || {})}
       ${renderMemoryRecordList('Branch candidates', memoryTreeReport.branches || [], 'No branch candidates')}
       ${renderMemoryRecordList('Issues', memoryTreeReport.issues || [], 'No issues detected')}
