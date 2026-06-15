@@ -134,6 +134,8 @@ def _is_worker_event(payload: dict[str, Any]) -> bool:
 
 
 def _is_verifier_event(payload: dict[str, Any]) -> bool:
+    if isinstance(payload.get("readiness_signal"), dict):
+        return True
     if payload.get("tool") in _BROWSER_TOOLS:
         return True
     if payload.get("has_screenshot"):
@@ -168,6 +170,12 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
     elif payload_type == "tool_output":
         counts["outputs"] += 1
         counts["last_exit_code"] = payload.get("exit_code")
+        signal = payload.get("readiness_signal") if isinstance(payload.get("readiness_signal"), dict) else None
+        if signal:
+            counts["artifacts"]["readiness_check"] = counts["artifacts"].get("readiness_check", 0) + 1
+            if not signal.get("ready", False):
+                counts["blocked"] += 1
+                counts["last_blocker"] = _readiness_blocker(payload, signal)
         if payload.get("has_screenshot"):
             counts["artifacts"]["screenshot"] = counts["artifacts"].get("screenshot", 0) + 1
         if payload.get("blocked") or payload.get("exit_code") not in (None, 0):
@@ -227,9 +235,21 @@ def _blocker(kind: str, payload: dict[str, Any], policy: dict[str, Any] | None =
     return blocker
 
 
+def _readiness_blocker(payload: dict[str, Any], signal: dict[str, Any]) -> dict[str, Any]:
+    gaps = signal.get("gaps") if isinstance(signal.get("gaps"), list) else []
+    return {
+        "kind": "readiness_signal",
+        "tool": str(payload.get("tool") or ""),
+        "reason": "readiness_gaps",
+        "state": str(signal.get("state") or "unknown"),
+        "gaps": [str(item) for item in gaps[:10]],
+        "gap_count": int(signal.get("gap_count") or len(gaps)),
+    }
+
+
 def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -> None:
     phase.update(counts)
-    if counts["starts"] == 0:
+    if counts["starts"] == 0 and counts["outputs"] == 0:
         phase["status"] = "idle"
     elif counts["blocked"] > 0:
         phase["status"] = "blocked"

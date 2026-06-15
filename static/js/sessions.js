@@ -83,6 +83,8 @@ function _missionBlockerText(snapshot) {
   const role = blocker.role ? `${blocker.role} ` : '';
   const details = [
     blocker.reason ? String(blocker.reason).replace(/_/g, ' ') : '',
+    blocker.state ? `state ${blocker.state}` : '',
+    blocker.gap_count !== undefined ? `${blocker.gap_count} gap${Number(blocker.gap_count || 0) === 1 ? '' : 's'}` : '',
     blocker.exit_code !== undefined ? `exit ${blocker.exit_code}` : '',
     blocker.policy_tier ? `policy ${blocker.policy_tier}` : '',
   ].filter(Boolean).join(', ');

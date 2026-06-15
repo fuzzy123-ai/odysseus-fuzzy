@@ -120,9 +120,12 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
             summary["blocked"] = bool(payload.get("blocked", False))
             if payload.get("screenshot"):
                 summary["has_screenshot"] = True
-            output = payload.get("output")
-            if output is not None:
-                summary["output_chars"] = len(str(output))
+        output = payload.get("output")
+        if output is not None:
+            summary["output_chars"] = len(str(output))
+            readiness_signal = _readiness_signal_from_output(output)
+            if readiness_signal:
+                summary["readiness_signal"] = readiness_signal
 
     if kind in {"agent_step", "rounds_exhausted", "budget_exceeded"}:
         for key in ("round", "rounds", "limit", "used"):
@@ -141,6 +144,68 @@ def summarize_sse_event(sse: str) -> dict[str, Any] | None:
             summary["error_preview"] = str(payload.get("error"))[:_MAX_PREVIEW_CHARS]
 
     return summary
+
+
+def _readiness_signal_from_output(output: Any) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(str(output))
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    signal = _readiness_signal_from_mapping(payload)
+    if signal:
+        return signal
+    memory = payload.get("memory")
+    if isinstance(memory, dict):
+        signal = _readiness_signal_from_mapping(memory)
+        if signal:
+            return signal
+    summary = payload.get("summary")
+    if isinstance(summary, dict):
+        return _readiness_signal_from_mapping(summary)
+    return None
+
+
+def _readiness_signal_from_mapping(payload: dict[str, Any]) -> dict[str, Any] | None:
+    readiness = payload.get("readiness")
+    if isinstance(readiness, dict):
+        state = str(readiness.get("state") or "unknown")
+        gaps = _safe_gap_list(readiness.get("gaps"))
+        return {
+            "source": "readiness",
+            "state": state,
+            "ready": bool(readiness.get("ready", state == "ready")),
+            "gaps": gaps,
+            "gap_count": len(gaps),
+        }
+    summary = payload.get("summary")
+    if isinstance(summary, dict):
+        nested = _readiness_signal_from_mapping(summary)
+        if nested:
+            return nested
+    state = payload.get("raptor_readiness_state") or payload.get("readiness_state")
+    if state:
+        gap_count = int(payload.get("raptor_readiness_gaps") or payload.get("readiness_gaps") or 0)
+        gaps = _safe_gap_list(payload.get("raptor_readiness_gap_names") or payload.get("readiness_gap_names"))
+        return {
+            "source": "summary",
+            "state": str(state),
+            "ready": str(state) == "ready" and gap_count == 0,
+            "gaps": gaps,
+            "gap_count": max(gap_count, len(gaps)),
+        }
+    return None
+
+
+def _safe_gap_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [
+        str(item)[:80]
+        for item in value[:10]
+        if isinstance(item, (str, int, float))
+    ]
 
 
 def append_sse_event(session_id: str, sse: str) -> dict[str, Any] | None:

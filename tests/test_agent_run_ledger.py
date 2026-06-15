@@ -247,6 +247,69 @@ def test_summarize_mission_reports_latest_verifier_blocker(tmp_path, monkeypatch
     assert "failed details" not in json.dumps(snapshot)
 
 
+def test_summarize_mission_treats_readiness_signal_as_verification_gap(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-readiness-gap"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_raptor_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness\\":{\\"ready\\":false,\\"state\\":\\"tainted\\",'
+        '\\"gaps\\":[\\"source_isolated_from_default_retrieval\\"]}}"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    events = agent_run_ledger.read_events(session_id)
+    signal = events[1]["payload"]["readiness_signal"]
+    assert signal == {
+        "source": "readiness",
+        "state": "tainted",
+        "ready": False,
+        "gaps": ["source_isolated_from_default_retrieval"],
+        "gap_count": 1,
+    }
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "blocked"
+    assert snapshot["phases"]["verifier"]["artifacts"] == {"readiness_check": 1}
+    assert snapshot["summary"]["verification_evidence"] == {"readiness_check": 1}
+    assert snapshot["summary"]["verification_satisfied"] is False
+    assert snapshot["summary"]["verification_gaps"] == ["verification_blocked"]
+    assert snapshot["summary"]["latest_blocker"] == {
+        "role": "verifier",
+        "kind": "readiness_signal",
+        "tool": "obsidian_raptor_status",
+        "reason": "readiness_gaps",
+        "state": "tainted",
+        "gaps": ["source_isolated_from_default_retrieval"],
+        "gap_count": 1,
+    }
+    assert "inspect_verification_failure" in snapshot["next_actions"]
+
+
+def test_agent_run_ledger_extracts_readiness_signal_from_memory_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-memory-summary"
+
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "obsidian_context", "round": 1, "exit_code": 0, '
+        '"output": "{\\"memory\\":{\\"summary\\":{\\"raptor_readiness_state\\":\\"dirty\\",'
+        '\\"raptor_readiness_gaps\\":2}}}"}\n\n',
+    )
+
+    events = agent_run_ledger.read_events(session_id)
+    assert events[0]["payload"]["readiness_signal"] == {
+        "source": "summary",
+        "state": "dirty",
+        "ready": False,
+        "gaps": [],
+        "gap_count": 2,
+    }
+
+
 def test_summarize_mission_reports_latest_required_action(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
     session_id = "mission-confirm-required"
