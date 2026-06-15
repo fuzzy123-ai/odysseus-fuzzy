@@ -728,6 +728,20 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["flags"]["obsidian_hybrid_retrieval_enabled"] is False
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert status["readiness_gate"] == {
+            "required": True,
+            "satisfied": False,
+            "state": "blocked",
+            "families": 3,
+            "ready_families": 0,
+            "blocked_families": ["freshness", "raptor", "somt"],
+            "gaps": [
+                "somt_issues_present",
+                "freshness_filtering_not_active",
+                "needs_review_items",
+                "raptor_index_missing",
+            ],
+        }
         assert status["summary"]["families"] == 3
         assert status["summary"]["status_families"] == 4
         assert status["summary"]["readiness_families"] == 3
@@ -741,6 +755,7 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             "needs_review_items",
             "raptor_index_missing",
         ]
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
         assert status["summary"]["default_retrieval"] == 1
         assert status["summary"]["isolated"] == 1
         assert status["summary"]["quarantine_items"] == 1
@@ -765,7 +780,10 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert status["filtering_state"] == "audit_only"
         assert status["summary"]["filtering_state"] == "audit_only"
         assert status["summary"]["readiness_state"] == "blocked"
+        assert status["readiness_gate"]["state"] == "blocked"
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
         assert "conflict_items" in status["summary"]["readiness_gap_names"]
+        assert "conflict_items" in status["readiness_gate"]["gaps"]
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
 

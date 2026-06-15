@@ -3031,6 +3031,10 @@ function renderMemoryReadinessFamilies() {
 }
 
 function memoryReadinessGapNames() {
+  const gateGaps = memoryStatusReport?.readiness_gate?.gaps || memoryStatusReport?.summary?.readiness_gate?.gaps;
+  if (Array.isArray(gateGaps) && gateGaps.length) {
+    return gateGaps;
+  }
   const summaryGaps = memoryStatusReport?.summary?.readiness_gap_names;
   if (Array.isArray(summaryGaps) && summaryGaps.length) {
     return summaryGaps;
@@ -3054,11 +3058,13 @@ function renderMemoryReadinessGaps() {
 function renderUnifiedMemoryStatus() {
   if (!memoryStatusReport) return '';
   const summary = memoryStatusReport.summary || {};
+  const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {};
   const state = summary.readiness_state || 'unknown';
   return `
     <div class="obsidian-memory-status-band" data-memory-readiness-state="${escapeHtml(state)}">
       ${memoryMetricGrid([
         { label: 'Readiness', value: state },
+        { label: 'Gate', value: gate.state || 'unknown' },
         { label: 'Ready families', value: `${summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0}` },
         { label: 'Status families', value: summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length },
         { label: 'Filtering', value: summary.filtering_state || memoryStatusReport.filtering_state || 'unknown' },

@@ -26,6 +26,8 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         for family, signal in readiness_by_family.items()
         if not signal.get("ready", False)
     ]
+    readiness_gap_names = _readiness_gap_names(readiness_signals)
+    readiness_gate = _readiness_gate(readiness_by_family, blocked, readiness_gap_names)
     families = {
         "somt": _family_status(somt),
         "freshness": _family_status(freshness),
@@ -52,6 +54,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "families": families,
         "readiness_signals": readiness_signals,
         "readiness_by_family": dict(sorted(readiness_by_family.items())),
+        "readiness_gate": readiness_gate,
         "summary": {
             "families": len(readiness_by_family),
             "status_families": len(families),
@@ -60,7 +63,8 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "blocked_families": sorted(blocked),
             "readiness_state": "ready" if not blocked else "blocked",
             "readiness_gaps": sum(int(signal.get("gap_count") or 0) for signal in readiness_signals),
-            "readiness_gap_names": _readiness_gap_names(readiness_signals),
+            "readiness_gap_names": readiness_gap_names,
+            "readiness_gate": readiness_gate,
             "filtering_state": filtering_state,
             "somt_notes": somt.get("summary", {}).get("total_notes", 0),
             "default_retrieval": freshness.get("summary", {}).get("default_retrieval", 0),
@@ -137,6 +141,23 @@ def _ready_value(value: Any, state: str) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "ready"}
     return bool(value)
+
+
+def _readiness_gate(
+    readiness_by_family: Dict[str, Dict[str, Any]],
+    blocked: List[str],
+    gaps: List[str],
+) -> Dict[str, Any]:
+    required = bool(readiness_by_family)
+    return {
+        "required": required,
+        "satisfied": not blocked,
+        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
+        "families": len(readiness_by_family),
+        "ready_families": len(readiness_by_family) - len(blocked),
+        "blocked_families": sorted(blocked),
+        "gaps": gaps,
+    }
 
 
 def _dedupe_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
