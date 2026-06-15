@@ -516,9 +516,14 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "function renderQuarantineList()" in main_js
     assert "function renderRaptorStatus()" in main_js
     assert "function renderRetrievalIsolationNotice(" in main_js
+    assert "function renderMemoryRecordLineage(" in main_js
+    assert "shortMemorySourceHash" in main_js
     assert 'data-memory-isolation="true"' in main_js
+    assert 'data-memory-lineage="true"' in main_js
     assert "Default retrieval isolation" in main_js
     assert "excluded from default context when Freshness Gate filtering is active" in main_js
+    assert "source_mtime" in main_js
+    assert "source_hash" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit')" in main_js
     assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
@@ -529,6 +534,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert ".obsidian-memory-tree-metrics" in style
     assert ".obsidian-memory-tree-card" in style
     assert ".obsidian-memory-isolation" in style
+    assert ".obsidian-memory-lineage" in style
 
 
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():

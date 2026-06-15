@@ -3011,6 +3011,22 @@ function renderMemoryStatusCounts(title, counts = {}) {
   `;
 }
 
+function shortMemorySourceHash(hash = '') {
+  const value = String(hash || '');
+  const normalized = value.startsWith('sha256:') ? value.slice(7) : value;
+  return normalized ? normalized.slice(0, 12) : '';
+}
+
+function renderMemoryRecordLineage(item = {}) {
+  const meta = [];
+  if (item.policy) meta.push(`policy ${item.policy}`);
+  if (item.source_mtime) meta.push(`mtime ${item.source_mtime}`);
+  const hash = shortMemorySourceHash(item.source_hash || '');
+  if (hash) meta.push(`hash ${hash}`);
+  if (!meta.length) return '';
+  return `<small class="obsidian-memory-lineage" data-memory-lineage="true">${escapeHtml(meta.join(' | '))}</small>`;
+}
+
 function renderMemoryRecordList(title, items = [], empty = 'No items') {
   return `
     <div class="obsidian-memory-tree-card">
@@ -3021,6 +3037,7 @@ function renderMemoryRecordList(title, items = [], empty = 'No items') {
             <div>
               <span>${escapeHtml(item.path || item.title || item.id || 'Untitled')}</span>
               <small>${escapeHtml(item.reason || item.status || item.kind || '')}</small>
+              ${renderMemoryRecordLineage(item)}
             </div>
             <em>${escapeHtml(item.status || item.channel || item.kind || '')}</em>
           </div>

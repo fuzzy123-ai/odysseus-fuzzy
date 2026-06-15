@@ -1630,6 +1630,10 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   font-size: 11px;
 }
 
+.obsidian-memory-lineage {
+  opacity: 0.82;
+}
+
 .obsidian-project-files {
   display: flex;
   flex-direction: column;
