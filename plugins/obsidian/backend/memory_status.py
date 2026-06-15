@@ -32,9 +32,23 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "quarantine": _family_status(quarantine),
         "raptor": _family_status(raptor),
     }
+    flags = {
+        **_mapping(somt.get("flags")),
+        **_mapping(freshness.get("flags")),
+        **_mapping(quarantine.get("flags")),
+        **_mapping(raptor.get("flags")),
+    }
+    filtering_state = (
+        freshness.get("filtering_state")
+        or _mapping(freshness.get("summary")).get("filtering_state")
+        or quarantine.get("filtering_state")
+        or _mapping(quarantine.get("summary")).get("filtering_state")
+        or "disabled"
+    )
     return {
         "read_only": True,
         "writes_supported": False,
+        "filtering_state": filtering_state,
         "families": families,
         "readiness_signals": readiness_signals,
         "readiness_by_family": dict(sorted(readiness_by_family.items())),
@@ -47,6 +61,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_state": "ready" if not blocked else "blocked",
             "readiness_gaps": sum(int(signal.get("gap_count") or 0) for signal in readiness_signals),
             "readiness_gap_names": _readiness_gap_names(readiness_signals),
+            "filtering_state": filtering_state,
             "somt_notes": somt.get("summary", {}).get("total_notes", 0),
             "default_retrieval": freshness.get("summary", {}).get("default_retrieval", 0),
             "isolated": freshness.get("summary", {}).get("isolated", 0),
@@ -54,9 +69,13 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "raptor_sources": raptor.get("summary", {}).get("source_count", 0),
             "writes_supported": False,
         },
-        "flags": somt.get("flags", {}),
+        "flags": flags,
         "warnings": _warnings(somt, freshness, quarantine, raptor),
     }
+
+
+def _mapping(value: Any) -> Dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _family_status(payload: Dict[str, Any]) -> Dict[str, Any]:

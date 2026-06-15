@@ -723,6 +723,9 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert before == after
         assert status["read_only"] is True
         assert status["writes_supported"] is False
+        assert status["filtering_state"] == "audit_only"
+        assert status["flags"]["obsidian_freshness_gate_enabled"] is True
+        assert status["flags"]["obsidian_hybrid_retrieval_enabled"] is False
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
         assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
         assert status["summary"]["families"] == 3
@@ -731,6 +734,7 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["summary"]["ready_families"] == 0
         assert status["summary"]["blocked_families"] == ["freshness", "raptor", "somt"]
         assert status["summary"]["readiness_state"] == "blocked"
+        assert status["summary"]["filtering_state"] == "audit_only"
         assert status["summary"]["readiness_gap_names"] == [
             "somt_issues_present",
             "freshness_filtering_not_active",
@@ -758,6 +762,8 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert before == after
         assert status["read_only"] is True
         assert status["writes_supported"] is False
+        assert status["filtering_state"] == "audit_only"
+        assert status["summary"]["filtering_state"] == "audit_only"
         assert status["summary"]["readiness_state"] == "blocked"
         assert "conflict_items" in status["summary"]["readiness_gap_names"]
         assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
