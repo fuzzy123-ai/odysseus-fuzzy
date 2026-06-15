@@ -717,6 +717,26 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["summary"]["writes_supported"] is False
 
 
+async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Active\n")
+        with open(os.path.join(tmpdir, "Conflict.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: conflict\n---\n# Conflict\n")
+
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        before = set(os.listdir(tmpdir))
+        status = await obsidian_routes.memory_status_route(SimpleNamespace())
+        after = set(os.listdir(tmpdir))
+
+        assert before == after
+        assert status["read_only"] is True
+        assert status["writes_supported"] is False
+        assert status["summary"]["readiness_state"] == "blocked"
+        assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
+        assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+
+
 def test_freshness_audit_and_quarantine_are_read_only():
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Current.md"), "w", encoding="utf-8") as f:
