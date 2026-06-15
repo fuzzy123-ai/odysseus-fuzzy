@@ -87,7 +87,11 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
             tainted_sources.append({
                 "path": path,
                 "status": record.get("status", ""),
+                "channel": record.get("channel", ""),
+                "policy": record.get("policy", ""),
                 "reason": record.get("reason", ""),
+                "source_hash": record.get("source_hash", ""),
+                "source_mtime": record.get("source_mtime", ""),
             })
     return {
         "source_count": len(lineage),

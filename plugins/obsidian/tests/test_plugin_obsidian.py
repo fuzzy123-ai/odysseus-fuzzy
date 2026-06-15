@@ -719,6 +719,10 @@ def test_raptor_status_marks_review_or_quarantined_sources_tainted():
         assert status["tainted"] is True
         assert status["lineage"]["tainted_sources"][0]["path"] == "Candidate.md"
         assert status["lineage"]["tainted_sources"][0]["status"] == "needs_review"
+        assert status["lineage"]["tainted_sources"][0]["channel"] == "needs_review"
+        assert status["lineage"]["tainted_sources"][0]["policy"] == "implementation_status"
+        assert status["lineage"]["tainted_sources"][0]["source_hash"] == source_hash
+        assert status["lineage"]["tainted_sources"][0]["source_mtime"].endswith("Z")
 
 
 @pytest.mark.asyncio
