@@ -823,6 +823,12 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             "raptor_index_missing",
         ]
         assert status["summary"]["readiness_gate"] == status["readiness_gate"]
+        assert status["retrieval_policy"] == {
+            "filtering_state": "audit_only",
+            "default_retrieval_is_filtered": False,
+            "isolated_knowledge_retained_in_audit": True,
+        }
+        assert status["summary"]["retrieval_policy"] == status["retrieval_policy"]
         assert status["summary"]["default_retrieval"] == 1
         assert status["summary"]["isolated"] == 1
         assert status["summary"]["quarantine_items"] == 1
@@ -875,6 +881,7 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert status["writes_supported"] is False
         assert status["filtering_state"] == "audit_only"
         assert status["summary"]["filtering_state"] == "audit_only"
+        assert status["summary"]["retrieval_policy"] == status["retrieval_policy"]
         assert status["summary"]["readiness_state"] == "blocked"
         assert status["readiness_gate"]["state"] == "blocked"
         assert status["summary"]["readiness_gate"] == status["readiness_gate"]

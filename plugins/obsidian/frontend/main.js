@@ -3060,6 +3060,7 @@ function renderUnifiedMemoryStatus() {
   const summary = memoryStatusReport.summary || {};
   const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {};
   const state = summary.readiness_state || 'unknown';
+  const retrievalPolicy = memoryStatusReport.retrieval_policy || summary.retrieval_policy || {};
   const freshnessIsolationFlags = memoryStatusReport.freshness_isolation_flags || summary.freshness_isolation_flags || {};
   const activeFreshnessIsolationFlags = Object.entries(freshnessIsolationFlags)
     .filter(([name, value]) => value === true && name !== 'filtering_active')
@@ -3077,6 +3078,7 @@ function renderUnifiedMemoryStatus() {
         { label: 'Ready families', value: `${summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0}` },
         { label: 'Status families', value: summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length },
         { label: 'Filtering', value: summary.filtering_state || memoryStatusReport.filtering_state || 'unknown' },
+        { label: 'Default filtered', value: retrievalPolicy.default_retrieval_is_filtered ? 'yes' : 'no' },
         { label: 'Gaps', value: summary.readiness_gaps ?? 0 },
         { label: 'Default retrieval', value: summary.default_retrieval ?? 0 },
         { label: 'Isolated', value: summary.isolated ?? 0 },

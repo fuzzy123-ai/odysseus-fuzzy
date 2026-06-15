@@ -62,6 +62,11 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         or quarantine.get("isolation_flags")
         or _mapping(quarantine.get("summary")).get("isolation_flags")
     )
+    retrieval_policy = {
+        "filtering_state": filtering_state,
+        "default_retrieval_is_filtered": filtering_state == "active",
+        "isolated_knowledge_retained_in_audit": True,
+    }
     return {
         "read_only": True,
         "writes_supported": False,
@@ -70,6 +75,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "readiness_signals": readiness_signals,
         "readiness_by_family": dict(sorted(readiness_by_family.items())),
         "readiness_gate": readiness_gate,
+        "retrieval_policy": retrieval_policy,
         "freshness_isolation_flags": freshness_isolation_flags,
         "raptor_lineage_flags": raptor_lineage_flags,
         "raptor_write_gate": raptor_write_gate,
@@ -84,6 +90,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_gap_names": readiness_gap_names,
             "readiness_gate": readiness_gate,
             "filtering_state": filtering_state,
+            "retrieval_policy": retrieval_policy,
             "somt_notes": somt.get("summary", {}).get("total_notes", 0),
             "default_retrieval": freshness.get("summary", {}).get("default_retrieval", 0),
             "isolated": freshness.get("summary", {}).get("isolated", 0),

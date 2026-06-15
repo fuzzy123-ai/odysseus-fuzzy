@@ -546,6 +546,7 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "memoryStatusReport.summary || {}" in main_js
     assert 'data-memory-readiness-state="${escapeHtml(state)}"' in main_js
     assert "const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {}" in main_js
+    assert "const retrievalPolicy = memoryStatusReport.retrieval_policy || summary.retrieval_policy || {}" in main_js
     assert "const freshnessIsolationFlags = memoryStatusReport.freshness_isolation_flags || summary.freshness_isolation_flags || {}" in main_js
     assert "activeFreshnessIsolationFlags.length ? activeFreshnessIsolationFlags.join(', ') : 'clear'" in main_js
     assert "const raptorLineageFlags = memoryStatusReport.raptor_lineage_flags || summary.raptor_lineage_flags || {}" in main_js
@@ -560,6 +561,8 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "summary.status_families ?? Object.keys(memoryStatusReport.families || {}).length" in main_js
     assert "summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0} families ready" in main_js
     assert "summary.filtering_state || memoryStatusReport.filtering_state || 'unknown'" in main_js
+    assert "Default filtered" in main_js
+    assert "retrievalPolicy.default_retrieval_is_filtered ? 'yes' : 'no'" in main_js
     assert "summary?.readiness_gap_names" in main_js
     assert "memoryStatusReport?.readiness_by_family || {}" in main_js
     assert 'data-memory-family-ready="${signal.ready ? \'true\' : \'false\'}"' in main_js
