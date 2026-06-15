@@ -335,7 +335,10 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                             is_attention = True
                             status_reason_map[sid] = "readiness_gate_blocked"
                             gaps = readiness_gate.get("gaps") if isinstance(readiness_gate.get("gaps"), list) else []
-                            gap_text = ", ".join(str(gap).replace("_", " ") for gap in gaps[:3])
+                            shown_gaps = [str(gap).replace("_", " ") for gap in gaps[:3]]
+                            if len(gaps) > 3:
+                                shown_gaps.append(f"+{len(gaps) - 3} more")
+                            gap_text = ", ".join(shown_gaps)
                             status_message_map[sid] = (
                                 f"Readiness gate blocked: {gap_text}" if gap_text
                                 else "Readiness gate blocked"

@@ -160,7 +160,12 @@ def test_list_sessions_status_calculation(monkeypatch):
     ))
     from src import mission_status
     monkeypatch.setattr(mission_status, "summarize_mission", lambda sid, **kwargs: (
-        {"summary": {"readiness_gate": {"state": "blocked", "gaps": ["freshness_filtering_not_active", "needs_review_items"]}}} if sid == readiness_id
+        {"summary": {"readiness_gate": {"state": "blocked", "gaps": [
+            "freshness_filtering_not_active",
+            "needs_review_items",
+            "raptor_index_missing",
+            "source_hash_changed",
+        ]}}} if sid == readiness_id
         else {"summary": {"readiness_gate": {"state": "not_applicable"}}}
     ))
 
@@ -196,7 +201,10 @@ def test_list_sessions_status_calculation(monkeypatch):
     assert res_map[attention_id]["status_message"] == "Waiting for user input"
     assert res_map[readiness_id]["status"] == "attention"
     assert res_map[readiness_id]["status_reason"] == "readiness_gate_blocked"
-    assert res_map[readiness_id]["status_message"] == "Readiness gate blocked: freshness filtering not active, needs review items"
+    assert res_map[readiness_id]["status_message"] == (
+        "Readiness gate blocked: freshness filtering not active, needs review items, "
+        "raptor index missing, +1 more"
+    )
     assert res_map[done_id]["status"] == "done"
     assert res_map[done_id]["status_reason"] is None
     assert res_map[done_id]["status_message"] is None
