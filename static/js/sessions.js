@@ -52,9 +52,27 @@ function _missionNextActionText(snapshot) {
   return ` Next: ${actions.map((action) => String(action).replace(/_/g, ' ')).join(', ')}`;
 }
 
+function _missionShellPolicyText(snapshot) {
+  const tail = Array.isArray(snapshot?.ledger?.tail) ? snapshot.ledger.tail : [];
+  for (let i = tail.length - 1; i >= 0; i -= 1) {
+    const payload = tail[i]?.payload || {};
+    const policy = payload.command_policy;
+    if (!policy || !policy.tier) continue;
+    const details = [
+      String(policy.reason || '').replace(/_/g, ' '),
+      policy.requires_confirmation ? 'confirmation required' : '',
+      policy.blocked ? 'blocked' : '',
+      policy.audit ? 'audit logged' : '',
+    ].filter(Boolean).join(', ');
+    const command = payload.command_preview ? ` Command: ${payload.command_preview}` : '';
+    return ` Policy: ${policy.tier}${details ? ` (${details})` : ''}.${command}`;
+  }
+  return '';
+}
+
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {

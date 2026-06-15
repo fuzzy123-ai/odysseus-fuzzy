@@ -43,6 +43,10 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "/api/chat/mission/${encodeURIComponent(sessionId)}?tail=8" in source
     assert "No mission status recorded for this session" in source
     assert "credentials: 'same-origin'" in source
+    assert "function _missionShellPolicyText(snapshot)" in source
+    assert "payload.command_policy" in source
+    assert "confirmation required" in source
+    assert "audit logged" in source
 
 
 def test_list_sessions_status_calculation(monkeypatch):
