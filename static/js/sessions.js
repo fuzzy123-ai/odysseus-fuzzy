@@ -52,6 +52,28 @@ function _missionNextActionText(snapshot) {
   return ` Next: ${actions.map((action) => String(action).replace(/_/g, ' ')).join(', ')}`;
 }
 
+function _missionRequiredActionText(snapshot) {
+  const action = snapshot?.summary?.latest_required_action;
+  if (!action || !action.action) return '';
+  const role = action.role ? `${action.role} ` : '';
+  const reason = action.reason ? ` (${String(action.reason).replace(/_/g, ' ')})` : '';
+  const command = action.command_preview ? ` Command: ${action.command_preview}` : '';
+  return ` Required: ${role}${String(action.action).replace(/_/g, ' ')}${reason}.${command}`;
+}
+
+function _missionBlockerText(snapshot) {
+  const blocker = snapshot?.summary?.latest_blocker;
+  if (!blocker || !blocker.kind) return '';
+  const role = blocker.role ? `${blocker.role} ` : '';
+  const details = [
+    blocker.reason ? String(blocker.reason).replace(/_/g, ' ') : '',
+    blocker.exit_code !== undefined ? `exit ${blocker.exit_code}` : '',
+    blocker.policy_tier ? `policy ${blocker.policy_tier}` : '',
+  ].filter(Boolean).join(', ');
+  const command = blocker.command_preview ? ` Command: ${blocker.command_preview}` : '';
+  return ` Blocker: ${role}${String(blocker.kind).replace(/_/g, ' ')}${details ? ` (${details})` : ''}.${command}`;
+}
+
 function _missionShellPolicyText(snapshot) {
   const tail = Array.isArray(snapshot?.ledger?.tail) ? snapshot.ledger.tail : [];
   for (let i = tail.length - 1; i >= 0; i -= 1) {
@@ -96,7 +118,7 @@ function _missionPolicyTierText(snapshot) {
 
 function _formatMissionSnapshot(snapshot) {
   const status = (snapshot && snapshot.status) || 'unknown';
-  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
+  return `Mission ${status}: ${_missionPhaseText(snapshot)}.${_missionArtifactText(snapshot)}${_missionPolicyTierText(snapshot)}${_missionRequiredActionText(snapshot)}${_missionBlockerText(snapshot)}${_missionShellPolicyText(snapshot)}${_missionNextActionText(snapshot)}`;
 }
 
 async function inspectMissionStatus(sessionId) {

@@ -39,6 +39,7 @@ def summarize_mission(
     }
     worker = _role_counts()
     verifier = _role_counts()
+    verifier_tool_keys: set[tuple[str, str]] = set()
 
     for event in events:
         payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
@@ -54,7 +55,12 @@ def summarize_mission(
             phases["manager"]["updated_at"] = event.get("ts") or phases["manager"]["updated_at"]
         if _is_worker_event(payload):
             _apply_role_event(worker, payload, event.get("ts"))
-        if _is_verifier_event(payload):
+        verifier_event = _is_verifier_event(payload)
+        if verifier_event and payload_type == "tool_start":
+            verifier_tool_keys.add(_tool_key(payload))
+        elif payload_type == "tool_output" and _tool_key(payload) in verifier_tool_keys:
+            verifier_event = True
+        if verifier_event:
             _apply_role_event(verifier, payload, event.get("ts"))
 
     _finish_phase(phases["worker"], worker, active)
@@ -99,6 +105,8 @@ def _phase(role: str, status: str) -> dict[str, Any]:
         "artifacts": {},
         "policy_tiers": {},
         "last_command_policy": None,
+        "last_blocker": None,
+        "latest_required_action": None,
         "started_at": None,
         "updated_at": None,
     }
@@ -113,6 +121,8 @@ def _role_counts() -> dict[str, Any]:
         "artifacts": {},
         "policy_tiers": {},
         "last_command_policy": None,
+        "last_blocker": None,
+        "latest_required_action": None,
         "started_at": None,
         "updated_at": None,
     }
@@ -131,6 +141,10 @@ def _is_verifier_event(payload: dict[str, Any]) -> bool:
     return bool(command and _VERIFY_COMMAND_RE.search(command))
 
 
+def _tool_key(payload: dict[str, Any]) -> tuple[str, str]:
+    return (str(payload.get("tool") or ""), str(payload.get("round") or ""))
+
+
 def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) -> None:
     payload_type = payload.get("type")
     if payload_type == "tool_start":
@@ -140,8 +154,11 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
             tier = str(policy.get("tier") or "unknown")
             counts["policy_tiers"][tier] = counts["policy_tiers"].get(tier, 0) + 1
             counts["last_command_policy"] = policy
+            if policy.get("requires_confirmation"):
+                counts["latest_required_action"] = _required_action("confirm_shell_command", payload, policy)
             if policy.get("blocked"):
                 counts["blocked"] += 1
+                counts["last_blocker"] = _blocker("command_policy", payload, policy)
         counts["started_at"] = counts["started_at"] or ts
         counts["updated_at"] = ts or counts["updated_at"]
     elif payload_type == "tool_output":
@@ -151,6 +168,7 @@ def _apply_role_event(counts: dict[str, Any], payload: dict[str, Any], ts: Any) 
             counts["artifacts"]["screenshot"] = counts["artifacts"].get("screenshot", 0) + 1
         if payload.get("blocked") or payload.get("exit_code") not in (None, 0):
             counts["blocked"] += 1
+            counts["last_blocker"] = _blocker("tool_output", payload)
         counts["updated_at"] = ts or counts["updated_at"]
 
 
@@ -163,6 +181,36 @@ def _command_policy(payload: dict[str, Any]) -> dict[str, Any] | None:
         for key in ("tier", "reason", "requires_confirmation", "blocked", "audit")
         if key in policy
     }
+
+
+def _required_action(action: str, payload: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "action": action,
+        "tool": str(payload.get("tool") or ""),
+        "policy_tier": str(policy.get("tier") or "unknown"),
+        "reason": str(policy.get("reason") or ""),
+        "command_preview": str(payload.get("command_preview") or ""),
+    }
+
+
+def _blocker(kind: str, payload: dict[str, Any], policy: dict[str, Any] | None = None) -> dict[str, Any]:
+    blocker = {
+        "kind": kind,
+        "tool": str(payload.get("tool") or ""),
+    }
+    if payload.get("exit_code") is not None:
+        blocker["exit_code"] = payload.get("exit_code")
+    if policy:
+        blocker.update({
+            "policy_tier": str(policy.get("tier") or "unknown"),
+            "reason": str(policy.get("reason") or ""),
+            "command_preview": str(payload.get("command_preview") or ""),
+        })
+    elif payload.get("blocked"):
+        blocker["reason"] = "tool_reported_blocked"
+    elif payload.get("exit_code") not in (None, 0):
+        blocker["reason"] = "nonzero_exit_code"
+    return blocker
 
 
 def _finish_phase(phase: dict[str, Any], counts: dict[str, Any], active: bool) -> None:
@@ -188,6 +236,8 @@ def _summary(status: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "verifier_blocked": verifier["blocked"],
         "verifier_artifacts": dict(verifier.get("artifacts") or {}),
         "policy_tiers": _merge_counts(worker.get("policy_tiers") or {}, verifier.get("policy_tiers") or {}),
+        "latest_blocker": _latest_phase_value("last_blocker", phases),
+        "latest_required_action": _latest_phase_value("latest_required_action", phases),
     }
 
 
@@ -199,14 +249,33 @@ def _merge_counts(*groups: dict[str, Any]) -> dict[str, int]:
     return dict(sorted(merged.items()))
 
 
+def _latest_phase_value(key: str, phases: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    candidates = [
+        phase for phase in phases.values()
+        if isinstance(phase.get(key), dict)
+    ]
+    if not candidates:
+        return None
+    latest = max(candidates, key=lambda phase: str(phase.get("updated_at") or ""))
+    return {
+        "role": latest["role"],
+        **latest[key],
+    }
+
+
 def _next_actions(status: str, phases: dict[str, dict[str, Any]]) -> list[str]:
     actions: list[str] = []
     if status == "running":
         actions.append("watch_or_resume_stream")
     if phases["worker"]["status"] == "blocked":
         actions.append("inspect_worker_handoff")
+    if phases["worker"].get("latest_required_action"):
+        actions.append(phases["worker"]["latest_required_action"]["action"])
     if phases["verifier"]["status"] == "idle" and status == "done":
         actions.append("run_focused_verification")
     if phases["verifier"]["status"] == "blocked":
         actions.append("inspect_verification_failure")
+    if phases["verifier"].get("latest_required_action"):
+        actions.append(phases["verifier"]["latest_required_action"]["action"])
+    actions = list(dict.fromkeys(actions))
     return actions

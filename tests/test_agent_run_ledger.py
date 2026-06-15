@@ -198,6 +198,59 @@ def test_summarize_mission_marks_missing_verification_as_next_action(tmp_path, m
     assert snapshot["next_actions"] == ["run_focused_verification"]
 
 
+def test_summarize_mission_reports_latest_verifier_blocker(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-verifier-failed"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_start", "tool": "bash", "round": 1, "command": "python -m pytest tests/test_agent_run_ledger.py"}\n\n',
+    )
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_output", "tool": "bash", "round": 1, "exit_code": 1, "output": "failed details"}\n\n',
+    )
+    agent_run_ledger.append_status(session_id, "done")
+
+    snapshot = summarize_mission(session_id)
+
+    assert snapshot["phases"]["verifier"]["status"] == "blocked"
+    assert snapshot["summary"]["latest_blocker"] == {
+        "role": "verifier",
+        "kind": "tool_output",
+        "tool": "bash",
+        "exit_code": 1,
+        "reason": "nonzero_exit_code",
+    }
+    assert "inspect_verification_failure" in snapshot["next_actions"]
+    assert "failed details" not in json.dumps(snapshot)
+
+
+def test_summarize_mission_reports_latest_required_action(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_run_ledger, "AGENT_RUN_LEDGER_DIR", str(tmp_path))
+    session_id = "mission-confirm-required"
+
+    agent_run_ledger.append_run_started(session_id)
+    agent_run_ledger.append_sse_event(
+        session_id,
+        'data: {"type": "tool_start", "tool": "bash", "round": 1, "command": "python -m pytest tests/test_agent_run_ledger.py && rm -rf build"}\n\n',
+    )
+
+    snapshot = summarize_mission(session_id, active=True)
+
+    assert snapshot["phases"]["verifier"]["latest_required_action"] == {
+        "action": "confirm_shell_command",
+        "tool": "bash",
+        "policy_tier": "danger",
+        "reason": "dangerous_pattern",
+        "command_preview": "python -m pytest tests/test_agent_run_ledger.py && rm -rf build",
+    }
+    assert snapshot["summary"]["latest_required_action"]["role"] == "verifier"
+    assert snapshot["summary"]["latest_required_action"]["action"] == "confirm_shell_command"
+    assert "confirm_shell_command" in snapshot["next_actions"]
+
+
 def test_chat_run_ledger_route_returns_owner_scoped_summary(tmp_path, monkeypatch):
     import routes.chat_routes as chat_routes
 

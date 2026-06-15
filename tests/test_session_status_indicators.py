@@ -47,6 +47,12 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "payload.command_policy" in source
     assert "confirmation required" in source
     assert "audit logged" in source
+    assert "function _missionRequiredActionText(snapshot)" in source
+    assert "snapshot?.summary?.latest_required_action" in source
+    assert "Required:" in source
+    assert "function _missionBlockerText(snapshot)" in source
+    assert "snapshot?.summary?.latest_blocker" in source
+    assert "Blocker:" in source
     assert "function _missionArtifactText(snapshot)" in source
     assert "snapshot?.summary?.verifier_artifacts" in source
     assert "snapshot?.phases?.verifier?.artifacts" in source
