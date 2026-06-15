@@ -132,6 +132,8 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
     for values in channels.values():
         values.sort(key=lambda item: item["path"].lower())
     status_counts = Counter(item["status"] for values in channels.values() for item in values)
+    default_retrieval = len(channels["current"])
+    isolated_total = sum(len(channels[name]) for name in ("needs_review", "conflicts", "quarantined"))
     return {
         "enabled": is_enabled("obsidian_freshness_gate_enabled"),
         "flags": all_flags(),
@@ -142,6 +144,8 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "needs_review": len(channels["needs_review"]),
             "conflicts": len(channels["conflicts"]),
             "quarantined": len(channels["quarantined"]),
+            "default_retrieval": default_retrieval,
+            "isolated": isolated_total,
             "status_counts": dict(sorted(status_counts.items())),
         },
         "warnings": warnings,
@@ -157,6 +161,8 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
         "items": items,
         "summary": {
             "total": len(items),
+            "default_retrieval": 0,
+            "isolated": len(items),
             "by_status": dict(sorted(Counter(item["status"] for item in items).items())),
         },
         "warnings": audit["warnings"],

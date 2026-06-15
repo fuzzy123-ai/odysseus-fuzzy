@@ -599,9 +599,13 @@ def test_freshness_audit_and_quarantine_are_read_only():
 
         assert before == after
         assert audit["summary"]["current"] == 1
+        assert audit["summary"]["default_retrieval"] == 1
+        assert audit["summary"]["isolated"] == 3
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
         assert any(item["path"] == "AI Memory/Quarantine/Held.md" for item in quarantine["items"])
+        assert quarantine["summary"]["default_retrieval"] == 0
+        assert quarantine["summary"]["isolated"] == 2
 
 
 def test_unresolved_conflict_status_is_isolated_from_default_truth():
@@ -614,9 +618,11 @@ def test_unresolved_conflict_status_is_isolated_from_default_truth():
         tree = analyze_memory_tree(tmpdir)
 
         assert audit["summary"]["conflicts"] == 1
+        assert audit["summary"]["isolated"] == 1
         assert audit["channels"]["conflicts"][0]["path"] == "Conflict.md"
         assert audit["channels"]["conflicts"][0]["status"] == "conflict"
         assert quarantine["summary"]["by_status"]["conflict"] == 1
+        assert quarantine["summary"]["isolated"] == 1
         assert quarantine["items"][0]["path"] == "Conflict.md"
         assert tree["nodes"][0]["status"] == "conflict"
         assert tree["nodes"][0]["default_retrieval"] is False
