@@ -135,6 +135,7 @@ let memoryTreeReport = null;
 let knowledgeAuditReport = null;
 let quarantineReport = null;
 let raptorReport = null;
+let memoryStatusReport = null;
 let memoryTreeActiveTab = 'tree';
 let memoryTreeLoading = false;
 let memoryTreeError = '';
@@ -2949,12 +2950,14 @@ async function loadMemoryTreeDashboard() {
   memoryTreeError = '';
   renderMemoryTreePanel();
   try {
-    const [tree, audit, quarantine, raptor] = await Promise.all([
+    const [status, tree, audit, quarantine, raptor] = await Promise.all([
+      fetchMemoryDashboardJson('/api/plugins/obsidian/memory/status'),
       fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze'),
       fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit'),
       fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine'),
       fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status'),
     ]);
+    memoryStatusReport = status;
     memoryTreeReport = tree;
     knowledgeAuditReport = audit;
     quarantineReport = quarantine;
@@ -2979,7 +2982,7 @@ function showMemoryTreePanel() {
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
   panel.classList.remove('hidden');
   renderMemoryTreePanel();
-  if (!memoryTreeReport && !memoryTreeLoading) loadMemoryTreeDashboard();
+  if (!memoryStatusReport && !memoryTreeReport && !memoryTreeLoading) loadMemoryTreeDashboard();
 }
 
 function closeMemoryTreePanel() {
@@ -3007,6 +3010,44 @@ function renderMemoryStatusCounts(title, counts = {}) {
     <div class="obsidian-memory-tree-card">
       <strong>${escapeHtml(title)}</strong>
       ${entries.length ? `<ul>${entries.map(([key, value]) => `<li><span>${escapeHtml(key)}</span><b>${escapeHtml(value)}</b></li>`).join('')}</ul>` : '<p>None</p>'}
+    </div>
+  `;
+}
+
+function renderMemoryReadinessFamilies() {
+  const byFamily = memoryStatusReport?.readiness_by_family || {};
+  const entries = Object.entries(byFamily);
+  if (!entries.length) return '';
+  return `
+    <div class="obsidian-memory-status-families">
+      ${entries.map(([family, signal]) => `
+        <span data-memory-family-ready="${signal.ready ? 'true' : 'false'}">
+          <b>${escapeHtml(family)}</b>
+          <small>${escapeHtml(signal.state || 'unknown')}</small>
+        </span>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderUnifiedMemoryStatus() {
+  if (!memoryStatusReport) return '';
+  const summary = memoryStatusReport.summary || {};
+  const state = summary.readiness_state || 'unknown';
+  return `
+    <div class="obsidian-memory-status-band" data-memory-readiness-state="${escapeHtml(state)}">
+      ${memoryMetricGrid([
+        { label: 'Readiness', value: state },
+        { label: 'Ready families', value: `${summary.ready_families ?? 0}/${summary.families ?? 0}` },
+        { label: 'Gaps', value: summary.readiness_gaps ?? 0 },
+        { label: 'Default retrieval', value: summary.default_retrieval ?? 0 },
+        { label: 'Isolated', value: summary.isolated ?? 0 },
+        { label: 'Quarantine', value: summary.quarantine_items ?? 0 },
+        { label: 'RAPTOR sources', value: summary.raptor_sources ?? 0 },
+        { label: 'Writes', value: summary.writes_supported ? 'yes' : 'no' },
+      ])}
+      ${renderMemoryReadinessFamilies()}
+      ${renderMemoryWarnings(memoryStatusReport)}
     </div>
   `;
 }
@@ -3258,6 +3299,13 @@ function renderRaptorStatus() {
 function renderMemoryTreePanel() {
   const content = document.getElementById('obsidian-memory-tree-content');
   if (!content) return;
+  const subtitle = document.getElementById('obsidian-memory-tree-subtitle');
+  if (subtitle) {
+    const summary = memoryStatusReport?.summary || {};
+    subtitle.textContent = summary.readiness_state
+      ? `Memory readiness: ${summary.readiness_state} | ${summary.ready_families ?? 0}/${summary.families ?? 0} families ready | ${summary.readiness_gaps ?? 0} gaps`
+      : 'Memory tree, Freshness Gate, quarantine, and RAPTOR status';
+  }
   document.querySelectorAll('[data-memory-tree-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.memoryTreeTab === memoryTreeActiveTab);
   });
@@ -3272,13 +3320,13 @@ function renderMemoryTreePanel() {
     return;
   }
   if (memoryTreeActiveTab === 'audit') {
-    content.innerHTML = renderKnowledgeAudit();
+    content.innerHTML = renderUnifiedMemoryStatus() + renderKnowledgeAudit();
   } else if (memoryTreeActiveTab === 'quarantine') {
-    content.innerHTML = renderQuarantineList();
+    content.innerHTML = renderUnifiedMemoryStatus() + renderQuarantineList();
   } else if (memoryTreeActiveTab === 'raptor') {
-    content.innerHTML = renderRaptorStatus();
+    content.innerHTML = renderUnifiedMemoryStatus() + renderRaptorStatus();
   } else {
-    content.innerHTML = renderMemoryTreeOverview();
+    content.innerHTML = renderUnifiedMemoryStatus() + renderMemoryTreeOverview();
   }
 }
 

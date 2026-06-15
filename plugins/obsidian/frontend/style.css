@@ -1539,6 +1539,55 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   min-height: 0;
 }
 
+.obsidian-memory-status-band {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-memory-status-families {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.obsidian-memory-status-families span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: 4px 8px;
+}
+
+.obsidian-memory-status-families span[data-memory-family-ready="true"] {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+}
+
+.obsidian-memory-status-families span[data-memory-family-ready="false"] {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+}
+
+.obsidian-memory-status-families b,
+.obsidian-memory-status-families small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-memory-status-families b {
+  font-size: 12px;
+}
+
+.obsidian-memory-status-families small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .obsidian-memory-tree-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
