@@ -81,7 +81,7 @@ def preload_provider_context(
         except Exception as exc:
             warnings.append(f"context provider {provider.id} failed: {exc}")
             continue
-        for warning in payload.get("warnings") or []:
+        for warning in _provider_payload_warnings(payload):
             warnings.append(f"{provider.id}: {warning}")
         payloads.append(ProviderPayload(
             provider_id=provider.id,
@@ -90,6 +90,31 @@ def preload_provider_context(
             capabilities=provider.capabilities,
         ))
     return payloads, warnings
+
+
+def _provider_payload_warnings(payload: Dict[str, Any]) -> List[str]:
+    memory = payload.get("memory") if isinstance(payload.get("memory"), dict) else {}
+    containers = (
+        payload,
+        memory,
+        payload.get("summary") if isinstance(payload.get("summary"), dict) else {},
+        memory.get("summary") if isinstance(memory.get("summary"), dict) else {},
+    )
+    warnings: List[str] = []
+    seen = set()
+    for container in containers:
+        raw_warnings = container.get("warnings") if isinstance(container, dict) else None
+        if not isinstance(raw_warnings, list):
+            continue
+        for warning in raw_warnings:
+            text = str(warning).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            warnings.append(text)
+            if len(warnings) >= MAX_PROVIDER_WARNINGS:
+                return warnings
+    return warnings
 
 
 def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str]]:
@@ -168,7 +193,7 @@ def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
     diagnostics: Dict[str, Any] = {}
     summary = memory.get("summary")
     if isinstance(summary, dict):
-        diagnostics["summary"] = {
+        summary_diagnostics = {
             key: _compact_diagnostic_value(summary[key])
             for key in (
                 "readiness_state",
@@ -181,6 +206,8 @@ def _provider_diagnostics(payload: Dict[str, Any]) -> Dict[str, Any]:
             )
             if key in summary
         }
+        if summary_diagnostics:
+            diagnostics["summary"] = summary_diagnostics
     for key in (
         "readiness_gate",
         "retrieval_policy",

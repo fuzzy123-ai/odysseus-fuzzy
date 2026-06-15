@@ -169,3 +169,39 @@ def test_provider_failures_become_warnings():
     assert assembly.messages[0]["content"].startswith("Provider warnings:")
     assert "context provider demo.broken failed: nope" in assembly.messages[0]["content"]
     assert assembly.messages[-1]["content"] == "hello"
+
+
+def test_provider_nested_memory_warnings_become_prompt_warnings():
+    def retrieve(owner, query, budget, mode):
+        return {
+            "memory": {
+                "summary": {
+                    "warnings": [
+                        "Freshness Gate filtered 1 stale item(s).",
+                        "Freshness Gate filtered 1 stale item(s).",
+                    ],
+                },
+            },
+            "warnings": [],
+        }
+
+    register_context_provider({
+        "id": "demo.warning",
+        "label": "Warning",
+        "capabilities": ["chat", "memory"],
+        "retrieve": retrieve,
+    }, plugin_id="demo")
+
+    assembly = assemble_context(
+        system_messages=[],
+        history_messages=[{"role": "user", "content": "hello"}],
+        owner="alice",
+        query="hello",
+        total_budget=1000,
+        mode="chat",
+    )
+
+    assert assembly.warnings == ["demo.warning: Freshness Gate filtered 1 stale item(s)."]
+    assert assembly.messages[0]["content"].startswith("Provider warnings:")
+    assert "demo.warning: Freshness Gate filtered 1 stale item(s)." in assembly.messages[0]["content"]
+    assert assembly.messages[-1]["content"] == "hello"
