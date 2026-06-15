@@ -3030,6 +3030,27 @@ function renderMemoryReadinessFamilies() {
   `;
 }
 
+function memoryReadinessGapNames() {
+  const summaryGaps = memoryStatusReport?.summary?.readiness_gap_names;
+  if (Array.isArray(summaryGaps) && summaryGaps.length) {
+    return summaryGaps;
+  }
+  const signals = Array.isArray(memoryStatusReport?.readiness_signals)
+    ? memoryStatusReport.readiness_signals
+    : [];
+  return signals.flatMap(signal => Array.isArray(signal?.gaps) ? signal.gaps : []);
+}
+
+function renderMemoryReadinessGaps() {
+  const gaps = [...new Set(memoryReadinessGapNames().map(gap => String(gap || '').trim()).filter(Boolean))];
+  if (!gaps.length) return '';
+  return `
+    <div class="obsidian-memory-status-gaps" aria-label="Memory readiness gaps">
+      ${gaps.slice(0, 12).map(gap => `<span>${escapeHtml(gap.replace(/_/g, ' '))}</span>`).join('')}
+    </div>
+  `;
+}
+
 function renderUnifiedMemoryStatus() {
   if (!memoryStatusReport) return '';
   const summary = memoryStatusReport.summary || {};
@@ -3047,6 +3068,7 @@ function renderUnifiedMemoryStatus() {
         { label: 'Writes', value: summary.writes_supported ? 'yes' : 'no' },
       ])}
       ${renderMemoryReadinessFamilies()}
+      ${renderMemoryReadinessGaps()}
       ${renderMemoryWarnings(memoryStatusReport)}
     </div>
   `;
