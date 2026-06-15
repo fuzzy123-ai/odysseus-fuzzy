@@ -539,8 +539,18 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
 
         default_payload = retrieve_vault_context("alice", "needle", 200, "chat")
         assert {source["path"] for source in default_payload["sources"]} == {"Active.md", "Stale.md"}
+        assert {snippet["path"] for snippet in default_payload["snippets"]} == {"Active.md", "Stale.md"}
         assert default_payload["memory"]["retrieval_filtering"] is False
         assert default_payload["memory"]["filtering_state"] == "audit_only"
+        assert default_payload["memory"]["retrieval_policy"] == {
+            "filtering_state": "audit_only",
+            "default_retrieval_is_filtered": False,
+            "isolated_knowledge_retained_in_audit": True,
+            "excluded_relevant_count": 0,
+        }
+        assert default_payload["memory"]["summary"]["retrieval_policy"] == default_payload["memory"]["retrieval_policy"]
+        assert default_payload["memory"]["summary"]["isolated"] == 1
+        assert default_payload["memory"]["summary"]["status_counts"]["stale"] == 1
 
         monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
         filtered_payload = retrieve_vault_context("alice", "needle", 200, "chat")
@@ -550,6 +560,13 @@ def test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled(mo
         assert "Stale.md" not in filtered_payload["structured_state"]
         assert filtered_payload["memory"]["retrieval_filtering"] is True
         assert filtered_payload["memory"]["filtering_state"] == "active"
+        assert filtered_payload["memory"]["retrieval_policy"] == {
+            "filtering_state": "active",
+            "default_retrieval_is_filtered": True,
+            "isolated_knowledge_retained_in_audit": True,
+            "excluded_relevant_count": 1,
+        }
+        assert filtered_payload["memory"]["summary"]["retrieval_policy"] == filtered_payload["memory"]["retrieval_policy"]
         assert filtered_payload["memory"]["summary"]["total"] == 2
         assert filtered_payload["memory"]["summary"]["default_retrieval"] == 1
         assert filtered_payload["memory"]["summary"]["isolated"] == 1
@@ -617,6 +634,13 @@ def test_obsidian_context_provider_keeps_default_context_when_freshness_gate_dis
         assert "Stale.md" in payload["structured_state"]
         assert payload["memory"]["retrieval_filtering"] is False
         assert payload["memory"]["filtering_state"] == "disabled"
+        assert payload["memory"]["retrieval_policy"] == {
+            "filtering_state": "disabled",
+            "default_retrieval_is_filtered": False,
+            "isolated_knowledge_retained_in_audit": True,
+            "excluded_relevant_count": 0,
+        }
+        assert payload["memory"]["summary"]["retrieval_policy"] == payload["memory"]["retrieval_policy"]
         assert payload["memory"]["excluded_relevant"] == []
         assert payload["memory"]["summary"]["total"] == 2
         assert payload["memory"]["summary"]["default_retrieval"] == 1

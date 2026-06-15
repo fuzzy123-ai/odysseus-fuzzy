@@ -320,6 +320,13 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
     readiness_by_family = _readiness_by_family(readiness_signals)
     readiness_gate = readiness_gate_from_family(readiness_by_family, audit_summary["readiness_gap_names"])
     audit_summary["readiness_gate"] = readiness_gate
+    retrieval_policy = {
+        "filtering_state": filtering_state,
+        "default_retrieval_is_filtered": freshness_filtering,
+        "isolated_knowledge_retained_in_audit": True,
+        "excluded_relevant_count": len(excluded),
+    }
+    audit_summary["retrieval_policy"] = retrieval_policy
     memory = {
         "summary": audit_summary,
         "current": [
@@ -333,6 +340,7 @@ def enrich_context_payload(vault_dir: str, payload: Dict[str, Any], query: str) 
         "excluded_relevant": excluded[:25],
         "retrieval_filtering": freshness_filtering,
         "filtering_state": filtering_state,
+        "retrieval_policy": retrieval_policy,
         "freshness_isolation_flags": freshness_isolation_flags,
         "raptor_lineage_flags": raptor_lineage_flags,
         "readiness_signals": readiness_signals,
