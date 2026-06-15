@@ -726,11 +726,12 @@ def test_obsidian_memory_tree_audit_ui_contract():
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
-    assert "Set or replace password protection for this vault?" in main_js
+    assert "Set or replace password protection for this vault? This blocks plugin access, but it does not automatically encrypt existing vault files at rest on disk." in main_js
     assert "Remove password protection from this vault?" in main_js
     assert "Export password:" in main_js
     assert "Current vault password:" in main_js
     assert "Archive password, if needed:" in main_js
+    assert "Vault password (plugin access only; existing vault files on disk are not automatically encrypted at rest):" in main_js
     assert "showToast('Vault password updated')" in main_js
     assert "showToast('Vault password removed')" in main_js
     assert "showToast(password" not in main_js
