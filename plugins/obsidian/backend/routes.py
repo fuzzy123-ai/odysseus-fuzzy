@@ -1418,7 +1418,7 @@ async def create_relationship(req: RelationshipRequest, request: Request):
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
-        relationship = add_manual_relationship(vault_dir, req.dict())
+        relationship = add_manual_relationship(vault_dir, _dump_model(req))
         record_action(
             vault_dir,
             action="relationship_add",
@@ -1436,7 +1436,7 @@ async def delete_relationship(req: RelationshipRequest, request: Request):
     """Delete one typed manual graph relationship."""
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_DELETE_SCOPE)
-    removed = remove_manual_relationship(vault_dir, req.dict())
+    removed = remove_manual_relationship(vault_dir, _dump_model(req))
     if removed is None:
         raise HTTPException(status_code=404, detail="Relationship not found")
     record_action(
