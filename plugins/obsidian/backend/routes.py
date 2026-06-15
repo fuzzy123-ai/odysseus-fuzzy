@@ -19,18 +19,21 @@ VAULT_DELETE_SCOPE = "vault:delete"
 def _require_vault_scope(request: Request, required: str) -> str:
     """Return the data owner if the caller has the required vault scope.
     
-    For browser sessions, falls through to require_user (full access).
+    Browser sessions already passed the route's normal auth gate and have full access.
     For API tokens, checks the token's scopes and raises 403 if missing.
     """
-    if getattr(request.state, "api_token", False):
-        scopes = set(getattr(request.state, "api_token_scopes", []) or [])
+    state = getattr(request, "state", None)
+    if getattr(state, "api_token", False):
+        scopes = set(getattr(state, "api_token_scopes", []) or [])
         if required not in scopes:
             raise HTTPException(403, f"API token missing required scope: {required}")
-        owner = getattr(request.state, "api_token_owner", None)
+        owner = getattr(state, "api_token_owner", None)
         if not owner:
             raise HTTPException(403, "API token has no owner")
         return owner
-    return require_user(request)
+    if state is None:
+        return "default"
+    return effective_user(request) or "default"
 
 from .vault_security import (
     VaultSecurityError,
@@ -200,9 +203,7 @@ def get_vault_path(request: Request) -> str:
     Uses multi-user isolation or 'default' if auth is disabled.
     """
     if getattr(request.state, "api_token", False):
-        username = getattr(request.state, "api_token_owner", None)
-        if not username:
-            raise HTTPException(403, "API token has no owner")
+        username = _require_vault_scope(request, VAULT_READ_SCOPE)
     else:
         username = require_user(request)
     return vault_service.vault_path_for_owner(username)
@@ -481,6 +482,7 @@ async def vault_status(request: Request):
 async def set_vault_password(req: VaultPasswordRequest, request: Request):
     """Enable or replace password protection for the vault."""
     try:
+        _require_vault_scope(request, VAULT_WRITE_SCOPE)
         return set_password(get_vault_path(request), req.password)
     except VaultSecurityError as exc:
         raise vault_error(exc)
@@ -489,6 +491,7 @@ async def set_vault_password(req: VaultPasswordRequest, request: Request):
 async def lock_current_vault(request: Request):
     """Lock a password-protected vault."""
     try:
+        _require_vault_scope(request, VAULT_WRITE_SCOPE)
         return lock_vault(get_vault_path(request))
     except VaultSecurityError as exc:
         raise vault_error(exc)
@@ -497,6 +500,7 @@ async def lock_current_vault(request: Request):
 async def unlock_current_vault(req: VaultPasswordRequest, request: Request):
     """Unlock a password-protected vault."""
     try:
+        _require_vault_scope(request, VAULT_WRITE_SCOPE)
         return unlock_vault(get_vault_path(request), req.password)
     except VaultSecurityError as exc:
         raise vault_error(exc)
@@ -505,6 +509,7 @@ async def unlock_current_vault(req: VaultPasswordRequest, request: Request):
 async def remove_vault_password(req: VaultPasswordRequest, request: Request):
     """Disable password protection after password verification."""
     try:
+        _require_vault_scope(request, VAULT_WRITE_SCOPE)
         return remove_password(get_vault_path(request), req.password)
     except VaultSecurityError as exc:
         raise vault_error(exc)
@@ -527,6 +532,7 @@ async def export_current_vault(req: VaultExportRequest, request: Request):
 async def import_current_vault(req: VaultImportRequest, request: Request):
     """Import a plain or password-encrypted ZIP vault archive."""
     try:
+        _require_vault_scope(request, VAULT_WRITE_SCOPE)
         archive_data = base64.b64decode(req.archive_base64, validate=True)
         result = import_vault(get_vault_path(request), archive_data, password=req.password)
         return {"success": True, **result}
@@ -899,6 +905,7 @@ async def project_plan_sessions(request: Request):
 async def project_plan_session_create(req: ProjectPlanSessionCreateRequest, request: Request):
     """Create a recoverable project planning session without writing vault files."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         validate_gamedev_concept_gate(req.request)
         session = _new_project_plan_session(req.request)
@@ -923,6 +930,7 @@ async def project_plan_session_get(session_id: str, request: Request):
 async def project_plan_session_delete(session_id: str, request: Request):
     """Cancel a project planning session without touching vault files."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     payload = _load_project_plan_sessions(vault_dir)
     before = len(payload.get("sessions", []))
     payload["sessions"] = [session for session in payload.get("sessions", []) if session.get("id") != session_id]
@@ -935,6 +943,7 @@ async def project_plan_session_delete(session_id: str, request: Request):
 async def project_plan_session_preview_stream(session_id: str, req: ProjectPlanSessionPreviewRequest, request: Request):
     """Stream and persist a recoverable project planning preview for one session."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     owner = current_owner(request)
     payload = _load_project_plan_sessions(vault_dir)
     session = _find_project_plan_session(payload, session_id)
@@ -1098,6 +1107,7 @@ async def project_plan_session_preview_stream(session_id: str, req: ProjectPlanS
 async def project_plan_session_apply(session_id: str, req: ProjectPlanSessionApplyRequest, request: Request):
     """Apply a confirmed project planning session and mark it created."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     owner = current_owner(request)
     payload = _load_project_plan_sessions(vault_dir)
     session = _find_project_plan_session(payload, session_id)
@@ -1233,6 +1243,7 @@ async def project_plan_preview_stream(req: ProjectPlanRequest, request: Request)
 async def project_plan_apply(req: ProjectPlanApplyRequest, request: Request):
     """Apply a confirmed project plan by writing files and relationships."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         return _apply_project_plan_to_vault(vault_dir, current_owner(request), req)
     except HTTPException:
@@ -1258,6 +1269,8 @@ async def memory_review_apply(req: MemoryReviewApplyRequest, request: Request):
         plan = validate_memory_review_plan(vault_dir, req.plan, collect_conflicts=True)
         if plan.conflicts:
             raise HTTPException(status_code=409, detail={"message": "Memory review plan has file conflicts", "conflicts": plan.conflicts})
+        if plan.action not in {"memory_only", "discard"}:
+            _require_vault_scope(request, VAULT_WRITE_SCOPE)
         if plan.action not in {"memory_only", "discard"} and not req.confirm:
             raise HTTPException(status_code=409, detail="Confirmation required before changing Obsidian notes")
         result = apply_memory_review_plan(vault_dir, plan)
@@ -1414,6 +1427,7 @@ async def raptor_status_route(request: Request):
 async def create_relationship(req: RelationshipRequest, request: Request):
     """Create a typed manual graph relationship between existing notes."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     try:
         relationship = add_manual_relationship(vault_dir, req.dict())
         record_action(
@@ -1432,6 +1446,7 @@ async def create_relationship(req: RelationshipRequest, request: Request):
 async def delete_relationship(req: RelationshipRequest, request: Request):
     """Delete one typed manual graph relationship."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_DELETE_SCOPE)
     removed = remove_manual_relationship(vault_dir, req.dict())
     if removed is None:
         raise HTTPException(status_code=404, detail="Relationship not found")
@@ -1455,6 +1470,7 @@ async def history(request: Request, limit: int = 50):
 async def undo_latest(request: Request):
     """Undo the latest safe reversible vault action for the current user."""
     vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
     entry = latest_reversible(vault_dir, owner=current_owner(request))
     if not entry:
         raise HTTPException(status_code=404, detail="No reversible action to undo")

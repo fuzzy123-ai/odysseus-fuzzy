@@ -1681,6 +1681,46 @@ def test_current_owner_rejects_ownerless_api_token():
     assert exc.value.detail == "API token has no owner"
 
 
+@pytest.mark.asyncio
+async def test_obsidian_api_token_scopes_gate_vault_writes(monkeypatch):
+    def token_request(scopes):
+        return SimpleNamespace(
+            state=SimpleNamespace(
+                api_token=True,
+                api_token_owner="alice",
+                api_token_scopes=scopes,
+                api_token_id="tok_123",
+                api_token_prefix="ody",
+            )
+        )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(vault_service, "vault_path_for_owner", lambda owner: tmpdir)
+        vault_service.create_file(tmpdir, "A.md", "# A", owner="alice", tool="test")
+        vault_service.create_file(tmpdir, "B.md", "# B", owner="alice", tool="test")
+
+        readonly_request = token_request(["vault:read"])
+        files = await obsidian_routes.list_files(readonly_request)
+        assert {"A.md", "B.md"} <= {item["path"] for item in files}
+
+        with pytest.raises(HTTPException) as exc:
+            await obsidian_routes.create_relationship(
+                obsidian_routes.RelationshipRequest(source="A.md", target="B.md"),
+                readonly_request,
+            )
+        assert exc.value.status_code == 403
+        assert exc.value.detail == "API token missing required scope: vault:write"
+        assert not os.path.exists(os.path.join(tmpdir, ".obsidian", "relationships.json"))
+
+        writer_request = token_request(["vault:read", "vault:write"])
+        result = await obsidian_routes.create_relationship(
+            obsidian_routes.RelationshipRequest(source="A.md", target="B.md"),
+            writer_request,
+        )
+        assert result["success"] is True
+        assert result["relationship"]["source"] == "A.md"
+
+
 def test_memory_capture_preview_normalizes_without_writing():
     with tempfile.TemporaryDirectory() as tmpdir:
         req = MemoryCaptureRequest(
