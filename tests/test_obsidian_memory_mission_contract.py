@@ -52,6 +52,19 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "raptor_readiness": 1,
         "readiness_check": 2,
     }
+    assert snapshot["summary"]["readiness_gate"] == {
+        "required": True,
+        "satisfied": False,
+        "state": "blocked",
+        "families": 2,
+        "ready_families": 0,
+        "blocked_families": ["freshness", "raptor"],
+        "gaps": [
+            "freshness_filtering_not_active",
+            "needs_review_items",
+            "raptor_index_missing",
+        ],
+    }
     assert set(snapshot["summary"]["readiness_by_family"]) == {"freshness", "raptor"}
     assert snapshot["summary"]["readiness_by_family"]["freshness"]["gaps"] == [
         "freshness_filtering_not_active",
@@ -60,3 +73,4 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
     assert snapshot["summary"]["readiness_by_family"]["raptor"]["gaps"] == ["raptor_index_missing"]
     assert snapshot["summary"]["latest_blocker"]["family"] == "raptor"
     assert snapshot["summary"]["latest_blocker"]["gaps"] == ["raptor_index_missing"]
+    assert "resolve_readiness_gaps" in snapshot["next_actions"]
