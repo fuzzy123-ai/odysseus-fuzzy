@@ -284,6 +284,8 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
         issues=issues,
         warnings=warnings,
     )
+    readiness_signal = _readiness_signal("somt", readiness)
+    readiness_gate = _readiness_gate([readiness_signal])
     return {
         "enabled": flags["obsidian_somt_enabled"],
         "storage": {
@@ -293,7 +295,8 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
         },
         "flags": flags,
         "readiness": readiness,
-        "readiness_signals": [_readiness_signal("somt", readiness)],
+        "readiness_signals": [readiness_signal],
+        "readiness_gate": readiness_gate,
         "summary": {
             "total_notes": len(notes),
             "status_counts": dict(sorted(status_counts.items())),
@@ -304,6 +307,8 @@ def analyze_memory_tree(vault_dir: str, *, limit: Optional[int] = None) -> Dict[
             "isolation_counts": isolation_counts,
             "readiness_state": readiness["state"],
             "readiness_gaps": len(readiness["gaps"]),
+            "readiness_gap_names": readiness_signal["gaps"],
+            "readiness_gate": readiness_gate,
         },
         "nodes": public_nodes,
         "branches": _branch_candidates(notes),
@@ -319,6 +324,7 @@ def memory_tree_status(vault_dir: str) -> Dict[str, Any]:
         "storage": report["storage"],
         "readiness": report["readiness"],
         "readiness_signals": report["readiness_signals"],
+        "readiness_gate": report["readiness_gate"],
         "summary": report["summary"],
         "issue_counts": dict(Counter(issue["type"] for issue in report["issues"])),
         "flags": report["flags"],
@@ -363,4 +369,35 @@ def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
         "ready": bool(readiness.get("ready", state == "ready")),
         "gaps": gaps,
         "gap_count": len(gaps),
+    }
+
+
+def _readiness_gate(signals: List[Dict[str, Any]]) -> Dict[str, Any]:
+    by_family = {
+        str(signal.get("family") or "generic"): signal
+        for signal in signals
+    }
+    blocked = sorted(
+        family
+        for family, signal in by_family.items()
+        if not signal.get("ready", False)
+    )
+    gaps: List[str] = []
+    seen = set()
+    for signal in by_family.values():
+        for gap in signal.get("gaps") or []:
+            name = str(gap or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            gaps.append(name)
+    required = bool(by_family)
+    return {
+        "required": required,
+        "satisfied": not blocked,
+        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
+        "families": len(by_family),
+        "ready_families": len(by_family) - len(blocked),
+        "blocked_families": blocked,
+        "gaps": gaps,
     }

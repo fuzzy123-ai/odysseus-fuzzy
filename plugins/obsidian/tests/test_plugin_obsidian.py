@@ -720,6 +720,15 @@ def test_memory_tree_analyzer_is_read_only_and_reports_candidates():
                 "gap_count": 1,
             }
         ]
+        assert report["readiness_gate"] == {
+            "required": True,
+            "satisfied": False,
+            "state": "blocked",
+            "families": 1,
+            "ready_families": 0,
+            "blocked_families": ["somt"],
+            "gaps": ["somt_issues_present"],
+        }
         assert any(node["truth_level"] == "canonical" for node in report["nodes"])
         assert any(node["status"] == "active" and node["default_retrieval"] is True for node in report["nodes"])
         assert any(issue["type"] == "missing_frontmatter" and issue["path"] == "Loose.md" for issue in report["issues"])
@@ -731,6 +740,8 @@ def test_memory_tree_analyzer_is_read_only_and_reports_candidates():
         assert status["summary"]["readiness_gaps"] == 1
         assert status["readiness"] == report["readiness"]
         assert status["readiness_signals"] == report["readiness_signals"]
+        assert status["readiness_gate"] == report["readiness_gate"]
+        assert status["summary"]["readiness_gate"] == report["readiness_gate"]
 
 
 def test_memory_status_aggregates_read_only_readiness_layers():
@@ -854,12 +865,26 @@ def test_freshness_audit_and_quarantine_are_read_only():
                 "gap_count": 3,
             }
         ]
+        assert audit["readiness_gate"] == {
+            "required": True,
+            "satisfied": False,
+            "state": "blocked",
+            "families": 1,
+            "ready_families": 0,
+            "blocked_families": ["freshness"],
+            "gaps": [
+                "freshness_filtering_not_active",
+                "needs_review_items",
+                "quarantined_items",
+            ],
+        }
         assert audit["summary"]["default_retrieval"] == 1
         assert audit["summary"]["isolated"] == 3
         assert audit["summary"]["isolation_counts"] == {"needs_review": 1, "quarantined": 1, "stale": 1}
         assert audit["summary"]["filtering_state"] == "audit_only"
         assert audit["summary"]["readiness_state"] == "needs_review"
         assert audit["summary"]["readiness_gaps"] == 3
+        assert audit["summary"]["readiness_gate"] == audit["readiness_gate"]
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in audit["channels"]["needs_review"])
         assert any(item["path"] == "AI Memory/Review Queue/Candidate.md" for item in quarantine["items"])
         assert any(item["path"] == "Old.md" for item in quarantine["items"])
@@ -869,12 +894,14 @@ def test_freshness_audit_and_quarantine_are_read_only():
         assert quarantine["filtering_state"] == "audit_only"
         assert quarantine["readiness"]["state"] == "needs_review"
         assert quarantine["readiness_signals"] == audit["readiness_signals"]
+        assert quarantine["readiness_gate"] == audit["readiness_gate"]
         assert quarantine["summary"]["default_retrieval"] == 0
         assert quarantine["summary"]["isolated"] == 3
         assert quarantine["summary"]["by_channel"] == {"needs_review": 1, "quarantined": 2}
         assert quarantine["summary"]["filtering_state"] == "audit_only"
         assert quarantine["summary"]["readiness_state"] == "needs_review"
         assert quarantine["summary"]["readiness_gaps"] == 3
+        assert quarantine["summary"]["readiness_gate"] == audit["readiness_gate"]
 
 
 def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatch):
@@ -983,8 +1010,18 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
                 "gap_count": 1,
             }
         ]
+        assert status["readiness_gate"] == {
+            "required": True,
+            "satisfied": False,
+            "state": "blocked",
+            "families": 1,
+            "ready_families": 0,
+            "blocked_families": ["raptor"],
+            "gaps": ["raptor_index_missing"],
+        }
         assert status["summary"]["readiness_state"] == "not_configured"
         assert status["summary"]["readiness_gaps"] == 1
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
 
 
 def test_raptor_status_tracks_source_hash_lineage_without_writes():
@@ -1022,6 +1059,15 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
                 "gap_count": 0,
             }
         ]
+        assert status["readiness_gate"] == {
+            "required": True,
+            "satisfied": True,
+            "state": "ready",
+            "families": 1,
+            "ready_families": 1,
+            "blocked_families": [],
+            "gaps": [],
+        }
         assert status["lineage"]["source_count"] == 1
         assert status["lineage"]["dirty_sources"] == []
         assert status["lineage"]["missing_sources"] == []
@@ -1038,6 +1084,7 @@ def test_raptor_status_tracks_source_hash_lineage_without_writes():
         assert status["summary"]["tainted_sources"] == 0
         assert status["summary"]["readiness_state"] == "ready"
         assert status["summary"]["readiness_gaps"] == 0
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
         assert status["summary"]["writes_supported"] is False
 
 
@@ -1068,6 +1115,9 @@ def test_raptor_status_marks_changed_or_missing_sources_dirty():
         assert status["readiness"]["gaps"] == ["source_hash_changed", "source_missing"]
         assert status["summary"]["readiness_state"] == "dirty"
         assert status["summary"]["readiness_gaps"] == 2
+        assert status["readiness_gate"]["state"] == "blocked"
+        assert status["readiness_gate"]["gaps"] == ["source_hash_changed", "source_missing"]
+        assert status["summary"]["readiness_gate"] == status["readiness_gate"]
 
 
 def test_raptor_status_reports_invalid_readiness_gap():

@@ -146,12 +146,15 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
         filtering_state=filtering_state,
         channels=channels,
     )
+    readiness_signal = _readiness_signal("freshness", readiness)
+    readiness_gate = _readiness_gate([readiness_signal])
     return {
         "enabled": flags["obsidian_freshness_gate_enabled"],
         "flags": flags,
         "filtering_state": filtering_state,
         "readiness": readiness,
-        "readiness_signals": [_readiness_signal("freshness", readiness)],
+        "readiness_signals": [readiness_signal],
+        "readiness_gate": readiness_gate,
         "channels": channels,
         "summary": {
             "total": sum(len(values) for values in channels.values()),
@@ -166,6 +169,8 @@ def audit_knowledge(vault_dir: str) -> Dict[str, Any]:
             "filtering_state": filtering_state,
             "readiness_state": readiness["state"],
             "readiness_gaps": len(readiness["gaps"]),
+            "readiness_gap_names": readiness_signal["gaps"],
+            "readiness_gate": readiness_gate,
         },
         "warnings": warnings,
     }
@@ -181,6 +186,37 @@ def _readiness_signal(family: str, readiness: Dict[str, Any]) -> Dict[str, Any]:
         "ready": bool(readiness.get("ready", state == "ready")),
         "gaps": gaps,
         "gap_count": len(gaps),
+    }
+
+
+def _readiness_gate(signals: List[Dict[str, Any]]) -> Dict[str, Any]:
+    by_family = {
+        str(signal.get("family") or "generic"): signal
+        for signal in signals
+    }
+    blocked = sorted(
+        family
+        for family, signal in by_family.items()
+        if not signal.get("ready", False)
+    )
+    gaps: List[str] = []
+    seen = set()
+    for signal in by_family.values():
+        for gap in signal.get("gaps") or []:
+            name = str(gap or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            gaps.append(name)
+    required = bool(by_family)
+    return {
+        "required": required,
+        "satisfied": not blocked,
+        "state": "ready" if required and not blocked else ("blocked" if required else "not_applicable"),
+        "families": len(by_family),
+        "ready_families": len(by_family) - len(blocked),
+        "blocked_families": blocked,
+        "gaps": gaps,
     }
 
 
@@ -231,6 +267,7 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
         "filtering_state": audit.get("filtering_state", "disabled"),
         "readiness": audit.get("readiness", {}),
         "readiness_signals": audit.get("readiness_signals", []),
+        "readiness_gate": audit.get("readiness_gate", {}),
         "items": items,
         "summary": {
             "total": len(items),
@@ -241,6 +278,8 @@ def quarantine_list(vault_dir: str) -> Dict[str, Any]:
             "filtering_state": audit.get("filtering_state", "disabled"),
             "readiness_state": audit.get("readiness", {}).get("state", "unknown"),
             "readiness_gaps": len(audit.get("readiness", {}).get("gaps") or []),
+            "readiness_gap_names": list(audit.get("readiness", {}).get("gaps") or []),
+            "readiness_gate": audit.get("readiness_gate", {}),
         },
         "warnings": audit["warnings"],
     }

@@ -147,6 +147,8 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         invalid_summaries=invalid_summaries,
         lineage_status=lineage_status,
     )
+    readiness_signal = _readiness_signal("raptor", readiness)
+    readiness_gate = _readiness_gate(_readiness_by_family([readiness_signal]), readiness_signal["gaps"])
     return {
         "enabled": is_enabled("obsidian_raptor_enabled"),
         "configured": index_present or summaries_present,
@@ -160,7 +162,8 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         "dirty": dirty,
         "tainted": tainted,
         "readiness": readiness,
-        "readiness_signals": [_readiness_signal("raptor", readiness)],
+        "readiness_signals": [readiness_signal],
+        "readiness_gate": readiness_gate,
         "lineage": lineage_status,
         "summary": {
             "source_count": lineage_status["summary"]["source_count"],
@@ -170,6 +173,8 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
             "invalid_sources": int(bool(invalid_index)) + int(bool(invalid_summaries)),
             "readiness_state": readiness["state"],
             "readiness_gaps": len(readiness["gaps"]),
+            "readiness_gap_names": readiness_signal["gaps"],
+            "readiness_gate": readiness_gate,
             "writes_supported": False,
         },
         "writes_supported": False,
