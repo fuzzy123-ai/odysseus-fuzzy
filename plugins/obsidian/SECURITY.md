@@ -2,7 +2,20 @@
 
 ## Supported Versions
 
-At this early stage, security fixes are provided on the latest development and release branches.
+For the current RC cycle:
+
+- `0.10.0-rc.1` in the active `dev` line is the supported release-candidate target.
+- Security fixes should be applied to the latest maintained `dev` commit before any public tag or release branch is cut.
+- Older exploratory commits and ad-hoc local plugin snapshots should be treated as unsupported once a newer RC checkpoint exists.
+
+## RC Security Notes
+
+The current release-candidate scope includes a few explicit limits:
+
+- Vault password protection controls plugin access, but it is not full at-rest encryption for plaintext Markdown already stored on disk.
+- RAPTOR status and readiness surfaces are read-only in the RC; rebuild/write flows stay disabled until they are separately hardened and tested.
+- Risky write paths such as imports, project-plan apply flows, memory-review apply flows, and destructive file operations should only be used with the existing confirmation gates intact.
+- Authenticated plugin data routes must stay protected even when the standalone app shell and static assets are allowed to load before login.
 
 ## Reporting a Vulnerability
 
@@ -19,5 +32,7 @@ Please include:
 - Reproduction steps
 - Potential impact
 - Suggested remediation (if available)
+
+If the issue involves vault-content leakage, path traversal, import/export handling, password flows, or authenticated route bypass, include the affected route or tool name if known.
 
 Do **not** open public issues for undisclosed security vulnerabilities.

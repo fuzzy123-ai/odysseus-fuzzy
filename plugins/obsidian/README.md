@@ -241,6 +241,50 @@ Restart Odysseus after cloning. The plugin manager imports `plugins/obsidian/plu
 
 The panel can be opened from the Odysseus plugin settings UI when the plugin is enabled.
 
+## Upgrade
+
+For an existing checkout where the plugin already lives in `plugins/obsidian`:
+
+1. Keep your local Odysseus worktree clean or commit your changes first.
+2. Update the plugin checkout to the target commit on `dev`.
+3. Restart Odysseus so the plugin manager reloads `plugin.py` and the frontend assets.
+4. Re-run the focused RC checks that matter for your slice.
+
+For the current RC line, the minimum focused verification is:
+
+```powershell
+python -m pytest plugins/obsidian/tests/test_plugin_obsidian.py tests/test_obsidian_memory_mission_contract.py tests/test_obsidian_sidebar_static.py tests/test_plugin_obsidian_load.py tests/test_plugin_system.py
+node --check plugins/obsidian/frontend/main.js
+python -m pytest tests/test_agent_run_ledger.py tests/test_context_orchestrator.py tests/test_session_status_indicators.py tests/test_shell_policy.py tests/test_shell_routes.py
+```
+
+## RC Manual Checks
+
+Before treating `0.10.0-rc.1` as an internal release candidate, manually confirm:
+
+- Fresh install path works from a clean Odysseus checkout with `git clone -b dev ... plugins/obsidian`.
+- Existing `plugins/obsidian` checkout upgrades cleanly and still loads after restart.
+- A small vault export and import work without unexpected path leakage or reserved-file writes.
+- The standalone app page, authenticated vault load, and graph filter flows still match the documented smoke results.
+- Any release archive places the plugin files at the archive root so extracting it yields `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
+
+## Release Archive Layout
+
+If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:
+
+```text
+plugin.py
+plugin.json
+README.md
+SECURITY.md
+CONTRIBUTING.md
+frontend/
+backend/
+tests/
+```
+
+The archive should not introduce an extra top-level wrapper directory if the intended install target is already `plugins/obsidian`.
+
 ## Configuration
 
 By default, vaults are stored per user under Odysseus' data directory:
