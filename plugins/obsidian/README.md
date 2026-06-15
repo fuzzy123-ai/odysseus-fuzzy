@@ -121,6 +121,7 @@ Provider contract:
 - Memory diagnostics include `readiness_gate`, `retrieval_policy`, `freshness_isolation_flags`, `raptor_lineage_flags`, and `raptor_write_gate`.
 - Odysseus core forwards those diagnostics through a separate `Provider diagnostics` context message so readiness and isolation state are visible without duplicating note body content.
 - Provider failures or vault-state warnings are forwarded through a separate compact `Provider warnings` context message.
+- `obsidian_memory_status` also returns compact read-only `warnings`; Odysseus mission status can surface them as memory warnings without storing note content.
 - Identical vault/query/budget output produces a stable cache key.
 - Locked vaults return no note content and include a warning.
 

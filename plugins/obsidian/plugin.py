@@ -1025,7 +1025,7 @@ def setup(ctx):
             "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Spark action IDs to apply."},
         }, ["plan", "confirm", "selected_action_ids"], handle_spark_apply),
         _tool_spec("obsidian_memory_tree_status", "Return read-only SOMT index health, status counts, and branch overview.", {}, [], handle_memory_tree_status),
-        _tool_spec("obsidian_memory_status", "Return unified read-only memory readiness with readiness_gate, retrieval_policy, freshness_isolation_flags, raptor_lineage_flags, and raptor_write_gate across SOMT, Freshness Gate, quarantine, and RAPTOR.", {}, [], handle_memory_status),
+        _tool_spec("obsidian_memory_status", "Return unified read-only memory readiness with readiness_gate, retrieval_policy, freshness_isolation_flags, raptor_lineage_flags, raptor_write_gate, and warnings across SOMT, Freshness Gate, quarantine, and RAPTOR.", {}, [], handle_memory_status),
         _tool_spec("obsidian_memory_tree_analyze", "Analyze the vault into a read-only SOMT candidate report without writing derived files.", {
             "limit": {"type": "integer", "description": "Optional maximum number of notes to analyze."},
         }, [], handle_memory_tree_analyze),

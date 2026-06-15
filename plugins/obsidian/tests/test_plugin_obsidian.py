@@ -1393,6 +1393,7 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
     assert "freshness_isolation_flags" in memory_status_spec.description
     assert "raptor_lineage_flags" in memory_status_spec.description
     assert "raptor_write_gate" in memory_status_spec.description
+    assert "warnings" in memory_status_spec.description
     assert all("owner" not in spec.input_schema.get("properties", {}) for spec in VAULT_TOOL_SPECS)
 
 
