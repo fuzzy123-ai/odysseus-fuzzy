@@ -12,6 +12,16 @@ from .vault_model import add_manual_relationship, build_vault_index, normalize_t
 MEMORY_ACTIONS = {"memory_only", "save_to_obsidian", "append_to_note", "discard"}
 NOTE_TYPES = {"decision", "idea", "memory", "meeting", "project", "reference", "resource"}
 SOURCES = {"agent", "chat", "document", "file", "mail", "manual", "calendar"}
+SOURCE_ALIASES = {
+    "assistant": "agent",
+    "bot": "agent",
+    "conversation": "chat",
+    "docs": "document",
+    "email": "mail",
+    "human": "manual",
+    "person": "manual",
+    "user": "manual",
+}
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
 
 
@@ -391,12 +401,16 @@ def render_memory_append(
     tags: Iterable[str],
     links: Iterable[str],
 ) -> str:
+    anchor = _append_anchor_id(candidate=candidate, source=source, created=created)
     lines = [
         f"## Memory Review {created}",
+        "",
+        f"<a id=\"{anchor}\"></a>",
         "",
         candidate.content.strip(),
         "",
         f"Quelle: {source}" + (f" ({candidate.source_ref.strip()})" if candidate.source_ref.strip() else ""),
+        f"Risiko: {candidate.risk.strip() or 'normal'}",
         "",
     ]
     if links:
@@ -433,6 +447,7 @@ def _normalize_note_type(note_type: str) -> str:
 
 def _normalize_source(source: str) -> str:
     normalized = normalize_tag_name(source or "manual").replace("-", "_")
+    normalized = SOURCE_ALIASES.get(normalized, normalized)
     return normalized if normalized in SOURCES else "manual"
 
 
@@ -586,3 +601,18 @@ def _comparable_title(value: str) -> str:
 def _content_preview(content: str) -> str:
     lines = [line for line in content.splitlines() if line.strip()]
     return "\n".join(lines[:10])
+
+
+def _append_anchor_id(*, candidate: MemoryCandidate, source: str, created: str) -> str:
+    parts = [created, source, candidate.source_ref.strip(), candidate.title.strip()]
+    slug = "-".join(
+        filter(
+            None,
+            (
+                re.sub(r"[^a-z0-9]+", "-", part.lower()).strip("-")
+                for part in parts
+                if str(part or "").strip()
+            ),
+        )
+    )
+    return f"memory-review-{slug or 'entry'}"
