@@ -65,6 +65,7 @@ from backend.project_planning import (
     validate_project_plan,
 )
 from backend.memory_review import (
+    MemoryReviewApplyRequest,
     MemoryReviewPlan,
     MemoryReviewRequest,
     MemoryReviewValidationError,
@@ -106,7 +107,9 @@ from plugin import (
     handle_history,
     handle_memory_capture_apply,
     handle_memory_capture_preview,
+    handle_project_plan_gamedev_draft,
     handle_project_plan_apply,
+    handle_project_plan_improve_description,
     handle_project_plan_preview,
     handle_project_plan_templates,
     handle_memory_review_apply,
@@ -121,6 +124,7 @@ from plugin import (
     handle_read_note,
     handle_rename_item,
     handle_spark_apply,
+    handle_spark_analyze,
     handle_spark_plan,
     handle_undo,
     handle_write_note,
@@ -1970,6 +1974,10 @@ def test_archive_member_validation_blocks_escape_paths():
         "/tmp/escape.md",
         "C:\\temp\\escape.md",
         ".odysseus-vault.json",
+        "vault.bin",
+        ".obsidian/history.json",
+        ".obsidian/relationships.json",
+        ".obsidian/project_planning_sessions.json",
     ]
 
     for path in dangerous_paths:
@@ -3064,6 +3072,42 @@ def test_import_rejects_traversal_archive_without_writing_outside():
         assert not os.path.exists(marker)
 
 
+@pytest.mark.parametrize("member_name", [
+    ".odysseus-vault.json",
+    "vault.bin",
+    ".obsidian/history.json",
+    ".obsidian/relationships.json",
+    ".obsidian/project_planning_sessions.json",
+])
+def test_import_rejects_reserved_internal_archive_entries(member_name):
+    with tempfile.TemporaryDirectory() as vault:
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w") as zf:
+            zf.writestr(member_name, "nope")
+
+        with pytest.raises(VaultSecurityError) as exc:
+            import_vault(vault, buffer.getvalue())
+
+        assert "reserved" in str(exc.value).lower() or "metadata" in str(exc.value).lower()
+        assert not os.path.exists(os.path.join(vault, ".obsidian", "history.json"))
+        assert not os.path.exists(os.path.join(vault, ".obsidian", "relationships.json"))
+        assert not os.path.exists(os.path.join(vault, ".obsidian", "project_planning_sessions.json"))
+
+
+def test_import_rejects_archive_that_only_contains_export_wrapper_files():
+    with tempfile.TemporaryDirectory() as vault:
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w") as zf:
+            zf.writestr("odysseus-vault.json", json.dumps({"format": "odysseus-obsidian-vault", "encrypted": False}))
+            zf.writestr("vault.bin", b"plain payload that should never be imported directly")
+
+        with pytest.raises(VaultSecurityError) as exc:
+            import_vault(vault, buffer.getvalue())
+
+        assert "reserved" in str(exc.value).lower() or "metadata" in str(exc.value).lower()
+        assert os.listdir(vault) == []
+
+
 def test_encrypted_vault_export_requires_correct_password():
     with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
         with open(os.path.join(src, "Secret.md"), "w", encoding="utf-8") as f:
@@ -3301,6 +3345,19 @@ def test_plugin_setup_registration():
 async def test_locked_vault_blocks_all_actions(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr("plugin.get_vault_path_by_owner", lambda owner: tmpdir)
+        project_plan = build_project_plan(
+            tmpdir,
+            ProjectPlanRequest(title="Proj", kind="software", description="desc"),
+        )
+        memory_review_plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(candidate={"content": "memory"}, action="save_to_obsidian"),
+        )
+        memory_capture_plan = build_memory_capture_plan(
+            tmpdir,
+            MemoryCaptureRequest(content="capture me", source="agent"),
+        )
+        spark_plan = build_spark_plan(tmpdir, SparkAnalyzeRequest(limit=10))
         set_password(tmpdir, "strong password")
         lock_vault(tmpdir)
 
@@ -3340,8 +3397,80 @@ async def test_locked_vault_blocks_all_actions(monkeypatch):
         res = await handle_project_plan_preview('{"title": "Proj", "kind": "software", "description": "desc"}')
         assert res["exit_code"] == 1 and "locked" in res["error"].lower()
 
+        res = await handle_project_plan_templates("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_project_plan_improve_description(json.dumps({
+            "title": "Proj",
+            "kind": "software",
+            "description": "desc",
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_project_plan_gamedev_draft(json.dumps({
+            "title": "Proj",
+            "description": "desc",
+            "kind": "game_dev",
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_project_plan_apply(json.dumps({
+            "plan": project_plan.model_dump(),
+            "confirm": True,
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
         # Test memory review preview
         res = await handle_memory_review_preview('{"candidate": {"content": "memory"}, "action": "save_to_obsidian"}')
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_review_apply(json.dumps({
+            "plan": memory_review_plan.model_dump(),
+            "confirm": True,
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_capture_preview(json.dumps({
+            "content": "capture me",
+            "source": "agent",
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_capture_apply(json.dumps({
+            "plan": memory_capture_plan.model_dump(),
+            "confirm": True,
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_spark_analyze(json.dumps({"limit": 10}))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_spark_plan(json.dumps({"limit": 10}))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_spark_apply(json.dumps({
+            "plan": spark_plan.model_dump(),
+            "confirm": True,
+            "selected_action_ids": [],
+        }))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_status("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_tree_status("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_memory_tree_analyze(json.dumps({"limit": 10}))
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_knowledge_audit("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_quarantine_list("")
+        assert res["exit_code"] == 1 and "locked" in res["error"].lower()
+
+        res = await handle_raptor_status("")
         assert res["exit_code"] == 1 and "locked" in res["error"].lower()
 
 
@@ -3353,6 +3482,23 @@ async def test_locked_vault_blocks_route_level_content_surfaces(monkeypatch):
             f.write("# Secret\n\nhidden memory")
         set_password(tmpdir, "strong password")
         lock_vault(tmpdir)
+        project_plan = build_project_plan(
+            tmpdir,
+            ProjectPlanRequest(title="Locked Project", kind="software", description="Should stay hidden."),
+        )
+        memory_review_plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(candidate={"content": "locked memory"}, action="save_to_obsidian"),
+        )
+        memory_capture_plan = build_memory_capture_plan(
+            tmpdir,
+            MemoryCaptureRequest(content="locked capture", source="agent"),
+        )
+        spark_apply_request = SparkApplyRequest(
+            plan=build_spark_plan(tmpdir, SparkAnalyzeRequest(limit=10)),
+            confirm=True,
+            selected_action_ids=[],
+        )
         request = SimpleNamespace(
             state=SimpleNamespace(current_user="alice", api_token=False),
             app=SimpleNamespace(state=SimpleNamespace(auth_manager=None)),
@@ -3370,18 +3516,87 @@ async def test_locked_vault_blocks_route_level_content_surfaces(monkeypatch):
         await assert_locked(obsidian_routes.list_tags(request))
         await assert_locked(obsidian_routes.graph_vault(request))
         await assert_locked(obsidian_routes.project_plan_templates(request))
+        await assert_locked(obsidian_routes.project_plan_sessions(request))
+        await assert_locked(obsidian_routes.project_plan_session_get("missing", request))
+        await assert_locked(obsidian_routes.project_plan_session_delete("missing", request))
+        await assert_locked(obsidian_routes.project_plan_session_create(
+            obsidian_routes.ProjectPlanSessionCreateRequest(
+                request=ProjectPlanRequest(
+                    title="Locked Project",
+                    kind="software",
+                    description="Should not inspect a locked vault.",
+                )
+            ),
+            request,
+        ))
+        await assert_locked(obsidian_routes.project_plan_session_preview_stream(
+            "missing",
+            obsidian_routes.ProjectPlanSessionPreviewRequest(
+                request=ProjectPlanRequest(
+                    title="Locked Project",
+                    kind="software",
+                    description="Should not inspect a locked vault.",
+                )
+            ),
+            request,
+        ))
+        await assert_locked(obsidian_routes.project_plan_session_apply(
+            "missing",
+            obsidian_routes.ProjectPlanSessionApplyRequest(plan=project_plan, confirm=True),
+            request,
+        ))
         await assert_locked(obsidian_routes.project_plan_preview(ProjectPlanRequest(
             title="Locked Project",
             kind="software",
             description="Should not inspect a locked vault.",
         ), request))
+        await assert_locked(obsidian_routes.project_plan_preview_stream(ProjectPlanRequest(
+            title="Locked Project",
+            kind="software",
+            description="Should not inspect a locked vault.",
+        ), request))
+        await assert_locked(obsidian_routes.project_plan_improve_description(
+            ProjectDescriptionImproveRequest(
+                title="Locked Project",
+                kind="software",
+                description="Should not inspect a locked vault.",
+            ),
+            request,
+        ))
+        await assert_locked(obsidian_routes.project_plan_gamedev_draft(
+            GameDevConceptDraftRequest(
+                title="Locked Project",
+                description="Should not inspect a locked vault.",
+                kind="game_dev",
+            ),
+            request,
+        ))
+        await assert_locked(obsidian_routes.project_plan_apply(
+            obsidian_routes.ProjectPlanApplyRequest(plan=project_plan, confirm=True),
+            request,
+        ))
         await assert_locked(obsidian_routes.memory_review_preview(MemoryReviewRequest(
             candidate={"content": "locked memory"},
             action="save_to_obsidian",
         ), request))
+        await assert_locked(obsidian_routes.memory_review_apply(
+            MemoryReviewApplyRequest(plan=memory_review_plan, confirm=True),
+            request,
+        ))
         await assert_locked(obsidian_routes.memory_capture_preview(MemoryCaptureRequest(
             content="locked capture",
             source="agent",
         ), request))
+        await assert_locked(obsidian_routes.memory_capture_apply(
+            MemoryCaptureApplyRequest(plan=memory_capture_plan, confirm=True),
+            request,
+        ))
         await assert_locked(obsidian_routes.spark_analyze(SparkAnalyzeRequest(limit=10), request))
+        await assert_locked(obsidian_routes.spark_plan(SparkAnalyzeRequest(limit=10), request))
+        await assert_locked(obsidian_routes.spark_apply(spark_apply_request, request))
+        await assert_locked(obsidian_routes.memory_tree(request))
         await assert_locked(obsidian_routes.memory_status_route(request))
+        await assert_locked(obsidian_routes.memory_tree_analyze(request, limit=10))
+        await assert_locked(obsidian_routes.knowledge_audit(request))
+        await assert_locked(obsidian_routes.quarantine(request))
+        await assert_locked(obsidian_routes.raptor_status_route(request))

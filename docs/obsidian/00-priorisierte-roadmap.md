@@ -368,6 +368,295 @@ Akzeptanz:
 - Inbox/Review-Ordner als eigene erste Klasse.
 - Sync-Konzept mit externem Obsidian, Nextcloud oder Git.
 
+## Slice-Matrix fuer Mehragenten-Umsetzung
+
+Diese Matrix ist die operative Grundlage, um mehrere Agenten parallel zu beauftragen, ohne sich gegenseitig in dieselben Hot Files zu schicken.
+
+Grundsatz:
+
+- Ein Agent pro Slice.
+- Keine parallele Schreibarbeit auf denselben Hot Files ohne explizite Ownership-Entscheidung.
+- Wenn bereits ein anderer Agent im Projekt arbeitet, gilt dessen Slice/File-Bereich bis zur Klaerung als belegt.
+- Bei unvermeidbarer Ueberschneidung zuerst read-only analysieren, dann neu aufteilen.
+
+### Slice-Board
+
+| Slice | Ziel | Hauptdateien | Abhaengigkeiten | Parallel sicher? | Empfohlene Reihenfolge |
+| --- | --- | --- | --- | --- | --- |
+| `S1-auth-routing` | Auth-/Routing-Gate absichern | `app.py`, `plugins/obsidian/backend/routes.py`, `tests/test_obsidian_sidebar_static.py` | keine harte fachliche Abhaengigkeit | ja | 1 |
+| `S2-security-ui-docs` | Vault-Sicherheitsklarheit im UI und in den Plugin-Dokumenten | `plugins/obsidian/frontend/main.js`, `plugins/obsidian/README.md`, `plugins/obsidian/SECURITY.md` | darf das aktuelle Sicherheitsmodell nicht aendern | ja | 1 |
+| `S3-release-docs` | Release-Doku, Install-/Upgrade-Pfad, Version-Sync | `README.md`, `plugins/obsidian/README.md`, `plugin.py`, `plugin.json` | finaler Release-Schnitt und aktuelle Produktgrenzen | ja | 1-2 |
+| `S4-graph-focus` | Graph-Fokusvertrag aus Dateibaum finalisieren | `plugins/obsidian/frontend/main.js`, `tests/test_obsidian_sidebar_static.py` | gemeinsamer Frontend-Vertrag mit `S5` | bedingt | 2 |
+| `S5-graph-filter-state` | Graph-Filter-State konsolidieren und Legacy-Globals entfernen | `plugins/obsidian/frontend/main.js`, `plugins/obsidian/backend/vault_model.py`, `tests/test_obsidian_sidebar_static.py` | gemeinsamer Frontend-Vertrag mit `S4` | bedingt | 2 |
+| `S6-performance-gate` | Large-Vault-Performance messen, Grenzwerte dokumentieren, Testgate pflegen | `tests/`, `docs/obsidian/00-priorisierte-roadmap.md`, ggf. `plugins/obsidian/frontend/main.js` | stabile Messbasis; moeglichst kein paralleler Graph-Umbau | ja, wenn measurement-only | 1-2 |
+| `S7-project-plan-conflicts` | Projektplanung: Merge/Overwrite/selektiver Apply nach P0 | `plugins/obsidian/backend/project_planning.py`, `plugins/obsidian/backend/routes.py`, `plugins/obsidian/frontend/main.js` | P0-Fallback `409` bleibt waehrenddessen aktiv | ja | 3 |
+| `S8-memory-review-productization` | Memory Review Queue, Dedupe, Produktisierung | `plugins/obsidian/backend/memory_review.py`, `plugins/obsidian/frontend/main.js` | darf Konflikt-/Apply-Schutz nicht lockern | ja | 3 |
+| `S9-rc-checklist-sync` | RC-Checkliste, Vertragsmatrix und Restrisiken auf denselben Stand ziehen | `docs/obsidian/00-priorisierte-roadmap.md`, `README.md`, `plugins/obsidian/README.md`, `SECURITY.md` | sollte auf `S1` und `S3` aufsetzen, nicht davor divergieren | ja | 2 |
+| `S10-manual-distribution-runbook` | Frische Installation, Upgrade, Release-Zip und Evidence-Template als reproduzierbaren Runbook-Slice ausformulieren | `docs/obsidian/00-priorisierte-roadmap.md`, `README.md`, `plugins/obsidian/README.md` | profitiert von fertigeren Release-Docs aus `S3` | ja | 2 |
+| `S11-locked-vault-regression-matrix` | Gesperrter Vault: Leak-Regressionen fuer Files, Tags, Graph, Search, Project, Memory vervollstaendigen | `plugins/obsidian/tests/test_plugin_obsidian.py`, ggf. `plugins/obsidian/backend/routes.py` | sollte die Auth-/Lock-Basis aus `S1` nicht aufweichen | bedingt | 2 |
+| `S12-import-archive-hardening` | Import-Sicherheitsmatrix und reservierte Archivfaelle vor dem spaeteren Dry-Run haerten | `plugins/obsidian/backend/import_export.py`, `plugins/obsidian/tests/test_plugin_obsidian.py`, `docs/obsidian/00-priorisierte-roadmap.md` | kann parallel zu reinem Release-/Doc-Work laufen | ja | 2-3 |
+| `S13-project-plan-backend-apply-options` | Selektives Apply sowie kontrollierte Merge/Overwrite-Entscheidungen zuerst backendseitig vorbereiten | `plugins/obsidian/backend/project_planning.py`, `plugins/obsidian/tests/test_plugin_obsidian.py` | P0-Konfliktblockade bleibt bis Abschluss unveraendert aktiv | ja | 3 |
+| `S14-memory-review-queue-backend` | Queue-, Dedupe- und Quellen-Normalisierung fuer Memory Review zunaechst im Backend stabilisieren | `plugins/obsidian/backend/memory_review.py`, `plugins/obsidian/tests/test_plugin_obsidian.py` | darf bestaetigungspflichtige Apply-Grenzen nicht lockern | ja | 3 |
+
+### Empfohlene Parallel-Batches
+
+Batch 1: sofort parallelisierbar
+
+- `S1-auth-routing`
+- `S2-security-ui-docs`
+- `S3-release-docs`
+- `S6-performance-gate`
+
+Batch 2: kontrolliert parallelisierbar
+
+- `S4-graph-focus`
+- `S5-graph-filter-state`
+- `S9-rc-checklist-sync`
+- `S10-manual-distribution-runbook`
+- `S11-locked-vault-regression-matrix`
+- `S12-import-archive-hardening`
+
+Batch 3: nach P0-Stabilisierung
+
+- `S7-project-plan-conflicts`
+- `S8-memory-review-productization`
+- `S13-project-plan-backend-apply-options`
+- `S14-memory-review-queue-backend`
+
+### Wo Parallelisierung keine gute Idee ist
+
+Die folgenden Kombinationen sollten nicht parallel laufen, auch wenn sie auf dem Papier thematisch verwandt wirken:
+
+- `S4-graph-focus` nicht parallel zu `S5-graph-filter-state`
+  - beide schreiben an `plugins/obsidian/frontend/main.js`
+  - beide koennen dieselben Static-Contracts und Browser-Smokes destabilisieren
+- `S1-auth-routing` nicht parallel zu jedem Slice, der frei an `tests/test_obsidian_sidebar_static.py` mitschreibt
+  - sonst werden Auth- und Shell-Vertraege gleichzeitig umdefiniert
+- `S3-release-docs` nicht parallel zu `S9-rc-checklist-sync` oder `S10-manual-distribution-runbook`
+  - sonst drohen doppelte Editoren in `README.md` und `plugins/obsidian/README.md`
+- `S11-locked-vault-regression-matrix`, `S12-import-archive-hardening`, `S13-project-plan-backend-apply-options` und `S14-memory-review-queue-backend` nicht blind parallel untereinander
+  - alle koennen `plugins/obsidian/tests/test_plugin_obsidian.py` beruehren
+  - hier gilt: entweder klare Testblock-Aufteilung oder nacheinander
+- `S7-project-plan-conflicts` nicht parallel zu `S13-project-plan-backend-apply-options`
+  - `S13` ist bewusst der risikoaermere Backend-Vorbau fuer dasselbe Thema
+- `S8-memory-review-productization` nicht parallel zu `S14-memory-review-queue-backend`
+  - `S14` ist bewusst der backendlastige Vorbau fuer dasselbe Thema
+
+Praktische Regel:
+
+- Sobald zwei Slices dasselbe Testfile oder denselben Frontend-Hot-File aendern, ist Parallelisierung standardmaessig nein, bis ein expliziter Split dokumentiert wurde.
+
+### Zuschnitt fuer Graph-Frontend-Arbeit
+
+`S4` und `S5` duerfen nur parallel laufen, wenn vorher ein kurzer Arbeitsvertrag feststeht:
+
+- `currentNotePath` bleibt Fokusquelle fuer `S4`.
+- `graphFilterState` wird die einzige Filterquelle fuer `S5`.
+- keine neuen Legacy-Globals
+- ein Agent owned Fokus-/Navigationsthemen
+- ein Agent owned Filter-State-/Panel-/Reset-Themen
+- Browser-Smokes und Static-Contract-Tests werden nicht blind parallel umgeschrieben
+
+### Beauftragungsregeln fuer den Master-Agent
+
+Wenn mehrere Agenten parallel arbeiten sollen, sollte der orchestrierende Master-Agent fuer jede Beauftragung festhalten:
+
+- Slice-Name
+- explizite Hauptdateien
+- Nicht-Ziele
+- bekannte Ueberschneidungen
+- erwartetes Testgate
+
+Empfohlene minimale Delegate-Form:
+
+```json
+{
+  "task": "Own slice S2-security-ui-docs. Update only the password-protection UI wording and related docs. Do not touch graph code or backend auth. If you see overlap with another active agent, stop and report the overlap instead of editing.",
+  "context_query": "obsidian password protection at-rest warning release candidate",
+  "budget": 1200
+}
+```
+
+### Aktuelle Hot-File-Warnung
+
+Die groesste Kollisionszone bleibt aktuell:
+
+- `plugins/obsidian/frontend/main.js`
+- `tests/test_obsidian_sidebar_static.py`
+
+Auf diesen Dateien sollten nicht mehrere Agenten gleichzeitig frei arbeiten. Fuer diese Hot Files ist Slice-Ownership wichtiger als maximale Parallelitaet.
+
+### Aktuelle Ownership-Annahme am 2026-06-15
+
+Der aktuelle Working Tree deutet bereits auf zwei laufende, voneinander getrennte Arbeitsbahnen hin. Bis ein expliziter Handoff erfolgt, sollten diese Bereiche als belegt gelten:
+
+- Bob aktiv auf `S1-auth-routing`: `app.py`, `plugins/obsidian/backend/routes.py`, `tests/test_obsidian_sidebar_static.py`
+- Alice aktiv auf `S3-release-docs`: `README.md`, `plugins/obsidian/README.md`, `plugins/obsidian/plugin.py`, `plugins/obsidian/plugin.json`
+
+Direkte Konsequenz fuer neue Arbeit:
+
+- Kein dritter Agent auf `tests/test_obsidian_sidebar_static.py`, solange Bob nicht uebergibt.
+- Kein dritter Agent auf `README.md`, `plugins/obsidian/README.md`, `plugin.py` oder `plugin.json`, solange Alice nicht uebergibt.
+- Fuer sofortige Zusatzarbeit eignen sich eher `S6`, `S10`, `S11`, `S12`, `S13` und `S14`, sofern die Dateigrenzen sauber eingehalten werden.
+
+### Rest-Roadmap als Alice/Bob-Queue
+
+Damit die restliche Roadmap ohne Neu-Sortierung abgearbeitet werden kann, wird sie fuer zwei Agents in zwei Spuren zerlegt. Alice ist aktuell schneller; deshalb bekommt sie die kuerzeren und frueher dokumentationsnahen Handoffs.
+
+#### Alice-Track
+
+Primaer fuer schnellere Durchlaeufe, Dokumentation, Runbooks und spaeter einen klar begrenzten Frontend-Slice.
+
+1. `S3-release-docs`
+2. `S10-manual-distribution-runbook`
+3. `S9-rc-checklist-sync`
+4. `S2-security-ui-docs`
+5. `S4-graph-focus`
+6. `S8-memory-review-productization`
+
+Regeln fuer Alice:
+
+- `S10` erst starten, wenn `S3` sauber uebergeben ist.
+- `S9` nicht parallel zu `S10`, weil beide dieselben README-Dateien anfassen koennen.
+- `S2` erst starten, wenn Alice nicht mehr an `README.md` oder `plugins/obsidian/README.md` aus `S3`, `S9` oder `S10` arbeitet.
+- `S4` erst starten, wenn Bob nicht mehr an `tests/test_obsidian_sidebar_static.py` arbeitet und kein anderer Agent `plugins/obsidian/frontend/main.js` owned.
+- `S8` erst nach P0-Stabilisierung und nicht parallel zu `S14`.
+
+#### Bob-Track
+
+Primaer fuer Auth, Backend-Haertung, Testmatrizen und spaeter die backendlastigen Produktisierungsslices.
+
+1. `S1-auth-routing`
+2. `S11-locked-vault-regression-matrix`
+3. `S12-import-archive-hardening`
+4. `S6-performance-gate`
+5. `S13-project-plan-backend-apply-options`
+6. `S14-memory-review-queue-backend`
+
+Regeln fuer Bob:
+
+- `S11` erst starten, wenn `S1` uebergeben ist oder die Testgrenzen explizit getrennt wurden.
+- `S12`, `S13` und `S14` nicht parallel untereinander, solange sie alle `plugins/obsidian/tests/test_plugin_obsidian.py` anfassen.
+- `S6` ist der beste Lueckenfueller, wenn Bob auf einen Handoff warten muss und measurement-only bleiben kann.
+- `S13` erst nach P0-Stabilisierung und nicht parallel zu `S7`.
+- `S14` erst nach P0-Stabilisierung und nicht parallel zu `S8`.
+
+#### Gemeinsame Cross-Track-Regeln
+
+- Alice zieht vor Bob auf den naechsten Slice weiter, wenn sie frueher fertig ist; Bob bleibt auf seinem aktuellen Backend-/Test-Korridor und wird nicht in Alices Doku- oder Frontend-Files umgelenkt.
+- Bob zieht nicht in `README.md`, `plugin.py`, `plugin.json` oder `plugins/obsidian/README.md`.
+- Alice zieht nicht in `app.py`, `plugins/obsidian/backend/routes.py` oder `tests/test_obsidian_sidebar_static.py`, solange Bob dort aktiv ist.
+- Die echten Stoppschilder bleiben `plugins/obsidian/frontend/main.js`, `tests/test_obsidian_sidebar_static.py` und `plugins/obsidian/tests/test_plugin_obsidian.py`.
+
+### Zwei-Agenten-Plan nach Phase
+
+Zur schnellen Orientierung fuer den Master-Agent gilt fuer den Rest der Roadmap diese Standardaufteilung:
+
+| Phase | Alice | Bob | Parallel sinnvoll? | Kommentar |
+| --- | --- | --- | --- | --- |
+| laufend | `S3-release-docs` | `S1-auth-routing` | ja | bereits getrennte Dateibereiche |
+| direkt danach | `S10-manual-distribution-runbook` | `S11-locked-vault-regression-matrix` | ja | Doku-Track vs. Backend-/Test-Track |
+| danach | `S9-rc-checklist-sync` | `S12-import-archive-hardening` | ja, mit Vorsicht | Alice bleibt in Doku, Bob in Import-/Backend-Tests |
+| spaeter | `S2-security-ui-docs` | `S6-performance-gate` | ja | nur wenn Alice keine README-Handoffs offen hat |
+| Graph-Phase | `S4-graph-focus` | Pause oder read-only Review | nein als Doppel-Implementierung | Frontend-Hot-File solo ownen |
+| P0+ Produktisierung | `S8-memory-review-productization` | `S13-project-plan-backend-apply-options` | ja | getrennte Fachbereiche |
+| Abschluss P1 | Pause oder UI-Followups zu Memory | `S14-memory-review-queue-backend` | bedingt | nicht parallel zu `S8`, falls dieselbe Memory-Logik aktiv geaendert wird |
+
+### Vordefinierte Agenten
+
+Damit mehrere Agenten sofort beauftragt werden koennen, ohne jedes Mal den Slice neu zu erklaeren, sind diese zwei Start-Agenten vordefiniert.
+
+Wegen des bereits laufenden anderen Agenten sind hier bewusst zwei relativ konfliktarme Spuren vorbelegt. Falls der aktive Fremd-Agent nachweislich genau dieselben Dateien bearbeitet, muss der Master-Agent zuerst neu zuschneiden statt parallel weiterzuschreiben.
+
+#### Agent Bob
+
+- Slice: `S1-auth-routing`
+- Ziel: Auth-/Routing-Gate fuer Plugin-UI vs. Plugin-Datenrouten absichern
+- Primaere Dateien:
+  - `app.py`
+  - `plugins/obsidian/backend/routes.py`
+  - `tests/test_obsidian_sidebar_static.py`
+- Erwartete Arbeit:
+  - Auth-Exempt-Regeln fuer UI-Shell klein und sauber halten
+  - Datenrouten weiter durch echte Auth laufen lassen
+  - API-/Static-/Auth-Tests ergaenzen oder haerten
+- Nicht-Ziele:
+  - keine Graph-UI-Aenderungen
+  - keine Passwort-UX-Texte
+  - keine Release-Doku-Arbeit
+- Testgate:
+  - `python -m pytest tests/test_obsidian_sidebar_static.py`
+  - relevante Auth-/Route-Tests
+- Beauftragungsform:
+
+```text
+Du bist Bob. Own slice S1-auth-routing. Arbeite nur an app.py, plugins/obsidian/backend/routes.py und den dazugehoerigen Auth-/Static-Tests. Nicht an Graph-UI, Passwort-UX oder Release-Doku arbeiten. Wenn ein anderer aktiver Agent diese Dateien bereits veraendert, stoppe und melde den Overlap statt weiter zu editieren.
+```
+
+- Naechster empfohlener Handoff-Slice nach `S1`: `S11-locked-vault-regression-matrix`
+- Warum als Folge-Slice:
+  - baut fachlich direkt auf Auth-/Lock-Verhalten auf
+  - bleibt ueberwiegend im Test-/Backend-Korridor
+  - kollidiert weniger mit Alices Release-Doku-Spur als Graph- oder README-Arbeit
+
+Empfohlene Folge-Beauftragung:
+
+```text
+Du bist Bob. Own slice S11-locked-vault-regression-matrix. Arbeite primaer an plugins/obsidian/tests/test_plugin_obsidian.py und nur falls noetig minimal an plugins/obsidian/backend/routes.py. Haerte Leak-Regressionen fuer gesperrte Vaults ueber Files, Tags, Graph, Search, Project und Memory. Nicht an README, Plugin-Manifesten oder Graph-Frontend arbeiten. Wenn S1-Dateien noch offen oder in Konflikt sind, zuerst Handoff melden statt parallel in dieselben Tests zu schreiben.
+```
+
+#### Agent Alice
+
+- Slice: `S3-release-docs`
+- Ziel: Release-Doku, Install-/Upgrade-Pfad und Version-Sync vorbereiten
+- Primaere Dateien:
+  - `README.md`
+  - `plugins/obsidian/README.md`
+  - `plugins/obsidian/plugin.py`
+  - `plugins/obsidian/plugin.json`
+- Erwartete Arbeit:
+  - Installations-/Upgrade-Pfad konsistent halten
+  - bekannte RC-Grenzen klar dokumentieren
+  - Versionskonsistenz zwischen Manifest und Python-Plugin pruefen
+- Nicht-Ziele:
+  - keine Backend-Auth-Logik
+  - keine Graph-Frontend-Arbeit
+  - keine Projektplan-/Memory-Apply-Logik
+- Testgate:
+  - Doku-Konsistenz
+  - Versionskonsistenz zwischen `plugin.py` und `plugin.json`
+- Beauftragungsform:
+
+```text
+Du bist Alice. Own slice S3-release-docs. Arbeite nur an README.md, plugins/obsidian/README.md, plugins/obsidian/plugin.py und plugins/obsidian/plugin.json. Nicht an Backend-Auth, Graph-Frontend oder Projektplan-/Memory-Logik arbeiten. Wenn ein anderer aktiver Agent diese Dateien bereits veraendert, stoppe und melde den Overlap statt weiter zu editieren.
+```
+
+- Naechster empfohlener Handoff-Slice nach `S3`: `S10-manual-distribution-runbook`
+- Warum als Folge-Slice:
+  - bleibt im Release-/Dokumentationskontext
+  - macht aus den RC-Hinweisen eine tatsaechlich reproduzierbare Checkliste
+  - vermeidet die Hot Files von Bob und dem Graph-Frontend
+
+Empfohlene Folge-Beauftragung:
+
+```text
+Du bist Alice. Own slice S10-manual-distribution-runbook. Arbeite an docs/obsidian/00-priorisierte-roadmap.md, README.md und plugins/obsidian/README.md. Formuliere frische Installation, Upgrade, Release-Zip-Check und Evidence-Sammlung als kurze, reproduzierbare Runbook-Schritte aus. Nicht an Backend-Auth, Graph-Frontend, Import-Implementierung oder Memory-/Project-Apply-Logik arbeiten. Wenn S3-Dokumente noch nicht sauber uebergeben sind, zuerst Handoff statt Vermischung melden.
+```
+
+### Empfohlene Fortsetzung fuer zwei laufende Agenten
+
+Wenn Alice und Bob bereits parallel arbeiten, ist die risikoaermste Fortsetzung:
+
+1. Bob schliesst `S1-auth-routing` ab.
+2. Alice schliesst `S3-release-docs` ab.
+3. Danach Bob -> `S11-locked-vault-regression-matrix`.
+4. Danach Alice -> `S10-manual-distribution-runbook`.
+5. Wenn Alice wieder frueher frei wird: Alice -> `S9-rc-checklist-sync`.
+6. Wenn Bob danach frei wird: Bob -> `S12-import-archive-hardening`.
+7. Graph-Arbeit erst, wenn `tests/test_obsidian_sidebar_static.py` und `plugins/obsidian/frontend/main.js` klar einem einzigen aktiven Owner gehoeren.
+
+Diese Reihenfolge haelt beide Agents aus derselben Kollisionszone heraus, nutzt ihr bereits begonnenes Kontextfenster weiter und schiebt die Graph-Hot-Files bewusst nach hinten.
+
 ## Architektur- und Vertragsmatrix
 
 ### UI zu Route zu Tool

@@ -22,6 +22,15 @@ MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 MAX_IMPORT_FILES = 5000
 MAX_IMPORT_UNCOMPRESSED_BYTES = 250 * 1024 * 1024
 PBKDF2_ITERATIONS = 390000
+RESERVED_ARCHIVE_BASENAMES = {
+    STATE_FILENAME,
+    EXPORT_PAYLOAD,
+}
+RESERVED_OBSIDIAN_PATHS = {
+    ".obsidian/history.json",
+    ".obsidian/relationships.json",
+    ".obsidian/project_planning_sessions.json",
+}
 
 
 class VaultSecurityError(ValueError):
@@ -161,8 +170,10 @@ def validate_archive_member(name: str) -> str:
     if normalized == "." or normalized.startswith("../") or normalized == "..":
         raise VaultSecurityError("Archive contains a path traversal entry")
     parts = normalized.split("/")
-    if STATE_FILENAME in parts:
-        raise VaultSecurityError("Archive may not contain vault protection metadata")
+    if parts[0] == ".obsidian" or normalized in RESERVED_OBSIDIAN_PATHS:
+        raise VaultSecurityError("Archive may not contain reserved internal files")
+    if any(part in RESERVED_ARCHIVE_BASENAMES for part in parts):
+        raise VaultSecurityError("Archive may not contain reserved import/export metadata")
     return normalized
 
 
@@ -274,6 +285,9 @@ def import_vault(vault_dir: str, archive_data: bytes, password: Optional[str] = 
     planned: list[tuple[str, zipfile.ZipInfo]] = []
     try:
         with zipfile.ZipFile(BytesIO(plain_archive), "r") as zf:
+            names = set(zf.namelist())
+            if EXPORT_PAYLOAD in names:
+                raise VaultSecurityError("Archive contains unexpected encrypted payload metadata")
             for info in zf.infolist():
                 if info.is_dir() or info.filename == EXPORT_MANIFEST:
                     continue
