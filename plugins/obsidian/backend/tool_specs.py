@@ -341,7 +341,7 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
         "selected_action_ids": {"type": "array", "items": {"type": "string"}, "description": "Action IDs to apply."},
     }, ["plan", "confirm", "selected_action_ids"]), "write", _spark_apply),
     VaultToolSpec("obsidian_memory_tree_status", "Return read-only SOMT index health, status counts, and branch overview.", _schema({}), "read", _memory_tree_status),
-    VaultToolSpec("obsidian_memory_status", "Return unified read-only memory readiness across SOMT, Freshness Gate, quarantine, and RAPTOR.", _schema({}), "read", _memory_status),
+    VaultToolSpec("obsidian_memory_status", "Return unified read-only memory readiness with readiness_gate, freshness_isolation_flags, and raptor_lineage_flags across SOMT, Freshness Gate, quarantine, and RAPTOR.", _schema({}), "read", _memory_status),
     VaultToolSpec("obsidian_memory_tree_analyze", "Analyze the vault into a read-only SOMT candidate report without writing derived files.", _schema({
         "limit": {"type": "integer", "description": "Optional maximum number of notes to analyze."},
     }), "read", _memory_tree_analyze),

@@ -1282,6 +1282,7 @@ def test_obsidian_context_provider_parses_frontmatter_lists():
 
 def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
     names = [spec.name for spec in VAULT_TOOL_SPECS]
+    memory_status_spec = VAULT_TOOL_BY_NAME["obsidian_memory_status"]
 
     assert len(names) == len(set(names))
     assert set(names) == set(VAULT_TOOL_BY_NAME)
@@ -1295,6 +1296,9 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
         "obsidian_raptor_status",
     } <= set(names)
     assert "obsidian_raptor_status" not in DESTRUCTIVE_TOOL_NAMES
+    assert "readiness_gate" in memory_status_spec.description
+    assert "freshness_isolation_flags" in memory_status_spec.description
+    assert "raptor_lineage_flags" in memory_status_spec.description
     assert all("owner" not in spec.input_schema.get("properties", {}) for spec in VAULT_TOOL_SPECS)
 
 

@@ -98,6 +98,9 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "obsidian_add_relationship" in visible_tools
     assert "obsidian_undo" in visible_tools
     assert "obsidian_memory_status" in visible_tools
+    assert "readiness_gate" in visible_tools["obsidian_memory_status"]["desc"]
+    assert "freshness_isolation_flags" in visible_tools["obsidian_memory_status"]["desc"]
+    assert "raptor_lineage_flags" in visible_tools["obsidian_memory_status"]["desc"]
     assert "obsidian_memory_tree_status" in visible_tools
     assert "obsidian_knowledge_audit" in visible_tools
     assert "obsidian_quarantine_list" in visible_tools
