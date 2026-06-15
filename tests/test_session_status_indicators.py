@@ -62,6 +62,8 @@ def test_session_menu_exposes_read_only_mission_status_action():
     assert "blocker.source" in source
     assert "blocker.state" in source
     assert "blocker.gap_count" in source
+    assert "Array.isArray(blocker.gaps)" in source
+    assert "gaps ${gapNames.join(', ')}" in source
     assert "function _missionArtifactText(snapshot)" in source
     assert "snapshot?.summary?.verifier_artifacts" in source
     assert "snapshot?.phases?.verifier?.artifacts" in source

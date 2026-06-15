@@ -81,12 +81,16 @@ function _missionBlockerText(snapshot) {
   const blocker = snapshot?.summary?.latest_blocker;
   if (!blocker || !blocker.kind) return '';
   const role = blocker.role ? `${blocker.role} ` : '';
+  const gapNames = Array.isArray(blocker.gaps) && blocker.gaps.length
+    ? blocker.gaps.slice(0, 3).map((gap) => String(gap).replace(/_/g, ' '))
+    : [];
   const details = [
     blocker.reason ? String(blocker.reason).replace(/_/g, ' ') : '',
     blocker.family ? `family ${blocker.family}` : '',
     blocker.source ? `source ${blocker.source}` : '',
     blocker.state ? `state ${blocker.state}` : '',
     blocker.gap_count !== undefined ? `${blocker.gap_count} gap${Number(blocker.gap_count || 0) === 1 ? '' : 's'}` : '',
+    gapNames.length ? `gaps ${gapNames.join(', ')}` : '',
     blocker.exit_code !== undefined ? `exit ${blocker.exit_code}` : '',
     blocker.policy_tier ? `policy ${blocker.policy_tier}` : '',
   ].filter(Boolean).join(', ');
