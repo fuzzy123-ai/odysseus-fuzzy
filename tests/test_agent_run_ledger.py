@@ -682,6 +682,13 @@ def test_chat_run_ledger_route_returns_owner_scoped_summary(tmp_path, monkeypatc
     monkeypatch.setattr(chat_routes.agent_runs, "get_status", lambda session_id: None)
 
     agent_run_ledger.append_run_started("route-session")
+    agent_run_ledger.append_sse_event(
+        "route-session",
+        'data: {"type": "tool_output", "tool": "obsidian_memory_status", "round": 1, "exit_code": 0, '
+        '"output": "{\\"readiness_by_family\\":{'
+        '\\"freshness\\":{\\"source\\":\\"readiness\\",\\"state\\":\\"needs_review\\",'
+        '\\"ready\\":false,\\"gaps\\":[\\"needs_review_items\\"],\\"gap_count\\":1}}}"}\n\n',
+    )
     agent_run_ledger.append_status("route-session", "done")
 
     app = FastAPI()
@@ -702,6 +709,23 @@ def test_chat_run_ledger_route_returns_owner_scoped_summary(tmp_path, monkeypatc
     assert body["status"] == "done"
     assert body["active"] is False
     assert [event["event"] for event in body["tail"]] == ["run_status"]
+    assert body["tools"]["obsidian_memory_status"] == {
+        "starts": 0,
+        "outputs": 1,
+        "blocked": 0,
+        "last_exit_code": 0,
+    }
+    assert body["readiness_signals"] == [
+        {
+            "family": "freshness",
+            "source": "readiness",
+            "state": "needs_review",
+            "ready": False,
+            "gaps": ["needs_review_items"],
+            "gap_count": 1,
+        }
+    ]
+    assert body["readiness_by_family"]["freshness"] == body["readiness_signals"][0]
 
 
 def test_chat_mission_route_returns_owner_scoped_snapshot(tmp_path, monkeypatch):
