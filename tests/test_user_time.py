@@ -97,6 +97,11 @@ def test_chat_preface_injects_provider_context_before_volatile_time():
             "structured_state": {"Project.md": {"status": "active", "owner": owner}},
             "snippets": [{"path": "Project.md", "text": query, "untrusted": True}],
             "sources": [{"path": "Project.md", "score": 7}],
+            "memory": {
+                "summary": {"readiness_state": "blocked", "filtering_state": "audit_only"},
+                "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+                "retrieval_policy": {"filtering_state": "audit_only", "default_retrieval_is_filtered": False},
+            },
             "warnings": [],
             "cache_key": "stable-provider-key",
         }
@@ -121,12 +126,12 @@ def test_chat_preface_injects_provider_context_before_volatile_time():
 
     contents = [msg["content"] for msg in preface]
     structured_idx = next(i for i, content in enumerate(contents) if content.startswith("Provider structured state:"))
+    diagnostics_idx = next(i for i, content in enumerate(contents) if content.startswith("Provider diagnostics:"))
     snippets_idx = next(i for i, content in enumerate(contents) if content.startswith("Provider snippets are untrusted"))
-    time_idx = next(i for i, content in enumerate(contents) if content.startswith("## Current date and time"))
-
-    assert structured_idx < time_idx
-    assert snippets_idx < time_idx
+    assert structured_idx < diagnostics_idx < snippets_idx
     assert "Project.md" in contents[structured_idx]
+    assert '"readiness_gate":{"gaps":["needs_review_items"],"state":"blocked"}' in contents[diagnostics_idx]
+    assert '"retrieval_policy":{"default_retrieval_is_filtered":false,"filtering_state":"audit_only"}' in contents[diagnostics_idx]
     assert "stable-provider-key" in contents[snippets_idx]
 
 

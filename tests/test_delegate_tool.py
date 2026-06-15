@@ -19,6 +19,11 @@ async def test_delegate_uses_provider_context_and_returns_worker_contract(monkey
         return {
             "structured_state": {"Project.md": {"status": "active"}},
             "snippets": [{"path": "Project.md", "text": "Relevant context", "untrusted": True}],
+            "memory": {
+                "summary": {"readiness_state": "blocked", "filtering_state": "audit_only"},
+                "readiness_gate": {"state": "blocked", "gaps": ["needs_review_items"]},
+                "retrieval_policy": {"filtering_state": "audit_only", "default_retrieval_is_filtered": False},
+            },
         }
 
     register_context_provider({
@@ -62,6 +67,8 @@ async def test_delegate_uses_provider_context_and_returns_worker_contract(monkey
     assert captured["provider_kwargs"]["query"] == "delegate interface"
     assert captured["provider_kwargs"]["budget"] == 512
     assert any(msg["content"].startswith("Provider structured state") for msg in captured["messages"])
+    assert any(msg["content"].startswith("Provider diagnostics") for msg in captured["messages"])
+    assert any('"readiness_gate":{"gaps":["needs_review_items"],"state":"blocked"}' in msg["content"] for msg in captured["messages"])
     state_doc = tmp_path / "_state" / "active_run.md"
     assert state_doc.exists()
     assert "Inspect the delegate interface." in state_doc.read_text(encoding="utf-8")
