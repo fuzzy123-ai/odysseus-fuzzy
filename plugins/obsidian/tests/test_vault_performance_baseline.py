@@ -41,3 +41,10 @@ def test_large_vault_graph_build_meets_rc_thresholds():
         assert baseline["edges"] >= LARGE_VAULT_RC_NOTE_COUNT
         assert baseline["median_ms"] <= LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS
         assert baseline["max_ms"] <= LARGE_VAULT_RC_WORST_THRESHOLD_MS
+        assert baseline["thresholds_ms"] == {
+            "median": LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS,
+            "worst": LARGE_VAULT_RC_WORST_THRESHOLD_MS,
+        }
+        assert baseline["headroom_ms"]["median"] >= 0
+        assert baseline["headroom_ms"]["worst"] >= 0
+        assert baseline["within_threshold"] is True

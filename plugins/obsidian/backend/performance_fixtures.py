@@ -55,13 +55,25 @@ def profile_graph_build_baseline(vault_dir: str, runs: int = 4) -> Dict[str, Any
     samples = [profile_graph_build(vault_dir)["elapsed_ms"] for _ in range(max(runs, 1))]
     ordered = sorted(samples)
     median = ordered[len(ordered) // 2] if len(ordered) % 2 else round((ordered[len(ordered) // 2 - 1] + ordered[len(ordered) // 2]) / 2, 2)
+    max_sample = max(samples)
+    median_headroom = round(LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS - median, 2)
+    worst_headroom = round(LARGE_VAULT_RC_WORST_THRESHOLD_MS - max_sample, 2)
     return {
         "warmup_elapsed_ms": warmup["elapsed_ms"],
         "runs": len(samples),
         "samples_ms": samples,
         "median_ms": median,
-        "max_ms": max(samples),
+        "max_ms": max_sample,
         "min_ms": min(samples),
         "nodes": warmup["nodes"],
         "edges": warmup["edges"],
+        "thresholds_ms": {
+            "median": LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS,
+            "worst": LARGE_VAULT_RC_WORST_THRESHOLD_MS,
+        },
+        "headroom_ms": {
+            "median": median_headroom,
+            "worst": worst_headroom,
+        },
+        "within_threshold": median_headroom >= 0 and worst_headroom >= 0,
     }

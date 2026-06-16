@@ -218,3 +218,37 @@ def test_memory_review_queue_plan_reuses_existing_queue_note_for_same_source_ref
         with open(queue_path, "r", encoding="utf-8") as fh:
             content = fh.read()
         assert "Same source should update the queued review note instead of duplicating it." in content
+
+
+def test_memory_review_queue_plan_reuses_existing_queue_note_for_normalized_source_ref():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "AI Memory", "Review Queue"), exist_ok=True)
+        queue_path = os.path.join(tmpdir, "AI Memory", "Review Queue", "2026-06-16-release-check.md")
+        with open(queue_path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "---\n"
+                "type: memory\n"
+                "status: review\n"
+                "source: chat\n"
+                "created: 2026-06-16\n"
+                "updated: 2026-06-16\n"
+                "source_ref: Thread 42 / Release\n"
+                "---\n\n"
+                "# Release check\n"
+            )
+
+        plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(
+                candidate={
+                    "title": "Release check",
+                    "content": "Whitespace and case changes should still dedupe into the same queue note.",
+                    "source": "chat",
+                    "source_ref": " thread-42 release ",
+                },
+                action="review_queue",
+            ),
+        )
+
+        assert plan.files[0].mode == "append"
+        assert plan.files[0].path == "AI Memory/Review Queue/2026-06-16-release-check.md"

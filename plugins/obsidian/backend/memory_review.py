@@ -489,6 +489,10 @@ def _normalize_source(source: str) -> str:
     return normalized if normalized in SOURCES else "manual"
 
 
+def _normalize_source_ref(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", str(value or "").lower()))
+
+
 def _title_for_candidate(candidate: MemoryCandidate) -> str:
     if candidate.title.strip():
         return candidate.title.strip()[:80]
@@ -590,14 +594,14 @@ def _existing_review_queue_path(
     suggestions: Iterable[SuggestedNote],
 ) -> Optional[str]:
     title_key = _comparable_title(candidate.title)
-    source_ref = candidate.source_ref.strip()
+    source_ref = _normalize_source_ref(candidate.source_ref)
     for suggestion in suggestions:
         path = normalize_relative_path(suggestion.path)
         if not (path == f"{REVIEW_QUEUE_FOLDER}.md" or path.startswith(f"{REVIEW_QUEUE_FOLDER}/")):
             continue
         if source_ref:
-            content = _read_note(vault_dir, path)
-            if f"source_ref: {source_ref}" in content or f"Quelle: " in content and source_ref in content:
+            content = _normalize_source_ref(_read_note(vault_dir, path))
+            if ("source ref" in content or "quelle" in content) and source_ref in content:
                 return path
         if title_key and _comparable_title(suggestion.title) == title_key:
             return path

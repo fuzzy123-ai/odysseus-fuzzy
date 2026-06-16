@@ -41,7 +41,7 @@ def validate_archive_member(name: str) -> str:
     parts = normalized.split("/")
     if parts[0] == ".obsidian" or normalized in RESERVED_OBSIDIAN_PATHS:
         raise VaultSecurityError("Archive may not contain reserved internal files")
-    if any(part in RESERVED_ARCHIVE_BASENAMES for part in parts):
+    if any(part in RESERVED_ARCHIVE_BASENAMES or part == EXPORT_MANIFEST for part in parts):
         raise VaultSecurityError("Archive may not contain reserved import/export metadata")
     return normalized
 

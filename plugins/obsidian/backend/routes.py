@@ -70,6 +70,7 @@ from .project_planning import (
     generate_project_plan_content,
     improve_project_description_with_ai,
     normalize_project_target_folder,
+    normalize_relative_path,
     prepare_project_plan_for_apply,
     slugify_project,
     template_options,
@@ -441,8 +442,15 @@ def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApp
         selected_paths=req.selected_paths,
         overwrite_paths=req.overwrite_paths,
     )
-    overwrite_paths = {str(path) for path in req.overwrite_paths or [] if str(path or "").strip()}
-    blocking_conflicts = [item for item in plan.conflicts if str(item.get("path", "")) not in overwrite_paths]
+    overwrite_paths = {
+        normalize_relative_path(path)
+        for path in req.overwrite_paths or []
+        if str(path or "").strip()
+    }
+    blocking_conflicts = [
+        item for item in plan.conflicts
+        if normalize_relative_path(str(item.get("path", ""))) not in overwrite_paths
+    ]
     if blocking_conflicts:
         raise HTTPException(status_code=409, detail={"message": "Plan has file conflicts", "conflicts": plan.conflicts})
     if overwrite_paths and not req.confirm_conflicts:
