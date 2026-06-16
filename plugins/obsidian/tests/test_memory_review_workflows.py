@@ -141,6 +141,34 @@ async def test_memory_review_tools_apply_create_append_history_and_graph(monkeyp
         assert memory_result["exit_code"] == 0
         assert json.loads(memory_result["output"])["created_files"] == []
 
+        queue_preview = await handle_memory_review_preview(json.dumps({
+            "candidate": {
+                "title": "Queue this memory",
+                "content": "This needs a later storage decision before it becomes settled knowledge.",
+                "source": "chat",
+            },
+            "action": "review_queue",
+            "project": "Demo",
+            "tags": ["#project/demo"],
+            "link_paths": ["Projects/Demo.md"],
+        }), owner="alice")
+        assert queue_preview["exit_code"] == 0
+        queue_plan = json.loads(queue_preview["output"])
+        assert queue_plan["action"] == "review_queue"
+        assert queue_plan["files"][0]["path"].startswith("AI Memory/Review Queue/")
+
+        queue_blocked = await handle_memory_review_apply(json.dumps({"plan": queue_plan}), owner="alice")
+        assert queue_blocked["exit_code"] == 1
+        assert "Confirmation required" in queue_blocked["error"]
+
+        queue_applied = await handle_memory_review_apply(json.dumps({"plan": queue_plan, "confirm": True}), owner="alice")
+        assert queue_applied["exit_code"] == 0
+        queue_result = json.loads(queue_applied["output"])
+        queue_path = queue_result["created_files"][0]
+        with open(os.path.join(tmpdir, *queue_path.split("/")), "r", encoding="utf-8") as f:
+            queue_content = f.read()
+        assert "later storage decision" in queue_content
+
         history_res = await handle_history('{"limit": 20}', owner="alice")
         assert "obsidian_memory_review_apply" in history_res["output"]
 

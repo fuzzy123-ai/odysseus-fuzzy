@@ -9,7 +9,7 @@ from .project_planning import ProjectPlanValidationError, normalize_hash_tag, no
 from .vault_model import add_manual_relationship, build_vault_index, normalize_tag_name
 
 
-MEMORY_ACTIONS = {"memory_only", "save_to_obsidian", "append_to_note", "discard"}
+MEMORY_ACTIONS = {"memory_only", "save_to_obsidian", "append_to_note", "review_queue", "discard"}
 NOTE_TYPES = {"decision", "idea", "memory", "meeting", "project", "reference", "resource"}
 SOURCES = {"agent", "chat", "document", "file", "mail", "manual", "calendar"}
 SOURCE_ALIASES = {
@@ -23,6 +23,7 @@ SOURCE_ALIASES = {
     "user": "manual",
 }
 RELATIONSHIP_TYPES = {"manual", "relates_to", "depends_on", "blocks", "supports"}
+REVIEW_QUEUE_FOLDER = "AI Memory/Review Queue"
 
 
 class MemoryCandidate(BaseModel):
@@ -172,14 +173,25 @@ def build_memory_review_plan(
         return validate_memory_review_plan(vault_dir, plan, collect_conflicts=True)
 
     title = _title_for_candidate(candidate)
+    if action == "review_queue":
+        target_folder = REVIEW_QUEUE_FOLDER
+        plan.target_folder = target_folder
     path = _memory_note_path(target_folder, title, created)
     links = chosen_links
     if not links and suggested_notes:
         links = [_wiki_link(suggested_notes[0].path)]
     if not links:
-        plan.warnings.append("No strong existing note match found; review this as an inbox note before treating it as connected context.")
+        if action == "review_queue":
+            plan.warnings.append("No strong existing note match found; keep this queued note in review until context is added.")
+        else:
+            plan.warnings.append("No strong existing note match found; review this as an inbox note before treating it as connected context.")
     if duplicate_candidates:
-        plan.warnings.append("Possible duplicate vault notes found; review the suggested duplicates before creating another memory note.")
+        if action == "review_queue":
+            plan.warnings.append("Possible duplicate vault notes found; this note stays queued until the duplicate decision is resolved.")
+        else:
+            plan.warnings.append("Possible duplicate vault notes found; review the suggested duplicates before creating another memory note.")
+    if action == "review_queue":
+        plan.warnings.append("This review stays in the queue and should not be treated as settled vault knowledge yet.")
     frontmatter = {
         "type": note_type,
         "status": status,
@@ -287,6 +299,10 @@ def validate_memory_review_plan(
 
     if plan.action == "save_to_obsidian" and not any(file.links for file in plan.files):
         warnings.append("Saved note has no confirmed links; keep it in review/inbox until context is added.")
+    if plan.action == "review_queue" and plan.target_folder != REVIEW_QUEUE_FOLDER:
+        raise MemoryReviewValidationError(f"Review queue plans must target {REVIEW_QUEUE_FOLDER}")
+    if plan.action == "review_queue" and not any(file.path.startswith(f"{REVIEW_QUEUE_FOLDER}/") or file.path == f"{REVIEW_QUEUE_FOLDER}.md" for file in plan.files):
+        raise MemoryReviewValidationError("Review queue plans must write inside the review queue folder")
 
     plan.conflicts = conflicts if collect_conflicts else plan.conflicts
     plan.warnings = sorted(set(warnings))

@@ -984,7 +984,7 @@ def setup(ctx):
         }, ["plan"], handle_project_plan_apply),
         _tool_spec("obsidian_memory_review_preview", "Preview a memory review decision, including Save-to-Obsidian note content, reused tags, links, and graph relationships.", {
             "candidate": {"type": "object", "description": "Memory candidate with title, content, source, source_ref, and risk."},
-            "action": {"type": "string", "description": "memory_only, save_to_obsidian, append_to_note, or discard."},
+            "action": {"type": "string", "description": "memory_only, save_to_obsidian, append_to_note, review_queue, or discard."},
             "target_folder": {"type": "string", "description": "Relative vault folder for a new memory note."},
             "target_note": {"type": "string", "description": "Existing note path when appending."},
             "note_type": {"type": "string", "description": "Schema type such as memory, decision, idea, reference, resource, meeting, or project."},

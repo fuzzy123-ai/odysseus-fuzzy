@@ -10,7 +10,12 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from backend.memory_review import MemoryReviewRequest, build_memory_review_plan
+from backend.memory_review import (
+    REVIEW_QUEUE_FOLDER,
+    MemoryReviewRequest,
+    apply_memory_review_plan,
+    build_memory_review_plan,
+)
 
 
 def test_memory_review_plan_flags_possible_duplicate_candidates():
@@ -109,3 +114,63 @@ def test_memory_review_save_plan_normalizes_manual_source_aliases_in_frontmatter
 
         assert plan.files[0].frontmatter["source"] == "manual"
         assert "#source/manual" in plan.files[0].tags
+
+
+def test_memory_review_queue_plan_uses_review_queue_folder_and_duplicate_warning():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo Memory.md"), "w", encoding="utf-8") as fh:
+            fh.write("# Demo Memory\n\nGraph memory review context for the release checklist.")
+
+        plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(
+                candidate={
+                    "title": "Demo Memory",
+                    "content": "Graph memory review context for the release checklist.",
+                    "source": "manual",
+                },
+                action="review_queue",
+                target_folder="Ignored Folder",
+            ),
+        )
+
+        assert plan.action == "review_queue"
+        assert plan.target_folder == REVIEW_QUEUE_FOLDER
+        assert plan.files[0].path.startswith(f"{REVIEW_QUEUE_FOLDER}/")
+        assert plan.duplicate_candidates
+        assert any("stays queued" in warning for warning in plan.warnings)
+
+
+def test_memory_review_queue_apply_creates_queue_note_and_relationships():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo.md"), "w", encoding="utf-8") as fh:
+            fh.write("# Demo\n\n#project/demo\n\nExisting graph context.")
+
+        plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(
+                candidate={
+                    "title": "Queue me",
+                    "content": "Keep this note queued until the team decides how to store it.",
+                    "source": "chat",
+                },
+                action="review_queue",
+                project="Demo",
+                tags=["#project/demo"],
+                link_paths=["Projects/Demo.md"],
+            ),
+        )
+
+        result = apply_memory_review_plan(tmpdir, plan)
+        created_path = result["created_files"][0]
+        created_abs = os.path.join(tmpdir, *created_path.split("/"))
+
+        assert created_path.startswith(f"{REVIEW_QUEUE_FOLDER}/")
+        assert os.path.exists(created_abs)
+        with open(created_abs, "r", encoding="utf-8") as fh:
+            content = fh.read()
+        assert "Keep this note queued until the team decides how to store it." in content
+        assert "[[Projects/Demo]]" in content
+        assert result["relationships"][0]["target"] == "Projects/Demo.md"
