@@ -134,6 +134,13 @@ DEFAULT_SETTINGS = {
     # Ordered fallback chain for the Utility model (summarization, naming,
     # tidy actions, etc.).
     "utility_model_fallbacks": [],
+    "memory.router_model": "heuristic",
+    "memory.answer_model": "default",
+    "memory.answer_fallback_models": [],
+    "memory.summarize_model": "default",
+    "memory.graph_extract_model": "default",
+    "memory.global_synthesis_model": "default",
+    "memory.embedding_model": "",
     "teacher_model": "",
     "teacher_enabled": False,
     # Skills: minimum self-reported confidence for an auto-written (LLM-authored)
@@ -253,6 +260,9 @@ _PER_USER_KEYS = {
     "default_endpoint_id", "default_model", "default_model_fallbacks",
     "utility_endpoint_id", "utility_model", "utility_model_fallbacks",
     "research_endpoint_id", "research_model",
+    "memory.router_model", "memory.answer_model", "memory.answer_fallback_models",
+    "memory.summarize_model", "memory.graph_extract_model",
+    "memory.global_synthesis_model", "memory.embedding_model",
 }
 
 

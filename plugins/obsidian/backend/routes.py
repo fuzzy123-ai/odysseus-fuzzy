@@ -107,7 +107,7 @@ from .derived_index import build_derived_index, derived_index_status, retrieve_d
 from .hybrid_retrieval import raptor_status
 from .memory_automation import memory_automation_status, run_memory_automation
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
-from .query_layer import answer_query, query_layer_status
+from .query_layer import answer_query, answer_query_async, query_layer_status
 from .rebuild_proof import rebuild_proof_status, run_rebuild_proof
 from .external_upgrade_proof import (
     collect_distribution_layout,
@@ -1479,14 +1479,21 @@ async def derived_index_retrieve_route(request: Request, q: str, top_k: int = 5,
 async def query_layer_status_route(request: Request):
     """Return read-only status for the lightweight query layer."""
     vault_dir = get_unlocked_vault_path(request)
-    return query_layer_status(vault_dir)
+    return query_layer_status(vault_dir, owner=current_owner(request))
 
 
 @router.get("/memory/query")
-async def query_layer_route(request: Request, q: str, top_k: int = 5, path_prefix: str = ""):
+async def query_layer_route(request: Request, q: str, top_k: int = 5, path_prefix: str = "", answer_mode: str = "auto"):
     """Answer a query from the derived index with citations and confidence."""
     vault_dir = get_unlocked_vault_path(request)
-    return answer_query(vault_dir, q, top_k=top_k, path_prefix=path_prefix)
+    return await answer_query_async(
+        vault_dir,
+        q,
+        top_k=top_k,
+        path_prefix=path_prefix,
+        owner=current_owner(request),
+        answer_mode=answer_mode,
+    )
 
 
 @router.get("/memory/automation/status")
@@ -1516,7 +1523,7 @@ async def rebuild_proof_run_route(request: Request, q: Optional[str] = None, top
     """Run a full ledger/index/query rebuild proof and persist its report."""
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
-    return run_rebuild_proof(vault_dir, query=q, top_k=top_k)
+    return await asyncio.to_thread(run_rebuild_proof, vault_dir, query=q, top_k=top_k)
 
 
 @router.get("/memory/external-upgrade-proof")
@@ -1543,7 +1550,8 @@ async def external_upgrade_proof_run_route(
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
     plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return collect_external_upgrade_proof(
+    return await asyncio.to_thread(
+        collect_external_upgrade_proof,
         plugin_dir,
         vault_dir,
         query=q,

@@ -305,6 +305,41 @@ Aufgaben:
 - Offene Grenzen markieren: echte DeepSeek-Verbindung, lokale Gemma-Verfuegbarkeit, manuelle Secret-Konfiguration.
 - Sicherstellen, dass `1.0-Go-Regel` nicht erfuellt markiert wird, wenn B7 oder Evidence fehlt.
 
+Erfuellte Evidence am 2026-06-16:
+
+- Implementiert:
+  - `plugins/obsidian/backend/model_router.py`
+  - `plugins/obsidian/backend/query_layer.py`
+  - `plugins/obsidian/backend/routes.py`
+  - `plugins/obsidian/tests/test_model_router_backend.py`
+  - `plugins/obsidian/tests/test_query_layer_backend.py`
+- Stabile B7-Payload-Felder fuer Alice `A13`:
+  - `answer_mode`
+  - `selected_role`
+  - `selected_model`
+  - `selected_endpoint_id`
+  - `fallback_reason`
+  - `model_context_tokens`
+  - `model_capability_warnings`
+- Zusaetzlich stabil im aktuellen Backend-Stand:
+  - `requested_answer_mode`
+  - `provider`
+  - `citations`
+  - `confidence`
+  - `warnings`
+- Router-/Query-Verhalten:
+  - `auto` bleibt retrieval-first und bevorzugt Cloud vor lokalem Fallback, danach `extractive`
+  - schwache oder leere Retrieval-Evidenz degradiert ehrlich auf `extractive`
+  - synchroner Rebuild-/Evidence-Pfad bleibt deterministisch extractive-sicher; async Query-Route nutzt die Synthese-Pipeline
+- Gruene Testbefehle:
+  - `python -m pytest plugins/obsidian/tests/test_model_router_backend.py plugins/obsidian/tests/test_query_layer_backend.py plugins/obsidian/tests/test_memory_rebuild_proof_backend.py plugins/obsidian/tests/test_external_upgrade_proof_backend.py`
+  - Ergebnis: `17 passed`
+- Noch bewusst offen, nicht als Implementierungsfehler:
+  - keine echte DeepSeek-End-to-End-Verbindung im Testgate
+  - keine harte Aussage, dass ein lokales Gemma-/Qwen-Modell auf der Zielmaschine verfuegbar ist
+  - Secrets/API-Keys muessen weiterhin manuell in Odysseus konfiguriert werden
+  - `1.0.0` bleibt trotz implementiertem Router erst nach manueller Provider-/Release-Evidence freigabefaehig
+
 ### Alice-Pfad
 
 Alice owned Produktvertrag, Settings-/Lens-Texte, UI-Labels und Release-Verstaendlichkeit. Alice startet mit Doku/Contract und wartet fuer UI auf Bobs Payload-Handoff.
