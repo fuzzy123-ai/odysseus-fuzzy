@@ -16,6 +16,11 @@ def _make_budget(**overrides) -> StoreBudget:
         "max_bytes": 4096,
         "max_nodes": 0,
         "max_edges": 0,
+        "supports_cursor": True,
+        "time_budget_ms": 250,
+        "token_budget": 1200,
+        "max_depth": 0,
+        "stale_after_seconds": 3600,
     }
     payload.update(overrides)
     return StoreBudget.create(**payload)
@@ -96,6 +101,41 @@ def test_graph_operation_without_node_or_edge_budget_is_rejected() -> None:
         assert "graph operations require max_nodes or max_edges budgets" in str(exc)
     else:
         raise AssertionError("expected graph budget validation to fail")
+
+
+def test_graph_depth_counts_as_graph_budget() -> None:
+    store = _make_store(
+        store_kind="graph",
+        capabilities=["read", "rebuild"],
+        operations=[
+            _make_operation(
+                operation_id="graph-read",
+                capability="read",
+                budget=_make_budget(
+                    default_limit=10,
+                    max_limit=20,
+                    max_bytes=0,
+                    max_nodes=0,
+                    max_edges=0,
+                    max_depth=2,
+                ),
+            )
+        ],
+        truth_role="derived",
+    )
+
+    assert store.operations[0].budget.max_depth == 2
+
+
+def test_contract_budget_fields_are_preserved_in_summary() -> None:
+    store = _make_store()
+    budget = store.operations[0].budget
+
+    assert budget.supports_cursor is True
+    assert budget.time_budget_ms == 250
+    assert budget.token_budget == 1200
+    assert budget.stale_after_seconds == 3600
+    assert store.audit_summary()["budget_family_count"] >= 5
 
 
 def test_accelerator_without_rebuild_capability_is_rejected() -> None:

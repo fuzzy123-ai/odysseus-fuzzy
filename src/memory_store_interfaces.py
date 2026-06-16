@@ -120,6 +120,11 @@ class StoreBudget:
     max_bytes: int
     max_nodes: int
     max_edges: int
+    supports_cursor: bool
+    time_budget_ms: int
+    token_budget: int
+    max_depth: int
+    stale_after_seconds: int
 
     @classmethod
     def create(
@@ -130,6 +135,11 @@ class StoreBudget:
         max_bytes: Any = 0,
         max_nodes: Any = 0,
         max_edges: Any = 0,
+        supports_cursor: Any = False,
+        time_budget_ms: Any = 0,
+        token_budget: Any = 0,
+        max_depth: Any = 0,
+        stale_after_seconds: Any = 0,
     ) -> "StoreBudget":
         def normalize_int(value: Any, field_name: str) -> int:
             try:
@@ -140,11 +150,26 @@ class StoreBudget:
                 raise MemoryStoreInterfaceError(f"{field_name} must be >= 0")
             return normalized
 
+        def normalize_bool(value: Any, field_name: str) -> bool:
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"true", "1", "yes"}:
+                    return True
+                if lowered in {"false", "0", "no", ""}:
+                    return False
+            raise MemoryStoreInterfaceError(f"{field_name} must be a bool")
+
         normalized_default = normalize_int(default_limit, "default_limit")
         normalized_max = normalize_int(max_limit, "max_limit")
         normalized_bytes = normalize_int(max_bytes, "max_bytes")
         normalized_nodes = normalize_int(max_nodes, "max_nodes")
         normalized_edges = normalize_int(max_edges, "max_edges")
+        normalized_time = normalize_int(time_budget_ms, "time_budget_ms")
+        normalized_tokens = normalize_int(token_budget, "token_budget")
+        normalized_depth = normalize_int(max_depth, "max_depth")
+        normalized_stale_after = normalize_int(stale_after_seconds, "stale_after_seconds")
         if normalized_default and normalized_max and normalized_default > normalized_max:
             raise MemoryStoreInterfaceError("default_limit must not exceed max_limit")
         return cls(
@@ -153,13 +178,42 @@ class StoreBudget:
             max_bytes=normalized_bytes,
             max_nodes=normalized_nodes,
             max_edges=normalized_edges,
+            supports_cursor=normalize_bool(supports_cursor, "supports_cursor"),
+            time_budget_ms=normalized_time,
+            token_budget=normalized_tokens,
+            max_depth=normalized_depth,
+            stale_after_seconds=normalized_stale_after,
         )
 
     def has_query_bound(self) -> bool:
-        return any(value > 0 for value in (self.default_limit, self.max_limit, self.max_bytes))
+        return any(
+            value > 0
+            for value in (
+                self.default_limit,
+                self.max_limit,
+                self.max_bytes,
+                self.time_budget_ms,
+                self.token_budget,
+            )
+        )
 
     def has_graph_bound(self) -> bool:
-        return self.max_nodes > 0 or self.max_edges > 0
+        return self.max_nodes > 0 or self.max_edges > 0 or self.max_depth > 0
+
+    def has_staleness_bound(self) -> bool:
+        return self.stale_after_seconds > 0
+
+    def budget_family_count(self) -> int:
+        families = (
+            self.default_limit > 0 or self.max_limit > 0,
+            self.max_bytes > 0,
+            self.supports_cursor,
+            self.time_budget_ms > 0,
+            self.token_budget > 0,
+            self.has_graph_bound(),
+            self.has_staleness_bound(),
+        )
+        return sum(1 for active in families if active)
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,6 +344,7 @@ class StoreInterfaceSpec:
                 for operation in self.operations
                 if operation.budget.has_query_bound() or operation.budget.has_graph_bound()
             ),
+            "budget_family_count": sum(operation.budget.budget_family_count() for operation in self.operations),
             "dependency_count": len(self.dependencies),
             "rebuild_evidence_count": len(self.rebuild_evidence),
             "capabilities": tuple(capability.value for capability in self.capabilities),
