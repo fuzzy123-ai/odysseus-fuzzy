@@ -30,6 +30,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/image-tools-worker-contract.md` | neuer Stabilisierungstrack fuer isolierte Background-Removal/Image-Tools statt harter Core-Dependencies |
 | `docs/plans/secure-data-mode-contract.md` | Security-/DSGVO-Foundation fuer sensible Quellen, Secure Chats und local-only Policy |
+| `docs/plans/secure-data-mode-audit-runbook.md` | Readiness-Runbook fuer Secure Data Mode vor Runtime-Hooks |
 | `docs/plans/system-health-checker-plugin.md` | Plugin-Track fuer Homeserver Health: Host-Agent, Podman-first Runtime Adapter, Telegram Status/Alerts |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
@@ -51,7 +52,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
-| `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC7 umgesetzt, Audit/Runtime-Integration offen |
+| `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant als eigener Plugin-Track, nicht im Core verstecken |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
@@ -465,6 +466,7 @@ Evidence Foundation:
 - `SEC5-local-only-model-routing`: isoliertes Routing-Gate, Security-Suite inkl. `tests/test_secure_model_routing.py` -> `46 passed, 1 warning`
 - `SEC6-sensitive-retrieval-guard`: isolierter Pre-Retrieval-Guard, Security-Suite inkl. `tests/test_sensitive_retrieval_guard.py` -> `56 passed, 1 warning`
 - `SEC7-telegram-secure-policy`: isolierte Channel-Policy, Security-Suite inkl. `tests/test_secure_channel_policy.py` -> `66 passed, 1 warning`
+- `SEC8-security-audit-runbook`: `docs/plans/secure-data-mode-audit-runbook.md`, Runtime-Hooks bleiben separate sequenzielle Slices
 
 ### Reihenfolge
 
@@ -488,7 +490,7 @@ Evidence Foundation:
 | `SEC5-local-only-model-routing` | Settings-/UI-Vertrag fuer lokale Modelle und Fallbacks | isoliertes Routing-Gate; keine Provider-Hotfiles ohne Freigabe | done als Vorbereitungsslice, echte Integration separat | bedingt |
 | `SEC6-sensitive-retrieval-guard` | Block-/Secure-Chat-Upgrade-Flow | isolierter Pre-Retrieval-Guard ohne Memory/RAG-Hotfiles | done als Vorbereitungsslice, echte Integration separat | nein |
 | `SEC7-telegram-secure-policy` | Telegram-Flows und Blocktexte | isolierte Channel-Policy ohne Bot-/Route-Hotfiles | done als Vorbereitungsslice, echter Telegram Hook separat | bedingt |
-| `SEC8-security-audit-runbook` | Audit-Runbook, Known Limits, Betriebsregeln | fokussierte Tests/Evidence | Go/No-Go | nein |
+| `SEC8-security-audit-runbook` | Audit-Runbook, Known Limits, Betriebsregeln | fokussierte Tests/Evidence | done, Runtime-Hooks separat | nein |
 
 ### Definition of Done `0.17.x`
 
