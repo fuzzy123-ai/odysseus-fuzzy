@@ -39,6 +39,30 @@ Der M6-Gate darf keinen isolierten Plugin-Model-Picker bauen. Odysseus besitzt b
 | `memory.review` | `default_model` | Review-Queue-Erklaerungen und sichere Promotion-Vorschlaege |
 | `memory.embed` | separates Embedding-Modell, nicht Chat-Modell | Chunk-/Source-Embeddings fuer Retrieval |
 
+### Settings-Vertrag
+
+Die Modellwahl wird in den Odysseus-/Plugin-Settings als Rollenmatrix sichtbar. Nutzer koennen dort pro Rolle ein verfuegbares Modell aus Odysseus' Modellliste waehlen, z. B. Gemma 4 E2B, Gemma 4 E4B, DeepSeek Flash, DeepSeek Pro oder ein anderes kompatibles Modell.
+
+Empfohlene Startwerte:
+
+| Setting | Standardwert | Beispiel-Override |
+| --- | --- | --- |
+| `memory.router_model` | `heuristic` | Gemma 4 E2B/E4B oder anderes kleines lokales Modell |
+| `memory.answer_model` | `default` | DeepSeek Flash, DeepSeek Pro oder lokales 14B/32B-Modell |
+| `memory.answer_fallback_models` | `default_model_fallbacks`, danach `extractive` | lokales Gemma/Qwen-Modell, danach `extractive` |
+| `memory.summarize_model` | `default` | guenstiges Flash-Modell |
+| `memory.graph_extract_model` | `default` | guenstiges Flash-/JSON-starkes Modell |
+| `memory.global_synthesis_model` | `default` | Pro-/Reasoning-Modell |
+| `memory.embedding_model` | bestehendes Embedding-Setup | lokales Embedding-Modell |
+
+Regel:
+
+- `default` bedeutet immer: zur Laufzeit gegen Odysseus' aktuellen `default_model` aufloesen.
+- `heuristic` bedeutet: kein LLM fuer Routing; Regeln plus Retrieval-/Confidence-Signale entscheiden.
+- Gemma 4 E2B/E4B ist eine empfohlene lokale Router-/Finisher-Option, aber keine harte 1.0-Pflicht.
+- Die Settings duerfen nur Modelle anbieten, die Odysseus als verfuegbar meldet.
+- Wenn ein ausgewaehltes Modell spaeter nicht mehr verfuegbar ist, greift die konfigurierte Fallback-Kette.
+
 Auswahlregel:
 
 - Jede Rolle speichert `endpoint_id + model` oder den Alias `default`.

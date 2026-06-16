@@ -144,6 +144,8 @@ Ziel: Memory-Fragen laufen mit DeepSeek oder einem kompatiblen Modellpfad, bleib
 - Modellrollen: `memory.answer`, `memory.answer_fallbacks`, `memory.summarize`, `memory.graph_label`, `memory.review`, `memory.embed`.
 - Das Plugin nutzt Odysseus' vorhandene Modellliste und Defaults (`/api/models`, `default_model`, `default_model_fallbacks`) statt eigener Provider-Registry.
 - Standard ist der Odysseus-Default; Fallback-Modelle muessen pro Rolle konfigurierbar sein.
+- Settings zeigen pro Memory-Rolle ein Auswahlfeld aus den verfuegbaren Odysseus-Modellen; Gemma 4 E2B/E4B ist empfohlene lokale Router-/Finisher-Option, aber keine harte Pflicht.
+- `memory.router_model=heuristic` bleibt der guenstige Default; optionale lokale Router-Modelle duerfen erst bei Unsicherheit oder als Finisher laufen.
 - Lokale Antwortmodelle brauchen fuer `1.0` mindestens ca. 7B/8B Instruct-Qualitaet und 16k Kontext; empfohlen sind 14B-32B quantisiert mit 32k Kontext.
 - Cloud-Modus sendet nur retrieved Snippets, Quellenlabels und minimale Metadaten, nicht den ganzen Vault.
 - Providerfehler, Timeouts und Rate-Limits erzeugen keinen harten 500er, sondern einen sichtbaren Fallback.
