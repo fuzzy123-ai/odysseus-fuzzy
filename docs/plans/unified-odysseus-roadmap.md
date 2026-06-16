@@ -170,6 +170,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL6-manual-evidence-model` | manuelle Evidence-Eintraege typisieren und Partial/No-Go ausdruecklich modellieren | offene Provider-/Test-Vault-Gates koennen nicht versehentlich als Go gelten |
 | `REL7-release-slice-router-model` | Readiness-Blocker in Alice/Bob/Charlie-Folgeaufgaben uebersetzen | Blocker werden deterministisch geschnitten, aber nicht automatisch dispatched |
 | `REL8-readiness-pipeline-snapshot` | automatisierte Gates, manuelle Evidence, Plugin-Gates und Folge-Slices als read-only Snapshot zusammenfuehren | aktueller 1.0-Status ist maschinenlesbar, ohne Live-Aktionen |
+| `REL9-followup-matrix-model` | Folge-Slices nach Alice/Bob/Charlie und Parallel-Sicherheit gruppieren | Matrix ist bereit fuer Orchestration, aber kein Dispatch |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 

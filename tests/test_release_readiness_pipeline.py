@@ -19,6 +19,11 @@ def test_current_pipeline_preserves_external_no_go_and_routes_followups():
         "REL-test-vault-rebuild-evidence",
         "REL-partial-manual-evidence-closeout",
     ]
+    assert snapshot.followup_matrix.parallel_batch_ids == ("REL-test-vault-rebuild-evidence",)
+    assert snapshot.followup_matrix.sequential_gate_ids == (
+        "REL-provider-proof-evidence",
+        "REL-partial-manual-evidence-closeout",
+    )
 
 
 def test_current_pipeline_accepts_plugin_gate_and_routes_plugin_blocker():
@@ -53,3 +58,4 @@ def test_pipeline_to_dict_is_stable_shape():
     assert payload["report"]["status"] == "blocked"
     assert payload["followup_slices"][0]["slice_id"] == "REL-provider-proof-evidence"
     assert payload["followup_slices"][1]["owner"] == "Alice"
+    assert payload["followup_matrix"]["parallel_batch_ids"] == ("REL-test-vault-rebuild-evidence",)
