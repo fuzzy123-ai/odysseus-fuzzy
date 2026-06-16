@@ -2945,3 +2945,87 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   opacity: 0.55;
   cursor: default;
 }
+
+.obsidian-spark-query-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.obsidian-spark-query-bar input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel, #17191f);
+  color: var(--fg);
+  padding: 10px 12px;
+}
+
+.obsidian-spark-answer-card,
+.obsidian-spark-citation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.obsidian-spark-answer-copy {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.obsidian-spark-answer-meta,
+.obsidian-spark-citation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.obsidian-spark-answer-meta span,
+.obsidian-spark-citation-head span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted, #9ca3af);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.obsidian-spark-citations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.obsidian-spark-citation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.obsidian-spark-citation-head small,
+.obsidian-spark-card small {
+  color: var(--muted, #9ca3af);
+}
+
+.obsidian-spark-citation-snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obsidian-spark-citation-snippets blockquote {
+  margin: 0;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #d35f5f) 45%, transparent);
+  padding-left: 10px;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .obsidian-spark-query-bar {
+    grid-template-columns: 1fr;
+  }
+}

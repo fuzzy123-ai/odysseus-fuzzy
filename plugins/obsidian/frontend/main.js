@@ -197,6 +197,11 @@ let sparkPlan = null;
 let sparkHealth = null;
 let sparkSelectedActions = new Set();
 let sparkActiveTab = 'health';
+let sparkQueryStatus = null;
+let sparkQueryResult = null;
+let sparkQueryText = '';
+let sparkQueryLoading = false;
+let sparkQueryError = '';
 let memoryTreeReport = null;
 let knowledgeAuditReport = null;
 let quarantineReport = null;
@@ -1622,10 +1627,11 @@ function injectUIElements() {
                   <div class="obsidian-spark-tabs" role="tablist">
                     <button type="button" data-spark-tab="health">Health</button>
                     <button type="button" data-spark-tab="plan">Plan</button>
+                    <button type="button" data-spark-tab="query">Answer Lens</button>
                     <button type="button" data-spark-tab="queue">Review Queue</button>
                     <button type="button" data-spark-tab="canonicals">Canonicals</button>
                   </div>
-                  <div class="obsidian-project-actions">
+                  <div class="obsidian-project-actions" id="obsidian-spark-actions">
                     <button type="button" id="obsidian-spark-analyze" class="btn btn-secondary">Analyze</button>
                     <button type="button" id="obsidian-spark-plan" class="btn btn-secondary">Create plan</button>
                     <button type="button" id="obsidian-spark-apply" class="btn btn-primary" disabled>Apply selected</button>
@@ -3592,8 +3598,11 @@ function closeSparkPanel() {
 }
 
 function setSparkTab(tab) {
-  sparkActiveTab = ['health', 'plan', 'queue', 'canonicals'].includes(tab) ? tab : 'health';
+  sparkActiveTab = ['health', 'plan', 'query', 'queue', 'canonicals'].includes(tab) ? tab : 'health';
   renderSparkPanel();
+  if (sparkActiveTab === 'query' && !sparkQueryStatus && !sparkQueryLoading) {
+    loadSparkQueryStatus();
+  }
 }
 
 function updateSparkApplyState() {
@@ -3611,9 +3620,24 @@ function sparkMetric(label, value) {
   `;
 }
 
+function sparkQuerySubtitle() {
+  if (sparkActiveTab === 'query') {
+    return 'Grounded memory answers with readiness, citations, confidence, and graph jumps';
+  }
+  return 'Memory health, cleanup plans, review queue, and canonicals';
+}
+
+function updateSparkChrome() {
+  const subtitle = document.getElementById('obsidian-spark-subtitle');
+  if (subtitle) subtitle.textContent = sparkQuerySubtitle();
+  const actions = document.getElementById('obsidian-spark-actions');
+  if (actions) actions.classList.toggle('hidden', sparkActiveTab === 'query');
+}
+
 function renderSparkPanel() {
   const content = document.getElementById('obsidian-spark-content');
   if (!content) return;
+  updateSparkChrome();
   document.querySelectorAll('[data-spark-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sparkTab === sparkActiveTab);
   });
@@ -3621,6 +3645,8 @@ function renderSparkPanel() {
     content.innerHTML = renderSparkHealth();
   } else if (sparkActiveTab === 'plan') {
     content.innerHTML = renderSparkPlan();
+  } else if (sparkActiveTab === 'query') {
+    content.innerHTML = renderSparkQuery();
   } else if (sparkActiveTab === 'queue') {
     content.innerHTML = renderSparkQueue();
   } else {
@@ -3710,6 +3736,110 @@ function renderSparkQueue() {
   `;
 }
 
+function renderSparkQuery() {
+  const status = sparkQueryStatus;
+  const result = sparkQueryResult;
+  const warnings = [
+    ...((status && status.warnings) || []),
+    ...((result && result.warnings) || []),
+    ...(sparkQueryError ? [sparkQueryError] : []),
+  ];
+  const readiness = result?.readiness || status?.readiness || {};
+  const summary = result?.summary || status?.summary || {};
+  const citations = (result && result.citations) || [];
+  const readinessState = readabilityLabel(readiness.state || 'not_loaded');
+  const gate = readabilityLabel(result?.readiness_gate || status?.readiness_gate || 'unknown');
+  const confidence = result
+    ? `${readabilityLabel(result.confidence || 'unknown')} (${Math.round((Number(result.confidence_score) || 0) * 100)}%)`
+    : 'Not asked yet';
+  return `
+    <form class="obsidian-spark-query-bar" data-spark-query-form>
+      <input
+        type="text"
+        data-spark-query-input
+        value="${escapeHtml(sparkQueryText)}"
+        placeholder="Ask a memory question backed by indexed sources"
+      >
+      <button type="submit" class="btn btn-primary" ${sparkQueryLoading ? 'disabled' : ''}>Ask</button>
+      <button type="button" class="btn btn-secondary" data-spark-query-refresh ${sparkQueryLoading ? 'disabled' : ''}>Refresh status</button>
+    </form>
+    <div class="obsidian-spark-metrics">
+      ${sparkMetric('Readiness', readinessState)}
+      ${sparkMetric('Gate', gate)}
+      ${sparkMetric('Confidence', confidence)}
+      ${sparkMetric('Sources', result ? (summary.matched_sources || 0) : (summary.source_count || 0))}
+      ${sparkMetric('Chunks', result ? (summary.matched_chunks || 0) : (summary.chunk_count || 0))}
+    </div>
+    ${warnings.length ? `<div class="obsidian-project-warnings">${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+    ${renderSparkQueryStatusCard(readiness, summary)}
+    ${sparkQueryLoading ? '<div class="obsidian-project-loading">Querying derived memory...</div>' : ''}
+    ${result ? renderSparkQueryAnswer(result, citations) : '<div class="obsidian-spark-card"><strong>Answer card</strong><p>Ask a question to inspect grounded answer text, citations, confidence, and uncertainty.</p></div>'}
+  `;
+}
+
+function renderSparkQueryStatusCard(readiness, summary) {
+  const gaps = Array.isArray(readiness.gaps) ? readiness.gaps : [];
+  return `
+    <div class="obsidian-spark-card">
+      <strong>Lens status</strong>
+      <p>The answer lens only reflects derived memory. It does not rewrite source notes and may stay blocked or stale until rebuildable index work has completed.</p>
+      ${gaps.length ? `<ul>${gaps.map(item => `<li>${escapeHtml(readabilityLabel(item))}</li>`).join('')}</ul>` : '<p>No readiness gaps reported.</p>'}
+      ${(summary && Array.isArray(summary.warnings) && summary.warnings.length)
+        ? `<small>${escapeHtml(summary.warnings[0])}</small>`
+        : ''}
+    </div>
+  `;
+}
+
+function renderSparkQueryAnswer(result, citations) {
+  const answer = result.answer || '';
+  const uncertainty = [];
+  if ((result.confidence || 'low') === 'low') uncertainty.push('Confidence is low; treat this as a hint and inspect the cited source notes.');
+  if (!citations.length) uncertainty.push('No citations were returned for this answer.');
+  return `
+    <div class="obsidian-spark-grid">
+      <div class="obsidian-spark-card obsidian-spark-answer-card">
+        <strong>Answer</strong>
+        <div class="obsidian-spark-answer-copy">${escapeHtml(answer || 'No grounded answer available yet.')}</div>
+        <div class="obsidian-spark-answer-meta">
+          <span>${escapeHtml(readabilityLabel(result.confidence || 'unknown'))}</span>
+          <span>${escapeHtml(`${Math.round((Number(result.confidence_score) || 0) * 100)}% confidence score`)}</span>
+          <span>${escapeHtml(readabilityLabel(result.readiness_gate || 'unknown'))}</span>
+        </div>
+        ${uncertainty.length ? `<div class="obsidian-project-warnings">${uncertainty.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+      </div>
+      <div class="obsidian-spark-card">
+        <strong>Provenance breadcrumb</strong>
+        <p>answer -> citation snippet -> source note -> optional graph jump</p>
+        <small>Use citations to verify the answer against source-facing Lens surfaces.</small>
+      </div>
+    </div>
+    <div class="obsidian-spark-citations">
+      ${citations.length ? citations.map(citation => renderSparkCitation(citation)).join('') : '<div class="obsidian-project-conflicts">No supporting citations were returned.</div>'}
+    </div>
+  `;
+}
+
+function renderSparkCitation(citation) {
+  const snippets = Array.isArray(citation.snippets) ? citation.snippets : [];
+  return `
+    <div class="obsidian-spark-card obsidian-spark-citation-card">
+      <div class="obsidian-spark-citation-head">
+        <div>
+          <strong>${escapeHtml(citation.title || citation.path || 'Source')}</strong>
+          <small>${escapeHtml(citation.path || '')}</small>
+        </div>
+        <span>${escapeHtml(`score ${citation.score || 0}`)}</span>
+      </div>
+      ${snippets.length ? `<div class="obsidian-spark-citation-snippets">${snippets.map(snippet => `<blockquote>${escapeHtml(snippet)}</blockquote>`).join('')}</div>` : '<p>No snippet excerpt returned.</p>'}
+      <div class="obsidian-spark-citation-actions">
+        <button type="button" class="btn btn-secondary" data-spark-query-open-path="${escapeHtml(citation.path || '')}">Open source</button>
+        <button type="button" class="btn btn-secondary" data-spark-query-graph-path="${escapeHtml(citation.path || '')}">Graph jump</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderSparkCanonicals() {
   const canonicals = [
     'AI Memory/Canonical/User Preferences.md',
@@ -3758,6 +3888,84 @@ function bindSparkPanelActions() {
       await openNote(path);
     });
   });
+  document.querySelectorAll('[data-spark-query-open-path]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const path = btn.dataset.sparkQueryOpenPath;
+      if (!path || btn.disabled) return;
+      closeSparkPanel();
+      await openNote(path);
+    });
+  });
+  document.querySelectorAll('[data-spark-query-graph-path]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const path = btn.dataset.sparkQueryGraphPath;
+      if (!path || btn.disabled) return;
+      closeSparkPanel();
+      await openNote(path);
+      setViewMode('graph');
+    });
+  });
+  document.querySelectorAll('[data-spark-query-refresh]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      loadSparkQueryStatus();
+    });
+  });
+  document.querySelectorAll('[data-spark-query-form]').forEach(form => {
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      runSparkQuery();
+    });
+  });
+  document.querySelectorAll('[data-spark-query-input]').forEach(input => {
+    input.addEventListener('input', () => {
+      sparkQueryText = input.value || '';
+    });
+  });
+}
+
+function readabilityLabel(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, match => match.toUpperCase());
+}
+
+async function loadSparkQueryStatus() {
+  sparkQueryLoading = true;
+  sparkQueryError = '';
+  renderSparkPanel();
+  try {
+    sparkQueryStatus = await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
+    if (!sparkQueryStatus?.readiness?.ready) sparkQueryResult = null;
+  } catch (e) {
+    console.error('Spark query status failed:', e);
+    sparkQueryError = e.message || 'Query status failed';
+    sparkQueryResult = null;
+  } finally {
+    sparkQueryLoading = false;
+    renderSparkPanel();
+  }
+}
+
+async function runSparkQuery() {
+  const query = String(sparkQueryText || '').trim();
+  if (!query) {
+    showToast('Enter a memory question first');
+    return;
+  }
+  sparkQueryLoading = true;
+  sparkQueryError = '';
+  renderSparkPanel();
+  try {
+    sparkQueryStatus = sparkQueryStatus || await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
+    sparkQueryResult = await fetchMemoryDashboardJson(`/api/plugins/obsidian/memory/query?q=${encodeURIComponent(query)}&top_k=5`);
+  } catch (e) {
+    console.error('Spark query failed:', e);
+    sparkQueryError = e.message || 'Query failed';
+    sparkQueryResult = null;
+  } finally {
+    sparkQueryLoading = false;
+    renderSparkPanel();
+  }
 }
 
 async function analyzeSpark() {

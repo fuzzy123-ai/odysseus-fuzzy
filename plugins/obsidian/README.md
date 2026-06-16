@@ -219,6 +219,11 @@ All routes are registered under `/api/plugins/obsidian`.
 - `POST /memory-review/preview` - create a non-destructive memory review plan.
 - `POST /memory-review/apply` - apply a confirmed memory review plan.
 
+### Memory Query
+
+- `GET /memory/query/status` - query-layer readiness, gate, warnings, and source/chunk counts.
+- `GET /memory/query?q=<query>&top_k=<n>` - grounded answer text with citations, confidence, and readiness metadata.
+
 ### History
 
 - `GET /history` - recent vault actions.
@@ -475,6 +480,24 @@ Needs Bob handoff before the UI treats it as stable:
 - Final `indexed_at` field shape.
 - Stable mapping for backend freshness/failure states.
 - Final graph-jump payload for source-to-graph navigation.
+
+### Query Answer Lens Contract
+
+The Answer Lens should make Memory-first retrieval legible instead of presenting unsupported text as if it were a final truth source.
+
+Lens-side contract:
+
+- The answer card should show the answer together with readable readiness state, confidence, and uncertainty wording.
+- Citations should stay attached to the answer and expose both source path and snippet-level evidence.
+- A provenance breadcrumb should read like `answer -> citation snippet -> source note -> graph jump`.
+- Graph jumps and source opens are Lens navigation features; they do not imply source mutation or canonical promotion.
+- If the query layer is blocked, stale, or empty, the Lens should explain that derived memory is not ready instead of pretending the source data vanished.
+
+Current UI shape in this RC line:
+
+- `KI Spark -> Answer Lens` provides a read-only query surface with readiness, gate, confidence, citations, and per-citation source/graph jumps.
+- The Lens reads from `/memory/query/status` and `/memory/query` and keeps failure states user-visible.
+- Low-confidence or citation-free answers are framed as uncertainty, not as silent success.
 
 ### Automation Review Lens Contract
 
