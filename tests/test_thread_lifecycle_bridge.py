@@ -65,7 +65,7 @@ def test_ambiguous_thread_blocks_dispatch():
         thread_ref=_thread_ref(),
         thread_status="ambiguous",
         last_seen_turn=8,
-        handoff_status="blocked",
+        handoff_status="ambiguous",
     )
 
     decision = ThreadDispatchDecision.decide(snapshot=snapshot, request=_request())
@@ -110,7 +110,7 @@ def test_completed_handoff_prefers_resolve_not_resend():
         thread_ref=_thread_ref(),
         thread_status="completed",
         last_seen_turn=11,
-        handoff_status="ready",
+        handoff_status="ready_for_handoff",
     )
 
     decision = ThreadDispatchDecision.decide(snapshot=snapshot, request=_request())
@@ -139,6 +139,54 @@ def test_agent_or_run_mismatch_blocks():
 
     assert decision.action == DispatchAction.BLOCKED
     assert decision.reason == "agent_mismatch"
+
+
+def test_snapshot_validates_contract_fields_and_timestamp_order():
+    snapshot = ThreadLifecycleSnapshot.create(
+        thread_ref=_thread_ref(),
+        thread_status="completed",
+        last_seen_turn=12,
+        handoff_status="resolved",
+        dispatch_intent="resolve_handoff",
+        acknowledged_at="2026-06-16T10:00:00Z",
+        resolved_at="2026-06-16T10:10:00Z",
+    )
+
+    assert snapshot.dispatch_intent == "resolve_handoff"
+    assert snapshot.acknowledged_at == "2026-06-16T10:00:00Z"
+    assert snapshot.resolved_at == "2026-06-16T10:10:00Z"
+
+
+def test_resolved_at_must_not_be_before_acknowledged_at():
+    try:
+        ThreadLifecycleSnapshot.create(
+            thread_ref=_thread_ref(),
+            thread_status="completed",
+            last_seen_turn=12,
+            handoff_status="resolved",
+            dispatch_intent="resolve_handoff",
+            acknowledged_at="2026-06-16T10:10:00Z",
+            resolved_at="2026-06-16T10:00:00Z",
+        )
+    except Exception as exc:
+        assert "resolved_at" in str(exc)
+    else:
+        raise AssertionError("expected invalid timestamp order")
+
+
+def test_ambiguous_thread_cannot_carry_send_instruction_intent():
+    try:
+        ThreadLifecycleSnapshot.create(
+            thread_ref=_thread_ref(),
+            thread_status="ambiguous",
+            last_seen_turn=12,
+            handoff_status="ambiguous",
+            dispatch_intent="send_instruction",
+        )
+    except Exception as exc:
+        assert "ambiguous" in str(exc)
+    else:
+        raise AssertionError("expected ambiguous send intent to be rejected")
 
 
 def test_audit_summary_keeps_ids_status_action_without_long_prompt_dump():

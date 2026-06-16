@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 import re
 from typing import Any
@@ -14,7 +15,17 @@ _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 _THREAD_STATUS_COMPATIBLE = {"unknown", "idle", "running", "completed", "blocked", "stale", "ambiguous"}
 _DISPATCH_ACTIONS = {"send", "wait", "blocked", "resolve", "noop"}
 _ALLOWED_ACTIONS = {"send", "resolve", "read"}
-_HANDOFF_STATUS = {"none", "ready", "completed", "blocked"}
+_HANDOFF_STATUS = {
+    "none",
+    "waiting_for_agent",
+    "waiting_for_charlie",
+    "ready_for_handoff",
+    "resolved",
+    "ambiguous",
+}
+_DISPATCH_INTENTS = {"read_only", "send_instruction", "resolve_handoff", "stop"}
+_MAX_TIMESTAMP = 40
+_TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
 class ThreadLifecycleBridgeError(ValueError):
@@ -92,10 +103,37 @@ def _normalize_allowed_action(value: Any) -> str:
 
 
 def _normalize_handoff_status(value: Any) -> str:
-    normalized = _normalize_slug(value, field_name="handoff_status")
+    normalized = str(value or "").strip().lower().replace("-", "_")
+    normalized = re.sub(r"_{2,}", "_", re.sub(r"[^a-z0-9_]+", "_", normalized)).strip("_")
+    if not normalized:
+        raise ThreadLifecycleBridgeError("handoff_status must not be empty")
     if normalized not in _HANDOFF_STATUS:
         raise ThreadLifecycleBridgeError("handoff_status is not supported")
     return normalized
+
+
+def _normalize_dispatch_intent(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return "read_only"
+    normalized = normalized.replace("-", "_")
+    normalized = re.sub(r"_{2,}", "_", re.sub(r"[^a-z0-9_]+", "_", normalized)).strip("_")
+    if normalized not in _DISPATCH_INTENTS:
+        raise ThreadLifecycleBridgeError("dispatch_intent is not supported")
+    return normalized
+
+
+def _normalize_timestamp(value: Any, *, field_name: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if len(text) > _MAX_TIMESTAMP or not _TIMESTAMP_RE.fullmatch(text):
+        raise ThreadLifecycleBridgeError(f"{field_name} must be an ISO-8601 UTC timestamp")
+    return text
+
+
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +169,9 @@ class ThreadLifecycleSnapshot:
     thread_status: ThreadStatus
     last_seen_turn: int
     handoff_status: str
+    dispatch_intent: str = "read_only"
+    acknowledged_at: str = ""
+    resolved_at: str = ""
 
     @classmethod
     def create(
@@ -140,6 +181,9 @@ class ThreadLifecycleSnapshot:
         thread_status: ThreadStatus | str,
         last_seen_turn: Any,
         handoff_status: Any,
+        dispatch_intent: Any = "read_only",
+        acknowledged_at: Any = "",
+        resolved_at: Any = "",
     ) -> "ThreadLifecycleSnapshot":
         if not isinstance(thread_ref, ThreadRef):
             raise ThreadLifecycleBridgeError("thread_ref must be a ThreadRef")
@@ -149,11 +193,24 @@ class ThreadLifecycleSnapshot:
             raise ThreadLifecycleBridgeError("last_seen_turn must be an int") from None
         if turn < 0:
             raise ThreadLifecycleBridgeError("last_seen_turn must be >= 0")
+        normalized_thread_status = thread_status if isinstance(thread_status, ThreadStatus) else _normalize_thread_status(thread_status, field_name="thread_status")
+        normalized_handoff_status = _normalize_handoff_status(handoff_status)
+        normalized_dispatch_intent = _normalize_dispatch_intent(dispatch_intent)
+        normalized_acknowledged_at = _normalize_timestamp(acknowledged_at, field_name="acknowledged_at")
+        normalized_resolved_at = _normalize_timestamp(resolved_at, field_name="resolved_at")
+        if normalized_resolved_at and normalized_acknowledged_at:
+            if _parse_timestamp(normalized_resolved_at) < _parse_timestamp(normalized_acknowledged_at):
+                raise ThreadLifecycleBridgeError("resolved_at must not be before acknowledged_at")
+        if normalized_thread_status == ThreadStatus.AMBIGUOUS and normalized_dispatch_intent == "send_instruction":
+            raise ThreadLifecycleBridgeError("ambiguous threads cannot carry send_instruction intent")
         return cls(
             thread_ref=thread_ref,
-            thread_status=thread_status if isinstance(thread_status, ThreadStatus) else _normalize_thread_status(thread_status, field_name="thread_status"),
+            thread_status=normalized_thread_status,
             last_seen_turn=turn,
-            handoff_status=_normalize_handoff_status(handoff_status),
+            handoff_status=normalized_handoff_status,
+            dispatch_intent=normalized_dispatch_intent,
+            acknowledged_at=normalized_acknowledged_at,
+            resolved_at=normalized_resolved_at,
         )
 
 
@@ -290,8 +347,8 @@ class ThreadDispatchDecision:
             )
 
         if snapshot.thread_status in {ThreadStatus.COMPLETED, ThreadStatus.BLOCKED, ThreadStatus.STALE}:
-            reason = "thread_handoff_ready" if snapshot.handoff_status in {"ready", "completed"} else "thread_needs_resolution"
-            required = "advance_next_slice" if snapshot.handoff_status in {"ready", "completed"} else "resolve_thread_status"
+            reason = "thread_handoff_ready" if snapshot.handoff_status in {"ready_for_handoff", "resolved"} else "thread_needs_resolution"
+            required = "advance_next_slice" if snapshot.handoff_status in {"ready_for_handoff", "resolved"} else "resolve_thread_status"
             return cls(
                 action=DispatchAction.RESOLVE,
                 allowed=False,
