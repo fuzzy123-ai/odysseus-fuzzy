@@ -18,6 +18,8 @@ Document-Intelligence-Bar-Contract fuer `LENS4`: `docs/plans/document-intelligen
 
 Review-Audit-Spark-Redesign-Contract fuer `LENS5`: `docs/plans/review-audit-spark-redesign-contract.md`
 
+Odysseus-Lens-Rename-Plan-Contract fuer `LENS6`: `docs/plans/odysseus-lens-rename-plan-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
