@@ -1,5 +1,7 @@
 # Feature: Nextcloud Source Bridge
 
+> Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt pausierter Detailplan, bis Nextcloud laeuft.
+
 Stand: 2026-06-16
 
 Dieses Dokument beschreibt die geplante Nextcloud-Anbindung fuer Odysseus. Es ist ein eigenstaendiges Feature-Dokument und gehoert bewusst nicht in die aktuelle Memory-first/Obsidian-Roadmap.

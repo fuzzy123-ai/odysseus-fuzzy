@@ -1,5 +1,7 @@
 # Roadmap: Memory Scale Foundation nach 1.0
 
+> Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt Detailplan fuer die Scale Foundation.
+
 Stand: 2026-06-16
 
 Diese Roadmap beginnt **nach Abschluss der aktuellen Memory-first 1.0 Roadmap**. Sie beschreibt die naechste Ausbaustufe: Odysseus soll auch bei grossen Datenmengen fluessig bleiben, weil Memory-, Graph-, Query-, Job- und UI-Flows budgetiert, inkrementell und progressiv gebaut sind.

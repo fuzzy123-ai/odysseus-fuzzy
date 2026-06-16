@@ -1,5 +1,7 @@
 # Odysseus Memory System: Memory-first Roadmap mit Obsidian Lens
 
+> Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt Detail- und Archivplan fuer Memory-first/Obsidian-Lens.
+
 Stand: 2026-06-16
 
 Dieses Dokument ist die einzige aktive Planungsquelle fuer das Odysseus-Memory-System und die Obsidian-Lens. Die frueheren Einzelplaene zu Import/Export, Tags, Graph, Dateibaum, Editor, Settings, KI-Steuerung, Tests, Migration und Phase-Status wurden hier konsolidiert. Alte Planungsdateien sollen nicht wiederbelebt werden; neue Erkenntnisse gehoeren in diese Roadmap.

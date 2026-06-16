@@ -1,5 +1,7 @@
 # Roadmap: Development Orchestration Foundation
 
+> Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt Detailplan fuer Orchestration v1.
+
 Stand: 2026-06-16
 
 Status: **naechster pragmatischer Odysseus-/Multi-Agent-Bauabschnitt**

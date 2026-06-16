@@ -1,5 +1,7 @@
 # Feature Roadmap: DeepSeek Model Router und Graceful Degradation
 
+> Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt Detail- und Evidence-Plan fuer M6.
+
 Stand: 2026-06-16
 
 Status: **neuer Pre-1.0-Gate**
