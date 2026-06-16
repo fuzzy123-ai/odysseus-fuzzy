@@ -35,6 +35,8 @@ def test_obsidian_plugin_loader_is_auth_exempt():
 
     assert '"/api/plugins/ui-loader.js"' in app_py
     assert "AUTH_EXEMPT_EXACT.update(OBSIDIAN_APP_SHELL_ALIASES)" in app_py
+    assert "def _is_obsidian_web_asset_path(path: str) -> bool:" in app_py
+    assert "path.startswith(OBSIDIAN_WEB_ASSET_PREFIX)" in app_py
     assert 'AUTH_EXEMPT_PREFIXES = ["/static", OBSIDIAN_WEB_ASSET_PREFIX]' in app_py
     assert 'OBSIDIAN_APP_SHELL_PATH = "/api/plugins/obsidian/app"' in routes_py
     assert 'OBSIDIAN_APP_SHELL_ALIASES = (' in routes_py
@@ -78,6 +80,15 @@ def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
 
         data_slash_response = client.get("/api/plugins/obsidian/files/")
         assert data_slash_response.status_code == 401
+
+        lookalike_shell_asset = client.get("/api/plugins/obsidian/app.js")
+        assert lookalike_shell_asset.status_code == 401
+
+        lookalike_shell_prefix = client.get("/api/plugins/obsidian/application")
+        assert lookalike_shell_prefix.status_code == 401
+
+        status_response = client.get("/api/plugins/obsidian/status")
+        assert status_response.status_code == 401
 
 
 def test_obsidian_frontend_registers_sidebar_and_standalone_mode():

@@ -32,9 +32,9 @@ Der neue Produkt-Nordstern ist **Memory-first**:
 - Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
 - Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
 
-Aktueller Abstand zum neuen `1.0.0`: **ca. 55-65%**.
+Aktueller Abstand zum neuen `1.0.0`: **ca. 75-80%**.
 
-Grund: Viel Fundament existiert bereits, aber Ledger, Background-Indexer, Derived-Data-Speicherung und Query-Layer muessen als Produktkern noch sauber herausgearbeitet werden.
+Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens und Automation weitgehend gebaut und fokussiert getestet. Offen bleiben vor allem Bobs letzter Automation-Commit, External/Rebuild Proof, breitere Regressionen und ein finaler Go/No-Go-Schnitt.
 
 ## Neue 1.0-Roadmap
 
@@ -163,6 +163,7 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 | `A8-automation-review-lens` | Nacht-/Idle-Job-Ergebnisse fuer Nutzer verstaendlich machen: was lief, was braucht Review, was ist safe | README, spaeter Frontend | kein Scheduler, kein Cost Controller | Doku + UI contract |
 | `A9-nextcloud-source-lens` | Nextcloud/Dateiarchiv als Source Provider in der Lens erklaeren und sichtbar machen | Roadmap, README, spaeter Source Views | kein Nextcloud-Backend-Plugin | Doku-Konsistenz |
 | `A10-memory-demo-runbook` | Reproduzierbaren 1.0-Demoablauf fuer Memory-first vorbereiten | README, Release Notes, Evidence-Abschnitt | keine Feature-Erweiterung | manueller Demo-Smoke |
+| `A11-integration-readiness-audit` | Alice prueft nach Bobs Commit die Lens-/Payload-/Demo-Evidence gegen den echten Backend-Stand | Roadmap, README, Evidence-Notiz | keine Backend-Edits, kein Testfile-Umbau | Doku/Evidence-Review + fokussierte Smokes nach Handoff |
 
 ### A1 Lens-Produktvertrag
 
@@ -393,6 +394,37 @@ Evidence-Shape:
 - Lens-Surface, die zur Nachvollziehbarkeit gezeigt wurde
 - Markierung, ob der Schritt heute echt, mock-basiert oder `needs Bob handoff` war
 
+#### A11 Integration-Readiness-Audit
+
+Ziel: Alice nutzt ihre freie Kapazitaet nicht fuer neue parallele Implementierung, sondern fuer den kontrollierten Abschluss der Lens-Seite gegen Bobs finalen Backend-Stand.
+
+Startbedingung:
+
+- Bob hat seine offenen Automation-Aenderungen committed oder explizit uebergeben.
+- Der Worktree ist bis auf neue Alice-Readiness-Doku sauber.
+
+Scope:
+
+- README/Roadmap gegen echte Backend-Payloads pruefen: Query Answer, Sources, Confidence, Automation Status, Rebuild Proof.
+- Alle `needs Bob handoff` Marker entweder als erledigt, offen oder bewusst verschoben markieren.
+- Demo-Runbook als `real`, `mock/spec` oder `blocked` klassifizieren.
+- finalen Alice-Handoff fuer `1.0` schreiben: Lens-ready, nicht ready, Risiken, benoetigte Bob-Evidence.
+
+Grenzen:
+
+- Keine Edits in `memory_automation.py`, `memory_ledger.py`, `derived_index.py`, `query_layer.py`, `memory_status.py`, `routes.py` oder Bobs Tests.
+- Keine neuen Features starten, solange Bobs Commit und der Rebuild Proof nicht stabil sind.
+- Keine Go-Aussage fuer `1.0.0`, bevor Bob-Evidence und breite Regressionen vorliegen.
+
+Audit-Stand 2026-06-16:
+
+- `real`: Query Layer Payload ist ueber `/memory/query/status` und `/memory/query` live belegt, inklusive `citations`, `confidence`, `confidence_score`, `readiness_gate`, `path_prefix` und Cache-Metadaten; fokussierte Tests `plugins/obsidian/tests/test_query_layer_backend.py` sind gruen.
+- `real`: Automation Payload ist ueber `/memory/automation/status` und `/memory/automation/run` live belegt, inklusive `pending_actions`, `cost_controller`, `safety`, `last_run` und Backoff-/Cooldown-Feldern; fokussierte Tests `plugins/obsidian/tests/test_memory_automation_backend.py` sind gruen.
+- `real`: Die Lens-Seite fuer Query Answers ist umgesetzt und nutzt die echten Query-Endpunkte read-only.
+- `mock/spec`: Source View als eigene UI fuer `source_type`, `chunk_id`, `indexed_at` und tieferen Chunk-Provenance-Drilldown bleibt weiterhin Vertrags-/README-Ebene, nicht final integrierte Runtime-Oberflaeche.
+- `needs Bob handoff`: External-Source-/Nextcloud-spezifische Source-Provider-Felder sind noch nicht im stabilen Backend-Vertrag nachgewiesen.
+- `blocked`: External/Rebuild Proof und breitere `1.0`-Evidence fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-Stand auf **kein Go**.
+
 ### A5 Release-Readiness-Rahmen
 
 `A5-1.0-release-readiness` zieht keine Produktlogik vor und erklaert keine unfertige Infrastruktur fuer "bereit". Der Slice sammelt nur den Go/No-Go-Rahmen fuer die Lens-Seite und trennt ihn sauber von Bobs Infrastruktur-Evidence.
@@ -414,10 +446,10 @@ Evidence-Shape:
 
 #### Aktueller Go/No-Go-Stand
 
-- `Lens UX`: teilweise gruen. Vertrag, Review Queue, Graph-Lens und Published-View-Abgrenzung sind vorhanden, aber Source Views und Derived-Cluster-Daten haengen noch an Bobs Infrastruktur.
-- `Memory Infrastructure`: offen. Ledger, Derived Index, Query Layer und Automation sind noch kein abgeschlossenes Release-Evidence-Paket.
-- `Safety`: teilweise gruen. Bestehende Obsidian-Sicherheitsgates sind relevant, aber Memory-first 1.0 braucht zusaetzlich Rebuild- und Query-Evidence.
-- `1.0.0`: aktuell **kein Go**. Die Lens-Seite ist vorbereitet, aber Bob-Evidence fuer Ledger, Index, Query und External/Rebuild Proof fehlt noch.
+- `Lens UX`: weitgehend gruen. Alice hat Source View, Automation Review, Nextcloud Source, Demo Runbook und Query Answer Lens vorbereitet.
+- `Memory Infrastructure`: fokussiert gruen. Ledger, Derived Index, Query Layer und Automation sind gebaut; Query- und Automation-Payloads sind gegen fokussierte Tests belegt. Nicht final frei ist die Spur trotzdem erst nach External/Rebuild Proof und breiterem Evidence-Schnitt.
+- `Safety`: teilweise gruen. Bestehende Obsidian-Sicherheitsgates und Automation-Safety sind relevant, aber Memory-first 1.0 braucht finalen Rebuild-/No-Source-Write-Nachweis.
+- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern Commit-Cleanliness, External/Rebuild Proof, fokussierte/breitere Tests und finaler Evidence-Schnitt.
 
 #### Was A5 bei Freigabe zeigen muss
 
@@ -449,13 +481,13 @@ Evidence-Shape:
 Alice:
 
 ```text
-Du bist Alice. Dein vorheriger Slice ist uebergeben. Starte jetzt A6-source-view-lens-contract und danach A8-automation-review-lens, A9-nextcloud-source-lens und A10-memory-demo-runbook. Arbeite read-only an Lens-Vertrag, README/Roadmap, Nutzertexten und Demo-Evidence. Nicht an memory_ledger.py, derived_index.py, query_layer.py, memory_automation.py, memory_status.py, routes.py oder Bobs Tests arbeiten. A7-query-answer-lens erst starten, wenn Bob Query-Layer-Payload und Tests stabil uebergibt.
+Du bist Alice. Finalisiere jetzt A11-integration-readiness-audit read-only. Pruefe README/Roadmap/Evidence gegen den aktuell committed Backend-Stand und halte nur noch fest, was `real`, `mock/spec`, `needs Bob handoff` oder `blocked` ist. Nicht an memory_ledger.py, derived_index.py, query_layer.py, memory_automation.py, memory_status.py, routes.py oder Bobs Tests arbeiten. Nach A11 keine neuen UI-/Lens-Followups starten, bis der Master sie explizit freigibt.
 ```
 
 Bob:
 
 ```text
-Du bist Bob. Finish B0-finish-current-backend-slices und starte danach B1-memory-ledger. Baue den Source-/Index-Ledger als abgeleitete Memory-Infrastruktur. Nicht an Obsidian-Lens-Frontend oder Alices aktive Testdateien arbeiten. Keine automatischen Writes in menschliche Markdown-Quellen einfuehren.
+Du bist Bob. Schliesse den offenen Automation-Slice ab und committe ihn sauber. Aktuell offen sind nur memory_automation.py und test_memory_automation_backend.py; fokussierte Tests fuer Automation, Query und Derived Index sind gruen. Danach nicht weiter ausbauen, sondern B5-external-rebuild-proof/Evidence vorbereiten: rebuild, query with citations, no silent source writes.
 ```
 
 ## Bestehende Obsidian-Foundation

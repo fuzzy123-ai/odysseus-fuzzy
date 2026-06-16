@@ -544,6 +544,22 @@ Needs Bob handoff before UI wiring is treated as stable:
 - Stable external-source status fields.
 - Final read-only vs staged-write boundary for synced/archive material.
 
+### Integration Readiness Audit (2026-06-16)
+
+Current audit buckets:
+
+- `real`: `GET /memory/query/status` and `GET /memory/query` now expose readiness, gate, citations, confidence, `confidence_score`, `path_prefix`, warnings, and query-cache metadata; focused query-layer tests pass.
+- `real`: `GET /memory/automation/status` and `POST /memory/automation/run` now expose pending actions, cooldown/backoff cost controls, last-run summaries, and explicit `source_note_writes: false` safety; focused automation tests pass.
+- `real`: `KI Spark -> Answer Lens` is wired against the live query endpoints and keeps blocked/low-confidence states user-visible instead of pretending success.
+- `mock/spec`: Source View remains a contract-level surface for richer source-type/chunk/version drilldown; the separate runtime Lens for those fields is not fully materialized yet.
+- `needs Bob handoff`: external-source/Nextcloud provider identifiers and stable external-file status fields are still not proven in a committed backend payload.
+- `blocked`: external rebuild/install/repair proof is still missing, so Memory-first `1.0.0` remains a no-go despite green focused query and automation evidence.
+
+Evidence verified in this audit:
+
+- `plugins/obsidian/tests/test_query_layer_backend.py`: focused query contract smoke passes.
+- `plugins/obsidian/tests/test_memory_automation_backend.py`: focused automation contract smoke passes.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:

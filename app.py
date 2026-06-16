@@ -207,10 +207,21 @@ if AUTH_ENABLED:
         _re.compile(r"^/api/tasks/[^/]+/webhook/[^/]+/?$"),
     ]
 
+    def _is_obsidian_web_asset_path(path: str) -> bool:
+        """Only exempt concrete frontend asset paths under `/web/`.
+
+        Keep the standalone shell on exact matches (`/app`, `/app/`) and avoid
+        accidentally widening auth bypass to lookalike data routes such as
+        `/api/plugins/obsidian/app.js` or `/api/plugins/obsidian/application`.
+        """
+        return bool(path) and path.startswith(OBSIDIAN_WEB_ASSET_PREFIX)
+
     def _is_auth_exempt(path: str) -> bool:
         if path in AUTH_EXEMPT_EXACT:
             return True
-        if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
+        if _is_obsidian_web_asset_path(path):
+            return True
+        if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES if p != OBSIDIAN_WEB_ASSET_PREFIX):
             return True
         return any(p.match(path) for p in AUTH_EXEMPT_PATTERNS)
 
