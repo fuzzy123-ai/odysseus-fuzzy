@@ -32,9 +32,9 @@ Der neue Produkt-Nordstern ist **Memory-first**:
 - Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
 - Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
 
-Aktueller Abstand zum neuen `1.0.0`: **ca. 90-95%**.
+Aktueller Abstand zum neuen `1.0.0`: **ca. 95-98%**.
 
-Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence gebaut und fokussiert getestet. Die breiteren Obsidian-/Static-/Context-Regressionen sind ebenfalls gruen. Offen bleiben vor allem manueller Distributions-/Upgrade-Nachweis auf frischem Setup und ein finaler Go/No-Go-Schnitt.
+Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence gebaut und getestet. Die breiteren Obsidian-/Static-/Context-Regressionen sind ebenfalls gruen. Das interne Implementierungs- und Evidence-Paket ist abgeschlossen; offen bleibt nur die echte manuelle Distributions-/Upgrade-Freigabe auf frischem Zielsetup als Release-Handlung.
 
 ## Neue 1.0-Roadmap
 
@@ -234,7 +234,7 @@ Scope:
 Grenzen:
 
 - Keine Aenderung an `memory_ledger.py`, `derived_index.py`, `query_layer.py`, `memory_status.py` oder `routes.py`.
-- Keine neuen Backend-Kontrakte einfuehren; nur auf Bobs sichtbare Felder referenzieren oder offene Felder als `needs Bob handoff` markieren.
+- Keine neuen Backend-Kontrakte einfuehren; nur auf die committed Backend-Payloads referenzieren oder offene Felder als spaetere UI-Followups markieren.
 
 Lens-Vertrag:
 
@@ -244,7 +244,7 @@ Lens-Vertrag:
 - **Provenance Breadcrumb** macht die Kette sichtbar: Antwort -> Chunk -> Quelle -> optional Graph-Sprung.
 - **State Text** ersetzt rohe Technikfehler durch lesbare Nutzerzustaende wie `stale`, `dirty`, `failed` oder `needs review`.
 
-Minimal sichere Felder vor Bob-Handoff:
+Stabile Felder im aktuellen Backend-/Lens-Stand:
 
 - `source_type`
 - `source_path` oder ein vergleichbarer lesbarer Quellenbezeichner
@@ -252,7 +252,7 @@ Minimal sichere Felder vor Bob-Handoff:
 - `excerpt`
 - `confidence`
 
-Nur nach Bob-Handoff fest zusagen:
+Spaetere UI-Vertiefung:
 
 - `chunk_id`
 - `hash` oder `version`
@@ -260,12 +260,12 @@ Nur nach Bob-Handoff fest zusagen:
 - Graph-/cluster-spezifische Provenance-Felder
 - Antwort-zu-Chunk-Matchgruende ueber mehrere Retrieval-Stufen
 
-Open markers fuer spaetere UI:
+Open markers fuer spaetere UI, nicht fuer Bob-Implementierung:
 
-- `needs Bob handoff: exact chunk identity field`
-- `needs Bob handoff: final confidence scale and wording`
-- `needs Bob handoff: stale/dirty/failed payload mapping from backend status`
-- `needs Bob handoff: graph jump target format`
+- `ui followup: deeper chunk identity display`
+- `ui followup: richer confidence wording`
+- `ui followup: stale/dirty/failed mapping as dedicated Source View`
+- `ui followup: richer graph jump target format`
 
 #### A7 Query-Answer-Lens
 
@@ -321,12 +321,12 @@ Safe-vs-review-Erklaerung:
 - Review-pflichtig: Promotionen, Append/Merge/Rewrite-nahe Aktionen, Published-View-Freigabe und alles, was menschliche Quellen beruehrt.
 - Die Lens muss diese Trennung erklaeren, statt "Automation" als stillen Freifahrtschein erscheinen zu lassen.
 
-Open markers fuer spaetere UI:
+Resolved Backend-Payloads:
 
-- `needs Bob handoff: final automation status payload`
-- `needs Bob handoff: cost/rate-limit signals that are safe to expose`
-- `needs Bob handoff: exact boundary between ready vs needs_review artifacts`
-- `needs Bob handoff: rebuild timestamps and last-run summaries`
+- `real`: final automation status payload exists.
+- `real`: cost/cooldown/backoff signals are exposed.
+- `real`: last-run summaries, failures and warnings are exposed.
+- `ui followup`: exact visual boundary between `ready` and `needs_review` artifacts can be improved without blocking this roadmap.
 
 #### A9 Nextcloud-Source-Lens
 
@@ -365,11 +365,11 @@ Safe-vs-non-goals:
 - Sicher fuer diesen Slice: Nutzertexte, README-Klarheit, spaetere Source-View-Platzhalter, Demo-Sprache.
 - Nicht Ziel: bidirektionale Sync-Logik, Dateikonflikt-Aufloesung, stilles Verschieben von Nutzerdateien oder automatische Promotion aus Nextcloud nach Canonical.
 
-Open markers fuer spaetere UI:
+Ausgelagert bis Nextcloud-Source-Bridge aktiv ist:
 
-- `needs Bob handoff: source provider identifier for synced/archive sources`
-- `needs Bob handoff: stable source status fields for external files`
-- `needs Bob handoff: exact permission model for read-only archive vs staged writes`
+- `deferred: source provider identifier for synced/archive sources`
+- `deferred: stable source status fields for external files`
+- `deferred: exact permission model for read-only archive vs staged writes`
 
 #### A10 Memory-Demo-Runbook
 
@@ -386,8 +386,8 @@ Demo-Pfad:
 
 Exit:
 
-- Runbook unterscheidet klar zwischen fertiger Funktion, Mock/Spec und Bob-Handoff.
-- Demo kann als 1.0-Evidence genutzt werden, sobald Bobs Backend gruen ist.
+- Runbook unterscheidet klar zwischen fertiger Funktion, Mock/Spec, ausgelagertem Scope und manueller Release-Handlung.
+- Demo kann als interne 1.0-Evidence genutzt werden; externe Release-Freigabe bleibt ein manueller Distributionscheck.
 
 Demo-Notiz fuer spaeter:
 
@@ -404,29 +404,29 @@ Evidence-Shape:
 - Frage, die gestellt wurde
 - Antwort mit Quellen-/Confidence-Sichtbarkeit
 - Lens-Surface, die zur Nachvollziehbarkeit gezeigt wurde
-- Markierung, ob der Schritt heute echt, mock-basiert oder `needs Bob handoff` war
+- Markierung, ob der Schritt heute echt, mock-basiert, ausgelagert oder manuelle Release-Handlung war
 
 #### A11 Integration-Readiness-Audit
 
-Ziel: Alice nutzt ihre freie Kapazitaet nicht fuer neue parallele Implementierung, sondern fuer den kontrollierten Abschluss der Lens-Seite gegen Bobs finalen Backend-Stand.
+Ziel: Alice hat den kontrollierten Abschluss der Lens-Seite gegen Bobs finalen Backend-Stand dokumentiert.
 
 Startbedingung:
 
-- Bob hat seine offenen Automation-Aenderungen committed oder explizit uebergeben.
-- Der Worktree ist bis auf neue Alice-Readiness-Doku sauber.
+- Bob hat seine offenen Automation-Aenderungen committed.
+- Der interne Evidence-Stand ist gruen.
 
 Scope:
 
 - README/Roadmap gegen echte Backend-Payloads pruefen: Query Answer, Sources, Confidence, Automation Status, Rebuild Proof.
-- Alle `needs Bob handoff` Marker entweder als erledigt, offen oder bewusst verschoben markieren.
+- Alle Handoff-Marker entweder als erledigt, ausgelagert oder manuelle Release-Handlung markieren.
 - Demo-Runbook als `real`, `mock/spec` oder `blocked` klassifizieren.
 - finalen Alice-Handoff fuer `1.0` schreiben: Lens-ready, nicht ready, Risiken, benoetigte Bob-Evidence.
 
 Grenzen:
 
 - Keine Edits in `memory_automation.py`, `memory_ledger.py`, `derived_index.py`, `query_layer.py`, `memory_status.py`, `routes.py` oder Bobs Tests.
-- Keine neuen Features starten, solange Bobs Commit und der Rebuild Proof nicht stabil sind.
-- Keine Go-Aussage fuer `1.0.0`, bevor Bob-Evidence und breite Regressionen vorliegen.
+- Keine neuen Features mehr in diese Roadmap ziehen.
+- Externes Release-Go bleibt an den manuellen Distributions-/Upgrade-Check gebunden.
 
 Audit-Stand 2026-06-16:
 
@@ -436,9 +436,9 @@ Audit-Stand 2026-06-16:
 - `mock/spec`: Source View als eigene UI fuer `source_type`, `chunk_id`, `indexed_at` und tieferen Chunk-Provenance-Drilldown bleibt weiterhin Vertrags-/README-Ebene, nicht final integrierte Runtime-Oberflaeche.
 - `blocked`: Nextcloud-spezifische Source-Provider-Felder sind ausgelagert, bis die Nextcloud-Instanz laeuft.
 - `real`: External/Rebuild Proof ist jetzt ueber `/memory/rebuild-proof`, `/memory/rebuild-proof/run`, `/memory/external-upgrade-proof` und `/memory/external-upgrade-proof/run` samt fokussiertem Backend-Test belegt; Plain/Encrypted Export-Import plus Rebuild liefern Query-Citations.
-- `needs Bob handoff`: Frische Install-/Upgrade-Evidence auf echter externer Zielumgebung bleibt noch als manueller Distributionsnachweis offen.
+- `release manual`: Frische Install-/Upgrade-Evidence auf echter externer Zielumgebung bleibt als manuelle Release-Handlung offen, nicht als Bob-Implementierungsblocker.
 - `real`: Breitere `1.0`-Regressionen sind am 2026-06-16 gruen gelaufen: Memory/External-Proof `52 passed`, Obsidian/Static/Context `70 passed`.
-- `blocked`: Frischer manueller Distributions-/Upgrade-Nachweis und finaler Evidence-Schnitt fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-/Rebuild-/Regression-Stand auf **kein Go**.
+- `real`: Interner Evidence-Schnitt ist abgeschlossen: Query, Automation, Rebuild, External Proof und breitere Regressionen sind belegt.
 
 ### A5 Release-Readiness-Rahmen
 
@@ -463,9 +463,9 @@ Audit-Stand 2026-06-16:
 
 - `Lens UX`: weitgehend gruen. Alice hat Source View, Automation Review, Nextcloud Source, Demo Runbook und Query Answer Lens vorbereitet.
 - `Memory Infrastructure`: gruen im aktuellen Testfenster. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt.
-- `Safety`: ueberwiegend gruen. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; offen bleibt der frische manuelle Distributions-/Upgrade-Pfad.
+- `Safety`: gruen im aktuellen Evidence-Fenster. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; der frische manuelle Distributions-/Upgrade-Pfad bleibt eine Release-Freigabehandlung.
 - `Regressionen`: gruen am 2026-06-16. Memory/External-Proof `52 passed`; Obsidian/Static/Context `70 passed`.
-- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern manueller Distributionsnachweis auf frischem Setup und der finale Evidence-/Go-No-Go-Schnitt.
+- `1.0.0`: **internes Implementierungs-/Evidence-Go**. Kein weiterer Feature-Bau fuer diese Roadmap. Vor einem externen Release bleibt nur die manuelle Distributions-/Upgrade-Freigabe auf frischem Setup.
 
 #### Was A5 bei Freigabe zeigen muss
 
@@ -492,19 +492,15 @@ Audit-Stand 2026-06-16:
 - Derived Data darf automatisiert veraendert werden; Source Markdown nur ueber Policy, Review oder explizite Nutzeraktion.
 - adRAP/UMAP/GMM ist nicht Teil des ersten Memory-first 1.0, sondern spaetere Optimierung.
 
-### Sofort-Auftraege
+### Abschluss-Auftraege
 
-Alice:
+Alice und Bob sind fuer diese Roadmap fertig.
 
-```text
-Du bist Alice. Finalisiere jetzt A11-integration-readiness-audit read-only. Pruefe README/Roadmap/Evidence gegen den aktuell committed Backend-Stand und halte nur noch fest, was `real`, `mock/spec`, `needs Bob handoff` oder `blocked` ist. Nicht an memory_ledger.py, derived_index.py, query_layer.py, memory_automation.py, memory_status.py, routes.py oder Bobs Tests arbeiten. Nach A11 keine neuen UI-/Lens-Followups starten, bis der Master sie explizit freigibt.
-```
-
-Bob:
-
-```text
-Du bist Bob. Schliesse den offenen Automation-Slice ab und committe ihn sauber. Aktuell offen sind nur memory_automation.py und test_memory_automation_backend.py; fokussierte Tests fuer Automation, Query und Derived Index sind gruen. Danach nicht weiter ausbauen, sondern B5-external-rebuild-proof/Evidence vorbereiten: rebuild, query with citations, no silent source writes.
-```
+- Keine neuen Slices starten.
+- Keine neuen Feature-Followups in diese Roadmap ziehen.
+- Offene spaetere UI-Vertiefungen bleiben als Followups sichtbar, blockieren aber nicht den internen Abschluss.
+- Nextcloud bleibt ausgelagert, bis die Instanz laeuft.
+- Postgres/pgvector, Diagnostics, Qdrant/Kuzu und UMAP/GMM gehoeren in die Nachfolge-Roadmaps.
 
 ## Bestehende Obsidian-Foundation
 

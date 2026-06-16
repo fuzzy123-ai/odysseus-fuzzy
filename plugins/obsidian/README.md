@@ -449,14 +449,14 @@ Lens-side evidence currently in place:
 - Graph Lens presets support whole-vault overview, current-source focus, and review-queue focus.
 - Published Views are intended to stay visibly distinct from ordinary source notes in the Lens UI.
 
-Still required before a real Memory-first `1.0.0` go decision:
+Evidence now in place for the internal Memory-first `1.0.0` package:
 
 - Source/index ledger evidence.
 - Derived index and query-layer evidence with provenance, citations, and confidence.
 - Background automation evidence showing rebuildable Derived Data without silent rewrites to source Markdown.
-- Manual fresh-install/upgrade evidence on an external target plus the final broader safety/regression cut.
+- External upgrade/rebuild proof, version sync, and broader safety/regression cut.
 
-Until that evidence exists, the plugin can be Lens-ready in parts without claiming that the full Memory-first `1.0.0` system is ready.
+Before an external release, keep one manual fresh-install/upgrade pass on a true target environment as a release approval step.
 
 ### Memory-first Demo Runbook
 
@@ -476,7 +476,7 @@ Record the demo outcome in this shape:
 - Question asked.
 - Answer surface shown.
 - Lens surface used for traceability.
-- `real`, `mock/spec`, or `needs Bob handoff` for each critical step.
+- `real`, `mock/spec`, `deferred`, or `release manual` for each critical step.
 
 ### Source View Lens Contract
 
@@ -490,14 +490,14 @@ Lens-side contract:
 - **Confidence** should be shown with explanation text, not as an unexplained magic score.
 - `stale`, `dirty`, `failed`, and similar backend states should be translated into user-facing status text rather than raw internal errors.
 
-Safe assumptions before Bob handoff:
+Stable fields in the current backend/Lens line:
 
 - A readable source type.
 - A readable source path or source label.
 - A title and excerpt.
 - Some form of confidence signal.
 
-Needs Bob handoff before the UI treats it as stable:
+Future Source View UI followups:
 
 - Exact chunk identity field.
 - Final hash/version field name.
@@ -544,12 +544,12 @@ User-facing status language:
 - `failed` - the latest background run did not finish successfully.
 - `needs_review` - a result exists, but promotion or publication is intentionally waiting for a person.
 
-Needs Bob handoff before UI wiring is treated as stable:
+Resolved automation payloads in the current backend line:
 
 - Final automation status payload.
-- Safe-to-show cost or throttling fields.
-- Stable timestamps or last-run summaries.
-- Exact artifact boundary between `ready` and `needs_review`.
+- Safe-to-show cost, cooldown, and backoff fields.
+- Stable timestamps, last-run summaries, failures, and warnings.
+- Future UI followup: richer visual boundary between `ready` and `needs_review`.
 
 ### Nextcloud / Archive Source Lens Contract
 
@@ -562,7 +562,7 @@ Lens-side contract:
 - The Lens may later show source provider, readable path, and index status for those files without implying ownership over the original file.
 - Discovery tooling such as filesystem or archive search is a helper for finding and repairing sources, not the product core by itself.
 
-Needs Bob handoff before UI wiring is treated as stable:
+Deferred until the Nextcloud source bridge is activated:
 
 - Final source-provider identifier for external files.
 - Stable external-source status fields.
@@ -576,10 +576,10 @@ Current audit buckets:
 - `real`: `GET /memory/automation/status` and `POST /memory/automation/run` now expose pending actions, cooldown/backoff cost controls, last-run summaries, and explicit `source_note_writes: false` safety; focused automation tests pass.
 - `real`: `KI Spark -> Answer Lens` is wired against the live query endpoints and keeps blocked/low-confidence states user-visible instead of pretending success.
 - `mock/spec`: Source View remains a contract-level surface for richer source-type/chunk/version drilldown; the separate runtime Lens for those fields is not fully materialized yet.
-- `needs Bob handoff`: external-source/Nextcloud provider identifiers and stable external-file status fields are still not proven in a committed backend payload.
+- `blocked/deferred`: external-source/Nextcloud provider identifiers and stable external-file status fields are intentionally out of scope until the Nextcloud instance exists.
 - `real`: `GET /memory/rebuild-proof`, `POST /memory/rebuild-proof/run`, `GET /memory/external-upgrade-proof`, and `POST /memory/external-upgrade-proof/run` now expose persisted rebuild proof plus external distribution/version-sync evidence; focused external-proof tests pass for plain/encrypted export-import and citation-bearing rebuilds.
-- `needs Bob handoff`: fresh install/upgrade evidence on a truly external target environment is still a manual distribution step, not yet a committed automated proof artifact.
-- `blocked`: broader `1.0` regression/evidence closure is still missing, so Memory-first `1.0.0` remains a no-go despite green focused query, automation, and rebuild evidence.
+- `release manual`: fresh install/upgrade evidence on a truly external target environment remains a manual release approval step, not a Bob implementation blocker.
+- `real`: broader `1.0` regression/evidence closure is complete for the current internal package: Memory/External-Proof `52 passed`; Obsidian/Static/Context `70 passed`.
 
 Evidence verified in this audit:
 
