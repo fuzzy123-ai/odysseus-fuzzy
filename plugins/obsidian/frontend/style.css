@@ -2231,10 +2231,19 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 .obsidian-graph-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+.obsidian-graph-lens-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .obsidian-graph-controls select,
@@ -2283,6 +2292,43 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   color: var(--fg);
   opacity: 0.55;
   font-size: 13px;
+}
+
+.obsidian-graph-lens-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+}
+
+.obsidian-graph-lens-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+}
+
+.obsidian-graph-lens-card span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.obsidian-graph-lens-card strong {
+  font-size: 13px;
+}
+
+.obsidian-graph-lens-card small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .obsidian-graph-svg {
@@ -2509,6 +2555,10 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   .obsidian-graph-controls {
     flex-wrap: wrap;
   }
+
+  .obsidian-graph-lens-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
   
   .obsidian-divider {
     width: auto;
@@ -2519,7 +2569,9 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 /* Graph Filter Panel Styles */
 .obsidian-graph-controls {
   position: relative;
-  display: inline-block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .obsidian-graph-filter-btn {

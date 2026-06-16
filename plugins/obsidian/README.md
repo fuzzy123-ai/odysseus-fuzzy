@@ -57,6 +57,7 @@ Release metadata rule:
 - Graph payload includes Markdown links, filename mentions, shared-tag relationships, folders, and manually curated relationships.
 - Graph view supports Cytoscape rendering with SVG fallback.
 - Focused graph mode centers the current note or selected project folder.
+- Lens presets support a whole-vault overview, a current-source view, and a review-queue view without requiring Derived Memory writes back into source notes.
 - Edge filtering by relationship type.
 - Manual relationship storage in `.obsidian/relationships.json`.
 - Supported manual relationship types include `manual`, `relates_to`, `depends_on`, `blocks`, and `supports`.

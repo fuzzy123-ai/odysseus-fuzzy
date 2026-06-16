@@ -38,6 +38,7 @@ let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
 const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters';
+const OBSIDIAN_GRAPH_LENS_KEY = 'odysseus.obsidian.graphLensMode';
 let graphFilterState = {
   mode: 'highlight',
   nodes: { markdown: true, folder: true },
@@ -45,6 +46,7 @@ let graphFilterState = {
   search: '',
   tags: []
 };
+let graphLensMode = 'overview';
 let graphFilterPanelOpen = false;
 let graphFilterOutsideClickHandler = null;
 
@@ -83,6 +85,27 @@ function saveGraphFilterState() {
     localStorage.setItem(OBSIDIAN_GRAPH_FILTERS_KEY, JSON.stringify(graphFilterState));
   } catch (e) {
     console.warn('Failed to save graph filter state:', e);
+  }
+}
+
+function loadGraphLensMode() {
+  try {
+    const stored = localStorage.getItem(OBSIDIAN_GRAPH_LENS_KEY);
+    if (['overview', 'current_source', 'review_queue'].includes(stored)) {
+      graphLensMode = stored;
+      return;
+    }
+  } catch (e) {
+    console.warn('Failed to load graph lens mode:', e);
+  }
+  graphLensMode = 'overview';
+}
+
+function saveGraphLensMode() {
+  try {
+    localStorage.setItem(OBSIDIAN_GRAPH_LENS_KEY, graphLensMode);
+  } catch (e) {
+    console.warn('Failed to save graph lens mode:', e);
   }
 }
 
@@ -4425,25 +4448,27 @@ async function renderGraphView() {
     return;
   }
 
-  if (!prepared.markdownNodes.length) {
-    graph.innerHTML = '<div class="obsidian-graph-empty">No markdown notes to graph yet.</div>';
+  const lensed = applyGraphLens(prepared);
+
+  if (!lensed.prepared.markdownNodes.length) {
+    graph.innerHTML = `<div class="obsidian-graph-empty">${escapeHtml(lensed.summary.emptyMessage || 'No markdown notes to graph yet.')}</div>`;
     return;
   }
 
   const preferredRenderer = preferredGraphRenderer();
-  renderGraphShell(graph, prepared, preferredRenderer);
+  renderGraphShell(graph, lensed.prepared, preferredRenderer, lensed.summary);
 
   if (preferredRenderer === OBSIDIAN_GRAPH_RENDERER_SVG) {
-    renderSvgGraphFallback(graph, prepared);
+    renderSvgGraphFallback(graph, lensed.prepared);
     return;
   }
 
   try {
-    await renderCytoscapeGraph(graph, prepared);
+    await renderCytoscapeGraph(graph, lensed.prepared);
   } catch (e) {
     console.warn('Cytoscape graph failed, falling back to SVG:', e);
-    renderGraphShell(graph, prepared, OBSIDIAN_GRAPH_RENDERER_SVG, 'SVG fallback');
-    renderSvgGraphFallback(graph, prepared);
+    renderGraphShell(graph, lensed.prepared, OBSIDIAN_GRAPH_RENDERER_SVG, lensed.summary);
+    renderSvgGraphFallback(graph, lensed.prepared);
   }
 }
 
@@ -4519,7 +4544,142 @@ function prepareGraphData(graphData) {
   };
 }
 
-function renderGraphShell(graph, prepared, renderer) {
+function buildGraphFolderNodes(markdownNodes) {
+  const folderIds = new Set();
+  markdownNodes.forEach(node => {
+    let folder = directFolderForPath(node.id);
+    while (folder) {
+      folderIds.add(folder);
+      folder = parentFolderForFolder(folder);
+    }
+  });
+  return [...folderIds]
+    .sort((a, b) => a.localeCompare(b))
+    .map(id => ({
+      id,
+      label: id.split('/').pop(),
+      type: 'folder',
+    }));
+}
+
+function graphLensSummary(mode, prepared, extra = {}) {
+  const visibleNotes = prepared.markdownNodes.length;
+  const visibleEdges = prepared.edges.length;
+  const visibleFolders = prepared.folderNodes.length;
+  const clusterState = extra.clusterState || 'Derived clusters will appear here when Memory Index data is available.';
+  if (mode === 'current_source') {
+    return {
+      title: 'Current source',
+      description: extra.description || 'Shows the selected source note together with directly connected notes and folders.',
+      focusLabel: extra.focusLabel || (currentNotePath || 'No source selected'),
+      visibleNotes,
+      visibleEdges,
+      visibleFolders,
+      clusterState,
+      emptyMessage: 'No current source is available for this graph lens yet.',
+    };
+  }
+  if (mode === 'review_queue') {
+    return {
+      title: 'Review queue',
+      description: extra.description || 'Shows staged queue notes and the notes they directly connect to in the current vault graph.',
+      focusLabel: extra.focusLabel || 'AI Memory/Review Queue',
+      visibleNotes,
+      visibleEdges,
+      visibleFolders,
+      clusterState,
+      emptyMessage: 'No review queue notes are visible in the graph yet.',
+    };
+  }
+  return {
+    title: 'Overview',
+    description: 'Shows the current vault graph as the baseline Lens over sources and relationships.',
+    focusLabel: currentNotePath || 'Whole vault',
+    visibleNotes,
+    visibleEdges,
+    visibleFolders,
+    clusterState,
+    emptyMessage: 'No markdown notes to graph yet.',
+  };
+}
+
+function applyGraphLens(prepared) {
+  if (graphLensMode === 'current_source') {
+    const currentNode = prepared.markdownNodes.find(node => node.id === currentNotePath);
+    if (!currentNode) {
+      return {
+        prepared,
+        summary: graphLensSummary('current_source', prepared, {
+          description: 'No current note is selected, so the Lens falls back to the full overview.',
+          focusLabel: 'No source selected',
+        }),
+      };
+    }
+    const visibleIds = new Set([currentNode.id]);
+    prepared.edges.forEach(edge => {
+      if (edge.source === currentNode.id) visibleIds.add(edge.target);
+      if (edge.target === currentNode.id) visibleIds.add(edge.source);
+    });
+    const markdownNodes = prepared.markdownNodes.filter(node => visibleIds.has(node.id));
+    const edges = prepared.edges.filter(edge => visibleIds.has(edge.source) && visibleIds.has(edge.target));
+    const lensed = {
+      markdownNodes,
+      folderNodes: buildGraphFolderNodes(markdownNodes),
+      edges,
+      edgeTypes: prepared.edgeTypes,
+    };
+    return {
+      prepared: lensed,
+      summary: graphLensSummary('current_source', lensed, {
+        focusLabel: currentNode.id,
+      }),
+    };
+  }
+  if (graphLensMode === 'review_queue') {
+    const queueSeedIds = new Set(
+      prepared.markdownNodes
+        .filter(node => node.id === 'AI Memory/Review Queue.md' || node.id.startsWith('AI Memory/Review Queue/'))
+        .map(node => node.id),
+    );
+    if (queueSeedIds.size === 0) {
+      const emptyPrepared = {
+        markdownNodes: [],
+        folderNodes: [],
+        edges: [],
+        edgeTypes: prepared.edgeTypes,
+      };
+      return {
+        prepared: emptyPrepared,
+        summary: graphLensSummary('review_queue', emptyPrepared),
+      };
+    }
+    const visibleIds = new Set(queueSeedIds);
+    prepared.edges.forEach(edge => {
+      if (queueSeedIds.has(edge.source)) visibleIds.add(edge.target);
+      if (queueSeedIds.has(edge.target)) visibleIds.add(edge.source);
+    });
+    const markdownNodes = prepared.markdownNodes.filter(node => visibleIds.has(node.id));
+    const edges = prepared.edges.filter(edge => visibleIds.has(edge.source) && visibleIds.has(edge.target));
+    const lensed = {
+      markdownNodes,
+      folderNodes: buildGraphFolderNodes(markdownNodes),
+      edges,
+      edgeTypes: prepared.edgeTypes,
+    };
+    return {
+      prepared: lensed,
+      summary: graphLensSummary('review_queue', lensed, {
+        focusLabel: `${queueSeedIds.size} queued note${queueSeedIds.size === 1 ? '' : 's'}`,
+      }),
+    };
+  }
+  return {
+    prepared,
+    summary: graphLensSummary('overview', prepared),
+  };
+}
+
+function renderGraphShell(graph, prepared, renderer, summary) {
   const edgeCheckboxes = ['wiki_link', 'filename_mention', 'shared_tag', 'manual', 'relates_to', 'depends_on', 'blocks', 'supports']
     .map(type => {
       const checked = graphFilterState.edges[type] !== false ? 'checked' : '';
@@ -4543,9 +4703,20 @@ function renderGraphShell(graph, prepared, renderer) {
   ].map(opt => `
     <option value="${opt.value}" ${graphFilterState.mode === opt.value ? 'selected' : ''}>${opt.label}</option>
   `).join('');
+  const lensOptions = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'current_source', label: 'Current source' },
+    { value: 'review_queue', label: 'Review queue' },
+  ].map(opt => `
+    <option value="${opt.value}" ${graphLensMode === opt.value ? 'selected' : ''}>${opt.label}</option>
+  `).join('');
 
   graph.innerHTML = `
     <div class="obsidian-graph-controls">
+      <label class="obsidian-graph-lens-picker">
+        <span>Lens</span>
+        <select id="obsidian-graph-lens-mode">${lensOptions}</select>
+      </label>
       <button class="obsidian-graph-filter-btn" id="obsidian-graph-filter-toggle" title="Graph Filters">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         <span>Filters</span>
@@ -4591,9 +4762,31 @@ function renderGraphShell(graph, prepared, renderer) {
         <button class="obsidian-graph-filter-reset-btn" id="obsidian-graph-filter-reset">Reset Filters</button>
       </div>
     </div>
+    <div class="obsidian-graph-lens-summary">
+      <div class="obsidian-graph-lens-card">
+        <span>Lens</span>
+        <strong>${escapeHtml(summary.title)}</strong>
+        <small>${escapeHtml(summary.description)}</small>
+      </div>
+      <div class="obsidian-graph-lens-card">
+        <span>Focus</span>
+        <strong>${escapeHtml(summary.focusLabel)}</strong>
+        <small>${escapeHtml(summary.visibleNotes)} notes, ${escapeHtml(summary.visibleEdges)} edges, ${escapeHtml(summary.visibleFolders)} folders</small>
+      </div>
+      <div class="obsidian-graph-lens-card">
+        <span>Derived clusters</span>
+        <strong>Waiting on index data</strong>
+        <small>${escapeHtml(summary.clusterState)}</small>
+      </div>
+    </div>
     <div class="obsidian-graph-canvas" id="obsidian-graph-canvas" data-graph-renderer="${escapeHtml(renderer)}"></div>
   `;
 
+  graph.querySelector('#obsidian-graph-lens-mode')?.addEventListener('change', (e) => {
+    graphLensMode = e.target.value || 'overview';
+    saveGraphLensMode();
+    renderGraphView();
+  });
   const toggleBtn = graph.querySelector('#obsidian-graph-filter-toggle');
   const panel = graph.querySelector('#obsidian-graph-filter-panel');
   toggleBtn?.addEventListener('click', (e) => {
@@ -5645,6 +5838,7 @@ function setupEventListeners() {
 
 function init() {
   loadGraphFilterState();
+  loadGraphLensMode();
   const standalone = isStandaloneMode();
   document.body.classList.toggle('obsidian-standalone', standalone);
   injectUIElements();
