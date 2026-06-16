@@ -12,6 +12,8 @@ Shell-Stability-Contract fuer `LENS1`: `docs/plans/lens-shell-stability-contract
 
 Read/Write-Tabs-Contract fuer `LENS2`: `docs/plans/memory-read-write-tabs-contract.md`
 
+Tag-Chip-System-Contract fuer `LENS3`: `docs/plans/tag-chip-system-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
