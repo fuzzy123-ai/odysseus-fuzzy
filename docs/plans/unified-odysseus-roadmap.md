@@ -42,9 +42,9 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.11.x` | Agent State & Architecture Hygiene | Zustandstrennung, Context Capsules, Tool Truth, Backend-Grenzen | abgeschlossen als Foundation-Schnitt |
 | `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
 | `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | abgeschlossen mit MS7-Ops-Readiness |
-| `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | aktive Phase: Start mit `LM1-maintenance-worker-contract` |
+| `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
 | `0.15.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
-| `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | erst nach gruenem Evidence-Lauf |
+| `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
 ## Fortschrittsformat
 
@@ -109,9 +109,51 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
 
-## Aktive Phase: `0.14.x` Lightweight Memory Maintenance
+## Aktuelle Phase: `1.0.0` Evidence Release & Bugfix-Fenster
 
-`0.13.x` ist mit MS7 abgeschlossen. Der neue Arbeitszyklus startet kontrolliert mit `LM1-maintenance-worker-contract`, damit kleine lokale Modelle unter 2 GB RAM spaeter RAPTOR-/GraphRAG-Maintenance-Pakete bearbeiten koennen, ohne globale Wahrheit zu entscheiden oder riesige Kontexte zu laden.
+`0.14.x` ist technisch abgeschlossen und auf den Fork gepusht. Die naechste Arbeit ist kein neuer grosser Feature-Track, sondern ein kontrolliertes Release-/Evidence-Fenster: Nutzer testet reale Pfade, Alice/Bob bekommen nur konkrete Bugfix- oder Evidence-Slices, und Charlie haelt Worktree, Tests, Roadmap und Push-Status sauber.
+
+### Ziele
+
+- Reproduzierbaren 1.0-Evidence-Stand herstellen.
+- Install-/Start-/Provider-/Rebuild-/Fallback-Pfade pruefen.
+- Known Limits klar dokumentieren, statt still als Feature-Defizite zu verstecken.
+- Nur kleine Bugfix-Slices schneiden, wenn reale Tests Probleme zeigen.
+- Keine neuen Post-1.0-Research-Tracks starten.
+- Nextcloud bleibt pausiert, bis die Homeserver-/Nextcloud-Infrastruktur laeuft.
+
+### Alice-Pfad `1.0.0`
+
+| Slice | Ziel | Dateien | Exit |
+| --- | --- | --- | --- |
+| `REL1-release-evidence-notes` | Nutzerverstaendliche Release-Evidence, Known Limits und Testpfade aufraeumen | Release-/Plan-Doku nach Charlie-Handoff | 1.0-Stand ist erklaerbar |
+| `REL2-user-test-bug-notes` | Auffaellige Testbefunde in kleine, eindeutige Bug-Slices uebersetzen | neue/aktualisierte Bug-/Evidence-Notizen | Alice/Bob koennen ohne Ratespiel arbeiten |
+
+### Bob-Pfad `1.0.0`
+
+| Slice | Ziel | Dateien | Exit |
+| --- | --- | --- | --- |
+| `REL1-regression-smoke` | Fokussierte Backend-/Plugin-/Memory-Smokes ausfuehren und Evidence sammeln | keine Feature-Dateien ohne Bug | rote Pfade sind reproduzierbar oder gruen belegt |
+| `REL2-bugfix-slices` | Nur konkrete, reproduzierte Bugs beheben | betroffene Runtime-/Testdateien je Bug | Fix + Test + Commit pro Bug |
+
+### Charlie-Pfad `1.0.0`
+
+| Slice | Ziel | Exit |
+| --- | --- | --- |
+| `REL0-roadmap-closeout` | Roadmap nach `0.14.x` aktualisieren und naechsten Fokus festlegen | erledigt, wenn `0.14.x` als abgeschlossen markiert ist |
+| `REL1-release-gate` | Tests, Worktree, Push und Evidence pruefen | 1.0-Go/No-Go statt Bauchgefuehl |
+| `REL2-slice-router` | Nutzer-Bugs in Alice/Bob-Slices schneiden | keine parallelen Hot-File-Konflikte |
+
+## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
+
+`0.14.x` ist abgeschlossen. Der Arbeitszyklus hat bewiesen, dass kleine lokale Modelle unter 2 GB RAM spaeter RAPTOR-/GraphRAG-Maintenance-Pakete bearbeiten koennen, ohne globale Wahrheit zu entscheiden oder riesige Kontexte zu laden.
+
+Evidence:
+
+- Abschlusscommit: `0386f405 Add fallback routing gate`
+- Push: `fuzzy/dev`
+- Abschluss-Suite: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_lightweight_memory_maintenance.py tests\test_derived_cluster_runs.py tests\test_kmeans_clustering_proof.py tests\test_evidence_bound_summary_worker.py tests\test_graph_maintenance_worker.py tests\test_small_model_evaluation_gates.py tests\test_fallback_routing.py`
+- Ergebnis: `64 passed, 1 warning`
 
 ### Ziele
 
@@ -126,25 +168,37 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 
 | Slice | Ziel | Dateien | Exit |
 | --- | --- | --- | --- |
-| `LM1A-maintenance-worker-contract` | Produkt-/Sicherheitsvertrag fuer kleine Maintenance-Modelle klaeren | neu: `docs/plans/maintenance-worker-contract.md` | klarer Contract fuer Bob: erlaubte Worker-Aufgaben, Stop-Regeln, Fallback/Review |
-| `LM2A-derived-cluster-run-contract` | Derived Cluster Runs, Versionen und Rebuild-Sprache erklaeren | spaeterer Doku-Slice | Cluster sind rebuildbar und nie Wahrheit |
-| `LM4A-evidence-bound-summary-contract` | Summary-Review-Sprache und Quellenpflicht definieren | spaeterer Doku-Slice | Nutzer sieht Evidenz, Unsicherheit und Review-Pflicht |
+| `LM1A-maintenance-worker-contract` | Produkt-/Sicherheitsvertrag fuer kleine Maintenance-Modelle klaeren | `docs/plans/maintenance-worker-contract.md` | done |
+| `LM2A-derived-cluster-run-contract` | Derived Cluster Runs, Versionen und Rebuild-Sprache erklaeren | `docs/plans/derived-cluster-run-contract.md` | done |
+| `LM3A-kmeans-clustering-proof-runbook` | K-Means/Bisecting-K-Means Proof beschreiben | `docs/plans/kmeans-clustering-proof-runbook.md` | done |
+| `LM4A-evidence-bound-summary-contract` | Summary-Review-Sprache und Quellenpflicht definieren | `docs/plans/evidence-bound-summary-worker-contract.md` | done |
+| `LM5A-graph-maintenance-worker-contract` | Regeln gegen halluzinierte Kanten definieren | `docs/plans/graph-maintenance-worker-contract.md` | done |
+| `LM6A-small-model-evaluation-gates-contract` | Kriterien fuer "kleines Modell reicht" definieren | `docs/plans/small-model-evaluation-gates-contract.md` | done |
+| `LM7A-fallback-routing-contract` | Produktlogik fuer groesseres Modell/Fallback definieren | `docs/plans/fallback-routing-contract.md` | done |
 
 ### Bob-Pfad `0.14.x`
 
 | Slice | Ziel | Dateien | Exit |
 | --- | --- | --- | --- |
-| `LM1B-maintenance-worker-model-spike` | Dataclasses/Enums fuer bounded Maintenance Tasks und Worker Readiness | neu: `src/lightweight_memory_maintenance.py`, `tests/test_lightweight_memory_maintenance.py` | Tasks validieren Token-/Chunk-/Source-Limits, Review/Fallback und keine globalen Writes |
-| `LM2B-derived-cluster-run-model` | Cluster Run/Node/Membership-Modell vorbereiten | spaeter neue Backend-Dateien | Derived Cluster sind versioniert und rebuildbar |
-| `LM4B-evidence-bound-summary-worker` | Summary Task mit Quellenpflicht und Review-Status modellieren | spaeter neue Backend-Dateien | Unsichere Summaries gehen in Review statt Write |
+| `LM1B-maintenance-worker-model-spike` | Dataclasses/Enums fuer bounded Maintenance Tasks und Worker Readiness | `src/lightweight_memory_maintenance.py`, `tests/test_lightweight_memory_maintenance.py` | done |
+| `LM2B-derived-cluster-run-model` | Cluster Run/Node/Membership-Modell vorbereiten | `src/derived_cluster_runs.py`, `tests/test_derived_cluster_runs.py` | done |
+| `LM3B-kmeans-clustering-proof-model-spike` | isolierter K-Means/Bisecting-K-Means Proof | `src/kmeans_clustering_proof.py`, `tests/test_kmeans_clustering_proof.py` | done |
+| `LM4B-evidence-bound-summary-worker` | Summary Task mit Quellenpflicht und Review-Status modellieren | `src/evidence_bound_summary_worker.py`, `tests/test_evidence_bound_summary_worker.py` | done |
+| `LM5B-graph-maintenance-worker-model` | Entity-/Edge-Kandidaten mit Provenance/Dedupe/Review modellieren | `src/graph_maintenance_worker.py`, `tests/test_graph_maintenance_worker.py` | done |
+| `LM6B-small-model-evaluation-gates-model` | JSON/Evidence/Drift/Confidence Gates modellieren | `src/small_model_evaluation_gates.py`, `tests/test_small_model_evaluation_gates.py` | done |
+| `LM7B-fallback-routing-model` | Routing, Retry/Backoff, Fallback und Kostenbudget modellieren | `src/fallback_routing.py`, `tests/test_fallback_routing.py` | done |
 
 ### Charlie-Pfad `0.14.x`
 
 | Slice | Ziel | Exit |
 | --- | --- | --- |
-| `LM1C-contract-model-alignment` | Alice-Contract und Bob-Modell abgleichen | kein echter LLM-Call, Tests gruen, Worktree sauber |
-| `LM2C-derived-vs-truth-gate` | Derived Data strikt von Truth Store trennen | Cluster/Summaries bleiben rebuildbar |
-| `LM4C-evidence-and-drift-gate` | Summary- und Drift-Gates fuer kleine Modelle definieren | Unsicherheit fuehrt zu Review/Fallback |
+| `LM1C-contract-model-alignment` | Alice-Contract und Bob-Modell abgleichen | done |
+| `LM2C-derived-vs-truth-gate` | Derived Data strikt von Truth Store trennen | done |
+| `LM3C-kmeans-quality-budget-review` | K-Means Proof gegen Budgets pruefen | done |
+| `LM4C-evidence-and-drift-gate` | Summary- und Drift-Gates fuer kleine Modelle definieren | done |
+| `LM5C-review-queue-gate` | Graph Maintenance nur als Review-Kandidaten zulassen | done |
+| `LM6C-fallback-decision-gate` | Fallback-Entscheidung aus Evaluation Gates pruefen | done |
+| `LM7C-routing-cost-readiness-gate` | Routing-/Kosten-/Fallback-Abschluss pruefen | done |
 
 ## Version `0.11.x`: Agent State & Architecture Hygiene
 
