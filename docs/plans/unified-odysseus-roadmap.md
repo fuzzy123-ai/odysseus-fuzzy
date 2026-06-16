@@ -164,7 +164,7 @@ Diese Version ist die wichtigste Grundlage fuer spaetere Automatisierung. Sie so
 | `AS3-tool-truth-layer` | Fehlertexte und Evidence-UX | strukturierte Tool Results, parse failure contracts | rote Tests fuer Erfolgshalluzination | ja |
 | `AS4-dynamic-tool-loading` | UI/Docs fuer aktivierte Tools/Skills | Tool selection, schema thinning, budget metrics | Prompt-Budget-Vergleich | bedingt |
 | `AS5-workspace-sandbox-v2` | Workspace-Auswahl/Runbook | Policy, locks, path tests | Security Review | bedingt |
-| `AS6-backend-boundary-map` | Nutzerverhalten dokumentieren | `src`/`services` Kanonisierung planen | entscheidet, ob Refactor sofort oder spaeter | nein, erst Plan, dann Slices |
+| `AS6-backend-boundary-map` | Nutzerverhalten dokumentieren | `src`/`services` Kanonisierung planen | fuehrt Vertrag + Inventar in `docs/plans/backend-boundary-sequencing-plan.md` zusammen | nein, erst Plan, dann Slices |
 
 ### Definition of Done `0.11.x`
 
@@ -174,10 +174,13 @@ Diese Version ist die wichtigste Grundlage fuer spaetere Automatisierung. Sie so
 - Prompt-/Tool-Kontext ist budgetierbar.
 - Workspace-Schreibzugriffe sind projektbezogen und getestet.
 - `src`/`services` Drift ist kartiert und hat eine Sequenz, statt weiter zufaellig zu wachsen.
+- AS6-Refactors bleiben bewusst Folgearbeit; `0.11.x` endet mit Boundary-Vertrag, Backend-Inventar und Sequencing-Plan.
 
 ## Version `0.12.x`: Development Orchestration v1
 
 Diese Version macht aus dem manuellen Alice/Bob/Charlie-Prozess ein Produktfundament.
+
+Aus dem `0.11.x`-Durchlauf ist die wichtigste Produktluecke klar: Alice und Bob koennen kleine Slices sauber abarbeiten, aber der Master-/Heartbeat-Layer muss `done`, `blocked`, `handoff` und naechste Slices maschinenlesbar weiterfuehren, statt nach jedem erfolgreichen Slice wieder manuell angeschoben zu werden.
 
 ### Reihenfolge
 
