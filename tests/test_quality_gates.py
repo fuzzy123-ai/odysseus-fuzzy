@@ -46,9 +46,16 @@ def test_pass_without_evidence_or_verifier_is_rejected() -> None:
     try:
         _make_gate(evidence=(), verified_by=" ")
     except QualityGateError as exc:
-        assert "require evidence or a verifier" in str(exc)
+        assert "require evidence, verified_at, and verified_by" in str(exc)
     else:
         raise AssertionError("expected pass validation to reject empty evidence and verifier")
+
+    try:
+        _make_gate(verified_at="")
+    except QualityGateError as exc:
+        assert "require evidence, verified_at, and verified_by" in str(exc)
+    else:
+        raise AssertionError("expected pass validation to require verification timestamp")
 
 
 def test_required_pending_blocks_verified_done() -> None:
@@ -103,6 +110,26 @@ def test_skip_without_reason_is_rejected() -> None:
         raise AssertionError("expected skip validation to require a reason")
 
 
+def test_required_skip_blocks_verified_done() -> None:
+    result = QualityGateResult.create(
+        gates=[
+            _make_gate(
+                gate_id="manual-skip",
+                gate_type="manual",
+                status="skip",
+                required=True,
+                evidence=(),
+                verified_by="",
+                verified_at="",
+                block_reason="not actually optional",
+            ),
+        ]
+    )
+
+    assert result.verified_done is False
+    assert result.blocking_gate_ids == ("manual-skip",)
+
+
 def test_audit_summary_contains_ids_status_counts_without_long_dumps() -> None:
     long_evidence = "trace " + ("x" * 500)
     result = QualityGateResult.create(
@@ -110,7 +137,7 @@ def test_audit_summary_contains_ids_status_counts_without_long_dumps() -> None:
             _make_gate(
                 gate_id="tests-pass",
                 evidence=[long_evidence],
-                verified_by="",
+                verified_by="Charlie",
             ),
             _make_gate(
                 gate_id="manual-warn",

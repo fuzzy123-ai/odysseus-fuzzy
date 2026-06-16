@@ -185,8 +185,11 @@ class QualityGate:
             allow_empty=True,
             limit=_MAX_LONG_TEXT,
         )
-        if normalized_status == QualityGateStatus.PASS and not (normalized_evidence or normalized_verified_by):
-            raise QualityGateError("pass gates require evidence or a verifier")
+        normalized_verified_at = _normalize_timestamp(verified_at, field_name="verified_at", allow_empty=True)
+        if normalized_status == QualityGateStatus.PASS and not (
+            normalized_evidence and normalized_verified_at and normalized_verified_by
+        ):
+            raise QualityGateError("pass gates require evidence, verified_at, and verified_by")
         if normalized_status in {QualityGateStatus.FAIL, QualityGateStatus.BLOCK} and not (
             normalized_block_reason or normalized_evidence
         ):
@@ -205,7 +208,7 @@ class QualityGate:
             severity=_normalize_severity(severity),
             required=bool(required),
             evidence=normalized_evidence,
-            verified_at=_normalize_timestamp(verified_at, field_name="verified_at", allow_empty=True),
+            verified_at=normalized_verified_at,
             verified_by=normalized_verified_by,
             block_reason=normalized_block_reason,
             next_action=normalized_next_action,
@@ -234,7 +237,9 @@ class QualityGateResult:
         blocking = tuple(
             gate.gate_id
             for gate in ordered
-            if gate.required and gate.status in {QualityGateStatus.PENDING, QualityGateStatus.BLOCK, QualityGateStatus.FAIL}
+            if gate.required
+            and gate.status
+            in {QualityGateStatus.PENDING, QualityGateStatus.BLOCK, QualityGateStatus.FAIL, QualityGateStatus.SKIP}
         )
         warnings = tuple(gate.gate_id for gate in ordered if gate.status == QualityGateStatus.WARN)
         return cls(
