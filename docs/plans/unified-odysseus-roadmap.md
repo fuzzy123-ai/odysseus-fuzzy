@@ -29,6 +29,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/1.0-evidence-release-checklist.md` | aktive 1.0-Go/No-Go-Checkliste fuer Evidence, manuelle Release-Gates und Bugfix-Fenster |
 | `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/image-tools-worker-contract.md` | neuer Stabilisierungstrack fuer isolierte Background-Removal/Image-Tools statt harter Core-Dependencies |
+| `docs/plans/system-health-checker-plugin.md` | Plugin-Track fuer Homeserver Health: Host-Agent, Podman-first Runtime Adapter, Telegram Status/Alerts |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
 | `docs/plans/automated-agent-handoff-orchestration-mvp.md` | neuer Runtime-Track fuer vollautomatisches Agent-Handoff und verified Orchestration |
@@ -50,7 +51,8 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | naechster geplanter Produkt-Track nach 1.0-Evidence |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | geplant vor Telegram-/Image-Actions, nur wenn priorisiert |
 | `0.17.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Lens-/Evidence-Stabilisierung |
-| `0.18.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.18.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant nach aktuellem ITW/Lens/Security-Handoff |
+| `0.19.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
 ## Fortschrittsformat
@@ -113,7 +115,8 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P1 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Die Memory-Foundation braucht eine klare Nutzeroberflaeche: Lesen/Pflegen trennen, Review/Insights/Diagnostics ordnen, Shell stabilisieren. | L | L | UX-Vertraege, Navigation, Zustaende, Texte | fokussierte UI-/Static-Implementierung nach Handoff | Hotfile-Sperren, Browser-/Static-Smokes | bedingt |
 | P1 | `0.16.x` | Isolated Image Tools Worker | `rembg` passt nicht sauber in die Python-3.14-Core-venv; Background Removal braucht einen isolierten Worker, bevor Telegram/Image-Actions stabil werden. | M | M | Worker-Contract, UI/Cookbook-Setup-Texte | Worker Client, Route-Adapter, isolierter Worker-MVP | Roadmap, Hotfile-Gates, finaler Remove-BG-Smoke | bedingt |
 | P1 | `0.17.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
-| P2 | `0.18.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P1 | `0.18.x` | System Health Checker Plugin | Odysseus braucht einen nachvollziehbaren Plugin-Track fuer Homeserver Health statt versteckter Core-/Lens-Kommandos. | L | L | NDD-/Plugin-Vertrag, Statussprache, Telegram UX | Host-Agent-Modelle, Collectors, Rule Engine, Runtime Adapter | Plugin-Grenzen, Rechte, Hotfile-Gates, finaler Ops-Smoke | bedingt |
+| P2 | `0.19.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
@@ -449,7 +452,60 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 - E2E-Smoke belegt mindestens zwei Agenten von Plan bis `verified done`.
 - N-Agent-Skalierung ist entworfen, aber nicht als unbegrenzte Agentenfabrik freigegeben.
 
-## Version `0.17.x`: Nextcloud Source Provider
+## Version `0.18.x`: Plugin Platform - System Health Checker
+
+Detailplan: `docs/plans/system-health-checker-plugin.md`.
+
+Ziel: Odysseus bekommt einen eigenen Plugin-Track fuer Homeserver Health. Die
+Codebase bleibt nachvollziehbar, weil Host-Monitoring nicht in Lens, Security
+oder Image Tools versteckt wird.
+
+Produktentscheidung:
+
+- Odysseus fuehrt keine Host-Kommandos aus dem Container oder der Lens UI aus.
+- Ein kleiner Debian Host-Agent sammelt Metriken und stellt bereinigte Snapshots bereit.
+- Odysseus konsumiert Snapshots und zeigt Status, Alerts und Telegram-/UI-Zustaende.
+- Podman-first, Docker-compatible; kein Docker-only Design.
+
+### Reihenfolge
+
+1. `SHC0-narrative-and-architecture-contract`
+2. `SHC1-health-agent-interface`
+3. `SHC2-debian-basic-collectors`
+4. `SHC3-rule-engine-alert-model`
+5. `SHC4-telegram-pull-status`
+6. `SHC5-auto-alerting`
+7. `SHC6-podman-docker-runtime-adapter`
+8. `SHC7-advanced-debian-collectors`
+9. `SHC8-odysseus-health-ui`
+10. `SHC9-security-and-ops-runbook`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `SHC0-narrative-and-architecture-contract` | NDD-Contract, Nutzerfluesse, Begriffe, Statussprache | Debian/Podman/Docker Machbarkeit read-only pruefen | Roadmap einordnen, aktive Slices/Worktree pruefen | ja, docs/read-only |
+| `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | Contract/Model-Gaps pruefen | ja |
+| `SHC2-debian-basic-collectors` | Setup-/Unknown-State Texte | CPU/RAM/Load/Uptime/Disk Collector-Modelle mit Mockable Inputs | fokussierte Tests, Scope pruefen | ja nach Contract |
+| `SHC3-rule-engine-alert-model` | Alert-Texte und Handlungsempfehlungen | Rule Engine, Severity, Cooldown, Dedupe, Recovery | kein Alert-Spam, klare Defaults | ja |
+| `SHC4-telegram-pull-status` | Telegram Command-Vertrag, Allowlist-Texte | Bot/Channel-Adapter Modell, Long Polling Default | Token-/Logging-Sicherheitscheck | bedingt |
+| `SHC5-auto-alerting` | Alert Copy, Recovery Copy, Eskalationslogik | Push/Dedupe/Cooldown Integration | Tests fuer einmalige Alerts und Recovery | bedingt |
+| `SHC6-podman-docker-runtime-adapter` | Runtime unknown/offline Nutzertexte | `ContainerRuntimeAdapter`, `PodmanAdapter`, `DockerAdapter`, `NoContainerRuntimeAdapter` | Gate: kein Socket im Odysseus-Container | ja |
+| `SHC7-advanced-debian-collectors` | Setup-Hinweise fuer fehlende Pakete/Rechte | Collector fuer `sensors`, `smartctl`, apt/reboot-required | Tests mit JSON/CLI-Mocks, Rechte-Risiken pruefen | bedingt |
+| `SHC8-odysseus-health-ui` | Ampel, Alerts, Collector unknown/offline UI-Contract | UI/API-Anbindung ohne Host-Kommandos | Browser/UI-Smoke, Agent-offline-Fallback | bedingt |
+| `SHC9-security-and-ops-runbook` | Runbook, Betriebsnarrativ, Nutzerregeln | systemd/permission/readiness Modell oder Scripts spaeter | Abschluss-Gates, Go/No-Go | nein |
+
+### Definition of Done `0.18.x`
+
+- System Health Checker ist als eigener Plugin-Track nachvollziehbar.
+- Host-Agent und Odysseus-Container sind strikt entkoppelt.
+- Debian Basic Health Snapshot ist schema-stabil und offline-/unknown-sicher.
+- Rule Engine bewertet Thresholds mit Cooldown, Dedupe und Recovery.
+- Telegram `/status` und `/alerts` sind sicher geplant oder implementiert.
+- Podman-first Runtime Adapter ist vorbereitet, Docker bleibt kompatibler Fallback.
+- Keine Root-/Socket-Abkuerzung landet im Odysseus-Core.
+
+## Version `0.19.x`: Nextcloud Source Provider
 
 Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 
