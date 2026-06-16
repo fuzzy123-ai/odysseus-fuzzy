@@ -429,6 +429,26 @@ Still required before a real Memory-first `1.0.0` go decision:
 
 Until that evidence exists, the plugin can be Lens-ready in parts without claiming that the full Memory-first `1.0.0` system is ready.
 
+### Memory-first Demo Runbook
+
+Use this as the short Lens-side demo path once backend evidence is ready enough to support it.
+
+1. Place a source into the vault or a documented sync/archive source location.
+2. Show the relevant status transition for ledger, index, or automation work.
+3. Ask a memory question that should depend on that source.
+4. Verify that the answer shows sources and confidence rather than acting like unsupported free text.
+5. Jump into a Lens surface such as Source View, Graph Lens, or Review Queue to explain why the answer is grounded.
+6. Optionally show a staged review or published-view step without rewriting the original source artifact.
+
+Record the demo outcome in this shape:
+
+- Source used.
+- Status transition or trigger shown.
+- Question asked.
+- Answer surface shown.
+- Lens surface used for traceability.
+- `real`, `mock/spec`, or `needs Bob handoff` for each critical step.
+
 ### Source View Lens Contract
 
 The next Lens contract layer is `Source Views`: the UI should make it obvious where retrieved knowledge came from and how strongly it is supported.

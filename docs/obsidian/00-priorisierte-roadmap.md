@@ -376,6 +376,23 @@ Exit:
 - Runbook unterscheidet klar zwischen fertiger Funktion, Mock/Spec und Bob-Handoff.
 - Demo kann als 1.0-Evidence genutzt werden, sobald Bobs Backend gruen ist.
 
+Demo-Notiz fuer spaeter:
+
+- `Step 1 - Source appears`: Nutzer sieht, dass eine neue Quelle im Vault- oder Sync-Kontext existiert.
+- `Step 2 - Memory updates`: Ledger/Index/Automation zeigen einen nachvollziehbaren Statuswechsel statt "irgendwas KI".
+- `Step 3 - Answer is grounded`: Antwort nennt Quellen, Confidence und Unsicherheitsgruende.
+- `Step 4 - Lens explains`: Source View, Graph Lens oder Review Queue machen sichtbar, warum die Antwort plausibel ist.
+- `Step 5 - Safe publication`: Optionaler Published-View- oder Review-Schritt bleibt von menschlichen Quellen getrennt.
+
+Evidence-Shape:
+
+- Quelle, die verwendet wurde
+- gezeigter Statuswechsel oder Trigger
+- Frage, die gestellt wurde
+- Antwort mit Quellen-/Confidence-Sichtbarkeit
+- Lens-Surface, die zur Nachvollziehbarkeit gezeigt wurde
+- Markierung, ob der Schritt heute echt, mock-basiert oder `needs Bob handoff` war
+
 ### A5 Release-Readiness-Rahmen
 
 `A5-1.0-release-readiness` zieht keine Produktlogik vor und erklaert keine unfertige Infrastruktur fuer "bereit". Der Slice sammelt nur den Go/No-Go-Rahmen fuer die Lens-Seite und trennt ihn sauber von Bobs Infrastruktur-Evidence.
