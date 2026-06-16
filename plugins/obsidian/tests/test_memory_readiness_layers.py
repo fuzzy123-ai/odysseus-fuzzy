@@ -18,6 +18,7 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
 import backend.routes as obsidian_routes
 import backend.memory_status as memory_status_backend
 from backend.freshness import audit_knowledge, quarantine_list
+from backend.derived_index import build_derived_index
 from backend.hybrid_retrieval import raptor_status
 from backend.knowledge_status import normalize_status
 from backend.memory_status import memory_status
@@ -105,25 +106,26 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Active\n")
         with open(os.path.join(tmpdir, "Review.md"), "w", encoding="utf-8") as f:
             f.write("---\nstatus: needs_review\n---\n# Review\n")
+        build_derived_index(tmpdir)
 
         before = set(os.listdir(tmpdir))
         status = memory_status(tmpdir)
         after = set(os.listdir(tmpdir))
 
-        assert before == after
+        assert before | {".obsidian"} == after
         assert status["read_only"] is True
         assert status["writes_supported"] is False
         assert status["filtering_state"] == "audit_only"
         assert status["flags"]["obsidian_freshness_gate_enabled"] is True
         assert status["flags"]["obsidian_hybrid_retrieval_enabled"] is False
-        assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
-        assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert set(status["families"]) == {"ledger", "derived_index", "query_layer", "somt", "freshness", "quarantine", "raptor"}
+        assert set(status["readiness_by_family"]) == {"ledger", "derived_index", "query_layer", "freshness", "raptor", "somt"}
         assert status["readiness_gate"] == {
             "required": True,
             "satisfied": False,
             "state": "blocked",
-            "families": 3,
-            "ready_families": 0,
+            "families": 6,
+            "ready_families": 3,
             "blocked_families": ["freshness", "raptor", "somt"],
             "gaps": [
                 "somt_issues_present",
@@ -132,10 +134,10 @@ def test_memory_status_aggregates_read_only_readiness_layers():
                 "raptor_index_missing",
             ],
         }
-        assert status["summary"]["families"] == 3
-        assert status["summary"]["status_families"] == 4
-        assert status["summary"]["readiness_families"] == 3
-        assert status["summary"]["ready_families"] == 0
+        assert status["summary"]["families"] == 6
+        assert status["summary"]["status_families"] == 7
+        assert status["summary"]["readiness_families"] == 6
+        assert status["summary"]["ready_families"] == 3
         assert status["summary"]["blocked_families"] == ["freshness", "raptor", "somt"]
         assert status["summary"]["readiness_state"] == "blocked"
         assert status["summary"]["filtering_state"] == "audit_only"
@@ -153,6 +155,13 @@ def test_memory_status_aggregates_read_only_readiness_layers():
             "excluded_relevant_count": 0,
         }
         assert status["summary"]["retrieval_policy"] == status["retrieval_policy"]
+        assert status["summary"]["ledger_sources"] == 2
+        assert status["summary"]["ledger_status_counts"] == {"indexed": 2}
+        assert status["summary"]["ledger_source_types"] == {"markdown": 2}
+        assert status["summary"]["derived_index_sources"] == 2
+        assert status["summary"]["derived_index_chunks"] >= 2
+        assert status["summary"]["query_layer_sources"] == 2
+        assert status["summary"]["query_layer_chunks"] >= 2
         assert status["summary"]["default_retrieval"] == 1
         assert status["summary"]["isolated"] == 1
         assert status["summary"]["quarantine_items"] == 1
@@ -225,6 +234,48 @@ def test_memory_status_preserves_compact_layer_warnings(monkeypatch):
         "summary": {"total": 0},
         "warnings": ["freshness warning"],
     })
+    monkeypatch.setattr(memory_status_backend, "memory_ledger_status", lambda vault_dir: {
+        "enabled": True,
+        "readiness": {"state": "ready", "ready": True, "gaps": [], "writes_supported": True},
+        "readiness_signals": [{
+            "family": "ledger",
+            "source": "readiness",
+            "state": "ready",
+            "ready": True,
+            "gaps": [],
+            "gap_count": 0,
+        }],
+        "summary": {"total_sources": 0, "status_counts": {}, "source_types": {}, "warnings": []},
+        "warnings": [],
+    })
+    monkeypatch.setattr(memory_status_backend, "derived_index_status", lambda vault_dir: {
+        "enabled": True,
+        "readiness": {"state": "ready", "ready": True, "gaps": [], "writes_supported": True},
+        "readiness_signals": [{
+            "family": "derived_index",
+            "source": "readiness",
+            "state": "ready",
+            "ready": True,
+            "gaps": [],
+            "gap_count": 0,
+        }],
+        "summary": {"source_count": 0, "chunk_count": 0, "graph_nodes": 0, "graph_edges": 0, "warnings": []},
+        "warnings": [],
+    })
+    monkeypatch.setattr(memory_status_backend, "query_layer_status", lambda vault_dir: {
+        "enabled": True,
+        "readiness": {"state": "ready", "ready": True, "gaps": [], "writes_supported": False},
+        "readiness_signals": [{
+            "family": "query_layer",
+            "source": "readiness",
+            "state": "ready",
+            "ready": True,
+            "gaps": [],
+            "gap_count": 0,
+        }],
+        "summary": {"source_count": 0, "chunk_count": 0, "warnings": []},
+        "warnings": [],
+    })
     monkeypatch.setattr(memory_status_backend, "raptor_status", lambda vault_dir: {
         "enabled": False,
         "flags": {},
@@ -267,13 +318,14 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
             f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Active\n")
         with open(os.path.join(tmpdir, "Conflict.md"), "w", encoding="utf-8") as f:
             f.write("---\nstatus: conflict\n---\n# Conflict\n")
+        build_derived_index(tmpdir)
 
         monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
         before = set(os.listdir(tmpdir))
         status = await obsidian_routes.memory_status_route(SimpleNamespace())
         after = set(os.listdir(tmpdir))
 
-        assert before == after
+        assert before | {".obsidian"} == after
         assert status["read_only"] is True
         assert status["writes_supported"] is False
         assert status["filtering_state"] == "audit_only"
@@ -284,8 +336,8 @@ async def test_memory_status_route_is_read_only_unified_dashboard(monkeypatch):
         assert status["summary"]["readiness_gate"] == status["readiness_gate"]
         assert "conflict_items" in status["summary"]["readiness_gap_names"]
         assert "conflict_items" in status["readiness_gate"]["gaps"]
-        assert set(status["families"]) == {"somt", "freshness", "quarantine", "raptor"}
-        assert set(status["readiness_by_family"]) == {"freshness", "raptor", "somt"}
+        assert set(status["families"]) == {"ledger", "derived_index", "query_layer", "somt", "freshness", "quarantine", "raptor"}
+        assert set(status["readiness_by_family"]) == {"ledger", "derived_index", "query_layer", "freshness", "raptor", "somt"}
         assert status["summary"]["freshness_isolation_flags"] == status["freshness_isolation_flags"]
         assert status["summary"]["raptor_lineage_flags"] == status["raptor_lineage_flags"]
         assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]

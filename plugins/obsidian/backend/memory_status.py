@@ -1,7 +1,10 @@
 from typing import Any, Dict, List
 
+from .derived_index import derived_index_status
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
+from .memory_ledger import memory_ledger_status
+from .query_layer import query_layer_status
 from .memory_tree import memory_tree_status
 from .readiness import readiness_gate_from_family
 
@@ -13,8 +16,14 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
     freshness = audit_knowledge(vault_dir)
     quarantine = quarantine_list(vault_dir)
     raptor = raptor_status(vault_dir)
+    ledger = memory_ledger_status(vault_dir)
+    derived_index = derived_index_status(vault_dir)
+    query_layer = query_layer_status(vault_dir)
     readiness_signals = _dedupe_signals(
-        _payload_signals(somt, "somt")
+        _payload_signals(ledger, "ledger")
+        + _payload_signals(derived_index, "derived_index")
+        + _payload_signals(query_layer, "query_layer")
+        + _payload_signals(somt, "somt")
         + _payload_signals(freshness, "freshness")
         + _payload_signals(raptor, "raptor")
     )
@@ -30,6 +39,9 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
     readiness_gap_names = _readiness_gap_names(readiness_signals)
     readiness_gate = readiness_gate_from_family(readiness_by_family, readiness_gap_names)
     families = {
+        "ledger": _family_status(ledger),
+        "derived_index": _family_status(derived_index),
+        "query_layer": _family_status(query_layer),
         "somt": _family_status(somt),
         "freshness": _family_status(freshness),
         "quarantine": _family_status(quarantine),
@@ -68,7 +80,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "isolated_knowledge_retained_in_audit": True,
         "excluded_relevant_count": 0,
     }
-    warnings = _warnings(somt, freshness, quarantine, raptor)
+    warnings = _warnings(ledger, derived_index, query_layer, somt, freshness, quarantine, raptor)
     return {
         "read_only": True,
         "writes_supported": False,
@@ -93,6 +105,15 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_gate": readiness_gate,
             "filtering_state": filtering_state,
             "retrieval_policy": retrieval_policy,
+            "ledger_sources": ledger.get("summary", {}).get("total_sources", 0),
+            "ledger_status_counts": ledger.get("summary", {}).get("status_counts", {}),
+            "ledger_source_types": ledger.get("summary", {}).get("source_types", {}),
+            "derived_index_sources": derived_index.get("summary", {}).get("source_count", 0),
+            "derived_index_chunks": derived_index.get("summary", {}).get("chunk_count", 0),
+            "derived_index_graph_nodes": derived_index.get("summary", {}).get("graph_nodes", 0),
+            "derived_index_graph_edges": derived_index.get("summary", {}).get("graph_edges", 0),
+            "query_layer_sources": query_layer.get("summary", {}).get("source_count", 0),
+            "query_layer_chunks": query_layer.get("summary", {}).get("chunk_count", 0),
             "somt_notes": somt.get("summary", {}).get("total_notes", 0),
             "default_retrieval": freshness.get("summary", {}).get("default_retrieval", 0),
             "isolated": freshness.get("summary", {}).get("isolated", 0),

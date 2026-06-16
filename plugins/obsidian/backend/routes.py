@@ -102,7 +102,12 @@ from .memory_spark import (
     build_spark_plan,
 )
 from .freshness import audit_knowledge, quarantine_list
+from .derived_index import build_derived_index, derived_index_status, retrieve_derived_chunks
 from .hybrid_retrieval import raptor_status
+from .memory_automation import memory_automation_status, run_memory_automation
+from .memory_ledger import memory_ledger_status, sync_memory_ledger
+from .query_layer import answer_query, query_layer_status
+from .rebuild_proof import rebuild_proof_status, run_rebuild_proof
 from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
@@ -1418,6 +1423,87 @@ async def memory_status_route(request: Request):
     """Return read-only status across SOMT, Freshness Gate, quarantine, and RAPTOR."""
     vault_dir = get_unlocked_vault_path(request)
     return memory_status(vault_dir)
+
+
+@router.get("/memory/ledger")
+async def memory_ledger_route(request: Request):
+    """Return SQLite source/index ledger status for the derived memory pipeline."""
+    vault_dir = get_unlocked_vault_path(request)
+    return memory_ledger_status(vault_dir)
+
+
+@router.post("/memory/ledger/sync")
+async def memory_ledger_sync_route(request: Request):
+    """Synchronize the derived source ledger from current vault files."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    return sync_memory_ledger(vault_dir)
+
+
+@router.get("/memory/index")
+async def derived_index_route(request: Request):
+    """Return derived chunk/index status for the memory pipeline."""
+    vault_dir = get_unlocked_vault_path(request)
+    return derived_index_status(vault_dir)
+
+
+@router.post("/memory/index/rebuild")
+async def derived_index_rebuild_route(request: Request):
+    """Build or rebuild the derived chunk index from current vault sources."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    return build_derived_index(vault_dir)
+
+
+@router.get("/memory/index/retrieve")
+async def derived_index_retrieve_route(request: Request, q: str, top_k: int = 5):
+    """Run lightweight retrieval against the derived chunk index."""
+    vault_dir = get_unlocked_vault_path(request)
+    return retrieve_derived_chunks(vault_dir, q, top_k=top_k)
+
+
+@router.get("/memory/query/status")
+async def query_layer_status_route(request: Request):
+    """Return read-only status for the lightweight query layer."""
+    vault_dir = get_unlocked_vault_path(request)
+    return query_layer_status(vault_dir)
+
+
+@router.get("/memory/query")
+async def query_layer_route(request: Request, q: str, top_k: int = 5):
+    """Answer a query from the derived index with citations and confidence."""
+    vault_dir = get_unlocked_vault_path(request)
+    return answer_query(vault_dir, q, top_k=top_k)
+
+
+@router.get("/memory/automation/status")
+async def memory_automation_status_route(request: Request):
+    """Return status for low-risk background memory automation."""
+    vault_dir = get_unlocked_vault_path(request)
+    return memory_automation_status(vault_dir)
+
+
+@router.post("/memory/automation/run")
+async def memory_automation_run_route(request: Request, force: bool = False):
+    """Run one low-risk memory automation pass for derived data maintenance."""
+    get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    return run_memory_automation(current_owner(request), trigger="manual", context={}, force=force)
+
+
+@router.get("/memory/rebuild-proof")
+async def rebuild_proof_status_route(request: Request):
+    """Return the latest derived memory rebuild proof report status."""
+    vault_dir = get_unlocked_vault_path(request)
+    return rebuild_proof_status(vault_dir)
+
+
+@router.post("/memory/rebuild-proof/run")
+async def rebuild_proof_run_route(request: Request, q: Optional[str] = None, top_k: int = 5):
+    """Run a full ledger/index/query rebuild proof and persist its report."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    return run_rebuild_proof(vault_dir, query=q, top_k=top_k)
 
 
 @router.post("/memory-tree/analyze")

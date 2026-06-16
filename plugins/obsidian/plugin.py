@@ -12,6 +12,7 @@ try:
     from obsidian.backend.routes import _undo_entry, router
     from obsidian.backend.context_provider import provider_spec
     from obsidian.backend.consolidation_job import job_spec as consolidation_job_spec
+    from obsidian.backend.memory_automation import job_spec as memory_automation_job_spec
     from obsidian.backend.project_planning import (
         GameDevConceptDraftRequest,
         ProjectDescriptionImproveRequest,
@@ -76,6 +77,7 @@ except ModuleNotFoundError:
     from backend.routes import _undo_entry, router
     from backend.context_provider import provider_spec
     from backend.consolidation_job import job_spec as consolidation_job_spec
+    from backend.memory_automation import job_spec as memory_automation_job_spec
     from backend.project_planning import (
         GameDevConceptDraftRequest,
         ProjectDescriptionImproveRequest,
@@ -927,6 +929,7 @@ def _register_consolidation_job(ctx) -> None:
     register = getattr(ctx, "register_consolidation_job", None)
     if callable(register):
         register(consolidation_job_spec())
+        register(memory_automation_job_spec())
 
 
 def setup(ctx):
