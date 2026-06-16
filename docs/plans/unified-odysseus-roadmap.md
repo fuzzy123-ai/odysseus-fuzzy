@@ -29,6 +29,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/1.0-evidence-release-checklist.md` | aktive 1.0-Go/No-Go-Checkliste fuer Evidence, manuelle Release-Gates und Bugfix-Fenster |
 | `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/image-tools-worker-contract.md` | neuer Stabilisierungstrack fuer isolierte Background-Removal/Image-Tools statt harter Core-Dependencies |
+| `docs/plans/secure-data-mode-contract.md` | Security-/DSGVO-Foundation fuer sensible Quellen, Secure Chats und local-only Policy |
 | `docs/plans/system-health-checker-plugin.md` | Plugin-Track fuer Homeserver Health: Host-Agent, Podman-first Runtime Adapter, Telegram Status/Alerts |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
@@ -48,11 +49,12 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
 | `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | abgeschlossen mit MS7-Ops-Readiness |
 | `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
-| `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | naechster geplanter Produkt-Track nach 1.0-Evidence |
-| `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | geplant vor Telegram-/Image-Actions, nur wenn priorisiert |
-| `0.17.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Lens-/Evidence-Stabilisierung |
-| `0.18.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant nach aktuellem ITW/Lens/Security-Handoff |
-| `0.19.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
+| `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
+| `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC4 umgesetzt, Runtime-Integration SEC5+ offen |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
+| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant als eigener Plugin-Track, nicht im Core verstecken |
+| `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
 ## Fortschrittsformat
@@ -114,9 +116,10 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P2 | `0.14.x` | Lightweight Memory Maintenance | Kleine Maintenance-Modelle duerfen RAPTOR/GraphRAG pflegen, aber nie globale Wahrheit entscheiden. | L | L | Review-/Evidence-Sprache | bounded Jobs, K-Means Proof, Summary Worker | Drift-/Fallback-Gates | ja |
 | P1 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Die Memory-Foundation braucht eine klare Nutzeroberflaeche: Lesen/Pflegen trennen, Review/Insights/Diagnostics ordnen, Shell stabilisieren. | L | L | UX-Vertraege, Navigation, Zustaende, Texte | fokussierte UI-/Static-Implementierung nach Handoff | Hotfile-Sperren, Browser-/Static-Smokes | bedingt |
 | P1 | `0.16.x` | Isolated Image Tools Worker | `rembg` passt nicht sauber in die Python-3.14-Core-venv; Background Removal braucht einen isolierten Worker, bevor Telegram/Image-Actions stabil werden. | M | M | Worker-Contract, UI/Cookbook-Setup-Texte | Worker Client, Route-Adapter, isolierter Worker-MVP | Roadmap, Hotfile-Gates, finaler Remove-BG-Smoke | bedingt |
-| P1 | `0.17.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
-| P1 | `0.18.x` | System Health Checker Plugin | Odysseus braucht einen nachvollziehbaren Plugin-Track fuer Homeserver Health statt versteckter Core-/Lens-Kommandos. | L | L | NDD-/Plugin-Vertrag, Statussprache, Telegram UX | Host-Agent-Modelle, Collectors, Rule Engine, Runtime Adapter | Plugin-Grenzen, Rechte, Hotfile-Gates, finaler Ops-Smoke | bedingt |
-| P2 | `0.19.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P1 | `0.17.x` | Secure Data Mode & Local-Only Policy | Sensible Daten duerfen nicht in API-Modelle, externe Embeddings oder unsichere Tools geraten. | M-L | M | UX-/Policy-Vertraege, Nutzertexte, Secure-Flow | Klassifikation, Chat-State, Policy Gates, spaeter Routing Guards | Stop-Regeln, Test-Gates, keine Hotfile-Integration ohne Freigabe | bedingt |
+| P1 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
+| P1 | `0.19.x` | System Health Checker Plugin | Odysseus braucht einen nachvollziehbaren Plugin-Track fuer Homeserver Health statt versteckter Core-/Lens-Kommandos. | L | L | NDD-/Plugin-Vertrag, Statussprache, Telegram UX | Host-Agent-Modelle, Collectors, Rule Engine, Runtime Adapter | Plugin-Grenzen, Rechte, Hotfile-Gates, finaler Ops-Smoke | bedingt |
+| P2 | `0.20.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
@@ -403,11 +406,101 @@ Ziel: Odysseus Lens wird von einer Sammlung einzelner Tool-Buttons zu einer klar
 - Bestehende Backend-Routen und Tools bleiben kompatibel.
 - `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` wurden nicht parallel bearbeitet.
 
-## Version `0.16.x`: Automated Agent Handoff & Orchestration MVP
+## Version `0.16.x`: Isolated Image Tools Worker
+
+Detailplaene:
+
+- `docs/plans/image-tools-worker-contract.md`
+- `docs/plans/image-tools-worker-route-integration-contract.md`
+- `docs/plans/image-tools-worker-ui-cookbook-contract.md`
+
+Ziel: Background Removal und spaetere Image-AI-Tools destabilisieren den Python-3.14-Core nicht. Schwere oder fragile Dependencies wie `rembg` laufen isoliert in einem Worker oder einer separaten Python-3.12/Docker-Umgebung. Odysseus Core spricht nur eine stabile Worker-API und zeigt klare Setup-Fehler statt Serverfehler.
+
+### Reihenfolge
+
+1. `ITW1-image-tools-worker-contract`
+2. `ITW2-image-tools-worker-client`
+3. `ITW3-route-integration`
+4. `ITW4-isolated-image-tools-worker-mvp`
+5. `ITW5-cookbook-ui-alignment`
+6. `ITW6-telegram-readiness`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `ITW1-image-tools-worker-contract` | Worker-Modi, Config, Fehlersemantik, Security beschreiben | keine Codearbeit | Scope und Roadmap-Gate | ja, docs-only |
+| `ITW2-image-tools-worker-client` | UI-/Setup-Erwartungen reviewen | `ImageToolsWorkerClient`, Result/Errors, Tests | fokussierte Tests | ja nach Contract |
+| `ITW3-route-integration` | Route-Vertrag und stabile Response-Form beschreiben | `/api/image/remove-bg` nutzt Worker-Client statt Core-Dependency | Route-/Regressionstest, Hotfile-Schutz | nein, Route-Hotfile |
+| `ITW4-isolated-image-tools-worker-mvp` | Install-/Ops-Hinweise reviewen | isolierter Worker unter `workers/image_tools_worker/` | Compile-/Static-Smoke | ja, isolierter Scope |
+| `ITW5-cookbook-ui-alignment` | Cookbook-/Editor-Texte fuer Worker-Setup | keine Frontend-Hotfiles ohne Handoff | UI-Texte gegen Runtime pruefen | bedingt |
+| `ITW6-telegram-readiness` | Telegram-Bildaktionssprache | gleicher Worker-Client fuer Telegram spaeter | erst starten, wenn Telegram-Track aktiv ist | nein |
+
+### Definition of Done `0.16.x`
+
+- Odysseus startet ohne `rembg`, `transformers` oder Worker.
+- Core-venv bleibt frei von harter `rembg`-Dependency.
+- `/api/image/remove-bg` kann einen konfigurierten Worker nutzen und gibt stabile Editor-Antworten zurueck.
+- Fehlender Worker fuehrt zu klarer Setup-/Not-configured-Meldung.
+- Isolierter Worker-MVP ist dokumentiert und mindestens statisch pruefbar.
+- Telegram/Image-Actions nutzen spaeter dieselbe Worker-Client-Schicht statt Route-Scraping.
+
+## Version `0.17.x`: Secure Data Mode & Local-Only Policy
+
+Detailplaene:
+
+- `docs/plans/secure-data-mode-contract.md`
+- `docs/plans/data-classification-policy-contract.md`
+- `docs/plans/chat-security-state-contract.md`
+- `docs/plans/secure-policy-gate-contract.md`
+
+Ziel: Odysseus kann sensible Quellen verarbeiten, ohne dass Inhalte in API-Modelle, externe Embeddings, externe Provider, unsichere Tools oder ungeschuetzte Exporte geraten. Secure Mode ist eine Chat-/Thread-Eigenschaft ab Start und kann nicht nachtraeglich umgeschaltet werden.
+
+Evidence Foundation:
+
+- `SEC1-security-mode-contract`: `a3bde239`
+- `SEC2-data-classification-model`: Alice `6bc7c2df`, Bob `d2f5b7b2`, Test `tests/test_data_classification.py` -> `14 passed, 1 warning`
+- `SEC3-chat-security-state-model`: Alice `3b63af4b`, Bob `d8156e1f`, Test `tests/test_chat_security_state.py` -> `12 passed, 1 warning`
+- `SEC4-policy-gate-model`: Alice `d9d7e613`, Bob `813eee75`, Security-Suite `tests/test_data_classification.py tests/test_chat_security_state.py tests/test_secure_policy_gate.py` -> `36 passed, 1 warning`
+
+### Reihenfolge
+
+1. `SEC1-security-mode-contract`
+2. `SEC2-data-classification-model`
+3. `SEC3-chat-security-state-model`
+4. `SEC4-policy-gate-model`
+5. `SEC5-local-only-model-routing`
+6. `SEC6-sensitive-retrieval-guard`
+7. `SEC7-telegram-secure-policy`
+8. `SEC8-security-audit-runbook`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `SEC1-security-mode-contract` | Secure Chat, kein Toggle, Nutzertexte, Stop-Regeln | keine Codearbeit | Akzeptanzkriterien finalisieren | ja |
+| `SEC2-data-classification-model` | `public/private/sensitive/secret`, Overrides, Propagation | Klassifikationsmodell und Tests | prueft, dass Vault nicht pauschal sensibel wird | ja nach Contract |
+| `SEC3-chat-security-state-model` | Chat-Start, immutable Mode, local-only UX | immutable State-Modell und Tests | Integration ohne bestehende Chats zu brechen | bedingt |
+| `SEC4-policy-gate-model` | zentrale Gate-Sprache, Blockgruende, Nutzeroptionen | Decision Layer fuer Sources, Provider, Tools, Export/Logs | Security-Test-Suite | ja |
+| `SEC5-local-only-model-routing` | Settings-/UI-Vertrag fuer lokale Modelle und Fallbacks | isoliertes Routing-Gate; keine Provider-Hotfiles ohne Freigabe | Stop bei externem Fallback im Secure Flow | bedingt |
+| `SEC6-sensitive-retrieval-guard` | Block-/Secure-Chat-Upgrade-Flow | Retrieval-Gate vor Memory/RAG/Graph-Zugriff | kritisch, nicht parallel zu RAG-Hotfiles | nein |
+| `SEC7-telegram-secure-policy` | Telegram-Flows und Blocktexte | Policy Hook fuer Telegram, keine sensiblen Antworten im unsicheren Kanal | Datenschutz-Fallback pruefen | bedingt |
+| `SEC8-security-audit-runbook` | Audit-Runbook, Known Limits, Betriebsregeln | fokussierte Tests/Evidence | Go/No-Go | nein |
+
+### Definition of Done `0.17.x`
+
+- Datenklassifikation fuer Quellen und abgeleitete Artefakte ist modelliert.
+- Chat Security State ist immutable und unterscheidet `normal` und `secure`.
+- Secure Chats erzwingen local-only Provider-/Embedding-/Tool-Regeln.
+- Policy Gate blockiert sensitive Quellen in normalen Chats und externe Pfade in Secure Chats.
+- Runtime-Integration in Provider, Retrieval und Telegram erfolgt nur nach separatem Hotfile-Gate.
+- Unklare Defaults fuehren zu Block oder Review, nicht zu stiller Freigabe.
+
+## Version `0.18.x`: Automated Agent Handoff & Orchestration MVP
 
 Detailplan: `docs/plans/automated-agent-handoff-orchestration-mvp.md`.
 
-Ziel: Der manuell bewiesene Alice/Bob/Charlie-Prozess wird native Odysseus-Runtime. `0.12.x` hat die Modelle und Contracts vorbereitet; `0.16.x` verdrahtet sie mit echter Persistenz, Thread-Zuordnung, Handoff-Parsing, Heartbeat-Ausfuehrung, Quality Gates und Dashboard-Sicht.
+Ziel: Der manuell bewiesene Alice/Bob/Charlie-Prozess wird native Odysseus-Runtime. `0.12.x` hat die Modelle und Contracts vorbereitet; `0.18.x` verdrahtet sie mit echter Persistenz, Thread-Zuordnung, Handoff-Parsing, Heartbeat-Ausfuehrung, Quality Gates und Dashboard-Sicht.
 
 ### MVP-Pfad
 
@@ -441,7 +534,7 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 | `AUTO7-end-to-end-two-agent-smoke` | Demo-Runbook und Known Limits | E2E-Smoke mit Fake/echten ThreadRefs je nach Verfuegbarkeit | Abschluss-Tests, Go/No-Go, Push | nein |
 | `AUTO8-n-agent-scaling-design` | Rollen, Pools, Budgets, Locks UX | Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt | ja, Planung |
 
-### Definition of Done `0.16.x`
+### Definition of Done `0.18.x`
 
 - Plan Graph und Agent Runs sind persistent oder ueber eine Runtime-Registry eindeutig erreichbar.
 - ThreadRefs sind eindeutig; Odysseus sendet nie blind in einen unklaren Thread.
@@ -452,7 +545,7 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 - E2E-Smoke belegt mindestens zwei Agenten von Plan bis `verified done`.
 - N-Agent-Skalierung ist entworfen, aber nicht als unbegrenzte Agentenfabrik freigegeben.
 
-## Version `0.18.x`: Plugin Platform - System Health Checker
+## Version `0.19.x`: Plugin Platform - System Health Checker
 
 Detailplan: `docs/plans/system-health-checker-plugin.md`.
 
@@ -495,7 +588,7 @@ Produktentscheidung:
 | `SHC8-odysseus-health-ui` | Ampel, Alerts, Collector unknown/offline UI-Contract | UI/API-Anbindung ohne Host-Kommandos | Browser/UI-Smoke, Agent-offline-Fallback | bedingt |
 | `SHC9-security-and-ops-runbook` | Runbook, Betriebsnarrativ, Nutzerregeln | systemd/permission/readiness Modell oder Scripts spaeter | Abschluss-Gates, Go/No-Go | nein |
 
-### Definition of Done `0.18.x`
+### Definition of Done `0.19.x`
 
 - System Health Checker ist als eigener Plugin-Track nachvollziehbar.
 - Host-Agent und Odysseus-Container sind strikt entkoppelt.
@@ -505,7 +598,7 @@ Produktentscheidung:
 - Podman-first Runtime Adapter ist vorbereitet, Docker bleibt kompatibler Fallback.
 - Keine Root-/Socket-Abkuerzung landet im Odysseus-Core.
 
-## Version `0.19.x`: Nextcloud Source Provider
+## Version `0.20.x`: Nextcloud Source Provider
 
 Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 
@@ -627,6 +720,9 @@ Diese Roadmap ist erfuellt, wenn:
 - `0.13.x` Memory-Scale-Foundation mit Diagnostics und Budgets vorbereitet.
 - `0.14.x` Lightweight Memory Maintenance mit kleinem Modell, bounded Jobs und evidence-bound Summaries beweist.
 - `0.15.x` Odysseus Lens UI & Memory Interaction die Memory-Oberflaeche in Lesen, Pflegen, Insights, Diagnostics und Activity ordnet.
-- `0.16.x` Automated Agent Handoff & Orchestration den Alice/Bob/Charlie-Prozess von Approved Plan bis `verified done` nativ ausfuehrt.
-- `0.17.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
+- `0.16.x` Isolated Image Tools Worker Background Removal und spaetere Image-AI-Tools vom Core entkoppelt.
+- `0.17.x` Secure Data Mode sensible Quellen, Secure Chats und local-only Policy mit Gates absichert.
+- `0.18.x` Automated Agent Handoff & Orchestration den Alice/Bob/Charlie-Prozess von Approved Plan bis `verified done` nativ ausfuehrt.
+- `0.19.x` System Health Checker als eigenen Plugin-Track mit Host-Agent-Grenze vorbereitet.
+- `0.20.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
 - `1.0.0` nicht nach Bauchgefuehl, sondern nach Evidence freigegeben wird.

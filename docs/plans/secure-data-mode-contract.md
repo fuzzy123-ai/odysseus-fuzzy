@@ -238,18 +238,36 @@ Mindestens klar sein muss:
 - Telegram folgt derselben Policy oder bleibt blockiert, bis ein eigener Secure-Flow existiert
 - unklare Sicherheitslagen fuehren zu Block statt zu stiller Degradierung
 
-## Erwartete Folge-Slices
+## Umgesetzte und erwartete Folge-Slices
 
-### `SEC2`
+### `SEC2-data-classification-model`
 
-Thread- und Chat-Modell fuer immutable Secure-Flags und Source-Klassen.
+Quellen, Dokumente und abgeleitete Artefakte bekommen eine explizite Klassifikation:
+`public`, `private`, `sensitive` oder `secret`.
 
-### `SEC3`
+### `SEC3-chat-security-state-model`
 
-Model- und Provider-Gating fuer local-only Secure Flows.
+Chats und Threads tragen einen immutable Security State:
+`normal` oder `secure`. Der Zustand wird beim Start gesetzt und nicht im laufenden Chat umgeschaltet.
 
-### `SEC4`
+### `SEC4-policy-gate-model`
 
-UI- und Thread-Start-Flow fuer `Create Secure Chat`, Blocker-States und klare Nutzerfuehrung.
+Ein zentraler Decision Layer bewertet Sources, Provider, Embeddings, Tools und Export-/Log-Intents.
 
-Der Vertrag beschreibt nur die UX- und Policy-Grenzen eines spaeteren Secure Data Mode.
+### `SEC5-local-only-model-routing`
+
+Naechster sicherer Schritt: Modell- und Fallback-Auswahl so vorbereiten, dass Secure Chats nur lokale Modelle und lokale Embeddings zulassen. Dieser Slice darf bestehende Provider-/Routing-Hotfiles erst nach separatem Gate anfassen.
+
+### `SEC6-sensitive-retrieval-guard`
+
+Naechster kritischer Schritt: Retrieval vor Memory/RAG/Graph-Zugriff blockiert sensible Quellen in normalen Chats, ohne Snippets oder Kontext zu laden.
+
+### `SEC7-telegram-secure-policy`
+
+Telegram folgt derselben Policy. Sensible Daten werden im normalen Telegram-Flow blockiert, bis ein expliziter Secure-Flow entworfen ist.
+
+### `SEC8-security-audit-runbook`
+
+Abschlussnachweis fuer lokale Modelle, sensible Quellen, Provider-Blocker, Export/Log-Policy und Known Limits.
+
+Der Vertrag beschreibt die UX- und Policy-Grenzen des Secure Data Mode. Runtime-Integration bleibt absichtlich in separaten Hotfile-Gates.
