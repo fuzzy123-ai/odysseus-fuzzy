@@ -10,6 +10,8 @@ UX-Contract fuer den Start: `docs/plans/lens-ui-ux-contract.md`
 
 Shell-Stability-Contract fuer `LENS1`: `docs/plans/lens-shell-stability-contract.md`
 
+Read/Write-Tabs-Contract fuer `LENS2`: `docs/plans/memory-read-write-tabs-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
