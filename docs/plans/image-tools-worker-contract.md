@@ -2,120 +2,324 @@
 
 Stand: 2026-06-16
 
-Status: **geplanter Stabilisierungstrack fuer Background Removal und spaetere Image-AI-Tools**
+Status: **ITW1 Produkt-/Runtime-Vertrag fuer `0.16.x Isolated Image Tools Worker`**
 
-## Ausgangslage
+Quellen:
 
-Odysseus hat bereits Background Removal in mehreren Pfaden:
+- `docs/plans/unified-odysseus-roadmap.md`
 
-- Frontend: `static/js/editor/ai-rembg.js` ruft `/api/image/remove-bg` auf und legt Ergebnisse als neue Layer an.
-- Shared Runner: `static/js/editor/ai-tool-runner.js` kennt `rembg` als optionale Dependency.
-- Agent Tool: `edit_image` unterstuetzt `rembg`.
-- Backend: `routes/gallery_routes.py` implementiert `/api/image/remove-bg` und versucht `from rembg import remove`, danach Fallback ueber `transformers`/`briaai/RMBG-1.4`.
-
-Das aktuelle Risiko ist die Dependency-Grenze: Die Odysseus-Haupt-venv laeuft auf Python 3.14, waehrend `rembg` aktuell nicht sauber in diesen Core passt. Background Removal darf den Odysseus-Core deshalb nicht destabilisieren.
+Dieser Vertrag definiert die Produkt- und Runtime-Grenzen fuer einen isolierten Image Tools Worker. Ziel ist, Background Removal und spaetere Image-AI-Werkzeuge von der Odysseus-Core-Laufzeit zu entkoppeln. Der Slice fuehrt bewusst keine Runtime-, Worker-, UI-, Docker-, Dependency- oder Test-Aenderungen aus. Er friert nur die Zielentscheidung, Capabilities, Modi, Config-Schluessel, Fehlersemantik, Sicherheitsgrenzen und Akzeptanzkriterien ein.
 
 ## Zielentscheidung
 
-`rembg` wird nicht in die Odysseus-Haupt-venv gepresst.
+`rembg` und vergleichbar fragile Image-Dependencies werden nicht in die Odysseus-Core-venv gepresst.
 
-Stattdessen bekommt Odysseus einen isolierten `image_tools_worker`:
+Stattdessen gilt:
 
-- eigener Python-3.12-venv-Worker oder Docker-Container
-- kleiner interner HTTP- oder Subprocess-Adapter
-- stabile Core-API: `remove_background(image, hint_mask=None) -> png`
-- klare Fehlermeldung, wenn Worker fehlt, statt Serverfehler
+- der Odysseus-Core bleibt stabil und frei von schwerer Image-Tool-Last
+- Background Removal laeuft ueber einen isolierten Worker
+- der Worker darf lokal in einer separaten Python-3.12-venv, in Docker oder spaeter remote laufen
+- die Haupt-venv bleibt nicht der Ort fuer experimentelle oder systemnahe Image-AI-Abhaengigkeiten
 
-Odysseus Core bleibt frei von harten `rembg`, `transformers` oder GPU-Abhaengigkeiten.
+## Leitregel
+
+Schwere Image-Tools sind optionale Worker-Capabilities, keine verpflichtende Core-Dependency.
+
+Das bedeutet:
+
+- fehlende Worker-Konfiguration darf den Core nicht instabil machen
+- die Gallery oder spaetere Image-Actions duerfen klare, strukturierte Fehler liefern statt kryptische Import- oder Serverfehler
+- ein deaktivierter Worker ist ein gueltiger Betriebszustand
 
 ## Capabilities
 
-Initial:
+Der erste verpflichtende Capability-Scope ist:
 
 - `remove_background`
 
-Spaeter optional:
+Spaeter optional zulaessig, aber nicht Teil dieses Slice:
 
 - `sharpen`
 - `upscale`
 - `inpaint`
 
-Neue Capabilities duerfen erst nach eigenem Contract und Tests in die UI.
+Diese spaeteren Capabilities muessen derselben Isolationslogik folgen und duerfen nicht still in den Core einsickern.
 
 ## Runtime-Modi
 
-| Mode | Bedeutung | Default |
-| --- | --- | --- |
-| `disabled` | Image Tools sind deaktiviert; UI/API melden Setup-Hinweis | ja |
-| `local-venv` | Worker laeuft lokal in eigener Python-3.12-venv | nein |
-| `docker` | Worker laeuft isoliert im Container | nein |
-| `remote` | spaeterer Remote-Worker, nur mit Security-Gate | nein |
+Der Worker kennt vier Betriebsmodi.
+
+## `disabled`
+
+Der Worker ist bewusst ausgeschaltet.
+
+Erwartung:
+
+- Core startet normal
+- Aufrufe liefern einen strukturierten `not_configured`- oder gleichwertigen Status
+- UI zeigt eine klare Setup-Meldung statt eines Stacktraces
+
+## `local-venv`
+
+Der Worker laeuft lokal in einer separaten, fuer Image-Tools reservierten Python-3.12-venv.
+
+Erwartung:
+
+- eigene Dependency-Zone
+- kein Zwang, dass die Core-venv dieselben Pakete installiert
+- klarer Lokalpfaad fuer spaetere, isolierte Ops-Doku
+
+## `docker`
+
+Der Worker laeuft isoliert in einem Container.
+
+Erwartung:
+
+- Dependencies sind aus der Core-venv ausgelagert
+- Transport bleibt lokal oder kontrolliert erreichbar
+- keine Annahme, dass Docker fuer alle Nutzer Default sein muss
+
+## `remote`
+
+`remote` ist nur spaeter optional.
+
+Erwartung:
+
+- nicht Default
+- nur mit expliziter Konfiguration
+- dieselbe Fehler- und Sicherheitssemantik wie lokal
 
 ## Config Keys
+
+Der Contract reserviert folgende Konfigurationsschluessel:
 
 - `IMAGE_TOOLS_WORKER_MODE`
 - `IMAGE_TOOLS_WORKER_URL`
 - `IMAGE_TOOLS_WORKER_TIMEOUT_SEC`
 - `IMAGE_TOOLS_WORKER_MAX_MB`
-- optional spaeter: `IMAGE_TOOLS_WORKER_ALLOW_LEGACY_FALLBACK`
+- optional `IMAGE_TOOLS_WORKER_LEGACY_FALLBACK`
 
-Default bleibt sicher: Worker aus, kein harter Core-Import.
+## Bedeutung der Config
+
+### `IMAGE_TOOLS_WORKER_MODE`
+
+Definiert den Betriebsmodus.
+
+Erlaubte Werte:
+
+- `disabled`
+- `local-venv`
+- `docker`
+- spaeter `remote`
+
+### `IMAGE_TOOLS_WORKER_URL`
+
+Definiert die Zieladresse fuer einen HTTP- oder vergleichbaren Worker-Zugriff.
+
+Regel:
+
+- fuer `disabled` darf sie leer sein
+- fuer `local-venv` oder `docker` zeigt sie idealerweise auf localhost oder eine gleichwertig lokale Bindung
+- `remote` braucht spaeter ein explizites Sicherheits-Gate
+
+### `IMAGE_TOOLS_WORKER_TIMEOUT_SEC`
+
+Definiert das harte Zeitbudget pro Worker-Request.
+
+Regel:
+
+- Timeouts muessen klar begrenzt sein
+- UI und Core bekommen bei Ueberschreitung einen strukturierten `timeout`-Fehler
+
+### `IMAGE_TOOLS_WORKER_MAX_MB`
+
+Definiert die maximale erlaubte Nutzlastgroesse fuer Input-Bilder.
+
+Regel:
+
+- uebergrosse Dateien werden frueh und klar abgewiesen
+- keine unbounded Payloads an lokalen oder remote Worker
+
+### `IMAGE_TOOLS_WORKER_LEGACY_FALLBACK`
+
+Optionaler Uebergangsschalter.
+
+Regel:
+
+- nur fuer kontrollierte Migrations- oder Legacy-Pfade
+- kein dauerhafter Default
+- darf nicht dazu fuehren, dass fragiler Core-Fallback still wieder zur Norm wird
+
+## Stabile Core-API-Idee
+
+Die stabile Core-Idee fuer Background Removal lautet:
+
+`remove_background(image, hint_mask=None) -> png`
+
+oder bei Fehler:
+
+- strukturierter Fehler
+- kein unstrukturierter HTML- oder Stacktrace-Blob
+
+## API-Grundsaetze
+
+- Input ist ein Bildobjekt oder aequivalente Bildnutzlast
+- optionaler `hint_mask` bleibt erlaubt, aber nicht verpflichtend
+- Erfolgsformat fuer den ersten Scope ist PNG
+- Fehler werden in klarer, maschinenlesbarer Form gemeldet
 
 ## Fehlersemantik
 
-| Fehler | Bedeutung |
-| --- | --- |
-| `not_configured` | Worker ist deaktiviert oder URL fehlt |
-| `dependency_missing` | Worker laeuft, aber Capability/Dependency fehlt |
-| `worker_unreachable` | Worker ist nicht erreichbar |
-| `timeout` | Worker antwortet nicht innerhalb des Budgets |
-| `invalid_image` | Eingabe ist kein gueltiges Bild oder zu gross |
-| `invalid_response` | Worker-Antwort ist nicht interpretierbar |
+Mindestens diese Fehler muessen spaeter stabil unterscheidbar sein:
 
-UI/API sollen diese Fehler in nutzbare Setup- oder Retry-Hinweise uebersetzen.
+- `not_configured`
+- `dependency_missing`
+- `worker_unreachable`
+- `timeout`
+- `invalid_image`
+- `payload_too_large`
+- `permission_denied`
+
+## Bedeutungen
+
+### `not_configured`
+
+Der Worker ist nicht aktiviert oder nicht vollstaendig konfiguriert.
+
+### `dependency_missing`
+
+Der isolierte Worker-Modus wurde angefordert, aber die benoetigte Runtime oder Dependency-Umgebung fehlt.
+
+### `worker_unreachable`
+
+Der konfigurierte Worker konnte nicht erreicht werden.
+
+### `timeout`
+
+Der Worker hat nicht innerhalb des konfigurierten Zeitbudgets geantwortet.
+
+### `invalid_image`
+
+Die Eingabedatei ist ungueltig, kaputt oder kein unterstuetztes Bildformat.
+
+### `payload_too_large`
+
+Die Eingabe ueberschreitet die erlaubte Nutzlastgroesse.
+
+### `permission_denied`
+
+Der Aufruf ist vom bestehenden Sicherheits- oder Berechtigungsgate nicht erlaubt.
 
 ## Security
 
-- Default-URL ist nur `localhost`/Loopback.
-- Payload-Groesse wird ueber `IMAGE_TOOLS_WORKER_MAX_MB` begrenzt.
-- Privilege-Gate bleibt `can_generate_images`.
-- Worker darf keine Dateipfade aus dem Nutzerinput blind lesen oder schreiben.
-- Core sendet Bytes, nicht beliebige lokale Pfade.
-- Legacy-Fallbacks im Core sind nur explizit erlaubt, nicht Default.
+## Default-Haltung
 
-## Slices
+Sicherer Default ist:
 
-| Slice | Ziel | Alice | Bob | Charlie | Parallel? |
-| --- | --- | --- | --- | --- | --- |
-| `ITW1-worker-contract-config` | Contract, Modi, Config, Fehlersemantik und Security festlegen | Contract/Setup-Sprache | technische Reihenfolge reviewen | Roadmap einordnen, Scope sperren | ja, Doku |
-| `ITW2-backend-adapter-service` | Core-seitiger Worker-Client ohne harte Image-Dependencies | Fehlermeldungs-/UI-Text pruefen | `src/image_tools_worker.py`, Tests fuer disabled/unreachable/timeout/success | Tests/Gates, keine `rembg`-Imports im Core | ja nach Contract |
-| `ITW3-route-integration` | `/api/image/remove-bg` nutzt Worker-Client | Antworttexte/Setup-Link pruefen | vorsichtige Route-Integration | Hotfile `routes/gallery_routes.py` koordinieren | nein oder eng sequenziell |
-| `ITW4-worker-mvp` | isolierter Python-3.12-Worker fuer `rembg[cpu]` | README/Installpfad pruefen | `workers/image_tools_worker/*` | Security-/Ops-Review | ja, isoliert |
-| `ITW5-cookbook-ui-alignment` | Cookbook/UI erklaert Worker statt Core-Dependency | Copy, Windows-/Docker-/venv-Erklaerung | kleine UI/Status-Anpassungen | keine widerspruechlichen Installhinweise | bedingt |
-| `ITW6-telegram-readiness` | Telegram-Bildaktionen nutzen denselben Client | Nutzertexte fuer Telegram-Antworten | Bridge nutzt `ImageToolsWorkerClient` | erst beim Telegram-Plan aktivieren | nein |
+- Worker standardmaessig `disabled`
+- kein offener Remote-Default
+- lokale Adressen bevorzugen
 
-## Akzeptanzkriterien
+## Transport
 
-- Odysseus startet ohne `rembg`, `transformers` oder Image Worker sauber.
-- Background-Removal-UI zeigt einen klaren Status statt kryptischem Fehler.
-- Wenn Worker konfiguriert ist, funktioniert `/api/image/remove-bg` weiter fuer den Editor.
-- Python-3.14-Core bleibt frei von harter `rembg`-Dependency.
-- Tests decken disabled/missing/unreachable/timeout/success ab.
-- Security-Gate `can_generate_images` bleibt erhalten.
-- Windows-Story ist nicht mehr widerspruechlich: Core install unsupported, Worker via Python 3.12 venv oder Docker supported.
+Regeln:
+
+- `localhost` oder gleichwertig lokale Bindung ist Default fuer lokale Worker
+- kein impliziter externer Endpunkt
+- spaetere Remote-Nutzung braucht explizite Konfiguration
+
+## Payload-Grenzen
+
+Regeln:
+
+- `IMAGE_TOOLS_WORKER_MAX_MB` ist verpflichtend wirksam
+- grosse Bilder werden vor dem Worker-Aufruf abgefangen
+- keine unbounded Uploads an lokale oder entfernte Worker
+
+## Berechtigung
+
+Das bestehende `can_generate_images`-Gate bleibt erhalten.
+
+Das bedeutet:
+
+- Image-Tools-Worker hebelt bestehende Bildberechtigungen nicht aus
+- `permission_denied` bleibt ein gueltiger Ausgang
+- UI darf den Worker nicht wie eine ungated Sonderroute behandeln
+
+## UI- und Cookbook-Erwartung
+
+Die Nutzererfahrung darf bei fehlendem Worker nicht in einem kryptischen Serverfehler enden.
+
+Mindesterwartung:
+
+- klare Meldung: `Background removal worker is not configured`
+- kurzer Setup-Hinweis fuer die spaetere lokale, Docker- oder Remote-Konfiguration
+- keine verwirrende rembg-Importfehlermeldung in Nutzertexten
+- Cookbook und Editor duerfen den Nutzer auf Setup statt auf Core-Debugging verweisen
+
+## Akzeptanzkriterien fuer spaetere Slices `ITW2` bis `ITW5`
+
+Der Contract ist nur dann brauchbar, wenn die Folge-Slices ohne Grundsatzdebatte darauf aufbauen koennen.
+
+Mindestens klar sein muss:
+
+- `rembg` ist kein verpflichtender Teil der Core-venv
+- `remove_background` ist die erste verpflichtende Worker-Capability
+- `disabled`, `local-venv`, `docker` und spaeter `remote` sind als Modi definiert
+- die Config Keys und ihre Bedeutungen sind festgelegt
+- die Core-API-Idee fuer `remove_background` ist klar
+- die Fehlersemantik ist stabil benannt
+- `localhost` und Payload-Limits sind Sicherheitsdefault
+- `can_generate_images` bleibt das bestehende Berechtigungsgate
+- UI/Cookbook muessen klare Setup-Meldungen statt Servertraces liefern
+
+## Erwartete Folge-Slices
+
+### `ITW2`
+
+Worker-Readiness- oder Client-Contract auf Backend-Seite.
+
+### `ITW3`
+
+Isolierter Worker-MVP oder Adapter fuer `remove_background`.
+
+### `ITW4`
+
+UI-/Cookbook-Integration mit klarer Setup- und Fehlerdarstellung.
+
+### `ITW5`
+
+End-to-End-Smoke oder sicherer Gallery-/Editor-Nachweis gegen den isolierten Worker.
+
+## Risiken und Hotfiles fuer Bob und Charlie
+
+Besonders sensibel fuer die Folgearbeit sind:
+
+- `routes/gallery_routes.py`
+- `static/js/editor/ai-rembg.js`
+- `static/js/editor/ai-tool-runner.js`
+- `static/js/cookbook.js`
+- `routes/shell_routes.py`
+- spaeteres Worker-Verzeichnis
+
+Risiken:
+
+- Gallery-Route koppelt sich zu frueh an konkrete Worker-Details
+- Editor-JS zeigt weiter kryptische Fehler oder Core-Importfehler
+- Shell- oder Route-Schicht behandelt Worker-Konfiguration nicht als optionalen Zustand
+- ein Legacy-Fallback schleust fragile Core-Dependencies wieder unkontrolliert ein
 
 ## Nicht-Ziele
 
-- keine `rembg`-Installation in die Haupt-venv erzwingen
-- keine GPU-Pflicht
-- keine Telegram-Image-Actions direkt in diesem Track implementieren
-- keine neuen Gallery-Editor-Features ausser Status-/Setup-Klarheit
-- keine Remote-Worker-Freigabe ohne separaten Security-Gate
+`ITW1` fuehrt bewusst nicht aus:
 
-## Startbedingung
+- keinen Worker-Code
+- keine `rembg`-Installation
+- kein Dockerfile
+- keine Gallery-Route-Integration
+- keine Telegram-Aktion
+- keine Tests
+- keine Requirements-, venv- oder Docker-Aenderungen
+- keine Runtime-Implementierung
 
-Dieser Track startet erst, wenn:
-
-- die aktive Lens-/Hotfile-Arbeit sauber committed ist,
-- `routes/gallery_routes.py` nicht parallel von einem anderen Slice bearbeitet wird,
-- und Background Removal oder Telegram-Image-Actions vor dem naechsten Release priorisiert werden.
+Der Vertrag beschreibt nur die sichere Isolations-, Konfigurations- und Fehlerstrategie fuer einen spaeteren Image Tools Worker.
