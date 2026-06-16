@@ -36,6 +36,7 @@ _IMPORTED_AGENT_LOOP = None
 try:
     from src.agent_loop import (
         _detect_admin_intent,
+        _classify_agent_request,
         _compute_final_metrics,
         _append_tool_results,
         _inject_context_provider_messages,
@@ -174,6 +175,16 @@ def test_agent_provider_context_skips_when_disabled():
         context_length=1000,
         enabled=False,
     ) is messages
+
+
+def test_polish_internet_search_request_classifies_as_web():
+    intent = _classify_agent_request(
+        [],
+        "Wyszukaj w internecie i podaj temperaturę w Lubartowie dzisiaj",
+    )
+
+    assert intent["low_signal"] is False
+    assert "web" in intent["domains"]
 
 
 # ---------------------------------------------------------------------------

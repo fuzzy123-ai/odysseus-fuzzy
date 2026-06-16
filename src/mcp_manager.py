@@ -11,6 +11,8 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from src.runtime_paths import get_app_root
+
 logger = logging.getLogger(__name__)
 
 # Most built-in Python MCP servers have native/legacy wrappers and should not
@@ -530,7 +532,7 @@ class McpManager:
             return False
 
         script_rel, name = _BUILTIN_SERVERS[server_id]
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = get_app_root()
         script_path = os.path.join(base_dir, script_rel)
 
         # Clean up old connection

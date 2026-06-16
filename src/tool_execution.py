@@ -407,6 +407,24 @@ _MCP_TOOL_MAP = {
     "web_fetch":      ("web_fetch",  "web_fetch"),
     "generate_image": ("image_gen",  "generate_image"),
 }
+_EMAIL_MCP_OWNER_ARG = "_odysseus_owner"
+
+
+def _parse_qualified_mcp_args(tool: str, content: str) -> tuple[Dict, Optional[str]]:
+    raw = (content or "").strip()
+    if not raw:
+        return {}, None
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        if tool.startswith("mcp__email__"):
+            return {}, "Email MCP tool arguments must be a JSON object."
+        return {}, None
+    if not isinstance(parsed, dict):
+        if tool.startswith("mcp__email__"):
+            return {}, "Email MCP tool arguments must be a JSON object."
+        return {}, None
+    return parsed, None
 
 
 def _parse_generate_image(content: str) -> Dict:
@@ -990,19 +1008,19 @@ async def _execute_tool_block_impl(
         result = await do_vault_unlock(content, owner=owner)
     elif tool.startswith("mcp__"):
         # MCP tool dispatch
-        try:
-            args = json.loads(content) if content.strip().startswith("{") else {}
-        except (json.JSONDecodeError, TypeError):
-            args = {}
-        if not isinstance(args, dict):
-            args = {}
-        server_id, mcp_tool_name = _parse_mcp_tool_name(tool)
         desc = f"mcp: {tool}"
-        if server_id == "vault" and mcp_tool_name:
+        server_id, mcp_tool_name = _parse_mcp_tool_name(tool)
+        args, parse_error = _parse_qualified_mcp_args(tool, content)
+        if parse_error:
+            result = {"error": parse_error, "exit_code": 1}
+        elif server_id == "vault" and mcp_tool_name:
             result = _call_internal_vault_mcp(mcp_tool_name, args, owner)
         else:
             mcp = get_mcp_manager()
             if mcp:
+                if tool.startswith("mcp__email__") and owner:
+                    args = dict(args)
+                    args[_EMAIL_MCP_OWNER_ARG] = owner
                 result = await mcp.call_tool(tool, args)
             else:
                 result = {"error": "MCP manager not available", "exit_code": 1}
