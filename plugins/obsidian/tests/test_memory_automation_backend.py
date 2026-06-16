@@ -34,6 +34,7 @@ def test_memory_automation_status_surfaces_pending_actions_and_cost_controller()
         assert "sync_memory_ledger" in status["pending_actions"]
         assert "build_derived_index" in status["pending_actions"]
         assert status["cost_controller"]["cooldown_seconds"] >= 0
+        assert status["cost_controller"]["failure_backoff_seconds"] >= 0
         assert status["safety"] == {
             "source_note_writes": False,
             "derived_data_writes_only": True,
@@ -62,6 +63,29 @@ def test_memory_automation_run_executes_low_risk_actions_and_respects_cooldown(m
         assert forced["skipped"] is False
         assert forced["safety"]["source_note_writes"] is False
         assert forced["safety"]["derived_data_writes_only"] is True
+
+
+def test_memory_automation_records_failures_and_respects_failure_backoff(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Source.md"), "w", encoding="utf-8") as f:
+            f.write("# Source\n\nblob automation failure demo\n")
+
+        monkeypatch.setattr("backend.memory_automation._cooldown_seconds", lambda: 0)
+        monkeypatch.setattr("backend.memory_automation._failure_backoff_seconds", lambda: 3600)
+        monkeypatch.setattr("backend.memory_automation.vault_service.unlocked_vault_path_for_owner", lambda owner: tmpdir)
+        monkeypatch.setattr("backend.memory_automation.build_derived_index", lambda vault_dir: (_ for _ in ()).throw(RuntimeError("index boom")))
+
+        failed = run_memory_automation(owner=None, trigger="periodic", context={"event": "tick"}, force=False)
+        status = memory_automation_status(tmpdir)
+        skipped = run_memory_automation(owner=None, trigger="periodic", context={"event": "tick"}, force=False)
+
+        assert failed["failed"] is True
+        assert failed["reason"] == "action_failed"
+        assert failed["errors"] == ["index boom"]
+        assert status["cost_controller"]["failure_backoff_active"] is True
+        assert status["last_run"]["consecutive_failures"] == 1
+        assert status["last_run"]["last_error"] == "index boom"
+        assert skipped == {"skipped": True, "reason": "failure_backoff_active", "actions_executed": []}
 
 
 @pytest.mark.asyncio

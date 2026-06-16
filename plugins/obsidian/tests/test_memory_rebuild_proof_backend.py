@@ -35,6 +35,7 @@ def test_rebuild_proof_runs_full_pipeline_and_writes_report():
         assert result["summary"]["source_count"] == 2
         assert result["summary"]["chunk_count"] >= 2
         assert result["summary"]["query_citations"] >= 1
+        assert result["summary"]["query_cache_entries"] >= 1
         assert status["configured"] is True
         assert status["summary"]["source_count"] == 2
 
@@ -57,6 +58,23 @@ def test_rebuild_proof_rebuilds_after_change_and_delete():
         assert second["query_result"]["citations"][0]["path"] == "Mutable.md"
         assert third["summary"]["source_count"] == 0
         assert third["summary"]["query_citations"] == 0
+
+
+def test_rebuild_proof_tracks_artifacts_and_subtree_queries():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdir, "Inbox"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Blob.md"), "w", encoding="utf-8") as f:
+            f.write("# Blob\n\nProject subtree blob proof.\n")
+        with open(os.path.join(tmpdir, "Inbox", "Blob.md"), "w", encoding="utf-8") as f:
+            f.write("# Blob\n\nInbox subtree blob proof.\n")
+
+        result = run_rebuild_proof(tmpdir, query="blob", top_k=5, path_prefix="Projects")
+
+        assert result["query_result"]["path_prefix"] == "Projects"
+        assert {item["path"] for item in result["query_result"]["citations"]} == {"Projects/Blob.md"}
+        assert result["summary"]["query_cache_entries"] >= 1
+        assert result["summary"]["query_cache_hits"] == 0
 
 
 @pytest.mark.asyncio

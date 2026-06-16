@@ -34,6 +34,10 @@ def _concurrency_limit() -> int:
     return max(1, int(os.getenv("ODYSSEUS_OBSIDIAN_MEMORY_AUTOMATION_CONCURRENCY", "1") or 1))
 
 
+def _failure_backoff_seconds() -> int:
+    return max(0, int(os.getenv("ODYSSEUS_OBSIDIAN_MEMORY_AUTOMATION_FAILURE_BACKOFF_SECONDS", "900") or 900))
+
+
 def _report_abspath(vault_dir: str) -> str:
     return vault_service.secure_path(vault_dir, AUTOMATION_REPORT_PATH)
 
@@ -64,7 +68,9 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
     report = _read_report(vault_dir)
     now = _utcnow()
     cooldown = _cooldown_seconds()
+    failure_backoff = _failure_backoff_seconds()
     last_run_raw = str(report.get("last_run_at") or "").strip()
+    last_failure_raw = str(report.get("last_failure_at") or "").strip()
     next_eligible_at = ""
     cooling_down = False
     if last_run_raw:
@@ -75,6 +81,16 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
             cooling_down = next_eligible > now
         except ValueError:
             next_eligible_at = ""
+    failure_backoff_until = ""
+    failure_backoff_active = False
+    if last_failure_raw and failure_backoff > 0:
+        try:
+            last_failure = datetime.fromisoformat(last_failure_raw.replace("Z", "+00:00"))
+            backoff_until = last_failure + timedelta(seconds=failure_backoff)
+            failure_backoff_until = _utc_iso(backoff_until.astimezone(timezone.utc))
+            failure_backoff_active = backoff_until > now
+        except ValueError:
+            failure_backoff_until = ""
     pending_actions: List[str] = []
     if int((ledger.get("summary") or {}).get("pending_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("stale_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("total_sources") or 0) == 0:
         pending_actions.append("sync_memory_ledger")
@@ -85,6 +101,8 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
     warnings: List[str] = []
     if cooling_down:
         warnings.append("Memory automation cooldown is active; the next periodic pass will wait until the cooldown expires.")
+    if failure_backoff_active:
+        warnings.append("Memory automation failure backoff is active; the next automatic pass will wait until the backoff expires.")
     return {
         "enabled": True,
         "job_id": JOB_ID,
@@ -96,6 +114,9 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
             "concurrency_limit": _concurrency_limit(),
             "cooling_down": cooling_down,
             "next_eligible_at": next_eligible_at,
+            "failure_backoff_seconds": failure_backoff,
+            "failure_backoff_active": failure_backoff_active,
+            "failure_backoff_until": failure_backoff_until,
         },
         "safety": {
             "source_note_writes": False,
@@ -112,7 +133,12 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
             "last_trigger": str(report.get("last_trigger") or ""),
             "last_actions": list(report.get("actions_executed") or []),
             "skipped": bool(report.get("skipped", False)),
+            "failed": bool(report.get("failed", False)),
             "reason": str(report.get("reason") or ""),
+            "last_failure_at": last_failure_raw,
+            "consecutive_failures": int(report.get("consecutive_failures") or 0),
+            "last_error": str(report.get("last_error") or ""),
+            "warnings": list(report.get("warnings") or []),
         },
         "warnings": warnings,
     }
@@ -133,6 +159,7 @@ def run_memory_automation(
     status_before = memory_automation_status(vault_dir)
     now = _utcnow()
     cost = dict(status_before.get("cost_controller") or {})
+    last_run = dict(status_before.get("last_run") or {})
     if cost.get("cooling_down") and not force:
         payload = {
             "job_id": JOB_ID,
@@ -140,6 +167,7 @@ def run_memory_automation(
             "last_trigger": trigger or "",
             "actions_executed": [],
             "skipped": True,
+            "failed": False,
             "reason": "cooldown_active",
             "summary": {
                 "source_note_writes": False,
@@ -148,23 +176,83 @@ def run_memory_automation(
         }
         _write_report(vault_dir, payload)
         return {"skipped": True, "reason": "cooldown_active", "actions_executed": []}
+    if cost.get("failure_backoff_active") and not force:
+        payload = {
+            "job_id": JOB_ID,
+            "last_run_at": _utc_iso(now),
+            "last_trigger": trigger or "",
+            "actions_executed": [],
+            "skipped": True,
+            "failed": False,
+            "reason": "failure_backoff_active",
+            "last_failure_at": str(last_run.get("last_failure_at") or ""),
+            "consecutive_failures": int(last_run.get("consecutive_failures") or 0),
+            "last_error": str(last_run.get("last_error") or ""),
+            "summary": {
+                "source_note_writes": False,
+                "derived_data_writes_only": True,
+            },
+        }
+        _write_report(vault_dir, payload)
+        return {"skipped": True, "reason": "failure_backoff_active", "actions_executed": []}
 
     actions_executed: List[str] = []
     warnings: List[str] = []
+    errors: List[str] = []
     total_sources = int((status_before.get("layers") or {}).get("ledger", {}).get("total_sources") or 0)
-    if total_sources <= _max_sources_per_pass():
-        ledger = memory_ledger_status(vault_dir)
-        if int((ledger.get("summary") or {}).get("pending_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("stale_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("total_sources") or 0) == 0:
-            sync_memory_ledger(vault_dir)
-            actions_executed.append("sync_memory_ledger")
-        derived = derived_index_status(vault_dir)
-        if not bool(derived.get("configured")) or not bool((derived.get("readiness") or {}).get("ready", False)):
-            build_derived_index(vault_dir)
-            actions_executed.append("build_derived_index")
-    else:
+    if total_sources > _max_sources_per_pass():
         warnings.append(
             f"Memory automation skipped rebuild because the vault has {total_sources} sources and the per-pass cap is {_max_sources_per_pass()}."
         )
+    else:
+        try:
+            ledger = memory_ledger_status(vault_dir)
+            if int((ledger.get("summary") or {}).get("pending_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("stale_sources") or 0) > 0 or int((ledger.get("summary") or {}).get("total_sources") or 0) == 0:
+                sync_memory_ledger(vault_dir)
+                actions_executed.append("sync_memory_ledger")
+            derived = derived_index_status(vault_dir)
+            if not bool(derived.get("configured")) or not bool((derived.get("readiness") or {}).get("ready", False)):
+                build_derived_index(vault_dir)
+                actions_executed.append("build_derived_index")
+        except Exception as exc:
+            error_text = str(exc) or exc.__class__.__name__
+            errors.append(error_text)
+            failure_count = int(last_run.get("consecutive_failures") or 0) + 1
+            payload = {
+                "job_id": JOB_ID,
+                "last_run_at": _utc_iso(now),
+                "last_trigger": trigger or "",
+                "actions_executed": actions_executed,
+                "skipped": False,
+                "failed": True,
+                "reason": "action_failed",
+                "last_failure_at": _utc_iso(now),
+                "consecutive_failures": failure_count,
+                "last_error": error_text,
+                "warnings": warnings,
+                "summary": {
+                    "source_note_writes": False,
+                    "derived_data_writes_only": True,
+                },
+                "context": {
+                    "owner": owner or "default",
+                    "trigger": trigger or "",
+                    "event_keys": sorted((context or {}).keys())[:10],
+                },
+            }
+            _write_report(vault_dir, payload)
+            return {
+                "skipped": False,
+                "failed": True,
+                "reason": "action_failed",
+                "actions_executed": actions_executed,
+                "errors": errors,
+                "warnings": warnings,
+                "safety": {
+                    "source_note_writes": False,
+                    "derived_data_writes_only": True,
+                },
+            }
 
     after = memory_automation_status(vault_dir)
     payload = {
@@ -173,7 +261,11 @@ def run_memory_automation(
         "last_trigger": trigger or "",
         "actions_executed": actions_executed,
         "skipped": False,
+        "failed": False,
         "reason": "",
+        "last_failure_at": "",
+        "consecutive_failures": 0,
+        "last_error": "",
         "summary": {
             "source_note_writes": False,
             "derived_data_writes_only": True,
@@ -189,8 +281,10 @@ def run_memory_automation(
     _write_report(vault_dir, payload)
     return {
         "skipped": False,
+        "failed": False,
         "actions_executed": actions_executed,
         "status": after,
+        "errors": errors,
         "warnings": warnings,
         "safety": {
             "source_note_writes": False,
