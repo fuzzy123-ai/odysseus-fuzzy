@@ -41,8 +41,8 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.10.x` | Memory-first RC Closure | aktueller Obsidian/Memory/Model-Router-Stand stabil, getestet, dokumentiert | abgeschlossen als Pre-Scale-Basis |
 | `0.11.x` | Agent State & Architecture Hygiene | Zustandstrennung, Context Capsules, Tool Truth, Backend-Grenzen | abgeschlossen als Foundation-Schnitt |
 | `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
-| `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | aktive naechste Phase: Start mit `MS1-store-interfaces` |
-| `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | geplant nach `0.13.x` |
+| `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | abgeschlossen mit MS7-Ops-Readiness |
+| `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | aktive Phase: Start mit `LM1-maintenance-worker-contract` |
 | `0.15.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | erst nach gruenem Evidence-Lauf |
 
@@ -109,41 +109,42 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
 
-## Aktive Phase: `0.13.x` Memory Scale Foundation
+## Aktive Phase: `0.14.x` Lightweight Memory Maintenance
 
-`0.12.x` ist mit OR7 abgeschlossen. Der naechste Arbeitszyklus startet kontrolliert mit `MS1-store-interfaces`, damit Postgres/pgvector, Diagnostics und progressive Graph-Flows spaeter ohne Big-Bang-Migration angebunden werden koennen.
+`0.13.x` ist mit MS7 abgeschlossen. Der neue Arbeitszyklus startet kontrolliert mit `LM1-maintenance-worker-contract`, damit kleine lokale Modelle unter 2 GB RAM spaeter RAPTOR-/GraphRAG-Maintenance-Pakete bearbeiten koennen, ohne globale Wahrheit zu entscheiden oder riesige Kontexte zu laden.
 
 ### Ziele
 
 - Worktree sauber halten.
-- Zuerst Interfaces und Contracts, dann Migration.
-- Keine Postgres-Umschaltung, kein Qdrant/Kuzu, kein UMAP/GMM in `MS1`.
-- Keine unbounded Memory-/Graph-/Query-Pfade neu einfuehren.
-- Jede neue Scale-Struktur bekommt Tests oder klare Evidence.
+- Zuerst Worker-Vertrag und bounded Task-Modell, dann Derived Data.
+- Kein echter LLM-Call, kein RAPTOR-Fullbuild, kein Graph-Rebuild in `LM1`.
+- Kein Maintenance-Job darf unbounded Memory, Graph oder Cluster laden.
+- Kleine Modelle sind Worker; Fallback-/Reviewer-Modelle entscheiden nur ueber klare Gates.
+- Jede Summary oder Graph-Aenderung braucht Quellen-, Chunk- oder Evidence-Refs.
 
-### Alice-Pfad `0.13.x`
-
-| Slice | Ziel | Dateien | Exit |
-| --- | --- | --- | --- |
-| `MS1A-store-interface-contract` | Begriffe, Nicht-Ziele und Nutzer-/Charlie-Sicht fuer Store-Interfaces klaeren | neu: `docs/plans/memory-store-interface-contract.md` | klarer Contract fuer Bob, keine Postgres-Umschaltung |
-| `MS2A-diagnostics-lens-contract` | Health-/Lens-Wording fuer Timing, Counts, Clipping und Budgets definieren | neu: `docs/plans/memory-diagnostics-lens-contract.md` | Bob weiss, welche Metrics spaeter sichtbar sein muessen |
-| `MS3A-query-budget-ux-contract` | Partial-/Clipped-Result UX beschreiben | spaeterer Doku-Slice | Nutzer versteht Limits statt "kaputte Suche" |
-
-### Bob-Pfad `0.13.x`
+### Alice-Pfad `0.14.x`
 
 | Slice | Ziel | Dateien | Exit |
 | --- | --- | --- | --- |
-| `MS1B-store-interface-model-spike` | Kleine Python-Interfaces/Dataclasses fuer Source/Chunk/Embedding/Graph/Job Stores | neu: `src/memory_store_interfaces.py`, `tests/test_memory_store_interfaces.py` | Interfaces validieren IDs, Budgets und keine `load_all`-Defaults |
-| `MS2B-diagnostics-model-spike` | Metrics-/Timing-/Clipping-Snapshot modellieren | spaeter neue Backend-Dateien | simulierbare Diagnostics ohne echte grosse Daten |
-| `MS3B-query-budget-model-spike` | Budget-/Cursor-/Timeout-Verhalten als isoliertes Modell vorbereiten | spaeter neue Backend-Dateien | unbounded Query-Pfade werden testbar blockiert |
+| `LM1A-maintenance-worker-contract` | Produkt-/Sicherheitsvertrag fuer kleine Maintenance-Modelle klaeren | neu: `docs/plans/maintenance-worker-contract.md` | klarer Contract fuer Bob: erlaubte Worker-Aufgaben, Stop-Regeln, Fallback/Review |
+| `LM2A-derived-cluster-run-contract` | Derived Cluster Runs, Versionen und Rebuild-Sprache erklaeren | spaeterer Doku-Slice | Cluster sind rebuildbar und nie Wahrheit |
+| `LM4A-evidence-bound-summary-contract` | Summary-Review-Sprache und Quellenpflicht definieren | spaeterer Doku-Slice | Nutzer sieht Evidenz, Unsicherheit und Review-Pflicht |
 
-### Charlie-Pfad `0.13.x`
+### Bob-Pfad `0.14.x`
+
+| Slice | Ziel | Dateien | Exit |
+| --- | --- | --- | --- |
+| `LM1B-maintenance-worker-model-spike` | Dataclasses/Enums fuer bounded Maintenance Tasks und Worker Readiness | neu: `src/lightweight_memory_maintenance.py`, `tests/test_lightweight_memory_maintenance.py` | Tasks validieren Token-/Chunk-/Source-Limits, Review/Fallback und keine globalen Writes |
+| `LM2B-derived-cluster-run-model` | Cluster Run/Node/Membership-Modell vorbereiten | spaeter neue Backend-Dateien | Derived Cluster sind versioniert und rebuildbar |
+| `LM4B-evidence-bound-summary-worker` | Summary Task mit Quellenpflicht und Review-Status modellieren | spaeter neue Backend-Dateien | Unsichere Summaries gehen in Review statt Write |
+
+### Charlie-Pfad `0.14.x`
 
 | Slice | Ziel | Exit |
 | --- | --- | --- |
-| `MS1C-contract-model-alignment` | Alice-Contract und Bob-Interfaces abgleichen | keine Big-Bang-Migration, Tests gruen, Worktree sauber |
-| `MS2C-diagnostics-gate-definition` | Welche Metrics als Quality Gate zaehlen festlegen | Performance- und Clipping-Gates sind pruefbar |
-| `MS3C-budget-regression-gate` | Query-Budgets in Test-/Readiness-Regeln ueberfuehren | keine unbounded Regressionen |
+| `LM1C-contract-model-alignment` | Alice-Contract und Bob-Modell abgleichen | kein echter LLM-Call, Tests gruen, Worktree sauber |
+| `LM2C-derived-vs-truth-gate` | Derived Data strikt von Truth Store trennen | Cluster/Summaries bleiben rebuildbar |
+| `LM4C-evidence-and-drift-gate` | Summary- und Drift-Gates fuer kleine Modelle definieren | Unsicherheit fuehrt zu Review/Fallback |
 
 ## Version `0.11.x`: Agent State & Architecture Hygiene
 
