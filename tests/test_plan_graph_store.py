@@ -102,8 +102,19 @@ def test_status_transitions_are_validated():
     assert validate_status_transition("pending", "running") is True
     assert validate_status_transition(PlanNodeStatus.RUNNING, "done") is True
     assert validate_status_transition("blocked", "handoff") is True
+    assert validate_status_transition("running", "failed") is True
+    assert validate_status_transition("pending", "skipped") is True
     assert validate_status_transition("done", "running") is False
+    assert validate_status_transition("skipped", "running") is False
     assert validate_status_transition("pending", "done") is False
+
+
+def test_failed_and_skipped_statuses_match_contract():
+    failed = _node("node-failed", allowed_files=["src/failed.py"], status="failed")
+    skipped_path = AgentPath.create(agent_id="alice", node_ids=["node-failed"], status="skipped")
+
+    assert failed.status == PlanNodeStatus.FAILED
+    assert skipped_path.status == AgentPathStatus.SKIPPED
 
 
 def test_audit_summary_keeps_ids_counts_and_statuses_without_long_dumps():

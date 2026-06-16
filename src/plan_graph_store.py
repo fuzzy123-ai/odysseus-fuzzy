@@ -25,7 +25,9 @@ class PlanNodeStatus(StrEnum):
     RUNNING = "running"
     DONE = "done"
     BLOCKED = "blocked"
+    FAILED = "failed"
     HANDOFF = "handoff"
+    SKIPPED = "skipped"
 
 
 class AgentPathStatus(StrEnum):
@@ -33,7 +35,9 @@ class AgentPathStatus(StrEnum):
     RUNNING = "running"
     DONE = "done"
     BLOCKED = "blocked"
+    FAILED = "failed"
     HANDOFF = "handoff"
+    SKIPPED = "skipped"
 
 
 class PlanEdgeKind(StrEnum):
@@ -261,11 +265,24 @@ def validate_status_transition(current: PlanNodeStatus | str, target: PlanNodeSt
     normalized_current = current if isinstance(current, PlanNodeStatus) else PlanNodeStatus(_ensure_status_compatible(current, field_name="current_status"))
     normalized_target = target if isinstance(target, PlanNodeStatus) else PlanNodeStatus(_ensure_status_compatible(target, field_name="target_status"))
     allowed = {
-        PlanNodeStatus.PENDING: {PlanNodeStatus.RUNNING, PlanNodeStatus.BLOCKED, PlanNodeStatus.HANDOFF},
-        PlanNodeStatus.RUNNING: {PlanNodeStatus.DONE, PlanNodeStatus.BLOCKED, PlanNodeStatus.HANDOFF},
+        PlanNodeStatus.PENDING: {
+            PlanNodeStatus.RUNNING,
+            PlanNodeStatus.BLOCKED,
+            PlanNodeStatus.FAILED,
+            PlanNodeStatus.HANDOFF,
+            PlanNodeStatus.SKIPPED,
+        },
+        PlanNodeStatus.RUNNING: {
+            PlanNodeStatus.DONE,
+            PlanNodeStatus.BLOCKED,
+            PlanNodeStatus.FAILED,
+            PlanNodeStatus.HANDOFF,
+        },
         PlanNodeStatus.BLOCKED: {PlanNodeStatus.PENDING, PlanNodeStatus.HANDOFF},
+        PlanNodeStatus.FAILED: {PlanNodeStatus.PENDING, PlanNodeStatus.HANDOFF},
         PlanNodeStatus.HANDOFF: {PlanNodeStatus.PENDING, PlanNodeStatus.RUNNING, PlanNodeStatus.DONE},
         PlanNodeStatus.DONE: set(),
+        PlanNodeStatus.SKIPPED: set(),
     }
     return normalized_target in allowed[normalized_current]
 
