@@ -409,6 +409,26 @@ Keep these documents aligned for each RC checkpoint:
 3. `plugins/obsidian/SECURITY.md`: supported RC line, security notes, and vulnerability-reporting path.
 4. `plugins/obsidian/plugin.py` plus `plugins/obsidian/plugin.json`: identical version string for the active RC line.
 
+## Memory-first 1.0 Readiness
+
+The Obsidian plugin is now tracked as a Lens surface inside the broader Memory-first `1.0.0` plan.
+
+Lens-side evidence currently in place:
+
+- Obsidian is documented as a Lens for sources, review, graph exploration, and published views rather than the only memory core.
+- Memory Review can stage unresolved items into `AI Memory/Review Queue/...` instead of implicitly promoting them.
+- Graph Lens presets support whole-vault overview, current-source focus, and review-queue focus.
+- Published Views are intended to stay visibly distinct from ordinary source notes in the Lens UI.
+
+Still required before a real Memory-first `1.0.0` go decision:
+
+- Source/index ledger evidence.
+- Derived index and query-layer evidence with provenance, citations, and confidence.
+- Background automation evidence showing rebuildable Derived Data without silent rewrites to source Markdown.
+- External install/upgrade/rebuild proof and final safety-gate evidence.
+
+Until that evidence exists, the plugin can be Lens-ready in parts without claiming that the full Memory-first `1.0.0` system is ready.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:

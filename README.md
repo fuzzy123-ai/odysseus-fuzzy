@@ -84,6 +84,7 @@ Current RC restrictions to keep in mind:
 2. Destructive or bulk write paths should stay behind the existing confirmation gates during the RC cycle.
 3. Plugin app-shell availability must not weaken authentication on plugin data routes.
 4. The plugin README, `plugins/obsidian/CONTRIBUTING.md`, and `plugins/obsidian/SECURITY.md` carry the more detailed RC checklist, release-hygiene notes, and security guidance.
+5. Memory-first `1.0.0` readiness for the Obsidian Lens still depends on separate ledger/index/query/rebuild evidence; Lens UX progress alone is not the final go signal.
 
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).

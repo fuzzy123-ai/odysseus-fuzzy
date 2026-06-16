@@ -196,6 +196,38 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 - Alte Obsidian-first `S...`-Slices bleiben nur als Foundation-/Archivkontext sichtbar.
 - Bobs Infrastrukturarbeit und Alices Lens-Vertrag widersprechen sich nicht.
 
+### A5 Release-Readiness-Rahmen
+
+`A5-1.0-release-readiness` zieht keine Produktlogik vor und erklaert keine unfertige Infrastruktur fuer "bereit". Der Slice sammelt nur den Go/No-Go-Rahmen fuer die Lens-Seite und trennt ihn sauber von Bobs Infrastruktur-Evidence.
+
+#### Alice-Evidence fuer 1.0
+
+- Lens-Produktvertrag ist dokumentiert und bleibt die Referenz fuer UI-/Review-/Published-View-Arbeit.
+- Review Queue ist in der Lens als Staging-Surface sichtbar und wird nicht als versteckter Apply-Pfad verkauft.
+- Graph-Lens zeigt heute mindestens Overview, Current Source und Review Queue als bedienbare Presets.
+- Published Views werden in der Lens begrifflich und visuell von Nutzerquellen getrennt.
+- Bekannte Lens-Grenzen, Restrisiken und Freigabetexte bleiben in README/Roadmap konsistent.
+
+#### Bob-Evidence fuer 1.0
+
+- Source-/Index-Ledger muss nachweisbar create/update/delete/stale sauber abbilden.
+- Derived Index und Query Layer muessen Quellenpflicht, Provenance und Confidence praktisch belegen.
+- Background-Automation muss zeigen, dass Derived Data rebuildbar bleibt und Nutzerquellen nicht still umgeschrieben werden.
+- External/Rebuild Proof muss Install-/Upgrade-/Repair-/Rebuild-Evidence liefern.
+
+#### Aktueller Go/No-Go-Stand
+
+- `Lens UX`: teilweise gruen. Vertrag, Review Queue, Graph-Lens und Published-View-Abgrenzung sind vorhanden, aber Source Views und Derived-Cluster-Daten haengen noch an Bobs Infrastruktur.
+- `Memory Infrastructure`: offen. Ledger, Derived Index, Query Layer und Automation sind noch kein abgeschlossenes Release-Evidence-Paket.
+- `Safety`: teilweise gruen. Bestehende Obsidian-Sicherheitsgates sind relevant, aber Memory-first 1.0 braucht zusaetzlich Rebuild- und Query-Evidence.
+- `1.0.0`: aktuell **kein Go**. Die Lens-Seite ist vorbereitet, aber Bob-Evidence fuer Ledger, Index, Query und External/Rebuild Proof fehlt noch.
+
+#### Was A5 bei Freigabe zeigen muss
+
+- eine kurze Go/No-Go-Notiz mit Datum, Commit-Stand und offenem/geschlossenem Evidence-Status
+- klare Trennung zwischen Lens-ready, Foundation-ready und vollstaendigem Memory-first 1.0
+- keine Formulierung, die Published Views, Queue-Artefakte oder Derived Data als menschliche Primarquellen missverstaendlich macht
+
 ### Bob-Slices
 
 | Slice | Ziel | Primaere Dateien | Nicht-Ziele | Testgate |
