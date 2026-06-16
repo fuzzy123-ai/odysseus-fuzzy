@@ -516,6 +516,7 @@ Audit-Stand 2026-06-16:
 | `B5-external-rebuild-proof` | Rebuild, Repair, Install/Upgrade, Evidence fuer 1.0 | scripts/docs/tests | keine Feature-Erweiterung | rebuild + install evidence |
 | `B6-model-router-core` | DeepSeek-/kompatibles Modellrouting mit Status, Timeout, Odysseus-Modellliste und Fallback bauen | `plugins/obsidian/backend/model_router.py`, Query-/Route-Tests | kein Frontend, kein Model-Install, keine eigene Provider-Registry | Fake-Registry, Provider-, Timeout- und Secret-Leak-Tests |
 | `B7-query-synthesis-integration` | Query Layer um `answer_mode=auto|cloud|local|extractive` und rollenbasierte Modellwahl erweitern | `plugins/obsidian/backend/query_layer.py`, `plugins/obsidian/backend/routes.py`, Backend-Tests | kein UI-Umbau, kein Indexschema-Rewrite | Default-Modell, Fallback-Kette, cloud->local, cloud/local->extractive |
+| `B8-model-router-evidence` | Teststand, Providergrenzen und 1.0-Go/No-Go fuer M6 dokumentieren | `docs/plans/deepseek-model-router-graceful-degradation.md`, Roadmap-Evidence | keine neuen Features | fokussierte Backend-Tests + Evidence-Notiz |
 
 ### Parallel-Regeln
 
@@ -531,6 +532,7 @@ Alice und Bob sind fuer den bisherigen Memory-first Abschluss fertig. Der neue P
 
 - Bob startet `B6-model-router-core` und danach `B7-query-synthesis-integration`.
 - Alice startet parallel `A12-deepseek-lens-contract`; `A13-answer-mode-ui` erst nach Bobs Payload-Handoff.
+- Der operative M6-Pfad fuer beide Agents steht in `docs/plans/deepseek-model-router-graceful-degradation.md` unter `Alice/Bob-Ausfuehrungspfad`; diese Quelle hat Vorrang vor aelteren Alice/Bob-Listen.
 - Keine anderen neuen Feature-Followups in diese Roadmap ziehen, bis M6 gruen ist.
 - Offene spaetere UI-Vertiefungen bleiben als Followups sichtbar, blockieren aber nicht M6.
 - Nextcloud bleibt ausgelagert, bis die Instanz laeuft.

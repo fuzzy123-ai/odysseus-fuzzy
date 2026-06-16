@@ -214,6 +214,190 @@ Testgate:
 | 3 | `A13-answer-mode-ui` | Bugfix/Evidence fuer B7 | bedingt | erst starten, wenn Bob Response-Felder stabil committed hat |
 | 4 | Release-Evidence zusammenziehen | Backend-Testgate finalisieren | ja | keine neuen Features mehr nach bestandenem Gate |
 
+## Alice/Bob-Ausfuehrungspfad
+
+Dieser Abschnitt ist der operative Handoff fuer zwei parallele Agents. Wenn Master-Agent, Alice oder Bob eine aeltere Alice/Bob-Liste finden, gilt fuer den Pre-1.0-Gate dieser M6-Pfad.
+
+### Bob-Pfad
+
+Bob owned Backend, Contract-Payloads und Tests. Bob arbeitet nacheinander, nicht parallel in zwei Backend-Slices.
+
+1. `B6-model-router-core`
+2. `B7-query-synthesis-integration`
+3. `B8-model-router-evidence`
+
+#### B6: Model Router Core
+
+Primaere Dateien:
+
+- `plugins/obsidian/backend/model_router.py`
+- `plugins/obsidian/tests/test_model_router_backend.py`
+- falls fuer Statusroute noetig: `plugins/obsidian/backend/routes.py`
+
+Aufgaben:
+
+- Rollenmodell implementieren: `memory.router_model`, `memory.answer_model`, `memory.answer_fallback_models`, `memory.summarize_model`, `memory.graph_extract_model`, `memory.global_synthesis_model`, `memory.embedding_model`.
+- Odysseus-Modellliste als Registry-Quelle modellieren; Tests duerfen Fake-Registry nutzen.
+- `default` gegen Odysseus Default aufloesen; `heuristic` ohne LLM behandeln; `extractive` als finalen Fallback abbilden.
+- Secrets maskieren und nie in Status oder Fehlerpayload geben.
+- Timeout-/Rate-Limit-/Providerfehler in strukturierte Fallback-Gruende umwandeln.
+
+Nicht anfassen:
+
+- `plugins/obsidian/frontend/main.js`
+- README-/Produkttexte ausser minimalem technischen Kommentar
+- Modellinstallation, Cookbook-Launch, externe Provider-Downloads
+
+Testgate:
+
+- Fake-Registry mit `default`, konkretem Modell und fehlendem Modell.
+- Fallback-Kette: primary down -> configured fallback -> extractive.
+- Secret-Leak-Test fuer API-Key-aehnliche Werte.
+- Statuspayload enthaelt Rollen, ausgewaehltes Modell und Warnungen, aber keine Secrets.
+
+Handoff an Alice:
+
+- Kurze Payload-Notiz mit finalen Feldnamen: `answer_mode`, `selected_role`, `selected_model`, `selected_endpoint_id`, `fallback_reason`, `model_context_tokens`, `model_capability_warnings`.
+- B6-Tests gruen oder klarer Blocker mit Dateiliste.
+
+#### B7: Query Synthesis Integration
+
+Primaere Dateien:
+
+- `plugins/obsidian/backend/query_layer.py`
+- `plugins/obsidian/backend/routes.py`
+- `plugins/obsidian/tests/test_query_layer_backend.py`
+- ggf. `plugins/obsidian/tests/test_model_router_backend.py`
+
+Aufgaben:
+
+- `answer_query` um `answer_mode=auto|cloud|local|extractive` erweitern.
+- Retrieval zuerst ausfuehren, dann Modellwahl anhand Rolle, Query, Retrieval-Confidence und Fallback-Verfuegbarkeit treffen.
+- Prompt nur aus retrieved citations bauen; keine ganzen Vault-Inhalte an Cloud-Modelle senden.
+- Bestehenden extractive Pfad unveraendert als letzten sicheren Modus behalten.
+- Response-Felder stabilisieren, damit Alice A13 bauen kann.
+
+Nicht anfassen:
+
+- Frontend/Lens-Dateien
+- Indexschema-/Ledger-Umbauten
+- Alices Doku-/UI-Testdateien ohne Handoff
+
+Testgate:
+
+- `auto` nutzt Cloud/Default, wenn konfiguriert.
+- Cloud-Timeout faellt auf lokal oder konfigurierten Fallback.
+- Kein Modell verfuegbar faellt auf `extractive`.
+- Schwache Retrieval-Ergebnisse bleiben mit niedriger Confidence und Warnung sichtbar.
+- Bestehende Query-Layer-Tests bleiben gruen.
+
+#### B8: Model Router Evidence
+
+Primaere Dateien:
+
+- `docs/plans/deepseek-model-router-graceful-degradation.md`
+- ggf. Evidence-Abschnitt in `docs/obsidian/00-priorisierte-roadmap.md`
+- fokussierte Backend-Tests
+
+Aufgaben:
+
+- Testbefehle und Resultate dokumentieren.
+- Offene Grenzen markieren: echte DeepSeek-Verbindung, lokale Gemma-Verfuegbarkeit, manuelle Secret-Konfiguration.
+- Sicherstellen, dass `1.0-Go-Regel` nicht erfuellt markiert wird, wenn B7 oder Evidence fehlt.
+
+### Alice-Pfad
+
+Alice owned Produktvertrag, Settings-/Lens-Texte, UI-Labels und Release-Verstaendlichkeit. Alice startet mit Doku/Contract und wartet fuer UI auf Bobs Payload-Handoff.
+
+1. `A12-deepseek-lens-contract`
+2. `A13-answer-mode-ui` erst nach B7-Handoff
+3. `A14-m6-release-readiness`
+
+#### A12: DeepSeek Lens Contract
+
+Primaere Dateien:
+
+- `docs/plans/deepseek-model-router-graceful-degradation.md`
+- `docs/obsidian/00-priorisierte-roadmap.md`
+- `plugins/obsidian/README.md` falls Nutzertext noetig wird
+
+Aufgaben:
+
+- Settings-Rollen fuer Nutzer verstaendlich beschreiben: Default, konkretes Modell, Fallback, extractive.
+- Gemma 4 E2B/E4B als empfohlene lokale Router-/Finisher-Option formulieren, aber nicht als Pflicht.
+- Datenschutztext klaeren: Cloud-Modus sendet nur retrieved snippets, nicht den ganzen Vault.
+- Fallback-Wording festlegen: ruhig, transparent, nicht wie ein Fehler.
+
+Nicht anfassen:
+
+- `plugins/obsidian/backend/model_router.py`
+- `plugins/obsidian/backend/query_layer.py`
+- `plugins/obsidian/backend/routes.py`
+- Backend-Tests
+
+Testgate:
+
+- Doku widerspricht nicht den B6/B7-Payload-Feldern.
+- Kein Text behauptet faelschlich, Cloud-Modus bleibe voll lokal.
+
+#### A13: Answer Mode UI
+
+Startbedingung:
+
+- Bob hat B7 committed oder explizit die finalen Payload-Felder uebergeben.
+
+Primaere Dateien:
+
+- `plugins/obsidian/frontend/main.js`
+- `tests/test_obsidian_sidebar_static.py` oder passende Obsidian-Static-Testdatei, falls UI-Contract dort liegt
+- `plugins/obsidian/README.md` fuer kurze UI-Erklaerung
+
+Aufgaben:
+
+- Answer Lens zeigt Modus, Provider/Modell, Fallback-Grund und Warnungen.
+- Settings/Lens zeigt je Memory-Rolle `default`, konkretes Modell oder Fallback-Kette.
+- UI bietet nur Modelle an, die Odysseus als verfuegbar meldet oder als Alias (`default`, `heuristic`, `extractive`) erlaubt.
+- Keine Secrets im DOM, Toast, Cache oder Debugtext.
+
+Nicht anfassen:
+
+- Backend-Modellwahl und Query-Synthese
+- Modellinstallation/Cookbook-Serving
+- Bobs Backend-Testdateien
+
+Testgate:
+
+- Static-/UI-Test fuer neue Labels.
+- Optional Browser-Smoke nur wenn UI laeuft und Zielroute klar ist.
+
+#### A14: M6 Release Readiness
+
+Primaere Dateien:
+
+- `docs/obsidian/00-priorisierte-roadmap.md`
+- `docs/plans/deepseek-model-router-graceful-degradation.md`
+- `plugins/obsidian/README.md`
+
+Aufgaben:
+
+- M6-Go/No-Go mit Datum, Commit und Teststand notieren.
+- Trennen zwischen `implemented`, `configured`, `manual provider proof` und `post-1.0`.
+- Alice darf M6 erst als lens-ready markieren, wenn Bobs Evidence da ist.
+
+### Direkte Beauftragungen
+
+Bob:
+
+```text
+Du bist Bob. Own M6 backend path. Starte mit B6-model-router-core. Arbeite primaer an plugins/obsidian/backend/model_router.py und plugins/obsidian/tests/test_model_router_backend.py; routes.py nur fuer eine Statusroute, falls noetig. Nutze Odysseus' vorhandene Modellliste als Registry-Quelle, keine eigene Provider-Registry und keine Modellinstallation. Danach B7-query-synthesis-integration in query_layer.py/routes.py. Nicht an frontend/main.js, README-Produkttexten oder Alices Static-Tests arbeiten. Wenn Alice dieselbe Testdatei braucht, zuerst Handoff melden.
+```
+
+Alice:
+
+```text
+Du bist Alice. Own M6 lens/settings path. Starte mit A12-deepseek-lens-contract in docs/plans/deepseek-model-router-graceful-degradation.md, docs/obsidian/00-priorisierte-roadmap.md und optional plugins/obsidian/README.md. Beschreibe Modellrollen, Settings-Auswahl, Gemma 4 E2B/E4B als optionale lokale Router-/Finisher-Modelle, Default/Fallback/extractive und Datenschutz. Nicht an model_router.py, query_layer.py, routes.py oder Backend-Tests arbeiten. A13-answer-mode-ui erst starten, wenn Bob B7-Payload-Felder committed oder explizit uebergeben hat.
+```
+
 ## Definition of Done
 
 - Eine Memory-Frage kann im konfigurierten DeepSeek-Modus beantwortet werden.
