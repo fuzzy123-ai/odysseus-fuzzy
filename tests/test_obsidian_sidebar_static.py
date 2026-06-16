@@ -595,6 +595,7 @@ def test_obsidian_phase5_memory_review_ui_contract():
         'id="obsidian-memory-tags"',
         'id="obsidian-memory-tag-entry"',
         'id="obsidian-memory-tag-menu"',
+        'id="obsidian-memory-tag-feedback"',
         'id="obsidian-memory-destination-picker"',
         'data-memory-picker-tab="folders"',
         'data-memory-picker-tab="notes"',
@@ -621,10 +622,25 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert "function openMemoryDestinationPicker()" in main_js
     assert "function renderMemoryDestinationPicker()" in main_js
     assert "flattenNotes(vaultFiles)" in main_js
+    assert "function normalizeTagChipValue(value)" in main_js
+    assert "function tagChipKey(value)" in main_js
+    assert "function setMemoryTagFeedback(message = '')" in main_js
+    assert "function removeMemoryTag(value, { restoreFocus = true } = {})" in main_js
     assert "function addMemoryTag(value)" in main_js
     assert "function updateMemoryTagSuggestions()" in main_js
     assert "await getVaultTags()" in main_js
     assert "e.key === 'Enter'" in main_js
+    assert "e.key === 'Backspace'" in main_js
+    assert "e.key === 'ArrowLeft'" in main_js
+    assert "e.key === 'Escape'" in main_js
+    assert "Tag bereits vorhanden." in main_js
+    assert "Tag darf nicht leer sein." in main_js
+    assert "Nur Buchstaben, Zahlen, /, - und _ sind erlaubt." in main_js
+    assert "memoryTagPendingRemoval" in main_js
+    assert "markMemoryTagPendingRemoval" in main_js
+    assert "clearMemoryTagPendingRemoval" in main_js
+    assert "data-memory-tag-key" in main_js
+    assert 'aria-label="Tag ${escapeHtml(tag)} entfernen"' in main_js
     assert "Generated markdown" in main_js
     assert "Title source" in main_js
     assert "function previewMemoryReview()" in main_js
@@ -643,8 +659,12 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert ".obsidian-memory-shell-tabs" in style
     assert ".obsidian-memory-shell-view" in style
     assert ".obsidian-memory-maintain-queue" in style
+    assert ".obsidian-tag-chip" in style
+    assert ".obsidian-tag-chip-remove" in style
     assert ".obsidian-memory-save-to" in style
     assert ".obsidian-memory-tag-chip" in style
+    assert ".obsidian-memory-tag-chip.pending-removal" in style
+    assert ".obsidian-memory-tag-feedback" in style
     assert ".obsidian-memory-preview-summary" in style
 
 

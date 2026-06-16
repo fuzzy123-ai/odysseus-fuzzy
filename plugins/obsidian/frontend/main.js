@@ -50,6 +50,7 @@ let graphLensMode = 'overview';
 let graphFilterPanelOpen = false;
 let graphFilterOutsideClickHandler = null;
 let graphReflowFrame = 0;
+let memoryTagPendingRemoval = '';
 
 function currentNoteLensMeta(path = currentNotePath) {
   const normalized = String(path || '');
@@ -1647,13 +1648,14 @@ function injectUIElements() {
                     </div>
                     <div class="obsidian-memory-field obsidian-memory-tags-field">
                       <span>Tags</span>
-                      <div class="obsidian-memory-tag-input" id="obsidian-memory-tags">
-                        <div class="obsidian-memory-tag-chips" id="obsidian-memory-tag-chips"></div>
-                        <input id="obsidian-memory-tag-entry" type="text" placeholder="Type a tag and press Enter" autocomplete="off">
-                        <div class="obsidian-memory-tag-menu hidden" id="obsidian-memory-tag-menu"></div>
-                      </div>
-                      <small>Existing tags autocomplete from the vault. Press Enter to add the selected tag or create a new one.</small>
+                    <div class="obsidian-memory-tag-input" id="obsidian-memory-tags">
+                      <div class="obsidian-memory-tag-chips" id="obsidian-memory-tag-chips"></div>
+                      <input id="obsidian-memory-tag-entry" type="text" placeholder="Type a tag and press Enter" autocomplete="off">
+                      <div class="obsidian-memory-tag-menu hidden" id="obsidian-memory-tag-menu"></div>
                     </div>
+                    <small>Existing tags autocomplete from the vault. Press Enter to add the selected tag or create a new one.</small>
+                    <small class="obsidian-memory-tag-feedback hidden" id="obsidian-memory-tag-feedback" data-state="idle"></small>
+                  </div>
                     <label class="obsidian-memory-field obsidian-memory-content-field">
                       <span>Insight to save</span>
                       <textarea id="obsidian-memory-content" placeholder="Write the reviewed insight or decision that should become vault context."></textarea>
@@ -2978,39 +2980,120 @@ function closeMemoryDestinationPicker() {
   document.getElementById('obsidian-memory-destination-picker')?.classList.add('hidden');
 }
 
-function normalizeMemoryTag(value) {
-  const clean = String(value || '').trim().replace(/^#+/, '').replace(/\s+/g, '-');
-  return clean ? `#${clean}` : '';
+function tagChipKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeTagChipValue(value) {
+  const raw = String(value || '').trim().replace(/^#+/, '');
+  if (!raw) {
+    return { value: '', error: 'Tag darf nicht leer sein.' };
+  }
+  const collapsed = raw.replace(/\s+/g, '-');
+  if (!/^[A-Za-z0-9_/-]+$/.test(collapsed)) {
+    return { value: '', error: 'Nur Buchstaben, Zahlen, /, - und _ sind erlaubt.' };
+  }
+  return { value: `#${collapsed}`, error: '' };
+}
+
+function setMemoryTagFeedback(message = '') {
+  const feedback = document.getElementById('obsidian-memory-tag-feedback');
+  if (!feedback) return;
+  const text = String(message || '').trim();
+  feedback.textContent = text;
+  feedback.classList.toggle('hidden', !text);
+  feedback.dataset.state = text ? 'error' : 'idle';
+}
+
+function clearMemoryTagPendingRemoval() {
+  memoryTagPendingRemoval = '';
+  document.querySelectorAll('[data-memory-tag].pending-removal').forEach(btn => {
+    btn.classList.remove('pending-removal');
+    btn.dataset.pendingRemoval = 'false';
+  });
+}
+
+function markMemoryTagPendingRemoval(tag) {
+  clearMemoryTagPendingRemoval();
+  const key = tagChipKey(tag);
+  memoryTagPendingRemoval = key;
+  const chip = document.querySelector(`[data-memory-tag-key="${escapeHtml(key)}"]`);
+  if (!chip) return;
+  chip.classList.add('pending-removal');
+  chip.dataset.pendingRemoval = 'true';
+  chip.focus();
+}
+
+function removeMemoryTag(value, { restoreFocus = true } = {}) {
+  const key = tagChipKey(value);
+  memoryReviewTags = memoryReviewTags.filter(tag => tagChipKey(tag) !== key);
+  clearMemoryTagPendingRemoval();
+  renderMemoryTagChips();
+  updateMemoryTagSuggestions();
+  invalidateMemoryReviewPreview({ clearPanel: true });
+  setMemoryTagFeedback('');
+  if (restoreFocus) document.getElementById('obsidian-memory-tag-entry')?.focus();
 }
 
 function renderMemoryTagChips() {
   const chips = document.getElementById('obsidian-memory-tag-chips');
   if (!chips) return;
   chips.innerHTML = memoryReviewTags.map(tag => `
-    <button type="button" class="obsidian-memory-tag-chip" data-memory-tag="${escapeHtml(tag)}">
+    <button
+      type="button"
+      class="obsidian-memory-tag-chip obsidian-tag-chip"
+      data-memory-tag="${escapeHtml(tag)}"
+      data-memory-tag-key="${escapeHtml(tagChipKey(tag))}"
+      data-pending-removal="false"
+      aria-label="Tag ${escapeHtml(tag)} entfernen"
+    >
       <span>${escapeHtml(tag)}</span>
-      <span aria-hidden="true">x</span>
+      <span class="obsidian-tag-chip-remove" aria-hidden="true">x</span>
     </button>
   `).join('');
   chips.querySelectorAll('[data-memory-tag]').forEach(btn => {
     btn.addEventListener('click', () => {
-      memoryReviewTags = memoryReviewTags.filter(tag => tag !== btn.dataset.memoryTag);
-      renderMemoryTagChips();
-      updateMemoryTagSuggestions();
-      invalidateMemoryReviewPreview({ clearPanel: true });
+      removeMemoryTag(btn.dataset.memoryTag);
+    });
+    btn.addEventListener('focus', () => {
+      clearMemoryTagPendingRemoval();
+      btn.dataset.pendingRemoval = 'false';
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        removeMemoryTag(btn.dataset.memoryTag);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        clearMemoryTagPendingRemoval();
+        document.getElementById('obsidian-memory-tag-entry')?.focus();
+      }
     });
   });
 }
 
 function addMemoryTag(value) {
-  const tag = normalizeMemoryTag(value);
-  if (!tag || memoryReviewTags.includes(tag)) return;
+  const normalized = normalizeTagChipValue(value);
+  if (normalized.error) {
+    setMemoryTagFeedback(normalized.error);
+    return false;
+  }
+  const tag = normalized.value;
+  if (memoryReviewTags.some(existing => tagChipKey(existing) === tagChipKey(tag))) {
+    setMemoryTagFeedback('Tag bereits vorhanden.');
+    return false;
+  }
   memoryReviewTags.push(tag);
+  clearMemoryTagPendingRemoval();
   renderMemoryTagChips();
   const input = document.getElementById('obsidian-memory-tag-entry');
   if (input) input.value = '';
   hideMemoryTagMenu();
   invalidateMemoryReviewPreview({ clearPanel: true });
+  setMemoryTagFeedback('');
+  return true;
 }
 
 function hideMemoryTagMenu() {
@@ -3056,7 +3139,7 @@ async function updateMemoryTagSuggestions() {
   }
   const tags = (await getVaultTags())
     .filter(tag => tag.name.toLowerCase().includes(query))
-    .filter(tag => !memoryReviewTags.includes(`#${tag.name}`))
+    .filter(tag => !memoryReviewTags.some(existing => tagChipKey(existing) === tagChipKey(`#${tag.name}`)))
     .slice(0, 8)
     .map(tag => ({ value: `#${tag.name}`, label: `#${tag.name}`, meta: `${tag.files.length} notes` }));
   memoryTagPickerState = { index: 0, items: tags };
@@ -3085,15 +3168,27 @@ function handleMemoryTagKey(e) {
     addMemoryTag(selected || input.value);
     return;
   }
+  if (e.key === 'ArrowLeft' && !input.value && memoryReviewTags.length) {
+    e.preventDefault();
+    markMemoryTagPendingRemoval(memoryReviewTags[memoryReviewTags.length - 1]);
+    return;
+  }
   if (e.key === 'Backspace' && !input.value && memoryReviewTags.length) {
-    memoryReviewTags.pop();
-    renderMemoryTagChips();
-    invalidateMemoryReviewPreview({ clearPanel: true });
+    e.preventDefault();
+    const lastTag = memoryReviewTags[memoryReviewTags.length - 1];
+    if (memoryTagPendingRemoval && tagChipKey(lastTag) === memoryTagPendingRemoval) {
+      removeMemoryTag(lastTag, { restoreFocus: true });
+      return;
+    }
+    markMemoryTagPendingRemoval(lastTag);
     return;
   }
   if (e.key === 'Escape') {
     hideMemoryTagMenu();
+    clearMemoryTagPendingRemoval();
+    return;
   }
+  clearMemoryTagPendingRemoval();
 }
 
 async function showProjectPlanner({ preserveSession = false } = {}) {
@@ -6181,9 +6276,13 @@ function setupEventListeners() {
   });
   const memoryTagEntry = document.getElementById('obsidian-memory-tag-entry');
   memoryTagEntry?.addEventListener('input', updateMemoryTagSuggestions);
-  memoryTagEntry?.addEventListener('focus', updateMemoryTagSuggestions);
+  memoryTagEntry?.addEventListener('focus', () => {
+    clearMemoryTagPendingRemoval();
+    updateMemoryTagSuggestions();
+  });
   memoryTagEntry?.addEventListener('keydown', handleMemoryTagKey);
   memoryTagEntry?.addEventListener('blur', () => {
+    clearMemoryTagPendingRemoval();
     setTimeout(hideMemoryTagMenu, 120);
   });
   document.getElementById('obsidian-memory-tags')?.addEventListener('click', () => {

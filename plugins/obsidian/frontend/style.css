@@ -1081,6 +1081,7 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 .obsidian-memory-picker-tabs button,
 .obsidian-memory-picker-hints button,
 .obsidian-memory-picker-list button,
+.obsidian-tag-chip,
 .obsidian-memory-tag-chip,
 .obsidian-memory-tag-option {
   border: 1px solid var(--border);
@@ -1166,17 +1167,37 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   border-color: var(--accent, var(--red));
 }
 
+.obsidian-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+.obsidian-tag-chip-remove {
+  opacity: 0.78;
+}
+
 .obsidian-memory-tag-chips {
   display: contents;
 }
 
 .obsidian-memory-tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 7px;
   background: color-mix(in srgb, var(--accent, var(--red)) 16%, transparent);
-  font-size: 12px;
+}
+
+.obsidian-memory-tag-chip:hover,
+.obsidian-memory-tag-chip:focus-visible,
+.obsidian-memory-tag-chip.pending-removal,
+.obsidian-memory-tag-option:focus-visible {
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, var(--red)) 18%, transparent);
+  outline: none;
+}
+
+.obsidian-memory-tag-chip.pending-removal {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, var(--red)) 28%, transparent);
 }
 
 #obsidian-memory-tag-entry {
@@ -1189,6 +1210,17 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
 #obsidian-memory-tag-entry:focus {
   outline: none;
+}
+
+.obsidian-memory-tag-feedback {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-memory-tag-feedback[data-state="error"] {
+  color: var(--accent, var(--red));
 }
 
 .obsidian-memory-preview-summary {
