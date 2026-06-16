@@ -1,6 +1,7 @@
 from src.orchestration_status import (
     AgentPathSummary,
     DashboardItem,
+    LensSummary,
     NextAction,
     OrchestrationHealth,
     OrchestrationStatusError,
@@ -31,6 +32,17 @@ def _make_blocking_item(**overrides) -> DashboardItem:
     return DashboardItem.create(**payload)
 
 
+def _make_lens(**overrides) -> LensSummary:
+    payload = {
+        "lens_id": "agent-runs",
+        "status": "healthy",
+        "count": 2,
+        "summary": "Alice and Bob have visible run summaries.",
+    }
+    payload.update(overrides)
+    return LensSummary.create(**payload)
+
+
 def _make_next_action(**overrides) -> NextAction:
     payload = {
         "owner": "charlie",
@@ -49,7 +61,8 @@ def _make_snapshot(**overrides) -> OrchestrationStatusSnapshot:
         "overall_progress_percent": 72,
         "agent_paths": [_make_agent_path()],
         "heartbeat_status": "waiting",
-        "quality_gate_summary": "1 pass, 1 warn, 0 block",
+        "agent_runs": [_make_lens(lens_id="agent-runs", count=2)],
+        "quality_gates": [_make_lens(lens_id="quality-gates", count=3, summary="1 pass, 1 warn, 0 block")],
         "blocking_items": (),
         "next_actions": [_make_next_action()],
         "last_updated_at": "2026-06-16T12:30:00Z",
@@ -134,6 +147,15 @@ def test_next_action_without_owner_or_action_is_rejected() -> None:
         raise AssertionError("expected next action validation to fail")
 
 
+def test_healthy_snapshot_requires_agent_run_and_quality_gate_lenses() -> None:
+    try:
+        _make_snapshot(agent_runs=(), quality_gates=())
+    except OrchestrationStatusError as exc:
+        assert "agent_runs and quality_gates" in str(exc)
+    else:
+        raise AssertionError("expected healthy snapshot to require compact lenses")
+
+
 def test_audit_summary_contains_ids_progress_counts_status_without_long_dumps() -> None:
     long_evidence = "thread history " + ("x" * 500)
     snapshot = _make_snapshot(
@@ -147,6 +169,8 @@ def test_audit_summary_contains_ids_progress_counts_status_without_long_dumps() 
     assert summary["plan_status"] == "healthy"
     assert summary["overall_progress_percent"] == 72
     assert summary["agent_path_count"] == 1
+    assert summary["agent_run_lens_count"] == 1
+    assert summary["quality_gate_lens_count"] == 1
     assert summary["blocking_item_count"] == 1
     assert summary["next_action_count"] == 1
     assert summary["evidence_ref_count"] == 1

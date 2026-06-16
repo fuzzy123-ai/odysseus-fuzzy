@@ -144,6 +144,36 @@ class DashboardItem:
 
 
 @dataclass(frozen=True, slots=True)
+class LensSummary:
+    lens_id: str
+    status: OrchestrationHealth
+    count: int
+    summary: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        lens_id: Any,
+        status: OrchestrationHealth | str,
+        count: Any,
+        summary: Any,
+    ) -> "LensSummary":
+        try:
+            normalized_count = int(count)
+        except (TypeError, ValueError):
+            raise OrchestrationStatusError("lens count must be an int") from None
+        if normalized_count < 0:
+            raise OrchestrationStatusError("lens count must be >= 0")
+        return cls(
+            lens_id=_normalize_slug(lens_id, field_name="lens_id"),
+            status=_normalize_health(status, field_name="lens_status"),
+            count=normalized_count,
+            summary=_normalize_text(summary, field_name="summary", allow_empty=False, limit=_MAX_LONG_TEXT),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class NextAction:
     owner: str
     action: str
@@ -171,8 +201,9 @@ class OrchestrationStatusSnapshot:
     plan_status: OrchestrationHealth
     overall_progress_percent: int
     agent_paths: tuple[AgentPathSummary, ...]
+    agent_runs: tuple[LensSummary, ...]
     heartbeat_status: OrchestrationHealth
-    quality_gate_summary: str
+    quality_gates: tuple[LensSummary, ...]
     blocking_items: tuple[DashboardItem, ...]
     next_actions: tuple[NextAction, ...]
     last_updated_at: str
@@ -188,8 +219,9 @@ class OrchestrationStatusSnapshot:
         plan_status: OrchestrationHealth | str,
         overall_progress_percent: Any,
         agent_paths: Iterable[AgentPathSummary],
+        agent_runs: Iterable[LensSummary],
         heartbeat_status: OrchestrationHealth | str,
-        quality_gate_summary: Any,
+        quality_gates: Iterable[LensSummary],
         blocking_items: Iterable[DashboardItem],
         next_actions: Iterable[NextAction],
         last_updated_at: Any,
@@ -206,6 +238,12 @@ class OrchestrationStatusSnapshot:
         normalized_agent_paths = tuple(agent_paths)
         if any(not isinstance(path, AgentPathSummary) for path in normalized_agent_paths):
             raise OrchestrationStatusError("agent_paths must contain AgentPathSummary items")
+        normalized_agent_runs = tuple(agent_runs)
+        if any(not isinstance(lens, LensSummary) for lens in normalized_agent_runs):
+            raise OrchestrationStatusError("agent_runs must contain LensSummary items")
+        normalized_quality_gates = tuple(quality_gates)
+        if any(not isinstance(lens, LensSummary) for lens in normalized_quality_gates):
+            raise OrchestrationStatusError("quality_gates must contain LensSummary items")
         normalized_blocking_items = tuple(blocking_items)
         if any(not isinstance(item, DashboardItem) for item in normalized_blocking_items):
             raise OrchestrationStatusError("blocking_items must contain DashboardItem items")
@@ -228,6 +266,10 @@ class OrchestrationStatusSnapshot:
             raise OrchestrationStatusError("stale snapshots require warnings or evidence_refs")
         if normalized_plan_status == OrchestrationHealth.BLOCKED and not normalized_blocking_items:
             raise OrchestrationStatusError("blocked snapshots require at least one blocking item")
+        if normalized_plan_status in {OrchestrationHealth.HEALTHY, OrchestrationHealth.WAITING, OrchestrationHealth.COMPLETED} and not (
+            normalized_agent_runs and normalized_quality_gates
+        ):
+            raise OrchestrationStatusError("healthy, waiting, and completed snapshots require agent_runs and quality_gates")
 
         return cls(
             dashboard_id=_normalize_slug(dashboard_id, field_name="dashboard_id"),
@@ -235,13 +277,9 @@ class OrchestrationStatusSnapshot:
             plan_status=normalized_plan_status,
             overall_progress_percent=progress,
             agent_paths=tuple(sorted(normalized_agent_paths, key=lambda path: path.agent_id)),
+            agent_runs=tuple(sorted(normalized_agent_runs, key=lambda lens: lens.lens_id)),
             heartbeat_status=normalized_heartbeat_status,
-            quality_gate_summary=_normalize_text(
-                quality_gate_summary,
-                field_name="quality_gate_summary",
-                allow_empty=False,
-                limit=_MAX_LONG_TEXT,
-            ),
+            quality_gates=tuple(sorted(normalized_quality_gates, key=lambda lens: lens.lens_id)),
             blocking_items=tuple(sorted(normalized_blocking_items, key=lambda item: item.item_id)),
             next_actions=tuple(sorted(normalized_next_actions, key=lambda action: (action.owner, action.action))),
             last_updated_at=_normalize_timestamp(last_updated_at, field_name="last_updated_at", allow_empty=False),
@@ -257,6 +295,8 @@ class OrchestrationStatusSnapshot:
             "heartbeat_status": self.heartbeat_status.value,
             "overall_progress_percent": self.overall_progress_percent,
             "agent_path_count": len(self.agent_paths),
+            "agent_run_lens_count": len(self.agent_runs),
+            "quality_gate_lens_count": len(self.quality_gates),
             "blocking_item_count": len(self.blocking_items),
             "next_action_count": len(self.next_actions),
             "evidence_ref_count": len(self.evidence_refs),
@@ -270,6 +310,22 @@ class OrchestrationStatusSnapshot:
                     "active_slice_id": path.active_slice_id,
                 }
                 for path in self.agent_paths
+            ),
+            "agent_runs": tuple(
+                {
+                    "lens_id": lens.lens_id,
+                    "status": lens.status.value,
+                    "count": lens.count,
+                }
+                for lens in self.agent_runs
+            ),
+            "quality_gates": tuple(
+                {
+                    "lens_id": lens.lens_id,
+                    "status": lens.status.value,
+                    "count": lens.count,
+                }
+                for lens in self.quality_gates
             ),
             "blocking_items": tuple(
                 {
