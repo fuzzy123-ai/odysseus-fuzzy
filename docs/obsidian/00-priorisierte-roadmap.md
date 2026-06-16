@@ -32,9 +32,9 @@ Der neue Produkt-Nordstern ist **Memory-first**:
 - Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
 - Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
 
-Aktueller Abstand zum neuen `1.0.0`: **ca. 85-90%**.
+Aktueller Abstand zum neuen `1.0.0`: **ca. 90-95%**.
 
-Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence weitgehend gebaut und fokussiert getestet. Offen bleiben vor allem breitere Regressionen, manueller Distributions-/Upgrade-Nachweis auf frischem Setup und ein finaler Go/No-Go-Schnitt.
+Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence gebaut und fokussiert getestet. Die breiteren Obsidian-/Static-/Context-Regressionen sind ebenfalls gruen. Offen bleiben vor allem manueller Distributions-/Upgrade-Nachweis auf frischem Setup und ein finaler Go/No-Go-Schnitt.
 
 ## Neue 1.0-Roadmap
 
@@ -161,7 +161,7 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 | `A6-source-view-lens-contract` | Quellen-, Chunk-, Confidence- und Provenance-Ansichten als UI-Vertrag definieren | `docs/obsidian/00-priorisierte-roadmap.md`, `plugins/obsidian/README.md` | keine Backend-Routen, keine Indexlogik | Doku-Konsistenz |
 | `A7-query-answer-lens` | Antwortkarte fuer Memory-Fragen entwerfen: Antwort, Quellen, Confidence, Unsicherheit, Graph-Jump | `plugins/obsidian/frontend/main.js` nach Handoff, README | keine Query-Engine | UI/static/browser smoke |
 | `A8-automation-review-lens` | Nacht-/Idle-Job-Ergebnisse fuer Nutzer verstaendlich machen: was lief, was braucht Review, was ist safe | README, spaeter Frontend | kein Scheduler, kein Cost Controller | Doku + UI contract |
-| `A9-nextcloud-source-lens` | Nextcloud/Dateiarchiv als Source Provider in der Lens erklaeren und sichtbar machen | Roadmap, README, spaeter Source Views | kein Nextcloud-Backend-Plugin | Doku-Konsistenz |
+| `A9-nextcloud-source-lens` | AUSGELAGERT: Nextcloud/Dateiarchiv erst nach laufender Nextcloud-Instanz als Source Provider konkretisieren | `docs/plans/nextcloud-source-bridge.md` | kein aktueller 1.0-Scope | Nextcloud laeuft + Source-Provider-Entscheidung |
 | `A10-memory-demo-runbook` | Reproduzierbaren 1.0-Demoablauf fuer Memory-first vorbereiten | README, Release Notes, Evidence-Abschnitt | keine Feature-Erweiterung | manueller Demo-Smoke |
 | `A11-integration-readiness-audit` | Alice prueft nach Bobs Commit die Lens-/Payload-/Demo-Evidence gegen den echten Backend-Stand | Roadmap, README, Evidence-Notiz | keine Backend-Edits, kein Testfile-Umbau | Doku/Evidence-Review + fokussierte Smokes nach Handoff |
 
@@ -213,9 +213,12 @@ Alice ist nach dem aktuellen Handoff wieder frei. Damit ihre Geschwindigkeit wei
 
 1. `A6-source-view-lens-contract`
 2. `A8-automation-review-lens`
-3. `A9-nextcloud-source-lens`
-4. `A10-memory-demo-runbook`
-5. `A7-query-answer-lens` erst starten, wenn Bob Query-Layer-Contract und Routen stabil gruen hat.
+3. `A10-memory-demo-runbook`
+4. `A7-query-answer-lens` erst starten, wenn Bob Query-Layer-Contract und Routen stabil gruen hat.
+
+Ausgelagert:
+
+- `A9-nextcloud-source-lens` bleibt pausiert, bis die Nextcloud-Instanz tatsaechlich laeuft. Details liegen im eigenstaendigen Plan `docs/plans/nextcloud-source-bridge.md`.
 
 #### A6 Source-View-Lens-Contract
 
@@ -327,7 +330,15 @@ Open markers fuer spaetere UI:
 
 #### A9 Nextcloud-Source-Lens
 
-Ziel: Nextcloud und Dateiarchiv werden als Source Layer verstaendlich in Memory-first eingeordnet.
+Status: **ausgelagert / pausiert**.
+
+Ziel: Nextcloud und Dateiarchiv werden spaeter als Source Layer verstaendlich in Memory-first eingeordnet, aber erst wenn die Nextcloud-Instanz real laeuft.
+
+Startbedingung:
+
+- Nextcloud laeuft auf dem Homeserver.
+- Der Sync- oder Bridge-Zugriff ist praktisch entscheidbar.
+- Ein eigener Odysseus-/KI-User oder ein klares Rechtekonzept ist festgelegt.
 
 Scope:
 
@@ -338,6 +349,7 @@ Scope:
 
 Grenzen:
 
+- Nicht Teil des aktuellen `1.0.0`-Finalisierungsschnitts.
 - Kein Nextcloud-Plugin-Backend in diesem Slice.
 - Keine Loesch-, Move- oder Rewrite-Flows fuer echte Nutzerdateien.
 
@@ -365,7 +377,7 @@ Ziel: Eine spaetere 1.0-Demo kann zeigen, dass Memory-first wirklich funktionier
 
 Demo-Pfad:
 
-1. Quelle in Vault/Nextcloud-Sync-Ordner legen.
+1. Quelle in den Vault legen; Nextcloud-Sync bleibt ein spaeterer ausgelagerter Source-Provider.
 2. Ledger/Index/Query-Status aktualisieren lassen oder manuell triggern.
 3. Frage stellen.
 4. Antwort mit Quellen und Confidence pruefen.
@@ -422,10 +434,11 @@ Audit-Stand 2026-06-16:
 - `real`: Automation Payload ist ueber `/memory/automation/status` und `/memory/automation/run` live belegt, inklusive `pending_actions`, `cost_controller`, `safety`, `last_run` und Backoff-/Cooldown-Feldern; fokussierte Tests `plugins/obsidian/tests/test_memory_automation_backend.py` sind gruen.
 - `real`: Die Lens-Seite fuer Query Answers ist umgesetzt und nutzt die echten Query-Endpunkte read-only.
 - `mock/spec`: Source View als eigene UI fuer `source_type`, `chunk_id`, `indexed_at` und tieferen Chunk-Provenance-Drilldown bleibt weiterhin Vertrags-/README-Ebene, nicht final integrierte Runtime-Oberflaeche.
-- `needs Bob handoff`: External-Source-/Nextcloud-spezifische Source-Provider-Felder sind noch nicht im stabilen Backend-Vertrag nachgewiesen.
+- `blocked`: Nextcloud-spezifische Source-Provider-Felder sind ausgelagert, bis die Nextcloud-Instanz laeuft.
 - `real`: External/Rebuild Proof ist jetzt ueber `/memory/rebuild-proof`, `/memory/rebuild-proof/run`, `/memory/external-upgrade-proof` und `/memory/external-upgrade-proof/run` samt fokussiertem Backend-Test belegt; Plain/Encrypted Export-Import plus Rebuild liefern Query-Citations.
 - `needs Bob handoff`: Frische Install-/Upgrade-Evidence auf echter externer Zielumgebung bleibt noch als manueller Distributionsnachweis offen.
-- `blocked`: Breitere `1.0`-Regressionen und der finale Evidence-Schnitt fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-/Rebuild-Stand auf **kein Go**.
+- `real`: Breitere `1.0`-Regressionen sind am 2026-06-16 gruen gelaufen: Memory/External-Proof `52 passed`, Obsidian/Static/Context `70 passed`.
+- `blocked`: Frischer manueller Distributions-/Upgrade-Nachweis und finaler Evidence-Schnitt fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-/Rebuild-/Regression-Stand auf **kein Go**.
 
 ### A5 Release-Readiness-Rahmen
 
@@ -449,9 +462,10 @@ Audit-Stand 2026-06-16:
 #### Aktueller Go/No-Go-Stand
 
 - `Lens UX`: weitgehend gruen. Alice hat Source View, Automation Review, Nextcloud Source, Demo Runbook und Query Answer Lens vorbereitet.
-- `Memory Infrastructure`: fokussiert gruen. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt. Nicht final frei ist die Spur trotzdem erst nach breiterem Evidence-Schnitt.
-- `Safety`: ueberwiegend gruen. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; offen bleibt die breitere Regression auf frischem Distributionspfad.
-- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern manueller Distributionsnachweis auf frischem Setup, breitere Regressionen und der finale Evidence-Schnitt.
+- `Memory Infrastructure`: gruen im aktuellen Testfenster. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt.
+- `Safety`: ueberwiegend gruen. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; offen bleibt der frische manuelle Distributions-/Upgrade-Pfad.
+- `Regressionen`: gruen am 2026-06-16. Memory/External-Proof `52 passed`; Obsidian/Static/Context `70 passed`.
+- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern manueller Distributionsnachweis auf frischem Setup und der finale Evidence-/Go-No-Go-Schnitt.
 
 #### Was A5 bei Freigabe zeigen muss
 

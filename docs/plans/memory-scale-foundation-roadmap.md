@@ -35,6 +35,7 @@ Odysseus soll nicht "alle Daten auf einmal laden", sondern bei wachsendem Memory
 - jeder Background Job hat Budgets
 - jeder Index ist inkrementell
 - jede Derived Data ist rebuildbar
+- jede kritische Pipeline ist diagnostizierbar
 - jede Antwort hat Quellen, Confidence und Provenance
 
 Das Ziel ist nicht, eine bestimmte Node-Zahl zu versprechen. Das Ziel ist, dass Odysseus seine Performance-Eigenschaften nicht verliert, wenn das Memory deutlich waechst.
@@ -100,6 +101,23 @@ Alles, was nicht menschliche Quelle ist, muss neu erzeugbar sein:
 - Query Cache
 - Qdrant Collections
 - Kuzu Graph Store
+
+### 6. Diagnostizierbar
+
+Odysseus darf nicht blind optimieren. Jede spaetere Skalierungsentscheidung braucht Messdaten:
+
+- Ingest-Latenz
+- inkrementelle Update-Quote
+- Query-Latenz pro Phase
+- Retrieval-Qualitaet
+- Graph-Payload-Groessen
+- UI-Renderzeiten
+- Job-Laufzeiten
+- Rebuild-Dauer
+- DB- und Indexgroessen
+- Staleness-Zeit nach Source-Aenderungen
+
+Diagnostik ist Teil der Foundation, nicht ein spaeteres Dashboard-Extra.
 
 ## Phasen
 
@@ -201,9 +219,59 @@ Done:
 - Vergleich zeigt gleiche Source-/Chunk-/Provenance-Zahlen
 - Rollback bleibt moeglich
 
-### MS4: Query Budgets und Performance Gates
+### MS4: Diagnostics Layer
 
-Ziel: Skalierung wird messbar und regressionssicher.
+Ziel: Odysseus misst frueh genug, ob die Scale Foundation funktioniert und wann Spezialmotoren wie Qdrant, Kuzu oder UMAP/GMM ueberhaupt gerechtfertigt sind.
+
+Messpunkte:
+
+- `ingest.scan_ms`
+- `ingest.changed_sources`
+- `ingest.skipped_sources`
+- `index.chunk_ms`
+- `index.embedding_ms`
+- `index.graph_extract_ms`
+- `query.keyword_ms`
+- `query.vector_ms`
+- `query.graph_expand_ms`
+- `query.rerank_ms`
+- `query.answer_ms`
+- `query.total_ms`
+- `query.sources_returned`
+- `query.low_confidence`
+- `graph.nodes_requested`
+- `graph.nodes_returned`
+- `graph.nodes_clipped`
+- `graph.edges_returned`
+- `ui.payload_bytes`
+- `ui.render_ms`
+- `job.duration_ms`
+- `job.retries`
+- `job.backoff_active`
+- `storage.db_bytes`
+- `storage.vector_index_bytes`
+- `storage.graph_rows`
+- `rebuild.full_duration_ms`
+- `rebuild.partial_duration_ms`
+- `memory.staleness_seconds`
+
+Diagnostik-Ausgaben:
+
+- kompakter Health Snapshot fuer UI/Lens
+- detaillierter Debug Snapshot fuer Entwicklung
+- maschinenlesbare Metrics fuer Tests und spaetere Dashboards
+
+Done:
+
+- jede Memory-Pipeline meldet Timing, Counts und Clipping
+- Query Layer zeigt, welche Phase teuer war
+- Jobs schreiben letzte erfolgreiche und letzte fehlgeschlagene Runs
+- UI kann gekappte Ergebnisse erklaeren
+- Metrics sind in Tests simulierbar, ohne echte grosse Datenmengen zu brauchen
+
+### MS5: Query Budgets und Performance Gates
+
+Ziel: Skalierung wird durch Diagnostics messbar und regressionssicher.
 
 Testdaten:
 
@@ -225,7 +293,7 @@ Done:
 - Budgets sind dokumentiert
 - Tests verhindern `load all`-Regressionen
 
-### MS5: Progressive Graph API
+### MS6: Progressive Graph API
 
 Ziel: Graph wird serverseitig budgetiert und ausschnittsweise geliefert.
 
@@ -243,11 +311,11 @@ Done:
 - Frontend rendert Subgraphs und Aggregate
 - leere/gekappte Ergebnisse sind user-facing erklaert
 
-### MS6: Optional Qdrant Accelerator
+### MS7: Optional Qdrant Accelerator
 
 Startbedingung:
 
-- pgvector wird in echten Messungen fuer relevante Vector-Workloads zu langsam oder zu teuer
+- pgvector wird in Diagnostics fuer relevante Vector-Workloads wiederholt zu langsam oder zu teuer
 
 Ziel:
 
@@ -266,11 +334,11 @@ Done:
 - Rebuild ist getestet
 - Konsistenz wird ueber Source/Chunk-Versionen geprueft
 
-### MS7: Optional Kuzu Graph Accelerator
+### MS8: Optional Kuzu Graph Accelerator
 
 Startbedingung:
 
-- Postgres-Edges reichen fuer echte Traversal-Workloads nicht mehr
+- Postgres-Edges reichen laut Diagnostics fuer echte Traversal-Workloads nicht mehr
 
 Ziel:
 
@@ -289,7 +357,33 @@ Done:
 - Rebuild ist getestet
 - Fallback auf Postgres-Graph bleibt moeglich
 
-### MS8: Operations und Homeserver-Fitness
+### MS9: UMAP/GMM/RAPTOR Research Track
+
+Startbedingung:
+
+- Postgres + pgvector, budgetierte Query, Progressive Graph API und Diagnostics sind stabil
+- reale Messungen zeigen eine Qualitaetsluecke, die normales Hybrid Retrieval nicht schliesst
+
+Ziel:
+
+- UMAP/GMM/RAPTOR-artige Cluster und rekursive Summaries als Experiment pruefen
+
+Regeln:
+
+- Research Track, kein Foundation-Bestandteil
+- alle Cluster/Summaries sind Derived Data
+- keine automatische Produktivierung ohne messbaren Qualitaetsgewinn
+- Evaluation braucht Vergleich gegen Basis-Retrieval
+
+Entscheidungskriterien:
+
+- bessere Quellen-Trefferquote
+- bessere Antwortqualitaet
+- akzeptable Kosten
+- akzeptable Rebuild-/Update-Eigenschaften
+- erklaerbare Provenance trotz Clustering
+
+### MS10: Operations und Homeserver-Fitness
 
 Ziel: Die Scale Foundation passt zum MiniPC/Homeserver-Betrieb.
 
@@ -315,11 +409,13 @@ Done:
 2. MS1: Storage-Abstraktion
 3. MS2: Postgres + pgvector Schema
 4. MS3: Migration ueber Export/Import
-5. MS4: Performance Gates
-6. MS5: Progressive Graph API
-7. MS8: Operations/Homeserver
-8. MS6: Qdrant nur bei Bedarf
-9. MS7: Kuzu nur bei Bedarf
+5. MS4: Diagnostics Layer
+6. MS5: Performance Gates
+7. MS6: Progressive Graph API
+8. MS10: Operations/Homeserver
+9. MS7: Qdrant nur bei Bedarf
+10. MS8: Kuzu nur bei Bedarf
+11. MS9: UMAP/GMM/RAPTOR Research nur bei Qualitaetsluecke
 
 ## Was wir bewusst nicht tun
 
@@ -329,6 +425,7 @@ Done:
 - keine unbudgetierten Jobs
 - kein dauerhaftes Multi-DB-System ohne klare Wahrheit
 - keine Performance-Versprechen ohne Evidence
+- keine Accelerator-Entscheidung ohne Diagnostics
 
 ## Entscheidungsregel
 
@@ -339,6 +436,7 @@ Wenn eine neue Datenbank eingefuehrt werden soll, muss sie mindestens eine diese
 - Bleibt sie rebuildbar aus Postgres?
 - Gibt es einen sicheren Fallback?
 - Ist Backup/Restore fuer den Homeserver weiterhin einfach?
+- Belegen Diagnostics den Bedarf, oder ist es nur Architektur-Vermutung?
 
 Wenn nicht, bleibt Postgres + pgvector die Basis.
 

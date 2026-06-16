@@ -4,6 +4,10 @@ Stand: 2026-06-16
 
 Dieses Dokument beschreibt die geplante Nextcloud-Anbindung fuer Odysseus. Es ist ein eigenstaendiges Feature-Dokument und gehoert bewusst nicht in die aktuelle Memory-first/Obsidian-Roadmap.
 
+Status: **ausgelagert / pausiert**.
+
+Diese Planung wird erst aktiv, wenn die Nextcloud-Instanz auf dem Homeserver laeuft. Bis dahin bleibt Nextcloud kein Implementierungs- oder 1.0-Finalisierungsscope, sondern ein vorbereiteter spaeterer Source-Provider.
+
 ## Zielbild
 
 Nextcloud wird der private Sync- und Archiv-Layer fuer Odysseus:
@@ -14,6 +18,15 @@ Nextcloud wird der private Sync- und Archiv-Layer fuer Odysseus:
 - Spaeter kann eine Nextcloud-Bridge oder ein Nextcloud-Plugin hinzukommen, falls Sync allein nicht reicht.
 
 Der Kern bleibt: Nextcloud ist **Source Provider**, nicht automatisch Canonical Memory und nicht automatisch Published Output.
+
+## Startbedingung
+
+Diese Roadmap darf erst in aktive Slices uebersetzt werden, wenn:
+
+- Nextcloud auf dem Homeserver laeuft.
+- Docker/Storage/Backup-Grundsetup fuer Nextcloud entschieden ist.
+- Der Odysseus-Zugriff praktisch waehlbar ist: lokaler Sync, eigener KI-User, App-Passwort oder Bridge.
+- Klar ist, welche Ordner read-only Quellen sind und welche Ordner Staging/Generated/Published enthalten duerfen.
 
 ## Grundentscheidung
 
