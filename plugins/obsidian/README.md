@@ -111,6 +111,7 @@ Release metadata rule:
 - Conflict detection before writing new or appended note content.
 - Apply flow requires confirmation for vault writes and records file/relationship changes in history.
 - `review_queue` stages unresolved or duplicate-prone items under `AI Memory/Review Queue/...` so they stay out of settled canonical memory until someone reviews them.
+- Queueing is a staging action in the Lens, not an implicit canonical promotion; it does not require a manual folder or note destination in the UI.
 
 ### Agent Tools
 

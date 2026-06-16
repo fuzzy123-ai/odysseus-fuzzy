@@ -1466,7 +1466,7 @@ function injectUIElements() {
                 <div class="obsidian-project-header">
                   <div>
                     <div class="obsidian-project-title">Memory review</div>
-                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Save one reviewed insight into your vault</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Stage one reviewed insight for your vault, queue, or memory layer</div>
                   </div>
                   <button type="button" class="obsidian-panel-btn" id="obsidian-memory-close" title="Close memory review">x</button>
                 </div>
@@ -1481,17 +1481,18 @@ function injectUIElements() {
                     <select id="obsidian-memory-action" title="Review action">
                       <option value="save_to_obsidian">Save to vault</option>
                       <option value="append_to_note" hidden>Append to selected note</option>
+                      <option value="review_queue">Queue for review</option>
                       <option value="memory_only">Memory only</option>
                       <option value="discard">Discard</option>
                     </select>
-                    <small>Choose whether this writes to Obsidian, stays in memory, or is discarded.</small>
+                    <small id="obsidian-memory-action-help">Choose whether this writes to Obsidian now, stages into the review queue, stays in memory, or is discarded.</small>
                   </label>
                   <div class="obsidian-memory-field obsidian-memory-destination-field" id="obsidian-memory-destination-field">
                     <span>Save to</span>
                     <button type="button" id="obsidian-memory-save-to" class="obsidian-memory-save-to" data-memory-destination-type="" data-memory-destination-path="" aria-label="Choose where to save this memory">
                       <span id="obsidian-memory-save-to-label"></span>
                     </button>
-                    <small>Choose a folder to create a new note, or choose a note to append this insight.</small>
+                    <small id="obsidian-memory-destination-help">Choose a folder to create a new note, or choose a note to append this insight.</small>
                     <input id="obsidian-memory-folder" type="hidden" value="">
                     <input id="obsidian-memory-note" type="hidden" value="">
                     <div class="obsidian-memory-destination-picker hidden" id="obsidian-memory-destination-picker">
@@ -2610,6 +2611,8 @@ function memoryReviewActionLabel(action) {
   switch (action) {
     case 'append_to_note':
       return 'Append to note';
+    case 'review_queue':
+      return 'Queue for review';
     case 'memory_only':
       return 'Memory only';
     case 'discard':
@@ -2628,6 +2631,40 @@ function memoryReviewDestinationLabel() {
     return memoryReviewDestination.path;
   }
   return '';
+}
+
+function updateMemoryReviewCopy() {
+  const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
+  const subtitle = document.getElementById('obsidian-memory-target');
+  const actionHelp = document.getElementById('obsidian-memory-action-help');
+  const destinationHelp = document.getElementById('obsidian-memory-destination-help');
+  if (subtitle) {
+    subtitle.textContent = (
+      action === 'review_queue'
+        ? 'Stage one reviewed insight into the review queue for later curation'
+        : action === 'memory_only'
+          ? 'Keep one reviewed insight in Odysseus memory without writing to the vault'
+          : action === 'discard'
+            ? 'Discard one reviewed insight without changing the vault'
+            : action === 'append_to_note'
+              ? 'Append one reviewed insight to a selected note'
+              : 'Save one reviewed insight directly into your vault'
+    );
+  }
+  if (actionHelp) {
+    actionHelp.textContent = (
+      action === 'review_queue'
+        ? 'Queueing writes into AI Memory/Review Queue so unresolved or duplicate-prone items stay staged instead of becoming settled canon.'
+        : 'Choose whether this writes to Obsidian now, stages into the review queue, stays in memory, or is discarded.'
+    );
+  }
+  if (destinationHelp) {
+    destinationHelp.textContent = (
+      action === 'review_queue'
+        ? 'Queue entries are stored automatically under AI Memory/Review Queue; no manual destination is needed.'
+        : 'Choose a folder to create a new note, or choose a note to append this insight.'
+    );
+  }
 }
 
 function syncMemoryDestinationFields() {
@@ -2668,10 +2705,11 @@ function updateMemoryReviewActionUi() {
   const action = document.getElementById('obsidian-memory-action')?.value || 'save_to_obsidian';
   const destinationField = document.getElementById('obsidian-memory-destination-field');
   const saveTo = document.getElementById('obsidian-memory-save-to');
-  const requiresDestination = !['memory_only', 'discard'].includes(action);
+  const requiresDestination = !['memory_only', 'discard', 'review_queue'].includes(action);
   destinationField?.classList.toggle('hidden', !requiresDestination);
   if (saveTo) saveTo.disabled = !requiresDestination;
   if (!requiresDestination) closeMemoryDestinationPicker();
+  updateMemoryReviewCopy();
 }
 
 function handleMemoryActionChanged() {
@@ -2680,6 +2718,9 @@ function handleMemoryActionChanged() {
     clearMemoryReviewDestination();
   }
   if (action === 'append_to_note' && memoryReviewDestination.type === 'folder') {
+    clearMemoryReviewDestination();
+  }
+  if (action === 'review_queue' && memoryReviewDestination.type) {
     clearMemoryReviewDestination();
   }
   updateMemoryReviewActionUi();
@@ -3864,6 +3905,7 @@ function renderMemoryReviewPreview(plan) {
   const firstFile = files[0] || null;
   const titleWasProvided = Boolean((plan.candidate?.title || '').trim());
   const destination = firstFile?.path
+    || (plan.action === 'review_queue' ? 'AI Memory/Review Queue' : '')
     || (plan.action === 'memory_only' ? 'Odysseus memory only' : '')
     || (plan.action === 'discard' ? 'No vault destination' : '')
     || plan.target_note
@@ -4258,7 +4300,7 @@ async function previewMemoryReview() {
     showToast('Insight to save required');
     return;
   }
-  if (!['memory_only', 'discard'].includes(action) && !memoryReviewDestination.type) {
+  if (!['memory_only', 'discard', 'review_queue'].includes(action) && !memoryReviewDestination.type) {
     showToast('Choose where to save this memory');
     return;
   }
@@ -4293,7 +4335,12 @@ async function applyMemoryReview() {
   if (!memoryReviewPreview) return;
   const needsConfirm = !['memory_only', 'discard'].includes(memoryReviewPreview.action);
   if (needsConfirm) {
-    const confirmed = await styledConfirm('Apply this memory review to the vault?', { confirmText: 'Apply' });
+    const confirmed = await styledConfirm(
+      memoryReviewPreview.action === 'review_queue'
+        ? 'Queue this memory for later review in Obsidian?'
+        : 'Apply this memory review to the vault?',
+      { confirmText: 'Apply' },
+    );
     if (!confirmed) return;
   }
   try {
