@@ -14,6 +14,8 @@ Read/Write-Tabs-Contract fuer `LENS2`: `docs/plans/memory-read-write-tabs-contra
 
 Tag-Chip-System-Contract fuer `LENS3`: `docs/plans/tag-chip-system-contract.md`
 
+Document-Intelligence-Bar-Contract fuer `LENS4`: `docs/plans/document-intelligence-bar-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
