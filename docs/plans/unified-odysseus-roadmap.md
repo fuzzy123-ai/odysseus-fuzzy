@@ -30,6 +30,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
+| `docs/plans/automated-agent-handoff-orchestration-mvp.md` | neuer Runtime-Track fuer vollautomatisches Agent-Handoff und verified Orchestration |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
 | `docs/plans/nextcloud-source-bridge.md` | pausierter Source-Provider-Plan, erst aktiv wenn Nextcloud laeuft |
 | `docs/plans/vault-longterm-memory.md` | aelterer Langzeitgedaechtnis-Plan, nur noch historischer Kontext |
@@ -46,7 +47,8 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | abgeschlossen mit MS7-Ops-Readiness |
 | `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | naechster geplanter Produkt-Track nach 1.0-Evidence |
-| `0.16.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.16.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Lens-/Evidence-Stabilisierung |
+| `0.17.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
 ## Fortschrittsformat
@@ -107,7 +109,8 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P2 | `0.13.x` | Progressive Graph API | UI darf nie 100k/1M Nodes laden, sondern Ausschnitte und Aggregate. | M-L | L | Graph-Lens/Clipping UX | serverseitige Graph Budgets | Browser-/Payload-Smokes | ja |
 | P2 | `0.14.x` | Lightweight Memory Maintenance | Kleine Maintenance-Modelle duerfen RAPTOR/GraphRAG pflegen, aber nie globale Wahrheit entscheiden. | L | L | Review-/Evidence-Sprache | bounded Jobs, K-Means Proof, Summary Worker | Drift-/Fallback-Gates | ja |
 | P1 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Die Memory-Foundation braucht eine klare Nutzeroberflaeche: Lesen/Pflegen trennen, Review/Insights/Diagnostics ordnen, Shell stabilisieren. | L | L | UX-Vertraege, Navigation, Zustaende, Texte | fokussierte UI-/Static-Implementierung nach Handoff | Hotfile-Sperren, Browser-/Static-Smokes | bedingt |
-| P2 | `0.16.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P1 | `0.16.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
+| P2 | `0.17.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
@@ -394,7 +397,56 @@ Ziel: Odysseus Lens wird von einer Sammlung einzelner Tool-Buttons zu einer klar
 - Bestehende Backend-Routen und Tools bleiben kompatibel.
 - `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` wurden nicht parallel bearbeitet.
 
-## Version `0.16.x`: Nextcloud Source Provider
+## Version `0.16.x`: Automated Agent Handoff & Orchestration MVP
+
+Detailplan: `docs/plans/automated-agent-handoff-orchestration-mvp.md`.
+
+Ziel: Der manuell bewiesene Alice/Bob/Charlie-Prozess wird native Odysseus-Runtime. `0.12.x` hat die Modelle und Contracts vorbereitet; `0.16.x` verdrahtet sie mit echter Persistenz, Thread-Zuordnung, Handoff-Parsing, Heartbeat-Ausfuehrung, Quality Gates und Dashboard-Sicht.
+
+### MVP-Pfad
+
+```text
+Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads status -> Dispatches next safe slice -> Handoff parsed -> Quality Gates run -> Dashboard shows verified status
+```
+
+### Reihenfolge
+
+1. `AUTO0-roadmap-integration`
+2. `AUTO1-persistent-orchestration-store`
+3. `AUTO2-thread-registry-and-bridge`
+4. `AUTO3-handoff-parser-and-mailbox`
+5. `AUTO4-heartbeat-runtime-loop`
+6. `AUTO5-git-test-quality-gates`
+7. `AUTO6-mini-orchestration-dashboard-v2`
+8. `AUTO7-end-to-end-two-agent-smoke`
+9. `AUTO8-n-agent-scaling-design`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `AUTO0-roadmap-integration` | Review, ob Nutzerfluss verstaendlich ist | technische Reihenfolge gegen vorhandene Modelle pruefen | Roadmap aktualisieren, Worktree/aktive Slices pruefen | ja, nur Doku |
+| `AUTO1-persistent-orchestration-store` | sichtbare Plan-/Run-Zustaende definieren | Store/API fuer PlanGraph, AgentRun, Statusupdates, JSON-Export | Migration/Scope und fokussierte Tests pruefen | ja, Contract zuerst |
+| `AUTO2-thread-registry-and-bridge` | Handoff-/Statussprache fuer unklare Threads | Thread Registry, ThreadRef API, Read/Send/Resolve-Abstraktion | keine Ambiguous-Dispatches zulassen | bedingt |
+| `AUTO3-handoff-parser-and-mailbox` | Handoff-Template finalisieren | Parser/Validator, Mailbox/Dispatch-Queue, Pflichtfeldfehler | echte Beispiel-Handoffs testen | ja |
+| `AUTO4-heartbeat-runtime-loop` | Nutzertexte fuer laufend/wartend/blockiert/gestoppt | Scheduler-Anbindung, Tick-Loop, Stop-Kriterien | prueft, dass Automation letzter operativer Schritt bleibt | nein, kritisch |
+| `AUTO5-git-test-quality-gates` | Gate-Lens fuer rot/gelb/gruen | Git-Status, Commit-Refs, Changed Files, Testcommands, Scope-/Hotfile-Gates | Block/Warn/Pass entscheiden, keine destruktiven Git-Aktionen | bedingt |
+| `AUTO6-mini-orchestration-dashboard-v2` | Dashboard-Contract: Fortschritt, Slices, Blocker, naechste Aktion, Gates | Status API und einfache UI-Liste/Tree | UI-Smoke, Store/Gate-Abgleich | ja nach API-Contract |
+| `AUTO7-end-to-end-two-agent-smoke` | Demo-Runbook und Known Limits | E2E-Smoke mit Fake/echten ThreadRefs je nach Verfuegbarkeit | Abschluss-Tests, Go/No-Go, Push | nein |
+| `AUTO8-n-agent-scaling-design` | Rollen, Pools, Budgets, Locks UX | Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt | ja, Planung |
+
+### Definition of Done `0.16.x`
+
+- Plan Graph und Agent Runs sind persistent oder ueber eine Runtime-Registry eindeutig erreichbar.
+- ThreadRefs sind eindeutig; Odysseus sendet nie blind in einen unklaren Thread.
+- Handoffs werden maschinenlesbar validiert.
+- Heartbeat-Loop fuehrt nur sichere Dispatches aus und stoppt bei Ambiguitaet.
+- Quality Gates pruefen Git, Tests, Evidence, Scope und Hotfiles real.
+- Dashboard zeigt aktive Slices, Blocker, Gate-Status und naechste Aktion.
+- E2E-Smoke belegt mindestens zwei Agenten von Plan bis `verified done`.
+- N-Agent-Skalierung ist entworfen, aber nicht als unbegrenzte Agentenfabrik freigegeben.
+
+## Version `0.17.x`: Nextcloud Source Provider
 
 Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 
@@ -495,6 +547,7 @@ Danach:
 1. Alice bekommt `LENS0-ux-contract`.
 2. Bob wartet auf den UX-Vertrag oder bekommt nur einen klaren, nicht kollidierenden Shell-Smoke.
 3. Nach `LENS0` startet `LENS1-shell-stability` sequenziell, weil `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` Hotfiles sind.
+4. Nach Lens-Stabilisierung startet `AUTO1-persistent-orchestration-store`; `AUTO0-roadmap-integration` ist mit dieser Master-Roadmap erledigt.
 
 Nicht jetzt:
 
@@ -503,6 +556,7 @@ Nicht jetzt:
 - keine Qdrant/Kuzu/UMAP/GMM-Arbeit
 - keine grosse Frontend-Framework-Migration
 - keine harte Obsidian-Plugin-Umbenennung
+- keine autonome Agentenfabrik ohne Approval, Gates und Stop-Regeln
 
 ## Master Definition of Done
 
@@ -514,5 +568,6 @@ Diese Roadmap ist erfuellt, wenn:
 - `0.13.x` Memory-Scale-Foundation mit Diagnostics und Budgets vorbereitet.
 - `0.14.x` Lightweight Memory Maintenance mit kleinem Modell, bounded Jobs und evidence-bound Summaries beweist.
 - `0.15.x` Odysseus Lens UI & Memory Interaction die Memory-Oberflaeche in Lesen, Pflegen, Insights, Diagnostics und Activity ordnet.
-- `0.16.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
+- `0.16.x` Automated Agent Handoff & Orchestration den Alice/Bob/Charlie-Prozess von Approved Plan bis `verified done` nativ ausfuehrt.
+- `0.17.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
 - `1.0.0` nicht nach Bauchgefuehl, sondern nach Evidence freigegeben wird.
