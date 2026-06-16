@@ -34,7 +34,13 @@ Dieser Slice ist bewusst keine Plugin-Ausfuehrung und kein Installer-Umbau. Er l
 ## Acceptance Criteria
 
 - Validierung importiert keinen Plugin-Code.
+- Lokale Plugin-Ordner koennen statisch auditiert werden, ohne `setup()` oder Top-Level-Code auszufuehren.
 - Bundled `plugins/registry.json` ist policy-konform.
 - Unsichere Downloads, doppelte IDs, falsche Digests und gefaehrliche `ui.open` Werte werden geblockt.
 - Policy-Reports liefern maschinenlesbare Fehlercodes fuer spaetere UI-/Installer-Gates.
 - Die Plugin-Platform bleibt ein eigener Track und wird nicht in Lens, Image Tools oder Security versteckt.
+
+## Umsetzungshinweis
+
+`src/plugin_manifest_policy.py` validiert einzelne Manifeste und Registry-Dokumente.
+`src/plugin_local_audit.py` scannt lokale Plugin-Schnittstellen per AST und ruft diese Policy auf. Beide Module sind reine Vorbereitungsschichten: keine Downloads, keine Imports, keine Runtime-Hooks.
