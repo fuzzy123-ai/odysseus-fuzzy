@@ -8,6 +8,8 @@ Dieser Plan uebernimmt den Side-Conversation-Handoff in die Hauptkoordination. Z
 
 UX-Contract fuer den Start: `docs/plans/lens-ui-ux-contract.md`
 
+Shell-Stability-Contract fuer `LENS1`: `docs/plans/lens-shell-stability-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
