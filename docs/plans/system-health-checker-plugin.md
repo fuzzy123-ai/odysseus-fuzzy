@@ -1,6 +1,6 @@
 # System Health Checker Plugin
 
-Status: SHC0-SHC2 foundation started; host command collectors and Telegram are not implemented yet
+Status: SHC0-SHC3 foundation started; host command collectors and Telegram are not implemented yet
 
 ## Narrative
 
@@ -137,7 +137,8 @@ Push alerts:
 - `SHC0-narrative-and-architecture-contract`: this plan and Master Roadmap integration.
 - `SHC1-health-agent-interface`: `plugins/system_health_checker/health_model.py`, `plugins/system_health_checker/plugin.py`, `tests/test_system_health_checker_plugin.py`.
 - `SHC2-debian-basic-collectors`: `plugins/system_health_checker/basic_collectors.py`, `tests/test_system_health_checker_collectors.py`.
-- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py` -> `15 passed, 1 warning`.
+- `SHC3-rule-engine-alert-model`: `plugins/system_health_checker/rule_engine.py`, `tests/test_system_health_checker_rule_engine.py`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_rule_engine.py` -> `22 passed, 1 warning`.
 - Boundary: Odysseus exposes an offline health snapshot and plugin page, but executes no host commands.
 
 ## MVP Boundary
