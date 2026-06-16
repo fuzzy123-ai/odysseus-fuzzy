@@ -58,6 +58,7 @@ Release metadata rule:
 - Graph view supports Cytoscape rendering with SVG fallback.
 - Focused graph mode centers the current note or selected project folder.
 - Lens presets support a whole-vault overview, a current-source view, and a review-queue view without requiring Derived Memory writes back into source notes.
+- Published Views are intended to appear as generated Lens output and should stay visually distinct from ordinary source notes.
 - Edge filtering by relationship type.
 - Manual relationship storage in `.obsidian/relationships.json`.
 - Supported manual relationship types include `manual`, `relates_to`, `depends_on`, `blocks`, and `supports`.

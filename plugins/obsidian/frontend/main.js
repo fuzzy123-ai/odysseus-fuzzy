@@ -50,6 +50,48 @@ let graphLensMode = 'overview';
 let graphFilterPanelOpen = false;
 let graphFilterOutsideClickHandler = null;
 
+function currentNoteLensMeta(path = currentNotePath) {
+  const normalized = String(path || '');
+  if (!normalized) {
+    return {
+      kind: 'none',
+      label: '',
+      description: '',
+      readOnly: false,
+    };
+  }
+  if (normalized === 'AI Memory/Published Views.md' || normalized.startsWith('AI Memory/Published Views/')) {
+    return {
+      kind: 'published',
+      label: 'Published view',
+      description: 'Generated Lens output. Treat this as a materialized view, not as a primary source note.',
+      readOnly: true,
+    };
+  }
+  if (normalized === 'AI Memory/Review Queue.md' || normalized.startsWith('AI Memory/Review Queue/')) {
+    return {
+      kind: 'queue',
+      label: 'Review queue',
+      description: 'Staged review artifact. This is not settled canonical memory yet.',
+      readOnly: false,
+    };
+  }
+  if (normalized === 'AI Memory/Canonical.md' || normalized.startsWith('AI Memory/Canonical/')) {
+    return {
+      kind: 'canonical',
+      label: 'Canonical memory',
+      description: 'Curated memory note inside the vault.',
+      readOnly: false,
+    };
+  }
+  return {
+    kind: 'source',
+    label: 'Source note',
+    description: 'User-authored or source-backed note.',
+    readOnly: false,
+  };
+}
+
 function resetGraphFilterState() {
   graphFilterState = {
     mode: 'highlight',
@@ -1596,7 +1638,10 @@ function injectUIElements() {
               </div>
               <div class="obsidian-editor-container hidden" id="obsidian-editor-container">
                 <div class="obsidian-editor-header">
-                  <div class="obsidian-current-note-title" id="obsidian-current-note-title">Untitled.md</div>
+                  <div class="obsidian-current-note-header">
+                    <div class="obsidian-current-note-title" id="obsidian-current-note-title">Untitled.md</div>
+                    <div class="obsidian-current-note-meta" id="obsidian-current-note-meta"></div>
+                  </div>
                 </div>
                 <div class="obsidian-editor-toolbar" id="obsidian-editor-toolbar" aria-label="Markdown tools">
                   <button data-md-action="bold" title="Bold"><strong>B</strong></button>
@@ -2042,6 +2087,7 @@ async function openNote(path) {
       document.getElementById('obsidian-current-note-title').textContent = path;
       const textarea = document.getElementById('obsidian-textarea');
       textarea.value = data.content || '';
+      applyCurrentNoteLensState();
       renderEditorPreview(textarea.value);
       if (currentViewMode === 'graph') {
         renderGraphView();
@@ -2079,6 +2125,36 @@ function setViewMode(mode) {
   if (currentViewMode === 'graph') {
     renderGraphView();
   }
+}
+
+function applyCurrentNoteLensState() {
+  const meta = currentNoteLensMeta();
+  const metaEl = document.getElementById('obsidian-current-note-meta');
+  const textarea = document.getElementById('obsidian-textarea');
+  const editor = document.getElementById('obsidian-editor-container');
+  const toolbarButtons = document.querySelectorAll('#obsidian-editor-toolbar button');
+  if (metaEl) {
+    if (!meta.label) {
+      metaEl.innerHTML = '';
+    } else {
+      metaEl.innerHTML = `
+        <span class="obsidian-note-badge obsidian-note-badge-${escapeHtml(meta.kind)}">${escapeHtml(meta.label)}</span>
+        <span class="obsidian-note-description">${escapeHtml(meta.description)}</span>
+      `;
+    }
+  }
+  if (textarea) {
+    textarea.readOnly = Boolean(meta.readOnly);
+    if (meta.readOnly) {
+      textarea.setAttribute('aria-readonly', 'true');
+    } else {
+      textarea.removeAttribute('aria-readonly');
+    }
+  }
+  editor?.classList.toggle('obsidian-note-readonly', Boolean(meta.readOnly));
+  toolbarButtons.forEach(button => {
+    button.disabled = Boolean(meta.readOnly);
+  });
 }
 
 async function activateGraphNode(path) {
@@ -5767,6 +5843,7 @@ function setupEventListeners() {
   // Autosave + Preview
   const textarea = document.getElementById('obsidian-textarea');
   textarea?.addEventListener('input', () => {
+    if (textarea.readOnly) return;
     clearTimeout(autosaveTimeout);
     const original = textarea.value;
     const normalized = normalizeMarkdownTags(original);
