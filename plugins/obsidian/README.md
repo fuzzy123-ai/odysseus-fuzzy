@@ -392,7 +392,23 @@ Evidence to record:
 - Pass/fail for local-artifact absence.
 - Notes on any unexpected extra files.
 
-### 4. Minimal release evidence template
+### 4. Export / import smoke
+
+Before wider RC use, run one small export/import loop:
+
+1. Create or choose a small vault with a few Markdown notes.
+2. Export the vault once without password protection and once with password protection if that path is in scope for the release cut.
+3. Import the archive into a clean test vault.
+4. Confirm the imported vault opens, expected notes are present, and no reserved-file or path-leak warnings appear unexpectedly.
+
+Evidence to record:
+
+- Vault fixture or test folder used.
+- Pass/fail for plain export/import.
+- Pass/fail for password-protected export/import if exercised.
+- Notes on any path, reserved-file, or restore anomalies.
+
+### 5. Minimal release evidence template
 
 Record the result in this shape:
 
@@ -403,6 +419,7 @@ Plugin commit: <sha>
 Version sync: pass|fail
 Fresh install: pass|fail
 Upgrade: pass|fail
+Export/Import: pass|fail
 ZIP layout: pass|fail
 Notes: <short note>
 ```

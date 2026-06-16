@@ -75,8 +75,9 @@ Manual RC runbook for the Obsidian plugin:
 1. Fresh install: clone into `plugins/obsidian`, restart Odysseus, then open `/api/plugins/obsidian/app`.
 2. Upgrade: run the fast-forward update steps above, restart Odysseus, and confirm the plugin still opens.
 3. Version sync: confirm `plugins/obsidian/plugin.py` and `plugins/obsidian/plugin.json` both advertise `0.10.0-rc.1`.
-4. Release ZIP check: if shipping an archive, extract it into a temp folder and confirm the archive root contains `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
-5. Evidence to capture: checked commit SHA, plugin version string, whether fresh install passed, whether upgrade passed, and whether ZIP layout matched expectations.
+4. Export/import smoke: export a small vault, import it into a clean test vault, and confirm no reserved-path or path-traversal surprises appear.
+5. Release ZIP check: if shipping an archive, extract it into a temp folder and confirm the archive root contains `plugin.py`, `plugin.json`, `README.md`, `frontend/`, and `backend/` directly.
+6. Evidence to capture: checked commit SHA, plugin version string, whether fresh install passed, whether upgrade passed, whether export/import passed, and whether ZIP layout matched expectations.
 
 Current RC restrictions to keep in mind:
 

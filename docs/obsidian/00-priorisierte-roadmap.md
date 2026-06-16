@@ -1353,6 +1353,20 @@ Diese Reihenfolge haelt beide Agents aus derselben Kollisionszone heraus, nutzt 
 - README-Installationspfad pruefen.
 - Performance-Messung mit definierter Vault-Groesse gegen die RC-Grenzwerte dokumentieren. Die deterministische 120-Note-Fixture ist als Testgate hinterlegt.
 
+Kompaktes Evidence-Template fuer diesen manuellen RC-Schnitt:
+
+```text
+RC line: 0.10.0-rc.1
+Host commit: <sha>
+Plugin commit: <sha>
+Version sync: pass|fail
+Fresh install: pass|fail
+Upgrade: pass|fail
+Export/Import: pass|fail
+ZIP layout: pass|fail
+Notes: <short note>
+```
+
 ## Bekannte Risiken und Code-Probleme
 
 - Graph-Filter-State ist teilweise zentralisiert, aber noch nicht vollstaendig konsolidiert; verbleibende globale Altlasten wie separate Filtervariablen sind Technical Debt und duerfen fuer den RC nicht weiter anwachsen.
