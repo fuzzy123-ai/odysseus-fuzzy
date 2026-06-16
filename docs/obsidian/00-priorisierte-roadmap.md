@@ -1,12 +1,237 @@
-# Odysseus Obsidian Plugin: Feature-Ready Roadmap
+# Odysseus Memory System: Memory-first Roadmap mit Obsidian Lens
 
-Stand: 2026-06-15
+Stand: 2026-06-16
 
-Dieses Dokument ist die einzige aktive Planungsquelle fuer das Obsidian-Plugin. Die frueheren Einzelplaene zu Import/Export, Tags, Graph, Dateibaum, Editor, Settings, KI-Steuerung, Tests, Migration und Phase-Status wurden hier konsolidiert. Alte Planungsdateien sollen nicht wiederbelebt werden; neue Erkenntnisse gehoeren in diese Roadmap.
+Dieses Dokument ist die einzige aktive Planungsquelle fuer das Odysseus-Memory-System und die Obsidian-Lens. Die frueheren Einzelplaene zu Import/Export, Tags, Graph, Dateibaum, Editor, Settings, KI-Steuerung, Tests, Migration und Phase-Status wurden hier konsolidiert. Alte Planungsdateien sollen nicht wiederbelebt werden; neue Erkenntnisse gehoeren in diese Roadmap.
 
-## Kurzfazit
+## Strategischer Beschluss
 
-Das Obsidian-Plugin ist kein Fundament-Prototyp mehr. Es ist ein natives Odysseus-Drop-in-Plugin mit:
+Der neue Produkt-Nordstern ist **Memory-first**:
+
+- Das fragbare, korrekt zitierende und visualisierbare Langzeitgedaechtnis ist der Produktkern.
+- Obsidian ist nicht mehr alleinige Source of Truth, sondern eine Lens fuer Quellen, Review, Kuratierung, Graphen und publizierte Views.
+- RAPTOR-/GraphRAG-/Embedding-/Entity-Graph-Daten sind abgeleitete Indexdaten und duerfen automatisch gebaut, geloescht, repariert und neu aufgebaut werden.
+- Menschliche Markdown-Quellen bleiben geschuetzt: kein stilles Append, Merge oder Rewrite in Nutzerartefakte ohne Policy-Gate, Staging oder Review.
+
+### Schichtenmodell
+
+| Schicht | Rolle | Schreibrechte | Verlust-/Rebuild-Modell |
+| --- | --- | --- | --- |
+| Source Layer | User-Markdown, Chats, Dokumente, Captures, Attachments | Nutzer oder explizite Capture-Policy | kritisch, wird gesichert |
+| Derived Memory Layer | Ledger, Chunks, Embeddings, Entity Graph, Summaries, Retrieval-Indizes | Hintergrundsystem | rekonstruierbar |
+| Query Layer | Hybrid Retrieval, postQFRAP-light, Quellenpflicht, Confidence | read-only zur Query-Zeit | fluechtig oder cachebar |
+| Obsidian Lens | Graph, Review Queue, Source Views, publizierte Notizen | UI/Review/Policy | darf aus Index abgeleitet sein |
+
+### Neue 1.0-Definition
+
+`1.0.0` bedeutet nicht mehr "Obsidian-Plugin hat alle Komfortfeatures". `1.0.0` bedeutet:
+
+- Der Server baut automatisch einen abgeleiteten Memory-Index aus Quellen.
+- Fragen werden aus dem Memory-Index mit Quellen und Confidence beantwortet.
+- Obsidian visualisiert Quellen, Graph, Cluster, Review Queue und publizierte Views.
+- Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
+- Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
+
+Aktueller Abstand zum neuen `1.0.0`: **ca. 55-65%**.
+
+Grund: Viel Fundament existiert bereits, aber Ledger, Background-Indexer, Derived-Data-Speicherung und Query-Layer muessen als Produktkern noch sauber herausgearbeitet werden.
+
+## Neue 1.0-Roadmap
+
+### M0: Pivot Stabilisieren
+
+Ziel: Die bestehende Obsidian-Arbeit als Lens/Foundation sichern und laufende Agenten nicht kollidieren lassen.
+
+- Roadmap und Aufgabenmatrix auf Memory-first ausrichten.
+- Laufende Alice-/Bob-Slices abschliessen lassen.
+- Obsidian-first P0s nicht wegwerfen, sondern als Lens-/Safety-Foundation einordnen.
+- Keine neuen automatischen Writes in menschliche Notizen einfuehren.
+
+Exit:
+
+- Diese Roadmap benennt Memory-first als massgebliche Richtung.
+- Alice und Bob haben klare, nicht ueberlappende Spuren.
+
+### M1: Memory Ledger und Source Tracking
+
+Ziel: Odysseus weiss automatisch, welche Quellen existieren, was sich geaendert hat und was neu indiziert werden muss.
+
+- SQLite-Ledger fuer Quellen, Hashes, mtime, indexed_at, status, chunk_count.
+- Source-Typen: Markdown, Chat/Capture, Dokument, Attachment-Metadaten.
+- Change Detection fuer create/update/delete.
+- Rebuild-/repair-faehiger Status: `pending`, `indexed`, `failed`, `stale`.
+- Kein LLM-Writeback in Source-Dateien.
+
+Exit:
+
+- Geaenderte Quellen werden deterministisch erkannt.
+- geloeschte Quellen entfernen abgeleitete Indexdaten.
+- Ledger kann komplett aus Quellen neu aufgebaut werden.
+
+### M2: Derived Memory Index
+
+Ziel: Aus Quellen entsteht automatisch ein abgeleiteter Such- und Graphindex.
+
+- Chunking mit stabilen Chunk-IDs.
+- Embeddings pro Chunk.
+- Hybrid Retrieval: keyword + vector.
+- Entity-/Relationship-Extraktion als low-cost Background-Job.
+- Derived Graph mit Provenance zu Quellen und Chunks.
+- Indexdaten liegen ausserhalb menschlicher Notizen.
+
+Exit:
+
+- Query kann relevante Chunks mit Quellen holen.
+- Graph kann aus Derived Data statt nur aus Markdown-Links gerendert werden.
+- Index kann ohne Nutzerinteraktion neu gebaut werden.
+
+### M3: Query Layer mit postQFRAP-light
+
+Ziel: Fragen werden korrekt, belegbar und kontextsparend aus dem Memory beantwortet.
+
+- Retrieval holt initial groessere Kandidatenmenge.
+- Query-time Verdichtung ueber gefundene Chunks statt vollem RAPTOR-Rebuild.
+- Antwort erfordert Quellenliste und Confidence.
+- Cache fuer wiederkehrende Queries oder stabile Subtrees.
+- Keine adRAP-/UMAP-/GMM-Pflicht fuer 1.0.
+
+Exit:
+
+- Fragen liefern belegte Antworten mit anklickbaren Quellen.
+- Falsche oder schwache Quellen werden als Unsicherheit sichtbar.
+- Dynamic Notes koennen ohne teuren Full-Rebuild abgefragt werden.
+
+### M4: Obsidian Lens
+
+Ziel: Obsidian zeigt das Memory, statt selbst der einzige Memory-Kern zu sein.
+
+- Graph-Ansicht kann Memory-Graph-Knoten, Quellen und abgeleitete Cluster anzeigen.
+- Review Queue zeigt Capture-/Promotion-Kandidaten aus dem Index.
+- Source Views zeigen Ursprung, Chunk, Summary und Confidence.
+- Published Views koennen nach Policy als Markdown materialisiert werden.
+- Menschliche Notizen bleiben klar von generierten Views unterscheidbar.
+
+Exit:
+
+- Nutzer kann Memory visuell erkunden.
+- Nutzer kann aus Review/Staging bewusst kuratieren.
+- Obsidian-Lens funktioniert auch, wenn Derived Data neu aufgebaut wurde.
+
+### M5: Automation, Safety und 1.0 Evidence
+
+Ziel: Background-Automation spart Arbeit, bleibt aber kontrollierbar.
+
+- Nacht-/Idle-Jobs fuer Ledger Sync, Indexing, Spark/Health, low-risk Summaries.
+- Kostencontroller: Modellrouting, Concurrency-Limits, Backoff, Akku-/CPU-Drosselung.
+- Auto-Apply nur fuer create-only, low-risk, review- oder derived-data Aktionen.
+- Riskante Aktionen: Append, Merge, Rewrite, Canonical Promotion bleiben policy-gated.
+- 1.0 Evidence: externer Install-/Upgrade-Pfad, Rebuild-Test, Query-Accuracy-Smokes, Safety-Gates.
+
+Exit:
+
+- System kann ohne manuelles Ingest aktuell bleiben.
+- Auto-Jobs koennen parallel laufen, ohne Nutzerquellen zu beschaedigen.
+- 1.0-Go/No-Go basiert auf Evidence, nicht Bauchgefuehl.
+
+## Aufgabenverteilung Alice / Bob
+
+Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice owned die Lens-, UX-, Review- und Produktvertragsschicht. Bob owned Ledger, Index, Query, Background Jobs und Safety.
+
+### Arbeitsmatrix
+
+| Reihenfolge | Alice | Dateien/Scope | Bob | Dateien/Scope | Parallel? |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Aktiven Testsplit abschliessen | `plugins/obsidian/tests/test_locked_vault_surfaces.py` | Laufende Backend-Slices abschliessen | aktuelle Backend-/Testdateien | ja, bestehende Ownership respektieren |
+| 1 | Lens-Produktvertrag schreiben | `docs/obsidian/00-priorisierte-roadmap.md`, Plugin-README spaeter | `M1-memory-ledger` | neue Backend-Module, z. B. `plugins/obsidian/backend/memory_ledger.py` | ja |
+| 2 | Review Queue als Lens definieren | `frontend/main.js` spaeter, README/UX-Vertrag | `M2-derived-index` | Chunking, embeddings, derived graph | ja, wenn Frontend/Backend getrennt bleiben |
+| 3 | Graph-/Source-Views fuer Memory entwerfen | Obsidian UI/Lens, keine Indexlogik | `M3-query-layer` | retrieval, postQFRAP-light, source citations | ja |
+| 4 | Published Views und Staging UX | UI/Review/Docs | `M5-background-jobs` | scheduler, cost controller, queue, safety | ja |
+| 5 | 1.0 Release Readiness | release notes, risks, evidence summary | External/Rebuild Proof | install/upgrade, rebuild, query gates | ja mit klarer Evidence-Aufteilung |
+
+### Alice-Slices
+
+| Slice | Ziel | Primaere Dateien | Nicht-Ziele | Testgate |
+| --- | --- | --- | --- | --- |
+| `A0-finish-active-testsplit` | Aktuelle Locked-Vault-Testarbeit sauber abschliessen | `plugins/obsidian/tests/test_locked_vault_surfaces.py` | kein Memory-Ledger, keine Query Engine | fokussierte Pytests fuer betroffene Tests |
+| `A1-memory-lens-contract` | Obsidian als Lens/Review/Visualisierung produktvertraglich beschreiben | `docs/obsidian/00-priorisierte-roadmap.md`, spaeter `plugins/obsidian/README.md` | keine Backend-Indexlogik | Doku-Konsistenz |
+| `A2-review-queue-lens` | Review Queue UX fuer Captures/Promotions aus Derived Memory definieren | `plugins/obsidian/frontend/main.js`, `plugins/obsidian/README.md` | kein Auto-Merge in Source Notes | UI/static/browser smoke |
+| `A3-memory-graph-lens` | Memory-Graph, Quellen und Cluster visuell bedienbar machen | `plugins/obsidian/frontend/main.js`, ggf. Style | kein Entity Extraction Backend | Node/edge contract + browser smoke |
+| `A4-published-views` | Generierte Views klar von Nutzerquellen unterscheiden | Frontend, README, ggf. routes fuer read-only views | keine stillen Writes | UI contract + docs |
+| `A5-1.0-release-readiness` | Go/No-Go, bekannte Grenzen, Evidence zusammenziehen | Roadmap, README, release notes | keine Produktlogik | Doku/Evidence-Review |
+
+### A1 Lens-Produktvertrag
+
+`A1-memory-lens-contract` beschreibt den Produktvertrag fuer Obsidian, bevor weitere Lens-UI gebaut wird.
+
+#### Rolle der Obsidian-Lens
+
+- Obsidian ist fuer `1.0.0` keine alleinige Source of Truth mehr.
+- Obsidian dient als Lens fuer Quellen, Review, Visualisierung, Kuration und publizierte Views.
+- Der Query- und Retrieval-Kern lebt im Derived Memory, nicht in manuell kuratierten Markdown-Links allein.
+
+#### Was die Lens zeigen muss
+
+- Quellen muessen als echte Urspruenge sichtbar bleiben: Datei, Capture, Dokument oder Attachment-Metadaten.
+- Derived-Memory-Treffer muessen mit Provenance lesbar sein: mindestens Quelle, relevanter Abschnitt oder Chunk und ein erklaerbarer Match-Kontext.
+- Review Queue, Source Views, Graph und spaeter Published Views sind Lens-Surfaces ueber demselben Memory-System, keine voneinander getrennten Sonderwelten.
+- Wenn Derived Data neu aufgebaut wurde, darf die Lens kurz leer oder stale sein, aber nicht so tun, als seien Nutzerquellen verschwunden oder veraendert worden.
+
+#### Klare Schreibgrenzen
+
+- Lens-Interaktionen duerfen Derived Data, Review-Status oder explizit materialisierte Views beeinflussen.
+- Lens-Interaktionen duerfen menschliche Quellnotizen nicht still appenden, mergen, umschreiben oder "kanonisieren".
+- Promotion in langlebige Markdown-Artefakte bleibt ein bewusster, policy-gateter Schritt mit Review oder expliziter Nutzeraktion.
+- Auto-Apply ist nur fuer create-only, low-risk oder klar derived-data-bezogene Aktionen zulaessig, nicht fuer riskante Source-Rewrites.
+
+#### UX-Vertrag fuer spaetere Alice-Slices
+
+- `A2-review-queue-lens` baut auf diesem Vertrag auf und behandelt Review Queue als Staging-Surface, nicht als versteckten Apply-Pfad.
+- `A3-memory-graph-lens` visualisiert nicht nur Markdown-Links, sondern auch Memory-Knoten, Quellennaehe und abgeleitete Cluster.
+- `A4-published-views` muss generierte Views klar von Nutzerquellen unterscheiden, visuell und begrifflich.
+- `A5-1.0-release-readiness` prueft die Lens gegen diesen Vertrag und nicht gegen den frueheren "Obsidian ist der Kern"-Stand.
+
+#### Done fuer A1
+
+- Der neue Alice-Pfad `A0 -> A1 -> A2 -> A3 -> A4 -> A5` ist die aktive Lens-Spur.
+- Alte Obsidian-first `S...`-Slices bleiben nur als Foundation-/Archivkontext sichtbar.
+- Bobs Infrastrukturarbeit und Alices Lens-Vertrag widersprechen sich nicht.
+
+### Bob-Slices
+
+| Slice | Ziel | Primaere Dateien | Nicht-Ziele | Testgate |
+| --- | --- | --- | --- | --- |
+| `B0-finish-current-backend-slices` | Aktuelle Auth/Import/Project/Memory Backend-Slices abschliessen | laufende Backend-Dateien | kein Frontend-Lens-Umbau | fokussierte Pytests |
+| `B1-memory-ledger` | SQLite-Ledger fuer Sources und Indexstatus bauen | neues `memory_ledger.py`, tests | keine LLM-Summaries | unit tests fuer create/update/delete/stale |
+| `B2-derived-index` | Chunking, embeddings, hybrid retrieval und Derived Graph vorbereiten | neue Indexmodule, `context_provider.py` spaeter | keine UI | retrieval/index tests |
+| `B3-query-layer-postqfrap-light` | Query-time Verdichtung mit Quellenpflicht | retrieval/query modules | kein adRAP/UMAP/GMM | answer contract tests |
+| `B4-background-automation` | Idle/Nacht-Jobs, Queue, Cost Controller | scheduler/job modules, config | keine riskanten Source Writes | job/safety tests |
+| `B5-external-rebuild-proof` | Rebuild, Repair, Install/Upgrade, Evidence fuer 1.0 | scripts/docs/tests | keine Feature-Erweiterung | rebuild + install evidence |
+
+### Parallel-Regeln
+
+- Alice schreibt nicht in Ledger/Indexer/Query-Engine-Dateien.
+- Bob schreibt nicht in Lens-Frontend-Dateien, ausser nach explizitem Handoff.
+- `plugins/obsidian/tests/` wird pro Slice dateiweise owned; keine zwei Agents in derselben Testdatei.
+- Derived Data darf automatisiert veraendert werden; Source Markdown nur ueber Policy, Review oder explizite Nutzeraktion.
+- adRAP/UMAP/GMM ist nicht Teil des ersten Memory-first 1.0, sondern spaetere Optimierung.
+
+### Sofort-Auftraege
+
+Alice:
+
+```text
+Du bist Alice. Finish A0-finish-active-testsplit und arbeite danach an A1-memory-lens-contract. Halte Obsidian als Lens/Review/Visualisierung fest. Nicht an Ledger, Indexer, Query Engine oder Background Jobs arbeiten. Wenn Backend-Dateien bereits von Bob aktiv bearbeitet werden, nicht anfassen.
+```
+
+Bob:
+
+```text
+Du bist Bob. Finish B0-finish-current-backend-slices und starte danach B1-memory-ledger. Baue den Source-/Index-Ledger als abgeleitete Memory-Infrastruktur. Nicht an Obsidian-Lens-Frontend oder Alices aktive Testdateien arbeiten. Keine automatischen Writes in menschliche Markdown-Quellen einfuehren.
+```
+
+## Bestehende Obsidian-Foundation
+
+Die bisherige Obsidian-Plugin-Arbeit bleibt die Grundlage fuer Source Management, Lens, Review und Visualisierung. Sie ist kein Fundament-Prototyp mehr, sondern ein natives Odysseus-Drop-in-Plugin mit:
 
 - eigenem Plugin-Manifest und FastAPI-Routen unter `/api/plugins/obsidian/...`
 - dockbarer, als Overlay nutzbarer und fullscreen-faehiger UI
@@ -17,7 +242,7 @@ Das Obsidian-Plugin ist kein Fundament-Prototyp mehr. Es ist ein natives Odysseu
 - Memory Review mit Save-to-Obsidian-Preview und Apply
 - Cytoscape-basiertem Graph-Renderer mit SVG-Fallback
 
-Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Browser-Verifikation fuer Auth/App-Shell und den Full-App-Graph-Filter-Pfad ist dokumentiert gruen. Offene RC-Arbeit liegt jetzt vor allem in Release-Dokumentation, manueller Distributionspruefung, fokussierter Sicherheitsklarheit und dem finalen internen RC-Checkpoint.
+Der fruehere Obsidian-first RC bleibt als Foundation-Meilenstein relevant. Seine offenen Punkte werden ab jetzt danach bewertet, ob sie die Memory-first 1.0-Richtung stuetzen: Lens, Safety, Source Management, Review und Visualisierung.
 
 ## Aktueller Status
 
@@ -76,13 +301,60 @@ Der naechste Meilenstein ist ein **feature-ready Release Candidate**. Browser-Ve
 - Release-Dokumentation fuer Installation, Update, Versionierung und bekannte Einschraenkungen.
 - Manuelle RC-Checks ausserhalb der bestehenden Browser-Smokes: frische Installation, Upgrade-Pfad, Export/Import in leerem Vault und Release-Zip-Struktur.
 
-## Release-Ziel
+## Bisheriges Obsidian-Release-Ziel
 
 ### Zielversion
 
-Naechster sinnvoller Schnitt bleibt `0.10.0-rc.1` als interner RC-Checkpoint. `0.10.0` sollte erst nach bestaetigter manueller Distributionspruefung und expliziter Release-Freigabe folgen.
+Naechster sinnvoller Obsidian-Foundation-Schnitt bleibt `0.10.0-rc.1` als interner RC-Checkpoint. `0.10.0` sollte erst nach bestaetigter manueller Distributionspruefung und expliziter Release-Freigabe folgen.
 
-`1.0.0` sollte erst kommen, wenn mindestens ein kompletter externer Installations- und Updatepfad getestet ist und die Graph-/Vault-Sicherheitsgates wiederholbar gruen sind.
+Das neue Memory-first `1.0.0` wird oben in der "Neue 1.0-Roadmap" definiert. Die folgenden Obsidian-first Kriterien bleiben als Foundation-Gates erhalten, sind aber nicht mehr allein die komplette 1.0-Definition.
+
+### Pfad bis 1.0
+
+Der Weg bis `1.0.0` wird nicht als einzelner grosser Restblock behandelt, sondern als vier kontrollierte Abschlussphasen:
+
+1. `RC-Closure`
+   - P0-Gates schliessen
+   - internen RC-Checkpoint stabilisieren
+   - keine neuen breiten Features anfangen
+2. `0.10.0`
+   - Release-Dokumentation, Distribution und reproduzierbare manuelle Checks abschliessen
+   - interne Freigabe fuer den ersten oeffentlichen stabilen Releasekandidaten-Ersatz
+3. `0.11.x Hardening`
+   - P1-Funktionalitaet fuer Projektplanung, Memory Review, Vault-UX und Import/Export gezielt haerten
+   - Test-Layering und kleinere Testdateien nachziehen, damit weiterer Ausbau nicht teurer wird
+4. `1.0.0`
+   - externer Installations-/Upgrade-Pfad bestaetigt
+   - wiederholbare Release-Runbooks vorhanden
+   - offene Produktkanten nur noch bewusst als Post-1.0-Themen vorhanden
+
+### Exit-Kriterien je Phase
+
+#### Phase A: RC-Closure
+
+- `P0.1` bis `P0.5` sind gruen oder explizit mit akzeptierter Restrisiko-Notiz abgeschlossen.
+- Release-Checklist, Vertragsmatrix und Restrisikostand widersprechen sich nicht.
+- Graph-, Auth- und Vault-Sicherheits-Smokes sind reproduzierbar.
+
+#### Phase B: `0.10.0`
+
+- frische Installation, Upgrade, Export/Import und Release-Zip wurden mindestens einmal mit Evidence dokumentiert
+- Versionsstand, README und Security-Hinweise sind synchron
+- kein offener P0-Blocker bleibt uebrig
+
+#### Phase C: `0.11.x Hardening`
+
+- Projektplanung kann bestehende Ziele sicher erweitern
+- Memory Review hat Queue-/Dedupe-/Entscheidungslogik
+- Import/Export hat Dry-Run-/Konfliktvorschau oder einen klaren gleichwertigen sicheren Nutzerpfad
+- die Obsidian-Tests wachsen nicht weiter als Catch-all, sondern sind in Policy-, Contract- und Smoke-Schichten aufgeteilt
+
+#### Phase D: `1.0.0`
+
+- mindestens ein kompletter externer Installations- und Updatepfad wurde erfolgreich nachvollzogen
+- Sicherheitsgates fuer Auth, Locked Vault, Import und Apply-Fallbacks sind wiederholbar gruen
+- bekannte Einschraenkungen sind fuer `1.0.0` bewusst akzeptabel und dokumentiert, nicht versehentlich offen
+- es gibt keinen verbleibenden "muss vor 1.0" Punkt mehr in P0 oder P1
 
 ### Feature-ready Definition
 
@@ -376,6 +648,30 @@ Akzeptanz:
 
 - Nutzer verliert keine Daten durch Import/Export und versteht das Sicherheitsmodell.
 
+## Muss / Sollte / Nach 1.0
+
+### Muss vor 1.0
+
+- P0.1 Auth und Plugin-Routing
+- P0.2 Graph-Fokus aus Dateibaum
+- P0.3 Dynamische Graph-Filter und Highlighting in stabilem RC-Vertrag
+- P0.4 Sicherheits- und Datenintegritaetsgate
+- P0.5 Release-Dokumentation und Distribution
+- externe Installations-/Upgrade-Bestaetigung
+- wiederholbare Locked-Vault-, Import- und Apply-Sicherheitsgates
+
+### Sollte vor 1.0
+
+- P1.1 Projektplanung produktiv machen
+- P1.2 Memory Review produktreif machen
+- P1.4 Import/Export und Schutz vertiefen
+- S15 Test-Layering-Refactor mindestens soweit, dass keine weitere ungeordnete Catch-all-Ausweitung stattfindet
+
+### Kann nach 1.0
+
+- P1.3 Vault-UX fuer Alltag, soweit es mobile oder Komfort-Themen ohne Sicherheits-/Datenrisiko betrifft
+- P2-Erweiterungen wie Graph-Export, semantische Relationship-Vorschlaege, Per-Vault-Themes, Projektgraph-Modi, Inbox/Review-Ordner, Sync-Konzept
+
 ## P2 Spaetere Erweiterungen
 
 - Graph-Export als PNG/SVG/JSON und Graph-Zusammenfassung fuer Agenten.
@@ -508,18 +804,31 @@ Die groesste Kollisionszone bleibt aktuell:
 
 Auf diesen Dateien sollten nicht mehrere Agenten gleichzeitig frei arbeiten. Fuer diese Hot Files ist Slice-Ownership wichtiger als maximale Parallelitaet.
 
-### Aktuelle Ownership-Annahme am 2026-06-15
+### Aktuelle Ownership-Annahme am 2026-06-16
 
-Der aktuelle Working Tree deutet bereits auf zwei laufende, voneinander getrennte Arbeitsbahnen hin. Bis ein expliziter Handoff erfolgt, sollten diese Bereiche als belegt gelten:
+Alice arbeitet aktuell aktiv. Der sichtbare Working Tree deutet auf laufende Obsidian-Testarbeit hin:
 
-- Bob aktiv auf `S1-auth-routing`: `app.py`, `plugins/obsidian/backend/routes.py`, `tests/test_obsidian_sidebar_static.py`
-- Alice aktiv auf `S3-release-docs`: `README.md`, `plugins/obsidian/README.md`, `plugins/obsidian/plugin.py`, `plugins/obsidian/plugin.json`
+- aktive sichtbare Datei: `plugins/obsidian/tests/test_locked_vault_surfaces.py`
+
+Bis Alice explizit uebergibt, sollte diese Spur als belegt gelten. Der sicherste Schluss ist:
+
+- kein paralleler Slice auf denselben Obsidian-Testsplit oder benachbarte Locked-Vault-Surface-Dateien
+- Test-Layering- oder Locked-Vault-Arbeit nur read-only planen, solange die betroffenen Testdateien nicht klar uebergeben sind
+- Roadmap-, Runbook- und Release-Planungsarbeit bleibt konfliktarm
 
 Direkte Konsequenz fuer neue Arbeit:
 
-- Kein dritter Agent auf `tests/test_obsidian_sidebar_static.py`, solange Bob nicht uebergibt.
-- Kein dritter Agent auf `README.md`, `plugins/obsidian/README.md`, `plugin.py` oder `plugin.json`, solange Alice nicht uebergibt.
-- Fuer sofortige Zusatzarbeit eignen sich eher `S6`, `S10`, `S11`, `S12`, `S13` und `S14`, sofern die Dateigrenzen sauber eingehalten werden.
+- keine neue parallele Schreibarbeit in `plugins/obsidian/tests/` ohne klaren Dateisplit
+- `tests/test_obsidian_sidebar_static.py` und `plugins/obsidian/frontend/main.js` bleiben weiterhin Hot Files
+- fuer sofortige Zusatzarbeit eignen sich eher Roadmap-/Runbook-/Release-Slices oder klar getrennte Backend-Dateien ohne Test-Overlap
+
+### Archivierte Obsidian-first Foundation-Queue
+
+Die folgenden `S...`-Slices bleiben nur als Foundation-/Archivspur erhalten.
+
+- Sie dokumentieren den frueheren Obsidian-first RC-Plan und erklaeren, warum bestimmte Release-, Graph- und Security-Arbeit bereits existiert.
+- Sie sind **nicht** mehr die aktive Prioritaets- oder Reihenfolgeliste fuer Alice oder Bob.
+- Wenn der neue Memory-first Plan und diese Altspur kollidieren, gilt der Abschnitt `Aufgabenverteilung Alice / Bob` mit den `A...`- und `B...`-Slices weiter oben.
 
 ### Rest-Roadmap als Alice/Bob-Queue
 
@@ -536,6 +845,7 @@ Primaer fuer schnellere Durchlaeufe, Dokumentation, Runbooks und spaeter einen k
 5. `S4-graph-focus`
 6. `S8-memory-review-productization`
 7. `S15-test-layering-refactor` nur fuer UI-/Contract-Testsplit oder read-only Vorarbeit
+8. `1.0-release-readiness` als Abschluss- und Go/No-Go-Slice fuer Release Notes, offene Risiken und externe Evidence
 
 Regeln fuer Alice:
 
@@ -545,6 +855,7 @@ Regeln fuer Alice:
 - `S4` erst starten, wenn Bob nicht mehr an `tests/test_obsidian_sidebar_static.py` arbeitet und kein anderer Agent `plugins/obsidian/frontend/main.js` owned.
 - `S8` erst nach P0-Stabilisierung und nicht parallel zu `S14`.
 - `S15` nur dann uebernehmen, wenn Alice keine konkurrierenden Aenderungen an `tests/test_obsidian_sidebar_static.py` oder den betroffenen Obsidian-Testfiles mehr offen hat.
+- `1.0-release-readiness` erst starten, wenn die davor liegenden Release-/Runbook-Slices uebergeben sind.
 
 #### Bob-Track
 
@@ -557,6 +868,7 @@ Primaer fuer Auth, Backend-Haertung, Testmatrizen und spaeter die backendlastige
 5. `S13-project-plan-backend-apply-options`
 6. `S14-memory-review-queue-backend`
 7. `S15-test-layering-refactor` nur fuer Backend-/Policy-Testsplit oder read-only Vorarbeit
+8. `external-upgrade-proof` als spaeter Slice fuer externen Install-/Upgrade-Nachweis und harte 1.0-Freigabechecks
 
 Regeln fuer Bob:
 
@@ -566,6 +878,7 @@ Regeln fuer Bob:
 - `S13` erst nach P0-Stabilisierung und nicht parallel zu `S7`.
 - `S14` erst nach P0-Stabilisierung und nicht parallel zu `S8`.
 - `S15` nur dann uebernehmen, wenn Bob keine konkurrierenden Aenderungen an `plugins/obsidian/tests/test_plugin_obsidian.py` mehr offen hat.
+- `external-upgrade-proof` erst starten, wenn `0.10.0` intern freigabereif ist und keine offenen P0-Blocker mehr da sind.
 
 #### Gemeinsame Cross-Track-Regeln
 
@@ -589,6 +902,7 @@ Zur schnellen Orientierung fuer den Master-Agent gilt fuer den Rest der Roadmap 
 | P0+ Produktisierung | `S8-memory-review-productization` | `S13-project-plan-backend-apply-options` | ja | getrennte Fachbereiche |
 | Abschluss P1 | Pause oder UI-Followups zu Memory | `S14-memory-review-queue-backend` | bedingt | nicht parallel zu `S8`, falls dieselbe Memory-Logik aktiv geaendert wird |
 | Test-Refactor | UI-/Contract-Testsplit fuer `S15` | Backend-/Policy-Testsplit fuer `S15` | nein ohne expliziten Dateisplit | erst nach stabilen Produkt-Slices |
+| Release auf 1.0 | `1.0-release-readiness` | `external-upgrade-proof` | bedingt | erst nach P0 gruen und mit klarer Evidence-Aufteilung |
 
 ### Vordefinierte Agenten
 
@@ -682,8 +996,35 @@ Wenn Alice und Bob bereits parallel arbeiten, ist die risikoaermste Fortsetzung:
 5. Wenn Alice wieder frueher frei wird: Alice -> `S9-rc-checklist-sync`.
 6. Wenn Bob danach frei wird: Bob -> `S12-import-archive-hardening`.
 7. Graph-Arbeit erst, wenn `tests/test_obsidian_sidebar_static.py` und `plugins/obsidian/frontend/main.js` klar einem einzigen aktiven Owner gehoeren.
+8. Nach RC-Closure: Alice zieht in `1.0-release-readiness`, Bob in `external-upgrade-proof`, sofern keine Testdatei-Kollision mehr besteht.
 
 Diese Reihenfolge haelt beide Agents aus derselben Kollisionszone heraus, nutzt ihr bereits begonnenes Kontextfenster weiter und schiebt die Graph-Hot-Files bewusst nach hinten.
+
+## 1.0-Abschlussplan
+
+### Phase A: Jetzt bis RC-Closure
+
+- P0-Gates schliessen
+- Release-Doku und Runbook vervollstaendigen
+- Alice nicht aus aktiver Testspur reissen; Testsplit nur mit explizitem Handoff
+
+### Phase B: RC-Closure bis `0.10.0`
+
+- frische Install-, Upgrade-, Export-/Import- und Release-Zip-Evidence sammeln
+- Restrisiken auf "bekannt und akzeptiert" oder "geschlossen" reduzieren
+- keinen neuen grossen Feature-Scope mehr aufmachen
+
+### Phase C: `0.10.0` bis `0.11.x Hardening`
+
+- Projektplanung, Memory Review und Import/Export gezielt haerten
+- Catch-all-Tests in kleinere Policy-/Contract-/Smoke-Dateien ueberfuehren
+- mobile und Komfortthemen nur dann vorziehen, wenn sie keinen Sicherheits- oder Release-Pfad blockieren
+
+### Phase D: `0.11.x Hardening` bis `1.0.0`
+
+- externer Installations- und Updatepfad nachweisen
+- Sicherheitsgates wiederholt gruene Runs liefern lassen
+- finale Go/No-Go-Notiz fuer `1.0.0` aus Release Evidence, offenen Risiken und Supportgrenzen ableiten
 
 ## Architektur- und Vertragsmatrix
 
