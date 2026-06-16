@@ -322,6 +322,9 @@ def test_obsidian_panel_and_sidebar_split_are_resizable():
     mobile_body = style[style.index("@media (max-width: 640px)"):]
     assert ".obsidian-panel-resize-handle,\n  .obsidian-split-resize-handle" in mobile_body
     assert "display: none" in mobile_body
+    assert "requestGraphReflow('panel_resize_end')" in main_js
+    assert "requestGraphReflow('sidebar_resize_end')" in main_js
+    assert "requestGraphReflow('viewport_resize')" in main_js
 
 
 def test_obsidian_surface_modes_contract():
@@ -377,9 +380,11 @@ def test_obsidian_closed_boot_does_not_activate_overlay_or_fullscreen():
 
     closed_body = re.search(r"function initializeClosedObsidianSurface.*?\{(?P<body>.*?)\n\}", main_js, re.S)
     assert closed_body
+    assert "clearObsidianTransientShellState();" in closed_body.group("body")
     assert "clearObsidianSurfaceClasses();" in closed_body.group("body")
     assert "document.body.classList.remove('obsidian-open')" in closed_body.group("body")
     assert "getObsidianModal()?.classList.add('hidden')" in closed_body.group("body")
+    assert "resetObsidianWindowStyles();" in closed_body.group("body")
 
     panel_css = re.search(r"#obsidian-panel\s*\{(?P<body>.*?)\n\}", style, re.S)
     assert panel_css
@@ -391,6 +396,25 @@ def test_obsidian_closed_boot_does_not_activate_overlay_or_fullscreen():
     assert open_panel_css
     assert "pointer-events: auto" in open_panel_css.group("body")
     assert "body.obsidian-open.obsidian-fullscreen #obsidian-panel" in style
+
+
+def test_obsidian_shell_cleanup_and_reflow_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    assert "function closeGraphFilterPanel()" in main_js
+    assert "function clearObsidianTransientShellState()" in main_js
+    assert "function requestGraphReflow(reason = 'shell')" in main_js
+    assert "document.body.classList.remove('obsidian-resizing');" in main_js
+    assert "closeSettingsMenu();" in main_js
+    assert "closeGraphFilterPanel();" in main_js
+    assert "closeTagDetails();" in main_js
+    assert "Promise.resolve(loadVaultFiles()).finally(() => {" in main_js
+    assert "requestGraphReflow('show_surface');" in main_js
+    assert "clearObsidianTransientShellState();" in main_js.split("function hideObsidianSurface", 1)[1]
+    assert "clearObsidianSurfaceClasses();" in main_js.split("function hideObsidianSurface", 1)[1]
+    assert "panel.dataset.surfaceMode = normalizeSurfaceMode(getStoredSurfaceMode());" in main_js
+    assert "clearObsidianTransientShellState();" in main_js.split("function minimizePanel()", 1)[1]
+    assert "clearObsidianSurfaceClasses();" in main_js.split("function minimizePanel()", 1)[1]
 
 
 def test_obsidian_phase3_settings_menu_contract():

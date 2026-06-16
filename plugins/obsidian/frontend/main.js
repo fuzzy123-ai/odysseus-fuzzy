@@ -49,6 +49,7 @@ let graphFilterState = {
 let graphLensMode = 'overview';
 let graphFilterPanelOpen = false;
 let graphFilterOutsideClickHandler = null;
+let graphReflowFrame = 0;
 
 function currentNoteLensMeta(path = currentNotePath) {
   const normalized = String(path || '');
@@ -910,6 +911,38 @@ function closeSettingsMenu() {
   document.getElementById('obsidian-settings-menu')?.classList.add('hidden');
 }
 
+function closeGraphFilterPanel() {
+  graphFilterPanelOpen = false;
+  document.getElementById('obsidian-graph-filter-panel')?.classList.add('hidden');
+  if (graphFilterOutsideClickHandler) {
+    document.removeEventListener('click', graphFilterOutsideClickHandler);
+    graphFilterOutsideClickHandler = null;
+  }
+}
+
+function clearObsidianTransientShellState() {
+  document.body.classList.remove('obsidian-resizing');
+  document.getElementById('obsidian-panel-resize-handle')?.classList.remove('resizing');
+  document.getElementById('obsidian-split-resize-handle')?.classList.remove('resizing');
+  closeSettingsMenu();
+  closeGraphFilterPanel();
+  closeTagDetails();
+}
+
+function requestGraphReflow(reason = 'shell') {
+  if (graphReflowFrame) {
+    cancelAnimationFrame(graphReflowFrame);
+    graphReflowFrame = 0;
+  }
+  graphReflowFrame = requestAnimationFrame(() => {
+    graphReflowFrame = 0;
+    if (!isPanelOpen || currentViewMode !== 'graph') return;
+    const graph = document.getElementById('obsidian-graph-view');
+    if (!graph || graph.classList.contains('hidden')) return;
+    renderGraphView();
+  });
+}
+
 function shortAiModelName(model) {
   const text = String(model || '').trim();
   if (!text) return '';
@@ -1115,11 +1148,13 @@ function initializeClosedObsidianSurface(mode = getStoredSurfaceMode()) {
   const normalized = normalizeSurfaceMode(mode);
   isPanelOpen = false;
   minimizedSurfaceMode = null;
+  clearObsidianTransientShellState();
   clearObsidianSurfaceClasses();
   document.body.classList.remove('obsidian-open');
   const panel = document.getElementById('obsidian-panel');
   if (panel) panel.dataset.surfaceMode = normalized;
   getObsidianModal()?.classList.add('hidden');
+  resetObsidianWindowStyles();
   syncSurfaceModeControls(normalized);
   setLauncherActive(false);
 }
@@ -1207,11 +1242,14 @@ function hideObsidianSurface({ unregisterOverlay = true, resetWindow = false } =
     return;
   }
   isPanelOpen = false;
+  clearObsidianTransientShellState();
+  clearObsidianSurfaceClasses();
   document.body.classList.remove('obsidian-open', 'obsidian-fullscreen');
   minimizedSurfaceMode = null;
-  closeSettingsMenu();
   stopVaultEventStream();
   setLauncherActive(false);
+  const panel = document.getElementById('obsidian-panel');
+  if (panel) panel.dataset.surfaceMode = normalizeSurfaceMode(getStoredSurfaceMode());
   const modal = getObsidianModal();
   if (modal) {
     modal.classList.remove('modal-minimized');
@@ -1223,6 +1261,7 @@ function hideObsidianSurface({ unregisterOverlay = true, resetWindow = false } =
 
 function showObsidianSurface(mode = getStoredSurfaceMode()) {
   const normalized = isStandaloneMode() ? 'fullscreen' : normalizeSurfaceMode(mode);
+  clearObsidianTransientShellState();
   if (normalized === 'overlay' && Modals.isRegistered(OBSIDIAN_MODAL_ID) && Modals.isMinimized(OBSIDIAN_MODAL_ID)) {
     Modals.restore(OBSIDIAN_MODAL_ID);
     return;
@@ -1247,13 +1286,16 @@ function showObsidianSurface(mode = getStoredSurfaceMode()) {
   document.body.classList.add('obsidian-open');
   setLauncherActive(true);
   startVaultEventStream();
-  loadVaultFiles();
+  Promise.resolve(loadVaultFiles()).finally(() => {
+    requestGraphReflow('show_surface');
+  });
 }
 
 function changeObsidianSurfaceMode(mode) {
   const normalized = normalizeSurfaceMode(mode);
   saveSurfaceMode(normalized);
   syncSurfaceModeControls(normalized);
+  clearObsidianTransientShellState();
   if (isStandaloneMode()) return;
   if (isPanelOpen) {
     showObsidianSurface(normalized);
@@ -1347,6 +1389,7 @@ function setupObsidianResizers() {
       const delta = start.startX - e.clientX;
       applyPanelWidth(start.startWidth + delta, { persist: true });
       applySidebarWidth(localStorage.getItem(OBSIDIAN_SIDEBAR_WIDTH_KEY) || DEFAULT_SIDEBAR_WIDTH, { persist: true });
+      requestGraphReflow('panel_resize_end');
     },
   });
   bindResizeHandle(document.getElementById('obsidian-split-resize-handle'), {
@@ -1355,12 +1398,16 @@ function setupObsidianResizers() {
       startWidth: document.querySelector('.obsidian-sidebar')?.getBoundingClientRect().width || DEFAULT_SIDEBAR_WIDTH,
     }),
     move: (e, start) => applySidebarWidth(start.startWidth + (e.clientX - start.startX)),
-    end: (e, start) => applySidebarWidth(start.startWidth + (e.clientX - start.startX), { persist: true }),
+    end: (e, start) => {
+      applySidebarWidth(start.startWidth + (e.clientX - start.startX), { persist: true });
+      requestGraphReflow('sidebar_resize_end');
+    },
   });
   if (!window.__obsidianResizeViewportBound) {
     window.__obsidianResizeViewportBound = true;
     window.addEventListener('resize', () => {
       restoreObsidianResizeState();
+      requestGraphReflow('viewport_resize');
     });
   }
 }
@@ -1704,6 +1751,7 @@ function openPanel() {
 function closePanel(options = {}) {
   if (!isPanelOpen) return;
   if (isStandaloneMode()) {
+    clearObsidianTransientShellState();
     document.body.classList.add('obsidian-open');
     return;
   }
@@ -1719,6 +1767,8 @@ function minimizePanel() {
   ensureObsidianModalRegistered();
   Modals.minimize(OBSIDIAN_MODAL_ID);
   isPanelOpen = false;
+  clearObsidianTransientShellState();
+  clearObsidianSurfaceClasses();
   document.body.classList.remove('obsidian-open', 'obsidian-fullscreen');
   setLauncherActive(false);
   showToast('Obsidian minimized');
@@ -2130,6 +2180,8 @@ function setViewMode(mode) {
   }
   if (currentViewMode === 'graph') {
     renderGraphView();
+  } else {
+    closeGraphFilterPanel();
   }
 }
 
