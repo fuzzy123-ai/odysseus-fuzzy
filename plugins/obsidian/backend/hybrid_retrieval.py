@@ -1,7 +1,7 @@
 import json
 import os
 import hashlib
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .feature_flags import all_flags, freshness_filtering_state
 from .freshness import audit_knowledge
