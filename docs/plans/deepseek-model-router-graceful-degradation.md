@@ -340,6 +340,18 @@ Testgate:
 - Doku widerspricht nicht den B6/B7-Payload-Feldern.
 - Kein Text behauptet faelschlich, Cloud-Modus bleibe voll lokal.
 
+Erfuellt mit heutigem Vertragsstand:
+
+- Nutzertext fuer Antwortmodi bleibt ruhig und transparent:
+  - `cloud`: "Cloud-Antwort genutzt"
+  - `local`: "Lokales Modell genutzt"
+  - `extractive`: "Sicherer belegter Lesemodus aktiv"
+- `extractive` wird bewusst nicht als Fehlermodus beschrieben, sondern als kontrollierter, zitierender Fallback ohne LLM-Synthese.
+- Settings-Texte muessen `default`, konkretes Modell, geordnete Fallback-Kette und `extractive` als letzten sicheren Schritt erklaeren.
+- Datenschutzvertrag bleibt explizit: Im Cloud-Modus werden nur die fuer die Antwort ausgewaehlten Retrieved Snippets, Quellenlabels und minimale Metadaten gesendet, nicht der ganze Vault.
+- Gemma 4 E2B/E4B bleibt eine empfohlene lokale Router-/Finisher-Option, aber keine Produktpflicht fuer `1.0.0`.
+- `A13-answer-mode-ui` bleibt blockiert, bis Bob die stabilen Response-Felder aus `B7` committed oder explizit uebergeben hat.
+
 #### A13: Answer Mode UI
 
 Startbedingung:
@@ -418,3 +430,9 @@ Nach diesem Gate gilt:
 - DeepSeek-faehiger Antwortpfad ist vorhanden.
 - Local/extractive Degradation ist vorhanden.
 - Manuelle Distributions-/Upgrade-Evidence bleibt die letzte Release-Handlung.
+
+Aktueller Alice-Stand:
+
+- `A12-deepseek-lens-contract`: dokumentiert.
+- `A13-answer-mode-ui`: offen und blockiert bis `B7`-Payload-Handoff.
+- `A14-m6-release-readiness`: danach als Abschluss-Slice.

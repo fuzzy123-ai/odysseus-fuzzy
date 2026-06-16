@@ -498,6 +498,12 @@ Audit-Stand 2026-06-16:
 - `DeepSeek/Graceful Degradation`: neu offen. Dieser Gate muss vor `1.0.0` zeigen, dass `auto -> cloud -> local -> extractive` kontrolliert funktioniert oder ehrlich auf extractive fallbackt.
 - `1.0.0`: **internes Memory-/Evidence-Go fuer den bisherigen Scope**, aber noch kein finaler 1.0-Go. Vor einem externen Release muessen M6 und danach die manuelle Distributions-/Upgrade-Freigabe auf frischem Setup durch sein.
 
+Aktueller M6-Handoff-Stand:
+
+- `A12-deepseek-lens-contract`: dokumentiert. Nutzervertrag fuer `cloud`, `local` und `extractive` ist textlich festgelegt; Cloud-Modus bleibt explizit als Snippet-basierter, nicht als Vault-voller Datentransfer beschrieben.
+- `A13-answer-mode-ui`: noch offen. Dieser UI-Slice startet erst nach Bobs stabilem `B7`-Payload-Handoff fuer `answer_mode`, Provider/Modell, Fallback-Grund und Warnungen.
+- `A14-m6-release-readiness`: folgt nach `A13` und nach Bobs Evidence-Stand; erst dort darf Alice M6 lens-ready oder nicht-ready final markieren.
+
 #### Was A5 bei Freigabe zeigen muss
 
 - eine kurze Go/No-Go-Notiz mit Datum, Commit-Stand und offenem/geschlossenem Evidence-Status

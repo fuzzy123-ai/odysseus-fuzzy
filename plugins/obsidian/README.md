@@ -229,6 +229,14 @@ All routes are registered under `/api/plugins/obsidian`.
 - `GET /memory/external-upgrade-proof` - external distribution/version-sync release-evidence status.
 - `POST /memory/external-upgrade-proof/run` - run export/import/rebuild release evidence for an external plugin upgrade.
 
+Planned pre-`1.0.0` answer-mode contract:
+
+- The Answer Lens should surface whether a result came from `cloud`, `local`, or `extractive` mode.
+- `extractive` is the safe grounded reading mode, not a disguised error state.
+- Cloud mode may send only the retrieved snippets, source labels, and minimal metadata needed for the answer, not the whole vault.
+- Model choices should resolve against Odysseus' existing model registry and defaults rather than a plugin-only provider list.
+- Once the backend payload is stable, user-facing wording should keep `default`, explicit model choices, and fallback chains legible.
+
 ### History
 
 - `GET /history` - recent vault actions.
@@ -456,7 +464,14 @@ Evidence now in place for the internal Memory-first `1.0.0` package:
 - Background automation evidence showing rebuildable Derived Data without silent rewrites to source Markdown.
 - External upgrade/rebuild proof, version sync, and broader safety/regression cut.
 
-Before an external release, keep one manual fresh-install/upgrade pass on a true target environment as a release approval step.
+DeepSeek / graceful degradation status for the current pre-`1.0.0` gate:
+
+- The Lens-side contract is documented: `cloud`, `local`, and `extractive` should be explained calmly and explicitly.
+- `extractive` remains the final safe fallback and should read like a grounded mode, not panic text.
+- Cloud privacy wording stays narrow: only retrieved snippets plus minimal citation metadata may leave the host.
+- The Answer Lens UI labels remain blocked until the backend hands off stable payload fields for mode, model/provider, fallback reason, and warnings.
+
+Before an external release, keep one manual fresh-install/upgrade pass on a true target environment as a release approval step. The DeepSeek/model-router gate must also be implemented and evidenced before claiming final `1.0.0`.
 
 ### Memory-first Demo Runbook
 
