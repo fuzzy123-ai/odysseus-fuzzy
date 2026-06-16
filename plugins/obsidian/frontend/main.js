@@ -3752,6 +3752,7 @@ function renderSparkQuery() {
   const confidence = result
     ? `${readabilityLabel(result.confidence || 'unknown')} (${Math.round((Number(result.confidence_score) || 0) * 100)}%)`
     : 'Not asked yet';
+  const answerMode = result ? sparkAnswerModeLabel(result.answer_mode || 'extractive') : 'Not asked yet';
   return `
     <form class="obsidian-spark-query-bar" data-spark-query-form>
       <input
@@ -3764,6 +3765,7 @@ function renderSparkQuery() {
       <button type="button" class="btn btn-secondary" data-spark-query-refresh ${sparkQueryLoading ? 'disabled' : ''}>Refresh status</button>
     </form>
     <div class="obsidian-spark-metrics">
+      ${sparkMetric('Mode', answerMode)}
       ${sparkMetric('Readiness', readinessState)}
       ${sparkMetric('Gate', gate)}
       ${sparkMetric('Confidence', confidence)}
@@ -3794,8 +3796,12 @@ function renderSparkQueryStatusCard(readiness, summary) {
 function renderSparkQueryAnswer(result, citations) {
   const answer = result.answer || '';
   const uncertainty = [];
+  const modelWarnings = Array.isArray(result.model_capability_warnings) ? result.model_capability_warnings : [];
   if ((result.confidence || 'low') === 'low') uncertainty.push('Confidence is low; treat this as a hint and inspect the cited source notes.');
   if (!citations.length) uncertainty.push('No citations were returned for this answer.');
+  if (String(result.answer_mode || 'extractive') === 'extractive') {
+    uncertainty.push('Running in safe grounded extractive mode without model synthesis.');
+  }
   return `
     <div class="obsidian-spark-grid">
       <div class="obsidian-spark-card obsidian-spark-answer-card">
@@ -3807,6 +3813,18 @@ function renderSparkQueryAnswer(result, citations) {
           <span>${escapeHtml(readabilityLabel(result.readiness_gate || 'unknown'))}</span>
         </div>
         ${uncertainty.length ? `<div class="obsidian-project-warnings">${uncertainty.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+      </div>
+      <div class="obsidian-spark-card">
+        <strong>Answer mode</strong>
+        <div class="obsidian-spark-answer-meta">
+          <span>${escapeHtml(sparkAnswerModeLabel(result.answer_mode || 'extractive'))}</span>
+          <span>${escapeHtml(`role ${result.selected_role || 'memory.answer'}`)}</span>
+          <span>${escapeHtml(`model ${result.selected_model || 'extractive'}`)}</span>
+          <span>${escapeHtml(`endpoint ${result.selected_endpoint_id || 'none'}`)}</span>
+          <span>${escapeHtml(`context ${sparkContextTokensLabel(result.model_context_tokens)}`)}</span>
+        </div>
+        <small>${escapeHtml(sparkFallbackLabel(result.fallback_reason || ''))}</small>
+        ${modelWarnings.length ? `<div class="obsidian-project-warnings" data-spark-model-warnings="true">${modelWarnings.map(item => `<div>${escapeHtml(readabilityLabel(item))}</div>`).join('')}</div>` : ''}
       </div>
       <div class="obsidian-spark-card">
         <strong>Provenance breadcrumb</strong>
@@ -3927,6 +3945,31 @@ function readabilityLabel(value) {
   return String(value || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, match => match.toUpperCase());
+}
+
+function sparkAnswerModeLabel(value) {
+  switch (String(value || '').trim().toLowerCase()) {
+    case 'cloud':
+      return 'Cloud-Antwort genutzt';
+    case 'local':
+      return 'Lokales Modell genutzt';
+    case 'extractive':
+      return 'Sicherer belegter Lesemodus aktiv';
+    case 'auto':
+      return 'Automatische Moduswahl';
+    default:
+      return readabilityLabel(value || 'unknown');
+  }
+}
+
+function sparkFallbackLabel(value) {
+  if (!value) return 'Kein Fallback noetig.';
+  return `Fallback-Grund: ${readabilityLabel(value)}`;
+}
+
+function sparkContextTokensLabel(value) {
+  const tokens = Number(value) || 0;
+  return tokens > 0 ? `${tokens} tokens` : 'not reported';
 }
 
 async function loadSparkQueryStatus() {

@@ -537,6 +537,7 @@ Current UI shape in this RC line:
 - `KI Spark -> Answer Lens` provides a read-only query surface with readiness, gate, confidence, citations, and per-citation source/graph jumps.
 - The Lens reads from `/memory/query/status` and `/memory/query` and keeps failure states user-visible.
 - Low-confidence or citation-free answers are framed as uncertainty, not as silent success.
+- The Answer Lens now also surfaces `answer_mode`, selected role/model/endpoint, fallback reason, context-token visibility, and model-capability warnings from the stable M6 payload.
 
 ### Automation Review Lens Contract
 

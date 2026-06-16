@@ -748,6 +748,29 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert ".obsidian-memory-record-isolation" in style
 
 
+def test_obsidian_answer_mode_ui_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    assert "function sparkAnswerModeLabel(value)" in main_js
+    assert "function sparkFallbackLabel(value)" in main_js
+    assert "function sparkContextTokensLabel(value)" in main_js
+    assert "${sparkMetric('Mode', answerMode)}" in main_js
+    assert "result.answer_mode || 'extractive'" in main_js
+    assert "result.selected_role || 'memory.answer'" in main_js
+    assert "result.selected_model || 'extractive'" in main_js
+    assert "result.selected_endpoint_id || 'none'" in main_js
+    assert "sparkContextTokensLabel(result.model_context_tokens)" in main_js
+    assert "sparkFallbackLabel(result.fallback_reason || '')" in main_js
+    assert "Array.isArray(result.model_capability_warnings) ? result.model_capability_warnings : []" in main_js
+    assert 'data-spark-model-warnings="true"' in main_js
+    assert "Cloud-Antwort genutzt" in main_js
+    assert "Lokales Modell genutzt" in main_js
+    assert "Sicherer belegter Lesemodus aktiv" in main_js
+    assert "Running in safe grounded extractive mode without model synthesis." in main_js
+    assert "Fallback-Grund:" in main_js
+    assert "context ${sparkContextTokensLabel(result.model_context_tokens)}" in main_js
+
+
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
