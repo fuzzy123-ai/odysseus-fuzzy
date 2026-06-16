@@ -229,13 +229,13 @@ All routes are registered under `/api/plugins/obsidian`.
 - `GET /memory/external-upgrade-proof` - external distribution/version-sync release-evidence status.
 - `POST /memory/external-upgrade-proof/run` - run export/import/rebuild release evidence for an external plugin upgrade.
 
-Planned pre-`1.0.0` answer-mode contract:
+Current pre-`1.0.0` answer-mode contract:
 
 - The Answer Lens should surface whether a result came from `cloud`, `local`, or `extractive` mode.
 - `extractive` is the safe grounded reading mode, not a disguised error state.
 - Cloud mode may send only the retrieved snippets, source labels, and minimal metadata needed for the answer, not the whole vault.
 - Model choices should resolve against Odysseus' existing model registry and defaults rather than a plugin-only provider list.
-- Once the backend payload is stable, user-facing wording should keep `default`, explicit model choices, and fallback chains legible.
+- User-facing wording should keep `default`, explicit model choices, and fallback chains legible.
 
 ### History
 
@@ -457,12 +457,12 @@ Lens-side evidence currently in place:
 - Graph Lens presets support whole-vault overview, current-source focus, and review-queue focus.
 - Published Views are intended to stay visibly distinct from ordinary source notes in the Lens UI.
 
-Evidence now in place for the internal Memory-first `1.0.0` package:
+Evidence now in place for the internal pre-`1.0.0` Memory-first package:
 
 - Source/index ledger evidence.
 - Derived index and query-layer evidence with provenance, citations, and confidence.
 - Background automation evidence showing rebuildable Derived Data without silent rewrites to source Markdown.
-- External upgrade/rebuild proof, version sync, and broader safety/regression cut.
+- External upgrade/rebuild proof, version sync, and the current broader internal safety/regression cut.
 
 DeepSeek / graceful degradation status for the current pre-`1.0.0` gate:
 
