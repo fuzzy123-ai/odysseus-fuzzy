@@ -1456,10 +1456,10 @@ async def derived_index_rebuild_route(request: Request):
 
 
 @router.get("/memory/index/retrieve")
-async def derived_index_retrieve_route(request: Request, q: str, top_k: int = 5):
+async def derived_index_retrieve_route(request: Request, q: str, top_k: int = 5, path_prefix: str = ""):
     """Run lightweight retrieval against the derived chunk index."""
     vault_dir = get_unlocked_vault_path(request)
-    return retrieve_derived_chunks(vault_dir, q, top_k=top_k)
+    return retrieve_derived_chunks(vault_dir, q, top_k=top_k, path_prefix=path_prefix)
 
 
 @router.get("/memory/query/status")
@@ -1470,10 +1470,10 @@ async def query_layer_status_route(request: Request):
 
 
 @router.get("/memory/query")
-async def query_layer_route(request: Request, q: str, top_k: int = 5):
+async def query_layer_route(request: Request, q: str, top_k: int = 5, path_prefix: str = ""):
     """Answer a query from the derived index with citations and confidence."""
     vault_dir = get_unlocked_vault_path(request)
-    return answer_query(vault_dir, q, top_k=top_k)
+    return answer_query(vault_dir, q, top_k=top_k, path_prefix=path_prefix)
 
 
 @router.get("/memory/automation/status")

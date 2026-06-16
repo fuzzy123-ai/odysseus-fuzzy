@@ -47,6 +47,17 @@ def _normalize_path(path: Any) -> str:
     return str(path or "").replace("\\", "/").strip("/")
 
 
+def _query_terms(query: Any) -> List[str]:
+    return [
+        term.lower()
+        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9_/-]{1,}", str(query or ""))
+    ]
+
+
+def _normalized_query_phrase(query: Any) -> str:
+    return " ".join(_query_terms(query))
+
+
 def _title_from_body(body: str, path: str) -> str:
     for line in str(body or "").splitlines():
         stripped = line.strip()
@@ -319,39 +330,83 @@ def derived_index_status(vault_dir: str) -> Dict[str, Any]:
     }
 
 
-def retrieve_derived_chunks(vault_dir: str, query: str, *, top_k: int = 5) -> Dict[str, Any]:
+def retrieve_derived_chunks(vault_dir: str, query: str, *, top_k: int = 5, path_prefix: str = "") -> Dict[str, Any]:
     payload, invalid = _load_payload(vault_dir)
     if invalid:
         raise ValueError("Derived index metadata is invalid; rebuild is required.")
     if not payload:
         raise FileNotFoundError("Derived index not built yet.")
-    terms = [
-        term.lower()
-        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9_/-]{1,}", str(query or ""))
-    ]
+    normalized_prefix = _normalize_path(path_prefix)
+    terms = _query_terms(query)
+    phrase = _normalized_query_phrase(query)
+    sources_by_path = {
+        _normalize_path(source.get("path")): source
+        for source in payload.get("sources") or []
+        if isinstance(source, dict)
+    }
     results: List[Dict[str, Any]] = []
     for chunk in payload.get("chunks") or []:
+        source_path = _normalize_path(chunk.get("source_path"))
+        if normalized_prefix and not (
+            source_path == normalized_prefix
+            or source_path.startswith(normalized_prefix + "/")
+        ):
+            continue
         text = str(chunk.get("text") or "")
         title = str(chunk.get("title") or "")
-        tags = " ".join(chunk.get("tags") or [])
-        score = 0
-        for term in terms:
-            if term in title.lower():
-                score += 8
-            if term in tags.lower():
-                score += 5
-            if term in text.lower():
-                score += 1
+        tags = [str(tag or "") for tag in (chunk.get("tags") or [])]
+        text_lower = text.lower()
+        title_lower = title.lower()
+        tags_lower = " ".join(tags).lower()
+        path_lower = source_path.lower()
+        links_lower = " ".join(
+            _normalize_path(link)
+            for link in (sources_by_path.get(source_path, {}).get("links") or [])
+        ).lower()
+        text_score = sum(1 for term in terms if term in text_lower)
+        title_score = sum(8 for term in terms if term in title_lower)
+        tag_score = sum(5 for term in terms if term in tags_lower)
+        path_score = sum(3 for term in terms if term in path_lower)
+        link_score = sum(2 for term in terms if term in links_lower)
+        phrase_bonus = 0
+        if phrase:
+            if phrase in title_lower:
+                phrase_bonus += 5
+            elif phrase in text_lower:
+                phrase_bonus += 3
+            elif phrase in path_lower or phrase in links_lower:
+                phrase_bonus += 2
+        score = text_score + title_score + tag_score + path_score + link_score + phrase_bonus
         if terms and score <= 0:
             continue
+        matched_terms = sorted(
+            {
+                term
+                for term in terms
+                if term in text_lower
+                or term in title_lower
+                or term in tags_lower
+                or term in path_lower
+                or term in links_lower
+            }
+        )
         results.append(
             {
                 "id": chunk.get("id"),
-                "source_path": chunk.get("source_path"),
+                "source_path": source_path,
                 "title": title,
                 "score": score if terms else 1,
                 "text": text[:700],
-                "tags": chunk.get("tags") or [],
+                "tags": tags,
+                "matched_terms": matched_terms,
+                "score_breakdown": {
+                    "text": text_score,
+                    "title": title_score,
+                    "tags": tag_score,
+                    "path": path_score,
+                    "links": link_score,
+                    "phrase": phrase_bonus,
+                },
                 "source_hash": chunk.get("source_hash") or "",
             }
         )
@@ -359,9 +414,12 @@ def retrieve_derived_chunks(vault_dir: str, query: str, *, top_k: int = 5) -> Di
     return {
         "query": str(query or ""),
         "top_k": max(1, int(top_k or 5)),
+        "path_prefix": normalized_prefix,
         "results": results[: max(1, int(top_k or 5))],
         "summary": {
             "total_results": len(results),
             "returned": len(results[: max(1, int(top_k or 5))]),
+            "scoring": "lightweight_hybrid_v1",
+            "query_terms": terms,
         },
     }

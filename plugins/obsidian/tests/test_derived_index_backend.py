@@ -71,6 +71,36 @@ def test_derived_index_status_detects_dirty_lineage_after_source_change():
         assert dirty["lineage"]["changed_sources"][0]["path"] == "Source.md"
 
 
+def test_derived_index_retrieval_exposes_hybrid_score_breakdown():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Blob Strategy.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "tags: [blob, roadmap]\n"
+                "---\n"
+                "# Blob Strategy\n\n"
+                "Blob roadmap planning lives here.\n"
+                "Links to [[Blob Notes]].\n"
+            )
+        with open(os.path.join(tmpdir, "Blob Notes.md"), "w", encoding="utf-8") as f:
+            f.write("# Blob Notes\n\nReference note for blob planning.\n")
+
+        build_derived_index(tmpdir, chunk_size=120, overlap=20)
+        retrieval = retrieve_derived_chunks(tmpdir, "blob roadmap", top_k=3, path_prefix="Projects")
+
+        assert retrieval["summary"]["scoring"] == "lightweight_hybrid_v1"
+        assert retrieval["summary"]["query_terms"] == ["blob", "roadmap"]
+        assert retrieval["results"]
+        top = retrieval["results"][0]
+        assert top["source_path"] == "Projects/Blob Strategy.md"
+        assert set(top["matched_terms"]) == {"blob", "roadmap"}
+        assert top["score_breakdown"]["title"] >= 8
+        assert top["score_breakdown"]["tags"] >= 5
+        assert top["score_breakdown"]["path"] >= 3
+        assert top["score_breakdown"]["links"] >= 0
+
+
 @pytest.mark.asyncio
 async def test_derived_index_routes_cover_status_rebuild_and_retrieval(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
