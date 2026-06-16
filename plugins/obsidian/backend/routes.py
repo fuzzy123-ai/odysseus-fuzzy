@@ -1506,8 +1506,8 @@ async def memory_automation_status_route(request: Request):
 @router.post("/memory/automation/run")
 async def memory_automation_run_route(request: Request, force: bool = False):
     """Run one low-risk memory automation pass for derived data maintenance."""
-    get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    get_unlocked_vault_path(request)
     return run_memory_automation(current_owner(request), trigger="manual", context={}, force=force)
 
 
@@ -1521,8 +1521,8 @@ async def rebuild_proof_status_route(request: Request):
 @router.post("/memory/rebuild-proof/run")
 async def rebuild_proof_run_route(request: Request, q: Optional[str] = None, top_k: int = 5):
     """Run a full ledger/index/query rebuild proof and persist its report."""
-    vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    vault_dir = get_unlocked_vault_path(request)
     return await asyncio.to_thread(run_rebuild_proof, vault_dir, query=q, top_k=top_k)
 
 
@@ -1547,8 +1547,8 @@ async def external_upgrade_proof_run_route(
     export_password: str = "external-upgrade-proof",
 ):
     """Run export/import/rebuild release evidence for external distribution upgrades."""
-    vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    vault_dir = get_unlocked_vault_path(request)
     plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return await asyncio.to_thread(
         collect_external_upgrade_proof,
