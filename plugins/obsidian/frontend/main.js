@@ -51,6 +51,7 @@ let graphFilterPanelOpen = false;
 let graphFilterOutsideClickHandler = null;
 let graphReflowFrame = 0;
 let memoryTagPendingRemoval = '';
+let currentNoteDocumentIntelligence = { state: 'empty' };
 
 function currentNoteLensMeta(path = currentNotePath) {
   const normalized = String(path || '');
@@ -92,6 +93,206 @@ function currentNoteLensMeta(path = currentNotePath) {
     description: 'User-authored or source-backed note.',
     readOnly: false,
   };
+}
+
+function parseFrontmatterBlock(content) {
+  const text = String(content || '');
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!match) return {};
+  const frontmatter = {};
+  let activeListKey = '';
+  match[1].split(/\r?\n/).forEach(line => {
+    if (!line.trim()) return;
+    const listItem = line.match(/^\s*-\s+(.+?)\s*$/);
+    if (listItem && activeListKey) {
+      if (!Array.isArray(frontmatter[activeListKey])) frontmatter[activeListKey] = [];
+      frontmatter[activeListKey].push(listItem[1].trim());
+      return;
+    }
+    const entry = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+    if (!entry) {
+      activeListKey = '';
+      return;
+    }
+    const key = entry[1].trim().toLowerCase();
+    const rawValue = entry[2].trim();
+    if (!rawValue) {
+      frontmatter[key] = [];
+      activeListKey = key;
+      return;
+    }
+    activeListKey = '';
+    if (rawValue.startsWith('[') && rawValue.endsWith(']')) {
+      frontmatter[key] = rawValue.slice(1, -1).split(',').map(item => item.trim()).filter(Boolean);
+      return;
+    }
+    frontmatter[key] = rawValue.replace(/^["']|["']$/g, '');
+  });
+  return frontmatter;
+}
+
+function frontmatterFirstValue(frontmatter, keys = []) {
+  for (const key of keys) {
+    const value = frontmatter?.[key];
+    if (Array.isArray(value)) {
+      const first = value.find(item => String(item || '').trim());
+      if (first) return String(first).trim();
+      continue;
+    }
+    if (String(value || '').trim()) return String(value).trim();
+  }
+  return '';
+}
+
+function frontmatterListValue(frontmatter, keys = []) {
+  for (const key of keys) {
+    const value = frontmatter?.[key];
+    if (Array.isArray(value)) {
+      return value.map(item => String(item || '').trim()).filter(Boolean);
+    }
+    if (String(value || '').trim()) {
+      return String(value).split(',').map(item => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function normalizeDocumentIntelligenceState(value) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
+  if (['loading', 'empty', 'error', 'stale', 'needs-review', 'unknown', 'default'].includes(normalized)) {
+    return normalized;
+  }
+  return 'unknown';
+}
+
+function documentIntelligenceMemoryState(frontmatter, noteMeta) {
+  const explicit = normalizeDocumentIntelligenceState(frontmatterFirstValue(frontmatter, ['memory_state', 'memory-status', 'memory_status']));
+  if (explicit !== 'unknown') return explicit;
+  const status = String(frontmatterFirstValue(frontmatter, ['status', 'review_state']) || '').trim().toLowerCase();
+  if (['review', 'needs_review', 'needs-review'].includes(status)) return 'needs-review';
+  if (noteMeta.kind === 'queue') return 'needs-review';
+  return 'unknown';
+}
+
+function documentIntelligenceProject(frontmatter) {
+  const project = frontmatterFirstValue(frontmatter, ['project', 'project_ref']);
+  return project ? { label: project, state: 'default' } : { label: 'Unknown', state: 'unknown' };
+}
+
+function documentIntelligenceDate(frontmatter) {
+  const value = frontmatterFirstValue(frontmatter, ['date', 'updated', 'updated_at', 'created', 'created_at']);
+  return value ? { label: value, state: 'default' } : { label: 'Empty', state: 'empty' };
+}
+
+function documentIntelligenceStatus(frontmatter) {
+  const value = frontmatterFirstValue(frontmatter, ['status']);
+  return value ? { label: readabilityLabel(value), state: 'default' } : { label: 'Unknown', state: 'unknown' };
+}
+
+function documentIntelligenceType(frontmatter, noteMeta) {
+  const value = frontmatterFirstValue(frontmatter, ['type', 'note_type', 'kind']);
+  if (value) return { label: readabilityLabel(value), state: 'default' };
+  if (noteMeta.label) return { label: noteMeta.label, state: 'default' };
+  return { label: 'Unknown', state: 'unknown' };
+}
+
+function documentIntelligenceRelations(frontmatter) {
+  const links = frontmatterListValue(frontmatter, ['links', 'related', 'relations']);
+  if (links.length) return { label: `${links.length} relations`, state: 'default', links };
+  return { label: 'Graph jump', state: 'empty', links: [] };
+}
+
+function computeDocumentIntelligence(path, content) {
+  const noteMeta = currentNoteLensMeta(path);
+  const frontmatter = parseFrontmatterBlock(content);
+  const tags = frontmatterListValue(frontmatter, ['tags']);
+  const memoryState = documentIntelligenceMemoryState(frontmatter, noteMeta);
+  return {
+    state: 'default',
+    type: documentIntelligenceType(frontmatter, noteMeta),
+    project: documentIntelligenceProject(frontmatter),
+    status: documentIntelligenceStatus(frontmatter),
+    date: documentIntelligenceDate(frontmatter),
+    tags,
+    relations: documentIntelligenceRelations(frontmatter),
+    memoryState,
+  };
+}
+
+function documentIntelligenceStateLabel(state) {
+  switch (normalizeDocumentIntelligenceState(state)) {
+    case 'needs-review':
+      return 'Needs review';
+    case 'stale':
+      return 'Stale';
+    case 'empty':
+      return 'Empty';
+    case 'loading':
+      return 'Loading';
+    case 'error':
+      return 'Error';
+    case 'default':
+      return 'Ready';
+    default:
+      return 'Unknown';
+  }
+}
+
+function renderDocumentIntelligenceTagChips(tags = []) {
+  if (!tags.length) {
+    return '<span class="obsidian-document-intelligence-empty" data-document-intelligence-state="empty">Empty</span>';
+  }
+  return `
+    <div class="obsidian-document-intelligence-tags">
+      ${tags.map(tag => `<span class="obsidian-document-tag-chip obsidian-tag-chip">${escapeHtml(tag.startsWith('#') ? tag : `#${tag}`)}</span>`).join('')}
+    </div>
+  `;
+}
+
+function renderDocumentIntelligencePill(label, value, state = 'default') {
+  return `
+    <span class="obsidian-document-intelligence-pill" data-document-intelligence-state="${escapeHtml(state)}">
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(value)}</span>
+    </span>
+  `;
+}
+
+function renderDocumentIntelligenceBar() {
+  const intelligence = currentNoteDocumentIntelligence || { state: 'empty' };
+  if (intelligence.state === 'loading') {
+    return '<div class="obsidian-document-intelligence-bar" data-document-intelligence-state="loading"><span class="obsidian-document-intelligence-status">Loading metadata...</span></div>';
+  }
+  if (intelligence.state === 'error') {
+    return '<div class="obsidian-document-intelligence-bar" data-document-intelligence-state="error"><span class="obsidian-document-intelligence-status">Metadata error</span></div>';
+  }
+  if (intelligence.state === 'empty') {
+    return '<div class="obsidian-document-intelligence-bar" data-document-intelligence-state="empty"><span class="obsidian-document-intelligence-status">No document metadata yet.</span></div>';
+  }
+  return `
+    <div class="obsidian-document-intelligence-bar" data-document-intelligence-state="default">
+      <div class="obsidian-document-intelligence-meta">
+        ${renderDocumentIntelligencePill('Type', intelligence.type.label, intelligence.type.state)}
+        ${renderDocumentIntelligencePill('Project', intelligence.project.label, intelligence.project.state)}
+        ${renderDocumentIntelligencePill('Status', intelligence.status.label, intelligence.status.state)}
+        ${renderDocumentIntelligencePill('Date', intelligence.date.label, intelligence.date.state)}
+        ${renderDocumentIntelligencePill('Memory', documentIntelligenceStateLabel(intelligence.memoryState), normalizeDocumentIntelligenceState(intelligence.memoryState))}
+      </div>
+      <div class="obsidian-document-intelligence-secondary">
+        <div class="obsidian-document-intelligence-block" data-document-intelligence-kind="tags">
+          <strong>Tags</strong>
+          ${renderDocumentIntelligenceTagChips(intelligence.tags)}
+        </div>
+        <div class="obsidian-document-intelligence-block" data-document-intelligence-kind="relations">
+          <strong>Relations</strong>
+          <div class="obsidian-document-intelligence-relations">
+            ${renderDocumentIntelligencePill('Graph', intelligence.relations.label, intelligence.relations.state)}
+            <button type="button" class="btn btn-secondary obsidian-document-graph-jump" id="obsidian-document-graph-jump">Graph jump</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function resetGraphFilterState() {
@@ -1719,6 +1920,7 @@ function injectUIElements() {
                   <div class="obsidian-current-note-header">
                     <div class="obsidian-current-note-title" id="obsidian-current-note-title">Untitled.md</div>
                     <div class="obsidian-current-note-meta" id="obsidian-current-note-meta"></div>
+                    <div class="obsidian-document-intelligence-mount" id="obsidian-document-intelligence-bar"></div>
                   </div>
                 </div>
                 <div class="obsidian-editor-toolbar" id="obsidian-editor-toolbar" aria-label="Markdown tools">
@@ -2148,6 +2350,7 @@ function buildTreeHTML(nodes, container, level) {
 
 async function openNote(path) {
   try {
+    currentNoteDocumentIntelligence = { state: 'loading' };
     const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(path)}`);
     if (res.ok) {
       const data = await res.json();
@@ -2168,13 +2371,17 @@ async function openNote(path) {
       document.getElementById('obsidian-current-note-title').textContent = path;
       const textarea = document.getElementById('obsidian-textarea');
       textarea.value = data.content || '';
+      currentNoteDocumentIntelligence = computeDocumentIntelligence(path, data.content || '');
       applyCurrentNoteLensState();
       renderEditorPreview(textarea.value);
       if (currentViewMode === 'graph') {
         renderGraphView();
       }
+    } else {
+      currentNoteDocumentIntelligence = { state: 'error' };
     }
   } catch (e) {
+    currentNoteDocumentIntelligence = { state: 'error' };
     console.error('Failed to open note:', e);
     showToast('Failed to open note');
   }
@@ -2213,6 +2420,7 @@ function setViewMode(mode) {
 function applyCurrentNoteLensState() {
   const meta = currentNoteLensMeta();
   const metaEl = document.getElementById('obsidian-current-note-meta');
+  const intelligenceEl = document.getElementById('obsidian-document-intelligence-bar');
   const textarea = document.getElementById('obsidian-textarea');
   const editor = document.getElementById('obsidian-editor-container');
   const toolbarButtons = document.querySelectorAll('#obsidian-editor-toolbar button');
@@ -2226,6 +2434,7 @@ function applyCurrentNoteLensState() {
       `;
     }
   }
+  if (intelligenceEl) intelligenceEl.innerHTML = renderDocumentIntelligenceBar();
   if (textarea) {
     textarea.readOnly = Boolean(meta.readOnly);
     if (meta.readOnly) {
@@ -2237,6 +2446,10 @@ function applyCurrentNoteLensState() {
   editor?.classList.toggle('obsidian-note-readonly', Boolean(meta.readOnly));
   toolbarButtons.forEach(button => {
     button.disabled = Boolean(meta.readOnly);
+  });
+  intelligenceEl?.querySelector('#obsidian-document-graph-jump')?.addEventListener('click', () => {
+    if (!currentNotePath) return;
+    setViewMode('graph');
   });
 }
 
@@ -6371,6 +6584,10 @@ function setupEventListeners() {
       textarea.selectionEnd = Math.max(0, end - delta);
     }
     const content = textarea.value;
+    currentNoteDocumentIntelligence = currentNotePath
+      ? computeDocumentIntelligence(currentNotePath, content)
+      : { state: 'empty' };
+    applyCurrentNoteLensState();
     renderEditorPreview(content);
     updateAutocomplete();
 

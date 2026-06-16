@@ -2006,6 +2006,105 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   min-width: 0;
 }
 
+.obsidian-document-intelligence-mount {
+  min-width: 0;
+}
+
+.obsidian-document-intelligence-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.obsidian-document-intelligence-meta,
+.obsidian-document-intelligence-secondary,
+.obsidian-document-intelligence-relations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.obsidian-document-intelligence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11px;
+}
+
+.obsidian-document-intelligence-pill strong {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.obsidian-document-intelligence-pill[data-document-intelligence-state="unknown"],
+.obsidian-document-intelligence-empty[data-document-intelligence-state="empty"] {
+  color: var(--muted);
+}
+
+.obsidian-document-intelligence-pill[data-document-intelligence-state="needs-review"] {
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--border));
+  color: #f59e0b;
+}
+
+.obsidian-document-intelligence-pill[data-document-intelligence-state="stale"] {
+  border-color: color-mix(in srgb, #fb7185 45%, var(--border));
+  color: #fb7185;
+}
+
+.obsidian-document-intelligence-pill[data-document-intelligence-state="error"],
+.obsidian-document-intelligence-bar[data-document-intelligence-state="error"] .obsidian-document-intelligence-status {
+  color: var(--red);
+}
+
+.obsidian-document-intelligence-pill[data-document-intelligence-state="empty"] {
+  opacity: 0.82;
+}
+
+.obsidian-document-intelligence-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.obsidian-document-intelligence-block > strong {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-document-intelligence-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.obsidian-document-tag-chip {
+  background: color-mix(in srgb, var(--accent, var(--red)) 12%, transparent);
+}
+
+.obsidian-document-intelligence-status,
+.obsidian-document-intelligence-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.obsidian-document-graph-jump {
+  min-height: 28px;
+}
+
 .obsidian-note-readonly #obsidian-textarea {
   opacity: 0.92;
 }

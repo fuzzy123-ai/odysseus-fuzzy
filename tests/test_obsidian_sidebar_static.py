@@ -850,6 +850,46 @@ def test_obsidian_memory_read_write_tabs_contract():
     assert 'data-spark-query-graph-path' in main_js
 
 
+def test_obsidian_document_intelligence_bar_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    for marker in (
+        'id="obsidian-document-intelligence-bar"',
+        'function parseFrontmatterBlock(content)',
+        'function computeDocumentIntelligence(path, content)',
+        'function renderDocumentIntelligenceBar()',
+        'function renderDocumentIntelligenceTagChips(tags = [])',
+        'function renderDocumentIntelligencePill(label, value, state = \'default\')',
+        'function normalizeDocumentIntelligenceState(value)',
+        'id="obsidian-document-graph-jump"',
+    ):
+        assert marker in main_js
+
+    assert "currentNoteDocumentIntelligence = { state: 'loading' }" in main_js
+    assert "currentNoteDocumentIntelligence = { state: 'error' }" in main_js
+    assert "currentNoteDocumentIntelligence = computeDocumentIntelligence(path, data.content || '')" in main_js
+    assert "currentNoteDocumentIntelligence = currentNotePath" in main_js
+    assert "documentIntelligenceStateLabel(state)" in main_js
+    assert "Needs review" in main_js
+    assert "Stale" in main_js
+    assert "Unknown" in main_js
+    assert "Empty" in main_js
+    assert "if (noteMeta.kind === 'queue') return 'needs-review';" in main_js
+    assert "Graph jump" in main_js
+    assert 'data-document-intelligence-state="${escapeHtml(state)}"' in main_js
+    assert "data-document-intelligence-kind=\"tags\"" in main_js
+    assert "data-document-intelligence-kind=\"relations\"" in main_js
+    assert "obsidian-document-tag-chip obsidian-tag-chip" in main_js
+    assert "GraphRAG" not in main_js
+    assert "RAPTOR score" not in main_js
+    assert ".obsidian-document-intelligence-bar" in style
+    assert ".obsidian-document-intelligence-pill" in style
+    assert ".obsidian-document-intelligence-tags" in style
+    assert ".obsidian-document-tag-chip" in style
+    assert ".obsidian-document-graph-jump" in style
+
+
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 
