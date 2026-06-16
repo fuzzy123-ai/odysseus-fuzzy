@@ -51,7 +51,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
-| `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC4 umgesetzt, Runtime-Integration SEC5+ offen |
+| `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC5 umgesetzt, Runtime-Integration SEC6+ offen |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant als eigener Plugin-Track, nicht im Core verstecken |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
@@ -462,6 +462,7 @@ Evidence Foundation:
 - `SEC2-data-classification-model`: Alice `6bc7c2df`, Bob `d2f5b7b2`, Test `tests/test_data_classification.py` -> `14 passed, 1 warning`
 - `SEC3-chat-security-state-model`: Alice `3b63af4b`, Bob `d8156e1f`, Test `tests/test_chat_security_state.py` -> `12 passed, 1 warning`
 - `SEC4-policy-gate-model`: Alice `d9d7e613`, Bob `813eee75`, Security-Suite `tests/test_data_classification.py tests/test_chat_security_state.py tests/test_secure_policy_gate.py` -> `36 passed, 1 warning`
+- `SEC5-local-only-model-routing`: isoliertes Routing-Gate, Security-Suite inkl. `tests/test_secure_model_routing.py` -> `46 passed, 1 warning`
 
 ### Reihenfolge
 
@@ -482,7 +483,7 @@ Evidence Foundation:
 | `SEC2-data-classification-model` | `public/private/sensitive/secret`, Overrides, Propagation | Klassifikationsmodell und Tests | prueft, dass Vault nicht pauschal sensibel wird | ja nach Contract |
 | `SEC3-chat-security-state-model` | Chat-Start, immutable Mode, local-only UX | immutable State-Modell und Tests | Integration ohne bestehende Chats zu brechen | bedingt |
 | `SEC4-policy-gate-model` | zentrale Gate-Sprache, Blockgruende, Nutzeroptionen | Decision Layer fuer Sources, Provider, Tools, Export/Logs | Security-Test-Suite | ja |
-| `SEC5-local-only-model-routing` | Settings-/UI-Vertrag fuer lokale Modelle und Fallbacks | isoliertes Routing-Gate; keine Provider-Hotfiles ohne Freigabe | Stop bei externem Fallback im Secure Flow | bedingt |
+| `SEC5-local-only-model-routing` | Settings-/UI-Vertrag fuer lokale Modelle und Fallbacks | isoliertes Routing-Gate; keine Provider-Hotfiles ohne Freigabe | done als Vorbereitungsslice, echte Integration separat | bedingt |
 | `SEC6-sensitive-retrieval-guard` | Block-/Secure-Chat-Upgrade-Flow | Retrieval-Gate vor Memory/RAG/Graph-Zugriff | kritisch, nicht parallel zu RAG-Hotfiles | nein |
 | `SEC7-telegram-secure-policy` | Telegram-Flows und Blocktexte | Policy Hook fuer Telegram, keine sensiblen Antworten im unsicheren Kanal | Datenschutz-Fallback pruefen | bedingt |
 | `SEC8-security-audit-runbook` | Audit-Runbook, Known Limits, Betriebsregeln | fokussierte Tests/Evidence | Go/No-Go | nein |
