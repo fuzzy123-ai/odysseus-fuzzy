@@ -431,6 +431,32 @@ Aufgaben:
 - Trennen zwischen `implemented`, `configured`, `manual provider proof` und `post-1.0`.
 - Alice darf M6 erst als lens-ready markieren, wenn Bobs Evidence da ist.
 
+M6-Go/No-Go-Notiz am 2026-06-16:
+
+- Status: `Go fuer internen M6-Lens-/Payload-Stand`, `kein finaler 1.0.0-Go`.
+- Relevante Commits:
+  - `e1ced9e7` - Bob B7 Query-Synthesis und stabiler Payload-Handoff
+  - `fba58fe4` - Alice A13 Answer-Lens-UI fuer Modus/Modell/Fallback/Warnungen
+  - `fd30eb57` - Alice A12 Lens-/Datenschutz-/Fallback-Vertrag
+- Teststand:
+  - `python -m pytest plugins/obsidian/tests/test_model_router_backend.py` -> `3 passed`
+  - `python -m pytest plugins/obsidian/tests/test_query_layer_backend.py` -> `6 passed`
+  - `python -m pytest tests/test_obsidian_sidebar_static.py` -> `24 passed`
+  - `node --check plugins/obsidian/frontend/main.js` -> `pass`
+
+Trennung fuer den Release-Stand:
+
+- `implemented`:
+  - Model Router, Query Synthesis und Answer-Lens-UI fuer `answer_mode`, `selected_role`, `selected_model`, `selected_endpoint_id`, `fallback_reason`, `model_context_tokens` und `model_capability_warnings`
+  - kontrollierter `cloud -> local -> extractive` Pfad im Backend-Vertrag
+- `configured`:
+  - echte Provider-, Endpoint- und Modellzuweisung haengen weiter an lokaler Host-Konfiguration, Defaults und verfuegbaren Odysseus-Modellen
+- `manual provider proof`:
+  - echter DeepSeek- oder lokaler Providerlauf mit produktionsnaher Secret-/Endpoint-Konfiguration bleibt ein manueller Freigabeschritt
+  - externer frischer Install-/Upgrade-Pfad bleibt ebenfalls manuelle Release-Evidence
+- `post-1.0`:
+  - breitere Diagnostics, feinere Modell-UX und spaetere Retrieval-/Graph-Optimierungen bleiben Nachfolgearbeit und sind kein M6-Blocker
+
 ### Direkte Beauftragungen
 
 Bob:
@@ -469,5 +495,5 @@ Nach diesem Gate gilt:
 Aktueller Alice-Stand:
 
 - `A12-deepseek-lens-contract`: dokumentiert.
-- `A13-answer-mode-ui`: offen und blockiert bis `B7`-Payload-Handoff.
-- `A14-m6-release-readiness`: danach als Abschluss-Slice.
+- `A13-answer-mode-ui`: umgesetzt und committed in `fba58fe4`.
+- `A14-m6-release-readiness`: dokumentiert.

@@ -469,9 +469,25 @@ DeepSeek / graceful degradation status for the current pre-`1.0.0` gate:
 - The Lens-side contract is documented: `cloud`, `local`, and `extractive` should be explained calmly and explicitly.
 - `extractive` remains the final safe fallback and should read like a grounded mode, not panic text.
 - Cloud privacy wording stays narrow: only retrieved snippets plus minimal citation metadata may leave the host.
-- The Answer Lens UI labels remain blocked until the backend hands off stable payload fields for mode, model/provider, fallback reason, and warnings.
+- The stable payload handoff is now wired into the Answer Lens UI: mode, role, model, endpoint, fallback reason, context-token visibility, and model-capability warnings are visible without exposing secrets.
 
-Before an external release, keep one manual fresh-install/upgrade pass on a true target environment as a release approval step. The DeepSeek/model-router gate must also be implemented and evidenced before claiming final `1.0.0`.
+Current M6 release-readiness note on 2026-06-16:
+
+- Internal M6 status: ready for the current Lens/Payload test window, not yet final `1.0.0`.
+- Backend and UI commits in the active line:
+  - `e1ced9e7` - model router + query synthesis payload handoff
+  - `fba58fe4` - Answer Lens mode/model/fallback UI
+  - `fd30eb57` - Lens contract wording for fallback and privacy
+- Focused evidence:
+  - `plugins/obsidian/tests/test_model_router_backend.py` -> `3 passed`
+  - `plugins/obsidian/tests/test_query_layer_backend.py` -> `6 passed`
+  - `tests/test_obsidian_sidebar_static.py` -> `24 passed`
+  - `node --check plugins/obsidian/frontend/main.js` -> `pass`
+- Still manual before a final release:
+  - a real DeepSeek or local-provider proof with host secrets/endpoints configured
+  - a true fresh install/upgrade approval pass on an external target environment
+
+Before an external release, keep one manual fresh-install/upgrade pass on a true target environment as a release approval step. The DeepSeek/model-router gate is now implemented and evidenced for the internal package, but real provider proof remains manual release evidence.
 
 ### Memory-first Demo Runbook
 

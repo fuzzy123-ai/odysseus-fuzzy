@@ -495,14 +495,31 @@ Audit-Stand 2026-06-16:
 - `Memory Infrastructure`: gruen im aktuellen Testfenster. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt.
 - `Safety`: gruen im aktuellen Evidence-Fenster. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; der frische manuelle Distributions-/Upgrade-Pfad bleibt eine Release-Freigabehandlung.
 - `Regressionen`: gruen am 2026-06-16. Memory/External-Proof `52 passed`; Obsidian/Static/Context `70 passed`.
-- `DeepSeek/Graceful Degradation`: neu offen. Dieser Gate muss vor `1.0.0` zeigen, dass `auto -> cloud -> local -> extractive` kontrolliert funktioniert oder ehrlich auf extractive fallbackt.
+- `DeepSeek/Graceful Degradation`: intern gruen fuer den aktuellen M6-Schnitt. `auto -> cloud -> local -> extractive` ist im Payload- und UI-Vertrag belegt; echter Providerlauf mit produktionsnaher Konfiguration bleibt manuelle Release-Evidence.
 - `1.0.0`: **internes Memory-/Evidence-Go fuer den bisherigen Scope**, aber noch kein finaler 1.0-Go. Vor einem externen Release muessen M6 und danach die manuelle Distributions-/Upgrade-Freigabe auf frischem Setup durch sein.
 
 Aktueller M6-Handoff-Stand:
 
 - `A12-deepseek-lens-contract`: dokumentiert. Nutzervertrag fuer `cloud`, `local` und `extractive` ist textlich festgelegt; Cloud-Modus bleibt explizit als Snippet-basierter, nicht als Vault-voller Datentransfer beschrieben.
-- `A13-answer-mode-ui`: noch offen. Dieser UI-Slice startet erst nach Bobs stabilem `B7`-Payload-Handoff fuer `answer_mode`, Provider/Modell, Fallback-Grund und Warnungen.
-- `A14-m6-release-readiness`: folgt nach `A13` und nach Bobs Evidence-Stand; erst dort darf Alice M6 lens-ready oder nicht-ready final markieren.
+- `A13-answer-mode-ui`: umgesetzt und committed in `fba58fe4`. Die Lens zeigt jetzt `answer_mode`, Rolle, Modell, Endpoint, Fallback-Grund, Kontext-Tokens und Modellwarnungen ohne Secret-Exposure im UI.
+- `A14-m6-release-readiness`: dokumentiert am 2026-06-16. Interner M6-Go fuer Lens/Payload/Teststand ist erreicht; finaler `1.0.0`-Go bleibt an manuellen Provider- und Distributionsbeweis gekoppelt.
+
+M6-Go/No-Go am 2026-06-16:
+
+- Commit-Stand:
+  - `e1ced9e7` - Bob B7 Query-Synthesis + stabiler Payload-Handoff
+  - `fba58fe4` - Alice A13 Answer-Lens-UI
+  - `fd30eb57` - Alice A12 Lens-/Fallback-/Datenschutz-Vertrag
+- Teststand:
+  - `plugins/obsidian/tests/test_model_router_backend.py` -> `3 passed`
+  - `plugins/obsidian/tests/test_query_layer_backend.py` -> `6 passed`
+  - `tests/test_obsidian_sidebar_static.py` -> `24 passed`
+  - `node --check plugins/obsidian/frontend/main.js` -> `pass`
+- Einordnung:
+  - `implemented`: Modellrouting, Query-Synthesis und die Lens-Anzeige fuer M6-Payload-Felder
+  - `configured`: konkrete Provider-/Modellauflösung bleibt host- und settings-abhaengig
+  - `manual provider proof`: echter DeepSeek-/lokaler Lauf mit realer Konfiguration bleibt manuelle Release-Evidence
+  - `post-1.0`: breitere Diagnostics und weitere Modell-/Graph-Optimierungen
 
 #### Was A5 bei Freigabe zeigen muss
 
