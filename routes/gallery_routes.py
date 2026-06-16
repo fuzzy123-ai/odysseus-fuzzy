@@ -5,14 +5,23 @@ import hashlib
 import logging
 import re
 import uuid
+import base64
+import binascii
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
 from core.database import SessionLocal, GalleryImage, GalleryAlbum, ModelEndpoint
 from core.database import Session as DbSession
 from src.auth_helpers import get_current_user, owner_filter, require_privilege
+from src.image_tools_worker import (
+    ImageToolsWorkerClient,
+    ImageToolsWorkerErrorCode,
+    ImageToolsWorkerResult,
+    ImageToolsWorkerSettings,
+)
 from src.upload_limits import (
     read_upload_limited,
     GALLERY_UPLOAD_MAX_BYTES,
@@ -26,6 +35,114 @@ from routes.gallery_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _decode_image_payload(value: str | None, *, field_name: str) -> bytes:
+    if not isinstance(value, str) or not value.strip():
+        raise HTTPException(400, f"No {field_name} provided")
+    try:
+        return base64.b64decode(value.encode("ascii"), validate=True)
+    except (ValueError, binascii.Error):
+        raise HTTPException(400, f"Invalid {field_name}")
+
+
+def _remove_bg_error_status(code: str) -> int:
+    mapping = {
+        ImageToolsWorkerErrorCode.NOT_CONFIGURED.value: 503,
+        ImageToolsWorkerErrorCode.DEPENDENCY_MISSING.value: 503,
+        ImageToolsWorkerErrorCode.WORKER_UNREACHABLE.value: 502,
+        ImageToolsWorkerErrorCode.TIMEOUT.value: 504,
+        ImageToolsWorkerErrorCode.INVALID_IMAGE.value: 400,
+        ImageToolsWorkerErrorCode.PAYLOAD_TOO_LARGE.value: 413,
+        ImageToolsWorkerErrorCode.PERMISSION_DENIED.value: 403,
+    }
+    return mapping.get(code, 502)
+
+
+def _remove_bg_error_response(result: ImageToolsWorkerResult) -> JSONResponse:
+    error = result.error
+    code = error.code.value if error else "worker_unreachable"
+    message = error.message if error else "Background removal failed."
+    return JSONResponse(
+        status_code=_remove_bg_error_status(code),
+        content={"error": message, "error_code": code},
+    )
+
+
+def _should_use_legacy_remove_bg_fallback(settings: ImageToolsWorkerSettings, result: ImageToolsWorkerResult | None = None) -> bool:
+    if not settings.legacy_fallback:
+        return False
+    if result is None or result.error is None:
+        return True
+    return result.error.code in {
+        ImageToolsWorkerErrorCode.NOT_CONFIGURED,
+        ImageToolsWorkerErrorCode.WORKER_UNREACHABLE,
+        ImageToolsWorkerErrorCode.TIMEOUT,
+        ImageToolsWorkerErrorCode.DEPENDENCY_MISSING,
+    }
+
+
+def _legacy_remove_background_response(image_bytes: bytes, hint_bytes: bytes | None = None) -> dict[str, str]:
+    from PIL import Image
+    import io
+
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    width, height = img.size
+
+    hint = None
+    bbox = None
+    if hint_bytes:
+        try:
+            hint = Image.open(io.BytesIO(hint_bytes)).convert("L")
+            if hint.size != img.size:
+                hint = hint.resize(img.size, Image.NEAREST)
+            bbox = hint.getbbox()
+            if bbox:
+                pad = 8
+                bbox = (
+                    max(0, bbox[0] - pad), max(0, bbox[1] - pad),
+                    min(width, bbox[2] + pad), min(height, bbox[3] + pad),
+                )
+        except Exception:
+            hint = None
+            bbox = None
+
+    crop = img.crop(bbox) if bbox else img
+    try:
+        from rembg import remove
+
+        cut = remove(crop)
+    except ImportError:
+        try:
+            from transformers import pipeline
+
+            pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
+            mask_img = pipe(crop, return_mask=True).convert("L")
+            tmp = crop.copy()
+            tmp.putalpha(mask_img)
+            cut = tmp
+        except Exception:
+            return {
+                "error": "No background removal model available. Install rembg: pip install rembg",
+                "error_code": ImageToolsWorkerErrorCode.DEPENDENCY_MISSING.value,
+            }
+
+    if bbox:
+        result = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        result.paste(cut, (bbox[0], bbox[1]), cut)
+    else:
+        result = cut.convert("RGBA")
+
+    if hint is not None:
+        r, g, b, a = result.split()
+        from PIL import ImageChops
+
+        a = ImageChops.multiply(a, hint)
+        result = Image.merge("RGBA", (r, g, b, a))
+
+    buf = io.BytesIO()
+    result.save(buf, format="PNG")
+    return {"image": base64.b64encode(buf.getvalue()).decode()}
 
 
 def _current_user_is_admin(request: Request, user: str | None) -> bool:
@@ -1550,95 +1667,32 @@ def setup_gallery_routes() -> APIRouter:
     # ---- POST /api/image/remove-bg ----
     @router.post("/api/image/remove-bg")
     async def remove_background(request: Request):
-        """Remove background from an image. If the client passes a `hint_mask`
-        (white-where-the-user-wants-the-subject PNG, same dims as the
-        image), we constrain the output:
-
-          1. Crop the image to the mask's bounding box (with padding) so
-             the model only sees the region the user cares about.
-          2. Run rembg on that crop.
-          3. Paste the result back at the original offset.
-          4. Multiply the final alpha by the user's mask, so anything
-             outside the hint becomes transparent regardless of what the
-             model thought was foreground.
-        """
+        """Remove background from an image via the isolated worker when configured."""
         require_privilege(request, "can_generate_images")
         body = await request.json()
         image_b64 = body.get("image")
         hint_b64 = body.get("hint_mask")
+        image_bytes = _decode_image_payload(image_b64, field_name="image")
+        hint_bytes = _decode_image_payload(hint_b64, field_name="hint_mask") if hint_b64 else None
 
-        from PIL import Image
-        import base64, io
-
-        img_bytes = base64.b64decode(image_b64)
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
-        W, H = img.size
-
-        hint = None
-        bbox = None
-        if hint_b64:
-            try:
-                hint_bytes = base64.b64decode(hint_b64)
-                hint = Image.open(io.BytesIO(hint_bytes)).convert("L")
-                # Resize the hint to match if dimensions disagree
-                if hint.size != img.size:
-                    hint = hint.resize(img.size, Image.NEAREST)
-                # Bounding box of any non-zero pixel (with 8 px padding)
-                bbox = hint.getbbox()
-                if bbox:
-                    pad = 8
-                    bbox = (
-                        max(0, bbox[0] - pad), max(0, bbox[1] - pad),
-                        min(W, bbox[2] + pad), min(H, bbox[3] + pad),
-                    )
-            except Exception:
-                hint = None
-                bbox = None
-
-        # Crop to the bbox if a hint was supplied so rembg sees just the
-        # user's region of interest. Otherwise process the whole image.
-        if bbox:
-            crop = img.crop(bbox)
+        settings = ImageToolsWorkerSettings.from_env()
+        worker_result: ImageToolsWorkerResult | None = None
+        if settings.configured:
+            client = ImageToolsWorkerClient(settings)
+            worker_result = client.remove_background(image_bytes, hint_mask_bytes=hint_bytes)
+            if worker_result.ok:
+                return {"image": base64.b64encode(worker_result.image_bytes).decode()}
+            if not _should_use_legacy_remove_bg_fallback(settings, worker_result):
+                return _remove_bg_error_response(worker_result)
         else:
-            crop = img
+            worker_result = ImageToolsWorkerClient(settings).remove_background(image_bytes, hint_mask_bytes=hint_bytes)
+            if not _should_use_legacy_remove_bg_fallback(settings, worker_result):
+                return _remove_bg_error_response(worker_result)
 
-        try:
-            from rembg import remove
-            cut = remove(crop)
-        except ImportError:
-            try:
-                from transformers import pipeline
-                pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
-                mask_img = pipe(crop, return_mask=True).convert("L")
-                tmp = crop.copy()
-                tmp.putalpha(mask_img)
-                cut = tmp
-            except Exception:
-                return {"error": "No background removal model available. Install rembg: pip install rembg"}
-
-        # Compose the cropped result back into a full-size transparent canvas.
-        if bbox:
-            result = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            result.paste(cut, (bbox[0], bbox[1]), cut)
-        else:
-            result = cut.convert("RGBA")
-
-        # Final alpha = result.alpha * hint (normalised). Anything outside
-        # the user's hint is forced transparent.
-        if hint is not None:
-            r, g, b, a = result.split()
-            # Multiply alphas — use ImageChops to stay in PIL-pure code.
-            from PIL import ImageChops
-            a = ImageChops.multiply(a, hint)
-            result = Image.merge("RGBA", (r, g, b, a))
-
-        # Edge cleanup (feather / grow) moved to the client so the user
-        # can re-tune live without re-running the model. Server returns
-        # the pristine cutout.
-
-        buf = io.BytesIO()
-        result.save(buf, format="PNG")
-        return {"image": base64.b64encode(buf.getvalue()).decode()}
+        legacy = _legacy_remove_background_response(image_bytes, hint_bytes)
+        if "image" in legacy:
+            return legacy
+        return JSONResponse(status_code=_remove_bg_error_status(legacy.get("error_code", "")), content=legacy)
 
     # ---- POST /api/image/enhance-face ----
     @router.post("/api/image/enhance-face")
