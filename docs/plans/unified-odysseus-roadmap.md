@@ -54,7 +54,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
-| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1 gestartet, JSON Registry fuer PlanGraph/AgentRun umgesetzt |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
@@ -531,7 +531,7 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
 | `AUTO0-roadmap-integration` | Review, ob Nutzerfluss verstaendlich ist | technische Reihenfolge gegen vorhandene Modelle pruefen | Roadmap aktualisieren, Worktree/aktive Slices pruefen | ja, nur Doku |
-| `AUTO1-persistent-orchestration-store` | sichtbare Plan-/Run-Zustaende definieren | Store/API fuer PlanGraph, AgentRun, Statusupdates, JSON-Export | Migration/Scope und fokussierte Tests pruefen | ja, Contract zuerst |
+| `AUTO1-persistent-orchestration-store` | sichtbare Plan-/Run-Zustaende definieren | JSON Registry fuer PlanGraph/AgentRun, keine Runtime-Hooks | done als Vorbereitungsslice | ja, Contract zuerst |
 | `AUTO2-thread-registry-and-bridge` | Handoff-/Statussprache fuer unklare Threads | Thread Registry, ThreadRef API, Read/Send/Resolve-Abstraktion | keine Ambiguous-Dispatches zulassen | bedingt |
 | `AUTO3-handoff-parser-and-mailbox` | Handoff-Template finalisieren | Parser/Validator, Mailbox/Dispatch-Queue, Pflichtfeldfehler | echte Beispiel-Handoffs testen | ja |
 | `AUTO4-heartbeat-runtime-loop` | Nutzertexte fuer laufend/wartend/blockiert/gestoppt | Scheduler-Anbindung, Tick-Loop, Stop-Kriterien | prueft, dass Automation letzter operativer Schritt bleibt | nein, kritisch |
