@@ -44,3 +44,4 @@ Dieser Slice ist bewusst keine Plugin-Ausfuehrung und kein Installer-Umbau. Er l
 
 `src/plugin_manifest_policy.py` validiert einzelne Manifeste und Registry-Dokumente.
 `src/plugin_local_audit.py` scannt lokale Plugin-Schnittstellen per AST und ruft diese Policy auf. Beide Module sind reine Vorbereitungsschichten: keine Downloads, keine Imports, keine Runtime-Hooks.
+`src/plugin_release_gate.py` verbindet beide Pruefungen zu einem kompakten Release-Gate fuer 1.0-/Plugin-Evidence.

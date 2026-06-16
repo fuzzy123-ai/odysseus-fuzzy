@@ -58,7 +58,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
-| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy und lokales Plugin-Audit ergänzt, Host-Agent bleibt Follow-up |
+| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
@@ -590,7 +590,7 @@ Produktentscheidung:
 
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
-| `PLUGIN2-manifest-policy-model` | Policy-Text und Review-Regeln | done: Offline-Validatoren fuer Registry und lokale Plugin-Manifeste; statisches lokales Plugin-Audit | Tests, Scope, keine Runtime-Hooks | ja |
+| `PLUGIN2-manifest-policy-model` | Policy-Text und Review-Regeln | done: Offline-Validatoren fuer Registry und lokale Plugin-Manifeste; statisches lokales Plugin-Audit; Plugin-Release-Gate | Tests, Scope, keine Runtime-Hooks | ja |
 | `SHC0-narrative-and-architecture-contract` | NDD-Contract, Nutzerfluesse, Begriffe, Statussprache | Debian/Podman/Docker Machbarkeit read-only pruefen | Roadmap einordnen, aktive Slices/Worktree pruefen | ja, docs/read-only |
 | `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | done: Plugin-Scaffold + offline Snapshot | ja |
 | `SHC2-debian-basic-collectors` | Setup-/Unknown-State Texte | CPU/RAM/Load/Uptime/Disk Collector-Modelle mit Mockable Inputs | done: keine Host-Kommandos, nur Normalisierung | ja nach Contract |
@@ -607,6 +607,7 @@ Produktentscheidung:
 - System Health Checker ist als eigener Plugin-Track nachvollziehbar.
 - Plugin-Manifeste und Registry-Eintraege sind offline policy-pruefbar, ohne Plugin-Code zu importieren.
 - Lokale Plugin-Ordner koennen statisch auditiert werden, ohne `setup()` oder Top-Level-Code auszufuehren.
+- Plugin-Registry und lokale Plugin-Ordner koennen als gemeinsames Release-Gate bewertet werden.
 - `plugins/system_health_checker/` existiert als eigener Plugin-Scope.
 - Host-Agent und Odysseus-Container sind strikt entkoppelt.
 - Debian Basic Health Snapshot ist schema-stabil und offline-/unknown-sicher.
