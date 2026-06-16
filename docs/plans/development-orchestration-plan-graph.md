@@ -4,6 +4,8 @@ Stand: 2026-06-16
 
 Dieses Feature beschreibt eine spaetere Odysseus-Faehigkeit fuer automatisierte Development-Orchestration. Es gehoert bewusst **nicht** in die aktuelle Memory-first/Obsidian-Roadmap, sondern ist ein eigenstaendiges Produktfeature fuer eine spaetere Ausbaustufe.
 
+Konkreter erster Umsetzungsplan: `docs/plans/development-orchestration-foundation-roadmap.md`.
+
 ## Zielbild
 
 Der Nutzer gibt dem Master-Agenten ein Entwicklungsziel. Der Master erzeugt daraus nicht sofort einen finalen Plan, sondern fuehrt zuerst eine rekursive Plan-Schleife:
