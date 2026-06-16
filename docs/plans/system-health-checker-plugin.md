@@ -1,6 +1,6 @@
 # System Health Checker Plugin
 
-Status: SHC0-SHC8 foundation started; host command collectors and real Telegram bot are not implemented yet
+Status: SHC0-SHC9 foundation complete as plugin/ops foundation; real host-agent and Telegram bot are separate follow-up tracks
 
 ## Narrative
 
@@ -143,6 +143,7 @@ Push alerts:
 - `SHC6-podman-docker-runtime-adapter`: `plugins/system_health_checker/runtime_adapter.py`, `tests/test_system_health_checker_runtime_adapter.py`.
 - `SHC7-advanced-debian-collectors`: `plugins/system_health_checker/advanced_collectors.py`, `tests/test_system_health_checker_advanced_collectors.py`.
 - `SHC8-odysseus-health-ui`: plugin page fetches `/api/plugins/system_health_checker/health` and renders the offline snapshot.
+- `SHC9-security-and-ops-runbook`: `docs/plans/system-health-checker-ops-runbook.md`.
 - Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_advanced_collectors.py tests\test_system_health_checker_rule_engine.py tests\test_system_health_checker_telegram_adapter.py tests\test_system_health_checker_alert_dispatcher.py tests\test_system_health_checker_runtime_adapter.py` -> `53 passed, 1 warning`.
 - Boundary: Odysseus exposes an offline health snapshot and plugin page, but executes no host commands.
 - Boundary: Telegram support is currently parse/authorize/render only; no token, no polling, no network calls.
