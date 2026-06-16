@@ -429,6 +429,33 @@ Still required before a real Memory-first `1.0.0` go decision:
 
 Until that evidence exists, the plugin can be Lens-ready in parts without claiming that the full Memory-first `1.0.0` system is ready.
 
+### Source View Lens Contract
+
+The next Lens contract layer is `Source Views`: the UI should make it obvious where retrieved knowledge came from and how strongly it is supported.
+
+Lens-side contract:
+
+- A **Source Card** should identify whether the evidence comes from a Markdown source, chat/capture, document, or attachment metadata.
+- A **Chunk Card** should show the relevant excerpt or unit of evidence instead of only naming the source file.
+- A **Provenance breadcrumb** should read like `answer -> chunk -> source -> optional graph jump`.
+- **Confidence** should be shown with explanation text, not as an unexplained magic score.
+- `stale`, `dirty`, `failed`, and similar backend states should be translated into user-facing status text rather than raw internal errors.
+
+Safe assumptions before Bob handoff:
+
+- A readable source type.
+- A readable source path or source label.
+- A title and excerpt.
+- Some form of confidence signal.
+
+Needs Bob handoff before the UI treats it as stable:
+
+- Exact chunk identity field.
+- Final hash/version field name.
+- Final `indexed_at` field shape.
+- Stable mapping for backend freshness/failure states.
+- Final graph-jump payload for source-to-graph navigation.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:

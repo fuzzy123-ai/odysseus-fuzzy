@@ -158,6 +158,11 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 | `A3-memory-graph-lens` | Memory-Graph, Quellen und Cluster visuell bedienbar machen | `plugins/obsidian/frontend/main.js`, ggf. Style | kein Entity Extraction Backend | Node/edge contract + browser smoke |
 | `A4-published-views` | Generierte Views klar von Nutzerquellen unterscheiden | Frontend, README, ggf. routes fuer read-only views | keine stillen Writes | UI contract + docs |
 | `A5-1.0-release-readiness` | Go/No-Go, bekannte Grenzen, Evidence zusammenziehen | Roadmap, README, release notes | keine Produktlogik | Doku/Evidence-Review |
+| `A6-source-view-lens-contract` | Quellen-, Chunk-, Confidence- und Provenance-Ansichten als UI-Vertrag definieren | `docs/obsidian/00-priorisierte-roadmap.md`, `plugins/obsidian/README.md` | keine Backend-Routen, keine Indexlogik | Doku-Konsistenz |
+| `A7-query-answer-lens` | Antwortkarte fuer Memory-Fragen entwerfen: Antwort, Quellen, Confidence, Unsicherheit, Graph-Jump | `plugins/obsidian/frontend/main.js` nach Handoff, README | keine Query-Engine | UI/static/browser smoke |
+| `A8-automation-review-lens` | Nacht-/Idle-Job-Ergebnisse fuer Nutzer verstaendlich machen: was lief, was braucht Review, was ist safe | README, spaeter Frontend | kein Scheduler, kein Cost Controller | Doku + UI contract |
+| `A9-nextcloud-source-lens` | Nextcloud/Dateiarchiv als Source Provider in der Lens erklaeren und sichtbar machen | Roadmap, README, spaeter Source Views | kein Nextcloud-Backend-Plugin | Doku-Konsistenz |
+| `A10-memory-demo-runbook` | Reproduzierbaren 1.0-Demoablauf fuer Memory-first vorbereiten | README, Release Notes, Evidence-Abschnitt | keine Feature-Erweiterung | manueller Demo-Smoke |
 
 ### A1 Lens-Produktvertrag
 
@@ -195,6 +200,133 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 - Der neue Alice-Pfad `A0 -> A1 -> A2 -> A3 -> A4 -> A5` ist die aktive Lens-Spur.
 - Alte Obsidian-first `S...`-Slices bleiben nur als Foundation-/Archivkontext sichtbar.
 - Bobs Infrastrukturarbeit und Alices Lens-Vertrag widersprechen sich nicht.
+
+### Alice-Folgeplan nach Abschluss
+
+Alice ist nach dem aktuellen Handoff wieder frei. Damit ihre Geschwindigkeit weiter hilft, ohne Bobs Backend-Spur zu kreuzen, arbeitet Alice ab jetzt in zwei Modi:
+
+- Sofort moeglich: read-only Produktvertrag, Lens-Spezifikation, README-/Roadmap-Klarheit und Demo-/Evidence-Vorbereitung.
+- Erst nach Bob-Handoff: Frontend-Integration gegen stabile Endpoints fuer Ledger, Derived Index, Query Layer und Automation.
+
+#### Naechste sichere Alice-Queue
+
+1. `A6-source-view-lens-contract`
+2. `A8-automation-review-lens`
+3. `A9-nextcloud-source-lens`
+4. `A10-memory-demo-runbook`
+5. `A7-query-answer-lens` erst starten, wenn Bob Query-Layer-Contract und Routen stabil gruen hat.
+
+#### A6 Source-View-Lens-Contract
+
+Ziel: Alice beschreibt, wie Nutzer sehen, wo Wissen herkommt und wie stark es belegt ist.
+
+Scope:
+
+- Source Card fuer Datei, Capture, Dokument und Attachment-Metadaten.
+- Chunk Card mit Quelle, Titel, Auszug, Hash/Version, Indexed-at und Confidence.
+- Provenance-Breadcrumb: Antwort -> Chunk -> Quelle -> optional Graph-Knoten.
+- Stale-/Dirty-/Failed-Zustaende als Nutzertext, nicht als technische Rohfehler.
+
+Grenzen:
+
+- Keine Aenderung an `memory_ledger.py`, `derived_index.py`, `query_layer.py`, `memory_status.py` oder `routes.py`.
+- Keine neuen Backend-Kontrakte einfuehren; nur auf Bobs sichtbare Felder referenzieren oder offene Felder als `needs Bob handoff` markieren.
+
+Lens-Vertrag:
+
+- **Source Card** zeigt den Ursprungstyp klar sichtbar: Markdown-Datei, Chat/Capture, Dokument oder Attachment-Metadaten.
+- **Chunk Card** zeigt den verwendeten Ausschnitt als belegbare Arbeitseinheit statt nur "die KI hat das irgendwo her".
+- **Confidence** bleibt eine erklaerte Nutzeranzeige, kein magischer Prozentwert ohne Kontext.
+- **Provenance Breadcrumb** macht die Kette sichtbar: Antwort -> Chunk -> Quelle -> optional Graph-Sprung.
+- **State Text** ersetzt rohe Technikfehler durch lesbare Nutzerzustaende wie `stale`, `dirty`, `failed` oder `needs review`.
+
+Minimal sichere Felder vor Bob-Handoff:
+
+- `source_type`
+- `source_path` oder ein vergleichbarer lesbarer Quellenbezeichner
+- `title`
+- `excerpt`
+- `confidence`
+
+Nur nach Bob-Handoff fest zusagen:
+
+- `chunk_id`
+- `hash` oder `version`
+- `indexed_at`
+- Graph-/cluster-spezifische Provenance-Felder
+- Antwort-zu-Chunk-Matchgruende ueber mehrere Retrieval-Stufen
+
+Open markers fuer spaetere UI:
+
+- `needs Bob handoff: exact chunk identity field`
+- `needs Bob handoff: final confidence scale and wording`
+- `needs Bob handoff: stale/dirty/failed payload mapping from backend status`
+- `needs Bob handoff: graph jump target format`
+
+#### A7 Query-Answer-Lens
+
+Ziel: Die Memory-Antwort wird user-facing kontrollierbar statt magisch.
+
+Scope:
+
+- Antwortkarte mit Kurzantwort, Quellenliste, Confidence und Unsicherheitsgruenden.
+- "Warum diese Quelle?"-Ansicht mit Match-Kontext.
+- Absprung in Source View und Graph View.
+- Leerer Zustand fuer "nicht genug Evidenz" statt halluzinierter Antwort.
+
+Startbedingung:
+
+- Bob hat Query-Layer-Tests gruen und die Antwort-/Retrieval-Payload stabil dokumentiert.
+
+#### A8 Automation-Review-Lens
+
+Ziel: Automatische Nacht-/Idle-Jobs werden nachvollziehbar, ohne Nutzerartefakte riskant zu veraendern.
+
+Scope:
+
+- Job-Status-Texte: `not_run`, `running`, `ready`, `dirty`, `failed`, `needs_review`.
+- Review-Liste fuer sichere Vorschlaege, Staging-Artefakte und blockierte riskante Aktionen.
+- Erklaerung, welche Dinge automatisch rebuildbar sind und welche menschliche Freigabe brauchen.
+- Kosten-/Ressourcenhinweis fuer MiniPC-Betrieb: Jobs duerfen langsam und opportunistisch laufen.
+
+Grenzen:
+
+- Alice baut keine Scheduler-, Queue- oder Cost-Control-Logik.
+- Alice formuliert keine Auto-Apply-Regel, die Source Markdown still appenden, mergen oder rewrite'n wuerde.
+
+#### A9 Nextcloud-Source-Lens
+
+Ziel: Nextcloud und Dateiarchiv werden als Source Layer verstaendlich in Memory-first eingeordnet.
+
+Scope:
+
+- Nextcloud-Sync-Ordner als Source Provider beschreiben.
+- AI-User-/Bridge-Grenzen dokumentieren: read-only Archiv, write-only Staging/Generated/Published nach Policy.
+- Source View zeigt spaeter Dateipfad, Sync-Ursprung und Indexzustand.
+- Everything/Filesystem-Suche bleibt Optimierung fuer Discovery/Repair, nicht Produktkern.
+
+Grenzen:
+
+- Kein Nextcloud-Plugin-Backend in diesem Slice.
+- Keine Loesch-, Move- oder Rewrite-Flows fuer echte Nutzerdateien.
+
+#### A10 Memory-Demo-Runbook
+
+Ziel: Eine spaetere 1.0-Demo kann zeigen, dass Memory-first wirklich funktioniert.
+
+Demo-Pfad:
+
+1. Quelle in Vault/Nextcloud-Sync-Ordner legen.
+2. Ledger/Index/Query-Status aktualisieren lassen oder manuell triggern.
+3. Frage stellen.
+4. Antwort mit Quellen und Confidence pruefen.
+5. Quelle im Obsidian-Lens-Graph oder Source View nachvollziehen.
+6. Optional: Review-/Published-View ohne stillen Source-Rewrite erzeugen.
+
+Exit:
+
+- Runbook unterscheidet klar zwischen fertiger Funktion, Mock/Spec und Bob-Handoff.
+- Demo kann als 1.0-Evidence genutzt werden, sobald Bobs Backend gruen ist.
 
 ### A5 Release-Readiness-Rahmen
 
@@ -252,7 +384,7 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 Alice:
 
 ```text
-Du bist Alice. Finish A0-finish-active-testsplit und arbeite danach an A1-memory-lens-contract. Halte Obsidian als Lens/Review/Visualisierung fest. Nicht an Ledger, Indexer, Query Engine oder Background Jobs arbeiten. Wenn Backend-Dateien bereits von Bob aktiv bearbeitet werden, nicht anfassen.
+Du bist Alice. Dein vorheriger Slice ist uebergeben. Starte jetzt A6-source-view-lens-contract und danach A8-automation-review-lens, A9-nextcloud-source-lens und A10-memory-demo-runbook. Arbeite read-only an Lens-Vertrag, README/Roadmap, Nutzertexten und Demo-Evidence. Nicht an memory_ledger.py, derived_index.py, query_layer.py, memory_automation.py, memory_status.py, routes.py oder Bobs Tests arbeiten. A7-query-answer-lens erst starten, wenn Bob Query-Layer-Payload und Tests stabil uebergibt.
 ```
 
 Bob:
