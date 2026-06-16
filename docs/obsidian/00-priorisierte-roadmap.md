@@ -31,10 +31,13 @@ Der neue Produkt-Nordstern ist **Memory-first**:
 - Obsidian visualisiert Quellen, Graph, Cluster, Review Queue und publizierte Views.
 - Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
 - Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
+- Der Query Layer kann mit DeepSeek oder kompatiblem Modellpfad antworten und faellt bei Modellproblemen kontrolliert auf lokale oder extractive Antworten zurueck.
 
-Aktueller Abstand zum neuen `1.0.0`: **ca. 95-98%**.
+Aktueller Abstand zum neuen `1.0.0`: **ca. 90-95%**.
 
-Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence gebaut und getestet. Die breiteren Obsidian-/Static-/Context-Regressionen sind ebenfalls gruen. Das interne Implementierungs- und Evidence-Paket ist abgeschlossen; offen bleibt nur die echte manuelle Distributions-/Upgrade-Freigabe auf frischem Zielsetup als Release-Handlung.
+Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence gebaut und getestet. Die breiteren Obsidian-/Static-/Context-Regressionen sind ebenfalls gruen. Neu vor `1.0.0` ist der explizite DeepSeek-/Model-Router-Gate mit Graceful Degradation; danach bleibt die echte manuelle Distributions-/Upgrade-Freigabe auf frischem Zielsetup als Release-Handlung.
+
+Pre-1.0 Feature-Gate: `docs/plans/deepseek-model-router-graceful-degradation.md`.
 
 ## Neue 1.0-Roadmap
 
@@ -133,6 +136,23 @@ Exit:
 - Auto-Jobs koennen parallel laufen, ohne Nutzerquellen zu beschaedigen.
 - 1.0-Go/No-Go basiert auf Evidence, nicht Bauchgefuehl.
 
+### M6: DeepSeek Model Router und Graceful Degradation
+
+Ziel: Memory-Fragen laufen mit DeepSeek oder einem kompatiblen Modellpfad, bleiben quellenpflichtig und fallen bei Providerproblemen auf lokale oder extractive Antworten zurueck.
+
+- Antwortmodi: `auto`, `cloud`, `local`, `extractive`.
+- Cloud-Modus sendet nur retrieved Snippets, Quellenlabels und minimale Metadaten, nicht den ganzen Vault.
+- Providerfehler, Timeouts und Rate-Limits erzeugen keinen harten 500er, sondern einen sichtbaren Fallback.
+- Jede Antwort nennt `answer_mode`, Provider/Modell, Fallback-Grund, Citations, Confidence und Warnungen.
+- Tests beweisen den Router mit Fake-/Monkeypatch-Clients ohne echte Netz- oder DeepSeek-Pflicht.
+
+Exit:
+
+- Eine konfigurierte DeepSeek-Query liefert eine synthetisierte, zitierte Antwort.
+- Ohne funktionierenden Provider bleibt der heutige sichere extractive Antwortpfad verfuegbar.
+- Keine Secrets landen in Status, Response, Cache, Logs oder UI.
+- Details und Alice/Bob-Slices stehen im Feature-Plan `docs/plans/deepseek-model-router-graceful-degradation.md`.
+
 ## Aufgabenverteilung Alice / Bob
 
 Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice owned die Lens-, UX-, Review- und Produktvertragsschicht. Bob owned Ledger, Index, Query, Background Jobs und Safety.
@@ -164,6 +184,8 @@ Alice und Bob arbeiten parallel, aber auf unterschiedlichen Schichten. Alice own
 | `A9-nextcloud-source-lens` | AUSGELAGERT: Nextcloud/Dateiarchiv erst nach laufender Nextcloud-Instanz als Source Provider konkretisieren | `docs/plans/nextcloud-source-bridge.md` | kein aktueller 1.0-Scope | Nextcloud laeuft + Source-Provider-Entscheidung |
 | `A10-memory-demo-runbook` | Reproduzierbaren 1.0-Demoablauf fuer Memory-first vorbereiten | README, Release Notes, Evidence-Abschnitt | keine Feature-Erweiterung | manueller Demo-Smoke |
 | `A11-integration-readiness-audit` | Alice prueft nach Bobs Commit die Lens-/Payload-/Demo-Evidence gegen den echten Backend-Stand | Roadmap, README, Evidence-Notiz | keine Backend-Edits, kein Testfile-Umbau | Doku/Evidence-Review + fokussierte Smokes nach Handoff |
+| `A12-deepseek-lens-contract` | Antwortmodi, Fallback-Wording, Datenschutz- und Evidence-Vertrag fuer DeepSeek klaeren | Roadmap, `docs/plans/deepseek-model-router-graceful-degradation.md`, spaeter README | keine Backend-Routen, keine Modellkonfiguration | Doku konsistent mit Bobs Payload-Vertrag |
+| `A13-answer-mode-ui` | Answer Lens zeigt Modus, Provider, Fallback-Grund und Warnungen | `plugins/obsidian/frontend/main.js`, statische UI-Tests nach Handoff | keine Backend-Implementierung, keine Secrets im DOM | UI/static smoke nach stabilem B7-Payload |
 
 ### A1 Lens-Produktvertrag
 
@@ -458,6 +480,7 @@ Audit-Stand 2026-06-16:
 - Derived Index und Query Layer muessen Quellenpflicht, Provenance und Confidence praktisch belegen.
 - Background-Automation muss zeigen, dass Derived Data rebuildbar bleibt und Nutzerquellen nicht still umgeschrieben werden.
 - External/Rebuild Proof muss Install-/Upgrade-/Repair-/Rebuild-Evidence liefern.
+- DeepSeek-/Model-Router muss Modellantworten und kontrollierte Fallbacks ohne Secret-Leaks belegen.
 
 #### Aktueller Go/No-Go-Stand
 
@@ -465,7 +488,8 @@ Audit-Stand 2026-06-16:
 - `Memory Infrastructure`: gruen im aktuellen Testfenster. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt.
 - `Safety`: gruen im aktuellen Evidence-Fenster. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; der frische manuelle Distributions-/Upgrade-Pfad bleibt eine Release-Freigabehandlung.
 - `Regressionen`: gruen am 2026-06-16. Memory/External-Proof `52 passed`; Obsidian/Static/Context `70 passed`.
-- `1.0.0`: **internes Implementierungs-/Evidence-Go**. Kein weiterer Feature-Bau fuer diese Roadmap. Vor einem externen Release bleibt nur die manuelle Distributions-/Upgrade-Freigabe auf frischem Setup.
+- `DeepSeek/Graceful Degradation`: neu offen. Dieser Gate muss vor `1.0.0` zeigen, dass `auto -> cloud -> local -> extractive` kontrolliert funktioniert oder ehrlich auf extractive fallbackt.
+- `1.0.0`: **internes Memory-/Evidence-Go fuer den bisherigen Scope**, aber noch kein finaler 1.0-Go. Vor einem externen Release muessen M6 und danach die manuelle Distributions-/Upgrade-Freigabe auf frischem Setup durch sein.
 
 #### Was A5 bei Freigabe zeigen muss
 
@@ -483,6 +507,8 @@ Audit-Stand 2026-06-16:
 | `B3-query-layer-postqfrap-light` | Query-time Verdichtung mit Quellenpflicht | retrieval/query modules | kein adRAP/UMAP/GMM | answer contract tests |
 | `B4-background-automation` | Idle/Nacht-Jobs, Queue, Cost Controller | scheduler/job modules, config | keine riskanten Source Writes | job/safety tests |
 | `B5-external-rebuild-proof` | Rebuild, Repair, Install/Upgrade, Evidence fuer 1.0 | scripts/docs/tests | keine Feature-Erweiterung | rebuild + install evidence |
+| `B6-model-router-core` | DeepSeek-/kompatibles Modellrouting mit Status, Timeout und Fallback bauen | `plugins/obsidian/backend/model_router.py`, Query-/Route-Tests | kein Frontend, kein Model-Install | Fake-Provider-, Timeout- und Secret-Leak-Tests |
+| `B7-query-synthesis-integration` | Query Layer um `answer_mode=auto|cloud|local|extractive` erweitern | `plugins/obsidian/backend/query_layer.py`, `plugins/obsidian/backend/routes.py`, Backend-Tests | kein UI-Umbau, kein Indexschema-Rewrite | Cloud success, cloud->local, cloud/local->extractive |
 
 ### Parallel-Regeln
 
@@ -494,11 +520,12 @@ Audit-Stand 2026-06-16:
 
 ### Abschluss-Auftraege
 
-Alice und Bob sind fuer diese Roadmap fertig.
+Alice und Bob sind fuer den bisherigen Memory-first Abschluss fertig. Der neue Pre-1.0-Gate ist jetzt der erste offene Block.
 
-- Keine neuen Slices starten.
-- Keine neuen Feature-Followups in diese Roadmap ziehen.
-- Offene spaetere UI-Vertiefungen bleiben als Followups sichtbar, blockieren aber nicht den internen Abschluss.
+- Bob startet `B6-model-router-core` und danach `B7-query-synthesis-integration`.
+- Alice startet parallel `A12-deepseek-lens-contract`; `A13-answer-mode-ui` erst nach Bobs Payload-Handoff.
+- Keine anderen neuen Feature-Followups in diese Roadmap ziehen, bis M6 gruen ist.
+- Offene spaetere UI-Vertiefungen bleiben als Followups sichtbar, blockieren aber nicht M6.
 - Nextcloud bleibt ausgelagert, bis die Instanz laeuft.
 - Postgres/pgvector, Diagnostics, Qdrant/Kuzu und UMAP/GMM gehoeren in die Nachfolge-Roadmaps.
 
