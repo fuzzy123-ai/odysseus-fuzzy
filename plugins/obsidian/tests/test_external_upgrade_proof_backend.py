@@ -2,6 +2,9 @@ import os
 import shutil
 import sys
 import tempfile
+from types import SimpleNamespace
+
+import pytest
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,6 +19,7 @@ from backend.external_upgrade_proof import (
     collect_external_upgrade_proof,
     collect_version_sync,
 )
+import backend.routes as obsidian_routes
 
 
 PLUGIN_ROOT = _ROOT
@@ -71,3 +75,28 @@ def test_external_upgrade_proof_collects_distribution_and_rebuild_evidence():
         assert payload["plain_export_import"]["rebuild_proof"]["summary"]["query_citations"] >= 1
         assert payload["encrypted_export_import"]["rebuild_proof"]["summary"]["query_citations"] >= 1
         assert payload["summary"]["ready"] is True
+
+
+@pytest.mark.asyncio
+async def test_external_upgrade_proof_routes_return_status_and_run_payload(monkeypatch):
+    with tempfile.TemporaryDirectory() as vault_dir:
+        os.makedirs(os.path.join(vault_dir, "Projects"), exist_ok=True)
+        with open(os.path.join(vault_dir, "Projects", "Blob.md"), "w", encoding="utf-8") as handle:
+            handle.write("# Blob\n\nExternal route proof should rebuild with citations.\n")
+
+        request = SimpleNamespace(state=SimpleNamespace(api_token=False))
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda _request: vault_dir)
+        monkeypatch.setattr(obsidian_routes, "_require_vault_scope", lambda _request, _scope: "default")
+
+        status = await obsidian_routes.external_upgrade_proof_status_route(request)
+        result = await obsidian_routes.external_upgrade_proof_run_route(
+            request,
+            q="blob citations",
+            top_k=5,
+            path_prefix="Projects",
+        )
+
+        assert status["version_sync"]["match"] is True
+        assert status["distribution_layout"]["ready"] is True
+        assert result["summary"]["ready"] is True
+        assert result["plain_export_import"]["rebuild_proof"]["summary"]["query_citations"] >= 1

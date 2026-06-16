@@ -32,9 +32,9 @@ Der neue Produkt-Nordstern ist **Memory-first**:
 - Background-Jobs koennen kosteneffizient laufen, ohne echte Nutzer-Notizen riskant umzuschreiben.
 - Auto-Apply ist nur fuer sichere, policy-erlaubte Aktionen moeglich; riskante Promotionen landen in Review/Staging.
 
-Aktueller Abstand zum neuen `1.0.0`: **ca. 75-80%**.
+Aktueller Abstand zum neuen `1.0.0`: **ca. 85-90%**.
 
-Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens und Automation weitgehend gebaut und fokussiert getestet. Offen bleiben vor allem Bobs letzter Automation-Commit, External/Rebuild Proof, breitere Regressionen und ein finaler Go/No-Go-Schnitt.
+Grund: Die Memory-first Backend-Spur ist in Ledger, Derived Index, Query Layer, Answer Lens, Automation und External/Rebuild Evidence weitgehend gebaut und fokussiert getestet. Offen bleiben vor allem breitere Regressionen, manueller Distributions-/Upgrade-Nachweis auf frischem Setup und ein finaler Go/No-Go-Schnitt.
 
 ## Neue 1.0-Roadmap
 
@@ -423,7 +423,9 @@ Audit-Stand 2026-06-16:
 - `real`: Die Lens-Seite fuer Query Answers ist umgesetzt und nutzt die echten Query-Endpunkte read-only.
 - `mock/spec`: Source View als eigene UI fuer `source_type`, `chunk_id`, `indexed_at` und tieferen Chunk-Provenance-Drilldown bleibt weiterhin Vertrags-/README-Ebene, nicht final integrierte Runtime-Oberflaeche.
 - `needs Bob handoff`: External-Source-/Nextcloud-spezifische Source-Provider-Felder sind noch nicht im stabilen Backend-Vertrag nachgewiesen.
-- `blocked`: External/Rebuild Proof und breitere `1.0`-Evidence fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-Stand auf **kein Go**.
+- `real`: External/Rebuild Proof ist jetzt ueber `/memory/rebuild-proof`, `/memory/rebuild-proof/run`, `/memory/external-upgrade-proof` und `/memory/external-upgrade-proof/run` samt fokussiertem Backend-Test belegt; Plain/Encrypted Export-Import plus Rebuild liefern Query-Citations.
+- `needs Bob handoff`: Frische Install-/Upgrade-Evidence auf echter externer Zielumgebung bleibt noch als manueller Distributionsnachweis offen.
+- `blocked`: Breitere `1.0`-Regressionen und der finale Evidence-Schnitt fehlen noch; deshalb bleibt `1.0.0` trotz gruenem Query-/Automation-/Rebuild-Stand auf **kein Go**.
 
 ### A5 Release-Readiness-Rahmen
 
@@ -447,9 +449,9 @@ Audit-Stand 2026-06-16:
 #### Aktueller Go/No-Go-Stand
 
 - `Lens UX`: weitgehend gruen. Alice hat Source View, Automation Review, Nextcloud Source, Demo Runbook und Query Answer Lens vorbereitet.
-- `Memory Infrastructure`: fokussiert gruen. Ledger, Derived Index, Query Layer und Automation sind gebaut; Query- und Automation-Payloads sind gegen fokussierte Tests belegt. Nicht final frei ist die Spur trotzdem erst nach External/Rebuild Proof und breiterem Evidence-Schnitt.
-- `Safety`: teilweise gruen. Bestehende Obsidian-Sicherheitsgates und Automation-Safety sind relevant, aber Memory-first 1.0 braucht finalen Rebuild-/No-Source-Write-Nachweis.
-- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern Commit-Cleanliness, External/Rebuild Proof, fokussierte/breitere Tests und finaler Evidence-Schnitt.
+- `Memory Infrastructure`: fokussiert gruen. Ledger, Derived Index, Query Layer, Automation und External/Rebuild Proof sind gebaut; Query-, Automation- und Rebuild-/Upgrade-Payloads sind gegen fokussierte Tests belegt. Nicht final frei ist die Spur trotzdem erst nach breiterem Evidence-Schnitt.
+- `Safety`: ueberwiegend gruen. Bestehende Obsidian-Sicherheitsgates, Automation-Safety und der External/Rebuild-Proof zeigen derzeit keine stillen Source-Writes; offen bleibt die breitere Regression auf frischem Distributionspfad.
+- `1.0.0`: aktuell **kein Go**. Naechster Gate ist nicht mehr Feature-Bau, sondern manueller Distributionsnachweis auf frischem Setup, breitere Regressionen und der finale Evidence-Schnitt.
 
 #### Was A5 bei Freigabe zeigen muss
 

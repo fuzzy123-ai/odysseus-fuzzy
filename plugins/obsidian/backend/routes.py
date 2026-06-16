@@ -109,6 +109,11 @@ from .memory_automation import memory_automation_status, run_memory_automation
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
 from .query_layer import answer_query, query_layer_status
 from .rebuild_proof import rebuild_proof_status, run_rebuild_proof
+from .external_upgrade_proof import (
+    collect_distribution_layout,
+    collect_external_upgrade_proof,
+    collect_version_sync,
+)
 from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
@@ -1512,6 +1517,40 @@ async def rebuild_proof_run_route(request: Request, q: Optional[str] = None, top
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
     return run_rebuild_proof(vault_dir, query=q, top_k=top_k)
+
+
+@router.get("/memory/external-upgrade-proof")
+async def external_upgrade_proof_status_route(request: Request):
+    """Return release-evidence status for external plugin distribution and version sync."""
+    get_unlocked_vault_path(request)
+    plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return {
+        "plugin_root": plugin_dir,
+        "version_sync": collect_version_sync(plugin_dir),
+        "distribution_layout": collect_distribution_layout(plugin_dir, ignore_runtime_artifacts=True),
+    }
+
+
+@router.post("/memory/external-upgrade-proof/run")
+async def external_upgrade_proof_run_route(
+    request: Request,
+    q: Optional[str] = None,
+    top_k: int = 5,
+    path_prefix: str = "",
+    export_password: str = "external-upgrade-proof",
+):
+    """Run export/import/rebuild release evidence for external distribution upgrades."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return collect_external_upgrade_proof(
+        plugin_dir,
+        vault_dir,
+        query=q,
+        top_k=top_k,
+        path_prefix=path_prefix,
+        export_password=export_password,
+    )
 
 
 @router.post("/memory-tree/analyze")

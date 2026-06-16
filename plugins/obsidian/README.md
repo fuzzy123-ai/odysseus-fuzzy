@@ -126,6 +126,7 @@ The plugin registers Odysseus agent tools through `ctx.register_tool(...)` so AI
 - Vault security and portability: `obsidian_vault_status`, `obsidian_vault_set_password`, `obsidian_vault_lock`, `obsidian_vault_unlock`, `obsidian_vault_remove_password`, `obsidian_vault_export`, `obsidian_vault_import`.
 - Project planning: `obsidian_project_plan_templates`, `obsidian_project_plan_improve_description`, `obsidian_project_plan_gamedev_draft`, `obsidian_project_plan_preview`, `obsidian_project_plan_apply`.
 - Memory review: `obsidian_memory_review_preview`, `obsidian_memory_review_apply`.
+- Release evidence: `obsidian_external_upgrade_proof_status`, `obsidian_external_upgrade_proof_run`.
 
 Destructive or overwriting tool operations require explicit `confirm: true`.
 
@@ -223,6 +224,10 @@ All routes are registered under `/api/plugins/obsidian`.
 
 - `GET /memory/query/status` - query-layer readiness, gate, warnings, and source/chunk counts.
 - `GET /memory/query?q=<query>&top_k=<n>` - grounded answer text with citations, confidence, and readiness metadata.
+- `GET /memory/rebuild-proof` - latest persisted ledger/index/query rebuild-proof status.
+- `POST /memory/rebuild-proof/run` - run and persist a full ledger/index/query rebuild proof.
+- `GET /memory/external-upgrade-proof` - external distribution/version-sync release-evidence status.
+- `POST /memory/external-upgrade-proof/run` - run export/import/rebuild release evidence for an external plugin upgrade.
 
 ### History
 
@@ -449,7 +454,7 @@ Still required before a real Memory-first `1.0.0` go decision:
 - Source/index ledger evidence.
 - Derived index and query-layer evidence with provenance, citations, and confidence.
 - Background automation evidence showing rebuildable Derived Data without silent rewrites to source Markdown.
-- External install/upgrade/rebuild proof and final safety-gate evidence.
+- Manual fresh-install/upgrade evidence on an external target plus the final broader safety/regression cut.
 
 Until that evidence exists, the plugin can be Lens-ready in parts without claiming that the full Memory-first `1.0.0` system is ready.
 
@@ -572,12 +577,16 @@ Current audit buckets:
 - `real`: `KI Spark -> Answer Lens` is wired against the live query endpoints and keeps blocked/low-confidence states user-visible instead of pretending success.
 - `mock/spec`: Source View remains a contract-level surface for richer source-type/chunk/version drilldown; the separate runtime Lens for those fields is not fully materialized yet.
 - `needs Bob handoff`: external-source/Nextcloud provider identifiers and stable external-file status fields are still not proven in a committed backend payload.
-- `blocked`: external rebuild/install/repair proof is still missing, so Memory-first `1.0.0` remains a no-go despite green focused query and automation evidence.
+- `real`: `GET /memory/rebuild-proof`, `POST /memory/rebuild-proof/run`, `GET /memory/external-upgrade-proof`, and `POST /memory/external-upgrade-proof/run` now expose persisted rebuild proof plus external distribution/version-sync evidence; focused external-proof tests pass for plain/encrypted export-import and citation-bearing rebuilds.
+- `needs Bob handoff`: fresh install/upgrade evidence on a truly external target environment is still a manual distribution step, not yet a committed automated proof artifact.
+- `blocked`: broader `1.0` regression/evidence closure is still missing, so Memory-first `1.0.0` remains a no-go despite green focused query, automation, and rebuild evidence.
 
 Evidence verified in this audit:
 
 - `plugins/obsidian/tests/test_query_layer_backend.py`: focused query contract smoke passes.
 - `plugins/obsidian/tests/test_memory_automation_backend.py`: focused automation contract smoke passes.
+- `plugins/obsidian/tests/test_memory_rebuild_proof_backend.py`: focused rebuild-proof smoke passes.
+- `plugins/obsidian/tests/test_external_upgrade_proof_backend.py`: focused external distribution/export-import/rebuild smoke passes.
 
 ## Release Archive Layout
 

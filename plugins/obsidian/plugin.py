@@ -52,6 +52,11 @@ try:
         build_spark_plan,
     )
     from obsidian.backend.freshness import audit_knowledge, quarantine_list
+    from obsidian.backend.external_upgrade_proof import (
+        collect_distribution_layout,
+        collect_external_upgrade_proof,
+        collect_version_sync,
+    )
     from obsidian.backend.hybrid_retrieval import raptor_status
     from obsidian.backend.memory_status import memory_status
     from obsidian.backend.memory_tree import analyze_memory_tree, memory_tree_status
@@ -117,6 +122,11 @@ except ModuleNotFoundError:
         build_spark_plan,
     )
     from backend.freshness import audit_knowledge, quarantine_list
+    from backend.external_upgrade_proof import (
+        collect_distribution_layout,
+        collect_external_upgrade_proof,
+        collect_version_sync,
+    )
     from backend.hybrid_retrieval import raptor_status
     from backend.memory_status import memory_status
     from backend.memory_tree import analyze_memory_tree, memory_tree_status
@@ -848,6 +858,38 @@ async def handle_memory_status(content: str, owner: Optional[str] = None, **kwar
         return {"error": f"Failed to read memory status: {e}", "exit_code": 1}
 
 
+async def handle_external_upgrade_proof_status(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns release-evidence status for external distribution and version sync."""
+    try:
+        get_unlocked_vault_path_by_owner(owner)
+        payload = {
+            "plugin_root": _PLUGIN_DIR,
+            "version_sync": collect_version_sync(_PLUGIN_DIR),
+            "distribution_layout": collect_distribution_layout(_PLUGIN_DIR, ignore_runtime_artifacts=True),
+        }
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to read external upgrade proof status: {e}", "exit_code": 1}
+
+
+async def handle_external_upgrade_proof_run(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Runs export/import/rebuild release evidence for an external plugin upgrade."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        payload = collect_external_upgrade_proof(
+            _PLUGIN_DIR,
+            vault_dir,
+            query=params.get("query"),
+            top_k=params.get("top_k", 5),
+            path_prefix=params.get("path_prefix", ""),
+            export_password=params.get("export_password", "external-upgrade-proof"),
+        )
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to run external upgrade proof: {e}", "exit_code": 1}
+
+
 async def handle_memory_tree_analyze(content: str, owner: Optional[str] = None, **kwargs) -> dict:
     """Builds a read-only SOMT candidate report without writing derived files."""
     try:
@@ -1056,6 +1098,13 @@ def setup(ctx):
         }, ["plan", "confirm", "selected_action_ids"], handle_spark_apply),
         _tool_spec("obsidian_memory_tree_status", "Return read-only SOMT index health, status counts, and branch overview.", {}, [], handle_memory_tree_status),
         _tool_spec("obsidian_memory_status", "Return unified read-only memory readiness with readiness_gate, retrieval_policy, freshness_isolation_flags, raptor_lineage_flags, raptor_write_gate, and warnings across SOMT, Freshness Gate, quarantine, and RAPTOR.", {}, [], handle_memory_status),
+        _tool_spec("obsidian_external_upgrade_proof_status", "Return release-evidence status for external plugin distribution layout and plugin version sync.", {}, [], handle_external_upgrade_proof_status),
+        _tool_spec("obsidian_external_upgrade_proof_run", "Run external plugin release evidence across export/import and rebuild-proof verification.", {
+            "query": {"type": "string", "description": "Optional query used during the rebuild proof."},
+            "top_k": {"type": "integer", "description": "Maximum citations to inspect during rebuild proof."},
+            "path_prefix": {"type": "string", "description": "Optional vault subtree to export and verify."},
+            "export_password": {"type": "string", "description": "Optional password used for the encrypted ZIP export proof."},
+        }, [], handle_external_upgrade_proof_run),
         _tool_spec("obsidian_memory_tree_analyze", "Analyze the vault into a read-only SOMT candidate report without writing derived files.", {
             "limit": {"type": "integer", "description": "Optional maximum number of notes to analyze."},
         }, [], handle_memory_tree_analyze),
