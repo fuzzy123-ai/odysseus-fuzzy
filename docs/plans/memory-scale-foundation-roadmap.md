@@ -313,7 +313,40 @@ Done:
 - Frontend rendert Subgraphs und Aggregate
 - leere/gekappte Ergebnisse sind user-facing erklaert
 
-### MS7: Optional Qdrant Accelerator
+### MS7: Operations und Homeserver-Fitness
+
+Ziel: Die Scale Foundation passt zum MiniPC/Homeserver-Betrieb.
+
+Scope:
+
+- Docker/Postgres Betriebsannahmen
+- Backup/Restore Runbook
+- Speichergrenzen
+- Vacuum/Analyze/Index Maintenance
+- Job Concurrency
+- CPU/RAM Budgets
+- optional getrennte Volumes fuer Daten und Backups
+
+Regeln:
+
+- keine echte Infrastrukturumstellung ohne gesonderten Implementierungs-Slice
+- Restore-Faehigkeit ist wichtiger als theoretische Peak-Performance
+- alle Jobs bleiben budgetiert und drosselbar
+- Postgres bleibt die geplante Wahrheit; Accelerator bleiben optional
+
+Done:
+
+- Restore-Pfad ist als Runbook pruefbar
+- Memory Jobs koennen gedrosselt werden
+- System bleibt auch bei grossen Datenmengen bedienbar
+- Homeserver-Risiken sind fuer Charlie sichtbar
+
+## Post-0.13 Optional Tracks
+
+Diese Tracks gehoeren nicht mehr zur direkten `0.13.x Memory Scale Foundation`.
+Sie duerfen erst starten, wenn Diagnostics ein konkretes Messproblem oder eine belegte Qualitaetsluecke zeigen.
+
+### O1: Optional Qdrant Accelerator
 
 Startbedingung:
 
@@ -336,7 +369,7 @@ Done:
 - Rebuild ist getestet
 - Konsistenz wird ueber Source/Chunk-Versionen geprueft
 
-### MS8: Optional Kuzu Graph Accelerator
+### O2: Optional Kuzu Graph Accelerator
 
 Startbedingung:
 
@@ -359,7 +392,7 @@ Done:
 - Rebuild ist getestet
 - Fallback auf Postgres-Graph bleibt moeglich
 
-### MS9: UMAP/GMM/RAPTOR Research Track
+### O3: UMAP/GMM/RAPTOR Research Track
 
 Startbedingung:
 
@@ -385,26 +418,6 @@ Entscheidungskriterien:
 - akzeptable Rebuild-/Update-Eigenschaften
 - erklaerbare Provenance trotz Clustering
 
-### MS10: Operations und Homeserver-Fitness
-
-Ziel: Die Scale Foundation passt zum MiniPC/Homeserver-Betrieb.
-
-Scope:
-
-- Docker Compose fuer Postgres
-- Backup/Restore Runbook
-- Speichergrenzen
-- Vacuum/Analyze/Index Maintenance
-- Job Concurrency
-- CPU/RAM Budgets
-- optional getrennte Volumes fuer Daten und Backups
-
-Done:
-
-- Restore wurde praktisch getestet
-- Memory Jobs koennen gedrosselt werden
-- System bleibt auch bei grossen Datenmengen bedienbar
-
 ## Empfohlene Reihenfolge
 
 1. MS0: aktuelle 1.0 abschliessen
@@ -414,10 +427,10 @@ Done:
 5. MS4: Diagnostics Layer
 6. MS5: Performance Gates
 7. MS6: Progressive Graph API
-8. MS10: Operations/Homeserver
-9. MS7: Qdrant nur bei Bedarf
-10. MS8: Kuzu nur bei Bedarf
-11. MS9: UMAP/GMM/RAPTOR Research nur bei Qualitaetsluecke
+8. MS7: Operations/Homeserver
+9. O1: Qdrant nur bei Bedarf
+10. O2: Kuzu nur bei Bedarf
+11. O3: UMAP/GMM/RAPTOR Research nur bei Qualitaetsluecke
 
 ## Was wir bewusst nicht tun
 
