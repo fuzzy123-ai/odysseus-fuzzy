@@ -198,6 +198,7 @@ let sparkPlan = null;
 let sparkHealth = null;
 let sparkSelectedActions = new Set();
 let sparkActiveTab = 'health';
+let memoryWorkspaceTab = 'read';
 let sparkQueryStatus = null;
 let sparkQueryResult = null;
 let sparkQueryText = '';
@@ -949,6 +950,17 @@ function shortAiModelName(model) {
   return text.split('/').pop();
 }
 
+function memoryWorkspaceTitle() {
+  return memoryWorkspaceTab === 'maintain' ? 'Gedaechtnis Pflegen' : 'Gedaechtnis Lesen';
+}
+
+function memoryWorkspaceSubtitle() {
+  if (memoryWorkspaceTab === 'maintain') {
+    return 'Review, Kuration, Uebernahme und Review Queue bleiben im Pflegekontext gebuendelt.';
+  }
+  return 'Fragen, Quellen, Confidence und Graph-Jumps bleiben im Lesekontext gebuendelt.';
+}
+
 async function refreshObsidianAiStatus() {
   const valueEl = document.getElementById('obsidian-ai-model-value');
   const hintEl = document.getElementById('obsidian-ai-model-hint');
@@ -1523,7 +1535,10 @@ function injectUIElements() {
                 <button id="obsidian-project-plan" title="Plan Project">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h1"/><path d="M4 12h1"/><path d="M4 18h1"/></svg>
                 </button>
-                <button id="obsidian-memory-review" title="Memory Review">
+                <button id="obsidian-memory-read" title="Gedaechtnis Lesen">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+                </button>
+                <button id="obsidian-memory-review" title="Gedaechtnis Pflegen">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.2 1.02 4.16 2.61 5.44.53.43.89 1.05.89 1.73V18h7v-.83c0-.68.36-1.3.89-1.73A6.98 6.98 0 0 0 19 10a7 7 0 0 0-7-7Z"/><path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/></svg>
                 </button>
                 <button id="obsidian-memory-tree" title="Knowledge Audit">
@@ -1582,66 +1597,76 @@ function injectUIElements() {
               <div class="obsidian-memory-review-panel hidden" id="obsidian-memory-review-panel">
                 <div class="obsidian-project-header">
                   <div>
-                    <div class="obsidian-project-title">Memory review</div>
-                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Stage one reviewed insight for your vault, queue, or memory layer</div>
+                    <div class="obsidian-project-title" id="obsidian-memory-shell-title">Gedaechtnis Lesen</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-memory-target">Fragen, Quellen, Confidence und Graph-Jumps bleiben im Lesekontext gebuendelt.</div>
                   </div>
-                  <button type="button" class="obsidian-panel-btn" id="obsidian-memory-close" title="Close memory review">x</button>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-memory-close" title="Close memory workspace">x</button>
                 </div>
-                <div class="obsidian-memory-form obsidian-project-form">
-                  <label class="obsidian-memory-field obsidian-memory-title-field">
-                    <span>Title (optional)</span>
-                    <input id="obsidian-memory-title" type="text" placeholder="Title (optional)" autocomplete="off">
-                    <small>Used for the new note title and filename. If empty, a title is generated from the insight.</small>
-                  </label>
-                  <label class="obsidian-memory-field obsidian-memory-action-field">
-                    <span>Review action</span>
-                    <select id="obsidian-memory-action" title="Review action">
-                      <option value="save_to_obsidian">Save to vault</option>
-                      <option value="append_to_note" hidden>Append to selected note</option>
-                      <option value="review_queue">Queue for review</option>
-                      <option value="memory_only">Memory only</option>
-                      <option value="discard">Discard</option>
-                    </select>
-                    <small id="obsidian-memory-action-help">Choose whether this writes to Obsidian now, stages into the review queue, stays in memory, or is discarded.</small>
-                  </label>
-                  <div class="obsidian-memory-field obsidian-memory-destination-field" id="obsidian-memory-destination-field">
-                    <span>Save to</span>
-                    <button type="button" id="obsidian-memory-save-to" class="obsidian-memory-save-to" data-memory-destination-type="" data-memory-destination-path="" aria-label="Choose where to save this memory">
-                      <span id="obsidian-memory-save-to-label"></span>
-                    </button>
-                    <small id="obsidian-memory-destination-help">Choose a folder to create a new note, or choose a note to append this insight.</small>
-                    <input id="obsidian-memory-folder" type="hidden" value="">
-                    <input id="obsidian-memory-note" type="hidden" value="">
-                    <div class="obsidian-memory-destination-picker hidden" id="obsidian-memory-destination-picker">
-                      <div class="obsidian-memory-picker-tabs">
-                        <button type="button" data-memory-picker-tab="folders">Folders</button>
-                        <button type="button" data-memory-picker-tab="notes">Notes</button>
+                <div class="obsidian-memory-shell-toolbar">
+                  <div class="obsidian-memory-shell-tabs" role="tablist">
+                    <button type="button" data-memory-workspace-tab="read">Gedaechtnis Lesen</button>
+                    <button type="button" data-memory-workspace-tab="maintain">Gedaechtnis Pflegen</button>
+                  </div>
+                </div>
+                <div class="obsidian-memory-shell-view" id="obsidian-memory-read-view"></div>
+                <div class="obsidian-memory-shell-view hidden" id="obsidian-memory-maintain-view">
+                  <div class="obsidian-memory-form obsidian-project-form">
+                    <label class="obsidian-memory-field obsidian-memory-title-field">
+                      <span>Title (optional)</span>
+                      <input id="obsidian-memory-title" type="text" placeholder="Title (optional)" autocomplete="off">
+                      <small>Used for the new note title and filename. If empty, a title is generated from the insight.</small>
+                    </label>
+                    <label class="obsidian-memory-field obsidian-memory-action-field">
+                      <span>Review action</span>
+                      <select id="obsidian-memory-action" title="Review action">
+                        <option value="save_to_obsidian">Save to vault</option>
+                        <option value="append_to_note" hidden>Append to selected note</option>
+                        <option value="review_queue">Queue for review</option>
+                        <option value="memory_only">Memory only</option>
+                        <option value="discard">Discard</option>
+                      </select>
+                      <small id="obsidian-memory-action-help">Choose whether this writes to Obsidian now, stages into the review queue, stays in memory, or is discarded.</small>
+                    </label>
+                    <div class="obsidian-memory-field obsidian-memory-destination-field" id="obsidian-memory-destination-field">
+                      <span>Save to</span>
+                      <button type="button" id="obsidian-memory-save-to" class="obsidian-memory-save-to" data-memory-destination-type="" data-memory-destination-path="" aria-label="Choose where to save this memory">
+                        <span id="obsidian-memory-save-to-label"></span>
+                      </button>
+                      <small id="obsidian-memory-destination-help">Choose a folder to create a new note, or choose a note to append this insight.</small>
+                      <input id="obsidian-memory-folder" type="hidden" value="">
+                      <input id="obsidian-memory-note" type="hidden" value="">
+                      <div class="obsidian-memory-destination-picker hidden" id="obsidian-memory-destination-picker">
+                        <div class="obsidian-memory-picker-tabs">
+                          <button type="button" data-memory-picker-tab="folders">Folders</button>
+                          <button type="button" data-memory-picker-tab="notes">Notes</button>
+                        </div>
+                        <input id="obsidian-memory-picker-search" type="text" placeholder="Search vault..." autocomplete="off">
+                        <div class="obsidian-memory-picker-hints" id="obsidian-memory-picker-hints"></div>
+                        <div class="obsidian-memory-picker-list" id="obsidian-memory-picker-list"></div>
                       </div>
-                      <input id="obsidian-memory-picker-search" type="text" placeholder="Search vault..." autocomplete="off">
-                      <div class="obsidian-memory-picker-hints" id="obsidian-memory-picker-hints"></div>
-                      <div class="obsidian-memory-picker-list" id="obsidian-memory-picker-list"></div>
+                    </div>
+                    <div class="obsidian-memory-field obsidian-memory-tags-field">
+                      <span>Tags</span>
+                      <div class="obsidian-memory-tag-input" id="obsidian-memory-tags">
+                        <div class="obsidian-memory-tag-chips" id="obsidian-memory-tag-chips"></div>
+                        <input id="obsidian-memory-tag-entry" type="text" placeholder="Type a tag and press Enter" autocomplete="off">
+                        <div class="obsidian-memory-tag-menu hidden" id="obsidian-memory-tag-menu"></div>
+                      </div>
+                      <small>Existing tags autocomplete from the vault. Press Enter to add the selected tag or create a new one.</small>
+                    </div>
+                    <label class="obsidian-memory-field obsidian-memory-content-field">
+                      <span>Insight to save</span>
+                      <textarea id="obsidian-memory-content" placeholder="Write the reviewed insight or decision that should become vault context."></textarea>
+                      <small>This text becomes the saved note content or the appended memory section.</small>
+                    </label>
+                    <div class="obsidian-project-actions">
+                      <button type="button" id="obsidian-memory-preview" class="btn btn-secondary">Preview changes</button>
+                      <button type="button" id="obsidian-memory-apply" class="btn btn-primary" disabled>Apply to vault</button>
                     </div>
                   </div>
-                  <div class="obsidian-memory-field obsidian-memory-tags-field">
-                    <span>Tags</span>
-                    <div class="obsidian-memory-tag-input" id="obsidian-memory-tags">
-                      <div class="obsidian-memory-tag-chips" id="obsidian-memory-tag-chips"></div>
-                      <input id="obsidian-memory-tag-entry" type="text" placeholder="Type a tag and press Enter" autocomplete="off">
-                      <div class="obsidian-memory-tag-menu hidden" id="obsidian-memory-tag-menu"></div>
-                    </div>
-                    <small>Existing tags autocomplete from the vault. Press Enter to add the selected tag or create a new one.</small>
-                  </div>
-                  <label class="obsidian-memory-field obsidian-memory-content-field">
-                    <span>Insight to save</span>
-                    <textarea id="obsidian-memory-content" placeholder="Write the reviewed insight or decision that should become vault context."></textarea>
-                    <small>This text becomes the saved note content or the appended memory section.</small>
-                  </label>
-                  <div class="obsidian-project-actions">
-                    <button type="button" id="obsidian-memory-preview" class="btn btn-secondary">Preview changes</button>
-                    <button type="button" id="obsidian-memory-apply" class="btn btn-primary" disabled>Apply to vault</button>
-                  </div>
+                  <div class="obsidian-project-preview" id="obsidian-memory-preview-panel"></div>
+                  <div class="obsidian-memory-maintain-queue" id="obsidian-memory-maintain-queue"></div>
                 </div>
-                <div class="obsidian-project-preview" id="obsidian-memory-preview-panel"></div>
               </div>
               <div class="obsidian-memory-tree-panel hidden" id="obsidian-memory-tree-panel">
                 <div class="obsidian-project-header">
@@ -1674,8 +1699,6 @@ function injectUIElements() {
                   <div class="obsidian-spark-tabs" role="tablist">
                     <button type="button" data-spark-tab="health">Health</button>
                     <button type="button" data-spark-tab="plan">Plan</button>
-                    <button type="button" data-spark-tab="query">Answer Lens</button>
-                    <button type="button" data-spark-tab="queue">Review Queue</button>
                     <button type="button" data-spark-tab="canonicals">Canonicals</button>
                   </div>
                   <div class="obsidian-project-actions" id="obsidian-spark-actions">
@@ -3131,20 +3154,24 @@ function closeProjectPlanner() {
 function showMemoryReview() {
   const panel = document.getElementById('obsidian-memory-review-panel');
   if (!panel) return;
-  memoryReviewPreview = null;
-  clearMemoryReviewDestination();
   document.getElementById('obsidian-project-planner')?.classList.add('hidden');
   document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
   document.getElementById('obsidian-memory-tree-panel')?.classList.add('hidden');
   document.getElementById('obsidian-editor-container')?.classList.add('hidden');
   document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  const wasHidden = panel.classList.contains('hidden');
   panel.classList.remove('hidden');
-  const actionSelect = document.getElementById('obsidian-memory-action');
-  if (actionSelect) actionSelect.value = 'save_to_obsidian';
-  renderMemoryTagChips();
-  updateMemoryReviewActionUi();
-  document.getElementById('obsidian-memory-preview-panel').innerHTML = '';
-  document.getElementById('obsidian-memory-apply').disabled = true;
+  if (wasHidden) {
+    memoryReviewPreview = null;
+    clearMemoryReviewDestination();
+    const actionSelect = document.getElementById('obsidian-memory-action');
+    if (actionSelect) actionSelect.value = 'save_to_obsidian';
+    renderMemoryTagChips();
+    updateMemoryReviewActionUi();
+    document.getElementById('obsidian-memory-preview-panel').innerHTML = '';
+    document.getElementById('obsidian-memory-apply').disabled = true;
+  }
+  setMemoryWorkspaceTab('maintain');
 }
 
 function closeMemoryReview() {
@@ -3154,6 +3181,70 @@ function closeMemoryReview() {
   } else {
     document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
   }
+}
+
+function showMemoryReadWorkspace() {
+  const panel = document.getElementById('obsidian-memory-review-panel');
+  if (!panel) return;
+  document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-memory-tree-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+  document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  panel.classList.remove('hidden');
+  setMemoryWorkspaceTab('read');
+  if (!sparkQueryStatus && !sparkQueryLoading) loadSparkQueryStatus();
+}
+
+function setMemoryWorkspaceTab(tab) {
+  memoryWorkspaceTab = tab === 'maintain' ? 'maintain' : 'read';
+  renderMemoryWorkspacePanel();
+}
+
+function renderMemoryWorkspacePanel() {
+  const panel = document.getElementById('obsidian-memory-review-panel');
+  if (!panel || panel.classList.contains('hidden')) return;
+  const title = document.getElementById('obsidian-memory-shell-title');
+  if (title) title.textContent = memoryWorkspaceTitle();
+  const subtitle = document.getElementById('obsidian-memory-target');
+  if (subtitle) subtitle.textContent = memoryWorkspaceSubtitle();
+  document.querySelectorAll('[data-memory-workspace-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.memoryWorkspaceTab === memoryWorkspaceTab);
+  });
+  const readView = document.getElementById('obsidian-memory-read-view');
+  const maintainView = document.getElementById('obsidian-memory-maintain-view');
+  readView?.classList.toggle('hidden', memoryWorkspaceTab !== 'read');
+  maintainView?.classList.toggle('hidden', memoryWorkspaceTab !== 'maintain');
+  if (memoryWorkspaceTab === 'read') {
+    renderMemoryReadWorkspace();
+  } else {
+    renderMemoryMaintainWorkspace();
+  }
+  bindSparkPanelActions();
+}
+
+function renderMemoryReadWorkspace() {
+  const container = document.getElementById('obsidian-memory-read-view');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="obsidian-memory-read-shell" data-memory-shell-role="read">
+      ${renderSparkQuery()}
+    </div>
+  `;
+}
+
+function renderMemoryMaintainWorkspace() {
+  const queue = document.getElementById('obsidian-memory-maintain-queue');
+  if (!queue) return;
+  queue.innerHTML = `
+    <div class="obsidian-memory-maintain-queue-card" data-memory-shell-role="maintain">
+      <div class="obsidian-project-summary">
+        <strong>Review Queue</strong>
+        <span>Pflegefaelle und offene Uebernahmen bleiben im Pflegekontext.</span>
+      </div>
+      ${renderSparkQueue()}
+    </div>
+  `;
 }
 
 function setMemoryTreeTab(tab) {
@@ -3673,10 +3764,7 @@ function sparkMetric(label, value) {
 }
 
 function sparkQuerySubtitle() {
-  if (sparkActiveTab === 'query') {
-    return 'Grounded memory answers with readiness, citations, confidence, and graph jumps';
-  }
-  return 'Memory health, cleanup plans, review queue, and canonicals';
+  return 'Memory health, cleanup plans, canonicals, and bounded maintenance signals';
 }
 
 function updateSparkChrome() {
@@ -3684,6 +3772,27 @@ function updateSparkChrome() {
   if (subtitle) subtitle.textContent = sparkQuerySubtitle();
   const actions = document.getElementById('obsidian-spark-actions');
   if (actions) actions.classList.toggle('hidden', sparkActiveTab === 'query');
+}
+
+function closeActiveMemorySurface() {
+  const memoryPanel = document.getElementById('obsidian-memory-review-panel');
+  if (memoryPanel && !memoryPanel.classList.contains('hidden')) {
+    closeMemoryReview();
+    return;
+  }
+  const sparkPanel = document.getElementById('obsidian-spark-panel');
+  if (sparkPanel && !sparkPanel.classList.contains('hidden')) {
+    closeSparkPanel();
+  }
+}
+
+function renderMemoryQuerySurfaces() {
+  if (sparkActiveTab === 'query') {
+    renderSparkPanel();
+  }
+  if (memoryWorkspaceTab === 'read') {
+    renderMemoryWorkspacePanel();
+  }
 }
 
 function renderSparkPanel() {
@@ -3954,7 +4063,7 @@ function bindSparkPanelActions() {
     btn.addEventListener('click', async () => {
       const path = btn.dataset.sparkOpenPath;
       if (!path || btn.disabled) return;
-      closeSparkPanel();
+      closeActiveMemorySurface();
       await openNote(path);
     });
   });
@@ -3962,7 +4071,7 @@ function bindSparkPanelActions() {
     btn.addEventListener('click', async () => {
       const path = btn.dataset.sparkQueryOpenPath;
       if (!path || btn.disabled) return;
-      closeSparkPanel();
+      closeActiveMemorySurface();
       await openNote(path);
     });
   });
@@ -3970,7 +4079,7 @@ function bindSparkPanelActions() {
     btn.addEventListener('click', async () => {
       const path = btn.dataset.sparkQueryGraphPath;
       if (!path || btn.disabled) return;
-      closeSparkPanel();
+      closeActiveMemorySurface();
       await openNote(path);
       setViewMode('graph');
     });
@@ -4027,7 +4136,7 @@ function sparkContextTokensLabel(value) {
 async function loadSparkQueryStatus() {
   sparkQueryLoading = true;
   sparkQueryError = '';
-  renderSparkPanel();
+  renderMemoryQuerySurfaces();
   try {
     sparkQueryStatus = await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
     if (!sparkQueryStatus?.readiness?.ready) sparkQueryResult = null;
@@ -4037,7 +4146,7 @@ async function loadSparkQueryStatus() {
     sparkQueryResult = null;
   } finally {
     sparkQueryLoading = false;
-    renderSparkPanel();
+    renderMemoryQuerySurfaces();
   }
 }
 
@@ -4049,7 +4158,7 @@ async function runSparkQuery() {
   }
   sparkQueryLoading = true;
   sparkQueryError = '';
-  renderSparkPanel();
+  renderMemoryQuerySurfaces();
   try {
     sparkQueryStatus = sparkQueryStatus || await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
     sparkQueryResult = await fetchMemoryDashboardJson(`/api/plugins/obsidian/memory/query?q=${encodeURIComponent(query)}&top_k=5`);
@@ -4059,7 +4168,7 @@ async function runSparkQuery() {
     sparkQueryResult = null;
   } finally {
     sparkQueryLoading = false;
-    renderSparkPanel();
+    renderMemoryQuerySurfaces();
   }
 }
 
@@ -6036,8 +6145,12 @@ function setupEventListeners() {
       setProjectSelectValue(menu.dataset.projectSelectMenu, option.dataset.projectSelectValue || '');
     });
   });
+  document.getElementById('obsidian-memory-read')?.addEventListener('click', showMemoryReadWorkspace);
   document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);
   document.getElementById('obsidian-memory-close')?.addEventListener('click', closeMemoryReview);
+  document.querySelectorAll('[data-memory-workspace-tab]').forEach(btn => {
+    btn.addEventListener('click', () => setMemoryWorkspaceTab(btn.dataset.memoryWorkspaceTab));
+  });
   document.getElementById('obsidian-memory-preview')?.addEventListener('click', previewMemoryReview);
   document.getElementById('obsidian-memory-apply')?.addEventListener('click', applyMemoryReview);
   document.getElementById('obsidian-memory-tree')?.addEventListener('click', showMemoryTreePanel);

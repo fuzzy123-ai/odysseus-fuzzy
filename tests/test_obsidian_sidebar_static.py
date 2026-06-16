@@ -577,8 +577,15 @@ def test_obsidian_phase5_memory_review_ui_contract():
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
 
     for marker in (
+        'id="obsidian-memory-read"',
         'id="obsidian-memory-review"',
         'id="obsidian-memory-review-panel"',
+        'id="obsidian-memory-shell-title"',
+        'data-memory-workspace-tab="read"',
+        'data-memory-workspace-tab="maintain"',
+        'id="obsidian-memory-read-view"',
+        'id="obsidian-memory-maintain-view"',
+        'id="obsidian-memory-maintain-queue"',
         'id="obsidian-memory-title"',
         'id="obsidian-memory-action"',
         'id="obsidian-memory-save-to"',
@@ -599,7 +606,10 @@ def test_obsidian_phase5_memory_review_ui_contract():
         assert marker in main_js
 
     assert "Title (optional)" in main_js
-    assert "Save one reviewed insight into your vault" in main_js
+    assert 'title="Gedaechtnis Lesen"' in main_js
+    assert 'title="Gedaechtnis Pflegen"' in main_js
+    assert "Gedaechtnis Lesen" in main_js
+    assert "Gedaechtnis Pflegen" in main_js
     assert "Insight to save" in main_js
     assert "Preview changes" in main_js
     assert "Apply to vault" in main_js
@@ -619,12 +629,20 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert "Title source" in main_js
     assert "function previewMemoryReview()" in main_js
     assert "function applyMemoryReview()" in main_js
+    assert "function showMemoryReadWorkspace()" in main_js
+    assert "function setMemoryWorkspaceTab(tab)" in main_js
+    assert "function renderMemoryWorkspacePanel()" in main_js
+    assert "renderSparkQuery()" in main_js
+    assert "renderSparkQueue()" in main_js
     assert "fetch('/api/plugins/obsidian/memory-review/preview'" in main_js
     assert "fetch('/api/plugins/obsidian/memory-review/apply'" in main_js
     assert "Apply this memory review to the vault?" in main_js
     assert "memoryReviewPreview" in main_js
     assert "data-memory-conflicts" in main_js
     assert ".obsidian-memory-review-panel" in style
+    assert ".obsidian-memory-shell-tabs" in style
+    assert ".obsidian-memory-shell-view" in style
+    assert ".obsidian-memory-maintain-queue" in style
     assert ".obsidian-memory-save-to" in style
     assert ".obsidian-memory-tag-chip" in style
     assert ".obsidian-memory-preview-summary" in style
@@ -793,6 +811,23 @@ def test_obsidian_answer_mode_ui_contract():
     assert "Running in safe grounded extractive mode without model synthesis." in main_js
     assert "Fallback-Grund:" in main_js
     assert "context ${sparkContextTokensLabel(result.model_context_tokens)}" in main_js
+
+
+def test_obsidian_memory_read_write_tabs_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+
+    assert 'data-memory-workspace-tab="read"' in main_js
+    assert 'data-memory-workspace-tab="maintain"' in main_js
+    assert "document.getElementById('obsidian-memory-read')?.addEventListener('click', showMemoryReadWorkspace);" in main_js
+    assert "document.getElementById('obsidian-memory-review')?.addEventListener('click', showMemoryReview);" in main_js
+    assert "data-memory-shell-role=\"read\"" in main_js
+    assert "data-memory-shell-role=\"maintain\"" in main_js
+    assert 'data-spark-tab="query"' not in main_js
+    assert 'data-spark-tab="queue"' not in main_js
+    assert 'id="obsidian-memory-tree-panel"' in main_js
+    assert 'id="obsidian-spark-panel"' in main_js
+    assert 'id="obsidian-graph-view"' in main_js
+    assert 'data-spark-query-graph-path' in main_js
 
 
 def test_obsidian_phase3_password_prompts_do_not_render_password_values():

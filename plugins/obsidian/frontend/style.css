@@ -797,6 +797,59 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   overflow: auto;
 }
 
+.obsidian-memory-shell-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.obsidian-memory-shell-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.obsidian-memory-shell-tabs button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted, #9ca3af);
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+}
+
+.obsidian-memory-shell-tabs button.active,
+.obsidian-memory-shell-tabs button:hover,
+.obsidian-memory-shell-tabs button:focus-visible {
+  color: var(--fg);
+  border-color: var(--accent, var(--red));
+  background: color-mix(in srgb, var(--accent, #d35f5f) 12%, transparent);
+  outline: none;
+}
+
+.obsidian-memory-shell-view {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.obsidian-memory-read-shell,
+.obsidian-memory-maintain-queue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.obsidian-memory-maintain-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .obsidian-project-header,
 .obsidian-project-actions,
 .obsidian-project-summary {
