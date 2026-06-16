@@ -54,7 +54,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
-| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO5 gestartet, Registry, Thread-Zuordnung, Handoff-Mailbox, Tick-Planer und Runtime-Gate-Auswertung umgesetzt |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO6 gestartet, Registry, Thread-Zuordnung, Handoff-Mailbox, Tick-Planer, Runtime-Gates und Dashboard-v2 Snapshot umgesetzt |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
@@ -536,7 +536,7 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 | `AUTO3-handoff-parser-and-mailbox` | Handoff-Template finalisieren | done: Parser/Validator, Mailbox/Dispatch-Queue, Pflichtfeldfehler | echte Beispiel-Handoffs testen | ja |
 | `AUTO4-heartbeat-runtime-loop` | Nutzertexte fuer laufend/wartend/blockiert/gestoppt | done als trockener Tick-Planer mit injizierten Snapshots und Mailbox-Queue; echte Scheduler-/Thread-/Git-Hooks offen | prueft, dass Automation letzter operativer Schritt bleibt | nein, kritisch |
 | `AUTO5-git-test-quality-gates` | Gate-Lens fuer rot/gelb/gruen | done als Snapshot-Evaluator fuer Git, Tests, Evidence, Scope und Hotfiles; echte Command-Runner offen | Block/Warn/Pass entscheiden, keine destruktiven Git-Aktionen | bedingt |
-| `AUTO6-mini-orchestration-dashboard-v2` | Dashboard-Contract: Fortschritt, Slices, Blocker, naechste Aktion, Gates | Status API und einfache UI-Liste/Tree | UI-Smoke, Store/Gate-Abgleich | ja nach API-Contract |
+| `AUTO6-mini-orchestration-dashboard-v2` | Dashboard-Contract: Fortschritt, Slices, Blocker, naechste Aktion, Gates | done als Backend-Snapshot-Builder aus Registry, Heartbeat, Mailbox und Gates; UI/API-Hook offen | UI-Smoke, Store/Gate-Abgleich | ja nach API-Contract |
 | `AUTO7-end-to-end-two-agent-smoke` | Demo-Runbook und Known Limits | E2E-Smoke mit Fake/echten ThreadRefs je nach Verfuegbarkeit | Abschluss-Tests, Go/No-Go, Push | nein |
 | `AUTO8-n-agent-scaling-design` | Rollen, Pools, Budgets, Locks UX | Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt | ja, Planung |
 
