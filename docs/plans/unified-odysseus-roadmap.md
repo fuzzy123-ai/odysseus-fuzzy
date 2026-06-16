@@ -42,7 +42,8 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.11.x` | Agent State & Architecture Hygiene | Zustandstrennung, Context Capsules, Tool Truth, Backend-Grenzen | abgeschlossen als Foundation-Schnitt |
 | `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
 | `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | aktive naechste Phase: Start mit `MS1-store-interfaces` |
-| `0.14.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | geplant nach `0.13.x` |
+| `0.15.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | erst nach gruenem Evidence-Lauf |
 
 ## Fortschrittsformat
@@ -102,10 +103,11 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P1 | `0.13.x` | Query Budgets & Performance Gates | Keine unbounded Graph-/Memory-/Query-Pfade. | M | M | UI fuer clipped/partial results | Limits, cursors, perf tests | Regression-Budget | ja |
 | P2 | `0.13.x` | Postgres + pgvector Design | Zentrale Wahrheit fuer Memory/Graph/Jobs, pgvector als integrierte Semantik. | L | L | Migrations-/Ops-Runbook | Schema, Import/Export Proof | Architekturentscheidung | bedingt |
 | P2 | `0.13.x` | Progressive Graph API | UI darf nie 100k/1M Nodes laden, sondern Ausschnitte und Aggregate. | M-L | L | Graph-Lens/Clipping UX | serverseitige Graph Budgets | Browser-/Payload-Smokes | ja |
-| P2 | `0.14.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P2 | `0.14.x` | Lightweight Memory Maintenance | Kleine Maintenance-Modelle duerfen RAPTOR/GraphRAG pflegen, aber nie globale Wahrheit entscheiden. | L | L | Review-/Evidence-Sprache | bounded Jobs, K-Means Proof, Summary Worker | Drift-/Fallback-Gates | ja |
+| P2 | `0.15.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
-| P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach Diagnostics und stabiler Basis. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
+| P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
 
 ## Aktive Phase: `0.13.x` Memory Scale Foundation
 
@@ -247,7 +249,54 @@ Diese Version sorgt dafuer, dass grosse Datenmengen fluessig bleiben.
 - Migration ist export/import-basiert, nicht dauerhaft Dual-Write.
 - MiniPC/Homeserver-Betrieb hat klare Grenzen und Backups.
 
-## Version `0.14.x`: Nextcloud Source Provider
+## Version `0.14.x`: Lightweight Memory Maintenance
+
+Diese Version startet nach `0.13.x`, bevor weitere Source Provider oder Research-Tracks groesser werden.
+
+Ziel: RAPTOR/GraphRAG-Maintenance funktioniert mit einem kleinen lokalen Maintenance-Modell unter 2 GB RAM, weil die Engine alle schweren Arbeiten ueber Postgres/pgvector, Jobs, Budgets, K-Means/Bisecting-K-Means und Validatoren erledigt. Das kleine Modell bekommt nur kleine, vorbereitete Aufgaben und entscheidet nie globale Wahrheit.
+
+### Leitregeln
+
+- Das kleine Modell ist Worker, nicht Denkzentrale.
+- Clustering laeuft algorithmisch, nicht im LLM.
+- K-Means oder Bisecting K-Means ist der erste produktionsnahe Derived-Layer.
+- Cluster, Summaries und Graph-Maintenance sind Derived Data und rebuildbar.
+- Jede Summary braucht Quellen- oder Chunk-Refs.
+- Jede unsichere Aenderung erzeugt ein Review Item.
+- Groessere Modelle sind Fallback/Reviewer, nicht Default.
+- Obsidian bleibt Visualisierungsschicht, nicht Wahrheit.
+
+### Reihenfolge
+
+1. `LM1-maintenance-worker-contract`
+2. `LM2-derived-cluster-run-model`
+3. `LM3-kmeans-clustering-proof`
+4. `LM4-evidence-bound-summary-worker`
+5. `LM5-graph-maintenance-worker`
+6. `LM6-small-model-evaluation-gates`
+7. `LM7-fallback-routing`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `LM1-maintenance-worker-contract` | Erklaert, was kleine Modelle duerfen/nicht duerfen | Job-/Task-Schema fuer bounded Maintenance | Stop-Regeln fuer globale Wahrheit | ja |
+| `LM2-derived-cluster-run-model` | Cluster Runs, Rebuilds, Versionen erklaeren | `cluster_runs`, `cluster_nodes`, `cluster_memberships` Modell | Derived-vs-Truth-Gate | ja |
+| `LM3-kmeans-clustering-proof` | K-Means/Bisecting-K-Means Runbook | isolierter K-Means Proof mit kleinen Fixtures | Qualitaets-/Budget-Review | bedingt |
+| `LM4-evidence-bound-summary-worker` | Review-Sprache fuer Quellenpflicht | Summary Task: max chunks/tokens/source refs/`needs_review` | Drift-/Evidence-Gate | ja |
+| `LM5-graph-maintenance-worker` | Regeln gegen halluzinierte Kanten | Entity/Edge Task mit confidence, provenance, dedupe | Review-Queue-Gate | ja |
+| `LM6-small-model-evaluation-gates` | Kriterien fuer "kleines Modell reicht" | Evaluation fuer drift, evidence, JSON, confidence | Fallback-Entscheidung | ja |
+| `LM7-fallback-routing` | Produktlogik fuer groesseres Modell | Routing: maintenance model, fallback model, retry/backoff, cost budget | Abschluss- und Kosten-Gate | bedingt |
+
+### Definition of Done `0.14.x`
+
+- Kein Maintenance-Job laedt unbounded Memory, Graph oder Cluster.
+- Ein Modell unter 2 GB RAM kann produktiv kleine Maintenance-Pakete bearbeiten.
+- Cluster und Summaries sind versioniert, rebuildbar und evidence-bound.
+- Unsicherheit fuehrt zu Review oder Fallback, nicht zu stillen Writes.
+- K-Means/Bisecting-K-Means ist als erster RAPTOR-kompatibler Produktionspfad nachweisbar; GMM/UMAP bleibt Research.
+
+## Version `0.15.x`: Nextcloud Source Provider
 
 Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 
@@ -363,5 +412,6 @@ Diese Roadmap ist erfuellt, wenn:
 - `0.11.x` Agent State Isolation und Context Capsules als Fundament bereitstellt.
 - `0.12.x` Alice/Bob/Charlie-Orchestration als Produktfunktion beweist.
 - `0.13.x` Memory-Scale-Foundation mit Diagnostics und Budgets vorbereitet.
-- `0.14.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
+- `0.14.x` Lightweight Memory Maintenance mit kleinem Modell, bounded Jobs und evidence-bound Summaries beweist.
+- `0.15.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
 - `1.0.0` nicht nach Bauchgefuehl, sondern nach Evidence freigegeben wird.
