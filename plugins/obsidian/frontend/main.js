@@ -2753,7 +2753,7 @@ function updateMemoryReviewCopy() {
             ? 'Discard one reviewed insight without changing the vault'
             : action === 'append_to_note'
               ? 'Append one reviewed insight to a selected note'
-              : 'Save one reviewed insight directly into your vault'
+              : 'Save one reviewed insight into your vault'
     );
   }
   if (actionHelp) {
