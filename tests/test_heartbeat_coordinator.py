@@ -49,6 +49,51 @@ def test_invalid_interval_is_rejected():
 
 
 def test_dispatching_without_dispatch_is_rejected():
+    dispatch = HeartbeatDispatch.create(
+        target_thread_id="thread-1",
+        agent_run_id="run-1",
+        action="send",
+        summary="send next slice",
+    )
+    state = HeartbeatCoordinatorState.create(
+        heartbeat_id="hb",
+        plan_id="plan",
+        coordinator_run_id="coord",
+        agent_run_ids=["run-1"],
+        thread_refs=["thread-1"],
+        interval_seconds=15,
+        status="dispatching",
+        mode="assist",
+        last_decision="dispatch",
+        dispatches=[dispatch],
+        last_tick_at="",
+        next_tick_at="",
+        stop_reason="",
+        evidence=["dispatch allowed"],
+    )
+
+    assert state.mode.value == "assist"
+    assert state.last_decision == HeartbeatDecision.DISPATCH
+    assert state.audit_summary()["dispatch_count"] == 1
+
+    with pytest.raises(HeartbeatCoordinatorError):
+        HeartbeatCoordinatorState.create(
+            heartbeat_id="hb",
+            plan_id="plan",
+            coordinator_run_id="coord",
+            agent_run_ids=["run-1"],
+            thread_refs=["thread-1"],
+            interval_seconds=15,
+            status="dispatching",
+            mode="assist",
+            last_decision="dispatch",
+            dispatches=[],
+            last_tick_at="",
+            next_tick_at="",
+            stop_reason="",
+            evidence=["decision exists but dispatch is missing"],
+        )
+
     with pytest.raises(HeartbeatCoordinatorError):
         HeartbeatTick.create(
             tick_id="tick-1",

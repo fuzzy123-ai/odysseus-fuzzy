@@ -16,6 +16,7 @@ _MAX_TIMESTAMP = 40
 _STATUS_COMPATIBLE = {"watching", "dispatching", "waiting", "blocked", "stale", "completed", "failed", "paused"}
 _DECISIONS = {"read", "dispatch", "wait", "resolve", "stop", "noop"}
 _DISPATCH_ACTIONS = {"send", "wait", "resolve", "stop"}
+_MODES = {"observe", "assist", "manual_stop_pending"}
 
 
 class HeartbeatCoordinatorError(ValueError):
@@ -40,6 +41,12 @@ class HeartbeatDecision(StrEnum):
     RESOLVE = "resolve"
     STOP = "stop"
     NOOP = "noop"
+
+
+class HeartbeatMode(StrEnum):
+    OBSERVE = "observe"
+    ASSIST = "assist"
+    MANUAL_STOP_PENDING = "manual_stop_pending"
 
 
 def _normalize_slug(value: Any, *, field_name: str) -> str:
@@ -109,6 +116,13 @@ def _normalize_dispatch_action(value: Any) -> str:
     return normalized
 
 
+def _normalize_mode(value: Any) -> HeartbeatMode:
+    normalized = _normalize_slug(value, field_name="mode")
+    if normalized not in _MODES:
+        raise HeartbeatCoordinatorError("mode is not supported")
+    return HeartbeatMode(normalized)
+
+
 @dataclass(frozen=True, slots=True)
 class HeartbeatDispatch:
     target_thread_id: str
@@ -144,7 +158,13 @@ class HeartbeatCoordinatorState:
     agent_run_ids: tuple[str, ...]
     thread_refs: tuple[str, ...]
     interval_seconds: int
+    mode: HeartbeatMode
     status: HeartbeatStatus
+    last_decision: HeartbeatDecision | None
+    dispatches: tuple[HeartbeatDispatch, ...]
+    evidence: tuple[str, ...]
+    warnings: tuple[str, ...]
+    errors: tuple[str, ...]
     last_tick_at: str
     next_tick_at: str
     stop_reason: str
@@ -160,6 +180,9 @@ class HeartbeatCoordinatorState:
         thread_refs: Iterable[Any],
         interval_seconds: Any,
         status: HeartbeatStatus | str,
+        mode: HeartbeatMode | str = HeartbeatMode.OBSERVE,
+        last_decision: HeartbeatDecision | str | None = None,
+        dispatches: Iterable[HeartbeatDispatch] = (),
         last_tick_at: Any,
         next_tick_at: Any,
         stop_reason: Any,
@@ -173,15 +196,28 @@ class HeartbeatCoordinatorState:
             raise HeartbeatCoordinatorError("interval_seconds must be an int") from None
         if interval <= 0:
             raise HeartbeatCoordinatorError("interval_seconds must be > 0")
+        normalized_mode = mode if isinstance(mode, HeartbeatMode) else _normalize_mode(mode)
         normalized_status = status if isinstance(status, HeartbeatStatus) else _normalize_status(status, field_name="status")
+        normalized_last_decision = (
+            None
+            if last_decision in (None, "")
+            else last_decision
+            if isinstance(last_decision, HeartbeatDecision)
+            else _normalize_decision(last_decision, field_name="last_decision")
+        )
+        normalized_dispatches = tuple(dispatches)
+        if any(not isinstance(dispatch, HeartbeatDispatch) for dispatch in normalized_dispatches):
+            raise HeartbeatCoordinatorError("dispatches must contain HeartbeatDispatch items")
         normalized_evidence = _normalize_text_list(evidence, field_name="evidence")
         normalized_warnings = _normalize_text_list(warnings, field_name="warnings")
         normalized_errors = _normalize_text_list(errors, field_name="errors")
         normalized_stop_reason = _normalize_text(stop_reason, field_name="stop_reason", allow_empty=True)
-        if normalized_status == HeartbeatStatus.DISPATCHING and not normalized_evidence and not normalized_warnings:
-            pass
-        if normalized_status in {HeartbeatStatus.COMPLETED, HeartbeatStatus.BLOCKED} and not (normalized_stop_reason or normalized_evidence):
-            raise HeartbeatCoordinatorError("completed and blocked heartbeats require stop_reason or evidence")
+        if normalized_status == HeartbeatStatus.DISPATCHING and not normalized_dispatches:
+            raise HeartbeatCoordinatorError("dispatching heartbeats require at least one dispatch")
+        if normalized_status in {HeartbeatStatus.COMPLETED, HeartbeatStatus.BLOCKED, HeartbeatStatus.PAUSED} and not (
+            normalized_stop_reason or normalized_evidence or normalized_warnings or normalized_errors
+        ):
+            raise HeartbeatCoordinatorError("terminal or paused heartbeats require stop_reason or evidence")
         if normalized_status == HeartbeatStatus.FAILED and not normalized_errors:
             raise HeartbeatCoordinatorError("failed heartbeats require at least one error")
         if normalized_status == HeartbeatStatus.STALE and not (normalized_warnings or normalized_evidence):
@@ -193,7 +229,13 @@ class HeartbeatCoordinatorState:
             agent_run_ids=tuple(sorted({_normalize_slug(v, field_name="agent_run_id") for v in agent_run_ids})),
             thread_refs=tuple(sorted({str(v).strip() for v in thread_refs if str(v).strip()})),
             interval_seconds=interval,
+            mode=normalized_mode,
             status=normalized_status,
+            last_decision=normalized_last_decision,
+            dispatches=normalized_dispatches,
+            evidence=normalized_evidence,
+            warnings=normalized_warnings,
+            errors=normalized_errors,
             last_tick_at=_normalize_timestamp(last_tick_at, field_name="last_tick_at", allow_empty=True),
             next_tick_at=_normalize_timestamp(next_tick_at, field_name="next_tick_at", allow_empty=True),
             stop_reason=normalized_stop_reason,
@@ -204,9 +246,15 @@ class HeartbeatCoordinatorState:
             "heartbeat_id": self.heartbeat_id,
             "plan_id": self.plan_id,
             "coordinator_run_id": self.coordinator_run_id,
+            "mode": self.mode.value,
             "status": self.status.value,
+            "last_decision": self.last_decision.value if self.last_decision else "",
             "agent_run_count": len(self.agent_run_ids),
             "thread_ref_count": len(self.thread_refs),
+            "dispatch_count": len(self.dispatches),
+            "evidence_count": len(self.evidence),
+            "warning_count": len(self.warnings),
+            "error_count": len(self.errors),
             "interval_seconds": self.interval_seconds,
             "has_stop_reason": bool(self.stop_reason),
         }
