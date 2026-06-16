@@ -788,13 +788,33 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
 
 .obsidian-project-planner,
 .obsidian-memory-review-panel,
-.obsidian-memory-tree-panel {
+.obsidian-memory-tree-panel,
+.obsidian-activity-panel {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow: auto;
+}
+
+.obsidian-lens-state-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
+.obsidian-lens-state-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.obsidian-lens-state-card[data-lens-state="error"] {
+  border-color: color-mix(in srgb, var(--accent, #d35f5f) 40%, var(--border));
 }
 
 .obsidian-memory-shell-toolbar {
@@ -2964,6 +2984,38 @@ body.obsidian-standalone .obsidian-panel-resize-handle {
   padding: 14px;
   gap: 12px;
   overflow: hidden;
+}
+
+.obsidian-activity-panel,
+.obsidian-activity-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+}
+
+.obsidian-activity-content {
+  overflow: auto;
+}
+
+.obsidian-activity-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.obsidian-activity-events li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.obsidian-activity-events time {
+  color: var(--muted, #9ca3af);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .obsidian-spark-toolbar {

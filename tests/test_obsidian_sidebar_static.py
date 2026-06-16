@@ -833,6 +833,38 @@ def test_obsidian_answer_mode_ui_contract():
     assert "context ${sparkContextTokensLabel(result.model_context_tokens)}" in main_js
 
 
+def test_obsidian_review_audit_spark_redesign_contract():
+    main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
+    style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
+
+    assert 'title="Gedaechtnis Pflegen"' in main_js
+    assert 'title="Insights"' in main_js
+    assert 'title="Diagnostics"' in main_js
+    assert 'title="Activity"' in main_js
+    assert "Review Queue" in main_js
+    assert "Pflegefaelle und offene Uebernahmen bleiben im Pflegekontext." in main_js
+    assert "function renderLensStateCard(area, state, message, actionLabel, actionId, options = {})" in main_js
+    assert "renderLensStateCard('maintain'" in main_js
+    assert "renderLensStateCard('insights'" in main_js
+    assert "renderLensStateCard('diagnostics'" in main_js
+    assert "renderLensStateCard('activity'" in main_js
+    assert "Aktuell gibt es nichts zu pflegen." in main_js
+    assert "Fuer diesen Kontext sind noch keine Insights verfuegbar." in main_js
+    assert "Diagnostik wird geladen." in main_js
+    assert "Die Diagnostik konnte gerade nicht geladen werden." in main_js
+    assert "Aktuell gibt es keine neue Aktivitaet." in main_js
+    assert 'id="obsidian-activity-panel"' in main_js
+    assert "function renderActivityPanel()" in main_js
+    assert "function refreshActivityPanel()" in main_js
+    assert "document.getElementById('obsidian-activity')?.addEventListener('click', showActivityPanel);" in main_js
+    assert "document.getElementById('obsidian-activity-close')?.addEventListener('click', closeActivityPanel);" in main_js
+    assert ".obsidian-lens-state-card" in style
+    assert ".obsidian-activity-panel" in style
+    assert ".obsidian-activity-events" in style
+    assert 'title="Knowledge Audit"' not in main_js
+    assert 'title="KI Spark"' not in main_js
+
+
 def test_obsidian_memory_read_write_tabs_contract():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
 

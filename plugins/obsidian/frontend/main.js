@@ -414,6 +414,8 @@ let memoryStatusReport = null;
 let memoryTreeActiveTab = 'tree';
 let memoryTreeLoading = false;
 let memoryTreeError = '';
+let activityLoading = false;
+let activityError = '';
 let projectTemplateOptions = null;
 let gameDevConceptDraft = null;
 let projectPlanPreviewStreaming = false;
@@ -447,6 +449,19 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function renderLensStateCard(area, state, message, actionLabel, actionId, options = {}) {
+  const actionClass = options.actionClass || 'btn btn-primary';
+  const disabled = options.disabled ? 'disabled' : '';
+  const detail = options.detail ? `<small>${escapeHtml(options.detail)}</small>` : '';
+  return `
+    <div class="obsidian-lens-state-card" data-lens-area="${escapeHtml(area)}" data-lens-state="${escapeHtml(state)}">
+      <strong>${escapeHtml(message)}</strong>
+      ${detail}
+      <button type="button" class="${escapeHtml(actionClass)}" id="${escapeHtml(actionId)}" ${disabled}>${escapeHtml(actionLabel)}</button>
+    </div>
+  `;
 }
 
 function preprocessWikiLinks(text) {
@@ -1743,11 +1758,14 @@ function injectUIElements() {
                 <button id="obsidian-memory-review" title="Gedaechtnis Pflegen">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.2 1.02 4.16 2.61 5.44.53.43.89 1.05.89 1.73V18h7v-.83c0-.68.36-1.3.89-1.73A6.98 6.98 0 0 0 19 10a7 7 0 0 0-7-7Z"/><path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/></svg>
                 </button>
-                <button id="obsidian-memory-tree" title="Knowledge Audit">
+                <button id="obsidian-memory-tree" title="Diagnostics">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8h7"/><path d="M12 16h7"/><circle cx="5" cy="8" r="2"/><circle cx="19" cy="16" r="2"/><circle cx="12" cy="3" r="2"/><circle cx="12" cy="21" r="2"/></svg>
                 </button>
-                <button id="obsidian-spark" title="KI Spark">
+                <button id="obsidian-spark" title="Insights">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.56 8.5 21l-1.44-6.44L.62 13.12l6.44-1.44L8.5 5.24l1.44 6.44 6.44 1.44-6.44 1.44Z"/><path d="M18 8V2"/><path d="M21 5h-6"/><path d="M19 22v-4"/><path d="M21 20h-4"/></svg>
+                </button>
+                <button id="obsidian-activity" title="Activity">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 8-4-16-3 8H2"/></svg>
                 </button>
               </div>
               <div class="obsidian-search-box">
@@ -1874,10 +1892,10 @@ function injectUIElements() {
               <div class="obsidian-memory-tree-panel hidden" id="obsidian-memory-tree-panel">
                 <div class="obsidian-project-header">
                   <div>
-                    <div class="obsidian-project-title">Knowledge audit</div>
-                    <div class="obsidian-project-subtitle" id="obsidian-memory-tree-subtitle">Memory tree, Freshness Gate, quarantine, and RAPTOR status</div>
+                    <div class="obsidian-project-title">Diagnostics</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-memory-tree-subtitle">Audit-, Struktur- und Health-Signale fuer Memory, Quarantine und RAPTOR.</div>
                   </div>
-                  <button type="button" class="obsidian-panel-btn" id="obsidian-memory-tree-close" title="Close knowledge audit">x</button>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-memory-tree-close" title="Close diagnostics">x</button>
                 </div>
                 <div class="obsidian-memory-tree-toolbar">
                   <div class="obsidian-memory-tree-tabs" role="tablist">
@@ -1893,24 +1911,34 @@ function injectUIElements() {
               <div class="obsidian-spark-panel hidden" id="obsidian-spark-panel">
                 <div class="obsidian-project-header">
                   <div>
-                    <div class="obsidian-project-title">KI Spark</div>
-                    <div class="obsidian-project-subtitle" id="obsidian-spark-subtitle">Memory health, cleanup plans, review queue, and canonicals</div>
+                    <div class="obsidian-project-title">Insights</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-spark-subtitle">Lesende Hinweise, Muster, Quellenkontext und Canonicals fuer den aktuellen Scope.</div>
                   </div>
-                  <button type="button" class="obsidian-panel-btn" id="obsidian-spark-close" title="Close KI Spark">x</button>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-spark-close" title="Close insights">x</button>
                 </div>
                 <div class="obsidian-spark-toolbar">
                   <div class="obsidian-spark-tabs" role="tablist">
-                    <button type="button" data-spark-tab="health">Health</button>
-                    <button type="button" data-spark-tab="plan">Plan</button>
+                    <button type="button" data-spark-tab="health">Insights</button>
+                    <button type="button" data-spark-tab="plan">Follow-ups</button>
                     <button type="button" data-spark-tab="canonicals">Canonicals</button>
                   </div>
                   <div class="obsidian-project-actions" id="obsidian-spark-actions">
-                    <button type="button" id="obsidian-spark-analyze" class="btn btn-secondary">Analyze</button>
-                    <button type="button" id="obsidian-spark-plan" class="btn btn-secondary">Create plan</button>
-                    <button type="button" id="obsidian-spark-apply" class="btn btn-primary" disabled>Apply selected</button>
+                    <button type="button" id="obsidian-spark-analyze" class="btn btn-primary">Insights aktualisieren</button>
+                    <button type="button" id="obsidian-spark-plan" class="btn btn-secondary">Pflegeplan laden</button>
+                    <button type="button" id="obsidian-spark-apply" class="btn btn-secondary" disabled>Ausgewaehlte Pflege pruefen</button>
                   </div>
                 </div>
                 <div class="obsidian-spark-content" id="obsidian-spark-content"></div>
+              </div>
+              <div class="obsidian-activity-panel hidden" id="obsidian-activity-panel">
+                <div class="obsidian-project-header">
+                  <div>
+                    <div class="obsidian-project-title">Activity</div>
+                    <div class="obsidian-project-subtitle" id="obsidian-activity-subtitle">Jobs, Automationen und Fehler bleiben operativ sichtbar.</div>
+                  </div>
+                  <button type="button" class="obsidian-panel-btn" id="obsidian-activity-close" title="Close activity">x</button>
+                </div>
+                <div class="obsidian-activity-content" id="obsidian-activity-content"></div>
               </div>
               <div class="obsidian-empty-state" id="obsidian-empty-state">
                 <span>Select a note to start editing or create a new one</span>
@@ -3544,13 +3572,17 @@ function renderMemoryReadWorkspace() {
 function renderMemoryMaintainWorkspace() {
   const queue = document.getElementById('obsidian-memory-maintain-queue');
   if (!queue) return;
+  const queuePaths = flattenNotes(vaultFiles).filter(path => path.startsWith('AI Memory/Review Queue/'));
+  const queueMarkup = queuePaths.length
+    ? renderSparkQueue()
+    : renderLensStateCard('maintain', 'empty', 'Aktuell gibt es nichts zu pflegen.', 'Dokument pruefen', 'obsidian-memory-maintain-primary');
   queue.innerHTML = `
     <div class="obsidian-memory-maintain-queue-card" data-memory-shell-role="maintain">
       <div class="obsidian-project-summary">
         <strong>Review Queue</strong>
         <span>Pflegefaelle und offene Uebernahmen bleiben im Pflegekontext.</span>
       </div>
-      ${renderSparkQueue()}
+      ${queueMarkup}
     </div>
   `;
 }
@@ -4000,7 +4032,7 @@ function renderMemoryTreePanel() {
     const summary = memoryStatusReport?.summary || {};
     subtitle.textContent = summary.readiness_state
       ? `Memory readiness: ${summary.readiness_state} | ${summary.ready_families ?? 0}/${summary.readiness_families ?? summary.families ?? 0} families ready | ${summary.readiness_gaps ?? 0} gaps`
-      : 'Memory tree, Freshness Gate, quarantine, and RAPTOR status';
+      : 'Audit-, Struktur- und Health-Signale fuer Memory, Quarantine und RAPTOR.';
   }
   document.querySelectorAll('[data-memory-tree-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.memoryTreeTab === memoryTreeActiveTab);
@@ -4008,11 +4040,11 @@ function renderMemoryTreePanel() {
   const refresh = document.getElementById('obsidian-memory-tree-refresh');
   if (refresh) refresh.disabled = memoryTreeLoading;
   if (memoryTreeLoading && !memoryTreeReport) {
-    content.innerHTML = '<div class="obsidian-project-loading">Refreshing knowledge audit...</div>';
+    content.innerHTML = renderLensStateCard('diagnostics', 'loading', 'Diagnostik wird geladen.', 'Status pruefen', 'obsidian-diagnostics-loading-action', { disabled: true });
     return;
   }
   if (memoryTreeError) {
-    content.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(memoryTreeError)}</div>`;
+    content.innerHTML = renderLensStateCard('diagnostics', 'error', 'Die Diagnostik konnte gerade nicht geladen werden.', 'Erneut laden', 'obsidian-diagnostics-retry', { detail: memoryTreeError });
     return;
   }
   if (memoryTreeActiveTab === 'audit') {
@@ -4072,14 +4104,101 @@ function sparkMetric(label, value) {
 }
 
 function sparkQuerySubtitle() {
-  return 'Memory health, cleanup plans, canonicals, and bounded maintenance signals';
+  return 'Lesende Hinweise, Muster, Quellenkontext und Canonicals fuer den aktuellen Scope.';
 }
 
 function updateSparkChrome() {
   const subtitle = document.getElementById('obsidian-spark-subtitle');
   if (subtitle) subtitle.textContent = sparkQuerySubtitle();
   const actions = document.getElementById('obsidian-spark-actions');
-  if (actions) actions.classList.toggle('hidden', sparkActiveTab === 'query');
+  if (actions) actions.classList.toggle('hidden', !['health', 'plan'].includes(sparkActiveTab));
+}
+
+function renderActivityEventList(session) {
+  const events = Array.isArray(session?.debug_events) ? session.debug_events.slice(-10).reverse() : [];
+  if (!events.length) return '';
+  return `
+    <div class="obsidian-spark-card">
+      <strong>Letzte Aktivitaet</strong>
+      <ol class="obsidian-activity-events">
+        ${events.map(event => {
+          const bits = [
+            event.phase || 'event',
+            event.file || '',
+            event.message || '',
+            event.error ? `Error: ${event.error}` : '',
+          ].filter(Boolean).join(' - ');
+          return `<li><time>${escapeHtml(event.ts || '')}</time><span>${escapeHtml(bits)}</span></li>`;
+        }).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+function activityStatusCards() {
+  const session = activeProjectPlanSession || projectPlanSessions[0] || null;
+  const warnings = [];
+  if (memoryTreeError) warnings.push(`Diagnostics: ${memoryTreeError}`);
+  if (sparkQueryError) warnings.push(`Insights: ${sparkQueryError}`);
+  if (!session && !warnings.length) {
+    return renderLensStateCard('activity', 'empty', 'Aktuell gibt es keine neue Aktivitaet.', 'Aktivitaet aktualisieren', 'obsidian-activity-refresh');
+  }
+  return `
+    ${session ? projectSessionProgressHtml() : ''}
+    ${warnings.length ? `<div class="obsidian-project-warnings">${warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+    ${session ? renderActivityEventList(session) : ''}
+    ${!session && warnings.length ? renderLensStateCard('activity', 'default', 'Es liegen nur Fehlerhinweise vor.', 'Aktivitaet aktualisieren', 'obsidian-activity-refresh') : ''}
+  `;
+}
+
+function renderActivityPanel() {
+  const content = document.getElementById('obsidian-activity-content');
+  if (!content) return;
+  if (activityLoading) {
+    content.innerHTML = renderLensStateCard('activity', 'loading', 'Aktivitaet wird geladen.', 'Status pruefen', 'obsidian-activity-loading-action', { disabled: true });
+    return;
+  }
+  if (activityError) {
+    content.innerHTML = renderLensStateCard('activity', 'error', 'Die Aktivitaet konnte gerade nicht geladen werden.', 'Erneut laden', 'obsidian-activity-retry', { detail: activityError });
+    return;
+  }
+  content.innerHTML = activityStatusCards();
+}
+
+async function refreshActivityPanel() {
+  activityLoading = true;
+  activityError = '';
+  renderActivityPanel();
+  try {
+    await loadProjectPlanSessions();
+  } catch (e) {
+    activityError = e.message || 'Activity load failed';
+  } finally {
+    activityLoading = false;
+    renderActivityPanel();
+  }
+}
+
+function showActivityPanel() {
+  const panel = document.getElementById('obsidian-activity-panel');
+  if (!panel) return;
+  document.getElementById('obsidian-project-planner')?.classList.add('hidden');
+  document.getElementById('obsidian-memory-review-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-memory-tree-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-spark-panel')?.classList.add('hidden');
+  document.getElementById('obsidian-editor-container')?.classList.add('hidden');
+  document.getElementById('obsidian-empty-state')?.classList.add('hidden');
+  panel.classList.remove('hidden');
+  renderActivityPanel();
+}
+
+function closeActivityPanel() {
+  document.getElementById('obsidian-activity-panel')?.classList.add('hidden');
+  if (currentNotePath) {
+    document.getElementById('obsidian-editor-container')?.classList.remove('hidden');
+  } else {
+    document.getElementById('obsidian-empty-state')?.classList.remove('hidden');
+  }
 }
 
 function closeActiveMemorySurface() {
@@ -4091,6 +4210,11 @@ function closeActiveMemorySurface() {
   const sparkPanel = document.getElementById('obsidian-spark-panel');
   if (sparkPanel && !sparkPanel.classList.contains('hidden')) {
     closeSparkPanel();
+    return;
+  }
+  const activityPanel = document.getElementById('obsidian-activity-panel');
+  if (activityPanel && !activityPanel.classList.contains('hidden')) {
+    closeActivityPanel();
   }
 }
 
@@ -4127,7 +4251,7 @@ function renderSparkPanel() {
 
 function renderSparkHealth() {
   if (!sparkHealth) {
-    return '<div class="obsidian-project-loading">Run analysis to inspect long-term memory health.</div>';
+    return renderLensStateCard('insights', 'empty', 'Fuer diesen Kontext sind noch keine Insights verfuegbar.', 'Insights aktualisieren', 'obsidian-insights-refresh');
   }
   const h = sparkHealth;
   return `
@@ -4151,7 +4275,7 @@ function renderSparkHealth() {
 
 function renderSparkPlan() {
   if (!sparkPlan) {
-    return '<div class="obsidian-project-loading">Create a Spark plan to review cleanup actions.</div>';
+    return renderLensStateCard('insights', 'empty', 'Fuer diesen Kontext sind noch keine Insights verfuegbar.', 'Insights aktualisieren', 'obsidian-insights-plan-refresh');
   }
   const warnings = sparkPlan.warnings || [];
   const actions = sparkPlan.actions || [];
@@ -4200,7 +4324,7 @@ function renderSparkQueue() {
       <span>${escapeHtml(queue.length)} notes</span>
     </div>
     <div class="obsidian-spark-list">
-      ${queue.length ? queue.map(path => `<button type="button" data-spark-open-path="${escapeHtml(path)}">${escapeHtml(path)}</button>`).join('') : '<div class="obsidian-project-ok">Review queue is empty</div>'}
+      ${queue.length ? queue.map(path => `<button type="button" data-spark-open-path="${escapeHtml(path)}">${escapeHtml(path)}</button>`).join('') : renderLensStateCard('maintain', 'empty', 'Aktuell gibt es nichts zu pflegen.', 'Dokument pruefen', 'obsidian-memory-maintain-empty')}
     </div>
   `;
 }
@@ -4482,7 +4606,7 @@ async function runSparkQuery() {
 
 async function analyzeSpark() {
   const content = document.getElementById('obsidian-spark-content');
-  if (content) content.innerHTML = '<div class="obsidian-project-loading">Analyzing memory health...</div>';
+  if (content) content.innerHTML = renderLensStateCard('insights', 'loading', 'Insights werden geladen.', 'Ladevorgang ansehen', 'obsidian-insights-loading-action', { disabled: true });
   try {
     const res = await fetch('/api/plugins/obsidian/spark/analyze', {
       method: 'POST',
@@ -4495,13 +4619,13 @@ async function analyzeSpark() {
     renderSparkPanel();
   } catch (e) {
     console.error('Spark analysis failed:', e);
-    if (content) content.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Spark analysis failed')}</div>`;
+    if (content) content.innerHTML = renderLensStateCard('insights', 'error', 'Die Insights konnten gerade nicht geladen werden.', 'Erneut laden', 'obsidian-insights-retry', { detail: e.message || 'Spark analysis failed' });
   }
 }
 
 async function createSparkPlan() {
   const content = document.getElementById('obsidian-spark-content');
-  if (content) content.innerHTML = '<div class="obsidian-project-loading">Creating Spark plan...</div>';
+  if (content) content.innerHTML = renderLensStateCard('insights', 'loading', 'Insights werden geladen.', 'Ladevorgang ansehen', 'obsidian-insights-plan-loading-action', { disabled: true });
   try {
     const res = await fetch('/api/plugins/obsidian/spark/plan', {
       method: 'POST',
@@ -4516,7 +4640,7 @@ async function createSparkPlan() {
     renderSparkPanel();
   } catch (e) {
     console.error('Spark plan failed:', e);
-    if (content) content.innerHTML = `<div class="obsidian-project-conflicts">${escapeHtml(e.message || 'Spark plan failed')}</div>`;
+    if (content) content.innerHTML = renderLensStateCard('insights', 'error', 'Die Insights konnten gerade nicht geladen werden.', 'Erneut laden', 'obsidian-insights-plan-retry', { detail: e.message || 'Spark plan failed' });
   }
 }
 
@@ -6472,8 +6596,27 @@ function setupEventListeners() {
   document.getElementById('obsidian-spark-analyze')?.addEventListener('click', analyzeSpark);
   document.getElementById('obsidian-spark-plan')?.addEventListener('click', createSparkPlan);
   document.getElementById('obsidian-spark-apply')?.addEventListener('click', applySparkPlan);
+  document.getElementById('obsidian-activity')?.addEventListener('click', showActivityPanel);
+  document.getElementById('obsidian-activity-close')?.addEventListener('click', closeActivityPanel);
   document.querySelectorAll('[data-spark-tab]').forEach(btn => {
     btn.addEventListener('click', () => setSparkTab(btn.dataset.sparkTab));
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#obsidian-insights-refresh, #obsidian-insights-plan-refresh, #obsidian-insights-retry, #obsidian-insights-plan-retry')) {
+      analyzeSpark();
+      return;
+    }
+    if (e.target.closest('#obsidian-memory-maintain-primary, #obsidian-memory-maintain-empty')) {
+      closeMemoryReview();
+      return;
+    }
+    if (e.target.closest('#obsidian-diagnostics-retry')) {
+      loadMemoryTreeDashboard();
+      return;
+    }
+    if (e.target.closest('#obsidian-activity-refresh, #obsidian-activity-retry')) {
+      refreshActivityPanel();
+    }
   });
   document.getElementById('obsidian-memory-action')?.addEventListener('change', handleMemoryActionChanged);
   document.getElementById('obsidian-memory-title')?.addEventListener('input', () => invalidateMemoryReviewPreview({ clearPanel: true }));
