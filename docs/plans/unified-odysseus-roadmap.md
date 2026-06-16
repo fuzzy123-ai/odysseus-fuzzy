@@ -31,6 +31,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/image-tools-worker-contract.md` | neuer Stabilisierungstrack fuer isolierte Background-Removal/Image-Tools statt harter Core-Dependencies |
 | `docs/plans/secure-data-mode-contract.md` | Security-/DSGVO-Foundation fuer sensible Quellen, Secure Chats und local-only Policy |
 | `docs/plans/secure-data-mode-audit-runbook.md` | Readiness-Runbook fuer Secure Data Mode vor Runtime-Hooks |
+| `docs/plans/plugin-platform-manifest-policy.md` | eigener Plugin-Platform-Plan fuer Manifest-/Registry-Policy, bevor Plugins in UI/Installer/Runtime erweitert werden |
 | `docs/plans/system-health-checker-plugin.md` | Plugin-Track fuer Homeserver Health: Host-Agent, Podman-first Runtime Adapter, Telegram Status/Alerts |
 | `docs/plans/system-health-checker-ops-runbook.md` | Ops-/Security-Runbook fuer den spaeteren Homeserver Host-Agent |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
@@ -57,7 +58,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
-| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Host-Agent bleibt Follow-up |
+| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
@@ -555,7 +556,11 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 
 ## Version `0.19.x`: Plugin Platform - System Health Checker
 
-Detailplan: `docs/plans/system-health-checker-plugin.md`.
+Detailplaene:
+
+- `docs/plans/plugin-platform-manifest-policy.md`
+- `docs/plans/system-health-checker-plugin.md`
+- `docs/plans/system-health-checker-ops-runbook.md`
 
 Ziel: Odysseus bekommt einen eigenen Plugin-Track fuer Homeserver Health. Die
 Codebase bleibt nachvollziehbar, weil Host-Monitoring nicht in Lens, Security
@@ -585,6 +590,7 @@ Produktentscheidung:
 
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
+| `PLUGIN2-manifest-policy-model` | Policy-Text und Review-Regeln | done: Offline-Validatoren fuer Registry- und lokale Plugin-Manifeste | Tests, Scope, keine Runtime-Hooks | ja |
 | `SHC0-narrative-and-architecture-contract` | NDD-Contract, Nutzerfluesse, Begriffe, Statussprache | Debian/Podman/Docker Machbarkeit read-only pruefen | Roadmap einordnen, aktive Slices/Worktree pruefen | ja, docs/read-only |
 | `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | done: Plugin-Scaffold + offline Snapshot | ja |
 | `SHC2-debian-basic-collectors` | Setup-/Unknown-State Texte | CPU/RAM/Load/Uptime/Disk Collector-Modelle mit Mockable Inputs | done: keine Host-Kommandos, nur Normalisierung | ja nach Contract |
@@ -599,6 +605,7 @@ Produktentscheidung:
 ### Definition of Done `0.19.x`
 
 - System Health Checker ist als eigener Plugin-Track nachvollziehbar.
+- Plugin-Manifeste und Registry-Eintraege sind offline policy-pruefbar, ohne Plugin-Code zu importieren.
 - `plugins/system_health_checker/` existiert als eigener Plugin-Scope.
 - Host-Agent und Odysseus-Container sind strikt entkoppelt.
 - Debian Basic Health Snapshot ist schema-stabil und offline-/unknown-sicher.
