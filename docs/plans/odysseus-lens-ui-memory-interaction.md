@@ -16,6 +16,8 @@ Tag-Chip-System-Contract fuer `LENS3`: `docs/plans/tag-chip-system-contract.md`
 
 Document-Intelligence-Bar-Contract fuer `LENS4`: `docs/plans/document-intelligence-bar-contract.md`
 
+Review-Audit-Spark-Redesign-Contract fuer `LENS5`: `docs/plans/review-audit-spark-redesign-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
