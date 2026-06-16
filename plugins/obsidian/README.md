@@ -456,6 +456,34 @@ Needs Bob handoff before the UI treats it as stable:
 - Stable mapping for backend freshness/failure states.
 - Final graph-jump payload for source-to-graph navigation.
 
+### Automation Review Lens Contract
+
+Background automation should become understandable in the Lens before it becomes more powerful.
+
+Lens-side contract:
+
+- The UI should explain what ran automatically, what only touched rebuildable Derived Data, and what still requires human review.
+- `needs_review` means "staged or suggested, waiting for a person", not "auto-approved".
+- `dirty` or `stale` means data may be out of date, not that user-authored source files were silently modified.
+- `failed` means a background run did not complete; it should not imply source corruption without separate evidence.
+- Slow, opportunistic MiniPC behavior is acceptable when the wording makes that expectation clear.
+
+User-facing status language:
+
+- `not_run` - not started yet.
+- `running` - currently updating in the background.
+- `ready` - usable for the current Lens view.
+- `dirty` - source changes mean a refresh is needed.
+- `failed` - the latest background run did not finish successfully.
+- `needs_review` - a result exists, but promotion or publication is intentionally waiting for a person.
+
+Needs Bob handoff before UI wiring is treated as stable:
+
+- Final automation status payload.
+- Safe-to-show cost or throttling fields.
+- Stable timestamps or last-run summaries.
+- Exact artifact boundary between `ready` and `needs_review`.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:

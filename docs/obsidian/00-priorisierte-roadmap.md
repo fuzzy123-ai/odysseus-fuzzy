@@ -294,6 +294,36 @@ Grenzen:
 - Alice baut keine Scheduler-, Queue- oder Cost-Control-Logik.
 - Alice formuliert keine Auto-Apply-Regel, die Source Markdown still appenden, mergen oder rewrite'n wuerde.
 
+Lens-Vertrag:
+
+- Nutzer sollen sehen koennen, **was automatisch lief**, **was nur rebuildbare Derived Data betraf** und **was menschliche Review braucht**.
+- Job-Status bleibt ein Nutzertext, kein nackter Worker- oder Queue-Interna-Dump.
+- `needs_review` bedeutet: hier existiert ein sicherer Staging-, Queue- oder Vorschlagszustand, aber keine automatische Promotion in menschliche Quellen.
+- `dirty` oder `stale` bedeutet: Daten koennen veraltet sein, nicht dass Nutzerquellen beschaedigt wurden.
+- `failed` bedeutet: ein Hintergrundlauf ist gescheitert; daraus folgt nicht automatisch, dass Quellen verloren oder korrumpiert sind.
+
+Nutzertexte fuer spaetere UI:
+
+- `not_run`: Noch nicht gelaufen.
+- `running`: Wird gerade im Hintergrund aktualisiert.
+- `ready`: Letzter Lauf ist fuer diese Ansicht verwendbar.
+- `dirty`: Quellen haben sich geaendert; ein neuer Lauf wird gebraucht.
+- `failed`: Letzter Lauf konnte nicht erfolgreich abgeschlossen werden.
+- `needs_review`: Es gibt Ergebnisse oder Vorschlaege, die bewusst vor menschlicher Freigabe gestoppt wurden.
+
+Safe-vs-review-Erklaerung:
+
+- Rebuildbar und automatisch: Ledger-Sync, Derived Index, Graph-/Chunk-/Embedding-Rebuild, low-risk Status-/Health-Arbeit.
+- Review-pflichtig: Promotionen, Append/Merge/Rewrite-nahe Aktionen, Published-View-Freigabe und alles, was menschliche Quellen beruehrt.
+- Die Lens muss diese Trennung erklaeren, statt "Automation" als stillen Freifahrtschein erscheinen zu lassen.
+
+Open markers fuer spaetere UI:
+
+- `needs Bob handoff: final automation status payload`
+- `needs Bob handoff: cost/rate-limit signals that are safe to expose`
+- `needs Bob handoff: exact boundary between ready vs needs_review artifacts`
+- `needs Bob handoff: rebuild timestamps and last-run summaries`
+
 #### A9 Nextcloud-Source-Lens
 
 Ziel: Nextcloud und Dateiarchiv werden als Source Layer verstaendlich in Memory-first eingeordnet.
