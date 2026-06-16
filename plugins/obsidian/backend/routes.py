@@ -37,8 +37,6 @@ def _require_vault_scope(request: Request, required: str) -> str:
 
 from .vault_security import (
     VaultSecurityError,
-    export_vault,
-    import_vault,
     lock_vault,
     protection_status,
     remove_password,
@@ -46,6 +44,7 @@ from .vault_security import (
     set_password,
     unlock_vault,
 )
+from .import_export import export_vault, import_vault
 from .vault_history import latest_reversible, list_history, mark_undone, record_action
 from .vault_model import (
     add_manual_relationship,
@@ -193,6 +192,7 @@ class ProjectPlanSessionApplyRequest(BaseModel):
     confirm: bool = False
     confirm_conflicts: bool = False
     selected_paths: List[str] = Field(default_factory=list)
+    overwrite_paths: List[str] = Field(default_factory=list)
 
 # --- Helper Functions ---
 def get_vault_path(request: Request) -> str:
@@ -430,12 +430,21 @@ def _update_project_plan_session(vault_dir: str, session_id: str, **updates: Any
     return session
 
 def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApplyRequest) -> Dict[str, Any]:
-    plan = prepare_project_plan_for_apply(vault_dir, req.plan, selected_paths=req.selected_paths)
-    if plan.conflicts:
+    plan = prepare_project_plan_for_apply(
+        vault_dir,
+        req.plan,
+        selected_paths=req.selected_paths,
+        overwrite_paths=req.overwrite_paths,
+    )
+    overwrite_paths = {str(path) for path in req.overwrite_paths or [] if str(path or "").strip()}
+    blocking_conflicts = [item for item in plan.conflicts if str(item.get("path", "")) not in overwrite_paths]
+    if blocking_conflicts:
         raise HTTPException(status_code=409, detail={"message": "Plan has file conflicts", "conflicts": plan.conflicts})
+    if overwrite_paths and not req.confirm_conflicts:
+        raise HTTPException(status_code=409, detail="Confirmation required before overwriting existing project files")
     if not req.confirm:
         raise HTTPException(status_code=409, detail="Confirmation required before creating a project structure")
-    result = apply_project_plan(vault_dir, plan)
+    result = apply_project_plan(vault_dir, plan, overwrite_paths=req.overwrite_paths)
     for path in result["created_files"]:
         abs_path = secure_path(vault_dir, path)
         record_action(
@@ -446,6 +455,16 @@ def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApp
             paths=[path],
             after={"content": _read_text_if_exists(abs_path)},
         )
+    for detail in result.get("overwritten_file_details", []):
+        record_action(
+            vault_dir,
+            action="update_file",
+            owner=owner,
+            tool="obsidian_project_plan_apply",
+            paths=[detail["path"]],
+            before={"content": detail["before"]},
+            after={"content": detail["after"]},
+        )
     for relationship in result["relationships"]:
         record_action(
             vault_dir,
@@ -455,6 +474,7 @@ def _apply_project_plan_to_vault(vault_dir: str, owner: str, req: ProjectPlanApp
             paths=[relationship["source"], relationship["target"]],
             after={"relationship": relationship},
         )
+    result.pop("overwritten_file_details", None)
     return result
 
 def is_self_or_descendant_move(abs_old: str, abs_new: str) -> bool:
@@ -1131,6 +1151,7 @@ async def project_plan_session_apply(session_id: str, req: ProjectPlanSessionApp
                 confirm=req.confirm,
                 confirm_conflicts=req.confirm_conflicts,
                 selected_paths=req.selected_paths,
+                overwrite_paths=req.overwrite_paths,
             ),
         )
         session.update({

@@ -285,6 +285,7 @@ class ProjectPlanApplyRequest(BaseModel):
     confirm: bool = False
     confirm_conflicts: bool = False
     selected_paths: List[str] = Field(default_factory=list)
+    overwrite_paths: List[str] = Field(default_factory=list)
 
 
 class ProjectPlanValidationError(ValueError):
@@ -570,21 +571,63 @@ def prepare_project_plan_for_apply(
     plan: ProjectPlan,
     *,
     selected_paths: Optional[Iterable[str]] = None,
+    overwrite_paths: Optional[Iterable[str]] = None,
 ) -> ProjectPlan:
     scoped = select_project_plan_files(plan, selected_paths or [])
-    return validate_project_plan(vault_dir, scoped, collect_conflicts=True)
+    prepared = validate_project_plan(vault_dir, scoped, collect_conflicts=True)
+    requested_overwrites = [
+        normalize_relative_path(path) for path in (overwrite_paths or []) if str(path or "").strip()
+    ]
+    if not requested_overwrites:
+        return prepared
+
+    available = {normalize_relative_path(file.path) for file in prepared.files}
+    unknown = [path for path in requested_overwrites if path not in available]
+    if unknown:
+        raise ProjectPlanValidationError(
+            f"Overwrite paths do not exist in the prepared plan: {', '.join(unknown)}"
+        )
+
+    conflict_paths = {normalize_relative_path(item.get("path", "")) for item in prepared.conflicts}
+    unnecessary = [path for path in requested_overwrites if path not in conflict_paths]
+    if unnecessary:
+        raise ProjectPlanValidationError(
+            f"Overwrite paths have no matching conflict in the prepared plan: {', '.join(unnecessary)}"
+        )
+    return prepared
 
 
-def apply_project_plan(vault_dir: str, plan: ProjectPlan, *, selected_paths: Optional[Iterable[str]] = None) -> Dict[str, Any]:
-    plan = prepare_project_plan_for_apply(vault_dir, plan, selected_paths=selected_paths)
-    if plan.conflicts:
+def apply_project_plan(
+    vault_dir: str,
+    plan: ProjectPlan,
+    *,
+    selected_paths: Optional[Iterable[str]] = None,
+    overwrite_paths: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    plan = prepare_project_plan_for_apply(
+        vault_dir,
+        plan,
+        selected_paths=selected_paths,
+        overwrite_paths=overwrite_paths,
+    )
+    overwrite_set = {
+        normalize_relative_path(path) for path in (overwrite_paths or []) if str(path or "").strip()
+    }
+    blocking_conflicts = [
+        conflict for conflict in plan.conflicts
+        if normalize_relative_path(conflict.get("path", "")) not in overwrite_set
+    ]
+    if blocking_conflicts:
         raise ProjectPlanValidationError("Plan has file conflicts")
 
     written: List[str] = []
+    overwritten: List[str] = []
+    overwritten_details: List[Dict[str, str]] = []
     relationships: List[Dict[str, Any]] = []
     for planned in plan.files:
         abs_path = resolve_inside(vault_dir, planned.path)
-        if os.path.exists(abs_path):
+        already_exists = os.path.exists(abs_path)
+        if already_exists and normalize_relative_path(planned.path) not in overwrite_set:
             raise ProjectPlanValidationError(f"File already exists: {planned.path}")
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         content = planned.content or render_project_markdown(
@@ -598,9 +641,21 @@ def apply_project_plan(vault_dir: str, plan: ProjectPlan, *, selected_paths: Opt
             links=planned.links,
             outline=planned.outline,
         )
+        before_content = None
+        if already_exists:
+            with open(abs_path, "r", encoding="utf-8") as fh:
+                before_content = fh.read()
         with open(abs_path, "w", encoding="utf-8") as fh:
             fh.write(content)
-        written.append(planned.path)
+        if already_exists:
+            overwritten.append(planned.path)
+            overwritten_details.append({
+                "path": planned.path,
+                "before": before_content or "",
+                "after": content,
+            })
+        else:
+            written.append(planned.path)
 
     for relationship in plan.relationships:
         relationship_payload = relationship.model_dump() if hasattr(relationship, "model_dump") else relationship.dict()
@@ -610,6 +665,8 @@ def apply_project_plan(vault_dir: str, plan: ProjectPlan, *, selected_paths: Opt
     return {
         "success": True,
         "created_files": written,
+        "overwritten_files": overwritten,
+        "overwritten_file_details": overwritten_details,
         "relationships": relationships,
         "graph": {
             "nodes": len(graph["nodes"]),

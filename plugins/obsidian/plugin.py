@@ -55,9 +55,8 @@ try:
     from obsidian.backend.memory_status import memory_status
     from obsidian.backend.memory_tree import analyze_memory_tree, memory_tree_status
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
+    from obsidian.backend.import_export import export_vault, import_vault
     from obsidian.backend.vault_security import (
-        export_vault,
-        import_vault,
         lock_vault,
         protection_status,
         remove_password,
@@ -120,9 +119,8 @@ except ModuleNotFoundError:
     from backend.memory_status import memory_status
     from backend.memory_tree import analyze_memory_tree, memory_tree_status
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
+    from backend.import_export import export_vault, import_vault
     from backend.vault_security import (
-        export_vault,
-        import_vault,
         lock_vault,
         protection_status,
         remove_password,
@@ -639,14 +637,23 @@ async def handle_project_plan_apply(content: str, owner: Optional[str] = None, *
             vault_dir,
             ProjectPlan(**raw_plan),
             selected_paths=params.get("selected_paths") or [],
+            overwrite_paths=params.get("overwrite_paths") or [],
         )
-        if plan.conflicts:
+        overwrite_paths = {str(path) for path in (params.get("overwrite_paths") or []) if str(path or "").strip()}
+        blocking_conflicts = [item for item in plan.conflicts if str(item.get("path", "")) not in overwrite_paths]
+        if blocking_conflicts:
             return {
                 "error": "Project plan has file conflicts and cannot be applied without a future merge flow.",
                 "output": json.dumps({"conflicts": plan.conflicts}, ensure_ascii=False),
                 "exit_code": 1,
             }
-        result = apply_project_plan(vault_dir, plan)
+        if overwrite_paths and not bool(params.get("confirm_conflicts")):
+            return _confirmation_required("overwriting existing Obsidian project files")
+        result = apply_project_plan(
+            vault_dir,
+            plan,
+            overwrite_paths=params.get("overwrite_paths") or [],
+        )
         for path in result["created_files"]:
             abs_path = secure_path(vault_dir, path)
             record_action(
@@ -657,6 +664,16 @@ async def handle_project_plan_apply(content: str, owner: Optional[str] = None, *
                 paths=[path],
                 after={"content": _read_text_if_exists(abs_path)},
             )
+        for detail in result.get("overwritten_file_details", []):
+            record_action(
+                vault_dir,
+                action="update_file",
+                owner=owner,
+                tool="obsidian_project_plan_apply",
+                paths=[detail["path"]],
+                before={"content": detail["before"]},
+                after={"content": detail["after"]},
+            )
         for relationship in result["relationships"]:
             record_action(
                 vault_dir,
@@ -666,6 +683,7 @@ async def handle_project_plan_apply(content: str, owner: Optional[str] = None, *
                 paths=[relationship["source"], relationship["target"]],
                 after={"relationship": relationship},
             )
+        result.pop("overwritten_file_details", None)
         return {"output": json.dumps(result, ensure_ascii=False, indent=2), "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to apply project plan: {e}", "exit_code": 1}
@@ -981,6 +999,8 @@ def setup(ctx):
             "plan": {"type": "object", "description": "Project plan returned by obsidian_project_plan_preview."},
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms creating multiple project files."},
             "selected_paths": {"type": "array", "items": {"type": "string"}, "description": "Optional subset of planned file paths to create. Unselected planned files and their internal relationships are skipped."},
+            "overwrite_paths": {"type": "array", "items": {"type": "string"}, "description": "Optional subset of conflicting planned file paths that may be overwritten instead of blocking apply."},
+            "confirm_conflicts": {"type": "boolean", "description": "Must be true before overwriting existing project files listed in overwrite_paths."},
         }, ["plan"], handle_project_plan_apply),
         _tool_spec("obsidian_memory_review_preview", "Preview a memory review decision, including Save-to-Obsidian note content, reused tags, links, and graph relationships.", {
             "candidate": {"type": "object", "description": "Memory candidate with title, content, source, source_ref, and risk."},

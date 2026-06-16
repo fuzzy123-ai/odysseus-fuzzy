@@ -177,6 +177,11 @@ def build_memory_review_plan(
         target_folder = REVIEW_QUEUE_FOLDER
         plan.target_folder = target_folder
     path = _memory_note_path(target_folder, title, created)
+    queue_existing_path = None
+    if action == "review_queue":
+        queue_existing_path = _existing_review_queue_path(vault_dir, candidate, suggested_notes)
+        if queue_existing_path:
+            path = queue_existing_path
     links = chosen_links
     if not links and suggested_notes:
         links = [_wiki_link(suggested_notes[0].path)]
@@ -192,6 +197,23 @@ def build_memory_review_plan(
             plan.warnings.append("Possible duplicate vault notes found; review the suggested duplicates before creating another memory note.")
     if action == "review_queue":
         plan.warnings.append("This review stays in the queue and should not be treated as settled vault knowledge yet.")
+    if action == "review_queue" and queue_existing_path:
+        content = render_memory_append(candidate=candidate, source=source, created=created, tags=tags, links=links)
+        plan.target_note = queue_existing_path
+        plan.files = [MemoryReviewFile(
+            path=queue_existing_path,
+            mode="append",
+            title=title,
+            type=note_type,
+            status=status,
+            tags=tags,
+            frontmatter={},
+            links=links,
+            content_preview=_content_preview(content),
+            content=content,
+        )]
+        plan.warnings.append("Existing queued review note matched this source; the queue entry will be updated instead of creating a duplicate.")
+        return validate_memory_review_plan(vault_dir, plan, collect_conflicts=True)
     frontmatter = {
         "type": note_type,
         "status": status,
@@ -560,6 +582,26 @@ def _chosen_links(link_paths: Iterable[str], suggestions: List[SuggestedNote], e
         if path in existing_notes and _wiki_link(path) not in valid:
             valid.append(_wiki_link(path))
     return valid
+
+
+def _existing_review_queue_path(
+    vault_dir: str,
+    candidate: MemoryCandidate,
+    suggestions: Iterable[SuggestedNote],
+) -> Optional[str]:
+    title_key = _comparable_title(candidate.title)
+    source_ref = candidate.source_ref.strip()
+    for suggestion in suggestions:
+        path = normalize_relative_path(suggestion.path)
+        if not (path == f"{REVIEW_QUEUE_FOLDER}.md" or path.startswith(f"{REVIEW_QUEUE_FOLDER}/")):
+            continue
+        if source_ref:
+            content = _read_note(vault_dir, path)
+            if f"source_ref: {source_ref}" in content or f"Quelle: " in content and source_ref in content:
+                return path
+        if title_key and _comparable_title(suggestion.title) == title_key:
+            return path
+    return None
 
 
 def _new_tags_for(tags: Iterable[str], existing_tags: Set[str]) -> List[MemoryReviewNewTag]:

@@ -15,16 +15,14 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from backend import vault_security
+from backend import import_export
 from backend.vault_security import (
     VaultSecurityError,
-    export_vault,
-    import_vault,
     lock_vault,
     protection_status,
     set_password,
-    validate_archive_member,
 )
+from backend.import_export import export_vault, import_vault, validate_archive_member
 from plugin import (
     handle_history,
     handle_vault_export,
@@ -93,7 +91,7 @@ def test_import_does_not_partially_write_when_archive_read_fails(monkeypatch):
             zf.writestr("Projects/One.md", "# One\n")
             zf.writestr("Projects/Two.md", "# Two\n")
 
-        real_open = vault_security.zipfile.ZipFile.open
+        real_open = import_export.zipfile.ZipFile.open
         calls = {"count": 0}
 
         def flaky_open(self, name, mode="r", pwd=None, *, force_zip64=False):
@@ -103,7 +101,7 @@ def test_import_does_not_partially_write_when_archive_read_fails(monkeypatch):
                 raise RuntimeError("simulated read failure")
             return real_open(self, name, mode=mode, pwd=pwd, force_zip64=force_zip64)
 
-        monkeypatch.setattr(vault_security.zipfile.ZipFile, "open", flaky_open)
+        monkeypatch.setattr(import_export.zipfile.ZipFile, "open", flaky_open)
 
         with pytest.raises(VaultSecurityError, match="encrypted archive unsupported"):
             import_vault(vault, buffer.getvalue())

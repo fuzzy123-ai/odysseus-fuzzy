@@ -174,3 +174,47 @@ def test_memory_review_queue_apply_creates_queue_note_and_relationships():
         assert "Keep this note queued until the team decides how to store it." in content
         assert "[[Projects/Demo]]" in content
         assert result["relationships"][0]["target"] == "Projects/Demo.md"
+
+
+def test_memory_review_queue_plan_reuses_existing_queue_note_for_same_source_ref():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "AI Memory", "Review Queue"), exist_ok=True)
+        queue_path = os.path.join(tmpdir, "AI Memory", "Review Queue", "2026-06-16-release-check.md")
+        with open(queue_path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "---\n"
+                "type: memory\n"
+                "status: review\n"
+                "source: chat\n"
+                "created: 2026-06-16\n"
+                "updated: 2026-06-16\n"
+                "source_ref: thread-42\n"
+                "---\n\n"
+                "# Release check\n"
+            )
+
+        plan = build_memory_review_plan(
+            tmpdir,
+            MemoryReviewRequest(
+                candidate={
+                    "title": "Release check",
+                    "content": "Same source should update the queued review note instead of duplicating it.",
+                    "source": "conversation",
+                    "source_ref": "thread-42",
+                },
+                action="review_queue",
+            ),
+        )
+
+        assert plan.action == "review_queue"
+        assert plan.files[0].mode == "append"
+        assert plan.files[0].path == "AI Memory/Review Queue/2026-06-16-release-check.md"
+        assert "#source/chat" in plan.files[0].tags
+        assert any("Existing queued review note matched this source" in warning for warning in plan.warnings)
+
+        result = apply_memory_review_plan(tmpdir, plan)
+        assert result["created_files"] == []
+        assert result["updated_files"] == ["AI Memory/Review Queue/2026-06-16-release-check.md"]
+        with open(queue_path, "r", encoding="utf-8") as fh:
+            content = fh.read()
+        assert "Same source should update the queued review note instead of duplicating it." in content

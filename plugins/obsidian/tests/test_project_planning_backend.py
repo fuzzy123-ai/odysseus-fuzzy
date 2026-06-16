@@ -72,6 +72,64 @@ def test_apply_project_plan_selected_paths_skip_unselected_conflicts_and_relatio
         assert not os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "01 Ziele.md"))
 
 
+def test_prepare_project_plan_for_apply_rejects_overwrite_paths_without_matching_conflicts():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plan = build_project_plan(
+            tmpdir,
+            ProjectPlanRequest(
+                target_folder="Projects/Demo",
+                title="Demo",
+                description="Overwrite validation should stay scoped to conflicting files.",
+                kind="generic",
+            ),
+        )
+
+        with pytest.raises(ProjectPlanValidationError, match="Overwrite paths have no matching conflict"):
+            prepare_project_plan_for_apply(
+                tmpdir,
+                plan,
+                overwrite_paths=["Projects/Demo/03 Entscheidungen.md"],
+            )
+
+
+def test_apply_project_plan_overwrite_paths_require_explicit_conflict_selection():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
+        conflict_path = os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md")
+        with open(conflict_path, "w", encoding="utf-8") as fh:
+            fh.write("# Existing overview\n\nKeep me only if overwrite is not selected.\n")
+
+        plan = build_project_plan(
+            tmpdir,
+            ProjectPlanRequest(
+                target_folder="Projects/Demo",
+                title="Demo",
+                description="Explicit overwrite should replace only approved files.",
+                kind="generic",
+            ),
+        )
+
+        with pytest.raises(ProjectPlanValidationError, match="Plan has file conflicts"):
+            apply_project_plan(tmpdir, plan)
+
+        result = apply_project_plan(
+            tmpdir,
+            plan,
+            overwrite_paths=["Projects/Demo/00 Projektuebersicht.md"],
+        )
+
+        assert "Projects/Demo/00 Projektuebersicht.md" in result["overwritten_files"]
+        assert "Projects/Demo/01 Ziele.md" in result["created_files"]
+        overwritten = result["overwritten_file_details"][0]
+        assert overwritten["path"] == "Projects/Demo/00 Projektuebersicht.md"
+        assert "Existing overview" in overwritten["before"]
+        assert "Nutzerdefinierte Schwerpunkte" not in overwritten["before"]
+        with open(conflict_path, "r", encoding="utf-8") as fh:
+            content = fh.read()
+        assert "Projektuebersicht" in content
+        assert "Existing overview" not in content
+
+
 @pytest.mark.asyncio
 async def test_project_plan_apply_tool_honors_selected_paths(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -97,6 +155,104 @@ async def test_project_plan_apply_tool_honors_selected_paths(monkeypatch):
         assert result["created_files"] == ["Projects/Demo/03 Entscheidungen.md"]
         assert os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "03 Entscheidungen.md"))
         assert not os.path.exists(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"))
+
+
+@pytest.mark.asyncio
+async def test_project_plan_apply_tool_requires_conflict_confirmation_for_overwrite(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_plugin, "get_vault_path_by_owner", lambda owner: tmpdir)
+        os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
+        with open(os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md"), "w", encoding="utf-8") as fh:
+            fh.write("# Existing overview\n")
+
+        preview = await obsidian_plugin.handle_project_plan_preview(json.dumps({
+            "target_folder": "Projects/Demo",
+            "title": "Demo App",
+            "description": "Allow an explicit overwrite for the overview file only.",
+            "kind": "generic",
+        }), owner="alice")
+        plan = json.loads(preview["output"])
+
+        blocked = await obsidian_plugin.handle_project_plan_apply(json.dumps({
+            "plan": plan,
+            "confirm": True,
+            "overwrite_paths": ["Projects/Demo/00 Projektuebersicht.md"],
+        }), owner="alice")
+        assert blocked["exit_code"] == 1
+        assert "Confirmation required" in blocked["error"]
+
+        applied = await obsidian_plugin.handle_project_plan_apply(json.dumps({
+            "plan": plan,
+            "confirm": True,
+            "confirm_conflicts": True,
+            "overwrite_paths": ["Projects/Demo/00 Projektuebersicht.md"],
+        }), owner="alice")
+        assert applied["exit_code"] == 0
+        result = json.loads(applied["output"])
+        assert "Projects/Demo/00 Projektuebersicht.md" in result["overwritten_files"]
+
+
+@pytest.mark.asyncio
+async def test_project_plan_session_apply_allows_explicit_overwrite_paths(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(obsidian_routes, "get_unlocked_vault_path", lambda request: tmpdir)
+        monkeypatch.setattr(obsidian_routes, "current_owner", lambda request: "alice")
+        os.makedirs(os.path.join(tmpdir, "Projects", "Demo"), exist_ok=True)
+        conflict_path = os.path.join(tmpdir, "Projects", "Demo", "00 Projektuebersicht.md")
+        with open(conflict_path, "w", encoding="utf-8") as fh:
+            fh.write("# Existing overview\n")
+
+        created = await obsidian_routes.project_plan_session_create(
+            obsidian_routes.ProjectPlanSessionCreateRequest(
+                request=ProjectPlanRequest(
+                    target_folder="Projects/Demo",
+                    title="Demo",
+                    description="Allow an explicit overwrite for the overview file only.",
+                    kind="generic",
+                )
+            ),
+            object(),
+        )
+        plan = build_project_plan(
+            tmpdir,
+            ProjectPlanRequest(
+                target_folder="Projects/Demo",
+                title="Demo",
+                description="Allow an explicit overwrite for the overview file only.",
+                kind="generic",
+            ),
+        )
+        obsidian_routes._update_project_plan_session(
+            tmpdir,
+            created["id"],
+            plan=plan.model_dump() if hasattr(plan, "model_dump") else plan.dict(),
+            status="ready",
+        )
+
+        request = type("Request", (), {"state": type("State", (), {"api_token": False})()})()
+        with pytest.raises(obsidian_routes.HTTPException) as exc:
+            await obsidian_routes.project_plan_session_apply(
+                created["id"],
+                obsidian_routes.ProjectPlanSessionApplyRequest(
+                    confirm=True,
+                    overwrite_paths=["Projects/Demo/00 Projektuebersicht.md"],
+                ),
+                request,
+            )
+        assert exc.value.status_code == 409
+        assert "Confirmation required" in str(exc.value.detail)
+
+        result = await obsidian_routes.project_plan_session_apply(
+            created["id"],
+            obsidian_routes.ProjectPlanSessionApplyRequest(
+                confirm=True,
+                confirm_conflicts=True,
+                overwrite_paths=["Projects/Demo/00 Projektuebersicht.md"],
+            ),
+            request,
+        )
+        assert result["success"] is True
+        assert "Projects/Demo/00 Projektuebersicht.md" in result["overwritten_files"]
 
 
 @pytest.mark.asyncio
