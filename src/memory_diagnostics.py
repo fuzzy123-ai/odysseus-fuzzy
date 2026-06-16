@@ -218,6 +218,12 @@ class DiagnosticMetric:
         ):
             raise MemoryDiagnosticsError("blocked and failed metrics require evidence or next_action")
         if (
+            normalized_status == MetricStatus.UNKNOWN
+            and _normalize_severity(severity) in {MetricSeverity.HIGH, MetricSeverity.CRITICAL}
+            and not (normalized_evidence or normalized_next_action)
+        ):
+            raise MemoryDiagnosticsError("high or critical unknown metrics require evidence or next_action")
+        if (
             normalized_budget is not None
             and normalized_unit != MetricUnit.BOOLEAN
             and isinstance(normalized_value, float)

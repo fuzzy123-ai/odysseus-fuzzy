@@ -87,6 +87,15 @@ def test_blocked_and_failed_without_evidence_or_next_action_are_rejected() -> No
             raise AssertionError("expected blocked/failed validation to fail")
 
 
+def test_critical_unknown_without_evidence_or_next_action_is_rejected() -> None:
+    try:
+        _make_metric(status="unknown", severity="critical", evidence_ref=" ", next_action=" ")
+    except MemoryDiagnosticsError as exc:
+        assert "unknown metrics require evidence or next_action" in str(exc)
+    else:
+        raise AssertionError("expected critical unknown validation to fail")
+
+
 def test_budget_violation_with_healthy_is_rejected() -> None:
     try:
         _make_metric(value=350, budget=200, status="healthy")
