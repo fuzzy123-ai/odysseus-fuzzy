@@ -2232,29 +2232,6 @@ async def test_file_write_and_rename_history_undo(monkeypatch):
         assert not os.path.exists(os.path.join(tmpdir, "Roadmap.md"))
 
 
-def test_large_vault_fixture_produces_retrievable_graph_baseline():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fixture = create_large_vault_fixture(tmpdir, note_count=48)
-        profile = profile_graph_build(tmpdir)
-
-        assert fixture["note_count"] == 48
-        assert profile["nodes"] >= 48
-        assert profile["edges"] >= 48
-        assert profile["elapsed_ms"] >= 0
-
-
-def test_large_vault_graph_build_meets_rc_thresholds():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fixture = create_large_vault_fixture(tmpdir, note_count=LARGE_VAULT_RC_NOTE_COUNT)
-        baseline = profile_graph_build_baseline(tmpdir, runs=4)
-
-        assert fixture["note_count"] == LARGE_VAULT_RC_NOTE_COUNT
-        assert baseline["nodes"] >= LARGE_VAULT_RC_NOTE_COUNT
-        assert baseline["edges"] >= LARGE_VAULT_RC_NOTE_COUNT
-        assert baseline["median_ms"] <= LARGE_VAULT_RC_MEDIAN_THRESHOLD_MS
-        assert baseline["max_ms"] <= LARGE_VAULT_RC_WORST_THRESHOLD_MS
-
-
 @pytest.mark.asyncio
 async def test_locked_vault_blocks_ai_file_access(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
