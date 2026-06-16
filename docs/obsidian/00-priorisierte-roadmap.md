@@ -141,6 +141,10 @@ Exit:
 Ziel: Memory-Fragen laufen mit DeepSeek oder einem kompatiblen Modellpfad, bleiben quellenpflichtig und fallen bei Providerproblemen auf lokale oder extractive Antworten zurueck.
 
 - Antwortmodi: `auto`, `cloud`, `local`, `extractive`.
+- Modellrollen: `memory.answer`, `memory.answer_fallbacks`, `memory.summarize`, `memory.graph_label`, `memory.review`, `memory.embed`.
+- Das Plugin nutzt Odysseus' vorhandene Modellliste und Defaults (`/api/models`, `default_model`, `default_model_fallbacks`) statt eigener Provider-Registry.
+- Standard ist der Odysseus-Default; Fallback-Modelle muessen pro Rolle konfigurierbar sein.
+- Lokale Antwortmodelle brauchen fuer `1.0` mindestens ca. 7B/8B Instruct-Qualitaet und 16k Kontext; empfohlen sind 14B-32B quantisiert mit 32k Kontext.
 - Cloud-Modus sendet nur retrieved Snippets, Quellenlabels und minimale Metadaten, nicht den ganzen Vault.
 - Providerfehler, Timeouts und Rate-Limits erzeugen keinen harten 500er, sondern einen sichtbaren Fallback.
 - Jede Antwort nennt `answer_mode`, Provider/Modell, Fallback-Grund, Citations, Confidence und Warnungen.
@@ -150,6 +154,7 @@ Exit:
 
 - Eine konfigurierte DeepSeek-Query liefert eine synthetisierte, zitierte Antwort.
 - Ohne funktionierenden Provider bleibt der heutige sichere extractive Antwortpfad verfuegbar.
+- Modellwahl pro Memory-Rolle funktioniert gegen Odysseus' verfuegbare Modelle und respektiert Default plus Fallback-Kette.
 - Keine Secrets landen in Status, Response, Cache, Logs oder UI.
 - Details und Alice/Bob-Slices stehen im Feature-Plan `docs/plans/deepseek-model-router-graceful-degradation.md`.
 
@@ -507,8 +512,8 @@ Audit-Stand 2026-06-16:
 | `B3-query-layer-postqfrap-light` | Query-time Verdichtung mit Quellenpflicht | retrieval/query modules | kein adRAP/UMAP/GMM | answer contract tests |
 | `B4-background-automation` | Idle/Nacht-Jobs, Queue, Cost Controller | scheduler/job modules, config | keine riskanten Source Writes | job/safety tests |
 | `B5-external-rebuild-proof` | Rebuild, Repair, Install/Upgrade, Evidence fuer 1.0 | scripts/docs/tests | keine Feature-Erweiterung | rebuild + install evidence |
-| `B6-model-router-core` | DeepSeek-/kompatibles Modellrouting mit Status, Timeout und Fallback bauen | `plugins/obsidian/backend/model_router.py`, Query-/Route-Tests | kein Frontend, kein Model-Install | Fake-Provider-, Timeout- und Secret-Leak-Tests |
-| `B7-query-synthesis-integration` | Query Layer um `answer_mode=auto|cloud|local|extractive` erweitern | `plugins/obsidian/backend/query_layer.py`, `plugins/obsidian/backend/routes.py`, Backend-Tests | kein UI-Umbau, kein Indexschema-Rewrite | Cloud success, cloud->local, cloud/local->extractive |
+| `B6-model-router-core` | DeepSeek-/kompatibles Modellrouting mit Status, Timeout, Odysseus-Modellliste und Fallback bauen | `plugins/obsidian/backend/model_router.py`, Query-/Route-Tests | kein Frontend, kein Model-Install, keine eigene Provider-Registry | Fake-Registry, Provider-, Timeout- und Secret-Leak-Tests |
+| `B7-query-synthesis-integration` | Query Layer um `answer_mode=auto|cloud|local|extractive` und rollenbasierte Modellwahl erweitern | `plugins/obsidian/backend/query_layer.py`, `plugins/obsidian/backend/routes.py`, Backend-Tests | kein UI-Umbau, kein Indexschema-Rewrite | Default-Modell, Fallback-Kette, cloud->local, cloud/local->extractive |
 
 ### Parallel-Regeln
 
