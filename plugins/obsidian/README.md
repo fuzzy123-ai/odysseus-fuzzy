@@ -320,9 +320,11 @@ Before treating `0.10.0-rc.1` as an internal release candidate, manually confirm
 Current RC residual risks to keep visible:
 
 - Vault password protection is an access-control layer for the plugin and tools, not full disk encryption for existing plaintext Markdown files.
+- RAPTOR/readiness surfaces remain read-only in this RC; rebuild/write proof is tracked separately from the plugin shell and Lens UX.
 - Import, project-plan apply, memory-review apply, and destructive note operations still depend on confirmation-gate discipline.
 - `AI Memory/Review Queue/` contains staged review items and duplicates-under-investigation, not settled canonical memory.
 - The standalone app shell may load before login, but authenticated data routes must remain protected.
+- Memory-first `1.0.0` still depends on separate ledger/index/query/rebuild evidence; the RC docs should not blur that boundary.
 
 ## RC Distribution Runbook
 
