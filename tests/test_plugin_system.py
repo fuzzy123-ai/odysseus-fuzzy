@@ -15,6 +15,7 @@ from fastapi import FastAPI
 
 from src.plugin_system import (
     PluginManager,
+    _route_path,
     get_consolidation_jobs,
     get_context_providers,
 )
@@ -125,6 +126,13 @@ def env(tmp_path, monkeypatch):
 
 def _routes(app):
     return [r.path for r in app.router.routes if getattr(r, "path", "").startswith("/api/plugins/demo")]
+
+
+def test_route_path_supports_starlette_path_format_only():
+    class RouteLike:
+        path_format = "/api/plugins/demo/ping"
+
+    assert _route_path(RouteLike()) == "/api/plugins/demo/ping"
 
 
 def test_manifest_read_without_executing(env):

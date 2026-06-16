@@ -56,6 +56,19 @@ _ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$")
 _PROVIDER_ID_RE = re.compile(r"[A-Za-z0-9_.-]{1,128}$")
 
 
+def _route_path(route: Any) -> str:
+    """Return a stable route path across FastAPI/Starlette versions."""
+    for attr in ("path", "path_format"):
+        value = getattr(route, attr, None)
+        if isinstance(value, str) and value:
+            return value
+    path_regex = getattr(route, "path_regex", None)
+    pattern = getattr(path_regex, "pattern", "")
+    if isinstance(pattern, str) and pattern:
+        return pattern
+    return ""
+
+
 @dataclass(frozen=True)
 class ContextProviderSpec:
     """Read-only context contribution registered by a plugin.
@@ -239,7 +252,7 @@ class PluginContext:
         before = len(self.app.router.routes)
         self.app.include_router(router, **include_kwargs)
         added = self.app.router.routes[before:]
-        bad = [r for r in added if not str(getattr(r, "path", "")).startswith("/api/plugins/")]
+        bad = [r for r in added if not _route_path(r).startswith("/api/plugins/")]
         if bad:
             for r in added:
                 try:
@@ -248,7 +261,7 @@ class PluginContext:
                     pass
             raise ValueError(
                 "plugin routes must be mounted under /api/plugins/<id>/ "
-                f"(rejected: {[getattr(r, 'path', '?') for r in bad][:3]})")
+                f"(rejected: {[_route_path(r) or '?' for r in bad][:3]})")
         self._routes.extend(added)
 
     # -- background services -----------------------------------------------
