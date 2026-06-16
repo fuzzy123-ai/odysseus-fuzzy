@@ -1,6 +1,6 @@
 # System Health Checker Plugin
 
-Status: planned, do not start before current ITW/Lens/Security handoff is clean
+Status: SHC0/SHC1 foundation started; host collectors and Telegram are not implemented yet
 
 ## Narrative
 
@@ -131,6 +131,13 @@ Push alerts:
 | `SHC7-advanced-debian-collectors` | temperatures, SMART/NVMe, updates, reboot-required | setup hints for missing packages/rights | collectors for `sensors`, `smartctl`, apt/reboot | CLI/JSON mocks, rights review | conditional |
 | `SHC8-odysseus-health-ui` | dashboard/plugin UI reads health API | traffic-light/alerts/offline UI contract | UI/API binding without host commands | browser/UI smoke, agent-offline fallback | conditional |
 | `SHC9-security-and-ops-runbook` | safe operation and install guide | runbook and operating narrative | systemd/permission/readiness models or scripts later | final gates, go/no-go | no |
+
+## Current Evidence
+
+- `SHC0-narrative-and-architecture-contract`: this plan and Master Roadmap integration.
+- `SHC1-health-agent-interface`: `plugins/system_health_checker/health_model.py`, `plugins/system_health_checker/plugin.py`, `tests/test_system_health_checker_plugin.py`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py` -> `6 passed, 1 warning`.
+- Boundary: Odysseus exposes an offline health snapshot and plugin page, but executes no host commands.
 
 ## MVP Boundary
 

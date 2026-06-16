@@ -54,7 +54,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
-| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | geplant als eigener Plugin-Track, nicht im Core verstecken |
+| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0/SHC1 gestartet, offline-sicheres Plugin-Schema umgesetzt |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
@@ -583,7 +583,7 @@ Produktentscheidung:
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
 | `SHC0-narrative-and-architecture-contract` | NDD-Contract, Nutzerfluesse, Begriffe, Statussprache | Debian/Podman/Docker Machbarkeit read-only pruefen | Roadmap einordnen, aktive Slices/Worktree pruefen | ja, docs/read-only |
-| `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | Contract/Model-Gaps pruefen | ja |
+| `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | done: Plugin-Scaffold + offline Snapshot | ja |
 | `SHC2-debian-basic-collectors` | Setup-/Unknown-State Texte | CPU/RAM/Load/Uptime/Disk Collector-Modelle mit Mockable Inputs | fokussierte Tests, Scope pruefen | ja nach Contract |
 | `SHC3-rule-engine-alert-model` | Alert-Texte und Handlungsempfehlungen | Rule Engine, Severity, Cooldown, Dedupe, Recovery | kein Alert-Spam, klare Defaults | ja |
 | `SHC4-telegram-pull-status` | Telegram Command-Vertrag, Allowlist-Texte | Bot/Channel-Adapter Modell, Long Polling Default | Token-/Logging-Sicherheitscheck | bedingt |
@@ -596,6 +596,7 @@ Produktentscheidung:
 ### Definition of Done `0.19.x`
 
 - System Health Checker ist als eigener Plugin-Track nachvollziehbar.
+- `plugins/system_health_checker/` existiert als eigener Plugin-Scope.
 - Host-Agent und Odysseus-Container sind strikt entkoppelt.
 - Debian Basic Health Snapshot ist schema-stabil und offline-/unknown-sicher.
 - Rule Engine bewertet Thresholds mit Cooldown, Dedupe und Recovery.
