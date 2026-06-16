@@ -1,6 +1,6 @@
 # System Health Checker Plugin
 
-Status: SHC0-SHC6 foundation started; host command collectors and real Telegram bot are not implemented yet
+Status: SHC0-SHC7 foundation started; host command collectors and real Telegram bot are not implemented yet
 
 ## Narrative
 
@@ -141,11 +141,13 @@ Push alerts:
 - `SHC4-telegram-pull-status`: `plugins/system_health_checker/telegram_adapter.py`, `tests/test_system_health_checker_telegram_adapter.py`.
 - `SHC5-auto-alerting`: `plugins/system_health_checker/alert_dispatcher.py`, `tests/test_system_health_checker_alert_dispatcher.py`.
 - `SHC6-podman-docker-runtime-adapter`: `plugins/system_health_checker/runtime_adapter.py`, `tests/test_system_health_checker_runtime_adapter.py`.
-- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_rule_engine.py tests\test_system_health_checker_telegram_adapter.py tests\test_system_health_checker_alert_dispatcher.py tests\test_system_health_checker_runtime_adapter.py` -> `45 passed, 1 warning`.
+- `SHC7-advanced-debian-collectors`: `plugins/system_health_checker/advanced_collectors.py`, `tests/test_system_health_checker_advanced_collectors.py`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_advanced_collectors.py tests\test_system_health_checker_rule_engine.py tests\test_system_health_checker_telegram_adapter.py tests\test_system_health_checker_alert_dispatcher.py tests\test_system_health_checker_runtime_adapter.py` -> `53 passed, 1 warning`.
 - Boundary: Odysseus exposes an offline health snapshot and plugin page, but executes no host commands.
 - Boundary: Telegram support is currently parse/authorize/render only; no token, no polling, no network calls.
 - Boundary: Auto-alerting currently creates dispatch plans only; it performs no network sends.
 - Boundary: Runtime adapter plans Podman/Docker commands for a host-agent; no socket or CLI execution happens in Odysseus.
+- Boundary: Advanced collectors normalize host-agent results only; they do not call `sensors`, `smartctl`, apt, or read host files.
 
 ## MVP Boundary
 

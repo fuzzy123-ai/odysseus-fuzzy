@@ -29,6 +29,10 @@ class CollectorKind(StrEnum):
     UPTIME = "uptime"
     DISK = "disk"
     CONTAINERS = "containers"
+    TEMPERATURE = "temperature"
+    SMART = "smart"
+    UPDATES = "updates"
+    REBOOT = "reboot"
     AGENT = "agent"
 
 
@@ -213,4 +217,3 @@ def _overall_state(collectors: tuple[CollectorStatus, ...], alerts: AlertSummary
     if HealthState.UNKNOWN in states:
         return HealthState.UNKNOWN
     return HealthState.OK
-
