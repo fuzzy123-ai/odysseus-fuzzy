@@ -1,3 +1,4 @@
+from src.manual_release_evidence import current_manual_evidence_entries, summarize_manual_evidence
 from src.plugin_release_gate import PluginReleaseGate
 from src.release_evidence_snapshot import (
     AUTOMATED,
@@ -71,6 +72,36 @@ def test_all_green_report_prepares_external_review():
     assert report.status == "go"
     assert report.external_release_go is True
     assert report.next_actions == ("prepare_external_release_review",)
+
+
+def test_current_manual_evidence_blocks_readiness_report_even_if_snapshot_is_green():
+    snapshot = build_release_evidence_snapshot(
+        [
+            ReleaseGate("auto", "Automated", AUTOMATED, PASS, ("pytest",)),
+            ReleaseGate("manual", "Manual", MANUAL, PASS, ("manual log",)),
+        ]
+    )
+    manual_summary = summarize_manual_evidence(current_manual_evidence_entries())
+
+    report = build_release_readiness_report(snapshot, manual_evidence=manual_summary)
+
+    assert report.status == "blocked"
+    assert report.external_release_go is False
+    assert report.blocking_reasons == (
+        "manual:partial:provider-proof",
+        "manual:partial:export-import-rebuild",
+    )
+    assert report.next_actions == ("complete_partial_manual_evidence",)
+
+
+def test_manual_missing_and_pending_actions_are_deduplicated_with_release_snapshot():
+    snapshot = build_release_evidence_snapshot(default_1_0_release_gates())
+    manual_summary = summarize_manual_evidence([], required_gate_ids=("provider-proof",))
+
+    report = build_release_readiness_report(snapshot, manual_evidence=manual_summary)
+
+    assert "manual:missing:provider-proof" in report.blocking_reasons
+    assert report.next_actions == ("complete_manual_release_evidence",)
 
 
 def test_warnings_do_not_block_green_release():

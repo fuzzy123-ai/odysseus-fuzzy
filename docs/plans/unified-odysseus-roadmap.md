@@ -166,7 +166,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL1-release-gate` | Tests, Worktree, Push und Evidence pruefen | 1.0-Go/No-Go statt Bauchgefuehl |
 | `REL2-slice-router` | Nutzer-Bugs in Alice/Bob-Slices schneiden | keine parallelen Hot-File-Konflikte |
 | `REL4-evidence-snapshot-model` | automatisierte und manuelle Release-Gates maschinenlesbar trennen | externes 1.0-Go bleibt No-Go, solange Pflicht-Evidence pending ist |
-| `REL5-readiness-report-model` | Release- und Plugin-Gates zu einer kompakten Go/No-Go-Sicht aggregieren | naechste Aktionen sind maschinenlesbar, ohne Runtime-Hooks |
+| `REL5-readiness-report-model` | Release-, Plugin- und manuelle Evidence-Gates zu einer kompakten Go/No-Go-Sicht aggregieren | naechste Aktionen sind maschinenlesbar, ohne Runtime-Hooks |
 | `REL6-manual-evidence-model` | manuelle Evidence-Eintraege typisieren und Partial/No-Go ausdruecklich modellieren | offene Provider-/Test-Vault-Gates koennen nicht versehentlich als Go gelten |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
