@@ -283,6 +283,7 @@ def import_vault(vault_dir: str, archive_data: bytes, password: Optional[str] = 
     imported = 0
     total_size = 0
     planned: list[tuple[str, zipfile.ZipInfo]] = []
+    seen_paths: set[str] = set()
     try:
         with zipfile.ZipFile(BytesIO(plain_archive), "r") as zf:
             names = set(zf.namelist())
@@ -299,6 +300,10 @@ def import_vault(vault_dir: str, archive_data: bytes, password: Optional[str] = 
                     raise VaultSecurityError("Archive contains too many files")
                 if total_size > MAX_IMPORT_UNCOMPRESSED_BYTES:
                     raise VaultSecurityError("Archive expands beyond the size limit")
+                rel_key = rel_path.lower()
+                if rel_key in seen_paths:
+                    raise VaultSecurityError(f"Archive contains duplicate paths: {rel_path}")
+                seen_paths.add(rel_key)
                 target = os.path.abspath(os.path.join(vault_dir, rel_path))
                 if os.path.commonpath([os.path.abspath(vault_dir), target]) != os.path.abspath(vault_dir):
                     raise VaultSecurityError("Archive entry escapes the vault")
@@ -306,16 +311,21 @@ def import_vault(vault_dir: str, archive_data: bytes, password: Optional[str] = 
                     raise VaultSecurityError(f"Import conflict: {rel_path}")
                 planned.append((rel_path, info))
 
-            os.makedirs(vault_dir, exist_ok=True)
+            extracted: list[tuple[str, bytes]] = []
             pwd = password.encode("utf-8") if password else None
             for rel_path, info in planned:
-                target = os.path.abspath(os.path.join(vault_dir, rel_path))
-                os.makedirs(os.path.dirname(target), exist_ok=True)
                 try:
-                    with zf.open(info, "r", pwd=pwd) as src, open(target, "wb") as dst:
-                        dst.write(src.read())
+                    with zf.open(info, "r", pwd=pwd) as src:
+                        extracted.append((rel_path, src.read()))
                 except RuntimeError as exc:
                     raise VaultSecurityError("Invalid password or encrypted archive unsupported") from exc
+
+            os.makedirs(vault_dir, exist_ok=True)
+            for rel_path, data in extracted:
+                target = os.path.abspath(os.path.join(vault_dir, rel_path))
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, "wb") as dst:
+                    dst.write(data)
                 imported += 1
     except zipfile.BadZipFile as exc:
         raise VaultSecurityError("Archive is not a valid ZIP file") from exc
