@@ -1,6 +1,6 @@
 # System Health Checker Plugin
 
-Status: SHC0-SHC4 foundation started; host command collectors and real Telegram bot are not implemented yet
+Status: SHC0-SHC5 foundation started; host command collectors and real Telegram bot are not implemented yet
 
 ## Narrative
 
@@ -139,9 +139,11 @@ Push alerts:
 - `SHC2-debian-basic-collectors`: `plugins/system_health_checker/basic_collectors.py`, `tests/test_system_health_checker_collectors.py`.
 - `SHC3-rule-engine-alert-model`: `plugins/system_health_checker/rule_engine.py`, `tests/test_system_health_checker_rule_engine.py`.
 - `SHC4-telegram-pull-status`: `plugins/system_health_checker/telegram_adapter.py`, `tests/test_system_health_checker_telegram_adapter.py`.
-- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_rule_engine.py tests\test_system_health_checker_telegram_adapter.py` -> `31 passed, 1 warning`.
+- `SHC5-auto-alerting`: `plugins/system_health_checker/alert_dispatcher.py`, `tests/test_system_health_checker_alert_dispatcher.py`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_system_health_checker_plugin.py tests\test_system_health_checker_collectors.py tests\test_system_health_checker_rule_engine.py tests\test_system_health_checker_telegram_adapter.py tests\test_system_health_checker_alert_dispatcher.py` -> `38 passed, 1 warning`.
 - Boundary: Odysseus exposes an offline health snapshot and plugin page, but executes no host commands.
 - Boundary: Telegram support is currently parse/authorize/render only; no token, no polling, no network calls.
+- Boundary: Auto-alerting currently creates dispatch plans only; it performs no network sends.
 
 ## MVP Boundary
 
