@@ -118,6 +118,7 @@ def _normalize_dispatch_action(value: Any) -> str:
 
 def _normalize_mode(value: Any) -> HeartbeatMode:
     normalized = _normalize_slug(value, field_name="mode")
+    normalized = normalized.replace("-", "_")
     if normalized not in _MODES:
         raise HeartbeatCoordinatorError("mode is not supported")
     return HeartbeatMode(normalized)

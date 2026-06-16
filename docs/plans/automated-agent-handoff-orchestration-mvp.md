@@ -2,7 +2,7 @@
 
 Stand: 2026-06-16
 
-Status: **AUTO1-AUTO3 gestartet; Registry, Thread-Zuordnung und Handoff-Mailbox vorbereitet, echte Runtime-Hooks offen**
+Status: **AUTO1-AUTO4 gestartet; Registry, Thread-Zuordnung, Handoff-Mailbox und trockener Tick-Planer vorbereitet, echte Runtime-Hooks offen**
 
 Dieser Plan macht aus dem manuell bewiesenen Alice/Bob/Charlie-Prozess eine native Odysseus-Runtime. Er ersetzt nicht die abgeschlossene `0.12.x Development Orchestration v1`, sondern baut darauf auf: Die vorhandenen Store-/Model-/Contract-Bausteine werden persistent, verdrahtet, pruefbar und sichtbar.
 
@@ -41,10 +41,12 @@ Noch nicht vollautomatisch verdrahtet:
 - `AUTO1-persistent-orchestration-store`: `src/orchestration_registry.py`, `tests/test_orchestration_registry.py`.
 - `AUTO2-thread-registry-and-bridge`: `src/thread_registry.py`, `tests/test_thread_registry.py`.
 - `AUTO3-handoff-parser-and-mailbox`: `src/handoff_mailbox.py`, `tests/test_handoff_mailbox.py`.
-- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_handoff_mailbox.py` -> `10 passed, 1 warning`.
+- `AUTO4-heartbeat-runtime-loop`: `src/orchestration_runtime_loop.py`, `tests/test_orchestration_runtime_loop.py`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_orchestration_runtime_loop.py tests\test_heartbeat_coordinator.py` -> `14 passed, 1 warning`.
 - Boundary: Registry persists validated PlanGraph and AgentRun payloads to JSON only; it does not read threads, run git, run tests, or dispatch agents.
 - Boundary: Thread registry validates assignments and dispatch targets only; it does not read or send real thread messages.
 - Boundary: Handoff mailbox parses and queues dispatch envelopes only; it does not send messages into real Codex threads.
+- Boundary: Runtime loop currently plans ticks from injected snapshots only; it does not schedule itself, read threads, run tests, inspect git, or send messages.
 
 ## Arbeitsprinzip
 
@@ -58,7 +60,7 @@ Alice definiert Nutzer-/UX-/Sicherheitsvertraege und sichtbare Flows. Bob baut k
 | `AUTO1-persistent-orchestration-store` | Plan Graph + Agent Runs persistent machen | UX-Contract fuer sichtbare Plan/Run-Zustaende | JSON Registry fuer PlanGraph/AgentRun, keine Runtime-Hooks | done als Vorbereitungsslice | ja, Contract zuerst |
 | `AUTO2-thread-registry-and-bridge` | Agent Threads eindeutig zu Runs/Slices zuordnen | Handoff-/Statussprache fuer unklare Threads | Thread Registry fuer eindeutige Run/Thread-Zuordnung, keine echten Sends | done als Vorbereitungsslice | bedingt |
 | `AUTO3-handoff-parser-and-mailbox` | Agent-Antworten maschinenlesbar auswerten und naechste Nachrichten vorbereiten | Handoff-Template finalisieren | done: Parser/Validator, Mailbox/Dispatch-Queue, Pflichtfeld- und Scope-Fehler | testet echte Beispiel-Handoffs von Alice/Bob/Charlie | ja |
-| `AUTO4-heartbeat-runtime-loop` | HeartbeatCoordinator wirklich ausfuehren | Nutzertexte fuer laufend/wartend/blockiert/gestoppt | Scheduler-Anbindung, Tick: Threads lesen, Worktree pruefen, Dispatch entscheiden, Stop-Kriterien | kontrolliert, dass Automation letzter operativer Schritt bleibt | nein, kritisch |
+| `AUTO4-heartbeat-runtime-loop` | HeartbeatCoordinator wirklich ausfuehren | Nutzertexte fuer laufend/wartend/blockiert/gestoppt | done als trockener Tick-Planer: injizierte Snapshots, Dispatch-Entscheidung, Stop-Kriterien, Mailbox-Queue; echte Scheduler-/Thread-/Git-Hooks offen | kontrolliert, dass Automation letzter operativer Schritt bleibt | nein, kritisch |
 | `AUTO5-git-test-quality-gates` | `claimed done` ist nicht `verified done` | Gate-Lens/Erklaertexte fuer rot/gelb/gruen | Git-Status, Commit-Refs, Changed Files, Testcommands, Hotfile/Scope-Gates real ausfuehren | entscheidet Block/Warn/Pass, keine destruktiven Git-Aktionen | bedingt |
 | `AUTO6-mini-orchestration-dashboard-v2` | Nutzer sieht Run ohne Thread-Hopping | Dashboard-Contract: Fortschritt, aktive Slices, Blocker, naechste Aktion, Gates | Status API aus OrchestrationStatusSnapshot, einfache UI-Liste/Tree | UI-Smoke, Status stimmt mit Store/Gates ueberein | ja nach API-Contract |
 | `AUTO7-end-to-end-two-agent-smoke` | Voller MVP: Plan -> Alice/Bob -> Handoff -> Gate -> Next -> Done | Runbook fuer Demo und Known Limits | E2E-Smoke mit Fake/echten Thread-Refs je nach Verfuegbarkeit | fuehrt Abschluss-Tests aus, dokumentiert Go/No-Go | nein, sequenziell |
