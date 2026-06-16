@@ -15,6 +15,7 @@ The current release-candidate scope includes a few explicit limits:
 - Vault password protection controls plugin access, but it is not full at-rest encryption for plaintext Markdown already stored on disk.
 - RAPTOR status and readiness surfaces are read-only in the RC; rebuild/write flows stay disabled until they are separately hardened and tested.
 - Risky write paths such as imports, project-plan apply flows, memory-review apply flows, and destructive file operations should only be used with the existing confirmation gates intact.
+- Memory-review queue entries under `AI Memory/Review Queue/` are staged review artifacts, not settled canonical memory, and should be treated accordingly during incident review or restore work.
 - Authenticated plugin data routes must stay protected even when the standalone app shell and static assets are allowed to load before login.
 
 ## RC Operator Checklist

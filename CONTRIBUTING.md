@@ -6,10 +6,10 @@ Thanks for helping. The project is moving quickly, so the best contributions are
 
 Odysseus has two branches:
 
-- **`dev`** — where all PRs land. Things can be in flux here; the merge button gets used freely.
-- **`main`** — what users run. Curated and tested by the maintainer. Fast-forwarded to a stable `dev` commit at each release.
+- **`dev`** - where all PRs land. Things can be in flux here; the merge button gets used freely.
+- **`main`** - what users run. Curated and tested by the maintainer. Fast-forwarded to a stable `dev` commit at each release.
 
-**Open your PR against `dev`, not `main`.** The GitHub "base" dropdown defaults to `dev`. If you opened a PR against `main` by accident, click "Edit" on the PR and change the base — no rebase needed.
+**Open your PR against `dev`, not `main`.** The GitHub "base" dropdown defaults to `dev`. If you opened a PR against `main` by accident, click "Edit" on the PR and change the base - no rebase needed.
 
 End-users cloning the repo will land on `dev` by default. To run the curated/stable version: `git checkout main` after clone.
 
@@ -80,12 +80,12 @@ Please keep PRs small. Large PRs that mix unrelated cleanup, formatting, refacto
 
 Odysseus has an intentional visual style. PRs that ignore it will be closed without merge, no matter how correct the underlying code is.
 
-Before submitting any change that affects what the app looks like — buttons, icons, fonts, colors, spacing, layout, CSS, HTML, SVG, or any `static/js/` module that draws to the DOM — please:
+Before submitting any change that affects what the app looks like - buttons, icons, fonts, colors, spacing, layout, CSS, HTML, SVG, or any `static/js/` module that draws to the DOM - please:
 
 1. **Run the app locally** and view the change in a browser. Type-checks and unit tests are not enough.
 2. **Attach a screenshot or short clip** of the change in the running app. Add a mobile screenshot too if the change affects mobile.
 3. **Match the existing visual language.** Specifically:
-   - Reuse existing CSS variables (`--red`, `--fg`, `--bg`, `--card`, `--border`, …). Do not introduce new color values, font sizes, or spacing units.
+   - Reuse existing CSS variables (`--red`, `--fg`, `--bg`, `--card`, `--border`, ...). Do not introduce new color values, font sizes, or spacing units.
    - Reuse existing button, input, card, and border classes. Don't invent parallel styling for similar widgets.
    - **No Unicode emoji in UI or code.** Use inline SVG (matching the monochrome icon style already in `static/index.html`) or plain text.
    - Monospaced font (`Fira Code`) for primary UI text. Don't override.
@@ -130,4 +130,3 @@ Issues with only "help", "does not work", or a screenshot without context may be
 Do not post secrets, API keys, private logs, personal documents, or public IPs in issues or pull requests.
 
 For security reports, follow [SECURITY.md](SECURITY.md).
-

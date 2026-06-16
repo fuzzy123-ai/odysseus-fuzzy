@@ -104,12 +104,13 @@ Release metadata rule:
 ### Memory Review
 
 - Save-to-Obsidian preview workflow for reviewed memories, decisions, ideas, references, resources, meetings, and project notes.
-- Actions: `save_to_obsidian`, `append_to_note`, `memory_only`, and `discard`.
+- Actions: `save_to_obsidian`, `append_to_note`, `review_queue`, `memory_only`, and `discard`.
 - Destination picker for folders or existing notes.
 - Tag picker with autocomplete from existing vault tags and support for new tags.
 - Link suggestions based on selected notes, requested links, and vault content.
 - Conflict detection before writing new or appended note content.
 - Apply flow requires confirmation for vault writes and records file/relationship changes in history.
+- `review_queue` stages unresolved or duplicate-prone items under `AI Memory/Review Queue/...` so they stay out of settled canonical memory until someone reviews them.
 
 ### Agent Tools
 
@@ -312,6 +313,7 @@ Current RC residual risks to keep visible:
 
 - Vault password protection is an access-control layer for the plugin and tools, not full disk encryption for existing plaintext Markdown files.
 - Import, project-plan apply, memory-review apply, and destructive note operations still depend on confirmation-gate discipline.
+- `AI Memory/Review Queue/` contains staged review items and duplicates-under-investigation, not settled canonical memory.
 - The standalone app shell may load before login, but authenticated data routes must remain protected.
 
 ## RC Distribution Runbook

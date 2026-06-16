@@ -83,7 +83,7 @@ Current RC restrictions to keep in mind:
 1. Vault password protection blocks plugin access, but it is not full at-rest encryption for plaintext vault files already on disk.
 2. Destructive or bulk write paths should stay behind the existing confirmation gates during the RC cycle.
 3. Plugin app-shell availability must not weaken authentication on plugin data routes.
-4. The plugin README and `plugins/obsidian/SECURITY.md` carry the more detailed RC checklist and security notes.
+4. The plugin README, `plugins/obsidian/CONTRIBUTING.md`, and `plugins/obsidian/SECURITY.md` carry the more detailed RC checklist, release-hygiene notes, and security guidance.
 
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).
