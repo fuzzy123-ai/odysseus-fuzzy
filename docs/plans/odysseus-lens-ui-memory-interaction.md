@@ -6,6 +6,8 @@ Status: **neuer koordinierter Track fuer Lens-/Memory-UI nach dem 1.0-Evidence-F
 
 Dieser Plan uebernimmt den Side-Conversation-Handoff in die Hauptkoordination. Ziel ist keine weitere Sammlung einzelner Tool-Buttons, sondern eine klare Arbeitsoberflaeche ueber dem Memory-System.
 
+UX-Contract fuer den Start: `docs/plans/lens-ui-ux-contract.md`
+
 ## Produktentscheidung
 
 Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
