@@ -165,6 +165,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL0-roadmap-closeout` | Roadmap nach `0.14.x` aktualisieren und naechsten Fokus festlegen | erledigt, wenn `0.14.x` als abgeschlossen markiert ist |
 | `REL1-release-gate` | Tests, Worktree, Push und Evidence pruefen | 1.0-Go/No-Go statt Bauchgefuehl |
 | `REL2-slice-router` | Nutzer-Bugs in Alice/Bob-Slices schneiden | keine parallelen Hot-File-Konflikte |
+| `REL4-evidence-snapshot-model` | automatisierte und manuelle Release-Gates maschinenlesbar trennen | externes 1.0-Go bleibt No-Go, solange Pflicht-Evidence pending ist |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
