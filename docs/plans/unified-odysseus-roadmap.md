@@ -38,10 +38,10 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 
 | Version | Name | Ziel | Status |
 | --- | --- | --- | --- |
-| `0.10.x` | Memory-first RC Closure | aktueller Obsidian/Memory/Model-Router-Stand stabil, getestet, dokumentiert | fast fertig, jetzt Bugfix/Testphase |
-| `0.11.x` | Agent State & Architecture Hygiene | Zustandstrennung, Context Capsules, Tool Truth, Backend-Grenzen | naechster Foundation-Schnitt |
-| `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | nach 0.11 |
-| `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | nach Orchestration-Fundament oder parallel nur als Planungs-/Interface-Arbeit |
+| `0.10.x` | Memory-first RC Closure | aktueller Obsidian/Memory/Model-Router-Stand stabil, getestet, dokumentiert | abgeschlossen als Pre-Scale-Basis |
+| `0.11.x` | Agent State & Architecture Hygiene | Zustandstrennung, Context Capsules, Tool Truth, Backend-Grenzen | abgeschlossen als Foundation-Schnitt |
+| `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
+| `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | aktive naechste Phase: Start mit `MS1-store-interfaces` |
 | `0.14.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | erst nach gruenem Evidence-Lauf |
 
@@ -107,40 +107,41 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach Diagnostics und stabiler Basis. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
 
-## Aktive Phase: `0.10.x` Test- und Bugfix-Fenster
+## Aktive Phase: `0.13.x` Memory Scale Foundation
 
-Der Nutzer testet jetzt. Alice und Bob werden erst wieder losgeschickt, wenn die groben Bugs und Merge-Regressions eingeordnet sind.
+`0.12.x` ist mit OR7 abgeschlossen. Der naechste Arbeitszyklus startet kontrolliert mit `MS1-store-interfaces`, damit Postgres/pgvector, Diagnostics und progressive Graph-Flows spaeter ohne Big-Bang-Migration angebunden werden koennen.
 
 ### Ziele
 
 - Worktree sauber halten.
-- Keine neue Roadmap-Expansion waehrend Bugfixes.
-- Reproduzierbare Bugs zuerst klein schneiden.
-- Jede Korrektur bekommt einen fokussierten Test oder eine klare manuelle Evidence.
+- Zuerst Interfaces und Contracts, dann Migration.
+- Keine Postgres-Umschaltung, kein Qdrant/Kuzu, kein UMAP/GMM in `MS1`.
+- Keine unbounded Memory-/Graph-/Query-Pfade neu einfuehren.
+- Jede neue Scale-Struktur bekommt Tests oder klare Evidence.
 
-### Alice-Pfad `0.10.x`
-
-| Slice | Ziel | Dateien | Exit |
-| --- | --- | --- | --- |
-| `A0.10-ui-smoke-notes` | UI-/Lens-Bugs aus Nutzertest sammeln und in reproduzierbare Slices uebersetzen | Roadmap/Evidence, spaeter UI-Dateien nach Handoff | Bugliste sortiert nach P0/P1/P2 |
-| `A0.10-release-evidence-cleanup` | Nutzertexte, Known-Limits und M6/1.0-Status konsistent halten | `docs/obsidian/00-priorisierte-roadmap.md`, README nach Bedarf | keine widerspruechlichen 1.0-Aussagen |
-| `A0.10-answer-lens-polish` | Nur wenn Test zeigt, dass Answer Mode UI verwirrend ist | `plugins/obsidian/frontend/main.js`, passende UI-Tests | Labels klar, keine Secrets im DOM |
-
-### Bob-Pfad `0.10.x`
+### Alice-Pfad `0.13.x`
 
 | Slice | Ziel | Dateien | Exit |
 | --- | --- | --- | --- |
-| `B0.10-regression-triage` | Merge- und Backend-Regressionen reproduzierbar machen | fokussierte Tests nach Bug | roter Test oder dokumentierter No-Repro |
-| `B0.10-model-router-hardening` | Nur echte Router-/Query-Bugs aus Testphase fixen | `plugins/obsidian/backend/model_router.py`, `query_layer.py`, Tests | Router-/Query-Tests gruen |
-| `B0.10-auth-safety-check` | Nach Upstream-Sync Auth-/Owner-Scope an kritischen Plugin-Pfaden pruefen | Auth-/Route-Tests | kein Leak, kein Shell-Bypass |
+| `MS1A-store-interface-contract` | Begriffe, Nicht-Ziele und Nutzer-/Charlie-Sicht fuer Store-Interfaces klaeren | neu: `docs/plans/memory-store-interface-contract.md` | klarer Contract fuer Bob, keine Postgres-Umschaltung |
+| `MS2A-diagnostics-lens-contract` | Health-/Lens-Wording fuer Timing, Counts, Clipping und Budgets definieren | neu: `docs/plans/memory-diagnostics-lens-contract.md` | Bob weiss, welche Metrics spaeter sichtbar sein muessen |
+| `MS3A-query-budget-ux-contract` | Partial-/Clipped-Result UX beschreiben | spaeterer Doku-Slice | Nutzer versteht Limits statt "kaputte Suche" |
 
-### Charlie-Pfad `0.10.x`
+### Bob-Pfad `0.13.x`
+
+| Slice | Ziel | Dateien | Exit |
+| --- | --- | --- | --- |
+| `MS1B-store-interface-model-spike` | Kleine Python-Interfaces/Dataclasses fuer Source/Chunk/Embedding/Graph/Job Stores | neu: `src/memory_store_interfaces.py`, `tests/test_memory_store_interfaces.py` | Interfaces validieren IDs, Budgets und keine `load_all`-Defaults |
+| `MS2B-diagnostics-model-spike` | Metrics-/Timing-/Clipping-Snapshot modellieren | spaeter neue Backend-Dateien | simulierbare Diagnostics ohne echte grosse Daten |
+| `MS3B-query-budget-model-spike` | Budget-/Cursor-/Timeout-Verhalten als isoliertes Modell vorbereiten | spaeter neue Backend-Dateien | unbounded Query-Pfade werden testbar blockiert |
+
+### Charlie-Pfad `0.13.x`
 
 | Slice | Ziel | Exit |
 | --- | --- | --- |
-| `C0.10-test-command-map` | Liste der relevanten Testbefehle fuer Bugs pflegen | jeder Bug hat Testgate |
-| `C0.10-worktree-guardian` | Status, Konflikte, unerwartete Aenderungen und Commits ueberwachen | keine unklaren Dirty Files |
-| `C0.10-release-gate` | Nach Bugfix-Fenster Abschlusscheck, Commit, Push | gruenes Abschlussprotokoll |
+| `MS1C-contract-model-alignment` | Alice-Contract und Bob-Interfaces abgleichen | keine Big-Bang-Migration, Tests gruen, Worktree sauber |
+| `MS2C-diagnostics-gate-definition` | Welche Metrics als Quality Gate zaehlen festlegen | Performance- und Clipping-Gates sind pruefbar |
+| `MS3C-budget-regression-gate` | Query-Budgets in Test-/Readiness-Regeln ueberfuehren | keine unbounded Regressionen |
 
 ## Version `0.11.x`: Agent State & Architecture Hygiene
 
