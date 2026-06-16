@@ -340,6 +340,24 @@ Grenzen:
 - Kein Nextcloud-Plugin-Backend in diesem Slice.
 - Keine Loesch-, Move- oder Rewrite-Flows fuer echte Nutzerdateien.
 
+Lens-Vertrag:
+
+- Ein Nextcloud-Sync-Ordner ist aus Sicht der Lens ein **Source Provider**, nicht automatisch ein Published- oder Canonical-Bereich.
+- Die Lens darf Sync-Ursprung, lesbaren Dateipfad und spaeteren Indexzustand sichtbar machen, ohne Besitz ueber die Datei zu behaupten.
+- Dateiarchiv und Sync-Speicher bleiben primaer Discovery-/Source-Layer; Kuration, Review und Published Views bleiben getrennte Schichten.
+- "Im Archiv gefunden" bedeutet nicht automatisch "in Memory beantwortbar" und auch nicht "von der KI freigegeben".
+
+Safe-vs-non-goals:
+
+- Sicher fuer diesen Slice: Nutzertexte, README-Klarheit, spaetere Source-View-Platzhalter, Demo-Sprache.
+- Nicht Ziel: bidirektionale Sync-Logik, Dateikonflikt-Aufloesung, stilles Verschieben von Nutzerdateien oder automatische Promotion aus Nextcloud nach Canonical.
+
+Open markers fuer spaetere UI:
+
+- `needs Bob handoff: source provider identifier for synced/archive sources`
+- `needs Bob handoff: stable source status fields for external files`
+- `needs Bob handoff: exact permission model for read-only archive vs staged writes`
+
 #### A10 Memory-Demo-Runbook
 
 Ziel: Eine spaetere 1.0-Demo kann zeigen, dass Memory-first wirklich funktioniert.

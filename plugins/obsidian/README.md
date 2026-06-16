@@ -484,6 +484,23 @@ Needs Bob handoff before UI wiring is treated as stable:
 - Stable timestamps or last-run summaries.
 - Exact artifact boundary between `ready` and `needs_review`.
 
+### Nextcloud / Archive Source Lens Contract
+
+External sync folders and file archives should appear in the Lens as source providers, not as silently promoted memory.
+
+Lens-side contract:
+
+- A synced Nextcloud folder should be explainable as a source location the Memory system can index.
+- Archive-backed files should remain source artifacts until a separate review, staging, or publication step says otherwise.
+- The Lens may later show source provider, readable path, and index status for those files without implying ownership over the original file.
+- Discovery tooling such as filesystem or archive search is a helper for finding and repairing sources, not the product core by itself.
+
+Needs Bob handoff before UI wiring is treated as stable:
+
+- Final source-provider identifier for external files.
+- Stable external-source status fields.
+- Final read-only vs staged-write boundary for synced/archive material.
+
 ## Release Archive Layout
 
 If the plugin is distributed as a ZIP outside a git checkout, the archive root should contain the plugin files directly:
