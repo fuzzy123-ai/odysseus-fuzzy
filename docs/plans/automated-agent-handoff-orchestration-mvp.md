@@ -2,7 +2,7 @@
 
 Stand: 2026-06-16
 
-Status: **AUTO1-AUTO7 gestartet; Registry, Thread-Zuordnung, Handoff-Mailbox, Tick-Planer, Quality Gates, Dashboard-v2 Snapshot und deterministischer E2E-Smoke vorbereitet, echte Runtime-Hooks offen**
+Status: **AUTO1-AUTO8 gestartet; Runtime-Vorbereitung inklusive N-Agent-Scaling-Modell abgeschlossen, echte Thread-/Git-/Test-Hooks offen**
 
 Dieser Plan macht aus dem manuell bewiesenen Alice/Bob/Charlie-Prozess eine native Odysseus-Runtime. Er ersetzt nicht die abgeschlossene `0.12.x Development Orchestration v1`, sondern baut darauf auf: Die vorhandenen Store-/Model-/Contract-Bausteine werden persistent, verdrahtet, pruefbar und sichtbar.
 
@@ -45,7 +45,8 @@ Noch nicht vollautomatisch verdrahtet:
 - `AUTO5-git-test-quality-gates`: `src/runtime_quality_gates.py`, `tests/test_runtime_quality_gates.py`.
 - `AUTO6-mini-orchestration-dashboard-v2`: `src/orchestration_dashboard_v2.py`, `tests/test_orchestration_dashboard_v2.py`.
 - `AUTO7-end-to-end-two-agent-smoke`: `src/orchestration_e2e_smoke.py`, `tests/test_orchestration_e2e_smoke.py`, `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md`.
-- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_orchestration_e2e_smoke.py` -> `3 passed, 1 warning`.
+- `AUTO8-n-agent-scaling-design`: `src/agent_pool_scaling.py`, `tests/test_agent_pool_scaling.py`, `docs/plans/automated-agent-n-scaling-design.md`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_pool_scaling.py` -> `8 passed, 1 warning`.
 - Boundary: Registry persists validated PlanGraph and AgentRun payloads to JSON only; it does not read threads, run git, run tests, or dispatch agents.
 - Boundary: Thread registry validates assignments and dispatch targets only; it does not read or send real thread messages.
 - Boundary: Handoff mailbox parses and queues dispatch envelopes only; it does not send messages into real Codex threads.
@@ -53,6 +54,7 @@ Noch nicht vollautomatisch verdrahtet:
 - Boundary: Runtime quality gates evaluate injected git/test/scope/hotfile snapshots only; they do not execute commands or clean the worktree.
 - Boundary: Dashboard v2 builds an API-ready snapshot only; it does not touch frontend hotfiles or serve HTTP.
 - Boundary: E2E smoke uses fake ThreadRefs and injected evidence only; it does not wake agents or send messages.
+- Boundary: Agent pool scaling assigns only registered agents under budgets and locks; it does not create agents or threads.
 
 ## Arbeitsprinzip
 
@@ -70,7 +72,7 @@ Alice definiert Nutzer-/UX-/Sicherheitsvertraege und sichtbare Flows. Bob baut k
 | `AUTO5-git-test-quality-gates` | `claimed done` ist nicht `verified done` | Gate-Lens/Erklaertexte fuer rot/gelb/gruen | done als Snapshot-Evaluator fuer Git, Tests, Evidence, Scope und Hotfiles; echte Command-Runner offen | entscheidet Block/Warn/Pass, keine destruktiven Git-Aktionen | bedingt |
 | `AUTO6-mini-orchestration-dashboard-v2` | Nutzer sieht Run ohne Thread-Hopping | Dashboard-Contract: Fortschritt, aktive Slices, Blocker, naechste Aktion, Gates | done als Backend-Snapshot-Builder aus Registry, Heartbeat, Mailbox und Gates; UI/API-Hook offen | UI-Smoke, Status stimmt mit Store/Gates ueberein | ja nach API-Contract |
 | `AUTO7-end-to-end-two-agent-smoke` | Voller MVP: Plan -> Alice/Bob -> Handoff -> Gate -> Next -> Done | done: Runbook fuer Demo und Known Limits | done: deterministischer E2E-Smoke mit Fake-ThreadRefs und injected Evidence | Abschluss-Tests, Go/No-Go dokumentiert | nein, sequenziell |
-| `AUTO8-n-agent-scaling-design` | Von Alice/Bob auf beliebig viele Agenten vorbereiten | UX fuer Rollen, Pools, Budgets, Locks | Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt | ja, eher Planung |
+| `AUTO8-n-agent-scaling-design` | Von Alice/Bob auf beliebig viele Agenten vorbereiten | UX fuer Rollen, Pools, Budgets, Locks | done: Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt; keine Agentenfabrik | ja, Planung |
 
 ## Empfohlene Reihenfolge
 

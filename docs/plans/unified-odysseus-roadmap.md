@@ -37,6 +37,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
 | `docs/plans/automated-agent-handoff-orchestration-mvp.md` | neuer Runtime-Track fuer vollautomatisches Agent-Handoff und verified Orchestration |
 | `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md` | AUTO7-Runbook fuer deterministischen Zwei-Agenten-Smoke ohne echte Thread-Sends |
+| `docs/plans/automated-agent-n-scaling-design.md` | AUTO8-Design fuer registrierte Agent-Pools, Budgets, Queueing und Locks |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
 | `docs/plans/nextcloud-source-bridge.md` | pausierter Source-Provider-Plan, erst aktiv wenn Nextcloud laeuft |
 | `docs/plans/vault-longterm-memory.md` | aelterer Langzeitgedaechtnis-Plan, nur noch historischer Kontext |
@@ -55,7 +56,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
-| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO7 gestartet, Registry, Thread-Zuordnung, Handoff-Mailbox, Tick-Planer, Runtime-Gates, Dashboard-v2 und deterministischer E2E-Smoke umgesetzt |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
@@ -539,7 +540,7 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 | `AUTO5-git-test-quality-gates` | Gate-Lens fuer rot/gelb/gruen | done als Snapshot-Evaluator fuer Git, Tests, Evidence, Scope und Hotfiles; echte Command-Runner offen | Block/Warn/Pass entscheiden, keine destruktiven Git-Aktionen | bedingt |
 | `AUTO6-mini-orchestration-dashboard-v2` | Dashboard-Contract: Fortschritt, Slices, Blocker, naechste Aktion, Gates | done als Backend-Snapshot-Builder aus Registry, Heartbeat, Mailbox und Gates; UI/API-Hook offen | UI-Smoke, Store/Gate-Abgleich | ja nach API-Contract |
 | `AUTO7-end-to-end-two-agent-smoke` | done: Demo-Runbook und Known Limits | done: deterministischer Smoke mit Fake-ThreadRefs und injected Evidence | Abschluss-Tests, Go/No-Go dokumentiert | nein |
-| `AUTO8-n-agent-scaling-design` | Rollen, Pools, Budgets, Locks UX | Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt | ja, Planung |
+| `AUTO8-n-agent-scaling-design` | Rollen, Pools, Budgets, Locks UX | done: Agent Pool, Queueing, Budgetfelder, Lock-Modell als Design/Spike | entscheidet, was post-MVP bleibt; keine Agentenfabrik | ja, Planung |
 
 ### Definition of Done `0.18.x`
 
