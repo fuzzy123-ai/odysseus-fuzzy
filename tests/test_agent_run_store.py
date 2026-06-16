@@ -170,6 +170,57 @@ def test_commit_sha_is_validated():
         )
 
 
+def test_completed_at_must_not_be_before_started_at():
+    with pytest.raises(AgentRunStoreError):
+        AgentRun.create(
+            agent_run_id="run",
+            plan_id="plan",
+            node_id="node",
+            slice_id="slice",
+            agent_id="bob",
+            role_id="backend",
+            model="deepseek-chat",
+            thinking="medium",
+            status="done",
+            started_at="2026-06-16T10:10:00Z",
+            completed_at="2026-06-16T10:00:00Z",
+            changed_files=[],
+            tests=["pytest"],
+            commit="",
+            warnings=[],
+            errors=[],
+            blocker="",
+            next_action="handoff to charlie",
+            evidence=[],
+        )
+
+
+@pytest.mark.parametrize("status", ["handoff", "skipped"])
+def test_handoff_and_skipped_require_next_action(status):
+    with pytest.raises(AgentRunStoreError):
+        AgentRun.create(
+            agent_run_id="run",
+            plan_id="plan",
+            node_id="node",
+            slice_id="slice",
+            agent_id="bob",
+            role_id="backend",
+            model="deepseek-chat",
+            thinking="medium",
+            status=status,
+            started_at="2026-06-16T10:00:00Z",
+            completed_at="2026-06-16T10:10:00Z",
+            changed_files=[],
+            tests=[],
+            commit="",
+            warnings=[],
+            errors=[],
+            blocker="",
+            next_action="",
+            evidence=[],
+        )
+
+
 def test_audit_summary_keeps_ids_status_counts_commit_and_tests_without_long_dumps():
     long_text = "tool output with many details " * 30
     run = AgentRun.create(

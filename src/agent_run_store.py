@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from pathlib import PurePosixPath
 import re
@@ -114,6 +115,10 @@ def _normalize_timestamp(value: Any, *, field_name: str, allow_empty: bool) -> s
     return text
 
 
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
+
+
 def _normalize_status(value: Any, *, field_name: str) -> AgentRunStatus:
     normalized = _normalize_slug(value, field_name=field_name)
     if normalized not in _STATUS_COMPATIBLE:
@@ -198,14 +203,21 @@ class AgentRun:
             commit=commit,
             changed_files=changed_files,
         )
+        normalized_started_at = _normalize_timestamp(started_at, field_name="started_at", allow_empty=False)
+        normalized_completed_at = _normalize_timestamp(completed_at, field_name="completed_at", allow_empty=True)
         normalized_errors = _normalize_text_list(errors, field_name="errors")
         normalized_blocker = _normalize_text(blocker, field_name="blocker", allow_empty=True)
+        normalized_next_action = _normalize_text(next_action, field_name="next_action", allow_empty=True)
+        if normalized_completed_at and _parse_timestamp(normalized_completed_at) < _parse_timestamp(normalized_started_at):
+            raise AgentRunStoreError("completed_at must not be before started_at")
         if normalized_status == AgentRunStatus.DONE and not normalized_evidence.has_completion_signal():
             raise AgentRunStoreError("done runs require evidence or commit/test completion signals")
         if normalized_status == AgentRunStatus.FAILED and not normalized_errors:
             raise AgentRunStoreError("failed runs require at least one error")
         if normalized_status == AgentRunStatus.BLOCKED and not normalized_blocker:
             raise AgentRunStoreError("blocked runs require a blocker")
+        if normalized_status in {AgentRunStatus.HANDOFF, AgentRunStatus.SKIPPED} and not normalized_next_action:
+            raise AgentRunStoreError("handoff and skipped runs require next_action")
         return cls(
             agent_run_id=_normalize_slug(agent_run_id, field_name="agent_run_id"),
             plan_id=_normalize_slug(plan_id, field_name="plan_id"),
@@ -216,13 +228,13 @@ class AgentRun:
             model=_normalize_text(model, field_name="model", allow_empty=False),
             thinking=_normalize_text(thinking, field_name="thinking", allow_empty=False, limit=40),
             status=normalized_status,
-            started_at=_normalize_timestamp(started_at, field_name="started_at", allow_empty=False),
-            completed_at=_normalize_timestamp(completed_at, field_name="completed_at", allow_empty=True),
+            started_at=normalized_started_at,
+            completed_at=normalized_completed_at,
             evidence=normalized_evidence,
             warnings=_normalize_text_list(warnings, field_name="warnings"),
             errors=normalized_errors,
             blocker=normalized_blocker,
-            next_action=_normalize_text(next_action, field_name="next_action", allow_empty=True),
+            next_action=normalized_next_action,
         )
 
     def audit_summary(self) -> dict[str, Any]:
