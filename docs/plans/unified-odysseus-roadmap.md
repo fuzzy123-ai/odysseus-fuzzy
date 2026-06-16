@@ -27,6 +27,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/obsidian/00-priorisierte-roadmap.md` | Archiv und Detailplan fuer Memory-first/Obsidian-Lens bis M6 |
 | `docs/plans/deepseek-model-router-graceful-degradation.md` | Detail- und Evidence-Plan fuer M6 Model Router |
 | `docs/plans/1.0-evidence-release-checklist.md` | aktive 1.0-Go/No-Go-Checkliste fuer Evidence, manuelle Release-Gates und Bugfix-Fenster |
+| `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
@@ -44,7 +45,8 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.12.x` | Development Orchestration v1 | Plan Graph Store, Agent Runs, Heartbeat Coordinator, Quality Gates, Mini Dashboard | abgeschlossen mit OR7-Smoke |
 | `0.13.x` | Memory Scale Foundation | Store-Interfaces, Diagnostics, Query Budgets, Postgres/pgvector-Design | abgeschlossen mit MS7-Ops-Readiness |
 | `0.14.x` | Lightweight Memory Maintenance | RAPTOR/GraphRAG-Maintenance mit kleinem Modell unter 2 GB RAM, Engine bleibt algorithmisch/budgetiert | abgeschlossen mit `LM7-fallback-routing`, Test-Suite `64 passed, 1 warning` |
-| `0.15.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | naechster geplanter Produkt-Track nach 1.0-Evidence |
+| `0.16.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
 ## Fortschrittsformat
@@ -53,7 +55,6 @@ Wenn Fortschritt gemeldet wird:
 
 ```text
 Gesamtfortschritt: XX %
-P0: XX %
 Alice-Pfad: XX %
 Bob-Pfad: XX %
 
@@ -105,7 +106,8 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P2 | `0.13.x` | Postgres + pgvector Design | Zentrale Wahrheit fuer Memory/Graph/Jobs, pgvector als integrierte Semantik. | L | L | Migrations-/Ops-Runbook | Schema, Import/Export Proof | Architekturentscheidung | bedingt |
 | P2 | `0.13.x` | Progressive Graph API | UI darf nie 100k/1M Nodes laden, sondern Ausschnitte und Aggregate. | M-L | L | Graph-Lens/Clipping UX | serverseitige Graph Budgets | Browser-/Payload-Smokes | ja |
 | P2 | `0.14.x` | Lightweight Memory Maintenance | Kleine Maintenance-Modelle duerfen RAPTOR/GraphRAG pflegen, aber nie globale Wahrheit entscheiden. | L | L | Review-/Evidence-Sprache | bounded Jobs, K-Means Proof, Summary Worker | Drift-/Fallback-Gates | ja |
-| P2 | `0.15.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P1 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Die Memory-Foundation braucht eine klare Nutzeroberflaeche: Lesen/Pflegen trennen, Review/Insights/Diagnostics ordnen, Shell stabilisieren. | L | L | UX-Vertraege, Navigation, Zustaende, Texte | fokussierte UI-/Static-Implementierung nach Handoff | Hotfile-Sperren, Browser-/Static-Smokes | bedingt |
+| P2 | `0.16.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
@@ -354,7 +356,45 @@ Ziel: RAPTOR/GraphRAG-Maintenance funktioniert mit einem kleinen lokalen Mainten
 - Unsicherheit fuehrt zu Review oder Fallback, nicht zu stillen Writes.
 - K-Means/Bisecting-K-Means ist als erster RAPTOR-kompatibler Produktionspfad nachweisbar; GMM/UMAP bleibt Research.
 
-## Version `0.15.x`: Nextcloud Source Provider
+## Version `0.15.x`: Odysseus Lens UI & Memory Interaction
+
+Detailplan: `docs/plans/odysseus-lens-ui-memory-interaction.md`.
+
+Ziel: Odysseus Lens wird von einer Sammlung einzelner Tool-Buttons zu einer klaren Arbeitsoberflaeche ueber dem Memory-System. Graph/Lens bleibt ein Modus innerhalb des aktuellen Dokuments und wird kein neuer Hauptbutton. Memory wird sichtbar in Lesen/Auslesen und Eintragen/Pflegen getrennt.
+
+### Reihenfolge
+
+1. `LENS0-ux-contract`
+2. `LENS1-shell-stability`
+3. `LENS2-memory-read-write-tabs`
+4. `LENS3-tag-chip-system`
+5. `LENS4-document-intelligence-bar`
+6. `LENS5-review-audit-spark-redesign`
+7. `LENS6-odysseus-lens-rename-plan`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `LENS0-ux-contract` | Navigation, Farbregel, Button-Hierarchie, 8px-Raster, Zustaende | keine Codearbeit | Worktree pruefen, Hotfiles sperren, Akzeptanzkriterien finalisieren | ja, Alice/Charlie |
+| `LENS1-shell-stability` | Fullscreen, Minimize, New Chat, Overlay-Verhalten beschreiben | Z-Index, Fullscreen Toggle, New-Chat-Minimize, Audit-Close-Reflow | Static/UI-Tests, Regression gegen Obsidian-Smokes | nein |
+| `LENS2-memory-read-write-tabs` | Texte und Flow fuer `Gedaechtnis Lesen` und `Gedaechtnis Pflegen` | Tabs/Panel-State, alte Review/Audit/Spark-Zugaenge einsortieren | Routen-/Tool-Kompatibilitaet pruefen | bedingt |
+| `LENS3-tag-chip-system` | Chip-Verhalten, Normalisierung, Duplikate, Tastatur | Autocomplete und wiederverwendbare Chips in Memory/Spark/Header | Tag-UI-Vertraege pruefen | nein |
+| `LENS4-document-intelligence-bar` | Metadatenmodell: Typ, Projekt, Status, Datum, Tags, Beziehungen, Memory-State | kompakte Header-Bar, Frontmatter/Statusdaten anbinden | keine erfundenen RAPTOR-/GraphRAG-Signale | bedingt |
+| `LENS5-review-audit-spark-redesign` | Review Queue, Insights und Diagnostics sprachlich/visuell definieren | Memory Review -> Pflegen, Spark -> Insights, Audit -> Diagnostics | Backward Compatibility pruefen | nein |
+| `LENS6-odysseus-lens-rename-plan` | Naming-/Migrationsvertrag | Aliasstrategie vorbereiten, keine harte Umbenennung | Rename in separaten Gate schneiden | nein |
+
+### Definition of Done `0.15.x`
+
+- Memory Lesen und Memory Pflegen sind klar getrennte Nutzerzustaende.
+- Insights, Diagnostics und Activity sind eigene Zustaende statt verstreute Tool-Buttons.
+- Graph/Lens bleibt View-Mode/Schieberegler innerhalb des Dokuments.
+- Pro Ansicht gibt es genau einen Primaerbutton.
+- Component States, Labels, Inline-Validierung, 44px Klickziele und 8px-Raster sind in den UX-Vertraegen und UI-Smokes beruecksichtigt.
+- Bestehende Backend-Routen und Tools bleiben kompatibel.
+- `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` wurden nicht parallel bearbeitet.
+
+## Version `0.16.x`: Nextcloud Source Provider
 
 Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 
@@ -400,6 +440,7 @@ Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
 Aktuell besonders vorsichtig behandeln:
 
 - `plugins/obsidian/frontend/main.js`
+- `plugins/obsidian/frontend/style.css`
 - `tests/test_obsidian_sidebar_static.py`
 - `plugins/obsidian/backend/routes.py`
 - `plugins/obsidian/backend/query_layer.py`
@@ -445,22 +486,23 @@ Charlie implementiert nur selbst, wenn:
 
 Jetzt:
 
-1. Nutzer testet den aktuellen Fork nach Upstream-Sync.
-2. Bugs werden gesammelt und als kleine `0.10.x` Slices geschnitten.
+1. Die zwei offenen externen 1.0-Gates bleiben zuerst sichtbar: modellgestuetzter Provider-/Fallback-Antwortlauf und Export/Import/Rebuild mit kleinem Test-Vault.
+2. Keine schreibenden Vault-Aktionen gegen echte Nutzerartefakte ohne expliziten Test-Vault.
 3. Charlie haelt Roadmap, Worktree und Testplan sauber.
 
 Danach:
 
-1. Alice bekommt `A0.10-release-evidence-cleanup` oder einen konkreten UI-Bug-Slice.
-2. Bob bekommt `B0.10-regression-triage` oder einen konkreten Backend-Bug-Slice.
-3. Erst nach Bugfix-Fenster startet `0.11.x Agent State & Architecture Hygiene`.
+1. Alice bekommt `LENS0-ux-contract`.
+2. Bob wartet auf den UX-Vertrag oder bekommt nur einen klaren, nicht kollidierenden Shell-Smoke.
+3. Nach `LENS0` startet `LENS1-shell-stability` sequenziell, weil `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` Hotfiles sind.
 
 Nicht jetzt:
 
 - keine neue Postgres-Migration
 - keine Nextcloud-Implementierung
 - keine Qdrant/Kuzu/UMAP/GMM-Arbeit
-- keine grosse Frontend-Migration
+- keine grosse Frontend-Framework-Migration
+- keine harte Obsidian-Plugin-Umbenennung
 
 ## Master Definition of Done
 
@@ -471,5 +513,6 @@ Diese Roadmap ist erfuellt, wenn:
 - `0.12.x` Alice/Bob/Charlie-Orchestration als Produktfunktion beweist.
 - `0.13.x` Memory-Scale-Foundation mit Diagnostics und Budgets vorbereitet.
 - `0.14.x` Lightweight Memory Maintenance mit kleinem Modell, bounded Jobs und evidence-bound Summaries beweist.
-- `0.15.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
+- `0.15.x` Odysseus Lens UI & Memory Interaction die Memory-Oberflaeche in Lesen, Pflegen, Insights, Diagnostics und Activity ordnet.
+- `0.16.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
 - `1.0.0` nicht nach Bauchgefuehl, sondern nach Evidence freigegeben wird.
