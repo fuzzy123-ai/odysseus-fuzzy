@@ -69,6 +69,26 @@ def _route_path(route: Any) -> str:
     return ""
 
 
+def _route_paths(route: Any) -> List[str]:
+    """Return all effective paths for a route-like object.
+
+    FastAPI 0.137+/Starlette 1.3 can store included routers as wrapper objects
+    instead of immediately expanding them into APIRoute instances. Those wrapper
+    objects have no path themselves, so validate the original router's children.
+    """
+    path = _route_path(route)
+    if path:
+        return [path]
+    original_router = getattr(route, "original_router", None)
+    original_routes = getattr(original_router, "routes", None)
+    if original_routes is not None:
+        paths: List[str] = []
+        for child in original_routes:
+            paths.extend(_route_paths(child))
+        return paths or [""]
+    return [""]
+
+
 @dataclass(frozen=True)
 class ContextProviderSpec:
     """Read-only context contribution registered by a plugin.
@@ -252,7 +272,7 @@ class PluginContext:
         before = len(self.app.router.routes)
         self.app.include_router(router, **include_kwargs)
         added = self.app.router.routes[before:]
-        bad = [r for r in added if not _route_path(r).startswith("/api/plugins/")]
+        bad = [r for r in added if any(not p.startswith("/api/plugins/") for p in _route_paths(r))]
         if bad:
             for r in added:
                 try:
@@ -261,7 +281,7 @@ class PluginContext:
                     pass
             raise ValueError(
                 "plugin routes must be mounted under /api/plugins/<id>/ "
-                f"(rejected: {[_route_path(r) or '?' for r in bad][:3]})")
+                f"(rejected: {[(next((p for p in _route_paths(r) if p), '') or '?') for r in bad][:3]})")
         self._routes.extend(added)
 
     # -- background services -----------------------------------------------

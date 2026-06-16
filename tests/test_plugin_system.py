@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from src.plugin_system import (
     PluginManager,
     _route_path,
+    _route_paths,
     get_consolidation_jobs,
     get_context_providers,
 )
@@ -133,6 +134,19 @@ def test_route_path_supports_starlette_path_format_only():
         path_format = "/api/plugins/demo/ping"
 
     assert _route_path(RouteLike()) == "/api/plugins/demo/ping"
+
+
+def test_route_paths_supports_fastapi_included_router_wrapper():
+    class ChildRoute:
+        path = "/api/plugins/demo/ping"
+
+    class OriginalRouter:
+        routes = [ChildRoute()]
+
+    class IncludedRouterLike:
+        original_router = OriginalRouter()
+
+    assert _route_paths(IncludedRouterLike()) == ["/api/plugins/demo/ping"]
 
 
 def test_manifest_read_without_executing(env):
