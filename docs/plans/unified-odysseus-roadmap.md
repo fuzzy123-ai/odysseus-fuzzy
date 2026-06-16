@@ -54,7 +54,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | geplant nach Security-/Evidence-Stabilisierung |
-| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC7 gestartet, Advanced Collector Normalisierung vorbereitet |
+| `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC8 gestartet, Plugin UI liest Snapshot API |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
 
@@ -590,7 +590,7 @@ Produktentscheidung:
 | `SHC5-auto-alerting` | Alert Copy, Recovery Copy, Eskalationslogik | Dispatch Plans fuer Active/Cooldown/Recovery ohne Netzwerk-Send | done als Vorbereitungsslice | bedingt |
 | `SHC6-podman-docker-runtime-adapter` | Runtime unknown/offline Nutzertexte | Podman-first/Docker-fallback Command Plans ohne Socket oder CLI-Ausfuehrung | done als Vorbereitungsslice | ja |
 | `SHC7-advanced-debian-collectors` | Setup-Hinweise fuer fehlende Pakete/Rechte | Temperatur, SMART, Updates, Reboot Normalisierung ohne CLI-Ausfuehrung | done als Vorbereitungsslice | bedingt |
-| `SHC8-odysseus-health-ui` | Ampel, Alerts, Collector unknown/offline UI-Contract | UI/API-Anbindung ohne Host-Kommandos | Browser/UI-Smoke, Agent-offline-Fallback | bedingt |
+| `SHC8-odysseus-health-ui` | Ampel, Alerts, Collector unknown/offline UI-Contract | Plugin-Seite liest `/health` Snapshot, ohne Host-Kommandos | done als Offline-UI-Vorstufe | bedingt |
 | `SHC9-security-and-ops-runbook` | Runbook, Betriebsnarrativ, Nutzerregeln | systemd/permission/readiness Modell oder Scripts spaeter | Abschluss-Gates, Go/No-Go | nein |
 
 ### Definition of Done `0.19.x`

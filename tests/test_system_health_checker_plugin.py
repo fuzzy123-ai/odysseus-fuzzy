@@ -110,3 +110,5 @@ def test_plugin_app_route_renders_without_host_access(tmp_path):
     assert response.status_code == 200
     assert "Host-agent integration is not configured yet" in response.text
     assert "does not run host commands" in response.text
+    assert "/api/plugins/system_health_checker/health" in response.text
+    assert "Health snapshot unavailable" in response.text

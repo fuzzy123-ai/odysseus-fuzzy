@@ -31,7 +31,7 @@ _CHEVRON = (
 )
 
 
-def _app_html() -> str:
+def _app_html(nonce: str) -> str:
     return f"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>System Health Checker</title>
@@ -48,8 +48,29 @@ def _app_html() -> str:
     <p class="muted">Host-agent integration is not configured yet.</p>
     <p>This plugin currently exposes the stable health snapshot contract and an
     offline state. It does not run host commands from the Odysseus container.</p>
+    <div id="health-status" class="badge warn">Loading health snapshot...</div>
+    <pre id="health-details" class="muted" style="white-space:pre-wrap;margin-top:12px"></pre>
   </section>
 </main>
+<script nonce="{nonce}">
+(async () => {{
+  const status = document.getElementById("health-status");
+  const details = document.getElementById("health-details");
+  try {{
+    const response = await fetch("/api/plugins/system_health_checker/health", {{ credentials: "same-origin" }});
+    const snapshot = await response.json();
+    status.textContent = `Health: ${{snapshot.state}}`;
+    status.className = snapshot.state === "ok" ? "badge ok" : "badge warn";
+    details.textContent = (snapshot.collectors || []).map((collector) =>
+      `${{collector.kind}}: ${{collector.state}} - ${{collector.summary}}`
+    ).join("\\n");
+  }} catch (error) {{
+    status.textContent = "Health snapshot unavailable";
+    status.className = "badge warn";
+    details.textContent = String(error && error.message ? error.message : error);
+  }}
+}})();
+</script>
 </body></html>"""
 
 
@@ -63,7 +84,7 @@ def setup(ctx):
 
     @router.get("/app")
     async def app_page(request: Request):
-        return HTMLResponse(_app_html())
+        return HTMLResponse(_app_html(getattr(request.state, "csp_nonce", "")))
 
     ctx.add_router(router)
     ctx.logger.info("system health checker plugin ready")
