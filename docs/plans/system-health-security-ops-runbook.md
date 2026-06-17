@@ -14,6 +14,7 @@ Quellen:
 - `docs/plans/system-health-auto-alerting-contract.md`
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
 - `docs/plans/system-health-dashboard-contract.md`
+- `docs/plans/system-health-plugin-foundation-index.md`
 
 Dieses Runbook beschreibt den sicheren Betriebsrahmen fuer den spaeteren System Health Checker auf einem Debian-Homeserver. Es bleibt bewusst contract-only: keine echte Host-Agent-Ausfuehrung, keine Telegram-Tokens, keine Netzwerkaktionen und keine Runtime-Integration in diesem Slice.
 

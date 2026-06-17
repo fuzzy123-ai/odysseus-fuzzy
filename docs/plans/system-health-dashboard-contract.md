@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-rule-engine-alert-contract.md`
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
 - `docs/plans/system-health-security-ops-runbook.md`
+- `docs/plans/system-health-plugin-foundation-index.md`
 
 Dieser Contract definiert die semantische Grundlage fuer ein spaeteres Odysseus Health Dashboard oder Plugin UI. Der Slice bleibt bewusst docs-only: kein UI-Code, keine Obsidian-/Lens-Implementierung, keine Host-Kommandos, keine Token, keine Netzwerkaktionen. Das Dashboard liest spaeter nur bereinigte Snapshots und Readiness-Reports.
 
