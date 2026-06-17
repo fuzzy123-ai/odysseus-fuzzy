@@ -177,6 +177,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL13-followup-markdown-renderer` | Folge-Slices als Markdown-Tabelle rendern | Aufgaben sind lesbar, aber werden nicht dispatched |
 | `REL14-release-handoff-markdown` | Status und Folge-Slices zu einem Handoff-Block kombinieren | Morgenstatus ist direkt renderbar, ohne Live-Aktionen |
 | `REL15-local-readiness-bundle` | lokale Plugin-Registry/Audit-Gates in den Release-Handoff einspeisen | lokaler Status bleibt read-only: keine Downloads, Imports oder Dispatches |
+| `REL16-artifact-manifest` | Release-/Plugin-/Handoff-Artefakte als Traceability-Manifest pruefen | benoetigte Statusquellen sind lokal nachvollziehbar |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
