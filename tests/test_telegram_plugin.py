@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from plugins.telegram_status.plugin import PLUGIN, build_telegram_status, setup
+from plugins.telegram.plugin import PLUGIN, build_telegram_readiness, setup
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 
 
@@ -14,19 +14,19 @@ from src.plugin_capability_boundary import validate_plugin_capability_boundary
 class _PluginContext:
     app: FastAPI
     data_dir: Path
-    logger: logging.Logger = field(default_factory=lambda: logging.getLogger("test.telegram_status"))
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger("test.telegram"))
 
     def add_router(self, router):
         self.app.include_router(router)
 
 
-def test_manifest_keeps_telegram_status_as_visible_ui_plugin():
-    assert PLUGIN["name"] == "Telegram Status"
+def test_manifest_keeps_telegram_as_visible_standalone_ui_plugin():
+    assert PLUGIN["name"] == "Telegram"
     assert PLUGIN["category"] == "Communications"
     assert PLUGIN["permission"] == "admin"
     assert PLUGIN["kind"] == "ui"
     assert PLUGIN["capabilities"] == ["local_api"]
-    assert PLUGIN["ui"]["open"] == "/api/plugins/telegram_status/app"
+    assert PLUGIN["ui"]["open"] == "/api/plugins/telegram/app"
 
 
 def test_manifest_passes_plugin_capability_boundary():
@@ -37,12 +37,13 @@ def test_manifest_passes_plugin_capability_boundary():
     assert report.warning_codes == ()
 
 
-def test_status_is_redacted_and_network_send_disabled(monkeypatch):
+def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "redacted-chat")
 
-    status = build_telegram_status()
+    status = build_telegram_readiness()
 
+    assert status["plugin"] == "telegram"
     assert status["state"] == "manual_send_smoke_ready"
     assert status["token_env_present"] is True
     assert status["chat_id_env_present"] is True
@@ -61,10 +62,11 @@ def test_status_route_returns_redacted_readiness(tmp_path, monkeypatch):
     setup(_PluginContext(app=app, data_dir=tmp_path))
     client = TestClient(app)
 
-    response = client.get("/api/plugins/telegram_status/status")
+    response = client.get("/api/plugins/telegram/status")
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["plugin"] == "telegram"
     assert payload["state"] == "needs_chat_id"
     assert payload["token_env_present"] is True
     assert payload["chat_id_env_present"] is False
@@ -76,18 +78,19 @@ def test_plugin_app_route_renders_safety_boundary(tmp_path):
     setup(_PluginContext(app=app, data_dir=tmp_path))
     client = TestClient(app)
 
-    response = client.get("/api/plugins/telegram_status/app")
+    response = client.get("/api/plugins/telegram/app")
 
     assert response.status_code == 200
+    assert "Standalone plugin" in response.text
     assert "never displays tokens" in response.text
-    assert "/api/plugins/telegram_status/status" in response.text
+    assert "/api/plugins/telegram/status" in response.text
 
 
 def test_plugin_file_loader_imports_without_package_context():
-    plugin_path = Path("plugins/telegram_status/plugin.py")
-    spec = importlib.util.spec_from_file_location("odysseus_plugin_telegram_status", plugin_path)
+    plugin_path = Path("plugins/telegram/plugin.py")
+    spec = importlib.util.spec_from_file_location("odysseus_plugin_telegram", plugin_path)
     module = importlib.util.module_from_spec(spec)
 
     spec.loader.exec_module(module)
 
-    assert module.PLUGIN["name"] == "Telegram Status"
+    assert module.PLUGIN["name"] == "Telegram"

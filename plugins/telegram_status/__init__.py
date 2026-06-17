@@ -1,1 +1,0 @@
-"""Telegram Status plugin package."""

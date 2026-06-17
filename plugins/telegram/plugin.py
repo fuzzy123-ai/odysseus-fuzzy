@@ -1,7 +1,8 @@
-"""Telegram status plugin.
+"""Standalone Telegram plugin.
 
-This plugin intentionally does not call Telegram, store tokens, or send
-messages. It only exposes a redacted readiness surface for manual testing.
+The plugin is intentionally safe-by-default: it does not call Telegram, store
+tokens, display secrets, or send messages. It exposes a redacted readiness
+surface so an operator can decide when to run a later manual smoke.
 """
 
 from __future__ import annotations
@@ -13,15 +14,15 @@ from fastapi.responses import HTMLResponse
 
 
 PLUGIN = {
-    "name": "Telegram Status",
+    "name": "Telegram",
     "version": "0.1.0",
     "author": "Odysseus",
-    "description": "Redacted Telegram readiness status. No token display, network call, or message send.",
+    "description": "Standalone Telegram readiness plugin. No token display, network call, or message send by default.",
     "category": "Communications",
     "permission": "admin",
     "kind": "ui",
     "capabilities": ["local_api"],
-    "ui": {"open": "/api/plugins/telegram_status/app", "label": "Open Telegram"},
+    "ui": {"open": "/api/plugins/telegram/app", "label": "Open Telegram"},
 }
 
 
@@ -31,7 +32,7 @@ _CHEVRON = (
 )
 
 
-def build_telegram_status() -> dict[str, object]:
+def build_telegram_readiness() -> dict[str, object]:
     token_present = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
     chat_present = bool(os.getenv("TELEGRAM_CHAT_ID"))
     if token_present and chat_present:
@@ -45,7 +46,7 @@ def build_telegram_status() -> dict[str, object]:
         summary = "Telegram token env marker is missing."
 
     return {
-        "plugin": "telegram_status",
+        "plugin": "telegram",
         "state": state,
         "summary": summary,
         "token_env_present": token_present,
@@ -61,18 +62,18 @@ def build_telegram_status() -> dict[str, object]:
 def _app_html(nonce: str) -> str:
     return f"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Telegram Status</title>
+<title>Telegram</title>
 <link rel="stylesheet" href="/static/plugin-theme.css">
 <script src="/static/js/plugin-theme.js"></script>
 </head><body>
 <header class="od-header">
   <a class="brand" href="/" title="Back to Odysseus">{_CHEVRON}<span>Odysseus</span></a>
-  <span class="od-title">Telegram Status</span>
+  <span class="od-title">Telegram</span>
 </header>
 <main class="od-wrap">
   <h1>Telegram readiness</h1>
   <section class="od-card">
-    <p class="muted">This plugin never displays tokens, calls Telegram, or sends messages.</p>
+    <p class="muted">Standalone plugin. It never displays tokens, calls Telegram, or sends messages by default.</p>
     <div id="telegram-status" class="badge warn">Loading Telegram readiness...</div>
     <pre id="telegram-details" class="muted" style="white-space:pre-wrap;margin-top:12px"></pre>
   </section>
@@ -82,7 +83,7 @@ def _app_html(nonce: str) -> str:
   const status = document.getElementById("telegram-status");
   const details = document.getElementById("telegram-details");
   try {{
-    const response = await fetch("/api/plugins/telegram_status/status", {{ credentials: "same-origin" }});
+    const response = await fetch("/api/plugins/telegram/status", {{ credentials: "same-origin" }});
     const snapshot = await response.json();
     status.textContent = `Telegram: ${{snapshot.state}}`;
     status.className = snapshot.state === "manual_send_smoke_ready" ? "badge ok" : "badge warn";
@@ -104,15 +105,15 @@ def _app_html(nonce: str) -> str:
 
 
 def setup(ctx):
-    router = APIRouter(prefix="/api/plugins/telegram_status", tags=["plugin:telegram_status"])
+    router = APIRouter(prefix="/api/plugins/telegram", tags=["plugin:telegram"])
 
     @router.get("/status")
     async def status(request: Request):
-        return build_telegram_status()
+        return build_telegram_readiness()
 
     @router.get("/app")
     async def app_page(request: Request):
         return HTMLResponse(_app_html(getattr(request.state, "csp_nonce", "")))
 
     ctx.add_router(router)
-    ctx.logger.info("telegram status plugin ready")
+    ctx.logger.info("telegram plugin ready")
