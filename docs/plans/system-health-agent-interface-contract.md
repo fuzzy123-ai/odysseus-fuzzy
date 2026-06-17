@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/unified-odysseus-roadmap.md`
 - `docs/plans/system-health-checker-plugin.md`
 - `docs/plans/system-health-checker-ops-runbook.md`
+- `docs/plans/system-health-basic-collectors-contract.md`
 
 Dieser Contract definiert das stabile Snapshot- und API-Interface zwischen Odysseus und einem kleinen Debian Host-Agent fuer System Health. Der Host-Agent sammelt Metriken auf dem Host und liefert bereinigte Snapshots. Odysseus konsumiert nur diese Snapshots. Der Slice fuehrt bewusst keine Host-Kommandos, keine Container-Socket-Zugriffe, keine Telegram-Token-Nutzung und keine Runtime-Ausfuehrung aus.
 
