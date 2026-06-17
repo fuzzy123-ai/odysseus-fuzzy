@@ -1,0 +1,79 @@
+import json
+from pathlib import Path
+
+from src.local_release_readiness_bundle import build_local_release_readiness_bundle
+
+
+def test_local_release_readiness_bundle_uses_bundled_registry_and_plugins():
+    bundle = build_local_release_readiness_bundle()
+
+    assert bundle.plugin_gate.ok
+    assert bundle.pipeline.report.status == "blocked"
+    assert "REL-provider-proof-evidence" in bundle.handoff_markdown
+    assert "REL-test-vault-rebuild-evidence" in bundle.handoff_markdown
+
+
+def test_local_release_readiness_bundle_reports_missing_registry(tmp_path):
+    plugins = tmp_path / "plugins"
+    _write_plugin(plugins / "demo")
+
+    bundle = build_local_release_readiness_bundle(
+        registry_path=tmp_path / "missing-registry.json",
+        plugin_directory=plugins,
+    )
+
+    assert not bundle.plugin_gate.ok
+    assert bundle.plugin_gate.errors == ("registry:file:missing",)
+    assert "REL-plugin-release-gate-fix" in bundle.handoff_markdown
+
+
+def test_local_release_readiness_bundle_reports_invalid_json(tmp_path):
+    registry = tmp_path / "registry.json"
+    registry.write_text("{not json", encoding="utf-8")
+    plugins = tmp_path / "plugins"
+    _write_plugin(plugins / "demo")
+
+    bundle = build_local_release_readiness_bundle(
+        registry_path=registry,
+        plugin_directory=plugins,
+    )
+
+    assert not bundle.plugin_gate.ok
+    assert bundle.plugin_gate.errors == ("registry:file:invalid_json",)
+
+
+def test_local_release_readiness_bundle_to_dict_is_stable_shape(tmp_path):
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps({"plugins": [_entry("demo")]}), encoding="utf-8")
+    plugins = tmp_path / "plugins"
+    _write_plugin(plugins / "demo")
+
+    payload = build_local_release_readiness_bundle(
+        registry_path=registry,
+        plugin_directory=plugins,
+    ).to_dict()
+
+    assert payload["plugin_gate"]["ok"] is True
+    assert payload["pipeline"]["report"]["status"] == "blocked"
+    assert payload["handoff_markdown"].startswith("# Release Orchestration Status")
+
+
+def _write_plugin(path: Path) -> None:
+    path.mkdir(parents=True)
+    (path / "plugin.py").write_text(
+        "PLUGIN = {'name': 'Demo', 'version': '1.0.0', 'permission': 'admin'}\n",
+        encoding="utf-8",
+    )
+
+
+def _entry(plugin_id: str):
+    return {
+        "id": plugin_id,
+        "name": "Demo",
+        "version": "1.0.0",
+        "category": "Testing",
+        "description": "Demo plugin",
+        "homepage": "https://example.com/demo",
+        "download": "https://example.com/demo.zip",
+        "sha256": "a" * 64,
+    }

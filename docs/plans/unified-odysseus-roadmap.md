@@ -176,6 +176,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL12-current-status-markdown-entrypoint` | aktuellen dokumentierten 1.0-Status direkt als Markdown rendern | nutzt nur Snapshots, keine Live-Checks |
 | `REL13-followup-markdown-renderer` | Folge-Slices als Markdown-Tabelle rendern | Aufgaben sind lesbar, aber werden nicht dispatched |
 | `REL14-release-handoff-markdown` | Status und Folge-Slices zu einem Handoff-Block kombinieren | Morgenstatus ist direkt renderbar, ohne Live-Aktionen |
+| `REL15-local-readiness-bundle` | lokale Plugin-Registry/Audit-Gates in den Release-Handoff einspeisen | lokaler Status bleibt read-only: keine Downloads, Imports oder Dispatches |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
