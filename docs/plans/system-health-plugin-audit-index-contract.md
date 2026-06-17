@@ -11,6 +11,7 @@ Quellen:
 - `docs/plans/system-health-dashboard-contract.md`
 - `docs/plans/system-health-agent-interface-contract.md`
 - `docs/plans/system-health-rule-engine-alert-contract.md`
+- `docs/plans/system-health-plugin-readiness-score-contract.md`
 
 Dieser Contract definiert einen auditierbaren Index fuer die System Health Plugin Foundation. Er zeigt Operatoren, welche Plugin-Fundamente vorhanden sind, welche Host-, Telegram-, Netzwerk- und Runtime-Aktionen bewusst nicht im Odysseus-Core laufen, welche Tests und Runbooks relevant bleiben und was vor einer echten Host-Agent-Integration noch reviewed werden muss. Der Slice fuehrt keine Host-Kommandos aus, aktiviert keine Tokens und startet keine Netzwerk- oder Webhook-Integrationen.
 
