@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/system-health-agent-interface-contract.md`
 - `docs/plans/system-health-basic-collectors-contract.md`
 - `docs/plans/system-health-checker-plugin.md`
+- `docs/plans/system-health-security-ops-runbook.md`
 
 Dieser Contract definiert die sichere Parser- und Collector-Semantik fuer die erweiterten Debian-Collectorbereiche `temperature`, `smart`, `updates` und `reboot_required`. Die spaeteren Datenquellen bleiben ausschliesslich Host-Agent-Verantwortung. Der Slice fuehrt bewusst keine Host-Kommandos, keine Root-Rechte, keine Paketinstallation und keine Runtime-Ausfuehrung aus.
 
