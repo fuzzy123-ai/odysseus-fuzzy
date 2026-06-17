@@ -185,6 +185,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL21-release-morning-payload-json` | Morning-Payload deterministisch als JSON rendern | UI/Automation kann denselben read-only Payload speichern, diffen und validieren |
 | `REL22-release-morning-payload-diff` | gespeicherte Morning-Payloads deterministisch vergleichen | Automation erkennt Status-, Followup- und Artefakt-Aenderungen ohne Live-Checks |
 | `REL23-release-morning-payload-diff-markdown` | Payload-Diffs als kompakten Markdown-Block rendern | Handoff zeigt Aenderungen zwischen gespeicherten Morning-Payloads ohne Logsuche |
+| `REL24-local-plugin-audit-summary` | lokale Plugin-Auditdetails im Morning Summary Snapshot sichtbar machen | UI/Automation sieht lokale Plugin-Audit-OK/Fails ohne Markdown zu parsen |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 

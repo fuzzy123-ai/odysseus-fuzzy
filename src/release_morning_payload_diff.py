@@ -11,6 +11,7 @@ SUMMARY_FIELDS = (
     "status",
     "external_release_go",
     "plugin_gate_ok",
+    "local_plugin_audit_ok",
     "artifact_manifest_ok",
 )
 

@@ -55,6 +55,8 @@ def test_local_release_readiness_bundle_to_dict_is_stable_shape(tmp_path):
     ).to_dict()
 
     assert payload["plugin_gate"]["ok"] is True
+    assert payload["local_plugin_audit"]["ok"] is True
+    assert payload["local_plugin_audit"]["failing_ids"] == ()
     assert payload["artifact_manifest"]["ok"] is True
     assert payload["plugin_markdown"].startswith("# Plugin Release Gate")
     assert payload["local_plugin_audit_markdown"].startswith("# Local Plugin Audit")

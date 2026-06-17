@@ -18,13 +18,14 @@ def test_payload_diff_reports_summary_and_action_changes():
     before = build_current_release_morning_payload().to_dict()
     after = deepcopy(before)
     after["summary"]["plugin_gate_ok"] = False
+    after["summary"]["local_plugin_audit_ok"] = False
     after["summary"]["next_action_ids"] = tuple(before["summary"]["next_action_ids"]) + ("REL-plugin-release-gate-fix",)
 
     diff = diff_release_morning_payloads(before, after)
 
     assert diff.ok
     assert diff.changed
-    assert diff.changed_summary_fields == ("plugin_gate_ok",)
+    assert diff.changed_summary_fields == ("plugin_gate_ok", "local_plugin_audit_ok")
     assert diff.added_next_actions == ("REL-plugin-release-gate-fix",)
 
 

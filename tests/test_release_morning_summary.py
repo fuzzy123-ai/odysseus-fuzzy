@@ -11,10 +11,12 @@ def test_current_release_morning_summary_is_compact_and_blocked():
     assert summary.status == "blocked"
     assert summary.external_release_go is False
     assert summary.plugin_gate_ok is True
+    assert summary.local_plugin_audit_ok is True
     assert summary.artifact_manifest_ok is True
     assert summary.active_owners == ("Alice", "Bob", "Charlie")
     assert "REL-provider-proof-evidence" in summary.next_action_ids
     assert summary.missing_required_artifacts == ()
+    assert summary.local_plugin_failing_ids == ()
 
 
 def test_release_morning_summary_reports_missing_artifacts(tmp_path):
@@ -31,6 +33,7 @@ def test_release_morning_summary_reports_missing_artifacts(tmp_path):
     summary = build_release_morning_summary(bundle)
 
     assert summary.plugin_gate_ok is True
+    assert summary.local_plugin_audit_ok is True
     assert summary.artifact_manifest_ok is False
     assert "docs/plans/1.0-evidence-release-checklist.md" in summary.missing_required_artifacts
 
@@ -41,9 +44,11 @@ def test_release_morning_summary_to_dict_is_stable():
     assert payload["status"] == "blocked"
     assert payload["external_release_go"] is False
     assert payload["plugin_gate_ok"] is True
+    assert payload["local_plugin_audit_ok"] is True
     assert payload["artifact_manifest_ok"] is True
     assert payload["active_owners"] == ("Alice", "Bob", "Charlie")
     assert payload["missing_required_artifacts"] == ()
+    assert payload["local_plugin_failing_ids"] == ()
 
 
 def _write_plugin(path: Path) -> None:

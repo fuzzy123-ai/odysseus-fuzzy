@@ -9,9 +9,11 @@ REQUIRED_SUMMARY_FIELDS = (
     "status",
     "external_release_go",
     "plugin_gate_ok",
+    "local_plugin_audit_ok",
     "artifact_manifest_ok",
     "active_owners",
     "next_action_ids",
+    "local_plugin_failing_ids",
     "missing_required_artifacts",
 )
 
@@ -55,10 +57,10 @@ def validate_release_morning_payload_contract(payload: Mapping[str, Any]) -> Rel
 def _validate_summary_types(summary: Mapping[str, Any], errors: list[str]) -> None:
     if "status" in summary and not isinstance(summary["status"], str):
         errors.append("summary:status:invalid_type")
-    for field in ("external_release_go", "plugin_gate_ok", "artifact_manifest_ok"):
+    for field in ("external_release_go", "plugin_gate_ok", "local_plugin_audit_ok", "artifact_manifest_ok"):
         if field in summary and not isinstance(summary[field], bool):
             errors.append(f"summary:{field}:invalid_type")
-    for field in ("active_owners", "next_action_ids", "missing_required_artifacts"):
+    for field in ("active_owners", "next_action_ids", "local_plugin_failing_ids", "missing_required_artifacts"):
         if field in summary and not _is_string_sequence(summary[field]):
             errors.append(f"summary:{field}:invalid_type")
 

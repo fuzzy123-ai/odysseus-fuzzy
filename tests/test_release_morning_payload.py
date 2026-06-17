@@ -18,5 +18,6 @@ def test_current_release_morning_payload_to_dict_is_stable():
     assert payload["summary"]["status"] == "blocked"
     assert payload["summary"]["external_release_go"] is False
     assert payload["summary"]["plugin_gate_ok"] is True
+    assert payload["summary"]["local_plugin_audit_ok"] is True
     assert payload["summary"]["artifact_manifest_ok"] is True
     assert payload["brief_markdown"].startswith("# Odysseus Release Morning Brief")

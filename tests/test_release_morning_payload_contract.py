@@ -27,18 +27,21 @@ def test_payload_contract_blocks_missing_required_summary_fields():
 
     assert not report.ok
     assert "summary:external_release_go:missing" in report.errors
+    assert "summary:local_plugin_audit_ok:missing" in report.errors
     assert "summary:next_action_ids:missing" in report.errors
 
 
 def test_payload_contract_blocks_invalid_summary_types():
     payload = build_current_release_morning_payload().to_dict()
     payload["summary"]["external_release_go"] = "false"
+    payload["summary"]["local_plugin_failing_ids"] = "demo"
     payload["summary"]["active_owners"] = "Alice"
 
     report = validate_release_morning_payload_contract(payload)
 
     assert not report.ok
     assert "summary:external_release_go:invalid_type" in report.errors
+    assert "summary:local_plugin_failing_ids:invalid_type" in report.errors
     assert "summary:active_owners:invalid_type" in report.errors
 
 
