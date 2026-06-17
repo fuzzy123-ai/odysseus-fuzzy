@@ -61,6 +61,8 @@ Outcome:
 - Clear Go / Partial / No-Go language for pre-1.0 cleanup.
 - Explicit statement that indexes are derived and rebuildable, while
   `memory.json` remains canonical.
+- Primary operator contract:
+  `docs/plans/memory-storage-roles-contract.md`
 
 ### MEM0B: memory-stats-readonly-model
 
