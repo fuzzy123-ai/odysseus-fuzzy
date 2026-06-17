@@ -11,6 +11,7 @@ Quellen:
 - `docs/plans/orchestration-activation-readiness-summary-contract.md`
 - `docs/plans/orchestration-activation-summary-renderer-contract.md`
 - `docs/plans/orchestration-activation-bundle-digest-contract.md`
+- `docs/plans/orchestration-activation-audit-trail-contract.md`
 
 Dieser Contract definiert einen stabilen Einstiegspunkt fuer Operator, Automation und spaetere UI: ein Current Activation Bundle, das mehrere bereits vorbereitete AUTO-Artefakte zu einem read-only Snapshot zusammenfasst. Das Bundle fuehrt nichts aus, aktiviert nichts und darf nicht als Dispatch-Mechanik missverstanden werden.
 
