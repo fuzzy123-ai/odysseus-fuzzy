@@ -113,8 +113,9 @@ def test_slice_to_dict_is_stable():
         "title": "Complete provider/fallback proof support",
         "scope": (
             "docs/plans/1.0-manual-release-evidence-log.md",
-            "plugins/obsidian/backend/model_router.py",
-            "plugins/obsidian/tests/test_model_router_backend.py",
+            "docs/plans/provider-fallback-answer-run-contract.md",
+            "src/provider_fallback_answer_run.py",
+            "tests/test_provider_fallback_answer_run.py",
         ),
         "exit_criteria": "Provider/fallback behavior is evidenced or a focused blocker is documented",
         "parallel_safe": False,

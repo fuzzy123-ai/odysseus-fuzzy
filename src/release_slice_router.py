@@ -76,8 +76,9 @@ def _map_blocker(reason: str) -> ReleaseFollowupSlice | None:
             "Complete provider/fallback proof support",
             (
                 "docs/plans/1.0-manual-release-evidence-log.md",
-                "plugins/obsidian/backend/model_router.py",
-                "plugins/obsidian/tests/test_model_router_backend.py",
+                "docs/plans/provider-fallback-answer-run-contract.md",
+                "src/provider_fallback_answer_run.py",
+                "tests/test_provider_fallback_answer_run.py",
             ),
             "Provider/fallback behavior is evidenced or a focused blocker is documented",
             False,

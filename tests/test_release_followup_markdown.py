@@ -9,7 +9,10 @@ def test_render_release_followup_markdown_table():
                 "REL-provider-proof-evidence",
                 "Bob",
                 False,
-                ("docs/plans/1.0-manual-release-evidence-log.md", "plugins/obsidian/backend/model_router.py"),
+                (
+                    "docs/plans/1.0-manual-release-evidence-log.md",
+                    "src/provider_fallback_answer_run.py",
+                ),
             ),
             _slice(
                 "REL-test-vault-rebuild-evidence",
@@ -26,7 +29,7 @@ def test_render_release_followup_markdown_table():
             "",
             "| Slice | Owner | Parallel | Scope | Exit |",
             "| --- | --- | --- | --- | --- |",
-            "| `REL-provider-proof-evidence` | Bob | no | `docs/plans/1.0-manual-release-evidence-log.md`<br>`plugins/obsidian/backend/model_router.py` | exit REL-provider-proof-evidence |",
+            "| `REL-provider-proof-evidence` | Bob | no | `docs/plans/1.0-manual-release-evidence-log.md`<br>`src/provider_fallback_answer_run.py` | exit REL-provider-proof-evidence |",
             "| `REL-test-vault-rebuild-evidence` | Alice | yes | `docs/plans/1.0-manual-release-evidence-runbook.md` | exit REL-test-vault-rebuild-evidence |",
         ]
     )
