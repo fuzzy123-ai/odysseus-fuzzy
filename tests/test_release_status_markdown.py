@@ -1,5 +1,5 @@
 from src.release_orchestration_status import ReleaseOrchestrationStatus
-from src.release_status_markdown import render_release_status_markdown
+from src.release_status_markdown import render_current_release_status_markdown, render_release_status_markdown
 
 
 def test_render_release_status_markdown_for_blocked_status():
@@ -48,3 +48,12 @@ def test_render_release_status_markdown_for_empty_lists():
     assert "- Parallel candidates: `none`" in markdown
     assert "- Sequential gates: `none`" in markdown
     assert "- Next actions: `none`" in markdown
+
+
+def test_render_current_release_status_markdown_uses_documented_no_go_state():
+    markdown = render_current_release_status_markdown()
+
+    assert "- Status: `blocked`" in markdown
+    assert "- External release go: `false`" in markdown
+    assert "- Active owners: `Alice`, `Bob`, `Charlie`" in markdown
+    assert "- Parallel candidates: `REL-test-vault-rebuild-evidence`" in markdown

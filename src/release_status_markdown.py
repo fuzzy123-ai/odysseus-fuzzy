@@ -1,7 +1,9 @@
 """Markdown rendering for read-only release orchestration status."""
 from __future__ import annotations
 
-from src.release_orchestration_status import ReleaseOrchestrationStatus
+from src.plugin_release_gate import PluginReleaseGate
+from src.release_orchestration_status import ReleaseOrchestrationStatus, build_release_orchestration_status
+from src.release_readiness_pipeline import build_current_release_readiness_pipeline
 
 
 def render_release_status_markdown(status: ReleaseOrchestrationStatus) -> str:
@@ -17,6 +19,12 @@ def render_release_status_markdown(status: ReleaseOrchestrationStatus) -> str:
         f"- Next actions: {_fmt(status.next_action_ids)}",
     ]
     return "\n".join(lines)
+
+
+def render_current_release_status_markdown(plugin_gate: PluginReleaseGate | None = None) -> str:
+    """Render the documented current 1.0 release state without live checks."""
+    pipeline = build_current_release_readiness_pipeline(plugin_gate=plugin_gate)
+    return render_release_status_markdown(build_release_orchestration_status(pipeline))
 
 
 def _fmt(values: tuple[str, ...]) -> str:
