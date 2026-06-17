@@ -37,6 +37,8 @@ _CHEVRON = (
     'stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
 )
 _HISTORY_FILE = "telegram_history.json"
+_POLLING_FILE = "telegram_polling_state.json"
+_SESSION_FILE = "telegram_session_bridge.json"
 
 
 def _bool_env(name: str) -> bool:
@@ -78,6 +80,22 @@ class TelegramInboxStore:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
+        data = self._read()
+        event = {
+            "direction": "system",
+            "kind": kind,
+            "status": status,
+            "chat_id": str(chat_id or ""),
+            "stored_at": int(time.time()),
+            "token_value_visible": False,
+            "chat_id_value_visible": False,
+        }
+        event.update({key: value for key, value in extra.items() if value is not None})
+        data["messages"].append(event)
+        self._write(data)
+        return event
+
     def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
         data = self._read()
         messages = data["messages"]
@@ -89,15 +107,46 @@ class TelegramInboxStore:
                 existing.get("message_id"),
             )
             if existing_key == key:
+                self.append_event(
+                    kind="duplicate",
+                    status="duplicate_ignored",
+                    chat_id=str(message.get("chat_id") or ""),
+                    update_id=message.get("update_id"),
+                    message_id=message.get("message_id"),
+                )
                 return {"stored": False, "message": existing}
 
         stored = dict(message)
         stored["stored_at"] = int(time.time())
         messages.append(stored)
         self._write(data)
+        if stored.get("intake_status") == "blocked_chat":
+            self.append_event(
+                kind="blocked",
+                status="chat_not_allowed",
+                chat_id=str(stored.get("chat_id") or ""),
+                update_id=stored.get("update_id"),
+                message_id=stored.get("message_id"),
+            )
+        elif stored.get("kind") == "unsupported":
+            self.append_event(
+                kind="unsupported",
+                status="unsupported_message",
+                chat_id=str(stored.get("chat_id") or ""),
+                update_id=stored.get("update_id"),
+                message_id=stored.get("message_id"),
+            )
         return {"stored": True, "message": stored}
 
-    def append_outbound(self, chat_id: str, text: str, *, source_message_id: int | None = None) -> dict[str, Any]:
+    def append_outbound(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        source_message_id: int | None = None,
+        delivery_status: str = "sent",
+        failure_reason: str | None = None,
+    ) -> dict[str, Any]:
         data = self._read()
         message = {
             "direction": "outbound",
@@ -106,8 +155,11 @@ class TelegramInboxStore:
             "message_id": f"local-{int(time.time() * 1000)}",
             "source_message_id": source_message_id,
             "text": text,
+            "delivery_status": delivery_status,
+            "failure_reason": failure_reason or "",
             "stored_at": int(time.time()),
             "token_value_visible": False,
+            "chat_id_value_visible": False,
         }
         data["messages"].append(message)
         self._write(data)
@@ -127,7 +179,121 @@ class TelegramInboxStore:
             "inbound": sum(1 for m in messages if m.get("direction") == "inbound"),
             "outbound": sum(1 for m in messages if m.get("direction") == "outbound"),
             "voice": sum(1 for m in messages if m.get("kind") == "voice"),
+            "blocked": sum(1 for m in messages if m.get("kind") == "blocked"),
+            "duplicates": sum(1 for m in messages if m.get("kind") == "duplicate"),
+            "pending_stt": sum(1 for m in messages if m.get("transcript_status") == "pending_stt"),
         }
+
+
+class TelegramPollingStateStore:
+    """Small JSON store for polling offsets and dry-run state."""
+
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.path = self.data_dir / _POLLING_FILE
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {"offset": 0, "last_status": "idle", "history": []}
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"offset": 0, "last_status": "idle", "history": []}
+        if not isinstance(data, dict):
+            return {"offset": 0, "last_status": "idle", "history": []}
+        if not isinstance(data.get("history"), list):
+            data["history"] = []
+        data["offset"] = int(data.get("offset") or 0)
+        data["last_status"] = str(data.get("last_status") or "idle")
+        return data
+
+    def _write(self, data: dict[str, Any]) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def get_offset(self) -> int:
+        return self._read()["offset"]
+
+    def record(self, *, offset: int | None = None, status: str, **extra: Any) -> dict[str, Any]:
+        data = self._read()
+        if offset is not None:
+            data["offset"] = int(offset)
+        data["last_status"] = status
+        event = {"status": status, "recorded_at": int(time.time())}
+        event.update({key: value for key, value in extra.items() if value is not None})
+        data["history"].append(event)
+        self._write(data)
+        return event
+
+
+class TelegramSessionBridgeStore:
+    """Persist chat->session bindings without creating a second runtime."""
+
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.path = self.data_dir / _SESSION_FILE
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {"sessions": {}}
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"sessions": {}}
+        if not isinstance(data, dict):
+            return {"sessions": {}}
+        sessions = data.get("sessions")
+        if not isinstance(sessions, dict):
+            data["sessions"] = {}
+        return data
+
+    def _write(self, data: dict[str, Any]) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def get(self, chat_id: str) -> dict[str, Any] | None:
+        data = self._read()
+        mapping = data["sessions"].get(str(chat_id))
+        return dict(mapping) if isinstance(mapping, dict) else None
+
+    def bind_chat(
+        self,
+        *,
+        chat_id: str,
+        session_alias: str,
+        recommended_session_name: str,
+        creator: Callable[..., Any] | None = None,
+    ) -> dict[str, Any]:
+        data = self._read()
+        sessions = data["sessions"]
+        existing = sessions.get(str(chat_id))
+        if isinstance(existing, dict) and existing.get("session_id"):
+            existing["last_seen_at"] = int(time.time())
+            self._write(data)
+            return {"session_id": existing["session_id"], "created": False, "mapping": dict(existing)}
+
+        session_id = None
+        if creator is not None:
+            created = creator(
+                chat_id=str(chat_id),
+                session_alias=session_alias,
+                recommended_session_name=recommended_session_name,
+            )
+            if isinstance(created, dict):
+                session_id = created.get("session_id") or created.get("id")
+            else:
+                session_id = created
+        mapping = {
+            "chat_id": str(chat_id),
+            "session_id": str(session_id or ""),
+            "session_alias": session_alias,
+            "recommended_session_name": recommended_session_name,
+            "created_at": int(time.time()),
+            "last_seen_at": int(time.time()),
+        }
+        sessions[str(chat_id)] = mapping
+        self._write(data)
+        return {"session_id": mapping["session_id"], "created": bool(session_id), "mapping": dict(mapping)}
 
 
 def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
@@ -162,13 +328,18 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
     }
 
     if isinstance(message.get("text"), str):
-        base.update({"kind": "text", "text": message["text"]})
+        base.update({
+            "kind": "text",
+            "text": message["text"],
+            "intake_status": "ready" if base["chat_allowed"] else "blocked_chat",
+        })
     elif isinstance(message.get("voice"), dict):
         voice = message["voice"]
         base.update({
             "kind": "voice",
             "text": "",
             "transcript_status": "pending_stt",
+            "intake_status": "pending_stt" if base["chat_allowed"] else "blocked_chat",
             "media": {
                 "type": "voice",
                 "file_id": voice.get("file_id") or "",
@@ -179,11 +350,20 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
             },
         })
     else:
-        base.update({"kind": "unsupported", "text": "", "unsupported_keys": sorted(message.keys())})
+        base.update({
+            "kind": "unsupported",
+            "text": "",
+            "intake_status": "unsupported",
+            "unsupported_keys": sorted(message.keys()),
+        })
     return base
 
 
-def build_agent_bridge_request(message: dict[str, Any]) -> dict[str, Any]:
+def build_agent_bridge_request(
+    message: dict[str, Any],
+    *,
+    session_binding: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build the internal agent-turn envelope for a stored Telegram message."""
 
     chat_id = str(message.get("chat_id") or "")
@@ -212,14 +392,57 @@ def build_agent_bridge_request(message: dict[str, Any]) -> dict[str, Any]:
         "channel": "telegram",
         "session_alias": f"telegram:{chat_id}",
         "recommended_session_name": f"Telegram {display_name}",
+        "session_id": (session_binding or {}).get("session_id") or "",
         "chat_id": chat_id,
         "source_message_id": message.get("message_id"),
         "kind": kind,
         "prompt": prompt,
-        "ready_for_agent": ready_for_agent,
-        "reply_required": ready_for_agent,
+        "ready_for_agent": ready_for_agent and message.get("intake_status") == "ready",
+        "reply_required": ready_for_agent and message.get("intake_status") == "ready",
         "note": note,
+        "intake_status": message.get("intake_status") or note,
     }
+
+
+def run_telegram_polling_cycle(
+    *,
+    data_dir: str | Path,
+    fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
+    session_creator: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
+    store = TelegramInboxStore(data_dir)
+    polling = TelegramPollingStateStore(data_dir)
+    sessions = TelegramSessionBridgeStore(data_dir)
+    if not _bool_env("TELEGRAM_POLLING_ENABLED"):
+        polling.record(status="polling_disabled", offset=polling.get_offset())
+        return {"ok": False, "status": "polling_disabled", "processed": 0, "offset": polling.get_offset()}
+    loader = fetch_updates or (lambda offset: [])
+    offset = polling.get_offset()
+    processed = 0
+    last_update_id = offset - 1 if offset else 0
+    for update in loader(offset):
+        last_update_id = max(last_update_id, int(update.get("update_id") or 0))
+        message = parse_telegram_update(update)
+        stored = store.append_inbound(message)
+        if stored["stored"]:
+            bridge = build_agent_bridge_request(stored["message"])
+            if bridge["ready_for_agent"]:
+                binding = sessions.bind_chat(
+                    chat_id=bridge["chat_id"],
+                    session_alias=bridge["session_alias"],
+                    recommended_session_name=bridge["recommended_session_name"],
+                    creator=session_creator,
+                )
+                store.append_event(
+                    kind="session_bridge",
+                    status="bound" if binding.get("session_id") else "pending_bridge",
+                    chat_id=bridge["chat_id"],
+                    session_id=binding.get("session_id") or "",
+                )
+            processed += 1
+    next_offset = last_update_id + 1 if last_update_id else offset
+    polling.record(status="poll_ok", offset=next_offset, processed=processed, last_update_id=last_update_id)
+    return {"ok": True, "status": "poll_ok", "processed": processed, "offset": next_offset}
 
 
 def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -273,6 +496,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
     chat_present = bool(os.getenv("TELEGRAM_CHAT_ID") or os.getenv("TELEGRAM_ALLOWED_CHAT_IDS"))
     agent_chat_enabled = _bool_env("TELEGRAM_AGENT_CHAT_ENABLED")
     reply_enabled = _bool_env("TELEGRAM_AGENT_REPLY_ENABLED")
+    polling_enabled = _bool_env("TELEGRAM_POLLING_ENABLED")
 
     if token_present and chat_present and agent_chat_enabled and reply_enabled:
         state = "agent_reply_ready"
@@ -296,6 +520,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         "chat_id_env_present": chat_present,
         "agent_chat_enabled": agent_chat_enabled,
         "reply_gate_enabled": reply_enabled,
+        "polling_enabled": polling_enabled,
         "token_value_visible": False,
         "chat_id_value_visible": False,
         "network_enabled": bool(token_present and reply_enabled),
@@ -355,14 +580,45 @@ def _app_html(nonce: str) -> str:
 def setup(ctx):
     router = APIRouter(prefix="/api/plugins/telegram", tags=["plugin:telegram"])
     store = TelegramInboxStore(ctx.data_dir)
+    sessions = TelegramSessionBridgeStore(ctx.data_dir)
+    session_creator = getattr(ctx, "telegram_session_bridge", None)
 
     def _reply_with_gate(chat_id: str, text: str, *, source_message_id: int | None = None) -> dict[str, Any]:
         if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
-            return {"error": "Telegram reply gate is disabled", "exit_code": 1}
+            outbound = store.append_outbound(
+                chat_id,
+                text,
+                source_message_id=source_message_id,
+                delivery_status="blocked",
+                failure_reason="reply_gate_disabled",
+            )
+            return {"error": "Telegram reply gate is disabled", "exit_code": 1, "message": outbound}
         if not _chat_allowed(chat_id):
-            return {"error": "Telegram chat id is not allowed", "exit_code": 1}
-        sent = send_telegram_text(chat_id, text)
-        outbound = store.append_outbound(chat_id, text, source_message_id=source_message_id)
+            outbound = store.append_outbound(
+                chat_id,
+                text,
+                source_message_id=source_message_id,
+                delivery_status="blocked",
+                failure_reason="chat_not_allowed",
+            )
+            return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
+        try:
+            sent = send_telegram_text(chat_id, text)
+        except Exception as exc:
+            outbound = store.append_outbound(
+                chat_id,
+                text,
+                source_message_id=source_message_id,
+                delivery_status="failed",
+                failure_reason=str(exc),
+            )
+            return {"error": str(exc), "exit_code": 1, "message": outbound}
+        outbound = store.append_outbound(
+            chat_id,
+            text,
+            source_message_id=source_message_id,
+            delivery_status="sent",
+        )
         return {
             "output": json.dumps({"sent": sent, "message": outbound}, ensure_ascii=False),
             "exit_code": 0,
@@ -383,15 +639,36 @@ def setup(ctx):
     async def history(request: Request, chat_id: str | None = None, limit: int = 50):
         return {"messages": store.history(chat_id=chat_id, limit=limit)}
 
+    @router.post("/poll")
+    async def poll(request: Request):
+        result = run_telegram_polling_cycle(
+            data_dir=ctx.data_dir,
+            fetch_updates=getattr(ctx, "telegram_fetch_updates", None),
+            session_creator=session_creator,
+        )
+        if not result["ok"]:
+            raise HTTPException(403, result["status"])
+        return result
+
     @router.post("/webhook")
     async def webhook(request: Request):
         update = await request.json()
         message = parse_telegram_update(update)
         stored = store.append_inbound(message)
+        bridge = build_agent_bridge_request(stored["message"])
+        session_binding = None
+        if bridge["ready_for_agent"]:
+            session_binding = sessions.bind_chat(
+                chat_id=bridge["chat_id"],
+                session_alias=bridge["session_alias"],
+                recommended_session_name=bridge["recommended_session_name"],
+                creator=session_creator,
+            )
+        bridge = build_agent_bridge_request(stored["message"], session_binding=session_binding)
         return {
             "stored": stored["stored"],
             "message": stored["message"],
-            "agent_bridge": build_agent_bridge_request(stored["message"]),
+            "agent_bridge": bridge,
             "token_value_visible": False,
         }
 
