@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/system-health-agent-interface-contract.md`
 - `docs/plans/system-health-checker-plugin.md`
+- `docs/plans/system-health-rule-engine-alert-contract.md`
 
 Dieser Contract definiert die sichere Snapshot- und Collector-Semantik fuer die Basic Debian Collectors des System Health Checkers. Der Slice beschreibt nur, welche Daten spaeter fuer CPU, RAM, Load, Uptime und Disk Space erwartet werden und wie Unknown-/Unsupported-Zustaende sichtbar bleiben. Es werden keine Host-Kommandos ausgefuehrt und keine Runtime- oder Agent-Dateien angefasst.
 
