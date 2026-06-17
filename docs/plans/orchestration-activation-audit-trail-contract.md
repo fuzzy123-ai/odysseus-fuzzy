@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/orchestration-operator-activation-contract.md`
 - `docs/plans/orchestration-activation-bundle-contract.md`
 - `docs/plans/orchestration-activation-readiness-summary-contract.md`
+- `docs/plans/orchestration-activation-handoff-checklist-contract.md`
 
 Dieser Contract definiert einen nachvollziehbaren Audit Trail fuer spaetere Aktivierungsentscheidungen in der AUTO-Orchestration. Er beschreibt nur das Modell fuer Ereignisse und ihren Zusammenhang. Der Slice fuehrt bewusst keine echte Persistenz, keine Runtime-Hooks, keine Thread-Sends, keine Scheduler-Aktivierung und keine Git-/Test-Ausfuehrung aus.
 
