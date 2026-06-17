@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/release-runtime-readiness-roadmap.md`
 - `docs/plans/large-graph-budget-proof-contract.md`
+- `docs/plans/graph-maintenance-review-gate-contract.md`
 - `docs/plans/progressive-graph-api-contract.md`
 
 Dieser Contract definiert das Release-Gate fuer die Progressive Graph API vor externem `1.0.0`. Er beschreibt keinen echten Graph-Runtime-Start, kein UI-Vollrendering, keinen Full-Payload-Dump und keine Aktivierung von Netzwerk-, Host-, Plugin- oder Accelerator-Pfaden. Der Slice friert nur ein, wie grosse Graphen releasefaehig ausschliesslich ueber budgetierte, progressive Antworten sichtbar werden duerfen: kleine Subgraphs, Aggregate, Cursor, `partial`, `clipped`, `reason` und `next_action`.
