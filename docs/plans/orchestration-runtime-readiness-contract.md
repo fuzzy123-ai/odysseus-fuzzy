@@ -7,6 +7,7 @@ Status: **AUTO9A Docs-Contract fuer Runtime-Readiness vor echter Live-Orchestrat
 Quellen:
 
 - `docs/plans/automated-agent-handoff-orchestration-mvp.md`
+- `docs/plans/orchestration-operator-activation-contract.md`
 
 Dieser Contract definiert die sichere Bruecke von vorbereiteten AUTO-Bausteinen zu einer spaeteren echten Runtime-Aktivierung. Der Slice fuehrt bewusst keine Runtime-, Thread-, Git-, Test-, Provider-, Export-, Import-, Netzwerk- oder Frontend-Aenderungen aus. Er friert nur Readiness-Kategorien, Statusarten, Stop-Regeln und Operator-Entscheidungen ein, damit ein spaeteres Readiness-Modell oder ein kleiner Bewertungshelfer keine Live-Aktionen ausfuehrt.
 
