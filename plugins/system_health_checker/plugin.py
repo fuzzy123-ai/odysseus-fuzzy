@@ -20,6 +20,8 @@ PLUGIN = {
     "description": "Homeserver health snapshots via a host-agent boundary. No host commands run in Odysseus.",
     "category": "Operations",
     "permission": "admin",
+    "kind": "ui",
+    "capabilities": ["local_api"],
     "requires": ["odysseus-health-agent (planned external Debian service)"],
     "ui": {"open": "/api/plugins/system_health_checker/app", "label": "Open Health"},
 }

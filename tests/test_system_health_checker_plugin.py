@@ -15,6 +15,7 @@ from plugins.system_health_checker.health_model import (
     build_agent_offline_snapshot,
 )
 from plugins.system_health_checker.plugin import PLUGIN, setup
+from src.plugin_capability_boundary import validate_plugin_capability_boundary
 
 
 @dataclass
@@ -31,7 +32,17 @@ def test_manifest_keeps_health_checker_as_operations_plugin():
     assert PLUGIN["name"] == "System Health Checker"
     assert PLUGIN["category"] == "Operations"
     assert PLUGIN["permission"] == "admin"
+    assert PLUGIN["kind"] == "ui"
+    assert PLUGIN["capabilities"] == ["local_api"]
     assert PLUGIN["ui"]["open"] == "/api/plugins/system_health_checker/app"
+
+
+def test_manifest_passes_plugin_capability_boundary():
+    report = validate_plugin_capability_boundary(PLUGIN)
+
+    assert report.ok
+    assert report.error_codes == ()
+    assert report.warning_codes == ()
 
 
 def test_offline_snapshot_is_unknown_and_has_setup_hint():
