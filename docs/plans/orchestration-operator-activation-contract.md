@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/orchestration-runtime-readiness-contract.md`
 - `docs/plans/automated-agent-handoff-orchestration-mvp.md`
+- `docs/plans/orchestration-activation-readiness-summary-contract.md`
 
 Dieser Contract beschreibt, wie Charlie oder ein Operator spaeter echte AUTO-Orchestration stufenweise freigeben darf, ohne versehentlich Live-Aktionen auszufuehren. Der Slice bleibt bewusst docs-only und fuehrt keine Runtime-, Thread-, Git-, Test-, Scheduler-, Provider- oder Netzwerkaktionen aus.
 
