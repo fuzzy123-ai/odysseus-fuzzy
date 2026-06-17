@@ -10,6 +10,7 @@ from src.release_morning_snapshot_history import (
 )
 from src.release_morning_snapshot_history_contract import ReleaseMorningSnapshotHistoryContractReport
 from src.release_morning_snapshot_history_contract import validate_release_morning_snapshot_history_contract
+from src.release_morning_snapshot_history_digest import release_morning_snapshot_history_digest
 from src.release_morning_snapshot_history_json import render_release_morning_snapshot_history_json
 from src.release_morning_snapshot_history_markdown import render_release_morning_snapshot_history_markdown
 
@@ -18,6 +19,7 @@ from src.release_morning_snapshot_history_markdown import render_release_morning
 class ReleaseMorningSnapshotHistoryBundle:
     history: ReleaseMorningSnapshotHistory
     contract_report: ReleaseMorningSnapshotHistoryContractReport
+    digest: str
     markdown: str
     json_payload: str
 
@@ -28,6 +30,7 @@ class ReleaseMorningSnapshotHistoryBundle:
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
+            "digest": self.digest,
             "history": self.history.to_dict(),
             "contract_report": self.contract_report.to_dict(),
             "markdown": self.markdown,
@@ -43,6 +46,7 @@ def build_release_morning_snapshot_history_bundle(
     return ReleaseMorningSnapshotHistoryBundle(
         history=history,
         contract_report=contract_report,
+        digest=release_morning_snapshot_history_digest(history),
         markdown=render_release_morning_snapshot_history_markdown(history),
         json_payload=render_release_morning_snapshot_history_json(history),
     )

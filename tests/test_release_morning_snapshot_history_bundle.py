@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from src.release_morning_snapshot_envelope import build_current_release_morning_snapshot_envelope
 from src.release_morning_snapshot_history_bundle import build_release_morning_snapshot_history_bundle
+from src.release_morning_snapshot_history_digest import release_morning_snapshot_history_digest
 
 
 def test_snapshot_history_bundle_handles_empty_history():
@@ -12,6 +13,7 @@ def test_snapshot_history_bundle_handles_empty_history():
     assert bundle.ok
     assert bundle.contract_report.ok
     assert bundle.history.to_dict()["count"] == 0
+    assert bundle.digest == release_morning_snapshot_history_digest(bundle.history)
     assert "Status: **EMPTY**" in bundle.markdown
     assert json.loads(bundle.json_payload)["count"] == 0
 
@@ -37,6 +39,7 @@ def test_snapshot_history_bundle_to_dict_is_stable():
     payload = bundle.to_dict()
 
     assert payload["ok"] is True
+    assert len(payload["digest"]) == 64
     assert payload["history"]["count"] == 0
     assert payload["contract_report"] == {
         "ok": True,
