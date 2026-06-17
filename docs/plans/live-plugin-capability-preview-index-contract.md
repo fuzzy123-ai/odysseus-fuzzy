@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/live-plugin-manifest-discovery-dry-run-contract.md`
 - `docs/plans/live-plugin-loader-safe-mode-contract.md`
+- `docs/plans/live-plugin-operator-review-packet-contract.md`
 - `docs/plans/live-quality-gate-command-runner-contract.md`
 - `docs/plans/live-release-evidence-closeout-contract.md`
 
