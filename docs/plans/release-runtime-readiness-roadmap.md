@@ -49,6 +49,10 @@ Odysseus muss nicht jede vorbereitete Foundation live schalten. Odysseus muss be
 
 Ziel: Das erste harte externe `1.0.0`-Gate belegen.
 
+Referenz:
+
+- `docs/plans/provider-fallback-answer-run-contract.md`
+
 | Rolle | Auftrag | Scope |
 | --- | --- | --- |
 | Alice | `FINAL1A-provider-fallback-answer-run-contract`: Operator-Runbook fuer echten Antwortlauf, ready Query-Index, erwartete Antwort, Fallback-Verhalten, Redaction und No-Go-Sprache schreiben. | `docs/plans/provider-fallback-answer-run-contract.md`, optional kurzer Link in dieser Roadmap oder `docs/plans/1.0-evidence-release-checklist.md` |
