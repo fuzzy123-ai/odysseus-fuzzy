@@ -188,6 +188,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL24-local-plugin-audit-summary` | lokale Plugin-Auditdetails im Morning Summary Snapshot sichtbar machen | UI/Automation sieht lokale Plugin-Audit-OK/Fails ohne Markdown zu parsen |
 | `REL25-local-plugin-failure-diff` | lokale Plugin-Fails in Morning-Payload-Diffs ausweisen | Handoff erkennt neue und geloeste lokale Plugin-Probleme ohne Report-Vergleich |
 | `REL26-release-morning-payload-diff-json` | Payload-Diffs deterministisch als JSON rendern | UI/Automation kann Diff-Ergebnisse speichern, diffen und validieren |
+| `REL27-release-morning-payload-digest` | Morning-Payload deterministisch hashen | Automation erkennt identische Snapshots guenstig, ohne JSON erneut zu vergleichen |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
