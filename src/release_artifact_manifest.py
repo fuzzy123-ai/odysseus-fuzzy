@@ -72,6 +72,7 @@ def default_release_artifacts() -> tuple[ReleaseArtifact, ...]:
         ReleaseArtifact("src/release_morning_summary.py", "release morning summary snapshot"),
         ReleaseArtifact("src/release_morning_snapshot_envelope_contract.py", "release morning snapshot envelope contract validator"),
         ReleaseArtifact("src/release_morning_snapshot_envelope_diff.py", "release morning snapshot envelope diff helper"),
+        ReleaseArtifact("src/release_morning_snapshot_envelope_diff_markdown.py", "release morning snapshot envelope diff markdown renderer"),
         ReleaseArtifact("src/release_morning_snapshot_envelope.py", "release morning snapshot envelope"),
         ReleaseArtifact("src/release_readiness_pipeline.py", "release readiness pipeline"),
         ReleaseArtifact("src/release_slice_router.py", "release followup router"),

@@ -192,6 +192,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL28-release-morning-snapshot-envelope` | Morning-Payload, JSON und Digest als Snapshot buendeln | UI/Automation liest einen stabilen Envelope statt mehrere Helfer selbst zu verdrahten |
 | `REL29-release-morning-envelope-contract` | Snapshot-Envelopes statisch validierbar machen | gespeicherte Envelopes pruefen Payload, JSON und Digest-Konsistenz ohne Live-Checks |
 | `REL30-release-morning-envelope-diff` | Snapshot-Envelopes deterministisch vergleichen | Automation nutzt Digest fuer schnelle No-Change-Erkennung und Payload-Diff fuer Details |
+| `REL31-release-morning-envelope-diff-markdown` | Envelope-Diffs als kompakten Markdown-Block rendern | Handoff zeigt Envelope-/Payload-Aenderungen ohne JSON-Vergleich |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
