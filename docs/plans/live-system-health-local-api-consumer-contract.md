@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-agent-interface-contract.md`
 - `docs/plans/system-health-security-ops-runbook.md`
 - `docs/plans/system-health-plugin-audit-index-contract.md`
+- `docs/plans/live-telegram-status-dry-run-contract.md`
 
 Dieser Contract definiert die Operator- und Nutzersprache fuer einen spaeteren lokalen System-Health-API-Consumer im Offline-/Fixture-/Contract-Mode. Der Consumer darf nur sanitisierte Snapshot-Payloads lesen oder simulieren, um spaeter eine lokale API-Anbindung im Plan zu bewerten. Er fuehrt keine echten Netzwerkaufrufe aus, startet keine Host-Kommandos, oeffnet keine Sockets und aktiviert kein Runtime-Polling. Das Gate bleibt read-only und erzeugt kein externes Release-Go.
 
