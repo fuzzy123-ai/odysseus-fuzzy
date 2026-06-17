@@ -151,7 +151,7 @@ def test_parse_text_update_and_bridge_request(monkeypatch):
     assert message["token_value_visible"] is False
 
     bridge = build_agent_bridge_request(message)
-    assert bridge["session_alias"] == "telegram:123"
+    assert bridge["session_alias"].startswith("telegram:chat_")
     assert bridge["recommended_session_name"] == "Telegram nina"
     assert bridge["prompt"] == "Hallo Odysseus"
     assert bridge["ready_for_agent"] is True
@@ -180,6 +180,8 @@ def test_parse_voice_update_marks_pending_stt():
     bridge = build_agent_bridge_request(message)
     assert bridge["ready_for_agent"] is False
     assert bridge["note"] == "voice_needs_transcription"
+    assert "file_handle=" in bridge["prompt"]
+    assert "voice-file-id" not in bridge["prompt"]
 
 
 def test_inbox_store_deduplicates_and_returns_history(tmp_path):
@@ -201,6 +203,10 @@ def test_inbox_store_deduplicates_and_returns_history(tmp_path):
     assert store.counts()["inbound"] == 1
     assert store.counts()["duplicates"] == 1
     assert any(item.get("text") == "hi" for item in store.history(chat_id="abc"))
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert '"chat_id"' not in persisted_text
+    assert "abc" not in persisted_text
 
 
 def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeypatch):
@@ -231,8 +237,12 @@ def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeyp
     assert response.status_code == 200
     payload = response.json()
     assert payload["stored"] is True
+    assert payload["message"]["chat_handle"].startswith("chat_")
+    assert "chat_id" not in payload["message"]
+    assert payload["message"]["sender"]["handle"].startswith("sender_")
+    assert "id" not in payload["message"]["sender"]
     assert payload["agent_bridge"]["ready_for_agent"] is True
-    assert payload["agent_bridge"]["session_alias"] == "telegram:123"
+    assert payload["agent_bridge"]["session_alias"].startswith("telegram:chat_")
     assert payload["agent_bridge"]["session_id"] == "sess-123"
     assert "Bitte fasse" in payload["agent_bridge"]["prompt"]
     assert created_sessions[0]["chat_id"] == "123"
@@ -240,6 +250,11 @@ def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeyp
     history_response = client.get("/api/plugins/telegram/history?chat_id=123")
     assert history_response.status_code == 200
     assert history_response.json()["messages"][0]["text"] == "Bitte fasse den Stand zusammen"
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert "123" not in persisted_text
+    assert '"chat_id"' not in persisted_text
+    assert '"id"' not in persisted_text
 
 
 def test_reply_route_is_blocked_without_explicit_gate(tmp_path, monkeypatch):
@@ -262,20 +277,21 @@ def test_reply_route_is_blocked_without_explicit_gate(tmp_path, monkeypatch):
 def test_session_bridge_reuses_existing_mapping(tmp_path):
     store = TelegramSessionBridgeStore(tmp_path)
     created = []
+    raw_chat_id = "chat-raw-123"
 
     def _creator(**kwargs):
         created.append(kwargs)
         return {"session_id": "session-a"}
 
     first = store.bind_chat(
-        chat_id="123",
-        session_alias="telegram:123",
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
         recommended_session_name="Telegram nina",
         creator=_creator,
     )
     second = store.bind_chat(
-        chat_id="123",
-        session_alias="telegram:123",
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
         recommended_session_name="Telegram nina",
         creator=_creator,
     )
@@ -284,6 +300,12 @@ def test_session_bridge_reuses_existing_mapping(tmp_path):
     assert second["created"] is False
     assert second["session_id"] == "session-a"
     assert len(created) == 1
+    persisted = json.loads((tmp_path / "telegram_session_bridge.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert raw_chat_id not in persisted_text
+    assert '"chat_id"' not in persisted_text
+    assert second["mapping"]["chat_handle"].startswith("chat_")
+    assert second["mapping"]["session_alias"].startswith("telegram:chat_")
 
 
 def test_polling_cycle_is_gated_and_stores_offset_without_network(tmp_path, monkeypatch):
@@ -333,7 +355,7 @@ def test_polling_cycle_stores_duplicate_and_unsupported_history(tmp_path, monkey
 
     def _creator(**kwargs):
         created.append(kwargs)
-        return {"session_id": "session-123"}
+        return {"session_id": "session-alpha"}
 
     result = run_telegram_polling_cycle(
         data_dir=tmp_path,
@@ -349,6 +371,9 @@ def test_polling_cycle_stores_duplicate_and_unsupported_history(tmp_path, monkey
     assert ("duplicate", "duplicate_ignored") in statuses
     assert ("unsupported", "unsupported_message") in statuses
     assert created[0]["chat_id"] == "123"
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert '"chat_id"' not in persisted_text
 
 
 def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):
@@ -379,3 +404,40 @@ def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):
     fail_history = TelegramInboxStore(tmp_path).history(chat_id="123")
     assert any(item.get("delivery_status") == "failed" for item in fail_history)
     assert any(item.get("failure_reason") == "transport offline" for item in fail_history)
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert "123" not in persisted_text
+    assert '"chat_id"' not in persisted_text
+
+
+def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 8,
+        "message": {
+            "message_id": 12,
+            "chat": {"id": "voice-chat-999"},
+            "voice": {
+                "file_id": "voice-file-id",
+                "file_unique_id": "unique-voice",
+                "duration": 3,
+                "mime_type": "audio/ogg",
+                "file_size": 2048,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["message"]["media"]["file_handle"].startswith("voice_file_")
+    assert payload["message"]["media"]["file_unique_handle"].startswith("voice_unique_")
+    assert "file_id" not in payload["message"]["media"]
+    assert "file_unique_id" not in payload["message"]["media"]
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert "voice-file-id" not in persisted_text
+    assert "unique-voice" not in persisted_text

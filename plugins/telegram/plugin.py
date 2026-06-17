@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 import time
 import urllib.parse
 import urllib.request
@@ -55,6 +56,59 @@ def _chat_allowed(chat_id: str) -> bool:
     return bool(chat_id and allowed and chat_id in allowed)
 
 
+def _stable_handle(prefix: str, value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    digest = hashlib.sha256(f"{prefix}:{raw}".encode("utf-8")).hexdigest()[:12]
+    return f"{prefix}_{digest}"
+
+
+def _chat_handle(chat_id: Any) -> str:
+    return _stable_handle("chat", chat_id)
+
+
+def _sender_handle(sender_id: Any) -> str:
+    return _stable_handle("sender", sender_id)
+
+
+def _voice_file_handle(file_id: Any) -> str:
+    return _stable_handle("voice_file", file_id)
+
+
+def _voice_unique_handle(file_unique_id: Any) -> str:
+    return _stable_handle("voice_unique", file_unique_id)
+
+
+def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
+    stored = dict(message)
+    raw_chat_id = str(stored.pop("chat_id", "") or "")
+    if raw_chat_id:
+        stored["chat_handle"] = _chat_handle(raw_chat_id)
+    sender = stored.get("sender")
+    if isinstance(sender, dict):
+        sanitized_sender = dict(sender)
+        raw_sender_id = sanitized_sender.pop("id", "")
+        if raw_sender_id:
+            sanitized_sender["handle"] = _sender_handle(raw_sender_id)
+        stored["sender"] = sanitized_sender
+    media = stored.get("media")
+    if isinstance(media, dict):
+        sanitized_media = dict(media)
+        raw_file_id = sanitized_media.pop("file_id", "")
+        raw_unique_id = sanitized_media.pop("file_unique_id", "")
+        if raw_file_id:
+            sanitized_media["file_handle"] = _voice_file_handle(raw_file_id)
+        if raw_unique_id:
+            sanitized_media["file_unique_handle"] = _voice_unique_handle(raw_unique_id)
+        stored["media"] = sanitized_media
+    stored["chat_id_value_visible"] = False
+    stored["sender_id_value_visible"] = False
+    stored["voice_file_id_value_visible"] = False
+    stored["voice_file_unique_id_value_visible"] = False
+    return stored
+
+
 class TelegramInboxStore:
     """Small JSON store under the plugin data dir."""
 
@@ -86,7 +140,7 @@ class TelegramInboxStore:
             "direction": "system",
             "kind": kind,
             "status": status,
-            "chat_id": str(chat_id or ""),
+            "chat_handle": _chat_handle(chat_id),
             "stored_at": int(time.time()),
             "token_value_visible": False,
             "chat_id_value_visible": False,
@@ -116,7 +170,7 @@ class TelegramInboxStore:
                 )
                 return {"stored": False, "message": existing}
 
-        stored = dict(message)
+        stored = _sanitize_persisted_message(message)
         stored["stored_at"] = int(time.time())
         messages.append(stored)
         self._write(data)
@@ -151,7 +205,7 @@ class TelegramInboxStore:
         message = {
             "direction": "outbound",
             "kind": "text",
-            "chat_id": str(chat_id),
+            "chat_handle": _chat_handle(chat_id),
             "message_id": f"local-{int(time.time() * 1000)}",
             "source_message_id": source_message_id,
             "text": text,
@@ -169,7 +223,11 @@ class TelegramInboxStore:
         limit = max(1, min(int(limit or 50), 200))
         messages = self._read()["messages"]
         if chat_id:
-            messages = [m for m in messages if str(m.get("chat_id")) == str(chat_id)]
+            chat_handle = _chat_handle(chat_id)
+            messages = [
+                m for m in messages
+                if str(m.get("chat_handle") or "") == chat_handle or str(m.get("chat_id") or "") == str(chat_id)
+            ]
         return list(reversed(messages[-limit:]))
 
     def counts(self) -> dict[str, int]:
@@ -253,7 +311,8 @@ class TelegramSessionBridgeStore:
 
     def get(self, chat_id: str) -> dict[str, Any] | None:
         data = self._read()
-        mapping = data["sessions"].get(str(chat_id))
+        sessions = data["sessions"]
+        mapping = sessions.get(_chat_handle(chat_id)) or sessions.get(str(chat_id))
         return dict(mapping) if isinstance(mapping, dict) else None
 
     def bind_chat(
@@ -266,8 +325,13 @@ class TelegramSessionBridgeStore:
     ) -> dict[str, Any]:
         data = self._read()
         sessions = data["sessions"]
-        existing = sessions.get(str(chat_id))
+        handle = _chat_handle(chat_id)
+        safe_session_alias = f"telegram:{handle}" if handle else session_alias
+        existing = sessions.get(handle) or sessions.get(str(chat_id))
         if isinstance(existing, dict) and existing.get("session_id"):
+            if str(chat_id) in sessions and handle not in sessions:
+                sessions[handle] = dict(existing)
+                sessions.pop(str(chat_id), None)
             existing["last_seen_at"] = int(time.time())
             self._write(data)
             return {"session_id": existing["session_id"], "created": False, "mapping": dict(existing)}
@@ -284,14 +348,15 @@ class TelegramSessionBridgeStore:
             else:
                 session_id = created
         mapping = {
-            "chat_id": str(chat_id),
+            "chat_handle": handle,
             "session_id": str(session_id or ""),
-            "session_alias": session_alias,
+            "session_alias": safe_session_alias,
             "recommended_session_name": recommended_session_name,
             "created_at": int(time.time()),
             "last_seen_at": int(time.time()),
         }
-        sessions[str(chat_id)] = mapping
+        sessions.pop(str(chat_id), None)
+        sessions[handle] = mapping
         self._write(data)
         return {"session_id": mapping["session_id"], "created": bool(session_id), "mapping": dict(mapping)}
 
@@ -363,12 +428,14 @@ def build_agent_bridge_request(
     message: dict[str, Any],
     *,
     session_binding: dict[str, Any] | None = None,
+    raw_chat_id: str | None = None,
 ) -> dict[str, Any]:
     """Build the internal agent-turn envelope for a stored Telegram message."""
 
-    chat_id = str(message.get("chat_id") or "")
+    chat_id = str(raw_chat_id or message.get("chat_id") or "")
+    chat_handle = str(message.get("chat_handle") or _chat_handle(chat_id))
     sender = message.get("sender") or {}
-    display_name = sender.get("username") or sender.get("first_name") or chat_id
+    display_name = sender.get("username") or sender.get("first_name") or chat_handle
     kind = message.get("kind")
     if kind == "text":
         prompt = str(message.get("text") or "")
@@ -378,7 +445,7 @@ def build_agent_bridge_request(
         media = message.get("media") or {}
         prompt = (
             "[Telegram voice message received. "
-            f"file_id={media.get('file_id', '')}; duration={media.get('duration', 'unknown')}; "
+            f"file_handle={media.get('file_handle', '')}; duration={media.get('duration', 'unknown')}; "
             "transcription pending.]"
         )
         ready_for_agent = False
@@ -390,10 +457,11 @@ def build_agent_bridge_request(
 
     return {
         "channel": "telegram",
-        "session_alias": f"telegram:{chat_id}",
+        "session_alias": f"telegram:{chat_handle}",
         "recommended_session_name": f"Telegram {display_name}",
         "session_id": (session_binding or {}).get("session_id") or "",
         "chat_id": chat_id,
+        "chat_handle": chat_handle,
         "source_message_id": message.get("message_id"),
         "kind": kind,
         "prompt": prompt,
@@ -425,7 +493,7 @@ def run_telegram_polling_cycle(
         message = parse_telegram_update(update)
         stored = store.append_inbound(message)
         if stored["stored"]:
-            bridge = build_agent_bridge_request(stored["message"])
+            bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
             if bridge["ready_for_agent"]:
                 binding = sessions.bind_chat(
                     chat_id=bridge["chat_id"],
@@ -655,7 +723,7 @@ def setup(ctx):
         update = await request.json()
         message = parse_telegram_update(update)
         stored = store.append_inbound(message)
-        bridge = build_agent_bridge_request(stored["message"])
+        bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
         session_binding = None
         if bridge["ready_for_agent"]:
             session_binding = sessions.bind_chat(
@@ -664,7 +732,11 @@ def setup(ctx):
                 recommended_session_name=bridge["recommended_session_name"],
                 creator=session_creator,
             )
-        bridge = build_agent_bridge_request(stored["message"], session_binding=session_binding)
+        bridge = build_agent_bridge_request(
+            stored["message"],
+            session_binding=session_binding,
+            raw_chat_id=str(message.get("chat_id") or ""),
+        )
         return {
             "stored": stored["stored"],
             "message": stored["message"],
