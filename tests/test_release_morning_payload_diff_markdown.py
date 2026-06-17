@@ -20,6 +20,7 @@ def test_payload_diff_markdown_renders_changes():
     before = build_current_release_morning_payload().to_dict()
     after = deepcopy(before)
     after["summary"]["plugin_gate_ok"] = False
+    after["summary"]["local_plugin_failing_ids"] = ("bad-plugin",)
     after["summary"]["next_action_ids"] = tuple(before["summary"]["next_action_ids"]) + ("REL-plugin-release-gate-fix",)
     diff = diff_release_morning_payloads(before, after)
 
@@ -30,6 +31,8 @@ def test_payload_diff_markdown_renders_changes():
     assert "- `plugin_gate_ok`" in markdown
     assert "Added next actions:" in markdown
     assert "- `REL-plugin-release-gate-fix`" in markdown
+    assert "Added local plugin failures:" in markdown
+    assert "- `bad-plugin`" in markdown
 
 
 def test_payload_diff_markdown_renders_invalid_payload_errors():

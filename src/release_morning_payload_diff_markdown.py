@@ -22,6 +22,8 @@ def render_release_morning_payload_diff_markdown(diff: ReleaseMorningPayloadDiff
     _append_section(lines, "Changed summary fields", diff.changed_summary_fields)
     _append_section(lines, "Added next actions", diff.added_next_actions)
     _append_section(lines, "Removed next actions", diff.removed_next_actions)
+    _append_section(lines, "Added local plugin failures", diff.added_local_plugin_failures)
+    _append_section(lines, "Resolved local plugin failures", diff.resolved_local_plugin_failures)
     _append_section(lines, "Added missing artifacts", diff.added_missing_artifacts)
     _append_section(lines, "Resolved missing artifacts", diff.resolved_missing_artifacts)
     return "\n".join(lines)

@@ -22,6 +22,8 @@ class ReleaseMorningPayloadDiff:
     changed_summary_fields: tuple[str, ...] = ()
     added_next_actions: tuple[str, ...] = ()
     removed_next_actions: tuple[str, ...] = ()
+    added_local_plugin_failures: tuple[str, ...] = ()
+    resolved_local_plugin_failures: tuple[str, ...] = ()
     added_missing_artifacts: tuple[str, ...] = ()
     resolved_missing_artifacts: tuple[str, ...] = ()
     errors: tuple[str, ...] = ()
@@ -33,6 +35,8 @@ class ReleaseMorningPayloadDiff:
                 self.changed_summary_fields,
                 self.added_next_actions,
                 self.removed_next_actions,
+                self.added_local_plugin_failures,
+                self.resolved_local_plugin_failures,
                 self.added_missing_artifacts,
                 self.resolved_missing_artifacts,
             )
@@ -45,6 +49,8 @@ class ReleaseMorningPayloadDiff:
             "changed_summary_fields": self.changed_summary_fields,
             "added_next_actions": self.added_next_actions,
             "removed_next_actions": self.removed_next_actions,
+            "added_local_plugin_failures": self.added_local_plugin_failures,
+            "resolved_local_plugin_failures": self.resolved_local_plugin_failures,
             "added_missing_artifacts": self.added_missing_artifacts,
             "resolved_missing_artifacts": self.resolved_missing_artifacts,
             "errors": self.errors,
@@ -72,6 +78,8 @@ def diff_release_morning_payloads(
     )
     before_actions = set(before_summary["next_action_ids"])
     after_actions = set(after_summary["next_action_ids"])
+    before_plugin_failures = set(before_summary["local_plugin_failing_ids"])
+    after_plugin_failures = set(after_summary["local_plugin_failing_ids"])
     before_missing = set(before_summary["missing_required_artifacts"])
     after_missing = set(after_summary["missing_required_artifacts"])
 
@@ -80,6 +88,8 @@ def diff_release_morning_payloads(
         changed_summary_fields=changed_fields,
         added_next_actions=tuple(sorted(after_actions - before_actions)),
         removed_next_actions=tuple(sorted(before_actions - after_actions)),
+        added_local_plugin_failures=tuple(sorted(after_plugin_failures - before_plugin_failures)),
+        resolved_local_plugin_failures=tuple(sorted(before_plugin_failures - after_plugin_failures)),
         added_missing_artifacts=tuple(sorted(after_missing - before_missing)),
         resolved_missing_artifacts=tuple(sorted(before_missing - after_missing)),
     )

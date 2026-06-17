@@ -55,6 +55,19 @@ def test_payload_diff_reports_added_missing_artifacts():
     assert diff.added_missing_artifacts == ("missing-a.md",)
 
 
+def test_payload_diff_reports_added_and_resolved_local_plugin_failures():
+    before = build_current_release_morning_payload().to_dict()
+    after = deepcopy(before)
+    before["summary"]["local_plugin_failing_ids"] = ("old-plugin",)
+    after["summary"]["local_plugin_failing_ids"] = ("new-plugin",)
+
+    diff = diff_release_morning_payloads(before, after)
+
+    assert diff.ok
+    assert diff.added_local_plugin_failures == ("new-plugin",)
+    assert diff.resolved_local_plugin_failures == ("old-plugin",)
+
+
 def test_payload_diff_blocks_invalid_payloads():
     before = build_current_release_morning_payload().to_dict()
     after = {"brief_markdown": "# Odysseus Release Morning Brief\n"}
