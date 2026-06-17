@@ -11,6 +11,7 @@ Quellen:
 - `docs/plans/system-health-plugin-audit-index-contract.md`
 - `docs/plans/system-health-plugin-foundation-index.md`
 - `docs/plans/system-health-security-ops-runbook.md`
+- `docs/plans/system-health-plugin-release-audit-summary-contract.md`
 
 Dieser Contract definiert einen knappen Foundation-Readiness-Index fuer die System Health Plugin Foundation. Der Index zeigt Operatoren, welche Plugin-Fundamente fertig vorbereitet sind, welche manuellen Reviews noch offen bleiben und welche Runtime-Faehigkeiten bewusst nicht aktiviert sind. Der Slice bleibt rein Foundation/Review: keine echte Host-Agent-, Telegram-, Netzwerk- oder Container-Runtime-Aktivierung.
 
