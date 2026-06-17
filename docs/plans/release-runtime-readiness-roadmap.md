@@ -89,6 +89,10 @@ Exit:
 
 Ziel: Aus allen Gates eine klare externe `1.0.0` Go/No-Go-Entscheidung bauen.
 
+Referenz:
+
+- `docs/plans/1.0-release-decision-bundle.md`
+
 | Rolle | Auftrag | Scope |
 | --- | --- | --- |
 | Alice | `FINAL3A-release-decision-language`: Klartext fuer Nutzer: was ist drin, was nicht, welche Risiken bleiben, welche Gates sind belegt. | `docs/plans/1.0-release-decision-bundle.md` |
