@@ -15,6 +15,7 @@ Quellen:
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
 - `docs/plans/system-health-dashboard-contract.md`
 - `docs/plans/system-health-security-ops-runbook.md`
+- `docs/plans/system-health-plugin-audit-index-contract.md`
 
 Dieser Index fasst die Foundation des System Health Checker Plugin-Tracks zusammen. Er dient als nachvollziehbarer Bundle-Plan fuer den spaeteren Weiterbau des Plugins, ohne echte Host-Agent-Ausfuehrung, Telegram-Delivery, Netzwerkaktionen oder UI-Hotfile-Arbeit zu behaupten.
 
