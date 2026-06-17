@@ -12,6 +12,16 @@ Quellen:
 
 Dieser Index fasst die letzten offenen manuellen `1.0.0`-Evidence-Schritte fuer Charlie oder einen Operator zusammen. Er ersetzt nicht die Detail-Runbooks und behauptet keine erledigte Evidence. Ziel ist nur, die Reihenfolge, Stop-Punkte und Eintragsorte fuer die beiden verbleibenden externen Gates kompakt sichtbar zu machen.
 
+Artefakt-Hilfen fuer Morning-Status und Handoff:
+
+- Contract: `docs/plans/manual-release-evidence-artifact-contract.md`
+- Handoff-Template: `docs/plans/manual-release-evidence-artifact-handoff-template.md`
+
+Wichtig:
+
+- Diese Artefakt-Hilfen sind Status- und Gap-Werkzeuge.
+- Sie ersetzen keine echte beobachtete manuelle Evidence und erzeugen kein externes `1.0`-Go.
+
 ## Ziel
 
 Dieser Operator-Index ist der kurze Einstieg fuer die letzten externen `1.0`-Gates:
