@@ -11,6 +11,7 @@ Quellen:
 - `docs/plans/system-health-plugin-foundation-index.md`
 - `docs/plans/system-health-security-ops-runbook.md`
 - `docs/plans/system-health-dashboard-contract.md`
+- `docs/plans/system-health-plugin-foundation-readiness-index-contract.md`
 
 Dieser Contract definiert ein operatorfreundliches Review Packet fuer die System Health Plugin Foundation. Das Packet bringt Audit Index, Readiness Score, Dashboard-/Security-/Ops-Foundation und die harten Runtime-No-Go-Grenzen in eine konservative manuelle Review-Reihenfolge. Es ist eine Entscheidungsgrundlage fuer Menschen, kein Deployment und kein Runtime Enablement.
 
