@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/orchestration-activation-bundle-contract.md`
 - `docs/plans/orchestration-activation-summary-renderer-contract.md`
+- `docs/plans/orchestration-activation-bundle-history-diff-contract.md`
 
 Dieser Contract definiert, wie fuer das AUTO Activation Bundle ein stabiler Digest gebildet wird. Der Digest dient nur Change Detection, Traceability, Snapshot-History und Diff. Er fuehrt keine Aktivierung aus und darf nicht als Live-Signal interpretiert werden.
 
