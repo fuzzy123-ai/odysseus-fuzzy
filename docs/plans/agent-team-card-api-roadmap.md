@@ -47,6 +47,9 @@ Erlaubter Scope:
 - `docs/plans/agent-team-card-api-contract.md`
 - optional kurzer Link in `docs/plans/agent-team-card-api-roadmap.md`
 
+Primaerer Alice-Contract:
+- `docs/plans/agent-team-card-api-contract.md`
+
 Anforderungen:
 
 - Erklaere, welche Daten sichtbar werden duerfen: Agent-ID, Name, Rolle, Staerken-Chips, Best-for, Avoid-for, Parent, Sichtbarkeit, Timer-Hinweis, Safety Summary.
