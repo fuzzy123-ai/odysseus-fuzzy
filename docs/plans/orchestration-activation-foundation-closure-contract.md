@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/orchestration-activation-readiness-index-contract.md`
 - `docs/plans/orchestration-operator-activation-packet-contract.md`
 - `docs/plans/orchestration-activation-packet-renderer-contract.md`
+- `docs/plans/orchestration-activation-operator-handoff-index.md`
 
 Dieser Contract definiert ein finales read-only Closure Bundle fuer die AUTO-Activation-Foundation. Das Bundle fasst zusammen, welche Aktivierungs-Bausteine vorbereitet sind, welche Artefakte bereits als sichere Statushilfen vorliegen und welche Runtime-Gates bewusst geschlossen bleiben. Der Slice aktiviert keine Runtime, fuehrt keine Threads aus und startet keine Git-/Test-Runner.
 
