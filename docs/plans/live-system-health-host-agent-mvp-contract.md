@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-security-ops-runbook.md`
 - `docs/plans/system-health-agent-interface-contract.md`
 - `docs/plans/system-health-plugin-audit-index-contract.md`
+- `docs/plans/live-system-health-local-api-consumer-contract.md`
 
 Dieser Contract definiert die Operator- und Nutzersprache fuer einen spaeteren System Health Host Agent MVP als Live-Integrations-Vorbereitung. Der Plan beschreibt nur, wie ein Debian-/System-Health-Host-Agent spaeter sicher installiert, gelesen, freigegeben und wieder deaktiviert werden koennte. Er fuehrt keine Host-Kommandos aus, installiert keinen systemd-Service, beruehrt keine Podman-/Docker-/Socket-Konfiguration und startet keine Telegram-, Netzwerk- oder Token-Aktionen. Das Gate bleibt read-only und erzeugt kein externes Release-Go.
 
