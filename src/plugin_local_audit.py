@@ -31,8 +31,13 @@ class LocalPluginAudit:
 class LocalPluginAuditSummary:
     ok: bool
     plugin_count: int
-    loaded_count: int
+    entrypoint_count: int
     audits: tuple[LocalPluginAudit, ...]
+
+    @property
+    def loaded_count(self) -> int:
+        """Backward-compatible alias for entrypoint-backed discoverability."""
+        return self.entrypoint_count
 
     @property
     def failing_ids(self) -> tuple[str, ...]:
@@ -56,7 +61,7 @@ def audit_plugins_directory(directory: str | os.PathLike[str]) -> LocalPluginAud
     return LocalPluginAuditSummary(
         ok=all(audit.ok for audit in audits),
         plugin_count=len(audits),
-        loaded_count=sum(1 for audit in audits if audit.entrypoint),
+        entrypoint_count=sum(1 for audit in audits if audit.entrypoint),
         audits=tuple(audits),
     )
 

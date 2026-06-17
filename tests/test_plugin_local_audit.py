@@ -90,7 +90,7 @@ def test_local_audit_allows_host_agent_with_local_api(tmp_path):
     assert audit.warnings == ()
 
 
-def test_directory_summary_is_sorted_and_counts_loaded_plugins(tmp_path):
+def test_directory_summary_is_sorted_and_counts_discoverable_entrypoints(tmp_path):
     good = tmp_path / "good"
     bad = tmp_path / "bad"
     good.mkdir()
@@ -104,6 +104,7 @@ def test_directory_summary_is_sorted_and_counts_loaded_plugins(tmp_path):
 
     assert not summary.ok
     assert summary.plugin_count == 2
+    assert summary.entrypoint_count == 1
     assert summary.loaded_count == 1
     assert [audit.plugin_id for audit in summary.audits] == ["bad", "good"]
     assert summary.failing_ids == ("bad",)
