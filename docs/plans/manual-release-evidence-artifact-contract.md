@@ -148,6 +148,68 @@ Das Artefakt bleibt:
 - Operator-Orientierung
 - Gap-Bericht
 
+## Operator-Nutzung
+
+Das Artefakt wird spaeter sinnvoll:
+
+- morgens vor einem manuellen Lauf
+- vor einem Charlie-Handoff
+- nach einem Lauf nur als aktualisierter Gap- oder Status-Snapshot
+
+Nicht sinnvoll ist:
+
+- das Artefakt als Release-Go zu lesen
+- das Artefakt als Ersatz fuer beobachtete manuelle Evidence zu behandeln
+
+## Wie Markdown, JSON und Digest zu lesen sind
+
+### `markdown_summary`
+
+Lesbare Kurzfassung fuer Menschen.
+
+Nutzen:
+
+- schneller Morgenstatus
+- kurzer Handoff
+- kompakte Sicht auf offene manuelle Gates
+
+### `json_report`
+
+Kanonische Maschinenquelle.
+
+Nutzen:
+
+- Status technisch vergleichen
+- Renderer oder Bundle-Helfer daran ausrichten
+- Gap-Lage eindeutig und reproduzierbar ausdruecken
+
+### `sha256_digest`
+
+Integritaetshinweis ueber das kanonische JSON.
+
+Nutzen:
+
+- erkennen, ob sich der Snapshot geaendert hat
+- bestaetigen, dass Markdown nicht die Wahrheitsquelle fuer die Integritaet ist
+
+Wichtig:
+
+- gleicher Digest bedeutet nur gleicher JSON-Snapshot
+- gleicher Digest bedeutet nicht, dass echte manuelle Evidence schon erbracht wurde
+
+## Wie ein falsches Go vermieden wird
+
+Damit ein Gap-Artefakt nicht faelschlich als Go-Evidence gelesen wird, gilt:
+
+- Markdown darf offene Gaps kompakt zeigen, aber nie als erledigten Beweis formulieren
+- JSON muss klar zwischen `pending`, `partial`, `blocked` und spaeter echter Evidence unterscheiden
+- Digest belegt nur Snapshot-Konsistenz, nicht Release-Freigabe
+- echtes `Go` entsteht weiter nur im beobachteten manuellen Evidence-Log
+
+Wenn das Artefakt offene Gates zeigt oder keine echte beobachtete Evidence referenzieren kann:
+
+- externes `1.0` bleibt `No-Go`
+
 ## Erwartete Struktur des JSON-Reports
 
 Der JSON-Report soll spaeter mindestens ausdruecken koennen:
