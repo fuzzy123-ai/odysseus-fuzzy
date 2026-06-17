@@ -58,6 +58,9 @@ Allowed Alice paths:
 - `docs/plans/telegram-agent-chat-operator-runbook.md`
 - Optional links from existing Telegram docs under `docs/plans/telegram-*.md`
 
+Primary operator doc:
+- `docs/plans/telegram-agent-chat-operator-runbook.md`
+
 Bob owns implementation models, plugin code, and focused tests.
 
 Allowed Bob paths:
