@@ -57,6 +57,9 @@ Erlaubter Scope:
 - `docs/plans/agent-automation-ux-contract.md`
 - optional kurzer Link in `docs/plans/agent-automation-foundation-roadmap.md`
 
+Primaerer Alice-Contract:
+- `docs/plans/agent-automation-ux-contract.md`
+
 Anforderungen:
 
 - Beschreibe einfache Befehle wie `Charlie, stell einen Watch alle 30 Minuten`, ohne `/agent`-Pflicht.
