@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/orchestration-activation-audit-trail-contract.md`
 - `docs/plans/orchestration-activation-handoff-checklist-contract.md`
 - `docs/plans/orchestration-activation-bundle-contract.md`
+- `docs/plans/orchestration-activation-packet-renderer-contract.md`
 
 Dieser Contract definiert ein kompaktes Operator Activation Packet fuer spaetere Freigabereviews. Das Packet fasst zusammen, was beantragt ist, welche Gates gruen/gelb/rot sind, welche Evidence vorliegt und was blockiert bleibt. Der Slice fuehrt bewusst keine echte Aktivierung, keine Runtime-Persistenz, keine Thread-Sends und keine Git-/Test-Ausfuehrung aus.
 
