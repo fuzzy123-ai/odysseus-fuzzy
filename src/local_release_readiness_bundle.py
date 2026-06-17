@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.plugin_local_audit import audit_plugins_directory
+from src.plugin_local_audit_markdown import render_local_plugin_audit_markdown
 from src.plugin_release_markdown import render_plugin_release_gate_markdown
 from src.release_artifact_markdown import render_release_artifact_manifest_markdown
 from src.plugin_release_gate import PluginReleaseGate, evaluate_plugin_release_gate
@@ -25,6 +27,7 @@ class LocalReleaseReadinessBundle:
     artifact_manifest: ReleaseArtifactManifest
     pipeline: ReleaseReadinessPipelineSnapshot
     plugin_markdown: str
+    local_plugin_audit_markdown: str
     artifact_markdown: str
     handoff_markdown: str
 
@@ -34,6 +37,7 @@ class LocalReleaseReadinessBundle:
             "artifact_manifest": self.artifact_manifest.to_dict(),
             "pipeline": self.pipeline.to_dict(),
             "plugin_markdown": self.plugin_markdown,
+            "local_plugin_audit_markdown": self.local_plugin_audit_markdown,
             "artifact_markdown": self.artifact_markdown,
             "handoff_markdown": self.handoff_markdown,
         }
@@ -53,6 +57,7 @@ def build_local_release_readiness_bundle(
         artifact_manifest=artifact_manifest,
         pipeline=pipeline,
         plugin_markdown=render_plugin_release_gate_markdown(plugin_gate),
+        local_plugin_audit_markdown=render_local_plugin_audit_markdown(audit_plugins_directory(plugin_directory)),
         artifact_markdown=render_release_artifact_manifest_markdown(artifact_manifest),
         handoff_markdown=render_release_handoff_markdown(pipeline),
     )

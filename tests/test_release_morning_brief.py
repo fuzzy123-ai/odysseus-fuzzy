@@ -10,6 +10,8 @@ def test_release_morning_brief_combines_handoff_and_artifacts():
     assert "# Release Orchestration Status" in brief
     assert "## Plugin Release Gate" in brief
     assert "# Plugin Release Gate" in brief
+    assert "## Local Plugin Audit" in brief
+    assert "# Local Plugin Audit" in brief
     assert "## Artifact Traceability" in brief
     assert "# Release Artifact Manifest" in brief
 

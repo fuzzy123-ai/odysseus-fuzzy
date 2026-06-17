@@ -57,6 +57,7 @@ def test_local_release_readiness_bundle_to_dict_is_stable_shape(tmp_path):
     assert payload["plugin_gate"]["ok"] is True
     assert payload["artifact_manifest"]["ok"] is True
     assert payload["plugin_markdown"].startswith("# Plugin Release Gate")
+    assert payload["local_plugin_audit_markdown"].startswith("# Local Plugin Audit")
     assert payload["artifact_markdown"].startswith("# Release Artifact Manifest")
     assert payload["pipeline"]["report"]["status"] == "blocked"
     assert payload["handoff_markdown"].startswith("# Release Orchestration Status")
