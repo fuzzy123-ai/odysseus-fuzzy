@@ -7,6 +7,7 @@ Status: **TLG0A Docs-Contract fuer das Gate `telegram_release_boundary`**
 Quellen:
 
 - `docs/plans/release-runtime-readiness-roadmap.md`
+- `docs/plans/telegram-offline-smoke-plan-contract.md`
 - `docs/plans/system-health-telegram-pull-status-contract.md`
 - `docs/plans/live-telegram-status-dry-run-contract.md`
 
