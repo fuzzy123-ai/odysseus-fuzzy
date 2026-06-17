@@ -2,7 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: **ATC0 gestartet; Ziel ist eine read-only Team-Card-Surface fuer Main Agent und UI**
+Status: **ATC0-ATC3 abgeschlossen; read-only Team-Card-Surface ist fuer Main Agent und spaetere UI bereit**
 
 ## Goal
 
@@ -15,6 +15,9 @@ Odysseus soll die aktive Agenten-Teamkarte als sichere, read-only API-Surface be
 - `src/agent_profile_registry.py` loest Default-Rollen wie Alice, Bob und Charlie aus Presets, CrewMember-aehnlichen Inputs und Overrides auf.
 - `tests/test_agent_profile.py`, `tests/test_agent_team_card.py` und `tests/test_agent_profile_registry.py` sind gruen.
 - `docs/plans/agent-profile-ux-contract.md` beschreibt die erwartete Anzeige von Staerken, Parent/Child-Sichtbarkeit, Overrides und Timer-Hinweisen.
+- `docs/plans/agent-team-card-api-contract.md` beschreibt den read-only Operator-/Nutzervertrag fuer die Team-Card-Surface.
+- `src/agent_team_card_api.py` baut eine leak-freie Payload aus der Default-Registry.
+- `routes/agent_team_routes.py` stellt `GET /api/agents/team-card` admin-gated und read-only bereit.
 
 ## Non-goals
 
@@ -93,13 +96,14 @@ Anforderungen:
 
 ### ATC4-ui-readonly-hook
 
-Optionaler P2-Slice: nur ein sehr kleiner UI-Link oder Read-only Fetch-Hook, falls Route und Payload stabil sind. Sonst deferred.
+Status: **Deferred**. Optionaler P2-Slice: nur ein sehr kleiner UI-Link oder Read-only Fetch-Hook, falls Route und Payload stabil sind und der Nutzer UI-Arbeit explizit priorisiert.
 
 ## Verification
 
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_profile.py tests\test_agent_team_card.py tests\test_agent_profile_registry.py`
 - Nach ATC2: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_team_card_api.py`
 - Nach ATC3: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_team_card_api.py tests\test_agent_team_routes.py`
+- Abschlusslauf: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_team_routes.py tests\test_agent_team_card_api.py tests\test_agent_profile.py tests\test_agent_team_card.py tests\test_agent_profile_registry.py` -> `25 passed, 1 warning`
 
 ## Go / Partial / No-Go
 
