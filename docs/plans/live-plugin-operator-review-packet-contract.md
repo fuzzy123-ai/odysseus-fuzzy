@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/live-plugin-manifest-discovery-dry-run-contract.md`
 - `docs/plans/live-plugin-capability-preview-index-contract.md`
 - `docs/plans/live-plugin-loader-safe-mode-contract.md`
+- `docs/plans/live-integration-readiness-index-contract.md`
 - `docs/plans/live-release-evidence-closeout-contract.md`
 
 Dieser Contract definiert die sichere Operator- und Nutzersprache fuer ein spaeteres Plugin-Operator-Review-Packet im Offline-, Fixture- und Manual-Review-Modus. Das Review-Packet darf nur statische Manifest-, Capability-, Audit-, Preview- und Safe-Mode-Signale zusammenfassen. Es importiert keinen Plugin-Code, ruft kein `setup()` auf, fuehrt keine dynamischen Imports oder Codepfade aus und aktiviert weder Runtime, Netzwerk, Host, Token noch automatische Freigaben. Das Gate bleibt read-only und erzeugt kein externes Release-Go.
