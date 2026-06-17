@@ -605,6 +605,7 @@ Produktentscheidung:
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
 | `PLUGIN2-manifest-policy-model` | Policy-Text und Review-Regeln | done: Offline-Validatoren fuer Registry und lokale Plugin-Manifeste; statisches lokales Plugin-Audit; Plugin-Release-Gate | Tests, Scope, keine Runtime-Hooks | ja |
+| `PLUGIN3-capability-boundary-model` | Plugin-Arten und erlaubte Capabilities als statische Grenze definieren | done: UI/Core/Host-Agent-Grenzen offline pruefbar; direkte Host-/Socket-Zugriffe bleiben verboten | Tests, keine Imports, keine Host-Kommandos | ja |
 | `SHC0-narrative-and-architecture-contract` | NDD-Contract, Nutzerfluesse, Begriffe, Statussprache | Debian/Podman/Docker Machbarkeit read-only pruefen | Roadmap einordnen, aktive Slices/Worktree pruefen | ja, docs/read-only |
 | `SHC1-health-agent-interface` | UX-Vertrag fuer Health-Zustaende und UI-Snapshots | `HealthSnapshot`, `CollectorStatus`, `AlertSummary` Modelle | done: Plugin-Scaffold + offline Snapshot | ja |
 | `SHC2-debian-basic-collectors` | Setup-/Unknown-State Texte | CPU/RAM/Load/Uptime/Disk Collector-Modelle mit Mockable Inputs | done: keine Host-Kommandos, nur Normalisierung | ja nach Contract |
