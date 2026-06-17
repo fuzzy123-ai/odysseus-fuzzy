@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-basic-collectors-contract.md`
 - `docs/plans/system-health-checker-plugin.md`
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
+- `docs/plans/system-health-telegram-pull-status-contract.md`
 
 Dieser Contract definiert, wie uebergebene `HealthSnapshot`-, `CollectorStatus`- und bestehende `AlertSummary`-Daten spaeter in Alerts, Wiederholungsunterdrueckung und Recovery-Ereignisse uebersetzt werden. Der Slice fuehrt bewusst keine Host-Kommandos, keine Telegram-Aktionen, keine Netzwerkausfuehrung und keine Auto-Reparatur aus.
 
