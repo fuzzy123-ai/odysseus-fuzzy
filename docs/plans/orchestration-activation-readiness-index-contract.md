@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/orchestration-activation-handoff-checklist-contract.md`
 - `docs/plans/orchestration-operator-activation-packet-contract.md`
 - `docs/plans/orchestration-activation-packet-renderer-contract.md`
+- `docs/plans/orchestration-activation-foundation-closure-contract.md`
 
 Dieser Contract definiert einen kompakten Readiness-Index fuer spaetere Aktivierungspruefungen. Der Index zeigt, welche Aktivierungs-Bausteine vorbereitet sind, welche Evidence-Artefakte vorliegen, welche Gates noch bewusst blockieren und was ein Operator als naechstes pruefen muss. Der Slice fuehrt bewusst keine Runtime-Aktivierung, keine Persistenz, keine Thread-Sends und keine Git-/Test-Ausfuehrung aus.
 
