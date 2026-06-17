@@ -1,5 +1,7 @@
 import json
+from datetime import datetime, timedelta, timezone
 
+from src.agent_automation_spec import AgentAutomationSpec
 from src.agent_profile import AgentProfile
 from src.agent_team_card import AgentTeamCard, build_default_team_rules
 from src.agent_team_card_api import (
@@ -111,3 +113,51 @@ def test_payload_is_json_compatible():
     assert '"team"' in encoded
     assert '"audit"' in encoded
     assert '"prompt_text"' in encoded
+
+
+def test_visible_agent_timer_hint_can_be_attached_read_only():
+    spec = AgentAutomationSpec.create(
+        agent_id="alice",
+        parent_agent_id="charlie",
+        mode="interval",
+        status="ready",
+        interval_count=30,
+        interval_unit="minutes",
+        next_run_hint="next handoff in 30 minutes",
+    )
+
+    payload = build_default_agent_team_card_payload(automation_specs={"alice": spec}).to_dict()
+    by_id = {agent["agent_id"]: agent for agent in payload["team"]}
+
+    assert by_id["charlie"]["automation"] is None
+    assert by_id["alice"]["automation"]["mode"] == "interval"
+    assert by_id["alice"]["automation"]["interval_count"] == 30
+    assert by_id["alice"]["automation"]["parent_agent_id"] == "charlie"
+
+
+def test_hidden_worker_timer_hint_is_reduced_and_sanitized():
+    future = datetime.now(timezone.utc) + timedelta(days=1)
+    spec = AgentAutomationSpec.create(
+        agent_id="worker",
+        parent_agent_id="charlie",
+        mode="once",
+        status="needs_review",
+        scheduled_at=future,
+        next_run_hint="chat_id=555 should never leak",
+    )
+    team_card = AgentTeamCard.create(
+        profiles=[
+            _profile("charlie", visibility="primary", role_preset_id="coordinator-release"),
+            _profile("worker", visibility="hidden_worker", role_preset_id="background-worker"),
+        ],
+        rules=build_default_team_rules(),
+    )
+
+    payload = build_agent_team_card_payload(team_card, automation_specs={"worker": spec}).to_dict()
+    worker = payload["hidden_workers"][0]
+    encoded = json.dumps(worker)
+
+    assert worker["automation"]["mode"] == "once"
+    assert worker["automation"]["status"] == "needs_review"
+    assert "555" not in encoded
+    assert "[redacted]" in encoded

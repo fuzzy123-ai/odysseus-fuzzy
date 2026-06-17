@@ -2,7 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: **AAF0 gestartet; Ziel ist ein sicheres Timer-/Watch-Fundament fuer Agents, Main Agent und spaetere UI**
+Status: **AAF1-AAF3 abgeschlossen; sicheres Timer-/Watch-Fundament fuer Agents, Main Agent und spaetere UI ist bereit. AAF4 bleibt deferred.**
 
 ## Goal
 
@@ -52,6 +52,8 @@ Charlie erstellt diese Roadmap, prueft bestehende Scheduler-/Agent-Fundamente un
 
 Alice beschreibt den Nutzer-/Operator-Vertrag fuer Timer-Uhr, Overlay, einfache Befehle und Live-Gates.
 
+Status: **abgeschlossen**
+
 Erlaubter Scope:
 
 - `docs/plans/agent-automation-ux-contract.md`
@@ -71,6 +73,8 @@ Anforderungen:
 
 Bob baut ein runtime-agnostisches Spec-/Payload-Modell plus Tests.
 
+Status: **abgeschlossen**
+
 Erlaubter Scope:
 
 - `src/agent_automation_spec.py`
@@ -89,6 +93,8 @@ Anforderungen:
 
 Charlie oder Bob integriert nach AAF2 einen kleinen read-only Anschluss an die Team-Card-Payload, falls sauber lokalisierbar.
 
+Status: **abgeschlossen**
+
 Voraussichtlicher Scope:
 
 - `src/agent_team_card_api.py`
@@ -104,10 +110,17 @@ Anforderungen:
 
 Optionaler P1/P2-Slice: read-only Preview-Route fuer Automation-Specs. Nur falls AAF2/AAF3 stabil sind und der Nutzer API-Arbeit priorisiert.
 
+Status: **deferred**. Der Foundation-Track bleibt absichtlich read-only im Modell und in der Team-Card-Payload. Eine Admin-Route wird erst umgesetzt, wenn die API-Surface separat priorisiert ist.
+
 ## Verification
 
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_automation_spec.py`
 - Nach AAF3: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_automation_spec.py tests\test_agent_team_card_api.py tests\test_agent_profile.py tests\test_agent_team_card.py tests\test_agent_profile_registry.py`
+
+Aktuelle Evidence:
+
+- `tests/test_agent_automation_spec.py` -> `10 passed, 1 warning`.
+- `tests/test_agent_automation_spec.py tests/test_agent_team_card_api.py tests/test_agent_profile.py tests/test_agent_team_card.py tests/test_agent_profile_registry.py` -> `36 passed, 1 warning`.
 
 ## Go / Partial / No-Go
 
