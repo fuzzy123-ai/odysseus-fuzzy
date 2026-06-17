@@ -174,6 +174,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL10-orchestration-status-model` | Pipeline und Matrix zu einem kompakten Dashboard-/Runbook-Status verdichten | aktive Owner und Parallel-/Sequenz-Gates sind sichtbar, aber kein Dispatch |
 | `REL11-status-markdown-renderer` | Orchestration-Status als kompakten Markdown-Block fuer Runbook/Chat rendern | Statusmeldungen bleiben stabil, kurz und ohne Live-Aktionen |
 | `REL12-current-status-markdown-entrypoint` | aktuellen dokumentierten 1.0-Status direkt als Markdown rendern | nutzt nur Snapshots, keine Live-Checks |
+| `REL13-followup-markdown-renderer` | Folge-Slices als Markdown-Tabelle rendern | Aufgaben sind lesbar, aber werden nicht dispatched |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
