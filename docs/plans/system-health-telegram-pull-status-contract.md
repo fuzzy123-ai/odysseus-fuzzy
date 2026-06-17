@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-rule-engine-alert-contract.md`
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
 - `docs/plans/system-health-checker-plugin.md`
+- `docs/plans/system-health-auto-alerting-contract.md`
 
 Dieser Contract definiert sichere Pull-Kommandos fuer spaetere Telegram-Statusabfragen des System Health Checkers. Er beschreibt nur Anfrage-/Antwortmodelle, Allowlist-Regeln und konservative Response-Copy gegen `HealthSnapshot`- und Alert-Daten. Der Slice fuehrt bewusst keine Bot-Library, kein Long Polling, kein Webhook, keine Netzwerkausfuehrung und keine Token-Nutzung aus.
 
