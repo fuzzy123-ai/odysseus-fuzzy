@@ -98,6 +98,9 @@ Erlaubter Scope:
 - `docs/plans/agent-profile-ux-contract.md`
 - optional kurzer Link in `docs/plans/agent-profile-foundation-roadmap.md`
 
+Primaerer Alice-Contract:
+- `docs/plans/agent-profile-ux-contract.md`
+
 ### APF2-agent-profile-model
 
 Bob baut ein kleines runtime-agnostisches Profilmodell plus Tests. Kein DB-Write, keine UI, keine echten Agent-Sends.
