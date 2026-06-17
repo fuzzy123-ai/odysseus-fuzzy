@@ -28,9 +28,11 @@ from core.database import SessionLocal
 from src.llm_core import llm_call_async
 from services.memory.memory_extractor import audit_memories
 from src.auth_helpers import get_current_user, require_user
+from core.middleware import require_admin
 from src.endpoint_resolver import resolve_endpoint
 from src.task_endpoint import resolve_task_endpoint
 from src.upload_limits import read_upload_limited, MEMORY_IMPORT_MAX_BYTES
+from src.memory_store_stats import build_memory_store_stats
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,21 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
             return  # Auth disabled
         if memory.get("owner") != user:
             raise HTTPException(404, "Memory not found")
+
+    @router.get("/stats")
+    def api_memory_stats(request: Request):
+        """Read-only storage stats without exposing memory contents."""
+        require_admin(request)
+        memory_file = getattr(memory_manager, "memory_file", None)
+        data_dir = os.path.dirname(memory_file) if memory_file else None
+        chroma_path = os.path.join(data_dir, "chroma") if data_dir else None
+        stats = build_memory_store_stats(
+            memory_manager=memory_manager,
+            vector_stats=memory_vector,
+            memory_json_path=memory_file,
+            chroma_path=chroma_path,
+        )
+        return stats.to_dict()
 
     @router.post("/debug")
     def debug_memory_relevance(request: Request, query: str = Form(...)):

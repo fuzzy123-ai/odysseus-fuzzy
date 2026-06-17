@@ -1,4 +1,8 @@
 from pathlib import Path
+from unittest.mock import MagicMock
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from src.memory_store_stats import (
     ROLE_CANONICAL,
@@ -110,3 +114,37 @@ def test_rag_stats_can_be_derived_from_document_list(tmp_path):
     )
 
     assert stats.rag_document_count == 3
+
+
+def test_memory_stats_route_is_admin_gated_and_does_not_leak_text(monkeypatch, tmp_path):
+    import routes.memory_routes as memory_routes
+
+    admin_calls = []
+    monkeypatch.setattr(memory_routes, "require_admin", lambda request: admin_calls.append(request))
+    memory_file = tmp_path / "memory.json"
+    memory_file.write_text('[{"id":"1","text":"private memory text"}]', encoding="utf-8")
+    (tmp_path / "chroma").mkdir()
+    (tmp_path / "chroma" / "index.bin").write_bytes(b"vector")
+    manager = MemoryManagerStub(
+        memory_file,
+        entries=[{"id": "1", "text": "private memory text"}],
+    )
+
+    app = FastAPI()
+    app.include_router(memory_routes.setup_memory_routes(manager, MagicMock(), VectorStatsStub()))
+    response = TestClient(app).get("/api/memory/stats")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert admin_calls
+    assert payload["personal_memory_entries"] == 1
+    assert payload["memory_json_bytes"] == memory_file.stat().st_size
+    assert payload["vector_index_healthy"] is True
+    assert payload["vector_index_count"] == 4
+    assert payload["chroma_bytes"] == 6
+    assert payload["roles"] == {
+        "personal_memory": ROLE_CANONICAL,
+        "vector_index": ROLE_DERIVED_INDEX,
+        "knowledge_index": ROLE_KNOWLEDGE_INDEX,
+    }
+    assert "private memory text" not in str(payload)
