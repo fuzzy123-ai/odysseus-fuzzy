@@ -144,6 +144,120 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 - Keine neuen Post-1.0-Research-Tracks starten.
 - Nextcloud bleibt pausiert, bis die Homeserver-/Nextcloud-Infrastruktur laeuft.
 
+## Naechste Phase: Live Integration & Plugin Enablement
+
+Status: **vorbereitet, noch nicht gestartet**
+
+Diese Phase schaltet die vorbereiteten Foundations nicht blind live. Sie fuehrt die echten Integrationspunkte in einer festen Reihenfolge ein, jeweils mit Operator-Freigabe, fokussiertem Test und sauberem Rollback-/Stop-Kriterium. Ziel ist, aus dem internen Release-Candidate-Stand eine praktisch nutzbare Live-Version zu machen, ohne die Sicherheitsgrenzen der letzten Slices zu verwischen.
+
+### Leitregeln
+
+- Erst die zwei offenen externen `1.0.0`-Evidence-Gates belegen: Provider-/Fallback-Antwortlauf und Export/Import/Rebuild mit kleinem Test-Vault.
+- Danach echte Runtime-Schalter nur sequenziell aktivieren, nie parallel.
+- Jede Live-Integration braucht einen Dry-Run-/Plan-Modus, bevor sie echte Aktionen ausfuehrt.
+- Keine Tokens, Host-Credentials oder privaten Pfade in Repo, Logs oder Handoffs.
+- Kein Odysseus-Core darf Host-Kommandos ausfuehren; Host-Zugriff laeuft nur ueber Host-Agent oder explizite Operator-Kommandos.
+- Plugin-Code wird erst importiert/ausgefuehrt, wenn Manifest, Capability Boundary und lokales Audit gruen sind.
+
+### Reihenfolge
+
+1. `LIVE0-release-evidence-closeout`
+2. `LIVE1-provider-proof-run`
+3. `LIVE2-test-vault-export-import-rebuild`
+4. `LIVE3-orchestration-runtime-bridge`
+5. `LIVE4-quality-gate-command-runner`
+6. `LIVE5-plugin-loader-safe-mode`
+7. `LIVE6-system-health-host-agent-mvp`
+8. `LIVE7-system-health-local-api-consumer`
+9. `LIVE8-telegram-status-dry-run`
+10. `LIVE9-dashboard-live-readiness`
+11. `LIVE10-nextcloud-readiness-check`
+
+### Alice/Bob/Charlie Matrix
+
+| Slice | Alice | Bob | Charlie | Parallelregel |
+| --- | --- | --- | --- | --- |
+| `LIVE0-release-evidence-closeout` | Abschlussnotiz: was ist intern RC, was blockiert externes Go | Evidence-Modelle gegen Log abgleichen | manuellen Go/No-Go-Status pruefen und pushen | nein |
+| `LIVE1-provider-proof-run` | Nutzertext fuer Provider-/Fallback-Proof | minimaler Provider-Proof-Runner oder Runbook-Adapter ohne Secrets | echter Lauf nur mit Nutzerfreigabe und redacted Evidence | nein |
+| `LIVE2-test-vault-export-import-rebuild` | Test-Vault-Checkliste und Risiko-Hinweise | Export/Import/Rebuild-Smoke gegen kleinen Test-Vault | Datenverlust-/Source-Write-Gate pruefen | nein |
+| `LIVE3-orchestration-runtime-bridge` | UX fuer "Agent Run live" und Stop-Zustaende | Bridge von Registry/Mailbox zu echten Thread-Tools, noch ohne Auto-Send | erster Dry-Run mit Fake/Read-only Threads | nein |
+| `LIVE4-quality-gate-command-runner` | Gate-Texte fuer rot/gelb/gruen | sicherer Command-Runner fuer erlaubte Testbefehle mit Timeout/No-Destructive-Policy | fokussierter Testlauf und Scope-Gate | nein |
+| `LIVE5-plugin-loader-safe-mode` | Plugin-Enablement-UX und Warnungen | Manifest-gepruefter Safe Loader ohne Top-Level-Nebeneffekte | lokales Plugin-Audit vor Import erzwingen | bedingt, nach LIVE4 |
+| `LIVE6-system-health-host-agent-mvp` | Install-/Ops-Texte fuer Debian systemd Agent | kleiner Host-Agent mit lokaler Snapshot-API, keine Secrets | Rechteplan, systemd-Runbook, lokale Tests | nein, eigener Host-Scope |
+| `LIVE7-system-health-local-api-consumer` | Health-Statussprache fuer live/offline/unknown | Odysseus konsumiert bereinigte Snapshot-API | Offline-/Agent-down-Smoke | bedingt, nach LIVE6 |
+| `LIVE8-telegram-status-dry-run` | Telegram Antworttexte und Allowlist-UX | Dry-run Adapter fuer `/status`, keine echten Tokens im Repo | Token-/Log-Gate, kein Netzwerk ohne Freigabe | nein |
+| `LIVE9-dashboard-live-readiness` | Dashboard-Sicht fuer Live Readiness | API-/Summary-Integration ohne Host-Kommandos | Browser-/API-Smoke | bedingt, nach LIVE7 |
+| `LIVE10-nextcloud-readiness-check` | Source-Provider-Freigabetext | Infrastruktur-/Credential-Readiness nur als Check | erst starten, wenn Nextcloud wirklich laeuft | nein |
+
+### Rollen-Lanes fuer Live Integration
+
+#### Alice-Lane
+
+Alice arbeitet in dieser Phase produkt- und operatornah. Ihre Slices sind zuerst Contracts, Nutzertexte, Runbooks, Dashboard-Wording und Go/No-Go-Erklaerungen. Alice darf keine Backend-/Runtime-/Provider-/Host-Agent-Hotfiles anfassen, ausser Charlie schneidet einen expliziten UI- oder Text-Scope mit klarer Datei-Isolation.
+
+Alice-Exit pro Slice:
+
+- Nutzer versteht, was live geschaltet wird und was nicht.
+- Risiken, Stop-Regeln und manuelle Entscheidungen sind in Klartext dokumentiert.
+- Handoff benennt exakt, welche Bob-Implementierung daraus folgen darf.
+
+#### Bob-Lane
+
+Bob baut die isolierten Modelle, Adapter, Runner und Tests. Bob startet keine echten Provider-, Host-, Telegram-, Export-/Import- oder Netzwerkaktionen, solange Charlie nicht ein explizites Live-Gate freigibt. Bob arbeitet zuerst im Dry-Run/Plan-Modus und liefert fokussierte Tests pro Slice.
+
+Bob-Exit pro Slice:
+
+- Implementierung bleibt in den erlaubten Scope-Dateien.
+- Tests belegen Erfolg, Block und Unknown/Offline-Faelle.
+- Keine Secrets, keine echten Tokens, keine destruktiven Befehle, keine Host-Kommandos aus dem Core.
+
+#### Charlie-Lane
+
+Charlie koordiniert Reihenfolge, Scope, Worktree, Tests, Push und Stop-Entscheidungen. Charlie startet echte Live-Aktionen nur nach Nutzerfreigabe und erst nach Alice-Contract plus Bob-Test. Charlie darf keine parallelen Hotfile-Slices schneiden, wenn Alice oder Bob noch in derselben Datei-Familie arbeiten.
+
+Charlie-Exit pro Slice:
+
+- Worktree ist sauber oder sauber erklaert.
+- Fokussierte Tests sind gelaufen und Ergebnis ist dokumentiert.
+- Commit/Push ist erfolgt, sofern der Slice abgeschlossen ist.
+- Naechster Slice ist entweder eindeutig verteilt oder bewusst blockiert.
+
+### Dispatch-Regel
+
+Jeder Live-Slice folgt diesem Ablauf:
+
+1. Alice contract/runbook first, wenn Nutzertext, Risiko oder Freigabe betroffen ist.
+2. Bob implementiert danach nur den aus Alice abgeleiteten Backend-/Test-Scope.
+3. Charlie prueft Scope, Tests, Worktree und Push.
+4. Erst danach wird der naechste Live-Slice verteilt.
+
+Parallelisierung ist nur erlaubt, wenn:
+
+- Alice ausschliesslich Docs bearbeitet,
+- Bob ausschliesslich neue isolierte src/test-Dateien bearbeitet,
+- keine Runtime-Hotfiles, Provider-Hotfiles, Plugin-Loader-Hotfiles oder Dashboard-Hotfiles geteilt werden,
+- Charlie vorher die Datei-Isolation explizit bestaetigt.
+
+### Stop-Regeln fuer Live Integration
+
+- Stop bei fehlender Nutzerfreigabe fuer echte Provider-, Host-, Telegram-, Export-/Import- oder Netzwerkaktionen.
+- Stop bei Token/Secret im Log, Repo, Testoutput oder Handoff.
+- Stop bei direktem Host-, Podman-, Docker- oder SMART-Zugriff aus Odysseus-Core.
+- Stop bei destruktivem Export/Import/Rebuild-Pfad ohne Test-Vault und Backup-Hinweis.
+- Stop bei Plugin-Import ohne vorher gruenes Manifest-/Capability-/Local-Audit-Gate.
+- Stop bei rotem Quality Gate ohne fokussierten Fix.
+
+### Definition of Done Live Integration
+
+- Provider-/Fallback-Proof und Test-Vault Export/Import/Rebuild sind manuell belegt oder bewusst als No-Go dokumentiert.
+- Orchestration kann einen echten Agent Run sicher lesen, dispatchen, gate-pruefen und stoppen.
+- Quality Gates koennen erlaubte Tests ausfuehren, ohne destruktive Befehle zu ermoeglichen.
+- Plugin Loader aktiviert nur auditierte Plugins im Safe Mode.
+- System Health Host-Agent laeuft getrennt von Odysseus und liefert bereinigte Snapshots.
+- Odysseus zeigt Live-/Offline-/Unknown-Health verstaendlich, ohne Host-Kommandos aus dem Core.
+- Telegram bleibt token-sicher und startet erst nach Allowlist-/Secret-Gate.
+- Nextcloud startet erst nach Infrastruktur-Readiness, nicht als versteckter Nebenpfad.
+
 ### Alice-Pfad `1.0.0`
 
 | Slice | Ziel | Dateien | Exit |
