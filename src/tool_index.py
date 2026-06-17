@@ -19,6 +19,7 @@ from src.embedding_lanes import (
     dedupe_results,
     migrate_legacy_collection,
 )
+from src.chat_agent_tool_discovery_map import keyword_hint_pairs
 
 try:
     import numpy as np
@@ -394,6 +395,7 @@ class ToolIndex:
 
     # Keyword hints: if the query mentions these words, force-include the tools.
     _KEYWORD_HINTS = {
+        **dict(keyword_hint_pairs()),
         # NOTE: "tell" was removed from this set. It fired on any "tell me ..."
         # request (e.g. "visit <url> and tell me the title"), force-including the
         # whole email toolset and crowding out the relevant tools — the model then

@@ -13,6 +13,7 @@ These hints are deterministic string matching — no embeddings — so we can te
 """
 
 from src.tool_index import ToolIndex, ALWAYS_AVAILABLE
+from src.chat_agent_tool_discovery_map import MULTI_AGENT_TOOLSET, SESSION_TOOLSET
 
 _EMAIL_TOOLS = {
     "list_emails", "read_email", "send_email", "reply_to_email",
@@ -63,3 +64,44 @@ def test_plain_tell_request_stays_minimal():
     assert not (_EMAIL_TOOLS & tools)
     # Always-available baseline is still there.
     assert set(ALWAYS_AVAILABLE) <= tools
+
+
+def test_german_chat_creation_queries_get_session_tools_without_retrieval():
+    """German chat/session wording must surface the existing session tools."""
+    ti = _index_without_embeddings()
+
+    examples = [
+        "Lege einen neuen Chat fuer Bob an",
+        "Bitte eine neue Unterhaltung erstellen",
+        "Thread starten fuer Alice",
+        "Chat für Bob erstellen",
+    ]
+
+    for query in examples:
+        tools = ti.get_tools_for_query(query)
+        assert SESSION_TOOLSET <= tools, query
+
+
+def test_english_chat_creation_queries_get_session_tools_without_retrieval():
+    """English 'new chat' wording should not depend on embedding recall."""
+    ti = _index_without_embeddings()
+
+    tools = ti.get_tools_for_query("Create a new chat for Bob and send him the context")
+
+    assert SESSION_TOOLSET <= tools
+
+
+def test_multi_agent_queries_get_delegation_tools_without_retrieval():
+    """Multi-agent/worker wording must surface orchestration-adjacent tools."""
+    ti = _index_without_embeddings()
+
+    examples = [
+        "Verteile diese Aufgabe an Alice und Bob",
+        "Starte einen Worker fuer die Analyse",
+        "Nutze Multi-Agent-Support",
+        "Charlie koordiniert, Alice und Bob arbeiten parallel",
+    ]
+
+    for query in examples:
+        tools = ti.get_tools_for_query(query)
+        assert MULTI_AGENT_TOOLSET <= tools, query
