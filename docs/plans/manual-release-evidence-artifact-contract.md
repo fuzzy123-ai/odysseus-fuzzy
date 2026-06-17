@@ -269,6 +269,72 @@ Die Markdown-Zusammenfassung soll spaeter knapp zeigen:
 - klare No-Go-Notiz
 - Verweise auf Provider- und Export/Import/Rebuild-Runbooks
 
+## Readiness-Summary lesen
+
+Eine spaetere Readiness-Summary ist ein Orientierungs- und Entscheidungswerkzeug, keine echte manuelle Evidence.
+
+Wichtig zu lesen sind mindestens:
+
+- `ok`
+- Status-Label
+- Anzahl offener Gates
+- vorgeschlagene Dateinamen oder Artifact-Namen
+
+## Bedeutung der Summary-Felder
+
+### `ok`
+
+`ok` darf nur bedeuten:
+
+- der Snapshot ist intern konsistent
+- die Summary konnte plausibel erzeugt werden
+
+`ok` bedeutet nicht:
+
+- externes `1.0` ist freigegeben
+- echte manuelle Evidence liegt vollstaendig vor
+
+### Status-Label
+
+Das Status-Label soll knapp zeigen, ob die manuelle Lage:
+
+- `pending`
+- `partial`
+- `blocked`
+
+oder spaeter explizit anders markiert ist.
+
+Wenn das Label nicht eindeutig auf erledigte echte Evidence verweist, bleibt:
+
+- `No-Go fuer externes 1.0 Release`
+
+### Anzahl offener Gates
+
+Die Anzahl offener Gates ist ein Fokus-Hinweis fuer Operator oder Charlie.
+
+Sie zeigt:
+
+- wie viele manuelle Gates noch fehlen
+- nicht, dass ein schon gezählter Gate automatisch erledigt sei
+
+### Suggested Filenames
+
+Vorgeschlagene Dateinamen oder Artefakt-Namen sind nur Ablage- und Traceability-Hilfen.
+
+Sie sind:
+
+- kein Beweis
+- keine Freigabe
+- keine Ersatz-Evidence
+
+## No-Go-Hinweis fuer die Readiness-Summary
+
+Auch eine vollstaendig aussehende Summary bleibt nur ein Snapshot.
+
+Solange echte beobachtete Provider- oder Export/Import/Rebuild-Evidence fehlt:
+
+- externes `1.0` bleibt `No-Go`
+
 ## Akzeptanz fuer spaeteren Bob-Slice
 
 Der spaetere Bundle-Helper darf:
