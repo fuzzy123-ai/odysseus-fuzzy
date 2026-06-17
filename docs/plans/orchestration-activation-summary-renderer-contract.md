@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/orchestration-activation-readiness-summary-contract.md`
 - `docs/plans/orchestration-operator-activation-contract.md`
+- `docs/plans/orchestration-activation-bundle-contract.md`
 
 Dieser Contract definiert die stabile Ausgabeform fuer Markdown- und JSON-Renderer der Activation Readiness Summary. Beide Renderer dienen nur Anzeige, Handoff und spaeteren UI-/Automation-Snapshots. Sie fuehren keine Live-Aktivierung, keine Runtime-Hooks und keine Folgeaktionen aus.
 
