@@ -11,6 +11,7 @@ Quellen:
 - `docs/plans/system-health-security-ops-runbook.md`
 - `docs/plans/system-health-dashboard-contract.md`
 - `docs/plans/system-health-container-runtime-adapter-contract.md`
+- `docs/plans/system-health-plugin-operator-review-packet-contract.md`
 
 Dieser Contract definiert einen operatorfreundlichen Readiness Score und eine Go-No-Go-Zusammenfassung fuer die System Health Plugin Foundation. Der Score verdichtet Foundation-Vollstaendigkeit, Host-Grenzen, Audit-Abdeckung, Operator-Dokumentation, Runtime-No-Go-Integritaet und Deployment-Voraussetzungen zu einer konservativen Review-Ampel. Der Slice aktiviert keinen Host-Agenten, keine Telegram-Delivery, keine Netzwerk- oder Webhook-Runtime und keine Container-Socket-Integration.
 
