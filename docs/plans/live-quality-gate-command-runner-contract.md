@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/quality-gates-contract.md`
 - `docs/plans/orchestration-runtime-readiness-contract.md`
 - `docs/plans/live-release-evidence-closeout-contract.md`
+- `docs/plans/live-plugin-loader-safe-mode-contract.md`
 
 Dieser Contract definiert die Operator- und Nutzersprache fuer einen spaeteren Quality-Gate Command Runner im Plan-/Dry-Run-Modus. Der Runner darf Kommandos nur klassifizieren, planen und gegen Stop-Regeln halten. Er fuehrt keine Tests aus, startet keine Git-Kommandos, aktiviert keinen Scheduler und beruehrt keine Provider-, Host-, Telegram- oder Netzwerkruntime. Das Gate bleibt read-only und erzeugt kein externes Release-Go.
 
