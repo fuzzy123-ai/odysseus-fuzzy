@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/orchestration-activation-readiness-index-contract.md`
 - `docs/plans/orchestration-operator-activation-packet-contract.md`
 - `docs/plans/orchestration-activation-packet-renderer-contract.md`
+- `docs/plans/orchestration-activation-foundation-regression-index-contract.md`
 
 Dieser Contract definiert einen operatorfreundlichen Handoff-Index fuer die Activation Foundation. Er ist als spaeterer README-, Runbook- oder Morgenstatus-Einstieg gedacht. Der Index fasst zusammen, was fertig vorbereitet ist, was bewusst nicht automatisch laufen darf, welche Evidence oder Tests zugeordnet sind und welcher menschliche Gate-Schritt als naechstes ansteht. Der Slice startet keine Runtime, sendet keine Threads und aktiviert keine Git-/Test-Runner.
 
