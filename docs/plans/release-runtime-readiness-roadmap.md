@@ -148,6 +148,10 @@ Exit:
 
 Ziel: Telegram als sicheren, begrenzten Release-Pfad definieren.
 
+Referenz:
+
+- `docs/plans/telegram-release-boundary-contract.md`
+
 | Rolle | Auftrag |
 | --- | --- |
 | Alice | Nutzer- und Operator-Text: Telegram ist optional, tokenfrei vorbereitet, Live-Nutzung braucht manuelle Freigabe. |
