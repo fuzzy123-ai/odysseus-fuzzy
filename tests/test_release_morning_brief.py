@@ -8,6 +8,8 @@ def test_release_morning_brief_combines_handoff_and_artifacts():
     assert brief.startswith("# Odysseus Release Morning Brief")
     assert "## Handoff" in brief
     assert "# Release Orchestration Status" in brief
+    assert "## Plugin Release Gate" in brief
+    assert "# Plugin Release Gate" in brief
     assert "## Artifact Traceability" in brief
     assert "# Release Artifact Manifest" in brief
 
