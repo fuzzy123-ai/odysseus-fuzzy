@@ -198,6 +198,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL34-release-morning-snapshot-history-markdown` | Snapshot-History als kompakten Markdown-Block rendern | Morgen-Handoff zeigt Verlauf und latest Diff ohne eigene JSON-Auswertung |
 | `REL35-release-morning-snapshot-history-json` | Snapshot-History deterministisch als JSON rendern | UI/Automation kann Verlauf und latest Diff speichern, validieren und diffen |
 | `REL36-release-morning-snapshot-history-contract` | gespeicherte Snapshot-History-Dicts statisch validieren | UI/Automation erkennt kaputte Verlaufsdaten vor Markdown-/JSON-Nutzung |
+| `REL37-release-morning-snapshot-history-bundle` | History, Contract, Markdown und JSON in einem read-only Bundle zusammenfuehren | Morgenlauf muss History-Artefakte nicht einzeln verdrahten |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
