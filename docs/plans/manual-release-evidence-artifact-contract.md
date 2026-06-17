@@ -210,6 +210,47 @@ Wenn das Artefakt offene Gates zeigt oder keine echte beobachtete Evidence refer
 
 - externes `1.0` bleibt `No-Go`
 
+## Morning-Checklist fuer Charlie oder Operator
+
+Vor einem manuellen Lauf oder Morgen-Handoff soll das Artefakt so genutzt werden:
+
+1. Artefakt erzeugen oder den aktuellsten Snapshot laden.
+2. `sha256_digest` notieren, damit spaetere Aenderungen klar erkennbar bleiben.
+3. `json_report` auf offene Gaps, `partial` und `blocked` pruefen.
+4. `markdown_summary` nur als lesbare Kurzsicht verwenden, nicht als Wahrheitsquelle fuer Integritaet.
+5. Echte beobachtete manuelle Evidence ausschliesslich im Evidence-Log eintragen.
+
+## Morning-Stop-Regel
+
+Wenn das Artefakt zeigt:
+
+- `partial`
+- `blocked`
+- fehlende echte Evidence
+
+dann gilt:
+
+- kein externes `1.0`-Go behaupten
+- keine Gap-Statusmeldung als erledigte Freigabe umdeuten
+- erst echte manuelle Durchlaeufe beobachten und im Evidence-Log dokumentieren
+
+## Kurzblock fuer den Morgenlauf
+
+```text
+REL46 Morning Artifact Checklist
+Datum:
+Operator:
+Branch:
+Commit:
+
+- Artefakt erzeugt oder geladen: ja | nein
+- sha256_digest notiert: ja | nein
+- json_report auf pending/partial/blocked geprueft: ja | nein
+- markdown_summary nur als Kurzsicht verwendet: ja | nein
+- echte Evidence nur im Evidence-Log eingetragen: ja | nein
+- externes 1.0 weiter No-Go bei offenen Gaps: ja | nein
+```
+
 ## Erwartete Struktur des JSON-Reports
 
 Der JSON-Report soll spaeter mindestens ausdruecken koennen:
