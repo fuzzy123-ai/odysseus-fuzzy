@@ -12,6 +12,7 @@ Quellen:
 - `docs/plans/export-import-rebuild-operator-runbook.md`
 - `docs/plans/live-provider-proof-run-contract.md`
 - `docs/plans/live-test-vault-export-import-rebuild-contract.md`
+- `docs/plans/live-orchestration-runtime-bridge-contract.md`
 
 Dieser Contract definiert die Abschluss- und Freigabesprache fuer den Start der Phase `Live Integration & Plugin Enablement`. Er klaert, was intern bereits release-candidate-ready ist, welche Gates ein externes `1.0` weiter blockieren und welche naechsten sicheren Slices in `LIVE1` und `LIVE2` erlaubt sind. Der Slice schaltet nichts live, fuehrt keine Provider-, Export-, Host-, Telegram- oder Netzwerkaktionen aus und erzeugt kein externes Release-Go.
 
