@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/orchestration-operator-activation-packet-contract.md`
 - `docs/plans/orchestration-activation-audit-trail-contract.md`
 - `docs/plans/orchestration-activation-handoff-checklist-contract.md`
+- `docs/plans/orchestration-activation-readiness-index-contract.md`
 
 Dieser Contract definiert die Ausgabeform fuer ein spaeteres Operator Activation Packet in Markdown und JSON. Die Renderer bleiben reine Funktionen ueber bereits vorbereitete Packet-Daten. Der Slice fuehrt bewusst keine IO, keine Persistenz, keine Thread-Sends, keine Git-/Test-Ausfuehrung und keine Runtime-Aktivierung aus.
 
