@@ -178,6 +178,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL14-release-handoff-markdown` | Status und Folge-Slices zu einem Handoff-Block kombinieren | Morgenstatus ist direkt renderbar, ohne Live-Aktionen |
 | `REL15-local-readiness-bundle` | lokale Plugin-Registry/Audit-Gates in den Release-Handoff einspeisen | lokaler Status bleibt read-only: keine Downloads, Imports oder Dispatches |
 | `REL16-artifact-manifest` | Release-/Plugin-/Handoff-Artefakte als Traceability-Manifest pruefen | benoetigte Statusquellen sind lokal nachvollziehbar |
+| `REL17-release-morning-brief` | Handoff und Artefakt-Traceability zu einem Tagesstart-Block kombinieren | morgens ist direkt sichtbar, was blockiert, wer dran ist und welche Dateien den Nachweis tragen |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
