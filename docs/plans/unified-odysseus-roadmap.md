@@ -60,7 +60,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
-| `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | aktuelle naechste Phase |
+| `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
 
 ## Fortschrittsformat
 
@@ -621,6 +621,12 @@ Produktentscheidung:
 8. `SHC7-advanced-debian-collectors`
 9. `SHC8-odysseus-health-ui`
 10. `SHC9-security-and-ops-runbook`
+11. `SHC10-foundation-bundle`
+12. `SHC11-plugin-audit-index`
+13. `SHC12-plugin-readiness-score`
+14. `SHC13-operator-review-packet`
+15. `SHC14-foundation-readiness-index`
+16. `SHC15-release-audit-summary`
 
 ### Alice/Bob/Charlie Matrix
 
@@ -640,6 +646,12 @@ Produktentscheidung:
 | `SHC7-advanced-debian-collectors` | Setup-Hinweise fuer fehlende Pakete/Rechte | Temperatur, SMART, Updates, Reboot Normalisierung ohne CLI-Ausfuehrung | done als Vorbereitungsslice | bedingt |
 | `SHC8-odysseus-health-ui` | Ampel, Alerts, Collector unknown/offline UI-Contract | Plugin-Seite liest `/health` Snapshot, ohne Host-Kommandos | done als Offline-UI-Vorstufe | bedingt |
 | `SHC9-security-and-ops-runbook` | Runbook, Betriebsnarrativ, Nutzerregeln | Ops-/Security-Runbook fuer Host-Agent-Follow-up | done | nein |
+| `SHC10-foundation-bundle` | Foundation-Artefakte in einem Operator-Index buendeln | Plugin Foundation Bundle und Tests | done als read-only Foundation-Paket | ja |
+| `SHC11-plugin-audit-index` | Auditierbaren Index fuer Plugin-Foundation und No-Go-Grenzen beschreiben | Audit Index Modell/Tests ohne Runtime-Aktionen | done | ja |
+| `SHC12-plugin-readiness-score` | Go/No-Go-Score fuer manuelle Review vorbereiten | Readiness Score Modell/Tests | done, kein Runtime-Go | ja |
+| `SHC13-operator-review-packet` | Operator Review Packet fuer manuelle Entscheidung | Review Packet Modell/Tests | done, kein Deployment | ja |
+| `SHC14-foundation-readiness-index` | Foundation-Readiness sichtbar zusammenfassen | Foundation Readiness Index Modell/Tests | done, Host-Agent weiterhin Follow-up | ja |
+| `SHC15-release-audit-summary` | Release-Audit-Summary fuer SHC-Foundation abschliessen | Release Audit Summary Modell/Tests | done, manuelle Review statt Runtime Enablement | ja |
 
 ### Definition of Done `0.19.x`
 
@@ -654,6 +666,8 @@ Produktentscheidung:
 - Telegram `/status` und `/alerts` sind sicher geplant oder implementiert.
 - Podman-first Runtime Adapter ist vorbereitet, Docker bleibt kompatibler Fallback.
 - Keine Root-/Socket-Abkuerzung landet im Odysseus-Core.
+- Audit-, Readiness-, Operator-Review- und Release-Audit-Artefakte sind read-only modelliert und getestet.
+- Externes Runtime-Go bleibt blockiert, bis ein Operator Host-Agent, Rechte, Tokens, Netzwerkpfade und Test-Vault-Evidence bewusst freigibt.
 - Host-Agent-Installation und echte Host-Reads sind als Follow-up geplant, nicht im Core versteckt.
 
 ## Version `0.20.x`: Nextcloud Source Provider
