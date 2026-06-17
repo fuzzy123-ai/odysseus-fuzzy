@@ -8,6 +8,7 @@ def test_local_release_readiness_bundle_uses_bundled_registry_and_plugins():
     bundle = build_local_release_readiness_bundle()
 
     assert bundle.plugin_gate.ok
+    assert bundle.artifact_manifest.ok
     assert bundle.pipeline.report.status == "blocked"
     assert "REL-provider-proof-evidence" in bundle.handoff_markdown
     assert "REL-test-vault-rebuild-evidence" in bundle.handoff_markdown
@@ -54,8 +55,25 @@ def test_local_release_readiness_bundle_to_dict_is_stable_shape(tmp_path):
     ).to_dict()
 
     assert payload["plugin_gate"]["ok"] is True
+    assert payload["artifact_manifest"]["ok"] is True
     assert payload["pipeline"]["report"]["status"] == "blocked"
     assert payload["handoff_markdown"].startswith("# Release Orchestration Status")
+
+
+def test_local_release_readiness_bundle_reports_artifact_manifest(tmp_path):
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps({"plugins": [_entry("demo")]}), encoding="utf-8")
+    plugins = tmp_path / "plugins"
+    _write_plugin(plugins / "demo")
+
+    payload = build_local_release_readiness_bundle(
+        registry_path=registry,
+        plugin_directory=plugins,
+        artifact_root=tmp_path,
+    ).to_dict()
+
+    assert payload["artifact_manifest"]["ok"] is False
+    assert "docs/plans/1.0-evidence-release-checklist.md" in payload["artifact_manifest"]["missing_required_paths"]
 
 
 def _write_plugin(path: Path) -> None:
