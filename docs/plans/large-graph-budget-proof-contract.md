@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/release-runtime-readiness-roadmap.md`
 - `docs/plans/graph-memory-release-evidence-map-contract.md`
+- `docs/plans/progressive-graph-api-release-gate-contract.md`
 - `docs/plans/progressive-graph-api-contract.md`
 
 Dieser Contract definiert die Release-Sprache fuer einen 100.000+-Graph-Budget-Proof. Der Slice beschreibt keinen echten Vollgraph-Load, keinen UI-Vollrender, keinen globalen Graph-Rebuild, keine Postgres-Live-Migration und keine neue GraphDB. Er friert nur ein, wie grosse Graph-Mengen synthetisch oder fixture-basiert nachgewiesen werden duerfen, waehrend Ausgaben klein, budgetiert, cursor- oder aggregate-basiert und ehrlich als `partial` oder `clipped` markiert bleiben.
