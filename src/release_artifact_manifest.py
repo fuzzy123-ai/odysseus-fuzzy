@@ -62,6 +62,8 @@ def default_release_artifacts() -> tuple[ReleaseArtifact, ...]:
         ReleaseArtifact("src/local_release_readiness_bundle.py", "local readiness bundle"),
         ReleaseArtifact("src/release_handoff_markdown.py", "release handoff markdown renderer"),
         ReleaseArtifact("src/release_morning_brief.py", "release morning brief renderer"),
+        ReleaseArtifact("src/release_morning_payload.py", "release morning dashboard payload"),
+        ReleaseArtifact("src/release_morning_summary.py", "release morning summary snapshot"),
         ReleaseArtifact("src/release_readiness_pipeline.py", "release readiness pipeline"),
         ReleaseArtifact("src/release_slice_router.py", "release followup router"),
         ReleaseArtifact("src/plugin_release_gate.py", "plugin release gate"),
