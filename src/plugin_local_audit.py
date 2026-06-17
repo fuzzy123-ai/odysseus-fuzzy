@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.plugin_capability_boundary import validate_plugin_capability_boundary
 from src.plugin_manifest_policy import PluginPolicyReport, validate_local_manifest
 
 
@@ -83,13 +84,14 @@ def audit_plugin_path(plugin_id: str, path: str | os.PathLike[str]) -> LocalPlug
         )
 
     report: PluginPolicyReport = validate_local_manifest(manifest)
+    boundary_report = validate_plugin_capability_boundary(manifest)
     return LocalPluginAudit(
         plugin_id=plugin_id,
         path=str(plugin_path),
         entrypoint=str(entrypoint),
-        ok=report.ok,
-        errors=report.error_codes,
-        warnings=report.warning_codes,
+        ok=report.ok and boundary_report.ok,
+        errors=report.error_codes + boundary_report.error_codes,
+        warnings=report.warning_codes + boundary_report.warning_codes,
         manifest=report.normalized,
     )
 

@@ -61,6 +61,35 @@ def test_single_file_plugin_is_supported(tmp_path):
     assert audit.manifest["name"] == "Single"
 
 
+def test_local_audit_applies_capability_boundary(tmp_path):
+    plugin_dir = tmp_path / "unsafe_ui"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "PLUGIN = {'name': 'Unsafe UI', 'version': '1.0.0', 'kind': 'ui', 'capabilities': ['host_metrics']}\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_plugin_path("unsafe_ui", plugin_dir)
+
+    assert not audit.ok
+    assert audit.errors == ("ui_plugin_requests_host_capability",)
+
+
+def test_local_audit_allows_host_agent_with_local_api(tmp_path):
+    plugin_dir = tmp_path / "health_agent"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "PLUGIN = {'name': 'Health Agent', 'version': '1.0.0', 'kind': 'host-agent', 'capabilities': ['local_api', 'host_metrics']}\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_plugin_path("health_agent", plugin_dir)
+
+    assert audit.ok
+    assert audit.errors == ()
+    assert audit.warnings == ()
+
+
 def test_directory_summary_is_sorted_and_counts_loaded_plugins(tmp_path):
     good = tmp_path / "good"
     bad = tmp_path / "bad"
