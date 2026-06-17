@@ -6,6 +6,10 @@ Goal: make Telegram a real external Odysseus agent-chat channel. A Telegram user
 can send a message to the bot, Odysseus routes it into an agent chat session, the
 agent responds through Telegram, and the plugin keeps a local redacted history.
 
+For diagnostics language, "local redacted history" means persisted artifacts may
+use stable redacted handles only. Raw chat IDs, sender IDs, file IDs, and token
+values are out of bounds for stored diagnostic evidence.
+
 Out of scope for this roadmap:
 - Nextcloud or Obsidian archival. That stays a later integration phase.
 - Video processing.
@@ -17,6 +21,9 @@ Out of scope for this roadmap:
 - `plugins/telegram/plugin.py` exists as a standalone plugin.
 - Local readiness, inbox/history, webhook ingest, bridge payloads, gated
   `telegram_reply`, and voice metadata intake are in place.
+- Until `DLF1B` lands, operator docs must treat redaction as the required target
+  state for persisted diagnostics, not as a blanket proof that every stored
+  identifier is already redacted.
 - Current test focus: `tests/test_telegram_plugin.py`,
   `tests/test_plugin_local_audit.py`, `tests/test_plugin_manifest_policy.py`.
 - `v0.99.4` is the latest pushed baseline.
@@ -33,7 +40,8 @@ Telegram is considered implementation-ready when all are true:
 4. Agent replies can be sent back through Telegram only when explicit local env
    gates are enabled.
 5. Incoming, outgoing, blocked, failed, and voice-message events are recorded in
-   local redacted history.
+   persisted diagnostics only through stable redacted handles, not through raw
+   Telegram identifiers.
 6. Voice messages are accepted, stored as metadata, and marked for STT
    processing without blocking text-chat readiness.
 7. Focused tests pass and no secret values are emitted.
@@ -187,6 +195,8 @@ Do not run this automatically.
 ## Stop Rules
 
 - Stop on any token/secret persistence or display.
+- Stop if raw chat IDs, sender IDs, or file IDs are described as acceptable
+  persisted diagnostics.
 - Stop on plugin-system-wide changes outside the allowed plugin scope.
 - Stop on unbounded polling, unbounded retry, or unbounded history payloads.
 - Stop if tests require real Telegram network access.

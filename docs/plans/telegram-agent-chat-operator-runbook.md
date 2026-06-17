@@ -9,6 +9,10 @@ als externen Odysseus-Kanal. Es fuehrt keine Telegram-, Netzwerk- oder
 Plugin-Aktion aus und enthaelt keine Tokenwerte, keine Chat-IDs und keine
 Live-Credentials.
 
+Wichtig: Solange `DLF1B` nicht umgesetzt ist, beschreibt "redacted history" in
+diesem Dokument das Zielbild fuer persistierte Diagnostik, nicht einen bereits
+vollstaendig belegten Ist-Zustand.
+
 ## Zweck
 
 Telegram darf als externer Odysseus Agent-Chat genutzt werden, wenn alle
@@ -18,7 +22,8 @@ lokalen Gates bewusst gesetzt sind:
 - Die Nachricht wird in eine bestehende oder neue Odysseus-Session geroutet.
 - Der Agent antwortet ueber den Bot nur dann, wenn Reply explizit freigegeben
   ist.
-- Die lokale Historie bleibt redacted und speichert keine Secret-Werte.
+- Die lokale Historie darf nur stabile redacted Handles und keine rohen
+  Chat-IDs, Sender-IDs oder File-IDs speichern.
 
 ## Nicht-Ziele
 
@@ -62,10 +67,26 @@ Das sichere Zielbild fuer diesen Slice ist:
 2. Die Nachricht wird einer dauerhaften Odysseus-Session zugeordnet.
 3. Der bestehende Odysseus-Chat-/Agent-Pfad verarbeitet die Nachricht.
 4. Eine Antwort wird nur bei explizit freigegebenem Reply-Gate ausgeliefert.
-5. Inbound, Outbound, Blocked, Failed und Voice werden lokal redacted
-   festgehalten.
+5. Inbound, Outbound, Blocked, Failed und Voice werden lokal nur ueber stabile
+   redacted Handles festgehalten, nicht ueber rohe Telegram-Identifier.
 
 Es wird kein zweiter Agent-Runtime-Pfad aufgebaut.
+
+## Redaction Boundary
+
+Persistierte Telegram-Diagnostik darf nur operator-taugliche, stabile redacted
+Handles enthalten.
+
+Nicht persistieren:
+
+- rohe `chat_id`
+- rohe Sender-ID
+- rohe Voice- oder Datei-ID
+- Tokenwerte
+
+Zulaessig ist nur eine Form, die Korrelation fuer Operatoren erlaubt, aber
+keinen Rueckschluss auf echte Telegram-Identifier aus dem Artefakt selbst
+zulaesst.
 
 ## Go/No-Go Checkliste
 
@@ -93,7 +114,8 @@ Go:
 - Ein erlaubter Chat kann stabil einer Odysseus-Session zugeordnet werden.
 - Bestehende Session wird wiederverwendet oder sauber neu angelegt.
 - Bridge bleibt im bestehenden Odysseus-Chatpfad.
-- Lokale Historie speichert nur redigierte Bridge-Evidence.
+- Lokale Historie und Session-Diagnostik speichern nur redacted Bridge-Evidence
+  mit stabilen Handles, nicht mit rohen Telegram-Identifiern.
 
 No-Go:
 
@@ -107,7 +129,8 @@ Go:
 
 - `TELEGRAM_AGENT_REPLY_ENABLED` ist bewusst gesetzt oder bewusst aus.
 - Outbound-Antworten werden nur fuer erlaubte Chats versucht.
-- Erfolgreiche und fehlgeschlagene Replies werden redacted dokumentiert.
+- Erfolgreiche und fehlgeschlagene Replies werden nur ueber redacted Handles
+  dokumentiert.
 - Retry bleibt begrenzt und erklaerbar.
 
 No-Go:
@@ -124,6 +147,8 @@ Go:
 - Voice kann als Metadaten-/Inbox-Ereignis angenommen werden.
 - Voice bleibt `pending_stt`, solange kein spaeterer STT-Slice freigegeben ist.
 - Textchat-Readiness bleibt voll nutzbar, auch wenn Voice aus oder pending ist.
+- Persistierte Voice-Diagnostik darf keine rohen File-IDs oder Unique-IDs
+  enthalten.
 
 No-Go:
 
@@ -142,7 +167,7 @@ lokal pruefen und nur redigiert notieren:
 4. Reply-Gate ist explizit an oder aus, nicht implizit.
 5. Polling ist nur optional und nicht Standardannahme.
 6. Voice ist als pending-STT und nicht als fertige Transkription dokumentiert.
-7. Lokale Historie bleibt redacted.
+7. Lokale Historie nutzt nur stabile redacted Handles.
 
 ## Evidence-Felder
 
@@ -158,7 +183,7 @@ werden:
 - `TELEGRAM_VOICE_ENABLED`: ja oder nein
 - Allowlist vorhanden: ja oder nein
 - Session-Mapping nachvollziehbar: ja oder nein
-- Redacted history ok: ja oder nein
+- Redacted history uses stable handles only: ja oder nein
 - Reply-Gate bewusst gesetzt: ja oder nein
 - Voice pending STT dokumentiert: ja oder nein
 - Ergebnis: Go, Partial oder No-Go
@@ -172,7 +197,8 @@ Go ist nur angemessen, wenn:
 
 - Intake, Session Bridge und Reply-Gate sauber verstanden und lokal vorbereitet
   sind
-- lokale Historie redacted bleibt
+- persistierte Diagnostik nur stabile redacted Handles verspricht und belegt
+  sind
 - Voice korrekt als optional/pending-STT beschrieben ist
 - keine Secrets, Realwerte oder unbounded Aktionen auftreten
 
@@ -183,12 +209,15 @@ Partial ist angemessen, wenn:
 - Textchat vorbereitet ist
 - Reply oder Voice bewusst noch deaktiviert oder pending sind
 - die Grenzen ehrlich dokumentiert sind
+- die Dokumentation das Redaction-Zielbild bereits klarzieht, der zugehoerige
+  Persistenz-Fix aber noch separat offen ist
 
 ### No-Go
 
 No-Go ist angemessen, wenn:
 
 - Secrets oder Chat-IDs in Evidence landen
+- persistierte Diagnostik rohe Chat-IDs, Sender-IDs oder File-IDs speichert
 - Session-Bridge unklar bleibt
 - Reply implizit aktiv waere
 - Voice als fertig dargestellt wird, obwohl STT noch fehlt
@@ -197,6 +226,8 @@ No-Go ist angemessen, wenn:
 ## Bekannte Grenzen
 
 - Voice ist nur pending STT, nicht fertige Transkription.
+- Persistierte Diagnostik ist erst dann wirklich redaction-safe, wenn nur
+  stabile redacted Handles gespeichert werden.
 - Video ist nicht Teil dieses Slices.
 - Nextcloud- und Obsidian-Archivierung sind ausdruecklich spaeter und separat.
 - Telegram bleibt ein eigenstaendiger Plugin-Kanal, kein allgemeiner
@@ -224,6 +255,8 @@ Stop-Entscheidungen.
 Sofort stoppen, wenn:
 
 - ein Tokenwert oder eine echte Chat-ID notiert, geloggt oder gespeichert wird
+- rohe Sender-IDs oder File-IDs in persistierter Diagnostik landen oder als
+  "redacted" verkauft werden
 - Textchat nur mit Voice/STT funktionieren soll
 - Nextcloud, Obsidian oder Video in diesen Slice hineingezogen werden
 - ein zweiter Agent-Runtime-Pfad entsteht
@@ -234,6 +267,6 @@ Sofort stoppen, wenn:
 
 Dieses Runbook macht Telegram als eigenstaendigen externen Odysseus Agent-Chat
 operator-tauglich beschreibbar: Text rein, Session Bridge in Odysseus, Antwort
-ueber Bot nur mit explizitem Gate, redacted lokale Historie, Voice nur als
-pending STT. Nextcloud, Obsidian und Video bleiben ausdruecklich Zukunftsmusik
-ausserhalb dieses Slices.
+ueber Bot nur mit explizitem Gate, persistierte Diagnostik nur ueber stabile
+redacted Handles, Voice nur als pending STT. Nextcloud, Obsidian und Video
+bleiben ausdruecklich Zukunftsmusik ausserhalb dieses Slices.
