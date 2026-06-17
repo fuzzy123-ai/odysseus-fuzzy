@@ -196,6 +196,7 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 | `REL32-release-morning-envelope-diff-json` | Envelope-Diffs deterministisch als JSON rendern | UI/Automation kann Envelope-Diff-Ergebnisse speichern und weiterverarbeiten |
 | `REL33-release-morning-snapshot-history` | mehrere Snapshot-Envelopes in-memory auswerten | Automation bekommt latest/previous/diff ohne Dateisystem- oder Live-Checks |
 | `REL34-release-morning-snapshot-history-markdown` | Snapshot-History als kompakten Markdown-Block rendern | Morgen-Handoff zeigt Verlauf und latest Diff ohne eigene JSON-Auswertung |
+| `REL35-release-morning-snapshot-history-json` | Snapshot-History deterministisch als JSON rendern | UI/Automation kann Verlauf und latest Diff speichern, validieren und diffen |
 
 ## Abgeschlossene Phase: `0.14.x` Lightweight Memory Maintenance
 
