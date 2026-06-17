@@ -8,6 +8,7 @@ Quellen:
 
 - `docs/plans/orchestration-runtime-readiness-contract.md`
 - `docs/plans/orchestration-operator-activation-contract.md`
+- `docs/plans/orchestration-activation-summary-renderer-contract.md`
 
 Dieser Contract definiert eine kompakte Summary fuer Operator, Charlie, Dashboard und spaetere Automation-Lenses. Die Summary beschreibt nur Zustand, Luecken und naechste sichere Schritte. Sie fuehrt keine Aktivierung aus und darf nicht als stilles Live-Go interpretiert werden.
 
