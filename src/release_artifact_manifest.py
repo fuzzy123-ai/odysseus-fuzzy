@@ -64,6 +64,7 @@ def default_release_artifacts() -> tuple[ReleaseArtifact, ...]:
         ReleaseArtifact("src/release_morning_brief.py", "release morning brief renderer"),
         ReleaseArtifact("src/release_morning_payload_contract.py", "release morning payload contract validator"),
         ReleaseArtifact("src/release_morning_payload_diff.py", "release morning payload diff helper"),
+        ReleaseArtifact("src/release_morning_payload_diff_json.py", "release morning payload diff JSON renderer"),
         ReleaseArtifact("src/release_morning_payload_diff_markdown.py", "release morning payload diff markdown renderer"),
         ReleaseArtifact("src/release_morning_payload_json.py", "release morning payload JSON renderer"),
         ReleaseArtifact("src/release_morning_payload.py", "release morning dashboard payload"),
