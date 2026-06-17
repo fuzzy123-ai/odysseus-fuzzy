@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/system-health-plugin-audit-index-contract.md`
 - `docs/plans/orchestration-runtime-readiness-contract.md`
 - `docs/plans/live-release-evidence-closeout-contract.md`
+- `docs/plans/live-system-health-host-agent-mvp-contract.md`
 
 Dieser Contract definiert die Operator- und Nutzersprache fuer einen spaeteren Plugin Loader Safe Mode im read-only Plan-Modus. Der Safe Loader darf nur Manifest-, Capability- und Local-Audit-Signale auswerten, um zu entscheiden, ob ein Plugin spaeter ueberhaupt fuer einen menschlich geprueften Folge-Slice in Frage kommt. Er importiert keinen Plugin-Code, ruft kein `setup()` auf und aktiviert weder Host-, Netzwerk-, Telegram- noch Runtime- oder Plugin-Seiteneffekte. Das Gate bleibt read-only und erzeugt kein externes Release-Go.
 
