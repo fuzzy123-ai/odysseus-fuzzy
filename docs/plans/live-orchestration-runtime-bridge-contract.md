@@ -10,6 +10,7 @@ Quellen:
 - `docs/plans/orchestration-runtime-readiness-contract.md`
 - `docs/plans/orchestration-operator-activation-contract.md`
 - `docs/plans/orchestration-activation-readiness-summary-contract.md`
+- `docs/plans/live-quality-gate-command-runner-contract.md`
 
 Dieser Contract definiert die Operator- und Nutzersprache fuer eine trockene Orchestration Runtime Bridge im read-only Modus. Die Bridge verbindet spaeter Registry-, Mailbox- oder Thread-Referenzen mit einem Dispatch-Plan und klaren Stop-/Review-Regeln, ohne jemals selbst zu senden, zu schedulen oder Git-/Test-Runner auszufuehren. Das Gate bleibt dry-run-only und erzeugt kein externes Release-Go.
 
