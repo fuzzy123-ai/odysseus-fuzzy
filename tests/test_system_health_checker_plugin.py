@@ -1,4 +1,5 @@
 import logging
+import importlib.util
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -123,3 +124,13 @@ def test_plugin_app_route_renders_without_host_access(tmp_path):
     assert "does not run host commands" in response.text
     assert "/api/plugins/system_health_checker/health" in response.text
     assert "Health snapshot unavailable" in response.text
+
+
+def test_plugin_file_loader_imports_health_model_without_package_context():
+    plugin_path = Path("plugins/system_health_checker/plugin.py")
+    spec = importlib.util.spec_from_file_location("odysseus_plugin_system_health_checker", plugin_path)
+    module = importlib.util.module_from_spec(spec)
+
+    spec.loader.exec_module(module)
+
+    assert module.PLUGIN["name"] == "System Health Checker"

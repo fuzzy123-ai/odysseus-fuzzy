@@ -8,9 +8,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 try:
+    from plugins.system_health_checker.health_model import build_agent_offline_snapshot
+except ImportError:  # pragma: no cover - supports package-relative imports
     from .health_model import build_agent_offline_snapshot
-except ImportError:  # pragma: no cover - supports direct plugin.py loading
-    from health_model import build_agent_offline_snapshot
 
 
 PLUGIN = {
