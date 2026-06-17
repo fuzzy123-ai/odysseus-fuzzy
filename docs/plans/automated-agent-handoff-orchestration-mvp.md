@@ -6,6 +6,10 @@ Status: **AUTO1-AUTO8 gestartet; Runtime-Vorbereitung inklusive N-Agent-Scaling-
 
 Dieser Plan macht aus dem manuell bewiesenen Alice/Bob/Charlie-Prozess eine native Odysseus-Runtime. Er ersetzt nicht die abgeschlossene `0.12.x Development Orchestration v1`, sondern baut darauf auf: Die vorhandenen Store-/Model-/Contract-Bausteine werden persistent, verdrahtet, pruefbar und sichtbar.
 
+Runtime-Readiness-Contract vor echter Live-Aktivierung:
+
+- `docs/plans/orchestration-runtime-readiness-contract.md`
+
 ## Ziel
 
 Odysseus soll den bisher manuell bewiesenen Prozess ausfuehren koennen:
