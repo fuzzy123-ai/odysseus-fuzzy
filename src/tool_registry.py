@@ -17,6 +17,15 @@ from typing import Any, Callable, Dict, Iterable, Optional
 logger = logging.getLogger(__name__)
 
 _NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}$")
+_TYPEERROR_FALLBACK_HINTS = (
+    "unexpected keyword argument",
+    "positional argument",
+    "required positional argument",
+    "but ",
+    "given",
+    "takes ",
+    "missing ",
+)
 
 
 @dataclass(frozen=True)
@@ -194,6 +203,29 @@ def _sync_legacy_schema_remove(name: str) -> None:
         pass
 
 
+def _is_legacy_signature_typeerror(exc: TypeError, tool_name: str) -> bool:
+    text = " ".join(str(exc or "").split()).lower()
+    if not text:
+        return False
+    if tool_name.lower() not in text and "argument" not in text and "takes " not in text:
+        return False
+    return any(hint in text for hint in _TYPEERROR_FALLBACK_HINTS)
+
+
+def _should_prefer_legacy_args_call(sig: inspect.Signature) -> bool:
+    params = list(sig.parameters.values())
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params):
+        return False
+    positional = [
+        param for param in params
+        if param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    if len(positional) != 1:
+        return False
+    first = positional[0]
+    return first.name.lower() in {"args", "payload", "data", "params", "arguments", "request"}
+
+
 async def execute_tool(
     name: str,
     content: str,
@@ -218,20 +250,29 @@ async def execute_tool(
         accepted = set(sig.parameters)
         has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
         call_kwargs = kwargs if has_var_kw else {k: v for k, v in kwargs.items() if k in accepted}
+        prefer_legacy_args = _should_prefer_legacy_args_call(sig)
     except (TypeError, ValueError):
         call_kwargs = kwargs
+        prefer_legacy_args = False
 
     try:
-        result = tool.execute(content, **call_kwargs)
+        parsed_args = json.loads(content) if isinstance(content, str) and content.strip() else {}
+    except (TypeError, ValueError):
+        parsed_args = {}
+
+    try:
+        if prefer_legacy_args:
+            result = tool.execute(parsed_args)
+        else:
+            result = tool.execute(content, **call_kwargs)
         if inspect.isawaitable(result):
             result = await result
-    except TypeError:
+    except TypeError as exc:
         # Backward-compatible example style: execute(args_dict).
-        try:
-            args = json.loads(content) if isinstance(content, str) and content.strip() else {}
-        except (TypeError, ValueError):
-            args = {}
-        result = tool.execute(args)
+        if not _is_legacy_signature_typeerror(exc, getattr(tool.execute, "__name__", tool.name)):
+            logger.exception("Plugin tool %s failed", name)
+            return {"error": str(exc), "exit_code": 1}
+        result = tool.execute(parsed_args)
         if inspect.isawaitable(result):
             result = await result
     except Exception as exc:

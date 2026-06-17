@@ -13,6 +13,11 @@ def teardown_function(_fn):
         unregister_tool(name)
 
 
+def teardown_module(_module):
+    for name in ("plugin_echo", "plugin_dict", "plugin_legacy", "plugin_modern", "plugin_typeerror"):
+        unregister_tool(name)
+
+
 def test_register_toolspec_exposes_function_schema_and_native_call():
     async def _run(content, owner=None, **_kwargs):
         return {"output": f"{owner}:{content}", "exit_code": 0}
@@ -168,3 +173,70 @@ def test_tool_index_indexes_and_prunes_plugin_tools():
     assert lane.collection.upserts[0]["metadatas"] == [
         {"tool_name": "plugin_echo", "tool_type": "plugin"}
     ]
+
+
+def test_execute_tool_keeps_legacy_dict_call_fallback():
+    calls = []
+
+    def _legacy_execute(args):
+        calls.append(args)
+        return {"output": f"legacy:{args['value']}"}
+
+    register_tool(ToolSpec(
+        name="plugin_legacy",
+        description="Legacy dict-call tool.",
+        parameters={"type": "object", "properties": {"value": {"type": "string"}}},
+        execute=_legacy_execute,
+    ))
+
+    from src.tool_registry import execute_tool
+
+    result = asyncio.run(execute_tool("plugin_legacy", '{"value": "ok"}', owner="alice"))
+
+    assert result == {"output": "legacy:ok", "exit_code": 0}
+    assert calls == [{"value": "ok"}]
+
+
+def test_execute_tool_keeps_modern_signature_path():
+    calls = []
+
+    def _modern_execute(content, owner=None, **_kwargs):
+        calls.append((content, owner))
+        return {"output": f"{owner}:{content}"}
+
+    register_tool(ToolSpec(
+        name="plugin_modern",
+        description="Modern content-call tool.",
+        parameters={"type": "object", "properties": {"value": {"type": "string"}}},
+        execute=_modern_execute,
+    ))
+
+    from src.tool_registry import execute_tool
+
+    result = asyncio.run(execute_tool("plugin_modern", '{"value": "ok"}', owner="alice"))
+
+    assert result == {"output": 'alice:{"value": "ok"}', "exit_code": 0}
+    assert calls == [('{"value": "ok"}', "alice")]
+
+
+def test_execute_tool_does_not_retry_internal_typeerror():
+    calls = []
+
+    def _typeerror_execute(content, owner=None, **_kwargs):
+        calls.append((content, owner))
+        raise TypeError("internal type bug while processing plugin payload")
+
+    register_tool(ToolSpec(
+        name="plugin_typeerror",
+        description="Tool that raises an internal TypeError.",
+        parameters={"type": "object", "properties": {"value": {"type": "string"}}},
+        execute=_typeerror_execute,
+    ))
+
+    from src.tool_registry import execute_tool
+
+    result = asyncio.run(execute_tool("plugin_typeerror", '{"value": "ok"}', owner="alice"))
+
+    assert result["exit_code"] == 1
+    assert "internal type bug" in result["error"]
+    assert calls == [('{"value": "ok"}', "alice")]
