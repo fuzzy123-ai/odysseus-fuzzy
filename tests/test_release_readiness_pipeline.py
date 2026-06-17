@@ -48,6 +48,8 @@ def test_current_automated_release_gates_are_all_automated_and_green():
     assert len(gates) == 3
     assert {gate.kind for gate in gates} == {"automated"}
     assert {gate.status for gate in gates} == {"pass"}
+    assert {gate.risk for gate in gates} == {"documented_baseline_not_fresh_measurement"}
+    assert {gate.evidence_refs for gate in gates} == {("REL1 documented baseline evidence",)}
 
 
 def test_pipeline_to_dict_is_stable_shape():
@@ -56,6 +58,21 @@ def test_pipeline_to_dict_is_stable_shape():
 
     assert payload["report"]["external_release_go"] is False
     assert payload["report"]["status"] == "blocked"
+    assert payload["automated_gate_evidence_mode"] == "documented_baseline"
+    assert payload["automated_gate_is_live_measurement"] is False
+    assert payload["automated_gate_summary"]["status"] == "baseline_evidence_green"
+    assert "not fresh live measurements" in payload["automated_gate_summary"]["operator_interpretation"]
     assert payload["followup_slices"][0]["slice_id"] == "REL-provider-proof-evidence"
     assert payload["followup_slices"][1]["owner"] == "Alice"
     assert payload["followup_matrix"]["parallel_batch_ids"] == ("REL-test-vault-rebuild-evidence",)
+
+
+def test_manual_gate_blockers_remain_conservative_with_baseline_language():
+    snapshot = build_current_release_readiness_pipeline()
+
+    assert snapshot.report.blocking_reasons == (
+        "manual:partial:provider-proof",
+        "manual:partial:export-import-rebuild",
+    )
+    assert snapshot.external_release_go is False
+    assert snapshot.automated_gate_is_live_measurement is False

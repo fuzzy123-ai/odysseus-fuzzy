@@ -27,9 +27,25 @@ class ReleaseReadinessPipelineSnapshot:
     def external_release_go(self) -> bool:
         return self.report.external_release_go
 
+    @property
+    def automated_gate_evidence_mode(self) -> str:
+        return "documented_baseline"
+
+    @property
+    def automated_gate_is_live_measurement(self) -> bool:
+        return False
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "report": self.report.to_dict(),
+            "automated_gate_evidence_mode": self.automated_gate_evidence_mode,
+            "automated_gate_is_live_measurement": self.automated_gate_is_live_measurement,
+            "automated_gate_summary": {
+                "status": "baseline_evidence_green",
+                "operator_interpretation": (
+                    "Automated release gates are documented green baselines, not fresh live measurements."
+                ),
+            },
             "followup_slices": tuple(item.to_dict() for item in self.followup_slices),
             "followup_matrix": self.followup_matrix.to_dict(),
         }
@@ -55,27 +71,30 @@ def build_current_release_readiness_pipeline(
 
 
 def current_automated_release_gates() -> tuple[ReleaseGate, ...]:
-    """Automated REL1 gates documented as green in the active checklist."""
+    """Automated REL1 gates documented as green baseline evidence in the active checklist."""
     return (
         ReleaseGate(
             gate_id="memory-obsidian-external-proof",
             label="Memory / Obsidian / External Proof",
             kind=AUTOMATED,
             status=PASS,
-            evidence_refs=("REL1 automated gate run",),
+            evidence_refs=("REL1 documented baseline evidence",),
+            risk="documented_baseline_not_fresh_measurement",
         ),
         ReleaseGate(
             gate_id="static-context-ui-safety-smoke",
             label="Static / Context / UI Safety Smoke",
             kind=AUTOMATED,
             status=PASS,
-            evidence_refs=("REL1 automated gate run",),
+            evidence_refs=("REL1 documented baseline evidence",),
+            risk="documented_baseline_not_fresh_measurement",
         ),
         ReleaseGate(
             gate_id="scale-lightweight-maintenance",
             label="Scale / Lightweight Maintenance",
             kind=AUTOMATED,
             status=PASS,
-            evidence_refs=("REL1 automated gate run",),
+            evidence_refs=("REL1 documented baseline evidence",),
+            risk="documented_baseline_not_fresh_measurement",
         ),
     )
