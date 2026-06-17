@@ -27,6 +27,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/obsidian/00-priorisierte-roadmap.md` | Archiv und Detailplan fuer Memory-first/Obsidian-Lens bis M6 |
 | `docs/plans/deepseek-model-router-graceful-degradation.md` | Detail- und Evidence-Plan fuer M6 Model Router |
 | `docs/plans/1.0-evidence-release-checklist.md` | aktive 1.0-Go/No-Go-Checkliste fuer Evidence, manuelle Release-Gates und Bugfix-Fenster |
+| `docs/plans/release-runtime-readiness-roadmap.md` | aktive Release-Roadmap fuer RAPTOR-/Graph-Memory, 100.000+-Graph-Proof, Telegram-Sicherheit und finale manuelle Gates; Plugin-Modul bleibt vorerst eingefroren |
 | `docs/plans/odysseus-lens-ui-memory-interaction.md` | neuer Detailplan fuer Lens UI, Memory Lesen/Pflegen, Insights, Diagnostics und Activity |
 | `docs/plans/image-tools-worker-contract.md` | neuer Stabilisierungstrack fuer isolierte Background-Removal/Image-Tools statt harter Core-Dependencies |
 | `docs/plans/secure-data-mode-contract.md` | Security-/DSGVO-Foundation fuer sensible Quellen, Secure Chats und local-only Policy |
@@ -135,6 +136,8 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 
 Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 
+Aktive Runtime-Readiness-Roadmap: `docs/plans/release-runtime-readiness-roadmap.md`.
+
 ### Ziele
 
 - Reproduzierbaren 1.0-Evidence-Stand herstellen.
@@ -143,6 +146,8 @@ Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 - Nur kleine Bugfix-Slices schneiden, wenn reale Tests Probleme zeigen.
 - Keine neuen Post-1.0-Research-Tracks starten.
 - Nextcloud bleibt pausiert, bis die Homeserver-/Nextcloud-Infrastruktur laeuft.
+- Plugin-Modul bleibt bis auf Weiteres eingefroren; keine neuen Plugin-Imports, kein `setup()` und keine Plugin-Runtime-Aktivierung.
+- RAPTOR-/Graph-Memory, 100.000+-Graph-Budget-Proof und Telegram-Offline-Smoke werden vor Release als Evidence-/Gate-Slices behandelt, nicht als unbounded Runtime-Umbau.
 
 ## Naechste Phase: Live Integration & Plugin Enablement
 
