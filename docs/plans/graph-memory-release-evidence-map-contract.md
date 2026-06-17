@@ -7,6 +7,7 @@ Status: **RGM0A Docs-Contract fuer das Gate `graph_memory_release_evidence_map`*
 Quellen:
 
 - `docs/plans/release-runtime-readiness-roadmap.md`
+- `docs/plans/large-graph-budget-proof-contract.md`
 - `docs/plans/progressive-graph-api-contract.md`
 - `docs/plans/query-budget-ux-contract.md`
 - `docs/plans/derived-cluster-run-contract.md`
