@@ -9,6 +9,7 @@ Quellen:
 - `docs/plans/orchestration-activation-audit-trail-contract.md`
 - `docs/plans/orchestration-operator-activation-contract.md`
 - `docs/plans/orchestration-activation-bundle-contract.md`
+- `docs/plans/orchestration-operator-activation-packet-contract.md`
 
 Dieser Contract definiert eine konservative Handoff- und Readiness-Checklist fuer spaetere Aktivierungsentscheidungen. Sie zeigt nur Gate-Zustaende, blockiert bei Fehlern und ersetzt keine Runtime. Der Slice fuehrt bewusst keinen Dispatch, keine Runtime-Hooks, keine Threads, keine Scheduler-Ausfuehrung und keine Git-/Test-Runner aus.
 
