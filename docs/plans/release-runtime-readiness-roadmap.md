@@ -69,6 +69,10 @@ Exit:
 
 Ziel: Das zweite harte externe `1.0.0`-Gate belegen.
 
+Referenz:
+
+- `docs/plans/test-vault-export-import-rebuild-contract.md`
+
 | Rolle | Auftrag | Scope |
 | --- | --- | --- |
 | Alice | `FINAL2A-test-vault-export-import-rebuild-contract`: kleines Test-Vault-Runbook, Datenverlust-Warnungen, erwartete Artefakte und Go/No-Go-Sprache finalisieren. | `docs/plans/test-vault-export-import-rebuild-contract.md`, optional Link in Release-Checkliste |
