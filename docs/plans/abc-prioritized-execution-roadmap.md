@@ -47,6 +47,8 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - `docs/plans/security-disclosure-release-gate.md` anchors the `ABC3C` wording baseline for password protection versus at-rest encryption.
 - `docs/plans/repo-link-hygiene-audit.md`, `src/repo_link_hygiene.py`, and `tests/test_repo_link_hygiene.py` classify original/fork/plugin repository links and block unknown or typo slugs offline.
 - `docs/plans/large-vault-performance-release-gate.md`, `src/large_vault_performance_gate.py`, and `tests/test_large_vault_performance_gate.py` prevent RC-sized synthetic performance evidence from being promoted into large-vault release claims.
+- `docs/plans/project-apply-conflict-gate-evidence.md` records that Project Apply is strict-by-default with an explicit overwrite exception matrix.
+- `docs/plans/graph-filter-state-isolation-gap.md` records `ABC3B` as the remaining technical No-Go for isolated graph/filter state claims.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
 - Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
 - Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
@@ -87,12 +89,12 @@ These items block public release language or clean upstream publishing.
 
 4. `ABC3-release-hardening-critique`
    Goal: convert the P0/P1 critique into concrete gates.
-   Status: operator contract, read-only code audit, and hardening index are present; technical validation slices still pending.
+   Status: operator contract, read-only code audit, hardening index, ABC3A, ABC3C, ABC3D, and ABC3E evidence are present; ABC3B graph/filter state isolation remains the main technical No-Go.
    Scope:
    - quantify large-vault performance thresholds. `ABC3A` claim guard is present in `src/large_vault_performance_gate.py`.
-   - isolate graph/filter state from fragile global state.
+   - isolate graph/filter state from fragile global state. `ABC3B` is documented as No-Go in `docs/plans/graph-filter-state-isolation-gap.md`.
    - add clear UI/operator disclosure that password protection is not at-rest encryption. `ABC3C` docs baseline is present in `docs/plans/security-disclosure-release-gate.md`.
-   - ensure project apply/merge conflicts strictly block instead of silently overwriting.
+   - ensure project apply/merge conflicts strictly block instead of silently overwriting. `ABC3D` evidence is present in `docs/plans/project-apply-conflict-gate-evidence.md`.
    - verify repository-name/link hygiene, including legacy typo risks. `ABC3E` offline guard is present in `src/repo_link_hygiene.py`.
    Exit: release blocker vs follow-up status is recorded per issue.
 
