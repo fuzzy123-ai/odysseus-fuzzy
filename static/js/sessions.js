@@ -78,6 +78,15 @@ function _missionRequiredActionText(snapshot) {
   return ` Required: ${role}${String(action.action).replace(/_/g, ' ')}${reason}.${command}`;
 }
 
+function _isTelegramSession(s) {
+  const name = String((s && s.name) || '').trim().toLowerCase();
+  return (
+    (s && (s.source_channel === 'telegram' || s.sidebar_icon === 'telegram')) ||
+    name === 'telegram bot' ||
+    name.startsWith('telegram ')
+  );
+}
+
 function _missionBlockerText(snapshot) {
   const blocker = snapshot?.summary?.latest_blocker;
   if (!blocker || !blocker.kind) return '';
@@ -552,7 +561,11 @@ function createSessionItem(s) {
   const _isFork = s.name && (s.name.startsWith('Fork:') || s.name.startsWith('\u2ADD'));
   const _isGroup = s.name && s.name.startsWith('[GRP]');
   icon.className = 'session-icon' + (s.has_documents ? ' has-docs' : '');
-  if (_isGroup) {
+  if (_isTelegramSession(s)) {
+    icon.classList.add('session-icon-telegram');
+    icon.title = 'Telegram Bot';
+    icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 3.3 18.6 20c-.2 1.2-.9 1.5-1.9.9l-5.2-3.8-2.5 2.4c-.3.3-.5.5-1 .5l.4-5.3 9.7-8.8c.4-.4-.1-.6-.7-.2L5.4 13.3.2 11.7c-1.1-.4-1.1-1.1.2-1.6L20.7 2.3c.9-.3 1.7.2 1.2 1z"/></svg>';
+  } else if (_isGroup) {
     icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
   } else if (_isFork) {
     icon.textContent = '\u2ADD';

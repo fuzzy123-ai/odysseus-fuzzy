@@ -1423,6 +1423,10 @@ body.bg-pattern-sparkles {
       display: inline-flex;
       align-items: center;
     }
+    .session-icon.session-icon-telegram {
+      color: #229ed9;
+      opacity: 1;
+    }
     .session-icon.has-docs {
       color: inherit;
       opacity: 0.5;

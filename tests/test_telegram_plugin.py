@@ -383,6 +383,52 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
 
 
+def test_webhook_uses_app_state_agent_bridge_when_context_has_no_direct_hooks(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    turns = []
+
+    def _session_bridge(**kwargs):
+        assert kwargs["chat_id"] == "123"
+        return {"session_id": "sess-from-app-state"}
+
+    async def _agent_turn(bridge):
+        turns.append(bridge)
+        await asyncio.sleep(0)
+        return {"status": "accepted", "reply_text": "App-state Antwort"}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: {
+        "ok": True,
+        "telegram_message_id": 89,
+        "token_value_visible": False,
+    })
+    app = FastAPI()
+    app.state.telegram_session_bridge = _session_bridge
+    app.state.telegram_agent_turn_handler = _agent_turn
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 45,
+        "message": {
+            "message_id": 56,
+            "chat": {"id": 123},
+            "from": {"id": 1, "first_name": "User"},
+            "text": "Bitte antworte ueber die echte Bridge",
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert turns[0]["session_id"] == "sess-from-app-state"
+    assert payload["agent_turn"]["status"] == "accepted"
+    assert payload["agent_turn"]["reply_text_present"] is True
+    assert "App-state Antwort" not in json.dumps(payload["agent_turn"], ensure_ascii=False)
+    assert payload["reply"]["sent"]["telegram_message_id"] == 89
+
+
 def test_reply_route_is_blocked_without_explicit_gate(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
@@ -556,6 +602,56 @@ def test_polling_cycle_stores_duplicate_and_unsupported_history(tmp_path, monkey
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert '"chat_id"' not in persisted_text
+
+
+def test_poll_route_uses_app_state_hooks_without_event_loop_collision(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    turns = []
+
+    def _fetch(_offset):
+        return [{
+            "update_id": 9,
+            "message": {
+                "message_id": 90,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "Hallo Poll",
+            },
+        }]
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "session-poll"}
+
+    def _agent_turn(bridge):
+        turns.append(bridge)
+        return {"status": "accepted", "reply_text": "Poll Antwort"}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: {
+        "ok": True,
+        "telegram_message_id": 91,
+        "token_value_visible": False,
+    })
+    app = FastAPI()
+    app.state.telegram_fetch_updates = _fetch
+    app.state.telegram_session_bridge = _session_bridge
+    app.state.telegram_agent_turn_handler = _agent_turn
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/poll")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["processed"] == 1
+    assert payload["agent_turns"] == 1
+    assert payload["replies"] == 1
+    assert turns[0]["session_id"] == "session-poll"
+    history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
+    assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
 
 
 def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):

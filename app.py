@@ -774,6 +774,57 @@ set_ai_memory_manager(memory_manager, memory_vector)
 set_ai_rag_manager(rag_manager, personal_docs_mgr)
 logger.info("AI interaction tools initialized (session, memory, RAG, UI control)")
 
+
+def _run_async_bridge(coro):
+    """Run an async AI tool from plugin worker threads."""
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    raise RuntimeError("Telegram AI bridge must run from a worker thread")
+
+
+def _telegram_model_spec() -> str:
+    from src.settings import get_setting
+
+    return str(os.getenv("TELEGRAM_MODEL_SPEC") or get_setting("default_model", "") or "").strip()
+
+
+def _telegram_session_bridge(**kwargs):
+    from src.ai_interaction import do_create_session
+
+    model_spec = _telegram_model_spec()
+    if not model_spec:
+        return {"error": "telegram_model_missing"}
+    session_name = "Telegram Bot"
+    result = _run_async_bridge(do_create_session(f"{session_name}\n{model_spec}"))
+    if result.get("error"):
+        logger.warning("Telegram session bridge could not create a session: %s", result.get("error"))
+        return {"error": result.get("error")}
+    return {"session_id": result.get("session_id") or ""}
+
+
+def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
+    from src.ai_interaction import do_send_to_session
+
+    session_id = str(bridge.get("session_id") or "").strip()
+    prompt = str(bridge.get("prompt") or "").strip()
+    if not session_id:
+        return {"status": "failed", "error": "telegram_session_missing"}
+    if not prompt:
+        return {"status": "ignored", "reply_text": ""}
+    result = _run_async_bridge(do_send_to_session(f"{session_id}\n{prompt}"))
+    if result.get("error"):
+        logger.warning("Telegram agent turn failed: %s", result.get("error"))
+        return {"status": "failed", "error": result.get("error"), "reply_text": ""}
+    return {"status": "accepted", "reply_text": str(result.get("response") or "")}
+
+
+app.state.telegram_session_bridge = _telegram_session_bridge
+app.state.telegram_agent_turn_handler = _telegram_agent_turn_handler
+logger.info("Telegram AI bridge initialized")
+
 # Webhooks
 from routes.webhook_routes import setup_webhook_routes
 app.include_router(setup_webhook_routes(webhook_manager, auth_manager, session_manager, api_key_manager))

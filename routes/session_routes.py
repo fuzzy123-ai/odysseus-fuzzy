@@ -38,6 +38,13 @@ def _public_model(name: str, model: str) -> str:
     return model
 
 
+def _session_source_channel(name: str) -> str | None:
+    normalized = (name or "").strip().lower()
+    if normalized == "telegram bot" or normalized.startswith("telegram "):
+        return "telegram"
+    return None
+
+
 def _readiness_gate_status_message(gate: dict | None) -> str | None:
     if not isinstance(gate, dict) or gate.get("state") != "blocked":
         return None
@@ -456,6 +463,8 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         sessions = [{"id": s.id, "name": s.name, "model": _public_model(s.name, s.model),
                      "endpoint_url": s.endpoint_url, "rag": s.rag,
                      "archived": s.archived, "folder": folder_map.get(s.id),
+                     "source_channel": _session_source_channel(s.name),
+                     "sidebar_icon": _session_source_channel(s.name),
                      "total_tokens": token_map.get(s.id, 0),
                      "is_important": important_map.get(s.id, False),
                      "created_at": created_map.get(s.id),

@@ -7,6 +7,7 @@ an explicit local env gate and never expose token values.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import hashlib
@@ -515,6 +516,36 @@ def _run_agent_turn(
     }
 
 
+async def _run_agent_turn_async(
+    handler: Callable[[dict[str, Any]], Any] | None,
+    bridge: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not callable(handler) or not bridge.get("ready_for_agent"):
+        return None
+    try:
+        result = await asyncio.to_thread(handler, dict(bridge))
+        if asyncio.iscoroutine(result):
+            result = await result
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reply_text": "",
+            "reply_text_present": False,
+            "error": str(exc)[:240],
+        }
+    if isinstance(result, dict):
+        reply_text = str(result.get("reply_text") or result.get("text") or "")
+        status = str(result.get("status") or "accepted")
+    else:
+        reply_text = str(result or "")
+        status = "accepted"
+    return {
+        "status": status,
+        "reply_text": reply_text,
+        "reply_text_present": bool(reply_text.strip()),
+    }
+
+
 def _public_agent_turn_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if result is None:
         return None
@@ -800,9 +831,17 @@ def setup(ctx):
     router = APIRouter(prefix="/api/plugins/telegram", tags=["plugin:telegram"])
     store = TelegramInboxStore(ctx.data_dir)
     sessions = TelegramSessionBridgeStore(ctx.data_dir)
-    session_creator = getattr(ctx, "telegram_session_bridge", None)
-    agent_turn_handler = getattr(ctx, "telegram_agent_turn_handler", None)
-    admin_gate = getattr(ctx, "require_admin", None) or require_admin
+
+    def _ctx_attr(name: str, default: Any = None) -> Any:
+        value = getattr(ctx, name, None)
+        if value is not None:
+            return value
+        app_state = getattr(getattr(ctx, "app", None), "state", None)
+        return getattr(app_state, name, default)
+
+    session_creator = _ctx_attr("telegram_session_bridge")
+    agent_turn_handler = _ctx_attr("telegram_agent_turn_handler")
+    admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
         admin_gate(request)
@@ -868,9 +907,10 @@ def setup(ctx):
     @router.post("/poll")
     async def poll(request: Request):
         _require_admin(request)
-        result = run_telegram_polling_cycle(
+        result = await asyncio.to_thread(
+            run_telegram_polling_cycle,
             data_dir=ctx.data_dir,
-            fetch_updates=getattr(ctx, "telegram_fetch_updates", None),
+            fetch_updates=_ctx_attr("telegram_fetch_updates"),
             session_creator=session_creator,
             agent_turn_handler=agent_turn_handler,
             reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
@@ -909,7 +949,7 @@ def setup(ctx):
             session_binding=session_binding,
             raw_chat_id=str(message.get("chat_id") or ""),
         )
-        agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+        agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
         if agent_turn is not None:
             store.append_event(
                 kind="agent_turn",
