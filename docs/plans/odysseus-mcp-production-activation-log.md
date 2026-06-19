@@ -8,6 +8,7 @@ Partial: MCP server MVP is implemented, tested, committed, and pushed to `fuzzy/
 
 - Implementation commit: `1d677027 Add gated MCP server plugin MVP`
 - Previous policy commit: `6befaabf Add MCP server roadmap and tool policy`
+- Latest activation-script commit: `3e164879 Add homeserver MCP activation script`
 - Successful push target: `fuzzy/dev`
 - Failed push target: `origin/dev`
 
@@ -83,7 +84,7 @@ Live production activation: Partial / blocked by access.
 
 No-Go for claiming production active until:
 
-- live server commit is verified,
+- live server commit `3e164879` or newer is verified,
 - MCP endpoint responds,
 - runtime gate is explicitly enabled,
 - local smoke passes,
