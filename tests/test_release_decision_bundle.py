@@ -23,6 +23,21 @@ def test_release_go_requires_all_recorded_positive_gates():
     assert result.decision == "release_go"
 
 
+def test_release_go_requires_literal_bool_recorded_gates():
+    result = build_release_decision_bundle(
+        provider_fallback_gate_recorded=True,
+        test_vault_rebuild_gate_recorded=True,
+        graph_memory_gate_recorded="true",  # type: ignore[arg-type]
+        large_graph_gate_recorded=True,
+        telegram_boundary_recorded=True,
+        plugin_freeze_recorded=True,
+        known_limits_recorded=True,
+        operator_decision_recorded=True,
+    )
+
+    assert result.decision == "release_deferred"
+
+
 def test_release_no_go_when_blockers_are_claimed():
     result = build_release_decision_bundle(
         provider_fallback_gate_recorded=True,
@@ -32,6 +47,22 @@ def test_release_no_go_when_blockers_are_claimed():
 
     assert result.decision == "release_no_go"
     assert "no-go" in result.summary.lower()
+
+
+def test_release_no_go_when_blocker_claim_is_not_literal_bool():
+    result = build_release_decision_bundle(
+        provider_fallback_gate_recorded=True,
+        test_vault_rebuild_gate_recorded=True,
+        graph_memory_gate_recorded=True,
+        large_graph_gate_recorded=True,
+        telegram_boundary_recorded=True,
+        plugin_freeze_recorded=True,
+        known_limits_recorded=True,
+        operator_decision_recorded=True,
+        plugin_runtime_enabled="true",  # type: ignore[arg-type]
+    )
+
+    assert result.decision == "release_no_go"
 
 
 def test_release_partial_when_required_gates_exist_but_supporting_gate_is_missing():
@@ -92,5 +123,7 @@ def test_markdown_is_operator_friendly_and_secret_safe():
 
     assert "# Release Decision Bundle" in markdown
     assert "release_go" in markdown
+    assert "read-only advisory" in markdown.lower()
+    assert "no runtime" in markdown.lower()
     assert "secret" in markdown.lower()
     assert "payloads" in markdown.lower()

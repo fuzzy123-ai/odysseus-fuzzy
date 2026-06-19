@@ -17,6 +17,10 @@ _DEFAULT_ACTIONS = (
     "Confirm operator release decision only after all mandatory gates are recorded.",
     "Keep secrets, payloads, and plugin runtime out of the release evidence bundle.",
 )
+_READ_ONLY_NOTICE = (
+    "Read-only advisory: no runtime, provider, RAG, Telegram, export/import, "
+    "rebuild, network, plugin, or host action was started."
+)
 
 
 def _normalize_text(value: Any) -> str:
@@ -37,6 +41,18 @@ def _normalize_tuple(values: Iterable[str]) -> tuple[str, ...]:
         if normalized and normalized not in cleaned:
             cleaned.append(normalized)
     return tuple(cleaned)
+
+
+def _is_recorded(value: bool | None) -> bool:
+    return value is True
+
+
+def _is_claimed(value: bool | None) -> bool:
+    return value is not False and value is not None
+
+
+def _is_known(value: bool | None) -> bool:
+    return value is True or value is False
 
 
 @dataclass(frozen=True)
@@ -70,6 +86,7 @@ class ReleaseDecisionBundle:
             "",
             f"- Gate ID: `{self.gate_id}`",
             f"- Decision: `{self.decision}`",
+            f"- Safety Notice: {_READ_ONLY_NOTICE}",
             f"- Summary: {self.summary}",
         ]
         if self.next_allowed_actions:
@@ -97,7 +114,8 @@ def build_release_decision_bundle(
     known_limits_missing: bool | None = False,
 ) -> ReleaseDecisionBundle:
     blockers = any(
-        (
+        _is_claimed(value)
+        for value in (
             provider_gate_missing,
             test_vault_gate_missing,
             plugin_runtime_enabled,
@@ -108,7 +126,8 @@ def build_release_decision_bundle(
         )
     )
     required_ready = all(
-        (
+        _is_recorded(value)
+        for value in (
             provider_fallback_gate_recorded,
             test_vault_rebuild_gate_recorded,
             graph_memory_gate_recorded,
@@ -119,12 +138,15 @@ def build_release_decision_bundle(
             operator_decision_recorded,
         )
     )
-    required_known = (
-        provider_fallback_gate_recorded is not None
-        and test_vault_rebuild_gate_recorded is not None
-        and plugin_freeze_recorded is not None
-        and known_limits_recorded is not None
-        and operator_decision_recorded is not None
+    required_known = all(
+        _is_known(value)
+        for value in (
+            provider_fallback_gate_recorded,
+            test_vault_rebuild_gate_recorded,
+            plugin_freeze_recorded,
+            known_limits_recorded,
+            operator_decision_recorded,
+        )
     )
     if blockers:
         return ReleaseDecisionBundle(
@@ -147,7 +169,7 @@ def build_release_decision_bundle(
             next_allowed_actions=_DEFAULT_ACTIONS,
         )
     if not required_known or any(
-        value is None
+        not _is_known(value)
         for value in (
             graph_memory_gate_recorded,
             large_graph_gate_recorded,
@@ -164,7 +186,8 @@ def build_release_decision_bundle(
             next_allowed_actions=_DEFAULT_ACTIONS,
         )
     if all(
-        (
+        _is_recorded(value)
+        for value in (
             provider_fallback_gate_recorded,
             test_vault_rebuild_gate_recorded,
             plugin_freeze_recorded,

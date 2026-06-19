@@ -15,8 +15,8 @@ _DECISIONS = (
 _STATUSES = ("go", "needs_provider_evidence", "blocked", "deferred")
 _DEFAULT_ACTIONS = (
     "Record redacted query-index, default-model, and fallback-model evidence only.",
-    "Review fallback behavior and known limits before any manual operator go.",
-    "Keep provider/network execution out of scope until manual release evidence is approved.",
+    "Review fallback behavior and known limits without provider or network execution.",
+    "Do not treat this validator output as external 1.0 go evidence or release approval.",
 )
 
 
@@ -154,7 +154,8 @@ def build_provider_fallback_answer_run(
             summary=(
                 "Redacted provider/fallback answer evidence is recorded with query-index "
                 "readiness, default and fallback model coverage, explained fallback behavior, "
-                "known-limits review, and operator confirmation."
+                "known-limits review, and operator confirmation. This validator-only result "
+                "does not authorize external 1.0 provider or network execution."
             ),
             next_allowed_actions=_DEFAULT_ACTIONS,
         )

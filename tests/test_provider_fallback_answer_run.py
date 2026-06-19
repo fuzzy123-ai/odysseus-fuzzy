@@ -23,6 +23,32 @@ def test_ready_requires_all_positive_redacted_evidence_gates():
 
     assert result.decision == "provider_answer_run_ready"
     assert result.status == "go"
+    assert "does not authorize external 1.0" in result.summary.lower()
+
+
+def test_deferred_evidence_does_not_claim_external_go():
+    result = build_provider_fallback_answer_run(
+        ready_query_index_recorded=None,
+        default_model_recorded=True,
+        fallback_model_recorded=True,
+    )
+
+    assert result.decision == "deferred"
+    assert result.status == "deferred"
+    assert "external 1.0 go evidence" in result.to_markdown().lower()
+
+
+def test_partial_evidence_does_not_claim_external_go():
+    result = build_provider_fallback_answer_run(
+        ready_query_index_recorded=True,
+        default_model_recorded=True,
+        fallback_model_recorded=False,
+    )
+
+    assert result.decision == "needs_provider_evidence"
+    assert result.status == "needs_provider_evidence"
+    assert "provider_answer_run_ready" not in result.to_markdown()
+    assert "external 1.0 go evidence" in result.to_markdown().lower()
 
 
 def test_blocked_when_secret_payload_or_runtime_boundary_fails():
@@ -35,6 +61,24 @@ def test_blocked_when_secret_payload_or_runtime_boundary_fails():
     assert result.decision == "blocked"
     assert result.status == "blocked"
     assert "raw payload" in result.summary.lower()
+
+
+def test_blocker_preempts_complete_evidence_and_allowed_actions():
+    result = build_provider_fallback_answer_run(
+        ready_query_index_recorded=True,
+        default_model_recorded=True,
+        fallback_model_recorded=True,
+        answer_prompt_recorded=True,
+        answer_result_recorded_redacted=True,
+        fallback_behavior_explained=True,
+        known_limits_reviewed=True,
+        operator_confirmation_recorded=True,
+        network_run_without_go=True,
+    )
+
+    assert result.decision == "blocked"
+    assert result.status == "blocked"
+    assert result.next_allowed_actions == ()
 
 
 def test_to_dict_is_compact_and_stable():
@@ -53,8 +97,8 @@ def test_to_dict_is_compact_and_stable():
         ),
         "next_allowed_actions": [
             "Record redacted query-index, default-model, and fallback-model evidence only.",
-            "Review fallback behavior and known limits before any manual operator go.",
-            "Keep provider/network execution out of scope until manual release evidence is approved.",
+            "Review fallback behavior and known limits without provider or network execution.",
+            "Do not treat this validator output as external 1.0 go evidence or release approval.",
         ],
     }
 
