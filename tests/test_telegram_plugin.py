@@ -23,6 +23,9 @@ from plugins.telegram.plugin import (
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 @dataclass
 class _PluginContext:
     app: FastAPI
@@ -54,6 +57,16 @@ def test_manifest_passes_plugin_capability_boundary():
     assert report.ok
     assert report.error_codes == ()
     assert report.warning_codes == ()
+
+
+def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
+    source = (ROOT / "app.py").read_text(encoding="utf-8")
+    start = source.index("def _telegram_agent_turn_handler")
+    end = source.index("app.state.telegram_session_bridge", start)
+    body = source[start:end]
+
+    assert "stream_agent_loop" in body
+    assert "llm_call(" not in body
 
 
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):

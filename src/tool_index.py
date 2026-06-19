@@ -85,6 +85,7 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
     "suggest_document": "Suggest changes to the active document with explanations. For code review, proofreading, feedback requests.",
     "generate_image": "Generate an AI image from a text prompt. Specify model, size, and quality. Art, illustrations, photos.",
     "chat_with_model": "Send a message to a different AI model. Compare responses, get specialized help, delegate tasks.",
+    "delegate": "Delegate a focused subtask to an isolated worker agent. Use for bounded read-only investigation or parallel context gathering; provide a concrete task, optional context_query, and optional budget. The worker returns compact JSON and does not mutate host files or keep conversation history.",
     "ask_teacher": "Ask a more capable model for help with a difficult problem. Escalate complex tasks.",
     "pipeline": "Run a multi-step AI pipeline with multiple models. Chain tasks together in sequence.",
     "list_models": "List all available AI models and their endpoints.",

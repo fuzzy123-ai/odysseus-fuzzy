@@ -1,5 +1,6 @@
 # app.py — slim orchestrator
 import mimetypes
+import json
 import os
 import sys
 
@@ -855,8 +856,7 @@ def _telegram_session_bridge(**kwargs):
 
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
-    from src.ai_interaction import AI_CHAT_TIMEOUT
-    from src.llm_core import llm_call
+    from src.agent_loop import stream_agent_loop
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -870,14 +870,32 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     try:
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
-        context.append({"role": "user", "content": prompt})
-        response = llm_call(
-            session.endpoint_url,
-            session.model,
-            context,
-            headers=headers,
-            timeout=AI_CHAT_TIMEOUT,
-        )
+        messages = list(context)
+        messages.append({"role": "user", "content": prompt})
+
+        async def _run_agent_turn() -> str:
+            reply_parts: list[str] = []
+            async for chunk in stream_agent_loop(
+                session.endpoint_url,
+                session.model,
+                messages,
+                headers=headers,
+                session_id=session_id,
+                owner=_telegram_owner(),
+            ):
+                if not chunk.startswith("data: ") or chunk.startswith("data: [DONE]"):
+                    continue
+                try:
+                    event = json.loads(chunk[6:])
+                except Exception:
+                    continue
+                if "delta" in event and not event.get("thinking"):
+                    reply_parts.append(str(event.get("delta") or ""))
+            return "".join(reply_parts).strip()
+
+        response = _run_async_bridge(_run_agent_turn())
+        if not response:
+            response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         session.add_message(ChatMessage("user", prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
         return {"status": "accepted", "reply_text": str(response or "")}
