@@ -175,6 +175,11 @@ Done when:
 - Real server evidence exists or the track is explicitly Partial.
 - Updater consumes backup evidence as structured input and blocks unsafe plans.
 
+Current status:
+- Offline Partial: updater backup gate consumes structured evidence and can emit
+  a safe evidence packet. Real homeserver snapshot, `restic check`, and restore
+  smoke evidence remain pending.
+
 ### UFR6 Private Source Foundation
 
 Owners:

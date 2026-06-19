@@ -184,6 +184,30 @@ class BackupGateReport:
             "next_actions": list(self.next_actions),
         }
 
+    def to_evidence_packet(self) -> dict[str, Any]:
+        """Return a compact operator packet safe for docs, audit, and handoff."""
+
+        return {
+            "feature": "homeserver_backup_gate",
+            "risk_level": self.risk_level,
+            "status": self.status,
+            "deployment_decision": self.deployment_decision,
+            "required_evidence": [
+                {
+                    "evidence_id": item.evidence_id,
+                    "state": item.state,
+                    "result_label": item.result_label,
+                    "checked_at": item.checked_at,
+                    "summary": item.summary,
+                }
+                for item in self.evidence
+            ],
+            "blockers": list(self.blockers),
+            "next_actions": list(self.next_actions),
+            "secret_values_visible": False,
+            "host_output_visible": False,
+        }
+
 
 def _default_missing_evidence(
     *,

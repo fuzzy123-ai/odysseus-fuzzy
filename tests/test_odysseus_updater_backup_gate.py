@@ -60,6 +60,11 @@ def test_ready_when_all_required_evidence_is_green():
             "Proceed with deployment review because all required backup evidence is green."
         ],
     }
+    packet = report.to_evidence_packet()
+    assert packet["feature"] == "homeserver_backup_gate"
+    assert packet["secret_values_visible"] is False
+    assert packet["host_output_visible"] is False
+    assert "blocker_reason" not in packet["required_evidence"][0]
 
 
 def test_missing_restore_smoke_is_partial_for_low_risk():
@@ -179,3 +184,21 @@ def test_module_source_stays_offline_and_runtime_free():
 
     for fragment in forbidden_fragments:
         assert fragment not in source
+
+
+def test_evidence_packet_is_safe_to_persist_when_blocked():
+    report = build_odysseus_updater_backup_gate(
+        risk_level="critical",
+        evaluated_at="2026-06-19T12:00:00Z",
+        evidence_inputs=_full_green_evidence()[:2],
+    )
+
+    packet = report.to_evidence_packet()
+    encoded = str(packet).lower()
+
+    assert packet["deployment_decision"] == "no_go"
+    assert packet["secret_values_visible"] is False
+    assert packet["host_output_visible"] is False
+    assert "password" not in encoded
+    assert "token" not in encoded
+    assert "chat_id" not in encoded
