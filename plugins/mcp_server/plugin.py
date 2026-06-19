@@ -1,0 +1,437 @@
+"""Odysseus MCP Server plugin.
+
+This plugin exposes a deliberately small Model Context Protocol surface for
+trusted external clients. It is disabled by default and relies on Odysseus auth;
+tool exposure is filtered through ``src.mcp_server_tool_policy``.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import time
+from pathlib import Path
+from typing import Any, Mapping
+
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+
+from src.mcp_server_tool_policy import (
+    McpToolPolicyOptions,
+    classify_mcp_tool,
+    filter_mcp_tools,
+)
+
+try:
+    from core.middleware import require_admin as _core_require_admin
+except Exception:  # pragma: no cover - file-loader tests may not have app context
+    _core_require_admin = None
+
+
+PLUGIN = {
+    "name": "MCP Server",
+    "version": "0.1.0",
+    "author": "Odysseus",
+    "description": "Policy-gated MCP server for trusted external clients.",
+    "category": "Integrations",
+    "permission": "admin",
+    "ui": {"open": "/api/plugins/mcp/app", "label": "Setup"},
+}
+
+SERVER_NAME = "odysseus"
+SUPPORTED_PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
+DEFAULT_CONFIG = {
+    "enabled": False,
+    "allow_owner_scoped_writes": False,
+    "allow_private_reads": False,
+    "allow_filesystem_reads": False,
+    "allow_generic_api": False,
+}
+
+
+def _bool_env(name: str) -> bool:
+    return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _jsonrpc_error(message_id: Any, code: int, message: str) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": message_id, "error": {"code": code, "message": message}}
+
+
+def _schema_name(schema: Mapping[str, Any]) -> str:
+    function = schema.get("function")
+    if isinstance(function, Mapping):
+        return str(function.get("name") or "")
+    return str(schema.get("name") or "")
+
+
+def _mcp_tool_from_openai_schema(schema: Mapping[str, Any]) -> dict[str, Any] | None:
+    function = schema.get("function")
+    if not isinstance(function, Mapping):
+        return None
+    name = str(function.get("name") or "")
+    if not name:
+        return None
+    return {
+        "name": name,
+        "description": str(function.get("description") or ""),
+        "inputSchema": function.get("parameters") or {"type": "object", "properties": {}},
+    }
+
+
+class McpServerState:
+    def __init__(self, data_dir: str | Path, logger: Any) -> None:
+        self.data_dir = Path(data_dir)
+        self.logger = logger
+
+    @property
+    def config_path(self) -> Path:
+        return self.data_dir / "config.json"
+
+    @property
+    def audit_path(self) -> Path:
+        return self.data_dir / "mcp_audit.jsonl"
+
+    def load_config(self) -> dict[str, Any]:
+        config = dict(DEFAULT_CONFIG)
+        try:
+            loaded = json.loads(self.config_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                config.update({key: loaded.get(key, value) for key, value in DEFAULT_CONFIG.items()})
+        except Exception:
+            pass
+        if _bool_env("ODYSSEUS_MCP_SERVER_ENABLED"):
+            config["enabled"] = True
+        return config
+
+    def save_config(self, incoming: Mapping[str, Any]) -> dict[str, Any]:
+        config = self.load_config()
+        for key in DEFAULT_CONFIG:
+            if key in incoming:
+                config[key] = bool(incoming[key])
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+        return config
+
+    def policy_options(self, config: Mapping[str, Any]) -> McpToolPolicyOptions:
+        return McpToolPolicyOptions(
+            allow_owner_scoped_writes=bool(config.get("allow_owner_scoped_writes")),
+            allow_private_reads=bool(config.get("allow_private_reads")),
+            allow_filesystem_reads=bool(config.get("allow_filesystem_reads")),
+            allow_generic_api=bool(config.get("allow_generic_api")),
+            expose_all=False,
+        )
+
+    def audit(self, *, method: str, status: str, tool: str = "", reason: str = "", duration_ms: int = 0) -> None:
+        entry = {
+            "timestamp": int(time.time()),
+            "method": method,
+            "tool": tool,
+            "status": status,
+            "reason": reason,
+            "duration_ms": int(duration_ms),
+            "token_value_visible": False,
+            "secret_value_visible": False,
+        }
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            with self.audit_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            self.logger.warning("MCP audit write failed: %s", exc)
+
+    def tool_schemas(self, options: McpToolPolicyOptions) -> list[dict[str, Any]]:
+        schemas: list[Mapping[str, Any]] = []
+        try:
+            import src.agent_tools  # noqa: F401 - initialize tool schema facade first
+            from src.tool_schemas import FUNCTION_TOOL_SCHEMAS
+            schemas.extend(FUNCTION_TOOL_SCHEMAS)
+        except Exception as exc:
+            self.logger.warning("MCP tool schemas unavailable: %s", exc)
+        try:
+            from src.tool_registry import get_function_schemas
+            schemas.extend(get_function_schemas())
+        except Exception as exc:
+            self.logger.warning("MCP dynamic tool schemas unavailable: %s", exc)
+        filtered = filter_mcp_tools(schemas, options)
+        tools: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for schema in filtered:
+            tool = _mcp_tool_from_openai_schema(schema)
+            if not tool or tool["name"] in seen:
+                continue
+            seen.add(tool["name"])
+            tools.append(tool)
+        return tools
+
+    async def call_tool(self, name: str, arguments: Mapping[str, Any], options: McpToolPolicyOptions) -> tuple[str, bool]:
+        decision = classify_mcp_tool(name, options)
+        if not decision.exposed:
+            return (f"Tool {name!r} is not exposed: {decision.reason}", True)
+        try:
+            import src.agent_tools  # noqa: F401 - initialize tool subsystem first
+            from src.tool_execution import execute_tool_block
+            from src.tool_schemas import function_call_to_tool_block
+
+            block = function_call_to_tool_block(name, json.dumps(dict(arguments or {})))
+            if block is None:
+                return (f"Unknown tool: {name!r}", True)
+            _desc, result = await execute_tool_block(block)
+        except Exception as exc:
+            return (f"Tool execution failed: {exc}", True)
+        if not isinstance(result, dict):
+            return (str(result), False)
+        text = result.get("output")
+        is_error = bool(result.get("error")) or result.get("exit_code") not in (0, None)
+        if text is None:
+            text = result.get("error")
+        if text is None:
+            text = json.dumps(result, ensure_ascii=False, default=str)
+        return (str(text)[:60000], is_error)
+
+
+def _static_resources() -> list[dict[str, Any]]:
+    return [
+        {
+            "uri": "odysseus://mcp/readiness",
+            "name": "Odysseus MCP readiness",
+            "description": "Current MCP server readiness and safety posture.",
+            "mimeType": "application/json",
+        },
+        {
+            "uri": "odysseus://mcp/operator-runbook",
+            "name": "Odysseus MCP operator runbook",
+            "description": "Operator guidance for safe MCP server activation.",
+            "mimeType": "text/markdown",
+        },
+    ]
+
+
+def _static_prompts() -> list[dict[str, Any]]:
+    return [
+        {
+            "name": "odysseus_mcp_safe_notification",
+            "description": "Ask Odysseus to notify the user through the server-side notification bridge.",
+            "arguments": [{"name": "message", "description": "Redacted user-facing completion message.", "required": True}],
+        },
+        {
+            "name": "odysseus_mcp_readiness_review",
+            "description": "Review MCP readiness before enabling remote clients.",
+            "arguments": [],
+        },
+    ]
+
+
+def _prompt_payload(name: str, args: Mapping[str, Any]) -> dict[str, Any] | None:
+    if name == "odysseus_mcp_safe_notification":
+        message = str(args.get("message") or "Task complete.")
+        return {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": (
+                            "Call `odysseus_notify_user` with dry_run=true first. "
+                            f"Use this redacted message: {message}"
+                        ),
+                    },
+                }
+            ]
+        }
+    if name == "odysseus_mcp_readiness_review":
+        return {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": "Read `odysseus://mcp/readiness` and summarize remaining production gates.",
+                    },
+                }
+            ]
+        }
+    return None
+
+
+async def _handle_jsonrpc(state: McpServerState, msg: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any] | None:
+    started = time.monotonic()
+    method = str(msg.get("method") or "")
+    message_id = msg.get("id")
+    params = msg.get("params") or {}
+    is_notification = "id" not in msg
+    options = state.policy_options(config)
+
+    if not isinstance(msg, Mapping) or msg.get("jsonrpc") != "2.0":
+        return _jsonrpc_error(None, -32600, "Invalid Request")
+
+    try:
+        if method == "initialize":
+            requested = str((params or {}).get("protocolVersion") or "")
+            protocol = requested if requested in SUPPORTED_PROTOCOLS else SUPPORTED_PROTOCOLS[0]
+            result = {
+                "protocolVersion": protocol,
+                "capabilities": {
+                    "tools": {"listChanged": False},
+                    "resources": {"subscribe": False, "listChanged": False},
+                    "prompts": {"listChanged": False},
+                },
+                "serverInfo": {"name": SERVER_NAME, "version": PLUGIN["version"]},
+                "instructions": "Odysseus MCP is policy-gated. Dangerous tools and generic API calls are hidden by default.",
+            }
+        elif method.startswith("notifications/"):
+            return None
+        elif method == "ping":
+            result = {}
+        elif method == "tools/list":
+            result = {"tools": state.tool_schemas(options)}
+        elif method == "tools/call":
+            name = str(params.get("name") or "")
+            arguments = params.get("arguments") or {}
+            if not name:
+                raise ValueError("tools/call requires name")
+            text, is_error = await state.call_tool(name, arguments, options)
+            result = {"content": [{"type": "text", "text": text}], "isError": is_error}
+            state.audit(
+                method=method,
+                tool=name,
+                status="error" if is_error else "ok",
+                reason="tool_call",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+        elif method == "resources/list":
+            result = {"resources": _static_resources()}
+        elif method == "resources/read":
+            uri = str(params.get("uri") or "")
+            if uri == "odysseus://mcp/readiness":
+                readiness = {
+                    "enabled": bool(config.get("enabled")),
+                    "generic_api_enabled": bool(config.get("allow_generic_api")),
+                    "owner_scoped_writes_enabled": bool(config.get("allow_owner_scoped_writes")),
+                    "private_reads_enabled": bool(config.get("allow_private_reads")),
+                    "filesystem_reads_enabled": bool(config.get("allow_filesystem_reads")),
+                    "expose_all_supported": False,
+                }
+                text = json.dumps(readiness, indent=2)
+            elif uri == "odysseus://mcp/operator-runbook":
+                text = (
+                    "# Odysseus MCP Operator Notes\n\n"
+                    "- Keep the server disabled until a named MCP client is ready.\n"
+                    "- Use a dedicated Odysseus API token per client.\n"
+                    "- Do not enable generic API access for MVP.\n"
+                    "- Review the redacted audit log after live smoke tests.\n"
+                )
+            else:
+                return _jsonrpc_error(message_id, -32602, f"Unknown resource: {uri}")
+            result = {"contents": [{"uri": uri, "mimeType": "application/json" if uri.endswith("readiness") else "text/markdown", "text": text}]}
+        elif method == "prompts/list":
+            result = {"prompts": _static_prompts()}
+        elif method == "prompts/get":
+            payload = _prompt_payload(str(params.get("name") or ""), params.get("arguments") or {})
+            if payload is None:
+                return _jsonrpc_error(message_id, -32602, "Unknown prompt")
+            result = payload
+        else:
+            if is_notification:
+                return None
+            return _jsonrpc_error(message_id, -32601, f"Method not found: {method}")
+    except Exception as exc:
+        state.audit(method=method, status="error", reason=type(exc).__name__)
+        if is_notification:
+            return None
+        return _jsonrpc_error(message_id, -32603, f"Internal error: {exc}")
+
+    state.audit(method=method, status="ok", duration_ms=int((time.monotonic() - started) * 1000))
+    if is_notification:
+        return None
+    return {"jsonrpc": "2.0", "id": message_id, "result": result}
+
+
+def _app_html(config: Mapping[str, Any], nonce: str) -> str:
+    enabled = "enabled" if config.get("enabled") else "disabled"
+    return f"""<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odysseus MCP Server</title>
+<link rel="stylesheet" href="/static/plugin-theme.css">
+<script src="/static/js/plugin-theme.js"></script>
+</head><body>
+<header class="od-header"><a class="brand" href="/">Odysseus</a><span class="od-title">MCP Server</span></header>
+<main class="od-wrap">
+  <h1>MCP Server</h1>
+  <div class="od-card">
+    <p>Status: <strong>{enabled}</strong></p>
+    <p class="muted">Endpoint: <code>POST /api/plugins/mcp</code></p>
+    <p class="muted">Use a dedicated Odysseus API token. Dangerous tools and generic API access are hidden by default.</p>
+  </div>
+  <script nonce="{nonce}">console.log("Odysseus MCP Server setup page loaded");</script>
+</main>
+</body></html>"""
+
+
+def setup(ctx):
+    router = APIRouter(prefix="/api/plugins/mcp", tags=["plugin:mcp_server"])
+    state = McpServerState(ctx.data_dir, ctx.logger)
+
+    def _require_admin(request: Request) -> None:
+        gate = getattr(ctx, "require_admin", None) or _core_require_admin
+        if callable(gate):
+            gate(request)
+
+    @router.post("")
+    @router.post("/")
+    async def mcp_endpoint(request: Request):
+        _require_admin(request)
+        config = state.load_config()
+        if not config.get("enabled"):
+            return JSONResponse(_jsonrpc_error(None, -32000, "MCP server is disabled"), status_code=403)
+        try:
+            payload = await request.json()
+        except Exception:
+            return JSONResponse(_jsonrpc_error(None, -32700, "Parse error"), status_code=400)
+        batch = isinstance(payload, list)
+        messages = payload if batch else [payload]
+        responses = [response for msg in messages if (response := await _handle_jsonrpc(state, msg, config)) is not None]
+        if not responses:
+            return Response(status_code=202)
+        return JSONResponse(responses if batch else responses[0])
+
+    @router.get("")
+    async def mcp_get(request: Request):
+        _require_admin(request)
+        return JSONResponse({"error": "MCP endpoint is POST-only in this MVP."}, status_code=405)
+
+    @router.get("/info")
+    async def info(request: Request):
+        _require_admin(request)
+        config = state.load_config()
+        options = state.policy_options(config)
+        return {
+            "plugin": "mcp_server",
+            "enabled": bool(config.get("enabled")),
+            "endpoint": "/api/plugins/mcp",
+            "transport": "streamable_http_post",
+            "tools_exposed": len(state.tool_schemas(options)) if config.get("enabled") else 0,
+            "expose_all_supported": False,
+            "token_value_visible": False,
+        }
+
+    @router.get("/config")
+    async def get_config(request: Request):
+        _require_admin(request)
+        return state.load_config()
+
+    @router.post("/config")
+    async def set_config(request: Request):
+        _require_admin(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        return state.save_config(body if isinstance(body, dict) else {})
+
+    @router.get("/app")
+    async def app_page(request: Request):
+        _require_admin(request)
+        return HTMLResponse(_app_html(state.load_config(), getattr(request.state, "csp_nonce", "")))
+
+    ctx.add_router(router)
+    ctx.logger.info("MCP Server plugin ready at /api/plugins/mcp (runtime gate disabled by default)")

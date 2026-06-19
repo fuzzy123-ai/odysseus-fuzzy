@@ -147,6 +147,8 @@ Required hardening during port:
 - Add explicit deny reasons in tool responses.
 - Add a redacted audit event per MCP client/tool call.
 
+Status: Done for MVP. The local plugin lives in `plugins/mcp_server/plugin.py`, is disabled by default, exposes JSON-RPC initialize/ping/tools/resources/prompts, and writes a redacted audit trail.
+
 ### MCP4-tool-policy-hardening
 
 Replace broad allowlist with an Odysseus-owned policy module:
@@ -155,6 +157,8 @@ Replace broad allowlist with an Odysseus-owned policy module:
 - named categories: read-only, owner-scoped write, notification, high-risk
 - tests for every high-risk built-in tool name
 - regression test that new tools default to hidden until classified
+
+Status: Done for MVP. See `src/mcp_server_tool_policy.py` and `tests/test_mcp_server_tool_policy.py`.
 
 ### MCP5-notification-bridge
 
@@ -167,6 +171,8 @@ Acceptance:
 - Dry-run is default.
 - Live dispatch remains server-side and gated.
 
+Status: Done for exposure path. `odysseus_notify_user` is allowed by policy when registered by the Telegram plugin; its own contract keeps delivery secrets and targets server-side.
+
 ### MCP6-operator-runbook
 
 Create `docs/mcp-server-runbook.md` covering:
@@ -178,6 +184,8 @@ Create `docs/mcp-server-runbook.md` covering:
 - Cloudflare Tunnel cautions
 - `expose_all` danger language
 - rollback/disable procedure
+
+Status: Done. See `docs/mcp-server-runbook.md`.
 
 ### MCP7-live-smoke
 
