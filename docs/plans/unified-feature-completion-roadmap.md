@@ -154,6 +154,11 @@ Done when:
 - Tests use fakes only.
 - Live voice smoke is separate from implementation readiness.
 
+Current status:
+- Offline Partial: metadata intake and fakeable download/STT/agent-turn gates
+  are modeled and tested. No real download, STT provider, reply, or live smoke
+  has run.
+
 ### UFR5 Backup Gate And Safe Updater Coupling
 
 Owners:
