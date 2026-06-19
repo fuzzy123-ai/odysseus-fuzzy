@@ -81,7 +81,41 @@ Ein Live-Go darf nur ausgesprochen werden, wenn alle Punkte erfuellt sind:
 - Zielkonflikte erzeugen Review oder No-Go, niemals Overwrite.
 - Dry-Run-Evidence enthaelt pro Datei Status, relative Source, Hash, Size, Mtime, Extraction-Status, Routing-Entscheidung, Policy-Gate, geplante Operation und Review-/No-Go-Gruende.
 - Tests fuer Discovery, Extraction, Worker, Routing, Policy, Memory, Pipeline und Placement sind gruen.
+- Optionaler Write-Capability-Probe laeuft nur in einem explizit markierten Scratch-/Staging-Root und meldet `live_writes_performed=false`.
 - `git diff --check` ist fuer die betroffenen Docs/Code-Aenderungen sauber, wenn vor Integration ausgefuehrt.
+
+## Write-Capability Probe
+
+Der Write-Capability-Probe ist kein Placement-Executor. Er darf nur beweisen, dass lokale Schreibmechanik in einem isolierten Scratch-/Staging-Ordner funktioniert.
+
+Erlaubt:
+
+- Sentinel-Datei im Scratch-/Staging-Root schreiben.
+- Sentinel-Datei innerhalb dieses Roots umbenennen.
+- Sentinel-Datei innerhalb dieses Roots in einen Unterordner verschieben.
+- Sentinel-Artefakte danach aufraeumen.
+
+Verboten:
+
+- Probe im echten `AI Inbox/Incoming/` ausfuehren.
+- Probe in `Documents/...`, `AI Inbox/...`, `AI Memory/...` oder gegen Nutzerdateien ausfuehren.
+- Probe-Ergebnis als Freigabe fuer echte Move/Rename/Delete-Aktionen interpretieren.
+- Absolute Hostpfade im Probe-Report serialisieren.
+
+Go:
+
+- `write_ok=true`, `rename_ok=true`, `move_ok=true`, `cleanup_ok=true`.
+- `probe_writes_performed=true`.
+- `live_writes_performed=false`.
+- `inbox_files_touched=false`.
+- `absolute_paths_visible=false`.
+
+No-Go:
+
+- Probe-Root ist nicht explizit als Scratch/Staging/Test/Temp/Probe markiert.
+- Probe-Writes sind nicht explizit aktiviert.
+- Cleanup scheitert.
+- Ein absoluter Hostpfad, Rohinhalt oder eine echte Inbox-/Nutzerdatei wuerde beruehrt.
 
 ## Stop Rules
 
@@ -124,6 +158,7 @@ Evidence:
 - Files planned copy: <count>
 - Files needing review: <count>
 - Files no-go: <count>
+- Write probe: <go|no-go|not-run>
 - Dry-run report path: <relative-or-redacted>
 - Raw content persisted: no
 - Absolute host paths persisted: no
