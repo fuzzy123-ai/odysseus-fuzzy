@@ -18,6 +18,8 @@ foundation.
 - MCP server MVP, narrow tool policy, notification bridge, and runbook exist in
   `plugins/mcp_server/plugin.py`, `src/mcp_server_tool_policy.py`,
   `src/user_notification_contract.py`, and `docs/mcp-server-runbook.md`.
+- MCP notification dry-run calls are covered by offline route tests; production
+  activation remains Partial until server-local smoke passes.
 - Telegram text-chat plugin and metadata-only voice intake exist in
   `plugins/telegram/plugin.py`; `tests/test_telegram_plugin.py` is currently a
   dirty hotfile and is not part of this slice.
@@ -105,6 +107,12 @@ Done when:
 - Activation script points at the current published commit.
 - MCP route smoke is documented and tested offline.
 - Production activation remains clearly Partial until server-local smoke passes.
+
+Current status:
+- Offline exposure Go; production Partial.
+- MCP `tools/call` for plugin tools still needs a trusted execution owner
+  context before live notification dispatch can be claimed. This is safer than
+  silently bypassing admin-only plugin-tool gates.
 
 ### UFR3 Telegram Text Chat Productization
 

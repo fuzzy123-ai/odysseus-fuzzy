@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from plugins.mcp_server.plugin import setup
 from src.tool_registry import ToolSpec, unregister_tool, register_tool
+from src.user_notification_contract import build_user_notification_decision
 
 
 @dataclass
@@ -104,6 +105,46 @@ def test_mcp_tools_call_denies_hidden_high_risk_tool(tmp_path, monkeypatch):
     result = response.json()["result"]
     assert result["isError"] is True
     assert "high_risk_tool_hidden" in result["content"][0]["text"]
+
+
+def test_mcp_notify_user_tool_call_requires_trusted_execution_owner(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    unregister_tool("odysseus_notify_user")
+
+    def _notify_tool(content, **kwargs):
+        payload = json.loads(content) if isinstance(content, str) else dict(content or {})
+        payload.update(kwargs)
+        return {
+            "output": json.dumps(build_user_notification_decision(payload).as_public_dict()),
+            "exit_code": 0,
+        }
+
+    register_tool(ToolSpec(
+        name="odysseus_notify_user",
+        description="Request user notification.",
+        parameters={"type": "object", "properties": {"message": {"type": "string"}}, "required": ["message"]},
+        execute=_notify_tool,
+    ))
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={"enabled": True})
+
+    response = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "odysseus_notify_user",
+        "arguments": {
+            "event": "mcp_smoke",
+            "message": "MCP notification smoke completed.",
+            "dry_run": True,
+        },
+    }))
+    unregister_tool("odysseus_notify_user")
+
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["isError"] is True
+    text = result["content"][0]["text"]
+    assert "requires an admin user" in text
+    assert "chat_id" not in text
+    assert "token" not in text.lower().replace("token_value_visible", "")
 
 
 def test_mcp_resources_and_prompts_are_available(tmp_path, monkeypatch):
