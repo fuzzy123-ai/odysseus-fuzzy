@@ -23,6 +23,8 @@ foundation.
 - Telegram text-chat plugin and metadata-only voice intake exist in
   `plugins/telegram/plugin.py`; `tests/test_telegram_plugin.py` is currently a
   dirty hotfile and is not part of this slice.
+- Telegram text boundary coverage is split into focused non-hotfile tests for
+  agent-ready allowed text, blocked chats, and persisted identifier redaction.
 - Homeserver backup scripts and restore docs exist, but full status remains
   Partial until a real server backup, `restic check`, and restore smoke are
   evidenced.
@@ -130,6 +132,10 @@ Done when:
   deferred.
 - Focused Telegram tests pass.
 - One manual live text roundtrip has redacted evidence after live Go.
+
+Current status:
+- Offline Partial: text intake/bridge/redaction boundaries have focused tests;
+  live Telegram roundtrip and dirty hotfile reconciliation remain pending.
 
 ### UFR4 Telegram Voice Pipeline
 
