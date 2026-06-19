@@ -152,7 +152,7 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
     assert "const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer'" in main_js
     assert "const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js'" in main_js
     assert "function loadCytoscape()" in main_js
-    assert "async function renderCytoscapeGraph(graph, prepared)" in main_js
+    assert "async function renderCytoscapeGraph(graph, prepared, renderToken)" in main_js
     assert "function renderSvgGraphFallback(graph, prepared)" in main_js
     assert "const OBSIDIAN_GRAPH_WHEEL_SENSITIVITY = 0.55" in main_js
     assert "function isVaultRootSelected()" in main_js
@@ -186,11 +186,15 @@ def test_obsidian_graph_filter_contract_and_current_node_visibility():
     main_js = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     style = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
 
-    assert "const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters'" in main_js
-    assert "let graphFilterState = {" in main_js
+    assert "const OBSIDIAN_GRAPH_FILTERS_KEY_PREFIX = 'odysseus.obsidian.graphFilters'" in main_js
+    assert "let graphViewState = createGraphViewState();" in main_js
+    assert "let graphFilterState = {" not in main_js
+    assert "let graphLensMode = 'overview';" not in main_js
     assert "let graphEdgeTypeFilter = 'all';" not in main_js
-    assert "let graphFilterPanelOpen = false;" in main_js
-    assert "let graphFilterOutsideClickHandler = null;" in main_js
+    assert "let graphFilterPanelOpen = false;" not in main_js
+    assert "let graphFilterOutsideClickHandler = null;" not in main_js
+    assert "function createGraphViewState(overrides = {})" in main_js
+    assert "function graphFilterScopeKey(scope = graphStorageScope())" in main_js
     assert "function resetGraphFilterState()" in main_js
     assert "function loadGraphFilterState()" in main_js
     assert "function saveGraphFilterState()" in main_js
@@ -205,10 +209,12 @@ def test_obsidian_graph_filter_contract_and_current_node_visibility():
     assert 'data-filter-edge="${type}"' in main_js
     assert 'id="obsidian-graph-filter-tags"' in main_js
     assert 'id="obsidian-graph-filter-reset"' in main_js
-    assert "document.removeEventListener('click', graphFilterOutsideClickHandler)" in main_js
-    assert "panel?.classList.toggle('hidden', !graphFilterPanelOpen)" in main_js
+    assert "document.removeEventListener('click', graphViewState.outsideClickHandler)" in main_js
+    assert "panel?.classList.toggle('hidden', !graphViewState.filterPanelOpen)" in main_js
     assert "graphFilterState.mode = e.target.value" in main_js
     assert "graphFilterState.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)" in main_js
+    assert "const renderToken = graphViewState.renderToken;" in main_js
+    assert "graphViewState.cytoscapeInstance === cytoscapeInstance" in main_js
     assert "const isCurrentNode = node.id === currentNotePath;" in main_js
     assert "graphFilterState.mode === 'show' && !matches && !isCurrentNode" in main_js
     assert "else if (!isCurrentNode) classes.push('dimmed');" in main_js

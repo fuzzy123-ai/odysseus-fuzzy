@@ -37,18 +37,9 @@ let isPanelOpen = false;
 let currentViewMode = 'document';
 let tagCache = null;
 let autocompleteState = null;
-const OBSIDIAN_GRAPH_FILTERS_KEY = 'odysseus.obsidian.graphFilters';
+const OBSIDIAN_GRAPH_FILTERS_KEY_PREFIX = 'odysseus.obsidian.graphFilters';
 const OBSIDIAN_GRAPH_LENS_KEY = 'odysseus.obsidian.graphLensMode';
-let graphFilterState = {
-  mode: 'highlight',
-  nodes: { markdown: true, folder: true },
-  edges: { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
-  search: '',
-  tags: []
-};
-let graphLensMode = 'overview';
-let graphFilterPanelOpen = false;
-let graphFilterOutsideClickHandler = null;
+let graphViewState = createGraphViewState();
 let graphReflowFrame = 0;
 let memoryTagPendingRemoval = '';
 let currentNoteDocumentIntelligence = { state: 'empty' };
@@ -295,8 +286,8 @@ function renderDocumentIntelligenceBar() {
   `;
 }
 
-function resetGraphFilterState() {
-  graphFilterState = {
+function createDefaultGraphFilterState() {
+  return {
     mode: 'highlight',
     nodes: { markdown: true, folder: true },
     edges: { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
@@ -305,18 +296,50 @@ function resetGraphFilterState() {
   };
 }
 
+function normalizeGraphFilterState(input = {}) {
+  const defaults = createDefaultGraphFilterState();
+  const parsed = input && typeof input === 'object' ? input : {};
+  return {
+    mode: parsed.mode || defaults.mode,
+    nodes: { ...defaults.nodes, ...(parsed.nodes || {}) },
+    edges: { ...defaults.edges, ...(parsed.edges || {}) },
+    search: parsed.search || '',
+    tags: Array.isArray(parsed.tags) ? [...parsed.tags] : [],
+  };
+}
+
+function createGraphViewState(overrides = {}) {
+  return {
+    filters: normalizeGraphFilterState(overrides.filters),
+    lensMode: overrides.lensMode || 'overview',
+    filterPanelOpen: false,
+    outsideClickHandler: null,
+    cytoscapeInstance: null,
+    renderToken: 0,
+  };
+}
+
+function graphStorageScope({ lensMode = graphViewState.lensMode, focusPath = graphFocusPath() } = {}) {
+  const scope = [lensMode || 'overview', focusPath || 'whole-vault']
+    .map(part => String(part).trim().replace(/[^A-Za-z0-9_.-]+/g, '_'))
+    .filter(Boolean)
+    .join(':');
+  return scope || 'overview:whole-vault';
+}
+
+function graphFilterScopeKey(scope = graphStorageScope()) {
+  return `${OBSIDIAN_GRAPH_FILTERS_KEY_PREFIX}:${scope}`;
+}
+
+function resetGraphFilterState() {
+  graphViewState.filters = createDefaultGraphFilterState();
+}
+
 function loadGraphFilterState() {
   try {
-    const stored = localStorage.getItem(OBSIDIAN_GRAPH_FILTERS_KEY);
+    const stored = localStorage.getItem(graphFilterScopeKey());
     if (stored) {
-      const parsed = JSON.parse(stored);
-      graphFilterState = {
-        mode: parsed.mode || 'highlight',
-        nodes: parsed.nodes || { markdown: true, folder: true },
-        edges: parsed.edges || { wiki_link: true, filename_mention: true, shared_tag: true, manual: true, relates_to: true, depends_on: true, blocks: true, supports: true },
-        search: parsed.search || '',
-        tags: parsed.tags || []
-      };
+      graphViewState.filters = normalizeGraphFilterState(JSON.parse(stored));
       return;
     }
   } catch (e) {
@@ -327,7 +350,7 @@ function loadGraphFilterState() {
 
 function saveGraphFilterState() {
   try {
-    localStorage.setItem(OBSIDIAN_GRAPH_FILTERS_KEY, JSON.stringify(graphFilterState));
+    localStorage.setItem(graphFilterScopeKey(), JSON.stringify(graphViewState.filters));
   } catch (e) {
     console.warn('Failed to save graph filter state:', e);
   }
@@ -337,24 +360,25 @@ function loadGraphLensMode() {
   try {
     const stored = localStorage.getItem(OBSIDIAN_GRAPH_LENS_KEY);
     if (['overview', 'current_source', 'review_queue'].includes(stored)) {
-      graphLensMode = stored;
+      graphViewState.lensMode = stored;
       return;
     }
   } catch (e) {
     console.warn('Failed to load graph lens mode:', e);
   }
-  graphLensMode = 'overview';
+  graphViewState.lensMode = 'overview';
 }
 
 function saveGraphLensMode() {
   try {
-    localStorage.setItem(OBSIDIAN_GRAPH_LENS_KEY, graphLensMode);
+    localStorage.setItem(OBSIDIAN_GRAPH_LENS_KEY, graphViewState.lensMode);
   } catch (e) {
     console.warn('Failed to save graph lens mode:', e);
   }
 }
 
 function isNodeMatchingFilter(node) {
+  const graphFilterState = graphViewState.filters;
   if (node.type === 'markdown' && graphFilterState.nodes.markdown === false) return false;
   if (node.type === 'folder' && graphFilterState.nodes.folder === false) return false;
 
@@ -380,12 +404,12 @@ function isNodeMatchingFilter(node) {
 }
 
 function isEdgeMatchingFilter(edge) {
+  const graphFilterState = graphViewState.filters;
   const type = edge.type || 'link';
   if (graphFilterState.edges[type] === false) return false;
   return true;
 }
 
-let graphCytoscapeInstance = null;
 let graphCytoscapeLoadPromise = null;
 let projectPlanPreview = null;
 let projectPlanSessions = [];
@@ -1130,11 +1154,11 @@ function closeSettingsMenu() {
 }
 
 function closeGraphFilterPanel() {
-  graphFilterPanelOpen = false;
+  graphViewState.filterPanelOpen = false;
   document.getElementById('obsidian-graph-filter-panel')?.classList.add('hidden');
-  if (graphFilterOutsideClickHandler) {
-    document.removeEventListener('click', graphFilterOutsideClickHandler);
-    graphFilterOutsideClickHandler = null;
+  if (graphViewState.outsideClickHandler) {
+    document.removeEventListener('click', graphViewState.outsideClickHandler);
+    graphViewState.outsideClickHandler = null;
   }
 }
 
@@ -5357,6 +5381,7 @@ async function renderGraphView() {
   if (!graph) return;
 
   destroyGraphCytoscape();
+  const renderToken = graphViewState.renderToken;
   graph.innerHTML = '<div class="obsidian-graph-empty">Building graph...</div>';
 
   let prepared;
@@ -5367,6 +5392,7 @@ async function renderGraphView() {
     graph.innerHTML = '<div class="obsidian-graph-empty">Unable to build graph.</div>';
     return;
   }
+  if (renderToken !== graphViewState.renderToken) return;
 
   const lensed = applyGraphLens(prepared);
 
@@ -5384,8 +5410,9 @@ async function renderGraphView() {
   }
 
   try {
-    await renderCytoscapeGraph(graph, lensed.prepared);
+    await renderCytoscapeGraph(graph, lensed.prepared, renderToken);
   } catch (e) {
+    if (renderToken !== graphViewState.renderToken) return;
     console.warn('Cytoscape graph failed, falling back to SVG:', e);
     renderGraphShell(graph, lensed.prepared, OBSIDIAN_GRAPH_RENDERER_SVG, lensed.summary);
     renderSvgGraphFallback(graph, lensed.prepared);
@@ -5411,9 +5438,10 @@ function preferredGraphRenderer() {
 }
 
 function destroyGraphCytoscape() {
-  if (graphCytoscapeInstance) {
-    graphCytoscapeInstance.destroy();
-    graphCytoscapeInstance = null;
+  graphViewState.renderToken += 1;
+  if (graphViewState.cytoscapeInstance) {
+    graphViewState.cytoscapeInstance.destroy();
+    graphViewState.cytoscapeInstance = null;
   }
 }
 
@@ -5524,7 +5552,7 @@ function graphLensSummary(mode, prepared, extra = {}) {
 }
 
 function applyGraphLens(prepared) {
-  if (graphLensMode === 'current_source') {
+  if (graphViewState.lensMode === 'current_source') {
     const currentNode = prepared.markdownNodes.find(node => node.id === currentNotePath);
     if (!currentNode) {
       return {
@@ -5555,7 +5583,7 @@ function applyGraphLens(prepared) {
       }),
     };
   }
-  if (graphLensMode === 'review_queue') {
+  if (graphViewState.lensMode === 'review_queue') {
     const queueSeedIds = new Set(
       prepared.markdownNodes
         .filter(node => node.id === 'AI Memory/Review Queue.md' || node.id.startsWith('AI Memory/Review Queue/'))
@@ -5600,6 +5628,7 @@ function applyGraphLens(prepared) {
 }
 
 function renderGraphShell(graph, prepared, renderer, summary) {
+  const graphFilterState = graphViewState.filters;
   const edgeCheckboxes = ['wiki_link', 'filename_mention', 'shared_tag', 'manual', 'relates_to', 'depends_on', 'blocks', 'supports']
     .map(type => {
       const checked = graphFilterState.edges[type] !== false ? 'checked' : '';
@@ -5614,7 +5643,7 @@ function renderGraphShell(graph, prepared, renderer, summary) {
 
   const nodeMarkdownChecked = graphFilterState.nodes.markdown !== false ? 'checked' : '';
   const nodeFolderChecked = graphFilterState.nodes.folder !== false ? 'checked' : '';
-  const panelOpenClass = graphFilterPanelOpen ? '' : ' hidden';
+  const panelOpenClass = graphViewState.filterPanelOpen ? '' : ' hidden';
 
   const modeOptions = [
     { value: 'highlight', label: 'Highlight Matches' },
@@ -5628,7 +5657,7 @@ function renderGraphShell(graph, prepared, renderer, summary) {
     { value: 'current_source', label: 'Current source' },
     { value: 'review_queue', label: 'Review queue' },
   ].map(opt => `
-    <option value="${opt.value}" ${graphLensMode === opt.value ? 'selected' : ''}>${opt.label}</option>
+    <option value="${opt.value}" ${graphViewState.lensMode === opt.value ? 'selected' : ''}>${opt.label}</option>
   `).join('');
 
   graph.innerHTML = `
@@ -5703,7 +5732,8 @@ function renderGraphShell(graph, prepared, renderer, summary) {
   `;
 
   graph.querySelector('#obsidian-graph-lens-mode')?.addEventListener('change', (e) => {
-    graphLensMode = e.target.value || 'overview';
+    graphViewState.lensMode = e.target.value || 'overview';
+    loadGraphFilterState();
     saveGraphLensMode();
     renderGraphView();
   });
@@ -5711,26 +5741,26 @@ function renderGraphShell(graph, prepared, renderer, summary) {
   const panel = graph.querySelector('#obsidian-graph-filter-panel');
   toggleBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    graphFilterPanelOpen = !graphFilterPanelOpen;
-    panel?.classList.toggle('hidden', !graphFilterPanelOpen);
+    graphViewState.filterPanelOpen = !graphViewState.filterPanelOpen;
+    panel?.classList.toggle('hidden', !graphViewState.filterPanelOpen);
   });
 
   panel?.addEventListener('click', (e) => {
     e.stopPropagation();
   });
 
-  if (graphFilterOutsideClickHandler) {
-    document.removeEventListener('click', graphFilterOutsideClickHandler);
+  if (graphViewState.outsideClickHandler) {
+    document.removeEventListener('click', graphViewState.outsideClickHandler);
   }
-  graphFilterOutsideClickHandler = (e) => {
+  graphViewState.outsideClickHandler = (e) => {
     const currentPanel = document.getElementById('obsidian-graph-filter-panel');
     const currentToggle = document.getElementById('obsidian-graph-filter-toggle');
-    if (graphFilterPanelOpen && currentPanel && currentToggle && !currentPanel.contains(e.target) && e.target !== currentToggle && !currentToggle.contains(e.target)) {
-      graphFilterPanelOpen = false;
+    if (graphViewState.filterPanelOpen && currentPanel && currentToggle && !currentPanel.contains(e.target) && e.target !== currentToggle && !currentToggle.contains(e.target)) {
+      graphViewState.filterPanelOpen = false;
       currentPanel.classList.add('hidden');
     }
   };
-  document.addEventListener('click', graphFilterOutsideClickHandler);
+  document.addEventListener('click', graphViewState.outsideClickHandler);
 
   graph.querySelector('#obsidian-graph-filter-mode')?.addEventListener('change', (e) => {
     graphFilterState.mode = e.target.value;
@@ -5847,6 +5877,7 @@ function starPositions(prepared, width, height) {
 }
 
 function cytoscapeElements(prepared, star = null) {
+  const graphFilterState = graphViewState.filters;
   const focusedFolder = focusedGraphFolderPath();
   
   const folderElements = prepared.folderNodes.map(node => {
@@ -6105,14 +6136,15 @@ function cytoscapeStyle(container) {
   ];
 }
 
-async function renderCytoscapeGraph(graph, prepared) {
+async function renderCytoscapeGraph(graph, prepared, renderToken) {
   const canvas = graph.querySelector('#obsidian-graph-canvas');
   if (!canvas) return;
   const cytoscape = await loadCytoscape();
+  if (renderToken !== graphViewState.renderToken) return;
   const rect = canvas.getBoundingClientRect();
   const star = starPositions(prepared, Math.max(760, rect.width || 900), Math.max(480, rect.height || 560));
 
-  graphCytoscapeInstance = cytoscape({
+  const cytoscapeInstance = cytoscape({
     container: canvas,
     elements: cytoscapeElements(prepared, star),
     layout: star ? {
@@ -6140,25 +6172,26 @@ async function renderCytoscapeGraph(graph, prepared) {
     minZoom: 0.28,
     maxZoom: 2.4,
   });
+  graphViewState.cytoscapeInstance = cytoscapeInstance;
 
-  graphCytoscapeInstance.on('tap', 'node[type = "markdown"]', (event) => {
+  cytoscapeInstance.on('tap', 'node[type = "markdown"]', (event) => {
     activateGraphNode(event.target.id());
   });
-  graphCytoscapeInstance.on('mouseover', 'node, edge', (event) => {
+  cytoscapeInstance.on('mouseover', 'node, edge', (event) => {
     const data = event.target.data();
     canvas.title = data.reason || data.tags || data.id || '';
   });
-  graphCytoscapeInstance.on('mouseout', 'node, edge', () => {
+  cytoscapeInstance.on('mouseout', 'node, edge', () => {
     canvas.title = '';
   });
 
   const viewportTargetPath = focusedGraphFolderPath() || currentNotePath || '';
   if (viewportTargetPath) {
-    const activeNode = graphCytoscapeInstance.getElementById(viewportTargetPath);
+    const activeNode = cytoscapeInstance.getElementById(viewportTargetPath);
     if (activeNode.length > 0) {
       setTimeout(() => {
-        if (graphCytoscapeInstance) {
-          graphCytoscapeInstance.animate({
+        if (graphViewState.renderToken === renderToken && graphViewState.cytoscapeInstance === cytoscapeInstance) {
+          cytoscapeInstance.animate({
             center: { eles: activeNode },
             zoom: activeNode.data('type') === 'folder' ? 0.92 : 1.15,
             duration: 350
@@ -6172,6 +6205,7 @@ async function renderCytoscapeGraph(graph, prepared) {
 function renderSvgGraphFallback(graph, prepared) {
   const canvas = graph.querySelector('#obsidian-graph-canvas');
   if (!canvas) return;
+  const graphFilterState = graphViewState.filters;
 
   const nodes = prepared.markdownNodes;
   const edges = prepared.edges;
