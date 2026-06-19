@@ -37,7 +37,15 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - Correct fork remote: `fuzzy -> https://github.com/fuzzy123-ai/odysseus-fuzzy.git`.
 - Current local credentials still push as `fuzzy123-ai` and receive `403` from `origin`.
 - Latest published fork state includes `ec3d94f3 Record 1.1 updater completion` on `fuzzy/dev`.
+- `docs/plans/origin-publish-hygiene.md` records the current remote/credential boundary: origin is correct, but local credentials still block origin pushes; `fuzzy/dev` remains the explicit fallback.
+- `docs/plans/external-1.0-evidence-closeout.md` records the current external release state: internal RC ready, external `1.0.0` No-Go until both manual gates are evidenced.
+- `docs/plans/release-hardening-gates.md` records the five release-hardening critique gates as operator-facing Go/Partial/No-Go rules.
+- `docs/plans/release-hardening-code-audit.md` maps those five gates to code/test/doc anchors and safe parallel follow-up slices.
+- `src/release_hardening_gates.py` and `tests/test_release_hardening_gates.py` expose the current hardening index as read-only, automation-friendly status.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
+- Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
+- Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
+- Combined P0 verification after hardening-index work on 2026-06-19: `49 passed, 1 warning`.
 - Automated 1.0 release gates are documented as green with `235 passed, 44 warnings`.
 - Fresh install, upgrade path, and known limits are documented.
 - Provider Proof and Test-Vault Export/Import/Rebuild remain manual external-release blockers.
@@ -59,12 +67,14 @@ These items block public release language or clean upstream publishing.
 2. `ABC1-origin-auth-and-publish-hygiene`
    Goal: fix or document the local GitHub credential mismatch so `origin/dev` can be pushed by the intended account, or keep using `fuzzy/dev` with explicit handoff language.
    Owner: Charlie.
+   Status: Partial, documented in `docs/plans/origin-publish-hygiene.md`.
    Live/network note: pushing is allowed only as normal Git publish work; no force push.
    Exit: remote ownership is unambiguous and the next commit target is clear.
 
 3. `ABC2-external-1-0-evidence-closeout`
    Goal: close or explicitly keep blocked the two external release gates: Provider Proof and Test-Vault Export/Import/Rebuild.
    Owner: Alice/Bob/Charlie.
+   Status: Partial / external No-Go, documented in `docs/plans/external-1.0-evidence-closeout.md`.
    Alice: operator wording and Go/No-Go text.
    Bob: read-only validators or evidence adapters only.
    Charlie: no live provider, export, import, rebuild, or network action without explicit Go.
@@ -72,6 +82,7 @@ These items block public release language or clean upstream publishing.
 
 4. `ABC3-release-hardening-critique`
    Goal: convert the P0/P1 critique into concrete gates.
+   Status: operator contract, read-only code audit, and hardening index are present; technical validation slices still pending.
    Scope:
    - quantify large-vault performance thresholds.
    - isolate graph/filter state from fragile global state.
