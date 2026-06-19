@@ -48,6 +48,7 @@ No-Go for any large-vault claim when performance evidence is missing, unrepeatab
 - Redacted performance log or table.
 - Exact command or manual procedure used, without private paths.
 - Release note wording that matches the measured scale.
+- `docs/plans/large-vault-performance-release-gate.md` as the release-claim boundary for current RC-sized performance evidence.
 
 ### Stop-Regeln
 

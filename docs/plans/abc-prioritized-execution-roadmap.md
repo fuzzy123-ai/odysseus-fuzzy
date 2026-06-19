@@ -46,6 +46,7 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - `src/odysseus_updater_pre_update_hook.py` and `tests/test_odysseus_updater_pre_update_hook.py` add the offline blocking pre-update hook gate for `ops/homeserver/pre-update-snapshot.sh`.
 - `docs/plans/security-disclosure-release-gate.md` anchors the `ABC3C` wording baseline for password protection versus at-rest encryption.
 - `docs/plans/repo-link-hygiene-audit.md`, `src/repo_link_hygiene.py`, and `tests/test_repo_link_hygiene.py` classify original/fork/plugin repository links and block unknown or typo slugs offline.
+- `docs/plans/large-vault-performance-release-gate.md`, `src/large_vault_performance_gate.py`, and `tests/test_large_vault_performance_gate.py` prevent RC-sized synthetic performance evidence from being promoted into large-vault release claims.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
 - Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
 - Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
@@ -88,7 +89,7 @@ These items block public release language or clean upstream publishing.
    Goal: convert the P0/P1 critique into concrete gates.
    Status: operator contract, read-only code audit, and hardening index are present; technical validation slices still pending.
    Scope:
-   - quantify large-vault performance thresholds.
+   - quantify large-vault performance thresholds. `ABC3A` claim guard is present in `src/large_vault_performance_gate.py`.
    - isolate graph/filter state from fragile global state.
    - add clear UI/operator disclosure that password protection is not at-rest encryption. `ABC3C` docs baseline is present in `docs/plans/security-disclosure-release-gate.md`.
    - ensure project apply/merge conflicts strictly block instead of silently overwriting.
