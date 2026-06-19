@@ -16,6 +16,7 @@ PUBLIC_MCP_SERVER_ALLOWLIST = {"vault"}
 NON_ADMIN_BLOCKED_TOOLS = {
     "bash",
     "python",
+    "manage_bg_jobs",
     "read_file",
     "write_file",
     "edit_file",
@@ -132,6 +133,8 @@ _PLAN_MODE_KNOWN_MUTATORS = {
     # Shell is never read-only-safe; block it explicitly so it stays out of plan
     # mode even if the schema list fails to load.
     "bash", "python",
+    # Controls shell processes (kill); plan mode can't run bash anyway.
+    "manage_bg_jobs",
 }
 
 
