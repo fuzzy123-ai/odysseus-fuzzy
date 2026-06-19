@@ -19,10 +19,15 @@ from typing import Any, Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
+try:
+    from core.middleware import require_admin as _core_require_admin
+except Exception:  # pragma: no cover - plugin file-loader imports may not have app context
+    _core_require_admin = None
+
 
 PLUGIN = {
     "name": "Telegram",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "author": "Odysseus",
     "description": "Standalone Telegram agent-chat bridge with local inbox/history, gated replies, and voice intake metadata.",
     "category": "Communications",
@@ -44,6 +49,13 @@ _SESSION_FILE = "telegram_session_bridge.json"
 
 def _bool_env(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def require_admin(request: Request) -> None:
+    """Delegate to the app admin gate when the plugin runs inside Odysseus."""
+
+    if _core_require_admin is not None:
+        _core_require_admin(request)
 
 
 def _allowed_chat_ids() -> tuple[str, ...]:
@@ -153,6 +165,7 @@ class TelegramInboxStore:
     def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
         data = self._read()
         messages = data["messages"]
+        raw_chat_id = str(message.get("chat_id") or "")
         key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
         for existing in messages:
             existing_key = (
@@ -178,7 +191,7 @@ class TelegramInboxStore:
             self.append_event(
                 kind="blocked",
                 status="chat_not_allowed",
-                chat_id=str(stored.get("chat_id") or ""),
+                chat_id=raw_chat_id,
                 update_id=stored.get("update_id"),
                 message_id=stored.get("message_id"),
             )
@@ -186,7 +199,7 @@ class TelegramInboxStore:
             self.append_event(
                 kind="unsupported",
                 status="unsupported_message",
-                chat_id=str(stored.get("chat_id") or ""),
+                chat_id=raw_chat_id,
                 update_id=stored.get("update_id"),
                 message_id=stored.get("message_id"),
             )
@@ -472,11 +485,63 @@ def build_agent_bridge_request(
     }
 
 
+def _run_agent_turn(
+    handler: Callable[[dict[str, Any]], Any] | None,
+    bridge: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not callable(handler) or not bridge.get("ready_for_agent"):
+        return None
+    try:
+        result = handler(dict(bridge))
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reply_text": "",
+            "reply_text_present": False,
+            "error": str(exc)[:240],
+        }
+    if isinstance(result, dict):
+        reply_text = str(result.get("reply_text") or result.get("text") or "")
+        status = str(result.get("status") or "accepted")
+    else:
+        reply_text = str(result or "")
+        status = "accepted"
+    return {
+        "status": status,
+        "reply_text": reply_text,
+        "reply_text_present": bool(reply_text.strip()),
+    }
+
+
+def _public_agent_turn_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
+    if result is None:
+        return None
+    public = {key: value for key, value in result.items() if key != "reply_text"}
+    public["reply_text_value_visible"] = False
+    return public
+
+
+def _public_reply_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
+    if result is None:
+        return None
+    output = result.get("output")
+    if isinstance(output, str):
+        try:
+            parsed = json.loads(output)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+    return result
+
+
 def run_telegram_polling_cycle(
     *,
     data_dir: str | Path,
     fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
     session_creator: Callable[..., Any] | None = None,
+    agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
+    reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -484,13 +549,26 @@ def run_telegram_polling_cycle(
     if not _bool_env("TELEGRAM_POLLING_ENABLED"):
         polling.record(status="polling_disabled", offset=polling.get_offset())
         return {"ok": False, "status": "polling_disabled", "processed": 0, "offset": polling.get_offset()}
-    loader = fetch_updates or (lambda offset: [])
+    loader = fetch_updates or fetch_telegram_updates
     offset = polling.get_offset()
     processed = 0
+    invalid = 0
+    agent_turns = 0
+    replies = 0
     last_update_id = offset - 1 if offset else 0
-    for update in loader(offset):
+    try:
+        updates = loader(offset)
+    except Exception as exc:
+        polling.record(status="poll_failed", offset=offset, error=str(exc)[:240])
+        return {"ok": False, "status": "poll_failed", "processed": 0, "offset": offset, "error": str(exc)}
+    for update in updates:
         last_update_id = max(last_update_id, int(update.get("update_id") or 0))
-        message = parse_telegram_update(update)
+        try:
+            message = parse_telegram_update(update)
+        except ValueError as exc:
+            invalid += 1
+            store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
+            continue
         stored = store.append_inbound(message)
         if stored["stored"]:
             bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
@@ -501,16 +579,76 @@ def run_telegram_polling_cycle(
                     recommended_session_name=bridge["recommended_session_name"],
                     creator=session_creator,
                 )
+                bridge = build_agent_bridge_request(
+                    stored["message"],
+                    session_binding=binding,
+                    raw_chat_id=str(message.get("chat_id") or ""),
+                )
                 store.append_event(
                     kind="session_bridge",
                     status="bound" if binding.get("session_id") else "pending_bridge",
                     chat_id=bridge["chat_id"],
                     session_id=binding.get("session_id") or "",
                 )
+                agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+                if agent_turn is not None:
+                    agent_turns += 1
+                    store.append_event(
+                        kind="agent_turn",
+                        status=str(agent_turn.get("status") or "accepted"),
+                        chat_id=bridge["chat_id"],
+                        session_id=bridge.get("session_id") or "",
+                        reply_text_present=bool(agent_turn.get("reply_text_present")),
+                    )
+                    if agent_turn.get("reply_text") and reply_handler is not None:
+                        reply_handler(
+                            bridge["chat_id"],
+                            str(agent_turn["reply_text"]),
+                            bridge.get("source_message_id"),
+                        )
+                        replies += 1
             processed += 1
     next_offset = last_update_id + 1 if last_update_id else offset
-    polling.record(status="poll_ok", offset=next_offset, processed=processed, last_update_id=last_update_id)
-    return {"ok": True, "status": "poll_ok", "processed": processed, "offset": next_offset}
+    polling.record(
+        status="poll_ok",
+        offset=next_offset,
+        processed=processed,
+        invalid=invalid,
+        agent_turns=agent_turns,
+        replies=replies,
+        last_update_id=last_update_id,
+    )
+    return {
+        "ok": True,
+        "status": "poll_ok",
+        "processed": processed,
+        "invalid": invalid,
+        "agent_turns": agent_turns,
+        "replies": replies,
+        "offset": next_offset,
+    }
+
+
+def fetch_telegram_updates(offset: int) -> list[dict[str, Any]]:
+    token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    params: dict[str, Any] = {
+        "timeout": 0,
+        "limit": 50,
+        "allowed_updates": json.dumps(["message"]),
+    }
+    if offset:
+        params["offset"] = int(offset)
+    url = f"https://api.telegram.org/bot{token}/getUpdates?{urllib.parse.urlencode(params)}"
+    with urllib.request.urlopen(url, timeout=20) as response:  # nosec: token-gated Telegram API endpoint
+        payload = json.loads(response.read().decode("utf-8"))
+    if not payload.get("ok"):
+        raise ValueError(str(payload.get("description") or "telegram getUpdates failed"))
+    result = payload.get("result") or []
+    if not isinstance(result, list):
+        raise ValueError("telegram getUpdates returned an invalid result")
+    return result
 
 
 def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -650,6 +788,11 @@ def setup(ctx):
     store = TelegramInboxStore(ctx.data_dir)
     sessions = TelegramSessionBridgeStore(ctx.data_dir)
     session_creator = getattr(ctx, "telegram_session_bridge", None)
+    agent_turn_handler = getattr(ctx, "telegram_agent_turn_handler", None)
+    admin_gate = getattr(ctx, "require_admin", None) or require_admin
+
+    def _require_admin(request: Request) -> None:
+        admin_gate(request)
 
     def _reply_with_gate(chat_id: str, text: str, *, source_message_id: int | None = None) -> dict[str, Any]:
         if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
@@ -701,18 +844,27 @@ def setup(ctx):
 
     @router.get("/status")
     async def status(request: Request):
+        _require_admin(request)
         return build_telegram_readiness(ctx.data_dir)
 
     @router.get("/history")
     async def history(request: Request, chat_id: str | None = None, limit: int = 50):
+        _require_admin(request)
         return {"messages": store.history(chat_id=chat_id, limit=limit)}
 
     @router.post("/poll")
     async def poll(request: Request):
+        _require_admin(request)
         result = run_telegram_polling_cycle(
             data_dir=ctx.data_dir,
             fetch_updates=getattr(ctx, "telegram_fetch_updates", None),
             session_creator=session_creator,
+            agent_turn_handler=agent_turn_handler,
+            reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
+                chat_id,
+                text,
+                source_message_id=source_message_id,
+            ),
         )
         if not result["ok"]:
             raise HTTPException(403, result["status"])
@@ -720,11 +872,18 @@ def setup(ctx):
 
     @router.post("/webhook")
     async def webhook(request: Request):
+        _require_admin(request)
         update = await request.json()
-        message = parse_telegram_update(update)
+        try:
+            message = parse_telegram_update(update)
+        except ValueError as exc:
+            store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
+            raise HTTPException(400, "invalid telegram update") from exc
         stored = store.append_inbound(message)
         bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
         session_binding = None
+        agent_turn = None
+        reply_result = None
         if bridge["ready_for_agent"]:
             session_binding = sessions.bind_chat(
                 chat_id=bridge["chat_id"],
@@ -737,15 +896,33 @@ def setup(ctx):
             session_binding=session_binding,
             raw_chat_id=str(message.get("chat_id") or ""),
         )
+        agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+        if agent_turn is not None:
+            store.append_event(
+                kind="agent_turn",
+                status=str(agent_turn.get("status") or "accepted"),
+                chat_id=bridge["chat_id"],
+                session_id=bridge.get("session_id") or "",
+                reply_text_present=bool(agent_turn.get("reply_text_present")),
+            )
+            if agent_turn.get("reply_text"):
+                reply_result = _reply_with_gate(
+                    bridge["chat_id"],
+                    str(agent_turn["reply_text"]),
+                    source_message_id=bridge.get("source_message_id"),
+                )
         return {
             "stored": stored["stored"],
             "message": stored["message"],
             "agent_bridge": bridge,
+            "agent_turn": _public_agent_turn_result(agent_turn),
+            "reply": _public_reply_result(reply_result),
             "token_value_visible": False,
         }
 
     @router.post("/reply")
     async def reply(request: Request):
+        _require_admin(request)
         body = await request.json()
         chat_id = str(body.get("chat_id") or "")
         text = str(body.get("text") or "")
@@ -756,6 +933,7 @@ def setup(ctx):
 
     @router.get("/app")
     async def app_page(request: Request):
+        _require_admin(request)
         return HTMLResponse(_app_html(getattr(request.state, "csp_nonce", "")))
 
     ctx.add_router(router)
