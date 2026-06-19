@@ -362,6 +362,157 @@ Deferred:
 - Full private/work classification policy.
 - OCR/audio/video/archive extraction.
 
+## Live-Readiness Continuation
+
+Status: started after commit `b74297ee Build universal inbox offline pipeline`.
+
+Goal:
+
+- Die Universal Inbox ist live-bereit, wenn ein operator-gated Worker neue Dateien aus einer lokalen Nextcloud-Sync-Inbox oder einem gleichwertigen lokalen Inbox-Pfad lesen, stabilitaetspruefen, extrahieren, abstrahieren, routen und als Dry-Run-Plan reporten kann, ohne Datei-Mutation und ohne Rohinhalt-Persistenz.
+
+Non-goals for live-readiness:
+
+- Kein echter Nextcloud-WebDAV-Write.
+- Kein echter Copy/Move/Delete.
+- Kein GraphRaptor-Live-Write.
+- Kein automatisches Tag-Schreiben.
+- Kein Ersetzen der lokalen Nextcloud-Rechtepruefung durch Annahmen.
+
+### UIX-ABC7 Local Discovery Adapter
+
+Owner: Bob
+
+Execution mode: worker
+
+Reason: focused implementation and tests are required.
+
+Allowed files:
+
+- `src/universal_inbox_discovery.py`
+- `tests/test_universal_inbox_discovery.py`
+
+Requirements:
+
+- Scannt einen lokalen Inbox-Pfad read-only.
+- Ignoriert temporaere, versteckte und instabile Dateien.
+- Liefert nur Metadaten: relativer Pfad, Dateiname, Size, Mtime, Suffix, SHA-256.
+- Keine Datei-Mutation.
+- Keine absoluten Hostpfade im serialisierten Report.
+
+Tests:
+
+- `venv\Scripts\python.exe -m pytest tests\test_universal_inbox_discovery.py`
+
+### UIX-ABC8 Content Extraction MVP
+
+Owner: Bob
+
+Execution mode: worker
+
+Reason: focused implementation and tests are required.
+
+Allowed files:
+
+- `src/universal_inbox_extraction.py`
+- `tests/test_universal_inbox_extraction.py`
+
+Requirements:
+
+- Extrahiert MVP-Typen: `.txt`, `.md`, `.markdown`, `.json`, `.csv`, `.tsv`, `.html`, `.htm`, `.docx` best effort.
+- `.pdf` ist erlaubt als metadata-only oder partial, falls kein sicherer lokaler Parser vorhanden ist.
+- Extraction Packet bleibt ephemeral.
+- Serialisierte Reports enthalten keine Rohtexte.
+- Size limits und warnings sind strukturiert.
+
+Tests:
+
+- `venv\Scripts\python.exe -m pytest tests\test_universal_inbox_extraction.py`
+
+### UIX-ABC9 Intake Worker Dry Run
+
+Owner: Charlie
+
+Execution mode: worker
+
+Reason: integration across discovery, extraction, routing, policy, memory and placement requires scope control.
+
+Allowed files:
+
+- `src/universal_inbox_worker.py`
+- `tests/test_universal_inbox_worker.py`
+- `src/universal_inbox_*.py`
+- `tests/test_universal_inbox_*.py`
+
+Requirements:
+
+- Orchestriert discovery item -> extraction -> analysis stub -> routing -> memory abstraction -> policy -> placement dry-run -> pipeline report.
+- Keine echte Datei-Mutation.
+- Keine Rohinhalte in `to_dict()`/report.
+- Live-Ready-Go nur wenn alle Pläne `go`/`planned` oder bewusst `review` sind und keine `no_go`-Gruende existieren.
+
+Tests:
+
+- `venv\Scripts\python.exe -m pytest tests\test_universal_inbox_worker.py tests\test_universal_inbox_discovery.py tests\test_universal_inbox_extraction.py tests\test_universal_inbox_routing.py tests\test_universal_inbox_memory.py tests\test_universal_inbox_pipeline.py tests\test_universal_inbox_policy.py tests\test_universal_inbox_placement.py`
+
+### UIX-ABC10 Operator Runbook And Go Gate
+
+Owner: Alice
+
+Execution mode: worker
+
+Reason: operator wording and Go/No-Go text are required.
+
+Allowed files:
+
+- `docs/plans/universal-inbox-live-readiness-runbook.md`
+- `docs/plans/universal-inbox-abc-roadmap.md`
+- `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md`
+
+Requirements:
+
+- Beschreibt lokale Nextcloud-Sync-Variante und spaeteren WebDAV-Ausbau.
+- Enthalt Live-Go-Checkliste mit required folders, env/config, no-delete/no-overwrite, dry-run evidence, tests.
+- Enthalt Stop-Regeln fuer Secrets, Hostpfade, Rohinhalt, Delete/Move/Overwrite, unstable files, no mount/sync path.
+- Enthalt Operator-Ausgabeformat fuer Go/Partial/No-Go.
+
+Tests:
+
+- Keine. Docs-only Slice.
+
+Output:
+
+- `docs/plans/universal-inbox-live-readiness-runbook.md` defines the operator procedure, local-sync-first model, later WebDAV/API expansion, required folder/config checks, Stop Rules and Go/Partial/No-Go output format.
+- Roadmap and Nextcloud/RaptorGraph contract point to the same live-readiness gate language.
+- This slice does not commit, push, run live Nextcloud, enable network, or touch implementation files.
+
+### UIX-ABC11 Live Readiness Integration
+
+Owner: Charlie
+
+Execution mode: worker
+
+Reason: final tests, git hygiene, commit, push and automation cleanup are required.
+
+Allowed files:
+
+- `docs/plans/universal-inbox-abc-roadmap.md`
+- `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md`
+- `docs/plans/universal-inbox-live-readiness-runbook.md`
+- `src/universal_inbox_*.py`
+- `tests/test_universal_inbox_*.py`
+
+Verification:
+
+- `venv\Scripts\python.exe -m pytest tests\test_universal_inbox_*.py tests\test_nextcloud_intake_ledger.py tests\test_nextcloud_review_queue.py tests\test_nextcloud_tag_governance.py tests\test_nextcloud_source_provider.py`
+- `git diff --check`
+
+Live Go:
+
+- Discovery, Extraction, Worker, Routing, Policy, Memory, Pipeline and Placement tests pass.
+- Worker can produce a redacted dry-run evidence report from local fixture files.
+- Report contains no raw content and no absolute host paths.
+- Any real write path remains disabled/deferred.
+
 ## Alice Delegation Prompt
 
 ```xml

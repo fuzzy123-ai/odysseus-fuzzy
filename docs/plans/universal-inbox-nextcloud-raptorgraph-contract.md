@@ -696,6 +696,7 @@ Vorteile:
 - Dateien wirken lokal.
 - Scanner/Extractor einfacher.
 - Weniger Nextcloud-spezifische Logik.
+- Gute erste Live-Readiness-Variante, weil Discovery und Extraction read-only gegen lokale Dateien laufen koennen.
 
 Risiken:
 
@@ -703,6 +704,34 @@ Risiken:
 - Sync-Latenz.
 - Tags/Kommentare/Nextcloud-Metadaten schwieriger.
 - No-Delete-Semantik haengt am Sync-Client und Dateisystemverhalten.
+
+### Live-Readiness Gate
+
+Der erste Live-Readiness-Schritt nutzt lokale Nextcloud-Sync-Discovery als Dry-Run. Der Worker darf Dateien lesen, stabilitaetspruefen, extrahieren, abstrahieren, routen und einen redigierten Placement-Plan erzeugen. Er darf keine Datei veraendern.
+
+Go:
+
+- Lokaler Mount-/Sync-Root und `AI Inbox/Incoming/` sind konfiguriert.
+- Alle serialisierten Pfade sind relativ zum erlaubten Root; keine absoluten Hostpfade werden persistiert.
+- Required folders fuer Incoming, Needs Review, Failed und Metadata sind vorhanden oder werden sicher als Review/Partial gemeldet.
+- Dry-Run-Modus ist aktiv; WebDAV/API, GraphRaptor-Live-Write, Tag-Write, Sidecar-Write und echte Copy-Ausfuehrung sind deaktiviert.
+- Jede geplante Operation ist `copy`, `delete_original=false`, `overwrite_existing=false`.
+- Dry-Run-Evidence enthaelt Status, Hash, Size, Mtime, Extraction-Status, Routing-Entscheidung, Policy-Gate und Review-/No-Go-Gruende, aber keinen Rohinhalt.
+- Discovery, Extraction, Worker, Routing, Policy, Memory, Pipeline und Placement Tests sind gruen.
+
+Partial:
+
+- Ein lokaler Dry-Run ist redigiert und mutationsfrei, aber einzelne Dateien brauchen Review wegen partial extraction, niedriger Confidence, Zielkonflikt, fehlendem optionalem Ordner oder unbekanntem Typ.
+- Keine Stop Rule ist verletzt.
+
+No-Go:
+
+- Secret, Token, Passwort, App-Passwort, Chat-ID, privater Kommunikations-Identifier, Rohinhalt oder absoluter Hostpfad wuerde persistiert oder geloggt.
+- Delete, Move, Rename oder Overwrite waere geplant oder technisch nicht ausgeschlossen.
+- Datei ist instabil, kein Mount-/Sync-Root ist konfiguriert, oder der Inbox-Pfad liegt ausserhalb des erlaubten Roots.
+- Netzwerk, Live-Nextcloud, Provider, SSH oder GraphRaptor-Live-Write waere fuer den Dry-Run erforderlich.
+
+Das detaillierte Operator-Format steht in `docs/plans/universal-inbox-live-readiness-runbook.md`.
 
 ## MVP-Slices
 
