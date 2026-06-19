@@ -2,11 +2,15 @@
 set -euo pipefail
 
 TOKEN_FILE="${ODYSSEUS_API_TOKEN_FILE:-$HOME/.config/odysseus/telegram_poll_api_token}"
-CHAT_ID="${TELEGRAM_REPLY_CHAT_ID:-12550691}"
+CHAT_ID="${TELEGRAM_REPLY_CHAT_ID:-}"
 TEXT="${1:-Testantwort von Odysseus: Telegram-Antwortpfad funktioniert.}"
 
 if [[ ! -r "$TOKEN_FILE" ]]; then
   echo "Token file not readable: $TOKEN_FILE" >&2
+  exit 1
+fi
+if [[ -z "$CHAT_ID" ]]; then
+  echo "Telegram reply target is not configured; set TELEGRAM_REPLY_CHAT_ID in the server environment." >&2
   exit 1
 fi
 
