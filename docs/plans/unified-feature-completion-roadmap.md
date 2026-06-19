@@ -196,6 +196,12 @@ Done when:
 - Live Nextcloud writes remain separately gated.
 - Review queue and provenance outputs avoid secrets and private content.
 
+Current status:
+- Offline Partial: provider readiness, intake ledger, tag governance, and
+  review-queue packets are modeled and tested without live Nextcloud writes.
+  Review packets expose digest/path/status/reasons/metadata keys only; private
+  contents and secret values remain out of evidence payloads.
+
 ## Verification
 
 - Mount profile:
@@ -206,6 +212,8 @@ Done when:
   `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_odysseus_updater*.py`
 - Telegram:
   `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_telegram_plugin.py`
+- Private source:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_nextcloud_source_provider.py tests\test_nextcloud_intake_ledger.py tests\test_nextcloud_tag_governance.py tests\test_nextcloud_review_queue.py`
 - Shell ops:
   `bash -n ops/homeserver/*.sh` where Git Bash is available.
 
