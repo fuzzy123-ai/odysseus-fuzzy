@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **active ABC execution roadmap**
+Status: **P0-P2 operator closure view with P3 planning deferred**
 
 ## Goal
 
@@ -25,9 +25,10 @@ foundation.
   dirty hotfile and is not part of this slice.
 - Telegram text boundary coverage is split into focused non-hotfile tests for
   agent-ready allowed text, blocked chats, and persisted identifier redaction.
-- Homeserver backup scripts and restore docs exist, but full status remains
-  Partial until a real server backup, `restic check`, and restore smoke are
-  evidenced.
+- Homeserver Backup Gate was executed on the Debian homeserver after live Go:
+  status **Go**, commit `4eec20b`, with `pre_update_snapshot`,
+  `repository_check`, and `restore_smoke` all passing. Restore smoke targeted a
+  temporary restore location and no deploy was run.
 - Mount-backed access has owner-scoped virtual mounts, write policy, audit,
   workspace binding, a GameDev/Godot profile, an offline command gate, and an
   operator runbook. Runtime mount validation and final smoke evidence are still
@@ -44,6 +45,9 @@ foundation.
   identifiers, or private source contents in docs, tests, logs, prompts, or
   handoffs.
 - No destructive git commands, force-push, reset, or checkout rewrite.
+- No P3 planning item is executed as part of P0-P2 closure.
+- Deploy-live remains a separate gate. MCP route smoke cannot be claimed until
+  the running Odysseus container includes the MCP plugin code.
 
 ## Stop Rules
 
@@ -159,6 +163,50 @@ Current status:
   are modeled and tested. No real download, STT provider, reply, or live smoke
   has run.
 
+### P0 Status / Repo Hygiene
+
+Owner: Charlie.
+
+Goal:
+- Keep repository closure docs accurate, scoped, and separate from code/test
+  changes.
+
+Current status:
+- Go for docs closure. Focused tests reported green: GameDev/Mount `33 passed,
+  1 skipped`; MCP `18 passed`; Updater/Backup Gate `23 passed`; Telegram `48
+  passed`; Nextcloud/private-source `30 passed`; Obsidian `178 passed`; System
+  Health `138 passed`.
+- Charlie integration also includes homeserver ops executable-bit fixes and the
+  MCP activation script update that enables plugin state before restart.
+
+### P1 External 1.0 Evidence
+
+Owner: Charlie with operator Go for live evidence.
+
+Goal:
+- Preserve internal RC readiness while keeping external `1.0.0` blocked until
+  real redacted evidence exists.
+
+Current status:
+- No-Go for external 1.0. Provider/Fallback Answer Run and Test-Vault
+  Export/Import/Rebuild still need redacted real evidence and an operator
+  release decision.
+
+### P2 Runtime Smokes
+
+Owner: Charlie with separate live Go for each smoke.
+
+Goal:
+- Close runtime evidence for MCP production activation/local smoke, Telegram
+  text live smoke, and GameDev mount runtime smoke.
+
+Current status:
+- Mixed. GameDev mount runtime config validates and read-only virtual mount
+  smoke passed without host path exposure. MCP remains blocked at deploy-live
+  because the running container lacks the MCP plugin directory. Telegram text
+  live smoke still requires operator action. Backup Gate is already Go and does
+  not imply deploy-live permission.
+
 ### UFR5 Backup Gate And Safe Updater Coupling
 
 Owners:
@@ -176,11 +224,9 @@ Done when:
 - Updater consumes backup evidence as structured input and blocks unsafe plans.
 
 Current status:
-- Offline Partial: updater backup gate consumes structured evidence, can emit a
-  safe evidence packet, and has a server-side wrapper to run pre-update
-  snapshot, repository check, and restore smoke as redacted JSON evidence. Real
-  homeserver execution remains pending because Codex does not currently have
-  non-interactive SSH auth to the Debian server.
+- Backup Gate Go: live homeserver execution succeeded at commit `4eec20b` with
+  pre-update snapshot, repository check, and restore smoke passing. The smoke
+  restore targeted a temporary restore location and no deploy was run.
 
 ### UFR6 Private Source Foundation
 
@@ -206,6 +252,8 @@ Current status:
 
 ## Verification
 
+- P0-P2 docs closure:
+  `git diff --check -- docs/plans/p0-p2-feature-closure-roadmap.md docs/plans/feature-completion-board.md docs/plans/unified-feature-completion-roadmap.md docs/plans/homeserver-backup-roadmap.md docs/plans/external-1.0-evidence-closeout.md`
 - Mount profile:
   `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_gamedev_project_profile.py tests\test_mount_points.py`
 - MCP:
@@ -229,3 +277,9 @@ Current status:
   used as the safety boundary, or live actions are implied without a live Go.
 - **Deferred**: public MCP exposure, fully automatic deploys, destructive
   rollback, video processing, cloud backup, and live Nextcloud mutation.
+
+## P3 Planning Note
+
+P3 is a separate planning track. It may define future owners, evidence gates,
+runtime smokes, and release sequencing, but it is not authorized for execution
+inside the P0-P2 closure scope.

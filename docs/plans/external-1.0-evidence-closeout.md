@@ -27,6 +27,9 @@ Close the current P0 release-safety question without pretending that offline val
   - `tests/test_manual_release_evidence.py`
   - `tests/test_manual_release_evidence_readiness_summary.py`
   - result: `21 passed, 1 warning`
+- P0-P2 operator closure keeps this track as P1 **No-Go** until redacted real
+  Provider/Fallback Answer Run and Test-Vault Export/Import/Rebuild evidence are
+  both present.
 
 ## Decision
 
@@ -58,6 +61,10 @@ Not allowed without a separate live Go:
 - writes to real user vaults;
 - raw provider output capture;
 - token, credential, or private path logging.
+
+Separate Go gates remain required for Provider, Telegram, Nextcloud,
+Export/Rebuild, host mutation, and deploy-live actions. Evidence from one gate
+must not be used to imply Go for another.
 
 ## Go / Partial / No-Go
 

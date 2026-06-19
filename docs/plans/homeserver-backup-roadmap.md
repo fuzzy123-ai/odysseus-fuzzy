@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **Partial bis echter Server-Backup- und Restore-Smoke mit User-Go gelaufen ist**
+Status: **Go fuer das Backup Gate; Deploy-Live bleibt ein separater Go-Gate**
 
 ## Goal
 
@@ -133,7 +133,12 @@ Completion:
 
 ## BKP6 Final Gate
 
-Go ist erst erreicht, wenn auf dem Debian-Homeserver nach User-Go alle Punkte erfolgreich sind:
+Go ist fuer das Backup Gate erreicht: Auf dem Debian-Homeserver liefen nach
+User-Go Pre-Update-Snapshot, Repository-Check und Restore-Smoke erfolgreich.
+Der dokumentierte Lauf gehoert zu commit `4eec20b`. Der Restore-Smoke zielte
+nur auf ein temporaeres Restore-Ziel; es wurde kein Deploy ausgefuehrt.
+
+Die folgenden Bedingungen bleiben die Abschlusskriterien fuer diesen Gate-Typ:
 
 - `/mnt/backup` ist per UUID gemountet.
 - `restic snapshots` zeigt mindestens einen `daily` oder `pre-update` Snapshot.
@@ -154,7 +159,9 @@ Go ist erst erreicht, wenn auf dem Debian-Homeserver nach User-Go alle Punkte er
 - `ops/homeserver/run-backup-gate-evidence.sh` ist der serverseitige Wrapper,
   der nach explizitem `--execute` Pre-Update-Snapshot, `restic check` und
   Restore-Smoke als strukturierte, secret-freie Evidence zusammenfasst.
-- Restic-Repo-Initialisierung, echter Snapshot und Restore-Smoke brauchen
-  explizites User-Go auf dem Debian-Homeserver. In diesem Thread scheiterte der
-  nicht-interaktive SSH-Zugriff fuer Codex an fehlender Public-Key-Auth, daher
-  bleibt Live-Evidence bis zur Serverausfuehrung Partial.
+- Homeserver Backup Gate wurde live auf dem Debian-Homeserver erfolgreich
+  ausgefuehrt: Status **Go**, commit `4eec20b`, `pre_update_snapshot`,
+  `repository_check` und `restore_smoke` pass.
+- Restore-Smoke lief nur gegen ein temporaeres Restore-Ziel. Deploy-Live,
+  Host-Mutationen ausserhalb des Backup Gates und Update-Ausfuehrung bleiben
+  separate Go-Gates.

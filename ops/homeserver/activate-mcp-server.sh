@@ -80,6 +80,9 @@ if [ "$EXECUTE" = true ]; then
   esac
 fi
 run git merge --ff-only FETCH_HEAD
+if [ "$EXECUTE" = true ] && podman container exists "$ODYSSEUS_CONTAINER_NAME"; then
+  run podman exec "$ODYSSEUS_CONTAINER_NAME" python -c 'import json, pathlib; p=pathlib.Path("/app/data/plugins.json"); data=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; entry=data.setdefault("mcp_server", {}); entry["enabled"]=True; p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")'
+fi
 run systemctl --user restart "$ODYSSEUS_SERVICE"
 
 if [ "$EXECUTE" = true ]; then
