@@ -2,8 +2,8 @@
 
 Stand: 2026-06-19
 
-Status: **active; product readiness Partial until profile, command gate, and
-smoke evidence are complete**
+Status: **Partial; profile, command gate, and operator runbook exist, but stored
+runtime mount validation and real smoke evidence remain pending**
 
 ## Goal
 
@@ -20,6 +20,10 @@ is sandboxed.
   workspace, while shell starts there but is not sandboxed.
 - Default write extensions in code include Godot files such as `.gd`, `.tscn`,
   `.tres`, `.godot`, and `.gdshader`.
+- `src/gamedev_project_profile.py` defines a safe Godot mount profile and
+  named command-intent gate.
+- `docs/gamedev-project-access-runbook.md` defines the operator checklist and
+  smoke plan.
 - The local runtime mount data may still need its stored allowed extensions
   updated by an operator because `data/mounts.json` is runtime state, not a
   tracked roadmap artifact.
@@ -65,6 +69,8 @@ Done when:
 - The profile rejects broad host roots and shell-like mount tools.
 - Tests run without touching a real mounted project.
 
+Status: done in repo; runtime config still needs operator validation.
+
 ### GDEV2 Project Mode Binding
 
 Owner: Bob, Charlie integration.
@@ -90,6 +96,8 @@ Done when:
 - Free-form shell is not considered a valid GameDev command gate.
 - Destructive/build/export intents require a higher gate than read-only scans.
 
+Status: done as offline command-plan model; runtime adapter remains future work.
+
 ### GDEV4 Audit And Undo
 
 Owner: Bob, Alice docs.
@@ -112,6 +120,8 @@ Goal:
 Done when:
 - The runbook explains allowed extensions, broad-root rejection, shell caveat,
   and smoke-test steps.
+
+Status: done in `docs/gamedev-project-access-runbook.md`.
 
 ### GDEV6 Final Gate
 

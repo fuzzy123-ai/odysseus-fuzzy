@@ -24,9 +24,10 @@ foundation.
 - Homeserver backup scripts and restore docs exist, but full status remains
   Partial until a real server backup, `restic check`, and restore smoke are
   evidenced.
-- Mount-backed access has owner-scoped virtual mounts, write policy, audit, and
-  workspace binding in code. The missing product layer is a GameDev/Godot
-  profile, command gate, operator runbook, and final smoke evidence.
+- Mount-backed access has owner-scoped virtual mounts, write policy, audit,
+  workspace binding, a GameDev/Godot profile, an offline command gate, and an
+  operator runbook. Runtime mount validation and final smoke evidence are still
+  pending.
 
 ## Non-Goals
 
@@ -86,6 +87,7 @@ Done when:
   printing host secrets.
 - Project command execution is represented by named, allowlisted command
   intents, not arbitrary shell.
+- Operator runbook exists with enablement and smoke checklist.
 - Focused mount/profile tests pass.
 
 ### UFR2 MCP Notification And Local Server Activation
