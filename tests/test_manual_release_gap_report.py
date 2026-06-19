@@ -5,13 +5,12 @@ from src.manual_release_gap_report import (
 )
 
 
-def test_current_manual_evidence_has_expected_release_gaps():
+def test_current_manual_evidence_has_no_release_gaps():
     report = build_current_manual_evidence_gap_report()
 
-    assert report.ok is False
-    assert tuple(gap.gate_id for gap in report.gaps) == ("provider-proof",)
-    assert tuple(gap.status for gap in report.gaps) == ("partial",)
-    assert "query-index readiness" in report.gaps[0].next_action
+    assert report.ok is True
+    assert report.status == "ok"
+    assert report.gaps == ()
 
 
 def test_missing_required_gate_creates_missing_gap():
@@ -72,30 +71,20 @@ def test_to_dict_is_stable():
     report = build_current_manual_evidence_gap_report()
 
     assert report.to_dict() == {
-        "ok": False,
-        "status": "partial_no_go",
-        "gaps": (
-            {
-                "gate_id": "provider-proof",
-                "status": "partial",
-                "label": "Provider Proof",
-                "blocker": "DeepSeek cloud route returned provider_error; no fallback chain recorded",
-                "next_action": "Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials.",
-                "owner": "Charlie/Alice",
-                "evidence_ref": "P1 isolated provider proof attempt run-7dyxtze_",
-            },
-        ),
+        "ok": True,
+        "status": "ok",
+        "gaps": (),
         "summary": {
-            "external_go": False,
-            "status": "partial_no_go",
+            "external_go": True,
+            "status": "go",
             "missing_gate_ids": (),
             "pending_gate_ids": (),
-            "partial_gate_ids": ("provider-proof",),
+            "partial_gate_ids": (),
             "no_go_gate_ids": (),
             "evidence_refs": (
                 r"C:\tmp\odysseus-rel3-fresh-2cea25f",
                 r"C:\tmp\odysseus-rel3-upgrade-proof",
-                "P1 isolated provider proof attempt run-7dyxtze_",
+                "P1 isolated provider proof run-mpux1ei9",
                 "P1 isolated test-vault evidence run-7dyxtze_",
                 "docs/plans/1.0-evidence-release-checklist.md",
             ),

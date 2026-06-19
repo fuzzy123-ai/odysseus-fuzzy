@@ -1,7 +1,7 @@
 from src.live_integration_readiness_index import build_live_integration_readiness_index
 
 
-def test_default_builder_is_conservative_and_needs_manual_evidence():
+def test_default_builder_needs_live_slice_evidence_only():
     plan = build_live_integration_readiness_index()
     gate_status = {gate.gate_id: gate.status for gate in plan.gates}
 
@@ -12,7 +12,7 @@ def test_default_builder_is_conservative_and_needs_manual_evidence():
         "network_actions_disabled": "go",
         "operator_review_required": "go",
         "plugin_imports_disabled": "go",
-        "provider_proof_manual_gate_recorded": "needs_manual_evidence",
+        "provider_proof_manual_gate_recorded": "go",
         "runtime_enablement_disabled": "go",
         "test_vault_rebuild_manual_gate_recorded": "go",
     }
@@ -75,8 +75,8 @@ def test_to_dict_is_stable():
             },
             {
                 "gate_id": "provider_proof_manual_gate_recorded",
-                "status": "needs_manual_evidence",
-                "summary": "manual provider-proof evidence is still required",
+                "status": "go",
+                "summary": "provider-proof manual gate is recorded for internal readiness review",
             },
             {
                 "gate_id": "runtime_enablement_disabled",
@@ -91,12 +91,12 @@ def test_to_dict_is_stable():
         ),
         "decision": {
             "decision": "needs_manual_evidence",
-            "next_action": "complete the remaining manual provider-proof evidence gate",
+            "next_action": "complete the remaining live integration slice evidence gate",
             "external_release_ready": False,
         },
         "next_allowed_actions": (
             "review recorded live-integration slices and manual evidence gates",
-            "complete provider-proof evidence manually",
+            "confirm live integration slices are recorded before runtime follow-up",
             "keep runtime, network, and plugin-import paths disabled during readiness review",
             "record operator notes without claiming external 1.0.0 release go",
         ),

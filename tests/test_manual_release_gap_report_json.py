@@ -3,10 +3,11 @@ from src.manual_release_gap_report import build_current_manual_evidence_gap_repo
 from src.manual_release_gap_report_json import render_manual_release_gap_report_json
 
 
-def test_current_report_json_contains_open_gate_ids():
+def test_current_report_json_contains_no_open_gate_ids():
     payload = render_manual_release_gap_report_json(build_current_manual_evidence_gap_report())
 
-    assert '"gate_id": "provider-proof"' in payload
+    assert '"gaps": []' in payload
+    assert '"gate_id": "provider-proof"' not in payload
     assert '"gate_id": "export-import-rebuild"' not in payload
 
 
@@ -31,35 +32,23 @@ def test_json_snapshot_is_stable():
     payload = render_manual_release_gap_report_json(build_current_manual_evidence_gap_report())
 
     assert payload == """{
-  "gaps": [
-    {
-      "blocker": "DeepSeek cloud route returned provider_error; no fallback chain recorded",
-      "evidence_ref": "P1 isolated provider proof attempt run-7dyxtze_",
-      "gate_id": "provider-proof",
-      "label": "Provider Proof",
-      "next_action": "Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials.",
-      "owner": "Charlie/Alice",
-      "status": "partial"
-    }
-  ],
-  "ok": false,
-  "status": "partial_no_go",
+  "gaps": [],
+  "ok": true,
+  "status": "ok",
   "summary": {
     "evidence_refs": [
       "C:\\\\tmp\\\\odysseus-rel3-fresh-2cea25f",
       "C:\\\\tmp\\\\odysseus-rel3-upgrade-proof",
-      "P1 isolated provider proof attempt run-7dyxtze_",
+      "P1 isolated provider proof run-mpux1ei9",
       "P1 isolated test-vault evidence run-7dyxtze_",
       "docs/plans/1.0-evidence-release-checklist.md"
     ],
-    "external_go": false,
+    "external_go": true,
     "missing_gate_ids": [],
     "no_go_gate_ids": [],
-    "partial_gate_ids": [
-      "provider-proof"
-    ],
+    "partial_gate_ids": [],
     "pending_gate_ids": [],
-    "status": "partial_no_go"
+    "status": "go"
   }
 }"""
 

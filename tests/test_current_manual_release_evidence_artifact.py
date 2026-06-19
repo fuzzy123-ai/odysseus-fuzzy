@@ -4,15 +4,15 @@ from src.current_manual_release_evidence_artifact import (
 )
 
 
-def test_current_manual_release_evidence_artifact_stays_not_ok_with_open_gates():
+def test_current_manual_release_evidence_artifact_is_ok_without_open_gates():
     artifact = build_current_manual_release_evidence_artifact(
         label="Morning Evidence",
         generated_at="2026-06-17T10:00:00Z",
     )
 
-    assert artifact.ok is False
-    assert "provider-proof" in artifact.markdown
-    assert '"gate_id": "provider-proof"' in artifact.json
+    assert artifact.ok is True
+    assert "provider-proof" not in artifact.markdown
+    assert '"gate_id": "provider-proof"' not in artifact.json
     assert '"gate_id": "export-import-rebuild"' not in artifact.json
 
 
@@ -33,6 +33,6 @@ def test_current_manual_release_evidence_artifact_markdown_renderer_includes_met
     assert "# Manual Release Evidence Artifact" in markdown
     assert "Label: Morning Evidence" in markdown
     assert "Generated At: 2026-06-17T10:00:00Z" in markdown
-    assert "Status: NO_GO" in markdown
-    assert "provider-proof" in markdown
+    assert "Status: OK" in markdown
+    assert "provider-proof" not in markdown
     assert "export-import-rebuild" not in markdown

@@ -3,13 +3,14 @@ from src.manual_release_gap_report import build_current_manual_evidence_gap_repo
 from src.manual_release_gap_report_markdown import render_manual_release_gap_report_markdown
 
 
-def test_current_manual_evidence_markdown_contains_expected_open_gaps():
+def test_current_manual_evidence_markdown_contains_no_open_gaps():
     markdown = render_manual_release_gap_report_markdown(build_current_manual_evidence_gap_report())
 
     assert markdown.startswith("# Manual Release Evidence Gaps")
-    assert "Status: PARTIAL" in markdown
-    assert "provider-proof" in markdown
-    assert "Provider Proof" in markdown
+    assert "Status: OK" in markdown
+    assert "No manual release evidence gaps are currently open." in markdown
+    assert "provider-proof" not in markdown
+    assert "Provider Proof" not in markdown
     assert "export-import-rebuild" not in markdown
     assert "Export / Import / Rebuild Proof" not in markdown
 
@@ -56,13 +57,11 @@ def test_markdown_snapshot_is_stable():
     assert markdown == (
         "# Manual Release Evidence Gaps\n"
         "\n"
-        "Status: PARTIAL\n"
+        "Status: OK\n"
         "\n"
-        "Open manual evidence gaps: 1\n"
+        "No manual release evidence gaps are currently open.\n"
         "\n"
-        "| Gate | Status | Label | Blocker | Next Action | Owner |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| provider-proof | PARTIAL | Provider Proof | DeepSeek cloud route returned provider_error; no fallback chain recorded | Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials. | Charlie/Alice |"
+        "All required manual 1.0 evidence gates are marked as go."
     )
 
 

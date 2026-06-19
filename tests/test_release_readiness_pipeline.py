@@ -5,22 +5,18 @@ from src.release_readiness_pipeline import (
 )
 
 
-def test_current_pipeline_preserves_external_no_go_and_routes_followups():
+def test_current_pipeline_is_external_go_and_routes_final_review():
     snapshot = build_current_release_readiness_pipeline()
 
-    assert snapshot.external_release_go is False
-    assert snapshot.report.status == "blocked"
-    assert snapshot.report.blocking_reasons == (
-        "manual:partial:provider-proof",
-    )
+    assert snapshot.external_release_go is True
+    assert snapshot.report.status == "go"
+    assert snapshot.report.blocking_reasons == ()
     assert [item.slice_id for item in snapshot.followup_slices] == [
-        "REL-provider-proof-evidence",
-        "REL-partial-manual-evidence-closeout",
+        "REL-final-external-review",
     ]
     assert snapshot.followup_matrix.parallel_batch_ids == ()
     assert snapshot.followup_matrix.sequential_gate_ids == (
-        "REL-provider-proof-evidence",
-        "REL-partial-manual-evidence-closeout",
+        "REL-final-external-review",
     )
 
 
@@ -54,22 +50,20 @@ def test_pipeline_to_dict_is_stable_shape():
     snapshot = build_current_release_readiness_pipeline()
     payload = snapshot.to_dict()
 
-    assert payload["report"]["external_release_go"] is False
-    assert payload["report"]["status"] == "blocked"
+    assert payload["report"]["external_release_go"] is True
+    assert payload["report"]["status"] == "go"
     assert payload["automated_gate_evidence_mode"] == "documented_baseline"
     assert payload["automated_gate_is_live_measurement"] is False
     assert payload["automated_gate_summary"]["status"] == "baseline_evidence_green"
     assert "not fresh live measurements" in payload["automated_gate_summary"]["operator_interpretation"]
-    assert payload["followup_slices"][0]["slice_id"] == "REL-provider-proof-evidence"
-    assert payload["followup_slices"][1]["owner"] == "Charlie"
+    assert payload["followup_slices"][0]["slice_id"] == "REL-final-external-review"
+    assert payload["followup_slices"][0]["owner"] == "Charlie"
     assert payload["followup_matrix"]["parallel_batch_ids"] == ()
 
 
-def test_manual_gate_blockers_remain_conservative_with_baseline_language():
+def test_manual_gate_closeout_is_green_with_baseline_language():
     snapshot = build_current_release_readiness_pipeline()
 
-    assert snapshot.report.blocking_reasons == (
-        "manual:partial:provider-proof",
-    )
-    assert snapshot.external_release_go is False
+    assert snapshot.report.blocking_reasons == ()
+    assert snapshot.external_release_go is True
     assert snapshot.automated_gate_is_live_measurement is False

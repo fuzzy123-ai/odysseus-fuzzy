@@ -5,7 +5,7 @@ from src.release_morning_payload import build_current_release_morning_payload, b
 def test_release_morning_payload_combines_summary_and_markdown():
     payload = build_release_morning_payload(build_local_release_readiness_bundle())
 
-    assert payload.summary.status == "blocked"
+    assert payload.summary.status == "go"
     assert payload.summary.plugin_gate_ok is True
     assert payload.brief_markdown.startswith("# Odysseus Release Morning Brief")
     assert "# Plugin Release Gate" in payload.brief_markdown
@@ -15,8 +15,8 @@ def test_release_morning_payload_combines_summary_and_markdown():
 def test_current_release_morning_payload_to_dict_is_stable():
     payload = build_current_release_morning_payload().to_dict()
 
-    assert payload["summary"]["status"] == "blocked"
-    assert payload["summary"]["external_release_go"] is False
+    assert payload["summary"]["status"] == "go"
+    assert payload["summary"]["external_release_go"] is True
     assert payload["summary"]["plugin_gate_ok"] is True
     assert payload["summary"]["local_plugin_audit_ok"] is True
     assert payload["summary"]["artifact_manifest_ok"] is True

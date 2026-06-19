@@ -32,7 +32,7 @@ _DECISION_VALUES = (
 
 _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "review recorded live-integration slices and manual evidence gates",
-    "complete provider-proof evidence manually",
+    "confirm live integration slices are recorded before runtime follow-up",
     "keep runtime, network, and plugin-import paths disabled during readiness review",
     "record operator notes without claiming external 1.0.0 release go",
 )
@@ -142,7 +142,7 @@ class LiveIntegrationReadinessIndex:
 def build_live_integration_readiness_index(
     *,
     live_slices_recorded: bool = False,
-    provider_proof_manual_gate_recorded: bool = False,
+    provider_proof_manual_gate_recorded: bool = True,
     test_vault_rebuild_manual_gate_recorded: bool = True,
     runtime_enablement_disabled: bool = True,
     network_actions_disabled: bool = True,
@@ -244,7 +244,7 @@ def build_live_integration_readiness_index(
         external_release_ready = False
     elif all(gate.status == "go" for gate in gates):
         decision_value = "integration_readiness_ready"
-        next_action = "internal readiness index is complete, but external release still waits on real manual evidence execution"
+        next_action = "internal readiness index is complete, but external release still waits on operator release action"
         external_release_ready = False
     elif any(gate.status == "deferred" for gate in gates):
         decision_value = "deferred"
@@ -252,7 +252,7 @@ def build_live_integration_readiness_index(
         external_release_ready = False
     else:
         decision_value = "needs_manual_evidence"
-        next_action = "complete the remaining manual provider-proof evidence gate"
+        next_action = "complete the remaining live integration slice evidence gate"
         external_release_ready = False
 
     next_allowed_actions = (

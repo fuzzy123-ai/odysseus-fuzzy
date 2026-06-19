@@ -4,14 +4,14 @@ from src.manual_release_gap_report import build_current_manual_evidence_gap_repo
 from src.manual_release_gap_report_digest import manual_release_gap_report_sha256
 
 
-def test_current_report_artifact_contains_open_gates_in_markdown_and_json():
+def test_current_report_artifact_contains_no_open_gates_in_markdown_and_json():
     report = build_current_manual_evidence_gap_report()
     artifact = build_manual_release_evidence_artifact(report, generated_at="2026-06-17T08:00:00Z")
 
-    assert "provider-proof" in artifact.markdown
-    assert '"gate_id": "provider-proof"' in artifact.json
+    assert "provider-proof" not in artifact.markdown
+    assert '"gate_id": "provider-proof"' not in artifact.json
     assert '"gate_id": "export-import-rebuild"' not in artifact.json
-    assert artifact.ok is False
+    assert artifact.ok is True
 
 
 def test_sha256_matches_digest_helper():
@@ -51,7 +51,7 @@ def test_to_dict_is_stable_for_automation():
 
     assert payload["label"] == "Manual Gap Artifact"
     assert payload["generated_at"] == "2026-06-17T08:30:00Z"
-    assert payload["ok"] is False
+    assert payload["ok"] is True
     assert payload["sha256"] == artifact.sha256
     assert payload["markdown"] == artifact.markdown
     assert payload["json"] == artifact.json

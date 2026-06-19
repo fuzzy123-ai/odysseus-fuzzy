@@ -184,14 +184,15 @@ Current status:
 Owner: Charlie with operator Go for live evidence.
 
 Goal:
-- Preserve internal RC readiness while keeping external `1.0.0` blocked until
-  real redacted evidence exists.
+- Preserve external `1.0.0` Evidence-Go while keeping deploy, tag,
+  distribution, and unrelated live gates separate.
 
 Current status:
-- Partial / No-Go for external 1.0. Test-Vault Export/Import/Rebuild is
+- Go for external 1.0 evidence review. Test-Vault Export/Import/Rebuild is
   recorded as isolated redacted evidence from `run-7dyxtze_`; Provider/Fallback
-  Answer Run still needs a successful redacted provider run and an operator
-  release decision.
+  Answer Run is recorded as isolated redacted evidence from `run-mpux1ei9` with
+  cloud answer mode, provider/model/endpoint signal, 2 citations, empty fallback
+  reason, and no raw answer or secrets.
 
 ### P2 Runtime Smokes
 

@@ -142,8 +142,8 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
     gate_map = {
         "provider_fallback_answer_run": LiveEvidenceGate.create(
             gate_id="provider_fallback_answer_run",
-            status="needs_manual_evidence",
-            summary="provider proof still requires a manual fallback-answer verification run",
+            status="go",
+            summary="provider proof is recorded with isolated redacted cloud-answer evidence",
         ),
         "test_vault_export_import_rebuild": LiveEvidenceGate.create(
             gate_id="test_vault_export_import_rebuild",
@@ -153,7 +153,7 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
         "known_limits_review": LiveEvidenceGate.create(
             gate_id="known_limits_review",
             status="go",
-            summary="known limits remain reviewed and explicitly keep external 1.0 as no-go",
+            summary="known limits remain reviewed without implying deploy, tag, or distribution execution",
         ),
         "automated_release_gate": LiveEvidenceGate.create(
             gate_id="automated_release_gate",

@@ -1,8 +1,8 @@
 """Manual 1.0 release evidence model.
 
-Manual gates are intentionally separate from automated test gates. A partial
-provider proof or a read-only rebuild probe must not accidentally become an
-external release "go" just because the surrounding unit tests are green.
+Manual gates are intentionally separate from automated test gates. A manual
+provider proof or rebuild probe must be explicitly recorded before it can
+contribute to an external release "go"; surrounding unit tests are not enough.
 """
 from __future__ import annotations
 
@@ -130,10 +130,14 @@ def current_manual_evidence_entries() -> tuple[ManualEvidenceEntry, ...]:
         ManualEvidenceEntry(
             "provider-proof",
             "Provider Proof",
-            PARTIAL,
-            "042d2585",
-            "P1 isolated provider proof attempt run-7dyxtze_",
-            blocker="DeepSeek cloud route returned provider_error; no fallback chain recorded",
+            GO,
+            "9399c971",
+            "P1 isolated provider proof run-mpux1ei9",
+            notes=(
+                "Synthetic gitignored workspace data vault with ready query index and 2 citations.",
+                "Provider answer path returned cloud mode with provider, model, and endpoint recorded.",
+                "Fallback reason was empty; no secrets, headers, raw provider payload, or answer text recorded.",
+            ),
         ),
         ManualEvidenceEntry(
             "export-import-rebuild",

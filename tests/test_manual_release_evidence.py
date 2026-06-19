@@ -11,12 +11,12 @@ from src.manual_release_evidence import (
 )
 
 
-def test_current_manual_evidence_is_partial_no_go():
+def test_current_manual_evidence_is_external_go():
     summary = summarize_manual_evidence(current_manual_evidence_entries())
 
-    assert summary.external_go is False
-    assert summary.status == "partial_no_go"
-    assert summary.partial_gate_ids == ("provider-proof",)
+    assert summary.external_go is True
+    assert summary.status == "go"
+    assert summary.partial_gate_ids == ()
     assert summary.no_go_gate_ids == ()
     assert summary.missing_gate_ids == ()
 

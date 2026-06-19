@@ -25,9 +25,10 @@ for this slice.
   status **Go**, commit `4eec20b`, with `pre_update_snapshot`,
   `repository_check`, and `restore_smoke` all passing.
 - Restore smoke restored only to the temporary smoke target; no deploy was run.
-- External 1.0 remains **No-Go** until Provider/Fallback Answer Run has
-  successful redacted real evidence. Test-Vault Export/Import/Rebuild is
-  recorded as isolated redacted evidence from `run-7dyxtze_`.
+- External 1.0 evidence is **Go for final review**: Provider/Fallback Answer
+  Run is recorded as isolated redacted evidence from `run-mpux1ei9`, and
+  Test-Vault Export/Import/Rebuild is recorded as isolated redacted evidence
+  from `run-7dyxtze_`.
 
 ## Non-Goals
 
@@ -77,10 +78,11 @@ Next action:
 
 ## P1 Slice: External 1.0 Evidence
 
-Status: **Partial / No-Go for external 1.0**
+Status: **Go for external 1.0 evidence review**
 
 Goal:
-- Keep internal readiness distinct from external release readiness.
+- Keep Evidence-Go distinct from deploy, tag, distribution, and unrelated live
+  gates.
 
 Evidence:
 - Offline validators and release summaries exist.
@@ -88,18 +90,18 @@ Evidence:
   2 exported files, 2 imported files, rebuild proof configured, query layer
   ready, 1 citation, no production vault, source write, data loss, secrets, or
   raw provider output recorded.
-- Provider/Fallback Answer Run is modeled as the remaining evidence gate.
+- Provider/Fallback Answer Run is recorded as isolated redacted evidence:
+  ready query index, `answer_mode=cloud`, provider/model/endpoint signal,
+  2 citations, empty fallback reason, and no raw answer, headers, secrets, or
+  private content recorded.
 
 Missing:
-- Successful redacted Provider/Fallback Answer Run evidence; current isolated
-  attempt reaches a ready query index but returns `provider_error` from the
-  configured DeepSeek route and has no fallback chain.
-- Operator release decision after Provider Proof is complete.
+- Final external evidence review.
+- Deploy, tag, distribution, and unrelated live gates remain separate.
 
 Next action:
-- Fix or reconfigure provider/fallback routing, rerun only the redacted Provider
-  Proof, and keep raw provider output, tokens, private paths, and vault contents
-  out of docs and logs.
+- Run final external evidence review and keep raw provider output, tokens,
+  private paths, and vault contents out of docs and logs.
 
 ## P2 Slice: Runtime Smokes
 
@@ -124,8 +126,8 @@ Missing:
 - Telegram text live smoke evidence.
 - Optional GameDev write smoke remains separate and requires explicit operator
   approval because it mutates the project mount.
-- Separate Go gates for Provider, Telegram, Nextcloud, Export/Rebuild, host
-  mutations, and deploy-live actions.
+- Separate Go gates for future Provider reruns, Telegram, Nextcloud,
+  Export/Rebuild reruns, host mutations, and deploy-live actions.
 
 Next action:
 - Execute each runtime smoke as its own approved Go gate, record only redacted

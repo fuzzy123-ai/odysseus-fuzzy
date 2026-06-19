@@ -13,14 +13,14 @@ from src.release_evidence_snapshot import (
 )
 
 
-def test_default_1_0_snapshot_is_manual_pending_not_external_go():
+def test_default_1_0_snapshot_is_external_go():
     snapshot = build_release_evidence_snapshot(default_1_0_release_gates())
 
-    assert snapshot.status == "manual_pending"
+    assert snapshot.status == "go"
     assert snapshot.automated_ok is True
-    assert snapshot.manual_ok is False
-    assert snapshot.external_release_go is False
-    assert snapshot.pending_manual_gate_ids == ("provider-proof",)
+    assert snapshot.manual_ok is True
+    assert snapshot.external_release_go is True
+    assert snapshot.pending_manual_gate_ids == ()
 
 
 def test_all_required_gates_pass_means_go():

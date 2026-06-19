@@ -4,7 +4,7 @@ from src.manual_release_evidence_artifact_markdown import render_manual_release_
 from src.manual_release_gap_report import build_current_manual_evidence_gap_report, build_manual_evidence_gap_report
 
 
-def test_current_artifact_markdown_contains_metadata_and_open_gaps():
+def test_current_artifact_markdown_contains_metadata_and_ok_state():
     artifact = build_manual_release_evidence_artifact(
         build_current_manual_evidence_gap_report(),
         label="Morning Manual Evidence",
@@ -16,9 +16,9 @@ def test_current_artifact_markdown_contains_metadata_and_open_gaps():
     assert "# Manual Release Evidence Artifact" in markdown
     assert "Label: Morning Manual Evidence" in markdown
     assert "Generated At: 2026-06-17T09:00:00Z" in markdown
-    assert "Status: NO_GO" in markdown
+    assert "Status: OK" in markdown
     assert "SHA-256:" in markdown
-    assert "provider-proof" in markdown
+    assert "provider-proof" not in markdown
 
 
 def test_all_go_artifact_markdown_contains_ok_hint():
@@ -56,20 +56,18 @@ def test_artifact_markdown_snapshot_is_stable():
         "\n"
         "Label: Morning Manual Evidence\n"
         "Generated At: 2026-06-17T09:00:00Z\n"
-        "Status: NO_GO\n"
-        f"SHA-256: {artifact.sha256}\n"
-        "\n"
-        "## Gap Report\n"
-        "\n"
-        "# Manual Release Evidence Gaps\n"
-        "\n"
-        "Status: PARTIAL\n"
-        "\n"
-        "Open manual evidence gaps: 1\n"
-        "\n"
-        "| Gate | Status | Label | Blocker | Next Action | Owner |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| provider-proof | PARTIAL | Provider Proof | DeepSeek cloud route returned provider_error; no fallback chain recorded | Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials. | Charlie/Alice |"
+            "Status: OK\n"
+            f"SHA-256: {artifact.sha256}\n"
+            "\n"
+            "## Gap Report\n"
+            "\n"
+            "# Manual Release Evidence Gaps\n"
+            "\n"
+            "Status: OK\n"
+            "\n"
+            "No manual release evidence gaps are currently open.\n"
+            "\n"
+            "All required manual 1.0 evidence gates are marked as go."
     )
 
 

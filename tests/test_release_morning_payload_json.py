@@ -13,7 +13,7 @@ def test_release_morning_payload_json_is_deterministic_and_valid():
     payload = json.loads(text)
 
     assert text.startswith("{\n")
-    assert payload["summary"]["status"] == "blocked"
+    assert payload["summary"]["status"] == "go"
     assert payload["brief_markdown"].startswith("# Odysseus Release Morning Brief")
     assert validate_release_morning_payload_contract(payload).ok
 
@@ -23,4 +23,4 @@ def test_current_release_morning_payload_json_uses_current_payload():
 
     assert payload["summary"]["plugin_gate_ok"] is True
     assert payload["summary"]["artifact_manifest_ok"] is True
-    assert "REL-provider-proof-evidence" in payload["summary"]["next_action_ids"]
+    assert payload["summary"]["next_action_ids"] == ["REL-final-external-review"]
