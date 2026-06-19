@@ -1,261 +1,238 @@
-# ABC Prioritized Execution Roadmap
+# Unified ABC Prioritized Execution Roadmap
 
 Stand: 2026-06-19
 
-Status: active ABC execution roadmap for the current Odysseus release and follow-up tracks
+Status: **active unified Charlie roadmap after three sidechat handoffs**
 
 ## Goal
 
-Odysseus reaches a clean, evidence-backed `1.0.0` release decision before any larger follow-up track is allowed to consume core attention, and the next post-release tracks are sequenced so Charlie can dispatch them without re-triaging the whole repo.
+Odysseus keeps one execution order across release, updater, homeserver, Nextcloud, Telegram, and hardening work: finish missing evidence or consciously keep it blocked, then advance only offline/gated implementation slices with clean ABC ownership.
+
+## Handoff Sources Integrated
+
+The following handoffs and sidechat signals are now treated as the active coordination input:
+
+1. Release / roadmap handoff:
+   Source artifacts: `docs/plans/1.0-release-handoff.md`, `docs/plans/1.0-evidence-release-checklist.md`, `docs/plans/1.0-manual-release-evidence-log.md`.
+   Result: `1.0.0` is an accepted Partial. Internal RC readiness is strong, but external `1.0.0` remains No-Go until Provider Proof and Test-Vault Export/Import/Rebuild are recorded as Go.
+
+2. 1.1 Safe Updater / private source handoff:
+   Source artifacts: `docs/plans/1.1-private-source-ops-roadmap.md`, commits `bae6e330`, `20faa3a0`, `838f8e8f`, `a134fc5c`, `a476baed`, `58bdf6af`, `ec3d94f3`.
+   Result: Safe Updater offline feature is Go through `UPD9`. Live update execution remains No-Go without separate operator decision. Nextcloud foundation `V11-1` through `V11-4` is started/completed as offline groundwork.
+
+3. Homeserver / backup handoff:
+   Source artifacts: `docs/plans/homeserver-backup-roadmap.md`, `docs/backup-restore.md`, `ops/homeserver/pre-update-snapshot.sh`.
+   Result: backup architecture and scripts/runbook are the expected basis, but final status remains Partial until a real server snapshot, `restic check`, and restore smoke are evidenced after explicit live/server Go.
+
+4. Release hardening critique sidechat:
+   Source signal: thread preview `Priorisierung P0/P1 bewerten`.
+   Result: five issues must be pulled into the priority model before public release language: measurable large-vault performance gate, graph/filter state isolation, at-rest-security disclosure in UI/UX, strict conflict-block behavior before project apply, and repository-name/link hygiene.
+
+Note: direct `read_thread` calls for sidechat bodies were not available in this desktop session because the tool rejected the listed thread ids at argument validation. This roadmap therefore uses repository artifacts plus thread-list previews only, and marks any unverified sidechat-only claim as a risk instead of treating it as Go evidence.
 
 ## Current Evidence
 
-- Master roadmap is `docs/plans/unified-odysseus-roadmap.md` with current phase `1.0.0 Evidence Release & Bugfix-Fenster`.
-- Active release checklist is `docs/plans/1.0-evidence-release-checklist.md`.
-- Final release-gate roadmap is `docs/plans/release-runtime-readiness-roadmap.md`.
-- Automated release gates are documented as green with `235 passed, 44 warnings`.
-- Internal status is `release-candidate-ready`, but external `1.0.0` is still blocked by manual evidence.
-- Nextcloud infrastructure is available; implementation remains a separate `0.20.x` track.
-- Telegram text baseline exists; voice remains a gated follow-up track.
-- Homeserver backup planning exists, but real server backup and restore evidence is still pending.
+- Worktree check before this consolidation: `## dev...origin/dev [ahead 625]`.
+- Correct upstream/original remote: `origin -> https://github.com/pewdiepie-archdaemon/odysseus.git`.
+- Correct fork remote: `fuzzy -> https://github.com/fuzzy123-ai/odysseus-fuzzy.git`.
+- Current local credentials still push as `fuzzy123-ai` and receive `403` from `origin`.
+- Latest published fork state includes `ec3d94f3 Record 1.1 updater completion` on `fuzzy/dev`.
+- Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
+- Automated 1.0 release gates are documented as green with `235 passed, 44 warnings`.
+- Fresh install, upgrade path, and known limits are documented.
+- Provider Proof and Test-Vault Export/Import/Rebuild remain manual external-release blockers.
+- Homeserver backup is architecturally ready but final server-side Go evidence is still missing in repo artifacts.
+- Telegram text baseline and Voice roadmap exist; voice download/STT/reply remain gated.
+- Nextcloud infrastructure exists; automation must use a designated low-rights user, no-delete/copy-only/review-gated policy, and fake-client tests until live Go.
 
-## Prioritization Decision
+## Binding Prioritization
 
-The order below is binding until Charlie records a justified stop, block, or deferral:
+### P0 - Coordination And Release Safety
 
-1. Close the two remaining external `1.0.0` evidence gates.
-2. Build the final read-only release decision bundle.
-3. Only then start the first post-release implementation track.
-4. Post-release track order is:
-   1. Nextcloud Source Provider readiness and inbox contract.
-   2. Telegram voice processing.
-   3. Homeserver backup and restore execution evidence.
-   4. Homeserver install/runtime polish only if still needed after backup and Nextcloud work.
+These items block public release language or clean upstream publishing.
 
-## Non-Goals
+1. `ABC0-unified-roadmap-freeze`
+   Goal: this file becomes the active unified priority source.
+   Owner: Charlie.
+   Status: active in this slice.
 
-- No new plugin runtime activation or plugin loader expansion in this roadmap.
-- No live provider, Telegram, host, export/import, or rebuild run without explicit user Go.
-- No Qdrant, Kuzu, UMAP, GMM, adRAP, or other post-1.0 research tracks.
-- No broad refactor of unrelated dirty files.
-- No destructive git commands.
+2. `ABC1-origin-auth-and-publish-hygiene`
+   Goal: fix or document the local GitHub credential mismatch so `origin/dev` can be pushed by the intended account, or keep using `fuzzy/dev` with explicit handoff language.
+   Owner: Charlie.
+   Live/network note: pushing is allowed only as normal Git publish work; no force push.
+   Exit: remote ownership is unambiguous and the next commit target is clear.
+
+3. `ABC2-external-1-0-evidence-closeout`
+   Goal: close or explicitly keep blocked the two external release gates: Provider Proof and Test-Vault Export/Import/Rebuild.
+   Owner: Alice/Bob/Charlie.
+   Alice: operator wording and Go/No-Go text.
+   Bob: read-only validators or evidence adapters only.
+   Charlie: no live provider, export, import, rebuild, or network action without explicit Go.
+   Exit: external `1.0.0` is Go, Partial, or No-Go with named evidence.
+
+4. `ABC3-release-hardening-critique`
+   Goal: convert the P0/P1 critique into concrete gates.
+   Scope:
+   - quantify large-vault performance thresholds.
+   - isolate graph/filter state from fragile global state.
+   - add clear UI/operator disclosure that password protection is not at-rest encryption.
+   - ensure project apply/merge conflicts strictly block instead of silently overwriting.
+   - verify repository-name/link hygiene, including legacy typo risks.
+   Exit: release blocker vs follow-up status is recorded per issue.
+
+### P1 - Safe Updater To Real Operations Bridge
+
+These items make the completed offline updater useful without turning it into blind automation.
+
+5. `ABC4-updater-live-boundary-contract`
+   Goal: define the smallest live boundary after the offline Safe Updater Go.
+   Owner: Alice/Charlie.
+   Rule: green updater unit tests are not live deployment permission.
+   Exit: live update remains No-Go until backup and operator gates are green.
+
+6. `ABC5-homeserver-backup-final-evidence`
+   Goal: move homeserver backup from Partial to Go only after explicit live/server Go.
+   Required evidence:
+   - `/mnt/backup` is mounted by UUID.
+   - restic snapshot exists.
+   - `restic check` succeeds.
+   - restore smoke restores a test file into `/tmp/restore-smoke`.
+   Stop: if disk identity, existing data, mount, format, secrets, or restore safety is unclear.
+
+7. `ABC6-pre-update-hook-integration`
+   Goal: wire updater planning to the existing `ops/homeserver/pre-update-snapshot.sh` interface as a blocking pre-update gate.
+   Owner: Bob/Charlie.
+   Rule: model/command plan first; no host execution in unit tests.
+   Exit: update flow refuses to proceed when backup evidence is missing or stale.
+
+### P2 - Nextcloud Universal Inbox, Still Offline First
+
+These items continue the private source provider path after `V11-4`.
+
+8. `ABC7-nextcloud-v11-5-content-extraction`
+   Goal: add deterministic fake-client extraction models for supported file types.
+   Non-goals: OCR, audio, video, provider calls, live WebDAV.
+
+9. `ABC8-nextcloud-v11-6-routing-policy`
+   Goal: classify/rank routing decisions with confidence and review states.
+   Rule: uncertain routing goes to Review, not automatic move.
+
+10. `ABC9-nextcloud-v11-7-safe-placement`
+    Goal: model copy-only/no-delete/no-move placement plans and sidecar/tag writes as dry-run data.
+    Stop: no original-file mutation, no live Nextcloud writes, no private content fixtures.
+
+11. `ABC10-nextcloud-v11-8-raptorgraph-provenance`
+    Goal: create derived provenance records for inbox documents without treating RaptorGraph as primary truth.
+    Rule: original files remain source of truth.
+
+### P3 - Telegram Voice
+
+12. `ABC11-telegram-voice-tvp2`
+    Goal: strengthen metadata-only voice intake and redacted history.
+    Verification: `tests/test_telegram_plugin.py`.
+    Rule: no raw token, chat id, sender id, file id, or provider output in docs/tests/logs.
+
+13. `ABC12-telegram-voice-download-and-stt-gates`
+    Goal: add disabled-by-default download and fake STT boundaries.
+    Stop: no real Telegram download, STT provider call, or outbound send without explicit live Go.
+
+### P4 - Runtime Orchestration And Agent UX
+
+14. `ABC13-thread-read-handoff-reliability`
+    Goal: make thread/handoff reading reliable enough that Charlie can consume sidechat handoffs without relying on previews.
+    Evidence need: reproduce why `read_thread` rejected valid listed thread ids.
+    Exit: read-only handoff intake is deterministic or limitation is documented.
+
+15. `ABC14-agent-automation-admin-followup`
+    Goal: only if prioritized, continue deferred automation Admin/API work from `AAF4`.
+    Rule: no scheduler live writes or hidden agent dispatch without operator Go.
+
+### P5 - Deferred / Research / Larger Runtime Shifts
+
+Deferred until P0-P3 are stable:
+
+- full automatic update execution.
+- destructive rollback automation.
+- live Nextcloud writes.
+- live Telegram voice smoke.
+- server-side Nextcloud app.
+- Postgres live migration.
+- Qdrant/Kuzu/UMAP/GMM/adRAP research tracks.
+- broad UI redesign not tied to a blocker.
+
+## ABC Role Lanes
+
+Alice:
+- owns operator wording, Go/Partial/No-Go language, UI/security disclosure, runbooks, live-boundary language, and human-readable handoffs.
+- must not edit runtime hotfiles unless Charlie opens an exact docs/UI scope.
+
+Bob:
+- owns read-only validators, deterministic models, fake-client tests, dry-run command plans, and bounded implementation slices.
+- must not run provider, Telegram, host, Nextcloud, backup, restore, export/import, rebuild, deploy, network, or destructive actions.
+
+Charlie:
+- owns scope, sequencing, handoff integration, worktree hygiene, tests, commit/push, automation lifecycle, and stop decisions.
+- grants path-scoped work, never broad permission.
 
 ## Stop Rules
 
-- Stop on secrets, tokens, chat IDs, passwords, or private provider output appearing in docs, tests, prompts, logs, or handoffs.
-- Stop on foreign staged files or hotfile conflicts in roadmap-owned paths.
-- Stop if a slice needs live network, provider, Telegram, host, export/import, or rebuild action without explicit user approval.
-- Stop if release evidence would be marked `go` from tests alone without the required manual proof.
-- Stop if a worker must leave its allowed file scope.
-- Stop on red tests without a narrow focused fix.
+- Stop on secrets, tokens, passwords, chat IDs, private provider output, private source content, or host-sensitive output in docs, tests, prompts, logs, handoffs, or fixtures.
+- Stop on foreign staged files, unclear dirty ownership, or hotfile conflicts.
+- Stop before live provider, Telegram, Nextcloud, host, export/import, rebuild, backup, restore, deploy, or update actions unless that exact live action has explicit Go.
+- Stop before format, mount, partition, delete, move, overwrite, force push, history rewrite, or destructive rollback.
+- Stop if tests require real network/runtime instead of fakes.
+- Stop if a green unit test would be used as live Go evidence.
+- Stop if sidechat evidence is only a preview and would change release status.
 
-## Release / Go Language
+## Verification Matrix
 
-- `Go`: FINAL1 and FINAL2 are evidenced, FINAL3 is green, and Charlie can recommend external `1.0.0`.
-- `Partial`: documentation, validators, and read-only bundle work are complete, but one or more manual evidence gates remain pending.
-- `No-Go`: evidence contradicts release claims, secrets hygiene fails, or required gates are missing or broken.
-- `Deferred`: post-release tracks that are intentionally not started before external `1.0.0` decision.
+Docs-only consolidation:
+- `git diff --check -- docs/plans/abc-prioritized-execution-roadmap.md`
+- focused secret-pattern scan on this roadmap file.
 
-## Ordered Slices
-
-### ABC0-roadmap-freeze
-
-Owner: Charlie
-
-Goal:
-- Freeze this prioritization as the active ABC execution order.
-
-Allowed scope:
-- `docs/plans/abc-prioritized-execution-roadmap.md`
-
-Exit:
-- Roadmap exists, is consistent with current master evidence, and can be used for delegation.
-
-Tests:
-- None. Docs-only slice.
-
-### ABC1-final1-provider-evidence
-
-Priority: P0
-Depends on: `ABC0-roadmap-freeze`
-
-Goal:
-- Close `FINAL1` provider/fallback answer-run preparation and evidence validation without triggering live provider work.
-
-Alice path:
-- Finalize operator wording and Go/No-Go language in `docs/plans/provider-fallback-answer-run-contract.md`.
-
-Bob path:
-- Maintain or finish the read-only validator in `src/provider_fallback_answer_run.py` and `tests/test_provider_fallback_answer_run.py`.
-
-Charlie path:
-- Run only the focused validator test and classify the gate as `go`, `partial`, or `no_go` based on documented evidence.
-
-Verification:
+Release evidence:
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_provider_fallback_answer_run.py`
-
-### ABC2-final2-test-vault-evidence
-
-Priority: P0
-Depends on: `ABC1-final1-provider-evidence`
-
-Goal:
-- Close `FINAL2` test-vault export/import/rebuild preparation and evidence validation without starting live destructive operations.
-
-Alice path:
-- Finalize runbook and risk language in `docs/plans/test-vault-export-import-rebuild-contract.md`.
-
-Bob path:
-- Maintain or finish the read-only validator in `src/test_vault_export_import_rebuild.py` and `tests/test_test_vault_export_import_rebuild.py`.
-
-Charlie path:
-- Run only the focused validator test and classify the gate as `go`, `partial`, or `no_go` based on documented evidence.
-
-Verification:
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_test_vault_export_import_rebuild.py`
-
-### ABC3-final3-release-decision-bundle
-
-Priority: P0
-Depends on: `ABC2-final2-test-vault-evidence`
-
-Goal:
-- Produce the final read-only release decision bundle that aggregates release status, known limits, and remaining blockers.
-
-Alice path:
-- Finalize user-facing release decision language in `docs/plans/1.0-release-decision-bundle.md`.
-
-Bob path:
-- Maintain or finish the aggregator in `src/release_decision_bundle.py` and `tests/test_release_decision_bundle.py`.
-
-Charlie path:
-- Run the focused bundle test, inspect worktree hygiene, and produce final release recommendation status.
-
-Verification:
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_release_decision_bundle.py`
 
-### ABC4-nextcloud-source-provider-track
+Safe Updater:
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_odysseus_updater_plan.py tests\test_odysseus_updater_preflight.py tests\test_odysseus_updater_backup_gate.py tests\test_odysseus_updater_test_gate.py tests\test_odysseus_updater_command_plan.py tests\test_odysseus_updater_audit.py tests\test_odysseus_updater.py`
 
-Priority: P1
-Depends on: `ABC3-final3-release-decision-bundle`
+Nextcloud:
+- focused `tests/test_nextcloud_*.py` for touched slices only.
 
-Goal:
-- Start the first post-release implementation path by converting the ready infrastructure into a bounded Nextcloud source-provider plan.
-
-Primary roadmap inputs:
-- `docs/plans/nextcloud-source-bridge.md`
-- `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md`
-
-Exit:
-- Charlie can cut Alice/Bob slices for a no-delete, source-provider-first MVP without re-opening 1.0 scope.
-
-Verification:
-- Docs/model/test scope to be defined by Charlie per slice.
-
-### ABC5-telegram-voice-track
-
-Priority: P2
-Depends on: `ABC4-nextcloud-source-provider-track`
-
-Goal:
-- Advance Telegram from text baseline to bounded voice processing with metadata-first, download-gated, STT-gated behavior.
-
-Primary roadmap inputs:
-- `docs/plans/telegram-voice-processing-roadmap.md`
-- `docs/plans/telegram-agent-chat-operator-runbook.md`
-
-Exit:
-- Charlie can dispatch TVP slices in order without crossing plugin-system or secrets boundaries.
-
-Verification:
+Telegram:
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_telegram_plugin.py`
 
-### ABC6-homeserver-backup-track
+Homeserver backup:
+- shell syntax and dry-run checks first.
+- real snapshot/check/restore-smoke only after explicit server Go.
 
-Priority: P3
-Depends on: `ABC5-telegram-voice-track`
+## Go / Partial / No-Go Language
 
-Goal:
-- Move homeserver backup work from planning to controlled evidence, while keeping all live server mutations user-gated.
+External `1.0.0`:
+- Go: Provider Proof and Test-Vault Export/Import/Rebuild are both recorded as Go with redacted manual evidence.
+- Partial: current accepted state; internal RC readiness is documented, blockers named.
+- No-Go: any required manual evidence is missing, contradictory, unsafe, or secret-tainted.
 
-Primary roadmap inputs:
-- `docs/plans/homeserver-backup-roadmap.md`
-- `docs/backup-restore.md`
+1.1 Safe Updater:
+- Go: offline feature path complete through `UPD9`, tests green, live execution still separately gated.
+- No-Go for live update: backup evidence, operator decision, and post-run smoke are missing.
 
-Exit:
-- Charlie has a bounded path for scripts, runbook validation, and later user-approved live evidence.
+Homeserver backup:
+- Go: real server snapshot, `restic check`, and restore smoke are green.
+- Partial: scripts/docs/architecture exist but real restore evidence is missing.
 
-Verification:
-- Focused script syntax and dry-run checks only; no live server mutation without user Go.
+Nextcloud:
+- Go for offline slices: fake-client tests and no-delete/copy-only models are green.
+- No-Go for live writes: no separate live Go, no low-rights user evidence, or no backup evidence.
 
-### ABC7-homeserver-runtime-install-followup
+Telegram Voice:
+- Go for offline metadata/STT gates only after fake tests are green.
+- No-Go for live send/download/STT without explicit live Go.
 
-Priority: P4
-Depends on: `ABC6-homeserver-backup-track`
+## Charlie Next Action
 
-Goal:
-- Keep the Debian/Podman install plan as a follow-up only if still needed after backup and Nextcloud stabilization.
-
-Primary roadmap inputs:
-- `docs/plans/homeserver-debian-odysseus-native-install-plan.md`
-
-Exit:
-- Deferred or activated with a fresh bounded slice after higher-priority tracks are stable.
-
-Verification:
-- None until activated.
-
-## Paths
-
-### Alice Path
-
-Scope:
-- Operator wording, runbooks, Go/No-Go language, and release/user explanations.
-
-Path completion:
-- Docs are updated in the exact allowed Markdown files.
-- No runtime or code files are touched.
-- A handoff card records changed files, tests as docs-only or focused checks, and remaining risks.
-
-### Bob Path
-
-Scope:
-- Read-only validators, models, focused tests, and bounded implementation only where explicitly listed.
-
-Path completion:
-- Allowed source/test files are updated.
-- Focused tests run and are reported.
-- Handoff card includes changed files, tests, and commit status.
-
-### Charlie Path
-
-Scope:
-- Roadmap control, slice dispatch, worktree hygiene, focused tests, integration, commit/push decisions, automation, and stop rules.
-
-Path completion:
-- Current path is done, blocked, or deferred with a handoff card.
-- Focused tests and worktree status are recorded.
-- Only in-scope files are staged when Charlie integrates.
-
-## Charlie First Action
-
-Charlie starts with release closure, not with feature expansion:
-
-1. Confirm `ABC0` through `ABC3` are the active sequence.
-2. Treat `ABC4` through `ABC7` as queued follow-up paths.
-3. Do not dispatch Nextcloud, Telegram voice, or homeserver execution work until the release decision bundle is in a stable state or explicitly deferred by documented decision.
-
-## Path Handoff Card Template
-
-```text
-Path: {path_id}
-Status: done | blocked | deferred
-Goal: {one-sentence outcome}
-Changed files: {paths}
-Commit: {hash or "not committed: reason"}
-Push: {remote/branch or "not pushed: reason"}
-Tests: {commands and results}
-Evidence: {manual gates, if any}
-Risks: {remaining risks or "none known"}
-Next path: {recommended next path or "none"}
-```
+1. Commit this roadmap consolidation if checks pass.
+2. Try `origin/dev`; if credentials still reject, push to `fuzzy/dev` and record the origin-auth blocker.
+3. Start the next actual work at `ABC1-origin-auth-and-publish-hygiene` or `ABC2-external-1-0-evidence-closeout`, not at live Nextcloud/Telegram/host work.
