@@ -106,6 +106,16 @@ class GameDevCommandPlan:
     operator_go_required: bool = False
 
 
+@dataclass(frozen=True)
+class GameDevMountReport:
+    virtual_path: str
+    owner: str
+    ok: bool
+    status: str
+    reasons: tuple[str, ...] = ()
+    host_path_visible: bool = False
+
+
 def godot_mount_profile(
     *,
     name: str,
@@ -168,6 +178,54 @@ def validate_gamedev_mount_profile(mount: Mapping[str, Any]) -> GameDevProfileVa
         broad_host_root=broad_root,
         backup_disabled=backup_disabled,
     )
+
+
+def build_gamedev_mount_report(
+    mounts: Sequence[Mapping[str, Any]],
+    *,
+    virtual_path: str = "/mnt/canyon-racer",
+    owner: str = "default",
+) -> GameDevMountReport:
+    """Validate stored mount-like data without exposing host paths."""
+
+    expected_virtual = str(virtual_path or "").rstrip("/") or "/mnt/canyon-racer"
+    expected_owner = str(owner or "default")
+    candidates = [
+        mount for mount in mounts
+        if str(mount.get("virtual_path") or "").rstrip("/") == expected_virtual
+        and str(mount.get("owner") or "default") == expected_owner
+        and bool(mount.get("enabled", True))
+    ]
+    if not candidates:
+        return GameDevMountReport(
+            virtual_path=expected_virtual,
+            owner=expected_owner,
+            ok=False,
+            status="missing_mount",
+            reasons=("missing_mount",),
+        )
+    validation = validate_gamedev_mount_profile(candidates[0])
+    return GameDevMountReport(
+        virtual_path=expected_virtual,
+        owner=expected_owner,
+        ok=validation.ok,
+        status="go" if validation.ok else "partial",
+        reasons=validation.reasons,
+        host_path_visible=False,
+    )
+
+
+def public_gamedev_mount_report(report: GameDevMountReport) -> dict[str, Any]:
+    """Return report data that is safe to persist or show in operator output."""
+
+    return {
+        "virtual_path": report.virtual_path,
+        "owner": report.owner,
+        "ok": report.ok,
+        "status": report.status,
+        "reasons": list(report.reasons),
+        "host_path_visible": False,
+    }
 
 
 def decide_gamedev_command_intent(intent: str, *, operator_go: bool = False) -> GameDevCommandDecision:

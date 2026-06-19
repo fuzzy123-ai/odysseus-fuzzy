@@ -1,9 +1,11 @@
 from src.gamedev_project_profile import (
     GODOT_WRITE_EXTENSIONS,
     build_gamedev_command_plan,
+    build_gamedev_mount_report,
     decide_gamedev_command_intent,
     godot_mount_profile,
     is_broad_host_root,
+    public_gamedev_mount_report,
     validate_gamedev_mount_profile,
 )
 
@@ -125,3 +127,36 @@ def test_gamedev_command_plan_requires_virtual_mount_cwd():
 
     assert plan.allowed is False
     assert plan.reason == "cwd_must_be_virtual_mount"
+
+
+def test_gamedev_mount_report_accepts_matching_safe_mount_without_host_path():
+    profile = godot_mount_profile(name="Canyon", host_path=r"E:\Canyoning", owner="fuzzy")
+
+    report = build_gamedev_mount_report([profile], owner="fuzzy")
+    public = public_gamedev_mount_report(report)
+
+    assert report.ok is True
+    assert public["status"] == "go"
+    assert public["host_path_visible"] is False
+    assert "host_path" not in public
+
+
+def test_gamedev_mount_report_marks_missing_runtime_config_partial():
+    report = build_gamedev_mount_report([], owner="fuzzy")
+
+    assert report.ok is False
+    assert report.status == "missing_mount"
+    assert report.reasons == ("missing_mount",)
+
+
+def test_gamedev_mount_report_returns_redacted_profile_reasons():
+    profile = godot_mount_profile(name="Canyon", host_path=r"E:\Canyoning", owner="fuzzy")
+    profile["write_policy"]["allowed_extensions"] = [".txt"]
+
+    report = build_gamedev_mount_report([profile], owner="fuzzy")
+    public = public_gamedev_mount_report(report)
+
+    assert report.ok is False
+    assert report.status == "partial"
+    assert "missing_godot_extensions" in report.reasons
+    assert "E:" not in str(public)
