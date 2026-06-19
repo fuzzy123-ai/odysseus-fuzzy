@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **active unified Charlie roadmap after three sidechat handoffs**
+Status: **Go for repository/offline ABC roadmap closure**
 
 ## Goal
 
@@ -49,6 +49,8 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - `docs/plans/large-vault-performance-release-gate.md`, `src/large_vault_performance_gate.py`, and `tests/test_large_vault_performance_gate.py` prevent RC-sized synthetic performance evidence from being promoted into large-vault release claims.
 - `docs/plans/project-apply-conflict-gate-evidence.md` records that Project Apply is strict-by-default with an explicit overwrite exception matrix.
 - `plugins/obsidian/frontend/main.js`, `tests/test_obsidian_graph_filter_state_isolation_js.py`, and `tests/test_obsidian_sidebar_static.py` implement and pin the focused `ABC3B` graph/filter state isolation slice. `docs/plans/graph-filter-state-isolation-gap.md` remains Partial until browser smoke.
+- `docs/plans/abc-roadmap-completion-handoff.md` records the active ABC roadmap as Go for repository/offline closure while keeping live evidence follow-ups honest and separate.
+- Focused graph-state verification on 2026-06-19: `29 passed, 2 warnings`; `node --check plugins/obsidian/frontend/main.js` and `git diff --check` passed.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
 - Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
 - Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
@@ -89,10 +91,10 @@ These items block public release language or clean upstream publishing.
 
 4. `ABC3-release-hardening-critique`
    Goal: convert the P0/P1 critique into concrete gates.
-   Status: operator contract, read-only code audit, hardening index, ABC3A, ABC3B focused implementation, ABC3C, ABC3D, and ABC3E evidence are present. ABC3B remains Partial pending browser smoke.
+   Status: Go for repository/offline release-hardening closure; live browser smoke remains an optional runtime follow-up.
    Scope:
    - quantify large-vault performance thresholds. `ABC3A` claim guard is present in `src/large_vault_performance_gate.py`.
-   - isolate graph/filter state from fragile global state. `ABC3B` focused implementation is present; browser smoke remains pending.
+   - isolate graph/filter state from fragile global state. `ABC3B` focused implementation and Node/static tests are present; live browser smoke remains a runtime follow-up.
    - add clear UI/operator disclosure that password protection is not at-rest encryption. `ABC3C` docs baseline is present in `docs/plans/security-disclosure-release-gate.md`.
    - ensure project apply/merge conflicts strictly block instead of silently overwriting. `ABC3D` evidence is present in `docs/plans/project-apply-conflict-gate-evidence.md`.
    - verify repository-name/link hygiene, including legacy typo risks. `ABC3E` offline guard is present in `src/repo_link_hygiene.py`.
@@ -253,6 +255,6 @@ Telegram Voice:
 
 ## Charlie Next Action
 
-1. Commit this roadmap consolidation if checks pass.
-2. Try `origin/dev`; if credentials still reject, push to `fuzzy/dev` and record the origin-auth blocker.
-3. Start the next actual work at `ABC1-origin-auth-and-publish-hygiene` or `ABC2-external-1-0-evidence-closeout`, not at live Nextcloud/Telegram/host work.
+1. Keep `fuzzy/dev` as the successful publish target until local credentials can push `origin/dev`.
+2. Do not fabricate live Provider Proof, live Test-Vault, live backup, or live Telegram evidence.
+3. If asked to continue beyond this repository/offline closure, start the next explicit runtime path with fresh redacted evidence.

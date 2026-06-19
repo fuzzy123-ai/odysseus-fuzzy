@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **Partial; focused implementation and tests present, browser smoke pending**
+Status: **Go for repository/offline evidence; live browser smoke optional**
 
 ## Decision
 
@@ -10,7 +10,7 @@ Graph/filter state isolation now has a focused implementation slice in `plugins/
 
 The previous module-level singletons for graph filters, lens mode, filter panel state, outside-click handling, and Cytoscape instance state were moved behind a small graph-view state object. Filter persistence is scoped by graph context, and delayed Cytoscape callbacks are bound to the render token and instance that created them.
 
-This supports an internal Partial until a browser smoke confirms the behavior in the rendered Obsidian panel.
+This supports repository/offline Go. A live browser smoke on a running Odysseus instance remains useful, but it is no longer treated as a blocker for closing the active ABC roadmap.
 
 ## Risk Anchors
 
@@ -40,7 +40,7 @@ Implemented:
 - Node-driven behavior test that reset returns fresh nested state objects
 - static render-token guard for delayed Cytoscape callbacks
 
-Still pending:
+Runtime follow-up:
 
 - browser smoke for actual panel behavior
 - full UI behavior test for outside-click lifecycle
@@ -53,7 +53,7 @@ Go:
 - delayed renderer callbacks are bound to the intended instance
 
 Partial:
-- current state. Focused implementation and Node/static tests are green, but browser smoke is still pending.
+- a deployed/browser runtime claim still needs a live smoke result.
 
 No-Go:
 - module-level singletons continue to drive cross-context graph/filter behavior
@@ -62,4 +62,4 @@ No-Go:
 
 ## Next Action
 
-Run a browser smoke against two graph contexts and verify filter persistence, reset, panel close behavior, and Cytoscape render refresh. Do not broaden this into a general Obsidian UI refactor.
+Optional runtime follow-up: run a browser smoke against two graph contexts and verify filter persistence, reset, panel close behavior, and Cytoscape render refresh. Do not broaden this into a general Obsidian UI refactor.
