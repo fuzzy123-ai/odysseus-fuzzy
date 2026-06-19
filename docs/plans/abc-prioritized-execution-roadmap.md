@@ -43,6 +43,9 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - `docs/plans/release-hardening-code-audit.md` maps those five gates to code/test/doc anchors and safe parallel follow-up slices.
 - `src/release_hardening_gates.py` and `tests/test_release_hardening_gates.py` expose the current hardening index as read-only, automation-friendly status.
 - `docs/plans/updater-live-boundary-contract.md`, `src/odysseus_updater_live_boundary.py`, and `tests/test_odysseus_updater_live_boundary.py` define the first P1 bridge from Safe Updater offline Go to operator-gated live readiness, without executing the pre-update hook.
+- `src/odysseus_updater_pre_update_hook.py` and `tests/test_odysseus_updater_pre_update_hook.py` add the offline blocking pre-update hook gate for `ops/homeserver/pre-update-snapshot.sh`.
+- `docs/plans/security-disclosure-release-gate.md` anchors the `ABC3C` wording baseline for password protection versus at-rest encryption.
+- `docs/plans/repo-link-hygiene-audit.md`, `src/repo_link_hygiene.py`, and `tests/test_repo_link_hygiene.py` classify original/fork/plugin repository links and block unknown or typo slugs offline.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
 - Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
 - Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
@@ -87,9 +90,9 @@ These items block public release language or clean upstream publishing.
    Scope:
    - quantify large-vault performance thresholds.
    - isolate graph/filter state from fragile global state.
-   - add clear UI/operator disclosure that password protection is not at-rest encryption.
+   - add clear UI/operator disclosure that password protection is not at-rest encryption. `ABC3C` docs baseline is present in `docs/plans/security-disclosure-release-gate.md`.
    - ensure project apply/merge conflicts strictly block instead of silently overwriting.
-   - verify repository-name/link hygiene, including legacy typo risks.
+   - verify repository-name/link hygiene, including legacy typo risks. `ABC3E` offline guard is present in `src/repo_link_hygiene.py`.
    Exit: release blocker vs follow-up status is recorded per issue.
 
 ### P1 - Safe Updater To Real Operations Bridge
@@ -115,6 +118,7 @@ These items make the completed offline updater useful without turning it into bl
 7. `ABC6-pre-update-hook-integration`
    Goal: wire updater planning to the existing `ops/homeserver/pre-update-snapshot.sh` interface as a blocking pre-update gate.
    Owner: Bob/Charlie.
+   Status: offline gate model present in `src/odysseus_updater_pre_update_hook.py`; command plan type `pre_update_hook` renders the reviewed hook interface without execution.
    Rule: model/command plan first; no host execution in unit tests.
    Exit: update flow refuses to proceed when backup evidence is missing or stale.
 

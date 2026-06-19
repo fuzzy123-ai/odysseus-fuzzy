@@ -18,6 +18,10 @@ from src.odysseus_updater_command_plan import build_odysseus_updater_command_pla
             "backup-tool create --label preupdate --source <reviewed-worktree> --destination [redacted-backup-target]",
         ),
         (
+            "pre_update_hook",
+            "ODYSSEUS_UPDATE_REASON=<redacted-update-reason> ops/homeserver/pre-update-snapshot.sh",
+        ),
+        (
             "podman_compose",
             "podman compose -f <redacted-compose-file> config",
         ),

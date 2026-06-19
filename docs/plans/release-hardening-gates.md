@@ -123,6 +123,7 @@ No-Go when the product could be interpreted as providing at-rest encryption with
 - Redacted UI copy or operator text.
 - Release note entry that avoids ambiguous security wording.
 - Known-limits section covering local files, derived indexes, caches, and logs.
+- `docs/plans/security-disclosure-release-gate.md` as the operator wording baseline for this gate.
 
 ### Stop-Regeln
 

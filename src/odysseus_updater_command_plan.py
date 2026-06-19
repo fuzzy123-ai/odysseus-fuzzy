@@ -10,6 +10,7 @@ _PLAN_TYPES = (
     "git_fetch",
     "focused_pytest",
     "backup_preupdate",
+    "pre_update_hook",
     "podman_compose",
     "smoke_check",
     "hold_note",
@@ -167,6 +168,21 @@ def _build_template(
                 )
             ),
         )
+    if plan_type == "pre_update_hook":
+        return (
+            "Odysseus Updater Pre-Update Hook Plan",
+            "review the blocking homeserver pre-update hook without executing it",
+            (
+                f"ODYSSEUS_UPDATE_REASON={focus_label} ops/homeserver/pre-update-snapshot.sh",
+            ),
+            _dedupe(
+                (
+                    "a non-zero hook exit must block the later update runner",
+                    "the hook creates backup evidence only; it must not deploy code",
+                    note or "",
+                )
+            ),
+        )
     if plan_type == "podman_compose":
         return (
             "Odysseus Updater Podman Compose Plan",
@@ -221,6 +237,7 @@ def build_odysseus_updater_command_plan(
         "git_fetch": "<reviewed-ref>",
         "focused_pytest": "tests/test_odysseus_updater_command_plan.py",
         "backup_preupdate": "<reviewed-worktree>",
+        "pre_update_hook": "<redacted-update-reason>",
         "podman_compose": "<redacted-compose-file>",
         "smoke_check": "tests/test_odysseus_updater_command_plan.py",
         "hold_note": "<operator-hold>",
