@@ -71,6 +71,10 @@ def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):
     assert status["chat_id_value_visible"] is False
     assert status["send_enabled"] is False
     assert status["polling_enabled"] is False
+    assert status["voice_boundary"]["mode"] == "metadata_only"
+    assert status["voice_boundary"]["download_enabled"] is False
+    assert status["voice_boundary"]["stt_enabled"] is False
+    assert status["voice_boundary"]["raw_voice_ids_visible"] is False
     assert "redacted-token" not in str(status)
     assert "redacted-chat" not in str(status)
 
@@ -202,6 +206,7 @@ def test_parse_voice_update_marks_pending_stt():
 
     assert message["kind"] == "voice"
     assert message["transcript_status"] == "pending_stt"
+    assert message["voice_status"] == "pending_stt"
     assert message["media"]["file_id"] == "voice-file-id"
     bridge = build_agent_bridge_request(message)
     assert bridge["ready_for_agent"] is False
@@ -612,9 +617,87 @@ def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypat
     payload = response.json()
     assert payload["message"]["media"]["file_handle"].startswith("voice_file_")
     assert payload["message"]["media"]["file_unique_handle"].startswith("voice_unique_")
+    assert payload["message"]["voice_status"] == "pending_stt"
     assert "file_id" not in payload["message"]["media"]
     assert "file_unique_id" not in payload["message"]["media"]
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert "voice-file-id" not in persisted_text
     assert "unique-voice" not in persisted_text
+
+
+def test_readiness_reports_pending_voice_without_raw_identifiers(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 9,
+        "message": {
+            "message_id": 13,
+            "chat": {"id": "voice-chat-999"},
+            "voice": {
+                "file_id": "voice-file-id",
+                "file_unique_id": "unique-voice",
+                "duration": 4,
+                "mime_type": "audio/ogg",
+                "file_size": 4096,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    readiness = client.get("/api/plugins/telegram/status").json()
+    encoded = json.dumps(readiness, ensure_ascii=False)
+
+    assert readiness["history_counts"]["voice"] == 1
+    assert readiness["history_counts"]["pending_stt"] == 1
+    assert readiness["voice_boundary"]["pending_stt_count"] == 1
+    assert "voice-file-id" not in encoded
+    assert "unique-voice" not in encoded
+    assert "voice-chat-999" not in encoded
+
+
+def test_blocked_chat_voice_stays_redacted_and_skips_session_bridge(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "allowed-chat")
+    created_sessions = []
+
+    def _session_bridge(**kwargs):
+        created_sessions.append(kwargs)
+        return {"session_id": "should-not-happen"}
+
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_session_bridge = _session_bridge
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 30,
+        "message": {
+            "message_id": 31,
+            "chat": {"id": "blocked-voice-chat"},
+            "from": {"id": "sender-voice"},
+            "voice": {
+                "file_id": "blocked-voice-file-id",
+                "file_unique_id": "blocked-voice-unique",
+                "duration": 5,
+                "mime_type": "audio/ogg",
+                "file_size": 1024,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["message"]["intake_status"] == "blocked_chat"
+    assert payload["agent_bridge"]["ready_for_agent"] is False
+    assert created_sessions == []
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "blocked" and item.get("status") == "chat_not_allowed" for item in history)
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "blocked-voice-chat" not in persisted_text
+    assert "sender-voice" not in persisted_text
+    assert "blocked-voice-file-id" not in persisted_text
+    assert "blocked-voice-unique" not in persisted_text

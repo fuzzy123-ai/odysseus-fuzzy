@@ -413,11 +413,13 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
         })
     elif isinstance(message.get("voice"), dict):
         voice = message["voice"]
+        transcript_status = "pending_stt"
         base.update({
             "kind": "voice",
             "text": "",
-            "transcript_status": "pending_stt",
-            "intake_status": "pending_stt" if base["chat_allowed"] else "blocked_chat",
+            "transcript_status": transcript_status,
+            "voice_status": transcript_status,
+            "intake_status": transcript_status if base["chat_allowed"] else "blocked_chat",
             "media": {
                 "type": "voice",
                 "file_id": voice.get("file_id") or "",
@@ -717,7 +719,11 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         state = "needs_token"
         summary = "Telegram token env marker is missing."
 
-    counts = TelegramInboxStore(data_dir).counts() if data_dir is not None else {"total": 0, "inbound": 0, "outbound": 0, "voice": 0}
+    counts = (
+        TelegramInboxStore(data_dir).counts()
+        if data_dir is not None
+        else {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "pending_stt": 0}
+    )
     return {
         "plugin": "telegram",
         "state": state,
@@ -732,6 +738,13 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         "network_enabled": bool(token_present and reply_enabled),
         "send_enabled": bool(token_present and chat_present and reply_enabled),
         "history_counts": counts,
+        "voice_boundary": {
+            "mode": "metadata_only",
+            "pending_stt_count": int(counts.get("pending_stt") or 0),
+            "download_enabled": False,
+            "stt_enabled": False,
+            "raw_voice_ids_visible": False,
+        },
         "next_allowed_action": "Enable TELEGRAM_AGENT_CHAT_ENABLED for intake and TELEGRAM_AGENT_REPLY_ENABLED for bot replies.",
     }
 
