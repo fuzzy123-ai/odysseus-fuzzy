@@ -58,9 +58,16 @@ flowchart TD
 
 GraphRaptor bekommt eine Abstraktion, nicht den Rohinhalt.
 
+Das Extraction Packet ist ephemeral: Es darf waehrend eines Pipeline-Laufs Rohtext, OCR-Zwischenstaende oder Parser-Dumps enthalten, wird aber nicht serialisiert. Die dauerhafte Memory Abstraction ist ein separates Objekt mit abgeleiteten Aussagen und Provenance.
+
 Erlaubt:
 
+- `schema`
+- `memory_kind`
+- `source_provider`
 - `source_hash`
+- `source_mime_type`
+- `source_size_bytes`
 - `original_path`
 - `current_path` oder `planned_path`
 - `document_type`
@@ -72,9 +79,16 @@ Erlaubt:
 - `dates`
 - `amounts`
 - `relationships`
+- `tags`
 - `confidence`
 - `review_status`
 - `routing_policy`
+- `routing_decision`
+- `provenance`
+- `extractor`
+- `extracted_at`
+- `analyzed_at`
+- `routed_at`
 
 Verboten:
 
@@ -83,9 +97,28 @@ Verboten:
 - `body`
 - `payload`
 - `bytes`
+- `binary`
 - `ocr_dump`
+- `transcript`
+- `full_text`
+- `page_text`
+- `email_body`
+- `attachment_bytes`
+- `secret`
+- `token`
+- `password`
+- `api_key`
+- `credential`
+- `chat_id`
 - vollstaendige E-Mail- oder PDF-Texte
-- Secret-Werte, Tokens, Passwoerter, Chat-IDs
+- vollstaendige Chat-, Tabellen- oder Dokumenttexte
+- Secret-Werte, Tokens, Passwoerter, Chat-IDs oder private Kommunikations-IDs
+
+Memory Write Gate:
+
+- Go: Abstraktion enthaelt nur erlaubte Felder, Provenance ist vollstaendig, Confidence und Review-Status sind gesetzt, und keine Rohinhalte oder Secrets werden persistiert.
+- Partial: Extraktion war teilweise erfolgreich; sichere abgeleitete Aussagen duerfen nur als `needs_review` Memory-Kandidat geschrieben werden.
+- No-Go: Rohinhalt, Secret-Feld, fehlende Provenance, failed Extraction ohne belastbare Abstraktion oder Policy-Block verhindert den Memory Write.
 
 ## Stop Rules
 

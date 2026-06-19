@@ -190,6 +190,20 @@ Extraktionsergebnis:
 }
 ```
 
+### Ephemeral Extraction Packet
+
+Das Extraction Packet ist ein rein temporaeres Laufzeitobjekt. Es darf Rohtext, OCR-Zwischenstaende, Tabellenzeilen oder Parser-Dumps enthalten, damit Analyse, Klassifikation und Routing arbeiten koennen. Es ist aber kein Speicherformat.
+
+Regeln:
+
+- Das Extraction Packet darf nur im Arbeitsspeicher oder in explizit temporaeren Scratch-Bereichen existieren.
+- Es darf nicht in Ledger, Sidecar, Review Queue, Audit, RaptorGraph oder Personal Memory serialisiert werden.
+- Es darf nicht in Handoffs, Logs, Fehlermeldungen oder Test-Fixtures kopiert werden.
+- Es muss nach dem Pipeline-Lauf verworfen oder durch eine neu erzeugbare Abstraktion ersetzt werden.
+- Persistiert werden duerfen nur Extraktionsstatus, technische Metadaten, Warnungen, Hashes und abgeleitete Analyseergebnisse.
+
+Der dauerhafte Speicher bekommt nie das Extraction Packet selbst, sondern nur eine Memory Abstraction mit Provenance.
+
 ## Phase 3: Analyse
 
 Der Worker analysiert:
@@ -491,6 +505,91 @@ Der Ledger ist operative Wahrheit fuer Status:
 
 Der Worker schreibt RaptorGraph-/Derived-Memory-Eintraege erst nach erfolgreicher Analyse und mit Provenance.
 
+### Memory Abstraction Contract
+
+Eine Memory Abstraction ist das dauerhafte, rebuildbare Ergebnis aus Analyse und Policy Gate. Sie enthaelt abgeleitete Aussagen ueber die Quelle plus Provenance, aber keinen Rohinhalt. Sie darf in RaptorGraph, Sidecar, Ledger-Referenzen oder spaeteren Memory-Events verwendet werden.
+
+Erlaubte Felder:
+
+- `schema`
+- `memory_kind`
+- `source_provider`
+- `source_hash`
+- `source_mime_type`
+- `source_size_bytes`
+- `original_path`
+- `current_path`
+- `planned_path`
+- `document_type`
+- `domain`
+- `title`
+- `abstract`
+- `topics`
+- `entities`
+- `dates`
+- `amounts`
+- `relationships`
+- `tags`
+- `routing_policy`
+- `routing_decision`
+- `confidence`
+- `review_status`
+- `provenance`
+- `extractor`
+- `extracted_at`
+- `analyzed_at`
+- `routed_at`
+
+Verbotene Rohinhalt- und Secret-Felder:
+
+- `raw_text`
+- `content`
+- `body`
+- `payload`
+- `bytes`
+- `binary`
+- `ocr_dump`
+- `transcript`
+- `full_text`
+- `page_text`
+- `email_body`
+- `attachment_bytes`
+- `secret`
+- `token`
+- `password`
+- `api_key`
+- `credential`
+- `chat_id`
+- vollstaendige PDF-, E-Mail-, Chat-, Tabellen- oder Dokumenttexte
+- echte Secret-Werte oder private Kommunikations-IDs in beliebigen Feldern
+
+Wenn ein vorgeschlagenes Memory-Objekt eines dieser Felder enthaelt, ist der Write nicht partiell erlaubt. Es muss neu abstrahiert oder blockiert werden.
+
+### Memory Write Gate
+
+Go:
+
+- Analyse ist `ok`.
+- Memory-Objekt enthaelt nur erlaubte Abstraktions- und Provenance-Felder.
+- Provenance enthaelt mindestens Provider, Hash, Pfadreferenz, Extractor und Zeitpunkt.
+- Confidence und Review-Status sind gesetzt.
+- Keine Rohinhalte, Secrets, Tokens, Passwoerter, Chat-IDs oder Hostdetails werden serialisiert oder geloggt.
+
+Partial:
+
+- Extraktion ist `partial`, aber die Abstraktion enthaelt nur sichere, abgeleitete Aussagen.
+- Unsichere Claims sind mit niedriger Confidence markiert.
+- `review_status` ist `needs_review`.
+- Graph-/Memory-Write darf nur als Review-Kandidat erfolgen, nicht als kanonische Wahrheit.
+
+No-Go:
+
+- Extraktion ist `failed` und es gibt keine belastbare Abstraktion.
+- Rohinhalt oder verbotene Felder waeren im Memory-Objekt enthalten.
+- Secrets, Tokens, Passwoerter, Chat-IDs oder private Kommunikationsinhalte wuerden persistiert oder geloggt.
+- Provenance fehlt oder verweist nicht eindeutig auf die Originalquelle.
+- Policy Gate blockiert wegen Sensitivitaet, Konflikt, Duplikat-Unsicherheit oder Scope-Verletzung.
+
 Dokument-Knoten:
 
 ```json
@@ -511,6 +610,8 @@ Dokument-Knoten:
   "routed_at": "..."
 }
 ```
+
+Der Beispielknoten ist eine Memory Abstraction. `summary`/`abstract`, Tags und Entitaeten sind abgeleitete Aussagen; extrahierter Volltext bleibt ausserhalb des dauerhaften Graphen.
 
 Kanten:
 

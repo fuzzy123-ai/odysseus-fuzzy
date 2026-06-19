@@ -15,6 +15,8 @@ import string
 import unicodedata
 from typing import Any, Mapping
 
+from src.universal_inbox_policy import evaluate_universal_inbox_policy
+
 
 DEFAULT_RULES_PATH = Path(__file__).resolve().parents[1] / "config" / "universal_inbox_routing_rules.json"
 ROUTING_SCHEMA = "odysseus.universal_inbox.routing_decision.v1"
@@ -230,7 +232,15 @@ def plan_universal_inbox_route(
     )
     confidence = _normalize_confidence(normalized_item.confidence)
 
-    review_reasons = _review_reasons(normalized_item, normalized_rules, domain, document_type, confidence)
+    policy = evaluate_universal_inbox_policy(
+        normalized_item,
+        allowed_domains=normalized_rules.allowed_domains,
+        min_auto_route_confidence=normalized_rules.min_auto_route_confidence,
+        domain=domain,
+        document_type=document_type,
+        confidence=confidence,
+    )
+    review_reasons = policy.review_reasons + policy.no_go_reasons
     sidecar_path = _sidecar_path(normalized_rules, normalized_item, title)
     route = normalized_rules.find_route(domain, document_type) if not review_reasons else None
 
