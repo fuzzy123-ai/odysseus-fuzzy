@@ -235,6 +235,12 @@
     font-family: 'Fira Code', monospace;
     pointer-events: none; user-select: none;
   }
+  .version-label.outdated {
+    color: #ff4d4f;
+    opacity: 0.82;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
   /* Whirlpool-style spinner shown in the submit button while login /
      account-creation work is in flight — replaces the previous "Loading…"
      text. Two-color ring (muted base + accent arc) rotates continuously. */
@@ -305,7 +311,13 @@
     const vr = await fetch('/api/version');
     if (vr.ok) {
       const vd = await vr.json();
-      document.getElementById('version-label').textContent = 'v' + vd.version;
+      const versionEl = document.getElementById('version-label');
+      const commit = vd.commit ? ` · ${vd.commit}` : '';
+      versionEl.textContent = 'v' + vd.version + commit;
+      versionEl.title = vd.update_available
+        ? `Update available: ${vd.latest_commit || 'remote version'}`
+        : (vd.status === 'current' ? 'Odysseus is up to date' : 'Version status unknown');
+      versionEl.classList.toggle('outdated', vd.update_available === true);
     }
   } catch(e) {}
 

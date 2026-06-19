@@ -27,6 +27,7 @@ secrets.env.*
 
 # Data — all user data stays local
 data/
+vault/
 !services/hwfit/data/
 !services/hwfit/data/hf_models.json
 logs/
@@ -87,6 +88,7 @@ output.txt.txt
 !docs/**/*.webp
 
 # Reports and temp files
+.pytest_cache/
 reports/
 tasks/
 scripts/compound/*.json

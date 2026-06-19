@@ -1,0 +1,68 @@
+services:
+  nextcloud-db:
+    image: docker.io/library/mariadb:11
+    container_name: nextcloud-db
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${NEXTCLOUD_DB_NAME}
+      MARIADB_USER: ${NEXTCLOUD_DB_USER}
+      MARIADB_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${NEXTCLOUD_DB_ROOT_PASSWORD}
+    volumes:
+      - nextcloud-db:/var/lib/mysql
+
+  nextcloud-redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - nextcloud-redis:/data
+
+  nextcloud-app:
+    image: docker.io/library/nextcloud:stable-apache
+    container_name: nextcloud-app
+    restart: unless-stopped
+    depends_on:
+      - nextcloud-db
+      - nextcloud-redis
+    ports:
+      - "127.0.0.1:${NEXTCLOUD_HOST_PORT:-8080}:80"
+    environment:
+      MYSQL_DATABASE: ${NEXTCLOUD_DB_NAME}
+      MYSQL_USER: ${NEXTCLOUD_DB_USER}
+      MYSQL_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+      MYSQL_HOST: nextcloud-db
+      REDIS_HOST: nextcloud-redis
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS}
+    volumes:
+      - nextcloud-app:/var/www/html
+      - nextcloud-data:/var/www/html/data
+      - ./apache-security.conf:/etc/apache2/conf-enabled/security.conf:ro
+
+  nextcloud-cron:
+    image: docker.io/library/nextcloud:stable-apache
+    container_name: nextcloud-cron
+    restart: unless-stopped
+    depends_on:
+      - nextcloud-db
+      - nextcloud-redis
+    entrypoint: /cron.sh
+    environment:
+      MYSQL_DATABASE: ${NEXTCLOUD_DB_NAME}
+      MYSQL_USER: ${NEXTCLOUD_DB_USER}
+      MYSQL_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+      MYSQL_HOST: nextcloud-db
+      REDIS_HOST: nextcloud-redis
+    volumes:
+      - nextcloud-app:/var/www/html
+      - nextcloud-data:/var/www/html/data
+
+volumes:
+  nextcloud-app:
+  nextcloud-data:
+  nextcloud-db:
+  nextcloud-redis:

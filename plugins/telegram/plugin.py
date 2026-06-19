@@ -568,6 +568,15 @@ def _public_reply_result(result: dict[str, Any] | None) -> dict[str, Any] | None
     return result
 
 
+def _agent_failure_reply(agent_turn: dict[str, Any] | None) -> str:
+    if not agent_turn or str(agent_turn.get("status") or "").lower() != "failed":
+        return ""
+    return (
+        "Ich habe deine Nachricht erhalten und arbeite, aber das Sprachmodell "
+        "konnte gerade nicht antworten. Bitte prüfe den Modell-Zugang in Odysseus."
+    )
+
+
 def run_telegram_polling_cycle(
     *,
     data_dir: str | Path,
@@ -623,6 +632,7 @@ def run_telegram_polling_cycle(
                     chat_id=bridge["chat_id"],
                     session_id=binding.get("session_id") or "",
                 )
+                send_telegram_typing_indicator(bridge["chat_id"], store=store)
                 agent_turn = _run_agent_turn(agent_turn_handler, bridge)
                 if agent_turn is not None:
                     agent_turns += 1
@@ -633,10 +643,11 @@ def run_telegram_polling_cycle(
                         session_id=bridge.get("session_id") or "",
                         reply_text_present=bool(agent_turn.get("reply_text_present")),
                     )
-                    if agent_turn.get("reply_text") and reply_handler is not None:
+                    reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+                    if reply_text and reply_handler is not None:
                         reply_handler(
                             bridge["chat_id"],
-                            str(agent_turn["reply_text"]),
+                            reply_text,
                             bridge.get("source_message_id"),
                         )
                         replies += 1
@@ -715,6 +726,51 @@ def send_telegram_text(
         "telegram_message_id": ((result.get("result") or {}).get("message_id")),
         "token_value_visible": False,
     }
+
+
+def send_telegram_chat_action(
+    chat_id: str,
+    action: str = "typing",
+    *,
+    token: str | None = None,
+    http_post: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Show a short Telegram chat action, e.g. the typing indicator."""
+
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    url = f"https://api.telegram.org/bot{token}/sendChatAction"
+    post = http_post or _telegram_http_post
+    result = post(url, {"chat_id": str(chat_id), "action": action or "typing"})
+    return {
+        "ok": bool(result.get("ok")),
+        "action": action or "typing",
+        "token_value_visible": False,
+    }
+
+
+def send_telegram_typing_indicator(
+    chat_id: str,
+    *,
+    store: TelegramInboxStore | None = None,
+) -> dict[str, Any] | None:
+    if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED") or not _chat_allowed(chat_id):
+        return None
+    try:
+        return send_telegram_chat_action(chat_id, "typing")
+    except Exception as exc:
+        if store is not None:
+            store.append_event(
+                kind="chat_action",
+                status="failed",
+                chat_id=chat_id,
+                action="typing",
+                error=str(exc)[:120],
+            )
+        return None
 
 
 def _parse_tool_payload(content: str | dict[str, Any]) -> dict[str, Any]:
@@ -949,6 +1005,8 @@ def setup(ctx):
             session_binding=session_binding,
             raw_chat_id=str(message.get("chat_id") or ""),
         )
+        if bridge["ready_for_agent"]:
+            send_telegram_typing_indicator(bridge["chat_id"], store=store)
         agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
         if agent_turn is not None:
             store.append_event(
@@ -958,10 +1016,11 @@ def setup(ctx):
                 session_id=bridge.get("session_id") or "",
                 reply_text_present=bool(agent_turn.get("reply_text_present")),
             )
-            if agent_turn.get("reply_text"):
+            reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+            if reply_text:
                 reply_result = _reply_with_gate(
                     bridge["chat_id"],
-                    str(agent_turn["reply_text"]),
+                    reply_text,
                     source_message_id=bridge.get("source_message_id"),
                 )
         return {

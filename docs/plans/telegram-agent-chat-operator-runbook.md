@@ -144,8 +144,16 @@ No-Go:
 Go:
 
 - `TELEGRAM_VOICE_ENABLED` ist klar als optional dokumentiert.
-- Voice kann als Metadaten-/Inbox-Ereignis angenommen werden.
-- Voice bleibt `pending_stt`, solange kein spaeterer STT-Slice freigegeben ist.
+- Voice kann zuerst nur als redacted Metadaten-/Inbox-Ereignis angenommen
+  werden.
+- Voice-Status werden operator-tauglich getrennt:
+  `voice_received`, `pending_download`, `download_blocked`, `pending_stt`,
+  `transcribed`, `agent_ready`, `failed`.
+- `TELEGRAM_VOICE_DOWNLOAD_ENABLED`, `TELEGRAM_STT_ENABLED` und
+  `TELEGRAM_AGENT_REPLY_ENABLED` bleiben getrennte Gates mit eigener
+  Betreiberfreigabe.
+- Voice bleibt mindestens `pending_stt`, solange kein spaeterer STT-Slice
+  freigegeben ist.
 - Textchat-Readiness bleibt voll nutzbar, auch wenn Voice aus oder pending ist.
 - Persistierte Voice-Diagnostik darf keine rohen File-IDs oder Unique-IDs
   enthalten.
@@ -155,6 +163,8 @@ No-Go:
 - Textchat haengt von STT oder Voice-Download ab.
 - Voice wird als fertig transkribiert behauptet, obwohl nur Pending-STT
   vorbereitet ist.
+- Download, STT oder Reply werden ohne separates Gate als implizit aktiv
+  dargestellt.
 
 ## Empfohlene Operator-Pruefung
 
@@ -166,7 +176,8 @@ lokal pruefen und nur redigiert notieren:
 3. Session-Bridge ist als Telegram-zu-Odysseus-Session-Konzept verstanden.
 4. Reply-Gate ist explizit an oder aus, nicht implizit.
 5. Polling ist nur optional und nicht Standardannahme.
-6. Voice ist als pending-STT und nicht als fertige Transkription dokumentiert.
+6. Voice ist als metadata-first und ueber getrennte Download-/STT-/Reply-Gates
+   dokumentiert.
 7. Lokale Historie nutzt nur stabile redacted Handles.
 
 ## Evidence-Felder
@@ -181,11 +192,13 @@ werden:
 - `TELEGRAM_AGENT_REPLY_ENABLED`: ja oder nein
 - `TELEGRAM_POLLING_ENABLED`: ja oder nein
 - `TELEGRAM_VOICE_ENABLED`: ja oder nein
+- `TELEGRAM_VOICE_DOWNLOAD_ENABLED`: ja oder nein
+- `TELEGRAM_STT_ENABLED`: ja oder nein
 - Allowlist vorhanden: ja oder nein
 - Session-Mapping nachvollziehbar: ja oder nein
 - Redacted history uses stable handles only: ja oder nein
 - Reply-Gate bewusst gesetzt: ja oder nein
-- Voice pending STT dokumentiert: ja oder nein
+- Voice-Status und Gates sauber dokumentiert: ja oder nein
 - Ergebnis: Go, Partial oder No-Go
 - Blocker oder offene Risiken
 
@@ -199,7 +212,8 @@ Go ist nur angemessen, wenn:
   sind
 - persistierte Diagnostik nur stabile redacted Handles verspricht und belegt
   sind
-- Voice korrekt als optional/pending-STT beschrieben ist
+- Voice korrekt als metadata-first mit getrennten Download-/STT-/Reply-Gates
+  beschrieben ist
 - keine Secrets, Realwerte oder unbounded Aktionen auftreten
 
 ### Partial
@@ -207,7 +221,7 @@ Go ist nur angemessen, wenn:
 Partial ist angemessen, wenn:
 
 - Textchat vorbereitet ist
-- Reply oder Voice bewusst noch deaktiviert oder pending sind
+- Reply, Download oder STT bewusst noch deaktiviert oder pending sind
 - die Grenzen ehrlich dokumentiert sind
 - die Dokumentation das Redaction-Zielbild bereits klarzieht, der zugehoerige
   Persistenz-Fix aber noch separat offen ist
@@ -220,12 +234,14 @@ No-Go ist angemessen, wenn:
 - persistierte Diagnostik rohe Chat-IDs, Sender-IDs oder File-IDs speichert
 - Session-Bridge unklar bleibt
 - Reply implizit aktiv waere
-- Voice als fertig dargestellt wird, obwohl STT noch fehlt
+- Voice als fertig dargestellt wird, obwohl Download/STT/Reply noch nicht
+  sauber gegatet sind
 - Nextcloud-, Obsidian- oder Video-Themen in diesen Slice hineingezogen werden
 
 ## Bekannte Grenzen
 
-- Voice ist nur pending STT, nicht fertige Transkription.
+- Voice ist zuerst nur redacted Metadata und spaeter hoechstens gated Download
+  plus gated STT, nicht automatisch fertige Transkription.
 - Persistierte Diagnostik ist erst dann wirklich redaction-safe, wenn nur
   stabile redacted Handles gespeichert werden.
 - Video ist nicht Teil dieses Slices.

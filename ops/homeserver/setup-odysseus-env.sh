@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /opt/odysseus
+
+if [ -f .env ]; then
+  echo ".env already exists; leaving it unchanged."
+  exit 0
+fi
+
+admin_password="$(openssl rand -base64 36 | tr -d '\n')"
+searxng_secret="$(openssl rand -base64 48 | tr -d '\n')"
+puid="$(id -u)"
+pgid="$(id -g)"
+
+cat > .env <<EOF
+APP_BIND=127.0.0.1
+APP_PORT=7000
+APP_DATA_DIR=./data
+APP_LOGS_DIR=./logs
+
+AUTH_ENABLED=true
+LOCALHOST_BYPASS=false
+SECURE_COOKIES=true
+ODYSSEUS_ADMIN_USER=homebase
+ODYSSEUS_ADMIN_PASSWORD=${admin_password}
+ALLOWED_ORIGINS=https://odysseus.katzarow.de
+
+DATABASE_URL=sqlite:///./data/app.db
+
+LLM_HOST=localhost
+LLM_HOSTS=
+OPENAI_API_KEY=
+OLLAMA_BASE_URL=
+RESEARCH_LLM_ENDPOINT=
+HF_TOKEN=
+HUGGING_FACE_HUB_TOKEN=
+
+SEARXNG_BIND=127.0.0.1
+SEARXNG_PORT=8081
+SEARXNG_BASE_URL=http://localhost:8081/
+SEARXNG_SECRET=${searxng_secret}
+
+CHROMADB_BIND=127.0.0.1
+NTFY_BIND=127.0.0.1
+NTFY_BASE_URL=http://localhost:8091
+
+EMBEDDING_URL=
+EMBEDDING_MODEL=
+EMBEDDING_API_KEY=
+FASTEMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+FASTEMBED_CACHE_PATH=
+
+CLEANUP_INTERVAL_HOURS=24
+ODYSSEUS_INPROCESS_POLLERS=1
+ODYSSEUS_INPROCESS_TASKS=1
+ODYSSEUS_SCRIPT_HOST=localhost
+ODYSSEUS_CHAT_UPLOAD_MAX_BYTES=10485760
+ODYSSEUS_GALLERY_UPLOAD_MAX_BYTES=104857600
+ODYSSEUS_GALLERY_TRANSFORM_UPLOAD_MAX_BYTES=26214400
+ODYSSEUS_MEMORY_IMPORT_MAX_BYTES=10485760
+ODYSSEUS_PERSONAL_UPLOAD_MAX_BYTES=26214400
+ODYSSEUS_EMAIL_COMPOSE_UPLOAD_MAX_BYTES=26214400
+ODYSSEUS_STT_MAX_AUDIO_BYTES=26214400
+ODYSSEUS_ICS_MAX_BYTES=10485760
+
+DATA_BRAVE_API_KEY=
+GOOGLE_API_KEY=
+GOOGLE_PSE_CX=
+TAVILY_API_KEY=
+SERPER_API_KEY=
+
+PUID=${puid}
+PGID=${pgid}
+EOF
+
+chmod 600 .env
+
+echo "Created /opt/odysseus/.env"
+echo "ODYSSEUS_ADMIN_USER=homebase"
+echo "To read the generated password later:"
+echo "  sed -n 's/^ODYSSEUS_ADMIN_PASSWORD=//p' /opt/odysseus/.env"

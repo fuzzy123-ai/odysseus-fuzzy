@@ -791,6 +791,54 @@ def _telegram_model_spec() -> str:
     return str(os.getenv("TELEGRAM_MODEL_SPEC") or get_setting("default_model", "") or "").strip()
 
 
+def _telegram_owner() -> str | None:
+    configured = (os.getenv("TELEGRAM_OWNER") or os.getenv("ODYSSEUS_ADMIN_USER") or "").strip()
+    if configured:
+        return configured
+    users = getattr(auth_manager, "users", {}) or {}
+    for username, data in users.items():
+        if isinstance(data, dict) and data.get("is_admin") is True:
+            return username
+    return next(iter(users), None) if users else None
+
+
+def _telegram_refresh_session_headers(session_id: str) -> dict | None:
+    """Reload endpoint auth headers for Telegram sessions after container restarts."""
+
+    try:
+        from core.database import ModelEndpoint, SessionLocal
+        from src.auth_helpers import owner_filter
+        from src.endpoint_resolver import build_chat_url, build_headers, normalize_base, resolve_endpoint_runtime
+
+        sess = session_manager.get_session(session_id)
+        if not sess:
+            return None
+        endpoint_url = str(getattr(sess, "endpoint_url", "") or "").rstrip("/")
+        if not endpoint_url:
+            return None
+        owner = _telegram_owner()
+        db = SessionLocal()
+        try:
+            query = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True)  # noqa: E712
+            if owner:
+                query = owner_filter(query, ModelEndpoint, owner)
+            for endpoint in query.all():
+                base, api_key = resolve_endpoint_runtime(endpoint, owner=owner)
+                base = normalize_base(base)
+                chat_url = build_chat_url(base).rstrip("/")
+                if endpoint_url == chat_url or endpoint_url.startswith(base.rstrip("/")):
+                    sess.headers = build_headers(api_key, base)
+                    logger.info("Telegram session auth headers refreshed from endpoint '%s'", endpoint.name)
+                    return dict(sess.headers or {})
+        finally:
+            db.close()
+        logger.warning("Telegram session auth headers could not be refreshed for endpoint %s", endpoint_url)
+        return dict(getattr(sess, "headers", None) or {})
+    except Exception as exc:
+        logger.warning("Telegram session auth header refresh failed: %s", exc)
+        return None
+
+
 def _telegram_session_bridge(**kwargs):
     from src.ai_interaction import do_create_session
 
@@ -798,7 +846,7 @@ def _telegram_session_bridge(**kwargs):
     if not model_spec:
         return {"error": "telegram_model_missing"}
     session_name = "Telegram Bot"
-    result = _run_async_bridge(do_create_session(f"{session_name}\n{model_spec}"))
+    result = _run_async_bridge(do_create_session(f"{session_name}\n{model_spec}", owner=_telegram_owner()))
     if result.get("error"):
         logger.warning("Telegram session bridge could not create a session: %s", result.get("error"))
         return {"error": result.get("error")}
@@ -806,7 +854,9 @@ def _telegram_session_bridge(**kwargs):
 
 
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
-    from src.ai_interaction import do_send_to_session
+    from core.models import ChatMessage
+    from src.ai_interaction import AI_CHAT_TIMEOUT
+    from src.llm_core import llm_call
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -814,11 +864,26 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         return {"status": "failed", "error": "telegram_session_missing"}
     if not prompt:
         return {"status": "ignored", "reply_text": ""}
-    result = _run_async_bridge(do_send_to_session(f"{session_id}\n{prompt}"))
-    if result.get("error"):
-        logger.warning("Telegram agent turn failed: %s", result.get("error"))
-        return {"status": "failed", "error": result.get("error"), "reply_text": ""}
-    return {"status": "accepted", "reply_text": str(result.get("response") or "")}
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"status": "failed", "error": "telegram_session_not_found", "reply_text": ""}
+    try:
+        headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
+        context = session.get_context_messages()
+        context.append({"role": "user", "content": prompt})
+        response = llm_call(
+            session.endpoint_url,
+            session.model,
+            context,
+            headers=headers,
+            timeout=AI_CHAT_TIMEOUT,
+        )
+        session.add_message(ChatMessage("user", prompt, {"source": "telegram"}))
+        session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
+        return {"status": "accepted", "reply_text": str(response or "")}
+    except Exception as exc:
+        logger.warning("Telegram agent turn failed: %s", exc)
+        return {"status": "failed", "error": str(exc), "reply_text": ""}
 
 
 app.state.telegram_session_bridge = _telegram_session_bridge
@@ -942,8 +1007,8 @@ async def serve_login(request: Request):
 
 @app.get("/api/version")
 async def get_version():
-    from core.constants import APP_VERSION
-    return {"version": APP_VERSION}
+    from src.version_info import get_version_info
+    return get_version_info()
 
 @app.get("/api/health")
 async def health_check() -> Dict[str, str]:

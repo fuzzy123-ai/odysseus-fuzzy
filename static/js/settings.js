@@ -5937,6 +5937,118 @@ function pluginStatusChip(plugin) {
   return `<span style="font-size:10px;border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:${color};opacity:0.9;">${esc(status)}</span>`;
 }
 
+function telegramMessageText(message) {
+  if (!message || typeof message !== 'object') return '';
+  if (message.text) return String(message.text);
+  if (message.kind === 'voice') {
+    const transcript = message.transcript || message.transcript_text || '';
+    return transcript ? `Voice: ${transcript}` : 'Voice message';
+  }
+  if (message.status) return String(message.status);
+  return JSON.stringify(message);
+}
+
+function telegramMessageTime(message) {
+  const raw = Number(message?.stored_at || message?.date || message?.recorded_at || 0);
+  if (!raw) return '';
+  try {
+    return new Date(raw * 1000).toLocaleString();
+  } catch (_) {
+    return '';
+  }
+}
+
+function renderTelegramMessages(messages) {
+  if (!Array.isArray(messages) || !messages.length) {
+    return '<div class="admin-empty" style="margin-top:10px;">No Telegram messages stored yet. Send a message to the bot, then use "Poll now".</div>';
+  }
+  return messages.map((message) => {
+    const direction = String(message.direction || 'system');
+    const isInbound = direction === 'inbound';
+    const isOutbound = direction === 'outbound';
+    const accent = isInbound ? 'var(--green,#50fa7b)' : isOutbound ? 'var(--accent,var(--red))' : 'var(--fg)';
+    const title = [
+      direction,
+      message.kind ? String(message.kind) : '',
+      message.chat_handle ? String(message.chat_handle) : '',
+    ].filter(Boolean).join(' · ');
+    const meta = [
+      telegramMessageTime(message),
+      message.delivery_status ? `delivery: ${message.delivery_status}` : '',
+      message.intake_status ? `intake: ${message.intake_status}` : '',
+    ].filter(Boolean).join(' · ');
+    return `
+      <article style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:color-mix(in srgb,var(--panel,var(--bg)) 88%,transparent);">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px;">
+          <strong style="font-size:12px;color:${accent};">${esc(title || 'Telegram event')}</strong>
+          <span style="font-size:10px;opacity:0.55;">${esc(meta)}</span>
+        </div>
+        <div style="white-space:pre-wrap;line-height:1.45;">${esc(telegramMessageText(message))}</div>
+      </article>
+    `;
+  }).join('');
+}
+
+async function openTelegramOverlay() {
+  let overlay = document.getElementById('telegram-plugin-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'telegram-plugin-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:18px;';
+    overlay.innerHTML = `
+      <section role="dialog" aria-modal="true" aria-label="Telegram chat history" style="width:min(820px,96vw);max-height:min(760px,92vh);display:flex;flex-direction:column;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.45);padding:16px;">
+        <header style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+          <div>
+            <h2 style="margin:0;font-size:20px;">Telegram</h2>
+            <div id="telegram-overlay-status" class="admin-toggle-sub" style="margin-top:4px;">Loading...</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="admin-btn-sm" id="telegram-overlay-poll">Poll now</button>
+            <button class="admin-btn-sm" id="telegram-overlay-refresh">Refresh</button>
+            <button class="admin-btn-sm" id="telegram-overlay-close">Close</button>
+          </div>
+        </header>
+        <div id="telegram-overlay-summary" class="admin-toggle-sub"></div>
+        <div id="telegram-overlay-list" style="overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;"></div>
+      </section>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay || ev.target.closest('#telegram-overlay-close')) {
+        overlay.remove();
+      }
+    });
+    overlay.querySelector('#telegram-overlay-refresh')?.addEventListener('click', () => refreshTelegramOverlay(false));
+    overlay.querySelector('#telegram-overlay-poll')?.addEventListener('click', () => refreshTelegramOverlay(true));
+  }
+  await refreshTelegramOverlay(false);
+}
+
+async function refreshTelegramOverlay(runPoll) {
+  const overlay = document.getElementById('telegram-plugin-overlay');
+  if (!overlay) return;
+  const statusEl = overlay.querySelector('#telegram-overlay-status');
+  const summaryEl = overlay.querySelector('#telegram-overlay-summary');
+  const listEl = overlay.querySelector('#telegram-overlay-list');
+  try {
+    if (runPoll) {
+      statusEl.textContent = 'Polling Telegram...';
+      await pluginJson('/api/plugins/telegram/poll', { method: 'POST' });
+    }
+    const [status, history] = await Promise.all([
+      pluginJson('/api/plugins/telegram/status'),
+      pluginJson('/api/plugins/telegram/history?limit=80'),
+    ]);
+    statusEl.textContent = `State: ${status.state || 'unknown'}`;
+    summaryEl.textContent = `${status.summary || ''} History: ${status.history_counts?.total ?? 0} total, ${status.history_counts?.inbound ?? 0} inbound, ${status.history_counts?.outbound ?? 0} outbound.`;
+    listEl.innerHTML = renderTelegramMessages(history.messages || []);
+  } catch (err) {
+    statusEl.textContent = 'Telegram overlay failed';
+    summaryEl.textContent = err.message || String(err);
+    listEl.innerHTML = '';
+  }
+}
+
 async function renderInstalledPlugins() {
   const list = el('plugins-list');
   if (!list) return;
@@ -5966,7 +6078,7 @@ async function renderInstalledPlugins() {
           </label>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-          ${p.ui && p.ui.open ? `<a class="admin-btn-sm" href="${esc(p.ui.open)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">${esc(p.ui.label || 'Open')}</a>` : ''}
+          ${p.ui && p.ui.open ? `<button class="admin-btn-sm plugin-open-btn" data-plugin-id="${esc(p.id)}" data-plugin-open="${esc(p.ui.open)}">${esc(p.ui.label || 'Open')}</button>` : ''}
           <button class="admin-btn-sm plugin-reload-btn" data-plugin-id="${esc(p.id)}">Reload</button>
           <button class="admin-btn-sm plugin-uninstall-btn" data-plugin-id="${esc(p.id)}" style="opacity:0.7;">Uninstall</button>
         </div>
@@ -6042,6 +6154,16 @@ async function loadPlugins() {
       await loadPlugins();
     });
     el('plugins-list')?.addEventListener('click', async (ev) => {
+      const open = ev.target.closest('.plugin-open-btn');
+      if (open) {
+        ev.preventDefault();
+        if (open.dataset.pluginId === 'telegram') {
+          await openTelegramOverlay();
+        } else if (open.dataset.pluginOpen) {
+          window.open(open.dataset.pluginOpen, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
       const reload = ev.target.closest('.plugin-reload-btn');
       const uninstall = ev.target.closest('.plugin-uninstall-btn');
       if (!reload && !uninstall) return;

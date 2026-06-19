@@ -85,6 +85,22 @@ Die maximal zulaessige Parallelitaet fuer ingest-, rebuild-, index- oder review-
 
 Das geplante Zeitfenster fuer Wartung, Backup, Restore-Drills oder schwere Rebuild-Arbeit.
 
+Standard fuer den Homeserver:
+
+```text
+03:00-06:00 Europe/Berlin
+```
+
+Dieses Fenster ist die geplante Nachtwartung fuer:
+
+- Odysseus-Backups
+- Nextcloud-/Datenbank-Backups
+- Sicherheitsupdates mit anschliessendem Healthcheck
+- Index-, Graph-, RAG- und Inbox-Wartungsjobs
+- Restore-Drill- oder Verify-Laeufe
+
+Ausserhalb dieses Fensters duerfen schwere Jobs nur manuell oder bei dringenden Sicherheitsfaellen gestartet werden.
+
 ### `vacuum_policy`
 
 Die lesbare Regel fuer Vacuum- oder vergleichbare Speicherpflege des kuenftigen Postgres-Systems.
@@ -246,6 +262,27 @@ Qdrant, Kuzu oder UMAP/GMM gehoeren nicht zur Homeserver-Grundlage in `MS7A`.
 
 Wartung braucht ein klares Fenster, statt zufaellig neben dem Normalbetrieb stattzufinden.
 
+Homeserver-Default:
+
+```text
+03:00-06:00 Europe/Berlin
+```
+
+Empfohlene Reihenfolge innerhalb des Fensters:
+
+1. 03:00-03:30: Backup-Snapshot und Backup-Verify.
+2. 03:30-04:15: System-, Podman- und Container-Updates, nur wenn Backup erfolgreich war.
+3. 04:15-05:30: Odysseus-Wartungsjobs wie Inbox-Import, Indexpflege, Graph-/RAG-Maintenance.
+4. 05:30-06:00: Healthchecks, Log-Summary, Speicher-/SMART-Pruefung und Alert-Erzeugung.
+
+Regeln:
+
+- Kein schwerer Rebuild startet nach 05:30 automatisch.
+- Wenn Backup oder Verify fehlschlaegt, werden Update- und Rebuild-Jobs uebersprungen.
+- Major-Upgrades von Nextcloud laufen nicht automatisch in diesem Fenster, sondern nur nach explizitem Operator-Go.
+- Sicherheitsupdates duerfen vorbereitet werden; Neustarts bleiben policy-gesteuert und muessen Healthchecks nachziehen.
+- Das Fenster ist eine Erlaubnis fuer Wartung, kein Zwang, jeden Nachtjob laufen zu lassen.
+
 ### `vacuum_policy`
 
 Es muss eine lesbare Regel geben, wann Speicherpflege anfaellt und wie sie in das kleine Ressourcenprofil passt.
@@ -253,6 +290,8 @@ Es muss eine lesbare Regel geben, wann Speicherpflege anfaellt und wie sie in da
 ### `index_maintenance_policy`
 
 Index-Pflege darf nicht als unsichtbarer Dauerzustand gedacht sein. Sie braucht Grenzen, Timing und einen Bezug zu `resource_budget`.
+
+Index-, Graph- und Inbox-Jobs sollen bevorzugt im Wartungsfenster laufen. Tagsueber duerfen nur kleine inkrementelle Jobs starten, die CPU, RAM und I/O spuerbar begrenzen.
 
 ## Speicher- und Risikolage
 

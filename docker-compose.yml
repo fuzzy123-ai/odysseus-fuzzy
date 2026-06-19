@@ -34,6 +34,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/app.db}
       - AUTH_ENABLED=${AUTH_ENABLED:-true}
       - LOCALHOST_BYPASS=${LOCALHOST_BYPASS:-false}
+      - ODYSSEUS_INTERNAL_TOKEN=${ODYSSEUS_INTERNAL_TOKEN:-}
       - ODYSSEUS_ADMIN_USER=${ODYSSEUS_ADMIN_USER:-admin}
       - ODYSSEUS_ADMIN_PASSWORD=${ODYSSEUS_ADMIN_PASSWORD:-}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1}
@@ -60,6 +61,16 @@ services:
       - GOOGLE_PSE_CX=${GOOGLE_PSE_CX:-}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - SERPER_API_KEY=${SERPER_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_ALLOWED_CHAT_IDS=${TELEGRAM_ALLOWED_CHAT_IDS:-}
+      - TELEGRAM_AGENT_CHAT_ENABLED=${TELEGRAM_AGENT_CHAT_ENABLED:-false}
+      - TELEGRAM_AGENT_REPLY_ENABLED=${TELEGRAM_AGENT_REPLY_ENABLED:-false}
+      - TELEGRAM_POLLING_ENABLED=${TELEGRAM_POLLING_ENABLED:-false}
+      - ODYSSEUS_GIT_COMMIT=${ODYSSEUS_GIT_COMMIT:-}
+      - ODYSSEUS_GIT_SHORT_COMMIT=${ODYSSEUS_GIT_SHORT_COMMIT:-}
+      - ODYSSEUS_GIT_BRANCH=${ODYSSEUS_GIT_BRANCH:-}
+      - ODYSSEUS_GIT_REMOTE_URL=${ODYSSEUS_GIT_REMOTE_URL:-}
+      - ODYSSEUS_GIT_REMOTE_REF=${ODYSSEUS_GIT_REMOTE_REF:-}
       # PUID / PGID — the user/group the container drops to before
       # running uvicorn (entrypoint also chowns /app/data + /app/logs
       # to match, so bind-mounted files stay editable from the host).
@@ -108,12 +119,12 @@ services:
         fi
         exec /usr/local/searxng/entrypoint.sh
     ports:
-      - "127.0.0.1:8080:8080"
+      - "${SEARXNG_BIND:-127.0.0.1}:${SEARXNG_PORT:-8081}:8080"
     volumes:
       - searxng-data:/etc/searxng
       - ./config/searxng/settings.yml:/tmp/searxng-settings.yml.template:ro,z
     environment:
-      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8081/}
       - SEARXNG_SECRET=${SEARXNG_SECRET:-}
     # The official searxng image runs as the non-root `searxng` user, but its
     # entrypoint still needs to chown /etc/searxng on first boot, drop privs via

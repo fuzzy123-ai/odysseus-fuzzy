@@ -41,7 +41,8 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md` | AUTO7-Runbook fuer deterministischen Zwei-Agenten-Smoke ohne echte Thread-Sends |
 | `docs/plans/automated-agent-n-scaling-design.md` | AUTO8-Design fuer registrierte Agent-Pools, Budgets, Queueing und Locks |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
-| `docs/plans/nextcloud-source-bridge.md` | pausierter Source-Provider-Plan, erst aktiv wenn Nextcloud laeuft |
+| `docs/plans/nextcloud-source-bridge.md` | aktivierbarer Source-Provider-Plan; Nextcloud laeuft inzwischen auf dem Homeserver |
+| `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md` | Universal-Inbox-Plan fuer Nextcloud Intake, Routing, Metadaten und RaptorGraph-Provenance |
 | `docs/plans/vault-longterm-memory.md` | aelterer Langzeitgedaechtnis-Plan, nur noch historischer Kontext |
 
 Wenn Plaene kollidieren, gilt diese Master-Roadmap.
@@ -60,7 +61,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
-| `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | pausiert bis Nextcloud laeuft |
+| `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | aktivierbar, da Nextcloud-Infrastruktur laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
 
 ## Fortschrittsformat
@@ -125,7 +126,7 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P1 | `0.17.x` | Secure Data Mode & Local-Only Policy | Sensible Daten duerfen nicht in API-Modelle, externe Embeddings oder unsichere Tools geraten. | M-L | M | UX-/Policy-Vertraege, Nutzertexte, Secure-Flow | Klassifikation, Chat-State, Policy Gates, spaeter Routing Guards | Stop-Regeln, Test-Gates, keine Hotfile-Integration ohne Freigabe | bedingt |
 | P1 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
 | P1 | `0.19.x` | System Health Checker Plugin | Odysseus braucht einen nachvollziehbaren Plugin-Track fuer Homeserver Health statt versteckter Core-/Lens-Kommandos. | L | L | NDD-/Plugin-Vertrag, Statussprache, Telegram UX | Host-Agent-Modelle, Collectors, Rule Engine, Runtime Adapter | Plugin-Grenzen, Rechte, Hotfile-Gates, finaler Ops-Smoke | bedingt |
-| P2 | `0.20.x` | Nextcloud Source Bridge MVP | Erst aktiv, wenn Homeserver/Nextcloud laeuft; dann als Source Provider, nicht als Memory-Kern. | M-L | M-L | Source-/Review-Lens | Sync-Ordner Scanner/Provider | Sicherheitsmodell, Rechte | bedingt |
+| P2 | `0.20.x` | Nextcloud Source Bridge MVP | Nextcloud laeuft; jetzt als sicherer Source Provider und Universal Inbox, nicht als ungepruefter Memory-Kern. | M-L | M-L | Source-/Review-Lens, Tag-Governance-UX | Sync/WebDAV Provider, Inbox Worker, Tag Mapping | Sicherheitsmodell, Rechte, No-Delete, Tag-Konsistenz | bedingt |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
@@ -145,7 +146,7 @@ Aktive Runtime-Readiness-Roadmap: `docs/plans/release-runtime-readiness-roadmap.
 - Known Limits klar dokumentieren, statt still als Feature-Defizite zu verstecken.
 - Nur kleine Bugfix-Slices schneiden, wenn reale Tests Probleme zeigen.
 - Keine neuen Post-1.0-Research-Tracks starten.
-- Nextcloud bleibt pausiert, bis die Homeserver-/Nextcloud-Infrastruktur laeuft.
+- Nextcloud ist nicht mehr rein pausiert: Die Homeserver-/Nextcloud-Infrastruktur laeuft, aber Implementierung bleibt ein abgegrenzter 0.20.x-Track.
 - Plugin-Modul bleibt bis auf Weiteres eingefroren; keine neuen Plugin-Imports, kein `setup()` und keine Plugin-Runtime-Aktivierung.
 - RAPTOR-/Graph-Memory, 100.000+-Graph-Budget-Proof und Telegram-Offline-Smoke werden vor Release als Evidence-/Gate-Slices behandelt, nicht als unbounded Runtime-Umbau.
 
@@ -791,25 +792,57 @@ Produktentscheidung:
 
 ## Version `0.20.x`: Nextcloud Source Provider
 
-Diese Version startet erst, wenn Nextcloud auf dem Homeserver laeuft.
+Diese Version ist aktivierbar, weil Nextcloud auf dem Homeserver laeuft. Der Track bleibt bewusst abgegrenzt: Odysseus behandelt Nextcloud zuerst als Source Provider und Universal Inbox, nicht als unkontrollierte Schreib- oder Memory-Autoritaet.
+
+Detailplaene:
+
+- `docs/plans/nextcloud-source-bridge.md`
+- `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md`
+
+Leitentscheidungen:
+
+- Zugriff erfolgt ueber einen designierten Nextcloud-User, nicht ueber den menschlichen Admin.
+- Der designierte User hat initial keine Loeschrechte.
+- Universal Inbox arbeitet copy-only und review-gated.
+- Nextcloud-Tags bleiben die menschlich sichtbare Such- und Filterebene.
+- RaptorGraph speichert die reichere semantische Struktur, Entitaeten, Beziehungen und Confidence.
+- Ein kanonisches Tag-Vokabular und der Ledger halten Nextcloud-Tags, Sidecars und RaptorGraph konsistent.
+- Frei generierte LLM-Tags werden nicht direkt in Nextcloud geschrieben.
+- Manuelle Nextcloud-Tags des Nutzers werden nicht automatisch geloescht oder umbenannt.
 
 ### Reihenfolge
 
 1. `NC1-source-policy`
-2. `NC2-local-sync-provider`
-3. `NC3-ledger-integration`
-4. `NC4-review-generated-published-folders`
-5. `NC5-optional-nextcloud-bridge-decision`
+2. `NC2-tag-governance-contract`
+3. `NC3-local-sync-or-webdav-provider`
+4. `NC4-ledger-integration`
+5. `NC5-review-generated-published-folders`
+6. `NC6-universal-inbox-intake-mvp`
+7. `NC7-optional-nextcloud-bridge-decision`
 
 ### Alice/Bob/Charlie Matrix
 
 | Slice | Alice | Bob | Charlie | Parallelregel |
 | --- | --- | --- | --- | --- |
-| `NC1-source-policy` | Rechte-/Ordner-/Review-UX | technische Provider-Annahmen | Security-Modell | ja |
-| `NC2-local-sync-provider` | Nutzerpfad dokumentieren | lokaler Sync Source Provider | Pfad-/Delete-Risiko pruefen | bedingt |
-| `NC3-ledger-integration` | Source Cards | Ledger Scanner | Rebuild-/Staleness-Gate | ja |
-| `NC4-review-generated-published-folders` | UI/Runbook | write-limited Staging/Generated/Published | Policy Review | ja |
-| `NC5-optional-nextcloud-bridge-decision` | Bedarf sammeln | Bridge/App-Prototyp nur bei Bedarf | Entscheidung gegen Overengineering | nein |
+| `NC1-source-policy` | Rechte-/Ordner-/Review-UX | technische Provider-Annahmen | Security-Modell, No-Delete, designierter User | ja |
+| `NC2-tag-governance-contract` | Tag-Sprache fuer Nutzer, Review-Faelle, Nextcloud-Sichtbarkeit | kanonisches Tag-Vokabular, Mapping-Modell, Ledger-Felder | prueft: keine freien LLM-Tags, keine Loeschung manueller Tags | ja, docs/model first |
+| `NC3-local-sync-or-webdav-provider` | Nutzerpfad dokumentieren | lokaler Sync oder WebDAV/API Source Provider | Pfad-/Delete-/Credential-Risiko pruefen | bedingt |
+| `NC4-ledger-integration` | Source Cards und Tag-Provenance sichtbar machen | Ledger Scanner plus Tag-/Routing-Status | Rebuild-/Staleness-/Mapping-Gate | ja |
+| `NC5-review-generated-published-folders` | UI/Runbook | write-limited Staging/Generated/Published | Policy Review | ja |
+| `NC6-universal-inbox-intake-mvp` | Review-Flow und Erklaertexte fuer Inbox-Automation | Content Extraction, Routing, Safe Placement, Sidecars, RaptorGraph Write | Scope-Gate: copy-only, no-delete, keine Deck-Abhaengigkeit | bedingt |
+| `NC7-optional-nextcloud-bridge-decision` | Bedarf sammeln | Bridge/App-Prototyp nur bei Bedarf | Entscheidung gegen Overengineering | nein |
+
+### Definition of Done `0.20.x`
+
+- Nextcloud-Source-Zugriff laeuft ueber designierten User und dokumentierte Rechte.
+- Inbox-Dateien koennen entdeckt, gehasht und im Ledger erfasst werden.
+- Mindestens PDF, DOCX und Text werden inhaltlich analysiert.
+- Routing erzeugt Zielpfad, Summary, Confidence, Review-Status und keine stillen Deletes.
+- Nextcloud-Tags werden nur aus dem kanonischen Tag-Mapping geschrieben.
+- RaptorGraph enthaelt Dokumentknoten, Ablageort, Tags, Entitaeten und Provenance.
+- Ledger/Sidecar verbinden Nextcloud-Tags und RaptorGraph-Tags nachvollziehbar.
+- Manuelle Nutzer-Tags bleiben erhalten.
+- Unsichere Faelle landen in Review; Deck bleibt optionales spaeteres UI, keine Pipeline-Abhaengigkeit.
 
 ## Post-1.0 Research Tracks
 

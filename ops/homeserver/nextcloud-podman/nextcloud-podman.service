@@ -1,0 +1,17 @@
+[Unit]
+Description=Nextcloud Podman Compose stack
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/nextcloud
+ExecStartPre=-/usr/bin/podman-compose down
+ExecStart=/usr/bin/podman-compose up -d
+ExecStop=/usr/bin/podman-compose stop
+RemainAfterExit=yes
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=default.target
