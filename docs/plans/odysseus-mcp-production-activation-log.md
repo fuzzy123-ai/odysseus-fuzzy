@@ -47,6 +47,18 @@ The live homeserver has not been confirmed to contain commit `1d677027`, and the
 
 Run on the Debian homeserver or through a working trusted deploy channel:
 
+Scripted path:
+
+```bash
+ops/homeserver/activate-mcp-server.sh --execute
+```
+
+Dry-run first:
+
+```bash
+ops/homeserver/activate-mcp-server.sh
+```
+
 1. Verify backup/pre-update gate according to `docs/backup-restore.md`.
 2. Update `/opt/odysseus` to include commit `1d677027` or newer.
 3. Restart the Odysseus Podman service.

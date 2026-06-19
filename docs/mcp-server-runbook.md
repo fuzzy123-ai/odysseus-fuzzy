@@ -20,6 +20,15 @@ This is intentional. Enabling the plugin creates a powerful automation surface f
 
 Use placeholders only; never paste token values into docs or logs.
 
+For the homeserver, the scripted activation entrypoint is:
+
+```bash
+ops/homeserver/activate-mcp-server.sh --execute
+```
+
+Run it first without `--execute` to review the planned remote/ref, backup gate,
+fast-forward update, restart, enable, and smoke commands.
+
 1. Confirm the plugin is visible in Settings -> Plugins.
 2. Open `/api/plugins/mcp/app`.
 3. Enable only the MCP server runtime gate:
