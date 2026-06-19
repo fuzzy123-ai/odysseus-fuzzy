@@ -7,7 +7,7 @@ def test_current_report_json_contains_open_gate_ids():
     payload = render_manual_release_gap_report_json(build_current_manual_evidence_gap_report())
 
     assert '"gate_id": "provider-proof"' in payload
-    assert '"gate_id": "export-import-rebuild"' in payload
+    assert '"gate_id": "export-import-rebuild"' not in payload
 
 
 def test_all_go_json_contains_ok_true_and_empty_gaps():
@@ -33,21 +33,12 @@ def test_json_snapshot_is_stable():
     assert payload == """{
   "gaps": [
     {
-      "blocker": "query layer not ready for model-backed answer",
-      "evidence_ref": "authenticated browser read-only run",
+      "blocker": "DeepSeek cloud route returned provider_error; no fallback chain recorded",
+      "evidence_ref": "P1 isolated provider proof attempt run-7dyxtze_",
       "gate_id": "provider-proof",
       "label": "Provider Proof",
       "next_action": "Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials.",
       "owner": "Charlie/Alice",
-      "status": "partial"
-    },
-    {
-      "blocker": "controlled write run with small test vault is still open",
-      "evidence_ref": "authenticated read-only proof plus REL1 tests",
-      "gate_id": "export-import-rebuild",
-      "label": "Export / Import / Rebuild Proof",
-      "next_action": "Prepare a small disposable test vault with no user artifacts, then run the manual export/import/rebuild proof end-to-end.",
-      "owner": "Charlie/Bob",
       "status": "partial"
     }
   ],
@@ -57,16 +48,15 @@ def test_json_snapshot_is_stable():
     "evidence_refs": [
       "C:\\\\tmp\\\\odysseus-rel3-fresh-2cea25f",
       "C:\\\\tmp\\\\odysseus-rel3-upgrade-proof",
-      "authenticated browser read-only run",
-      "authenticated read-only proof plus REL1 tests",
+      "P1 isolated provider proof attempt run-7dyxtze_",
+      "P1 isolated test-vault evidence run-7dyxtze_",
       "docs/plans/1.0-evidence-release-checklist.md"
     ],
     "external_go": false,
     "missing_gate_ids": [],
     "no_go_gate_ids": [],
     "partial_gate_ids": [
-      "provider-proof",
-      "export-import-rebuild"
+      "provider-proof"
     ],
     "pending_gate_ids": [],
     "status": "partial_no_go"

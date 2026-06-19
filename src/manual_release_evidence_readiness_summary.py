@@ -47,7 +47,7 @@ def build_current_manual_release_evidence_readiness_summary(
     status_label = "OK" if ok else "NO_GO"
     open_gate_count = len(report.gaps)
     no_go_hint = (
-        "Manual release evidence still has open gates and remains no-go until Provider Proof and Export/Import/Rebuild are closed."
+        "Manual release evidence still has an open gate and remains no-go until Provider Proof is closed."
         if not ok
         else "All required manual release evidence gates are currently closed."
     )

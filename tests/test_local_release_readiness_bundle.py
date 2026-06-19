@@ -11,7 +11,7 @@ def test_local_release_readiness_bundle_uses_bundled_registry_and_plugins():
     assert bundle.artifact_manifest.ok
     assert bundle.pipeline.report.status == "blocked"
     assert "REL-provider-proof-evidence" in bundle.handoff_markdown
-    assert "REL-test-vault-rebuild-evidence" in bundle.handoff_markdown
+    assert "REL-test-vault-rebuild-evidence" not in bundle.handoff_markdown
 
 
 def test_local_release_readiness_bundle_reports_missing_registry(tmp_path):

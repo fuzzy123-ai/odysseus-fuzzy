@@ -16,7 +16,7 @@ def test_current_manual_evidence_is_partial_no_go():
 
     assert summary.external_go is False
     assert summary.status == "partial_no_go"
-    assert summary.partial_gate_ids == ("provider-proof", "export-import-rebuild")
+    assert summary.partial_gate_ids == ("provider-proof",)
     assert summary.no_go_gate_ids == ()
     assert summary.missing_gate_ids == ()
 

@@ -9,9 +9,9 @@ def test_current_summary_is_not_ok_while_manual_gates_are_open():
 
     assert summary.ok is False
     assert summary.status_label == "NO_GO"
-    assert summary.open_gate_count == 2
+    assert summary.open_gate_count == 1
     assert "Provider Proof" in summary.no_go_hint
-    assert "Export/Import/Rebuild" in summary.no_go_hint
+    assert "Export/Import/Rebuild" not in summary.no_go_hint
 
 
 def test_summary_contains_deterministic_markdown_and_json_filenames():
@@ -40,6 +40,6 @@ def test_summary_dict_is_stable():
         "sha256": summary.sha256,
         "suggested_markdown_filename": summary.suggested_markdown_filename,
         "suggested_json_filename": summary.suggested_json_filename,
-        "open_gate_count": 2,
-        "no_go_hint": "Manual release evidence still has open gates and remains no-go until Provider Proof and Export/Import/Rebuild are closed.",
+        "open_gate_count": 1,
+        "no_go_hint": "Manual release evidence still has an open gate and remains no-go until Provider Proof is closed.",
     }

@@ -9,10 +9,9 @@ def test_current_manual_evidence_has_expected_release_gaps():
     report = build_current_manual_evidence_gap_report()
 
     assert report.ok is False
-    assert tuple(gap.gate_id for gap in report.gaps) == ("provider-proof", "export-import-rebuild")
-    assert tuple(gap.status for gap in report.gaps) == ("partial", "partial")
+    assert tuple(gap.gate_id for gap in report.gaps) == ("provider-proof",)
+    assert tuple(gap.status for gap in report.gaps) == ("partial",)
     assert "query-index readiness" in report.gaps[0].next_action
-    assert "small disposable test vault" in report.gaps[1].next_action
 
 
 def test_missing_required_gate_creates_missing_gap():
@@ -80,19 +79,10 @@ def test_to_dict_is_stable():
                 "gate_id": "provider-proof",
                 "status": "partial",
                 "label": "Provider Proof",
-                "blocker": "query layer not ready for model-backed answer",
+                "blocker": "DeepSeek cloud route returned provider_error; no fallback chain recorded",
                 "next_action": "Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials.",
                 "owner": "Charlie/Alice",
-                "evidence_ref": "authenticated browser read-only run",
-            },
-            {
-                "gate_id": "export-import-rebuild",
-                "status": "partial",
-                "label": "Export / Import / Rebuild Proof",
-                "blocker": "controlled write run with small test vault is still open",
-                "next_action": "Prepare a small disposable test vault with no user artifacts, then run the manual export/import/rebuild proof end-to-end.",
-                "owner": "Charlie/Bob",
-                "evidence_ref": "authenticated read-only proof plus REL1 tests",
+                "evidence_ref": "P1 isolated provider proof attempt run-7dyxtze_",
             },
         ),
         "summary": {
@@ -100,13 +90,13 @@ def test_to_dict_is_stable():
             "status": "partial_no_go",
             "missing_gate_ids": (),
             "pending_gate_ids": (),
-            "partial_gate_ids": ("provider-proof", "export-import-rebuild"),
+            "partial_gate_ids": ("provider-proof",),
             "no_go_gate_ids": (),
             "evidence_refs": (
                 r"C:\tmp\odysseus-rel3-fresh-2cea25f",
                 r"C:\tmp\odysseus-rel3-upgrade-proof",
-                "authenticated browser read-only run",
-                "authenticated read-only proof plus REL1 tests",
+                "P1 isolated provider proof attempt run-7dyxtze_",
+                "P1 isolated test-vault evidence run-7dyxtze_",
                 "docs/plans/1.0-evidence-release-checklist.md",
             ),
         },

@@ -25,8 +25,9 @@ for this slice.
   status **Go**, commit `4eec20b`, with `pre_update_snapshot`,
   `repository_check`, and `restore_smoke` all passing.
 - Restore smoke restored only to the temporary smoke target; no deploy was run.
-- External 1.0 remains **No-Go** until Provider/Fallback Answer Run and
-  Test-Vault Export/Import/Rebuild have redacted real evidence.
+- External 1.0 remains **No-Go** until Provider/Fallback Answer Run has
+  successful redacted real evidence. Test-Vault Export/Import/Rebuild is
+  recorded as isolated redacted evidence from `run-7dyxtze_`.
 
 ## Non-Goals
 
@@ -35,8 +36,9 @@ for this slice.
   activation-state fix recorded in this closure.
 - Runtime data edits are limited to the local GameDev mount policy validation
   fix for `/mnt/canyon-racer`; it is not a tracked repo artifact.
-- No live provider call, Telegram send, Nextcloud write, export/import/rebuild,
-  host mutation, deployment, or MCP production activation.
+- No further live provider call, Telegram send, Nextcloud write,
+  export/import/rebuild, host mutation, deployment, or MCP production
+  activation without a separate Go.
 - No promotion of P3 research or planning items into P0-P2 execution scope.
 - No secrets, tokens, chat IDs, passwords, private paths, host detail output, or
   raw provider/user content in operator docs.
@@ -75,25 +77,29 @@ Next action:
 
 ## P1 Slice: External 1.0 Evidence
 
-Status: **No-Go for external 1.0**
+Status: **Partial / No-Go for external 1.0**
 
 Goal:
 - Keep internal readiness distinct from external release readiness.
 
 Evidence:
 - Offline validators and release summaries exist.
-- Provider/Fallback Answer Run and Test-Vault Export/Import/Rebuild are modeled
-  as evidence gates.
+- Test-Vault Export/Import/Rebuild is recorded as isolated redacted evidence:
+  2 exported files, 2 imported files, rebuild proof configured, query layer
+  ready, 1 citation, no production vault, source write, data loss, secrets, or
+  raw provider output recorded.
+- Provider/Fallback Answer Run is modeled as the remaining evidence gate.
 
 Missing:
-- Redacted real Provider/Fallback Answer Run evidence.
-- Redacted real Test-Vault Export/Import/Rebuild evidence.
-- Operator release decision after both gates are complete.
+- Successful redacted Provider/Fallback Answer Run evidence; current isolated
+  attempt reaches a ready query index but returns `provider_error` from the
+  configured DeepSeek route and has no fallback chain.
+- Operator release decision after Provider Proof is complete.
 
 Next action:
-- Run the two evidence gates only after separate live Go, capture redacted
-  evidence only, and keep raw provider output, tokens, private paths, and vault
-  contents out of docs and logs.
+- Fix or reconfigure provider/fallback routing, rerun only the redacted Provider
+  Proof, and keep raw provider output, tokens, private paths, and vault contents
+  out of docs and logs.
 
 ## P2 Slice: Runtime Smokes
 

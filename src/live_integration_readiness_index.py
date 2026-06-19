@@ -32,7 +32,7 @@ _DECISION_VALUES = (
 
 _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "review recorded live-integration slices and manual evidence gates",
-    "complete provider-proof and test-vault rebuild evidence manually",
+    "complete provider-proof evidence manually",
     "keep runtime, network, and plugin-import paths disabled during readiness review",
     "record operator notes without claiming external 1.0.0 release go",
 )
@@ -143,7 +143,7 @@ def build_live_integration_readiness_index(
     *,
     live_slices_recorded: bool = False,
     provider_proof_manual_gate_recorded: bool = False,
-    test_vault_rebuild_manual_gate_recorded: bool = False,
+    test_vault_rebuild_manual_gate_recorded: bool = True,
     runtime_enablement_disabled: bool = True,
     network_actions_disabled: bool = True,
     plugin_imports_disabled: bool = True,
@@ -252,7 +252,7 @@ def build_live_integration_readiness_index(
         external_release_ready = False
     else:
         decision_value = "needs_manual_evidence"
-        next_action = "complete the remaining manual provider-proof and test-vault evidence gates"
+        next_action = "complete the remaining manual provider-proof evidence gate"
         external_release_ready = False
 
     next_allowed_actions = (

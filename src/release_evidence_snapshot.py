@@ -148,6 +148,12 @@ def default_1_0_release_gates() -> tuple[ReleaseGate, ...]:
         ReleaseGate("fresh-install", "Fresh install", MANUAL, PASS, ("manual evidence log",)),
         ReleaseGate("upgrade-path", "Upgrade path", MANUAL, PASS, ("manual evidence log",)),
         ReleaseGate("provider-proof", "Provider proof", MANUAL, PENDING, risk="provider fallback not yet evidenced"),
-        ReleaseGate("export-import-rebuild", "Export/Import/Rebuild", MANUAL, PENDING, risk="test vault proof open"),
+        ReleaseGate(
+            "export-import-rebuild",
+            "Export/Import/Rebuild",
+            MANUAL,
+            PASS,
+            ("P1 isolated test-vault evidence run-7dyxtze_",),
+        ),
         ReleaseGate("known-limits-review", "Known Limits Review", MANUAL, PASS, ("manual evidence log",)),
     )

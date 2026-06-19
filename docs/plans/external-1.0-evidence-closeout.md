@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **No-Go for external 1.0; internal RC remains ready**
+Status: **No-Go for external 1.0; internal RC remains ready; Test-Vault gate closed**
 
 ## Goal
 
@@ -15,7 +15,7 @@ Close the current P0 release-safety question without pretending that offline val
 - Fresh install, upgrade path, and known limits are documented.
 - `src/provider_fallback_answer_run.py` models the Provider/Fallback Answer Run as read-only evidence.
 - `src/test_vault_export_import_rebuild.py` models the Test-Vault Export/Import/Rebuild gate as read-only evidence.
-- `src/live_release_evidence_closeout.py` keeps both external release blockers at `needs_manual_evidence` by default.
+- `src/live_release_evidence_closeout.py` keeps Provider Proof at `needs_manual_evidence` and records Test-Vault Export/Import/Rebuild as `go`.
 - Focused local verification on 2026-06-19:
   - `tests/test_provider_fallback_answer_run.py`
   - `tests/test_test_vault_export_import_rebuild.py`
@@ -27,9 +27,12 @@ Close the current P0 release-safety question without pretending that offline val
   - `tests/test_manual_release_evidence.py`
   - `tests/test_manual_release_evidence_readiness_summary.py`
   - result: `21 passed, 1 warning`
+- P1 isolated evidence on 2026-06-19 closes Test-Vault Export/Import/Rebuild:
+  synthetic gitignored workspace data vault, 2 exported files, 2 imported files,
+  rebuild proof configured, query layer ready, 1 citation, no production vault,
+  source write, data loss, secrets, or raw provider output recorded.
 - P0-P2 operator closure keeps this track as P1 **No-Go** until redacted real
-  Provider/Fallback Answer Run and Test-Vault Export/Import/Rebuild evidence are
-  both present.
+  Provider/Fallback Answer Run evidence is present.
 
 ## Decision
 
@@ -37,8 +40,8 @@ External `1.0.0` remains **No-Go**.
 
 The reason is narrow and explicit:
 
-- Provider/Fallback Answer Run has not been recorded as real redacted manual evidence.
-- Test-Vault Export/Import/Rebuild has not been recorded as real redacted manual evidence.
+- Provider/Fallback Answer Run has not been recorded as a successful real redacted manual evidence run.
+- Test-Vault Export/Import/Rebuild is recorded as isolated redacted evidence.
 - Offline validators are green, but validators are not live evidence.
 
 This is not a feature regression. It is a release-language boundary.
@@ -51,7 +54,7 @@ Allowed:
 - Improve read-only evidence summaries.
 - Add UI/dashboard wording that clearly says external release is blocked.
 - Prepare a manual Provider Proof runbook or local readiness packet.
-- Prepare a manual Test-Vault Export/Import/Rebuild runbook or local readiness packet.
+- Preserve the Test-Vault evidence as closed unless a regression or data-loss signal appears.
 
 Not allowed without a separate live Go:
 
@@ -70,15 +73,15 @@ must not be used to imply Go for another.
 
 Go:
 - Provider/Fallback Answer Run is recorded with redacted manual evidence.
-- Test-Vault Export/Import/Rebuild is recorded with redacted manual evidence.
+- Test-Vault Export/Import/Rebuild remains recorded with redacted isolated evidence.
 - Operator decision explicitly permits external release language.
 
 Partial:
-- Current internal RC state. Automated gates and offline validators are green, but external evidence is incomplete.
+- Current internal RC state. Automated gates, offline validators, and Test-Vault evidence are green, but Provider Proof evidence is incomplete.
 
 No-Go:
 - Current external release state.
-- Any missing manual evidence keeps public `1.0.0` blocked.
+- Missing Provider Proof evidence keeps public `1.0.0` blocked.
 - Any secret/private output leak blocks release.
 
 Deferred:
@@ -91,7 +94,7 @@ Path: `ABC2-external-1-0-evidence-closeout`
 Status: Partial / external No-Go
 
 Goal:
-- Preserve internal RC readiness while blocking external release language until real manual evidence lands.
+- Preserve internal RC readiness while blocking external release language until Provider Proof lands.
 
 Changed files:
 - `docs/plans/external-1.0-evidence-closeout.md`

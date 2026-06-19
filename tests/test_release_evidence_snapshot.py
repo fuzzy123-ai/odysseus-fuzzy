@@ -20,7 +20,7 @@ def test_default_1_0_snapshot_is_manual_pending_not_external_go():
     assert snapshot.automated_ok is True
     assert snapshot.manual_ok is False
     assert snapshot.external_release_go is False
-    assert snapshot.pending_manual_gate_ids == ("provider-proof", "export-import-rebuild")
+    assert snapshot.pending_manual_gate_ids == ("provider-proof",)
 
 
 def test_all_required_gates_pass_means_go():

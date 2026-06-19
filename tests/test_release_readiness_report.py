@@ -30,7 +30,6 @@ def test_default_readiness_report_preserves_external_no_go():
     assert report.external_release_go is False
     assert report.blocking_reasons == (
         "release:manual_pending:provider-proof",
-        "release:manual_pending:export-import-rebuild",
     )
     assert report.next_actions == ("complete_manual_release_evidence",)
 
@@ -89,7 +88,6 @@ def test_current_manual_evidence_blocks_readiness_report_even_if_snapshot_is_gre
     assert report.external_release_go is False
     assert report.blocking_reasons == (
         "manual:partial:provider-proof",
-        "manual:partial:export-import-rebuild",
     )
     assert report.next_actions == ("complete_partial_manual_evidence",)
 

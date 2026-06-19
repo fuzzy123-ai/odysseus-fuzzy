@@ -12,14 +12,12 @@ def test_current_pipeline_preserves_external_no_go_and_routes_followups():
     assert snapshot.report.status == "blocked"
     assert snapshot.report.blocking_reasons == (
         "manual:partial:provider-proof",
-        "manual:partial:export-import-rebuild",
     )
     assert [item.slice_id for item in snapshot.followup_slices] == [
         "REL-provider-proof-evidence",
-        "REL-test-vault-rebuild-evidence",
         "REL-partial-manual-evidence-closeout",
     ]
-    assert snapshot.followup_matrix.parallel_batch_ids == ("REL-test-vault-rebuild-evidence",)
+    assert snapshot.followup_matrix.parallel_batch_ids == ()
     assert snapshot.followup_matrix.sequential_gate_ids == (
         "REL-provider-proof-evidence",
         "REL-partial-manual-evidence-closeout",
@@ -63,8 +61,8 @@ def test_pipeline_to_dict_is_stable_shape():
     assert payload["automated_gate_summary"]["status"] == "baseline_evidence_green"
     assert "not fresh live measurements" in payload["automated_gate_summary"]["operator_interpretation"]
     assert payload["followup_slices"][0]["slice_id"] == "REL-provider-proof-evidence"
-    assert payload["followup_slices"][1]["owner"] == "Alice"
-    assert payload["followup_matrix"]["parallel_batch_ids"] == ("REL-test-vault-rebuild-evidence",)
+    assert payload["followup_slices"][1]["owner"] == "Charlie"
+    assert payload["followup_matrix"]["parallel_batch_ids"] == ()
 
 
 def test_manual_gate_blockers_remain_conservative_with_baseline_language():
@@ -72,7 +70,6 @@ def test_manual_gate_blockers_remain_conservative_with_baseline_language():
 
     assert snapshot.report.blocking_reasons == (
         "manual:partial:provider-proof",
-        "manual:partial:export-import-rebuild",
     )
     assert snapshot.external_release_go is False
     assert snapshot.automated_gate_is_live_measurement is False

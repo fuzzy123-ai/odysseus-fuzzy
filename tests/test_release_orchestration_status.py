@@ -9,15 +9,14 @@ def test_current_status_summarizes_pipeline_for_dashboard():
 
     assert status.status == "blocked"
     assert status.external_release_go is False
-    assert status.active_owners == ("Alice", "Bob", "Charlie")
-    assert status.parallel_candidate_ids == ("REL-test-vault-rebuild-evidence",)
+    assert status.active_owners == ("Bob", "Charlie")
+    assert status.parallel_candidate_ids == ()
     assert status.sequential_gate_ids == (
         "REL-provider-proof-evidence",
         "REL-partial-manual-evidence-closeout",
     )
     assert status.next_action_ids == (
         "REL-provider-proof-evidence",
-        "REL-test-vault-rebuild-evidence",
         "REL-partial-manual-evidence-closeout",
     )
 
@@ -28,15 +27,14 @@ def test_status_to_dict_is_stable():
     assert status.to_dict() == {
         "status": "blocked",
         "external_release_go": False,
-        "active_owners": ("Alice", "Bob", "Charlie"),
-        "parallel_candidate_ids": ("REL-test-vault-rebuild-evidence",),
+            "active_owners": ("Bob", "Charlie"),
+            "parallel_candidate_ids": (),
         "sequential_gate_ids": (
             "REL-provider-proof-evidence",
             "REL-partial-manual-evidence-closeout",
         ),
-        "next_action_ids": (
-            "REL-provider-proof-evidence",
-            "REL-test-vault-rebuild-evidence",
-            "REL-partial-manual-evidence-closeout",
-        ),
+            "next_action_ids": (
+                "REL-provider-proof-evidence",
+                "REL-partial-manual-evidence-closeout",
+            ),
     }

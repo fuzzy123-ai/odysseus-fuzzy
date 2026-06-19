@@ -30,7 +30,6 @@ _DECISION_VALUES = (
 
 _MANUAL_NEXT_ALLOWED_SLICES = (
     "LIVE1-provider-proof-run",
-    "LIVE2-test-vault-export-import-rebuild",
 )
 
 
@@ -148,8 +147,8 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
         ),
         "test_vault_export_import_rebuild": LiveEvidenceGate.create(
             gate_id="test_vault_export_import_rebuild",
-            status="needs_manual_evidence",
-            summary="test-vault export/import/rebuild proof still requires manual execution evidence",
+            status="go",
+            summary="test-vault export/import/rebuild proof is recorded with isolated redacted evidence",
         ),
         "known_limits_review": LiveEvidenceGate.create(
             gate_id="known_limits_review",
@@ -183,7 +182,7 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
         external_release_ready = False
     elif required_manual_gates_open:
         decision_value = "needs_manual_evidence"
-        next_action = "complete the remaining manual provider-proof and test-vault evidence runs"
+        next_action = "complete the remaining manual provider-proof evidence run"
         next_allowed_slices = _normalize_tuple(_MANUAL_NEXT_ALLOWED_SLICES, field_name="next_allowed_slice")
         external_release_ready = False
     else:

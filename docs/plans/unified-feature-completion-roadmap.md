@@ -188,8 +188,9 @@ Goal:
   real redacted evidence exists.
 
 Current status:
-- No-Go for external 1.0. Provider/Fallback Answer Run and Test-Vault
-  Export/Import/Rebuild still need redacted real evidence and an operator
+- Partial / No-Go for external 1.0. Test-Vault Export/Import/Rebuild is
+  recorded as isolated redacted evidence from `run-7dyxtze_`; Provider/Fallback
+  Answer Run still needs a successful redacted provider run and an operator
   release decision.
 
 ### P2 Runtime Smokes

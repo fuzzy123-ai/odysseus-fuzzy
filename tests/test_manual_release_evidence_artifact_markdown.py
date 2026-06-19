@@ -19,7 +19,6 @@ def test_current_artifact_markdown_contains_metadata_and_open_gaps():
     assert "Status: NO_GO" in markdown
     assert "SHA-256:" in markdown
     assert "provider-proof" in markdown
-    assert "export-import-rebuild" in markdown
 
 
 def test_all_go_artifact_markdown_contains_ok_hint():
@@ -66,12 +65,11 @@ def test_artifact_markdown_snapshot_is_stable():
         "\n"
         "Status: PARTIAL\n"
         "\n"
-        "Open manual evidence gaps: 2\n"
+        "Open manual evidence gaps: 1\n"
         "\n"
         "| Gate | Status | Label | Blocker | Next Action | Owner |\n"
         "| --- | --- | --- | --- | --- | --- |\n"
-        "| provider-proof | PARTIAL | Provider Proof | query layer not ready for model-backed answer | Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials. | Charlie/Alice |\n"
-        "| export-import-rebuild | PARTIAL | Export / Import / Rebuild Proof | controlled write run with small test vault is still open | Prepare a small disposable test vault with no user artifacts, then run the manual export/import/rebuild proof end-to-end. | Charlie/Bob |"
+        "| provider-proof | PARTIAL | Provider Proof | DeepSeek cloud route returned provider_error; no fallback chain recorded | Run provider-proof operator runbook, verify query-index readiness, and avoid logging secrets or provider credentials. | Charlie/Alice |"
     )
 
 

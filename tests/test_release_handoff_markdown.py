@@ -9,7 +9,7 @@ def test_render_current_release_handoff_markdown_combines_status_and_followups()
     assert "- Status: `blocked`" in markdown
     assert "- External release go: `false`" in markdown
     assert "| `REL-provider-proof-evidence` | Bob | no |" in markdown
-    assert "| `REL-test-vault-rebuild-evidence` | Alice | yes |" in markdown
+    assert "| `REL-test-vault-rebuild-evidence` |" not in markdown
 
 
 def test_render_current_release_handoff_markdown_has_single_separator_between_sections():

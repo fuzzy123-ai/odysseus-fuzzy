@@ -14,7 +14,7 @@ def test_default_builder_is_conservative_and_needs_manual_evidence():
         "plugin_imports_disabled": "go",
         "provider_proof_manual_gate_recorded": "needs_manual_evidence",
         "runtime_enablement_disabled": "go",
-        "test_vault_rebuild_manual_gate_recorded": "needs_manual_evidence",
+        "test_vault_rebuild_manual_gate_recorded": "go",
     }
 
 
@@ -85,18 +85,18 @@ def test_to_dict_is_stable():
             },
             {
                 "gate_id": "test_vault_rebuild_manual_gate_recorded",
-                "status": "needs_manual_evidence",
-                "summary": "manual test-vault rebuild evidence is still required",
+                "status": "go",
+                "summary": "test-vault rebuild manual gate is recorded for internal readiness review",
             },
         ),
         "decision": {
             "decision": "needs_manual_evidence",
-            "next_action": "complete the remaining manual provider-proof and test-vault evidence gates",
+            "next_action": "complete the remaining manual provider-proof evidence gate",
             "external_release_ready": False,
         },
         "next_allowed_actions": (
             "review recorded live-integration slices and manual evidence gates",
-            "complete provider-proof and test-vault rebuild evidence manually",
+            "complete provider-proof evidence manually",
             "keep runtime, network, and plugin-import paths disabled during readiness review",
             "record operator notes without claiming external 1.0.0 release go",
         ),

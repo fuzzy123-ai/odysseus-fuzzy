@@ -12,9 +12,8 @@ def test_current_manual_release_evidence_artifact_stays_not_ok_with_open_gates()
 
     assert artifact.ok is False
     assert "provider-proof" in artifact.markdown
-    assert "export-import-rebuild" in artifact.markdown
     assert '"gate_id": "provider-proof"' in artifact.json
-    assert '"gate_id": "export-import-rebuild"' in artifact.json
+    assert '"gate_id": "export-import-rebuild"' not in artifact.json
 
 
 def test_current_manual_release_evidence_artifact_has_stable_sha256():
@@ -36,4 +35,4 @@ def test_current_manual_release_evidence_artifact_markdown_renderer_includes_met
     assert "Generated At: 2026-06-17T10:00:00Z" in markdown
     assert "Status: NO_GO" in markdown
     assert "provider-proof" in markdown
-    assert "export-import-rebuild" in markdown
+    assert "export-import-rebuild" not in markdown

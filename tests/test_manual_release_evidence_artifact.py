@@ -9,9 +9,8 @@ def test_current_report_artifact_contains_open_gates_in_markdown_and_json():
     artifact = build_manual_release_evidence_artifact(report, generated_at="2026-06-17T08:00:00Z")
 
     assert "provider-proof" in artifact.markdown
-    assert "export-import-rebuild" in artifact.markdown
     assert '"gate_id": "provider-proof"' in artifact.json
-    assert '"gate_id": "export-import-rebuild"' in artifact.json
+    assert '"gate_id": "export-import-rebuild"' not in artifact.json
     assert artifact.ok is False
 
 

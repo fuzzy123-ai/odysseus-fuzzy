@@ -55,5 +55,5 @@ def test_render_current_release_status_markdown_uses_documented_no_go_state():
 
     assert "- Status: `blocked`" in markdown
     assert "- External release go: `false`" in markdown
-    assert "- Active owners: `Alice`, `Bob`, `Charlie`" in markdown
-    assert "- Parallel candidates: `REL-test-vault-rebuild-evidence`" in markdown
+    assert "- Active owners: `Bob`, `Charlie`" in markdown
+    assert "- Parallel candidates: `none`" in markdown
