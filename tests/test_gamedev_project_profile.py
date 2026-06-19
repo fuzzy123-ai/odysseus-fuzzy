@@ -1,5 +1,6 @@
 from src.gamedev_project_profile import (
     GODOT_WRITE_EXTENSIONS,
+    build_gamedev_command_plan,
     decide_gamedev_command_intent,
     godot_mount_profile,
     is_broad_host_root,
@@ -89,3 +90,38 @@ def test_gamedev_command_gate_requires_operator_go_for_export():
     assert blocked.operator_go_required is True
     assert allowed.allowed is True
     assert allowed.operator_go_required is True
+
+
+def test_gamedev_command_plan_uses_configured_argv_only():
+    plan = build_gamedev_command_plan(
+        "godot_lint",
+        {"godot_lint": ["godot", "--headless", "--path", "/mnt/canyon-racer/canyon-race", "--quit"]},
+    )
+
+    assert plan.allowed is True
+    assert plan.argv[0] == "godot"
+    assert plan.reason == "allowed_named_command_plan"
+
+
+def test_gamedev_command_plan_rejects_shell_like_executables():
+    plan = build_gamedev_command_plan(
+        "godot_lint",
+        {"godot_lint": ["powershell", "-Command", "godot --version"]},
+    )
+
+    assert plan.allowed is False
+    assert plan.reason == "shell_like_executable_not_allowed"
+
+
+def test_gamedev_command_plan_rejects_unconfigured_string_commands():
+    plan = build_gamedev_command_plan("godot_lint", {"godot_lint": "godot --version"})  # type: ignore[arg-type]
+
+    assert plan.allowed is False
+    assert plan.reason == "command_not_configured_as_argv"
+
+
+def test_gamedev_command_plan_requires_virtual_mount_cwd():
+    plan = build_gamedev_command_plan("inspect_project", {"inspect_project": ["godot", "--version"]}, cwd_virtual_path=r"E:\Canyoning")
+
+    assert plan.allowed is False
+    assert plan.reason == "cwd_must_be_virtual_mount"

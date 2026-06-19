@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
+from collections.abc import Sequence
 from typing import Any, Mapping
 
 
@@ -89,6 +90,17 @@ class GameDevProfileValidation:
 class GameDevCommandDecision:
     allowed: bool
     intent: str
+    risk: str = ""
+    reason: str = ""
+    operator_go_required: bool = False
+
+
+@dataclass(frozen=True)
+class GameDevCommandPlan:
+    allowed: bool
+    intent: str
+    argv: tuple[str, ...] = ()
+    cwd_virtual_path: str = ""
     risk: str = ""
     reason: str = ""
     operator_go_required: bool = False
@@ -188,4 +200,69 @@ def decide_gamedev_command_intent(intent: str, *, operator_go: bool = False) -> 
         risk=risk,
         reason="allowed_named_intent",
         operator_go_required=risk == "operator_go_required",
+    )
+
+
+def build_gamedev_command_plan(
+    intent: str,
+    command_catalog: Mapping[str, Sequence[str]],
+    *,
+    cwd_virtual_path: str = "/mnt/canyon-racer",
+    operator_go: bool = False,
+) -> GameDevCommandPlan:
+    """Create a bounded command plan for a named GameDev intent.
+
+    The returned plan is data only. It does not execute commands and rejects
+    shell-like launchers so callers do not smuggle arbitrary shell strings into
+    a mount-backed project flow.
+    """
+
+    decision = decide_gamedev_command_intent(intent, operator_go=operator_go)
+    if not decision.allowed:
+        return GameDevCommandPlan(
+            allowed=False,
+            intent=decision.intent,
+            risk=decision.risk,
+            reason=decision.reason,
+            operator_go_required=decision.operator_go_required,
+        )
+    if not str(cwd_virtual_path or "").startswith("/mnt/"):
+        return GameDevCommandPlan(
+            allowed=False,
+            intent=decision.intent,
+            risk=decision.risk,
+            reason="cwd_must_be_virtual_mount",
+        )
+    raw_argv = command_catalog.get(decision.intent)
+    if isinstance(raw_argv, str) or not raw_argv:
+        return GameDevCommandPlan(
+            allowed=False,
+            intent=decision.intent,
+            risk=decision.risk,
+            reason="command_not_configured_as_argv",
+        )
+    argv = tuple(str(part) for part in raw_argv if str(part))
+    if not argv:
+        return GameDevCommandPlan(
+            allowed=False,
+            intent=decision.intent,
+            risk=decision.risk,
+            reason="command_not_configured_as_argv",
+        )
+    executable = argv[0].lower().rsplit("/", 1)[-1].rsplit("\\", 1)[-1].removesuffix(".exe")
+    if executable in SHELL_LIKE_TOOLS:
+        return GameDevCommandPlan(
+            allowed=False,
+            intent=decision.intent,
+            risk=decision.risk,
+            reason="shell_like_executable_not_allowed",
+        )
+    return GameDevCommandPlan(
+        allowed=True,
+        intent=decision.intent,
+        argv=argv,
+        cwd_virtual_path=cwd_virtual_path,
+        risk=decision.risk,
+        reason="allowed_named_command_plan",
+        operator_go_required=decision.operator_go_required,
     )
