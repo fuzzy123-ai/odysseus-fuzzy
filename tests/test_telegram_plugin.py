@@ -152,6 +152,82 @@ def test_setup_registers_gated_telegram_reply_tool(tmp_path, monkeypatch):
     assert "reply gate is disabled" in result["error"]
 
 
+def test_setup_registers_safe_notification_tool_without_target_parameter(tmp_path, monkeypatch):
+    monkeypatch.delenv("TELEGRAM_AGENT_REPLY_ENABLED", raising=False)
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+
+    setup(ctx)
+
+    tools = {tool.name: tool for tool in ctx.registered_tools}
+    notify_tool = tools["odysseus_notify_user"]
+    properties = notify_tool.parameters["properties"]
+    assert "chat_id" not in properties
+    assert "token" not in properties
+    result = asyncio.run(notify_tool.execute(json.dumps({
+        "event": "roadmap_completed",
+        "message": "ABC roadmap completed.",
+        "severity": "success",
+    })))
+    payload = json.loads(result["output"])
+    assert result["exit_code"] == 0
+    assert payload["status"] == "dry_run"
+    assert payload["dispatch_allowed"] is False
+    assert payload["token_value_visible"] is False
+    assert payload["chat_target_value_visible"] is False
+
+
+def test_notification_tool_rejects_secret_or_target_arguments(tmp_path):
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    setup(ctx)
+    tools = {tool.name: tool for tool in ctx.registered_tools}
+
+    result = asyncio.run(tools["odysseus_notify_user"].execute(json.dumps({
+        "message": "Do not route this.",
+        "chat_id": "synthetic-test-target",
+    })))
+
+    assert result["exit_code"] == 1
+    assert "Forbidden notification key" in result["error"]
+    assert result["token_value_visible"] is False
+    assert result["chat_target_value_visible"] is False
+
+
+def test_notification_tool_uses_server_side_target_for_gated_dispatch(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "server-side-target")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _send(chat_id, text):
+        sent.append((chat_id, text))
+        return {"ok": True, "telegram_message_id": 93, "token_value_visible": False}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _send)
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_notification_target = "server-side-target"
+    setup(ctx)
+    tools = {tool.name: tool for tool in ctx.registered_tools}
+
+    result = asyncio.run(tools["odysseus_notify_user"].execute(json.dumps({
+        "event": "roadmap_completed",
+        "message": "ABC roadmap completed.",
+        "severity": "success",
+        "dry_run": False,
+    })))
+    payload = json.loads(result["output"])
+
+    assert result["exit_code"] == 0
+    assert payload["status"] == "sent"
+    assert payload["dispatch_allowed"] is True
+    assert payload["reason"] == "server_side_dispatch_sent"
+    assert sent == [("server-side-target", "[Odysseus][success] roadmap_completed: ABC roadmap completed.")]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "server-side-target" not in persisted_text
+    assert '"chat_id"' not in persisted_text
+
+
 def test_plugin_file_loader_imports_without_package_context():
     plugin_path = Path("plugins/telegram/plugin.py")
     spec = importlib.util.spec_from_file_location("odysseus_plugin_telegram", plugin_path)

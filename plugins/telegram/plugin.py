@@ -19,6 +19,10 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from src.user_notification_contract import (
+    NotificationContractError,
+    build_user_notification_decision,
+)
 
 try:
     from core.middleware import require_admin as _core_require_admin
@@ -943,12 +947,57 @@ def setup(ctx):
             "exit_code": 0,
         }
 
+    def _notification_target() -> str:
+        return str(_ctx_attr("telegram_notification_target") or os.getenv("TELEGRAM_NOTIFICATION_CHAT_ID") or "")
+
     async def _telegram_reply_tool(content: str, **kwargs):
         payload = _parse_tool_payload(content)
         chat_id = str(payload.get("chat_id") or "")
         text = str(payload.get("text") or "")
         source_message_id = payload.get("source_message_id")
         return _reply_with_gate(chat_id, text, source_message_id=source_message_id)
+
+    async def _odysseus_notify_user_tool(content: str, **kwargs):
+        payload = _parse_tool_payload(content)
+        if kwargs:
+            payload = {**payload, **kwargs}
+        target = _notification_target()
+        try:
+            decision = build_user_notification_decision(
+                payload,
+                configured_channels=("telegram",),
+                live_dispatch_enabled=_bool_env("TELEGRAM_AGENT_REPLY_ENABLED"),
+                target_configured=bool(target),
+            )
+        except NotificationContractError as exc:
+            return {
+                "error": str(exc),
+                "exit_code": 1,
+                "token_value_visible": False,
+                "chat_target_value_visible": False,
+            }
+        public = decision.as_public_dict()
+        if not decision.dispatch_allowed:
+            return {
+                "output": json.dumps(public, ensure_ascii=False),
+                "exit_code": 0,
+            }
+        result = _reply_with_gate(target, decision.rendered_text)
+        if result.get("exit_code") != 0:
+            public["status"] = "blocked"
+            public["dispatch_allowed"] = False
+            public["reason"] = str(result.get("error") or "telegram_dispatch_refused")
+            return {
+                "output": json.dumps(public, ensure_ascii=False),
+                "exit_code": 0,
+            }
+        public["status"] = "sent"
+        public["dispatch_allowed"] = True
+        public["reason"] = "server_side_dispatch_sent"
+        return {
+            "output": json.dumps(public, ensure_ascii=False),
+            "exit_code": 0,
+        }
 
     @router.get("/status")
     async def status(request: Request):
@@ -1070,6 +1119,27 @@ def setup(ctx):
             execute=_telegram_reply_tool,
             permission="admin",
         ))
+        ctx.register_tool(ToolSpec(
+            name="odysseus_notify_user",
+            description=(
+                "Request a user-facing Odysseus notification. Delivery targets stay server-side; "
+                "the tool defaults to dry-run and rejects token, secret, or chat target arguments."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "event": {"type": "string", "description": "Short event name, for example roadmap_completed."},
+                    "message": {"type": "string", "description": "Redacted user-facing message."},
+                    "severity": {"type": "string", "enum": ["info", "success", "warning", "error"]},
+                    "channel": {"type": "string", "enum": ["auto", "telegram"]},
+                    "dry_run": {"type": "boolean", "description": "Defaults to true; false still requires server gates."},
+                    "metadata": {"type": "object", "description": "Optional redacted metadata only."},
+                },
+                "required": ["message"],
+            },
+            execute=_odysseus_notify_user_tool,
+            permission="admin",
+        ))
     except Exception as exc:
-        ctx.logger.warning("telegram_reply tool registration skipped: %s", exc)
+        ctx.logger.warning("telegram tool registration skipped: %s", exc)
     ctx.logger.info("telegram plugin ready")
