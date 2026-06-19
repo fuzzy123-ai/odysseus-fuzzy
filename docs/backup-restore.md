@@ -167,6 +167,22 @@ Retention policy for the homeserver repository is:
 - `pre_update_snapshot`: the hook is prepared, but update pipelines must opt in
   deliberately and treat backup failure as a deployment blocker.
 
+### Backup-gate evidence packet
+
+For the updater gate, prefer the single wrapper below after the restic
+repository is initialized and `/mnt/backup` is mounted:
+
+```bash
+RESTIC_PASSWORD_FILE=/path/outside/repo/restic.pass \
+  ops/homeserver/run-backup-gate-evidence.sh --execute
+```
+
+The wrapper runs the pre-update snapshot, repository check, and restore smoke,
+then prints a redacted JSON packet with `pre_update_snapshot`,
+`repository_check`, and `restore_smoke` evidence. Restic and host command output
+stay on server-local stderr; the JSON packet records only pass/fail labels,
+timestamps, and safe summaries.
+
 ### Go/Partial/No-Go
 
 #### Go

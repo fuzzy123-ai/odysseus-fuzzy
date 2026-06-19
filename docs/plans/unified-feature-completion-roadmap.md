@@ -176,9 +176,11 @@ Done when:
 - Updater consumes backup evidence as structured input and blocks unsafe plans.
 
 Current status:
-- Offline Partial: updater backup gate consumes structured evidence and can emit
-  a safe evidence packet. Real homeserver snapshot, `restic check`, and restore
-  smoke evidence remain pending.
+- Offline Partial: updater backup gate consumes structured evidence, can emit a
+  safe evidence packet, and has a server-side wrapper to run pre-update
+  snapshot, repository check, and restore smoke as redacted JSON evidence. Real
+  homeserver execution remains pending because Codex does not currently have
+  non-interactive SSH auth to the Debian server.
 
 ### UFR6 Private Source Foundation
 

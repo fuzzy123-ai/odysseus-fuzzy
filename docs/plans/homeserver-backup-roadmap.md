@@ -80,6 +80,7 @@ Erwartete Dateien:
 - `ops/homeserver/check-backup-health.sh`
 - `ops/homeserver/restore-backup-smoke.sh`
 - `ops/homeserver/pre-update-snapshot.sh`
+- `ops/homeserver/run-backup-gate-evidence.sh`
 
 Completion:
 
@@ -87,6 +88,8 @@ Completion:
 - Dry-run zeigt Scope ohne Secret-Inhalte.
 - Snapshot-Modus bricht ab, wenn `/mnt/backup` kein Mountpoint ist.
 - DB-Dumps werden erst nach Container-/Compose-Erkennung versucht.
+- Ein expliziter Evidence-Wrapper erzeugt nach `--execute` ein redaktiertes
+  JSON-Paket fuer `pre_update_snapshot`, `repository_check` und `restore_smoke`.
 
 ## BKP3 Systemd
 
@@ -110,6 +113,9 @@ Completion:
 - Hook existiert als Wrapper.
 - Exit-Code ungleich 0 blockiert das Update.
 - Der Hook startet kein Update selbst.
+- Fuer einen vollstaendigen Backup-Gate-Nachweis kann der Operator stattdessen
+  `ops/homeserver/run-backup-gate-evidence.sh --execute` ausfuehren und das
+  redaktierte JSON-Paket in den Updater-Gate-Review uebernehmen.
 
 ## BKP5 Restore Runbook
 
@@ -145,4 +151,10 @@ Go ist erst erreicht, wenn auf dem Debian-Homeserver nach User-Go alle Punkte er
 ## Current Evidence
 
 - Lokale Repo-Umsetzung erzeugt keine Servermutation.
-- Restic-Repo-Initialisierung, echter Snapshot und Restore-Smoke brauchen explizites User-Go auf dem Debian-Homeserver.
+- `ops/homeserver/run-backup-gate-evidence.sh` ist der serverseitige Wrapper,
+  der nach explizitem `--execute` Pre-Update-Snapshot, `restic check` und
+  Restore-Smoke als strukturierte, secret-freie Evidence zusammenfasst.
+- Restic-Repo-Initialisierung, echter Snapshot und Restore-Smoke brauchen
+  explizites User-Go auf dem Debian-Homeserver. In diesem Thread scheiterte der
+  nicht-interaktive SSH-Zugriff fuer Codex an fehlender Public-Key-Auth, daher
+  bleibt Live-Evidence bis zur Serverausfuehrung Partial.
