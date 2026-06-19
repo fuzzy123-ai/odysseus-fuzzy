@@ -42,6 +42,7 @@ Note: direct `read_thread` calls for sidechat bodies were not available in this 
 - `docs/plans/release-hardening-gates.md` records the five release-hardening critique gates as operator-facing Go/Partial/No-Go rules.
 - `docs/plans/release-hardening-code-audit.md` maps those five gates to code/test/doc anchors and safe parallel follow-up slices.
 - `src/release_hardening_gates.py` and `tests/test_release_hardening_gates.py` expose the current hardening index as read-only, automation-friendly status.
+- `docs/plans/updater-live-boundary-contract.md`, `src/odysseus_updater_live_boundary.py`, and `tests/test_odysseus_updater_live_boundary.py` define the first P1 bridge from Safe Updater offline Go to operator-gated live readiness, without executing the pre-update hook.
 - Final focused updater verification: `54 passed, 1 warning`; `py_compile`, `git diff --check`, and focused secret scan were clean.
 - Focused P0 release evidence verification on 2026-06-19: `23 passed, 1 warning` for Provider/Fallback, Test-Vault, and Release Decision Bundle validators.
 - Focused live-closeout verification on 2026-06-19: `21 passed, 1 warning` for live release closeout, readiness index, and manual evidence summary tests.
@@ -98,6 +99,7 @@ These items make the completed offline updater useful without turning it into bl
 5. `ABC4-updater-live-boundary-contract`
    Goal: define the smallest live boundary after the offline Safe Updater Go.
    Owner: Alice/Charlie.
+   Status: offline contract and read-only model present in `docs/plans/updater-live-boundary-contract.md` and `src/odysseus_updater_live_boundary.py`.
    Rule: green updater unit tests are not live deployment permission.
    Exit: live update remains No-Go until backup and operator gates are green.
 
