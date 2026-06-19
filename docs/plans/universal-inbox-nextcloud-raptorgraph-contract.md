@@ -225,6 +225,19 @@ Analyseergebnis:
 
 Routing ist eine Entscheidung mit Begruendung, nicht bloss ein Pfadstring.
 
+Die Ablageregeln liegen getrennt von der Implementierung in:
+
+```text
+config/universal_inbox_routing_rules.json
+```
+
+Das MVP-Rahmensystem wird durch `src/universal_inbox_routing.py` geplant:
+
+- nur metadata- und analysebasierte Routing-Entscheidungen.
+- keine Dateioperationen im Planner.
+- private und work sind getrennte Domaenen in der Rules-Datei.
+- Zielpfade, Review-Grund, Sidecar-Pfad, Ledger-Status und RaptorGraph-Provenance werden strukturiert ausgegeben.
+
 Routing-Inputs:
 
 - Dateiinhalt

@@ -1,0 +1,65 @@
+{
+  "schema": "odysseus.universal_inbox.routing_rules.v1",
+  "version": 1,
+  "policy_name": "universal-inbox-mvp",
+  "defaults": {
+    "incoming_root": "AI Inbox/Incoming",
+    "review_root": "AI Inbox/Needs Review",
+    "metadata_root": "AI Inbox/Metadata",
+    "documents_root": "Documents",
+    "min_auto_route_confidence": 0.82,
+    "copy_only": true,
+    "no_delete": true,
+    "no_overwrite": true,
+    "allowed_domains": ["private", "work"],
+    "fallback_document_type": "reference"
+  },
+  "review_triggers": [
+    "duplicate",
+    "partial_extraction",
+    "secret_detected",
+    "sensitive",
+    "target_conflict",
+    "unknown_document_type",
+    "unknown_domain",
+    "low_confidence",
+    "unsafe_target_path"
+  ],
+  "routes": [
+    {
+      "domain": "private",
+      "document_type": "invoice",
+      "target_template": "Documents/Private/Invoices/{year}/{safe_title}{ext}"
+    },
+    {
+      "domain": "private",
+      "document_type": "contract",
+      "target_template": "Documents/Private/Contracts/{safe_title}{ext}"
+    },
+    {
+      "domain": "private",
+      "document_type": "reference",
+      "target_template": "Documents/Private/Reference/{safe_title}{ext}"
+    },
+    {
+      "domain": "work",
+      "document_type": "invoice",
+      "target_template": "Documents/Work/Invoices/{year}/{safe_title}{ext}"
+    },
+    {
+      "domain": "work",
+      "document_type": "contract",
+      "target_template": "Documents/Work/Contracts/{safe_title}{ext}"
+    },
+    {
+      "domain": "work",
+      "document_type": "project",
+      "target_template": "Documents/Work/Projects/{project}/{safe_title}{ext}"
+    },
+    {
+      "domain": "work",
+      "document_type": "reference",
+      "target_template": "Documents/Work/Reference/{safe_title}{ext}"
+    }
+  ]
+}
