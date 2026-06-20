@@ -2985,6 +2985,222 @@ function initLogsView() {
   loadLogs(false);
 }
 
+function _fmtSystemDate(value) {
+  const text = String(value || '').trim();
+  if (!text || text === 'n/a') return 'Unknown';
+  const parsed = Date.parse(text);
+  if (!Number.isNaN(parsed)) return new Date(parsed).toLocaleString();
+  return text;
+}
+
+function _systemBadge(label, tone = 'muted') {
+  const styles = {
+    ok: 'background:color-mix(in srgb, #50fa7b 18%, transparent);color:#50fa7b;',
+    warn: 'background:color-mix(in srgb, #f1c40f 18%, transparent);color:#f1c40f;',
+    bad: 'background:color-mix(in srgb, var(--red) 18%, transparent);color:var(--red);',
+    muted: 'background:rgba(150,150,150,0.18);color:var(--fg-muted,#888);',
+  };
+  return `<span class="admin-badge" style="${styles[tone] || styles.muted}">${esc(label || 'unknown')}</span>`;
+}
+
+function _toneForVersion(status) {
+  if (status === 'current') return 'ok';
+  if (status === 'outdated') return 'warn';
+  return 'muted';
+}
+
+function _toneForActiveState(state, result) {
+  if (state === 'active') return 'ok';
+  if (result && result !== 'success') return 'bad';
+  if (state === 'inactive') return 'muted';
+  return 'warn';
+}
+
+function _unavailableReason(section) {
+  if (!section || section.available !== false) return '';
+  return `<div class="admin-toggle-sub" style="margin-top:4px;color:var(--red);">${esc(section.reason || 'Unavailable')}</div>`;
+}
+
+function _renderSystemUpdateStatus(data) {
+  const container = el('adm-system-update-status');
+  if (!container) return;
+  const version = data?.version || {};
+  const timer = data?.schedule?.timer || {};
+  const service = data?.updater?.service || {};
+  const backups = data?.backups || {};
+  const capabilities = data?.capabilities || {};
+  const actions = data?.actions || {};
+  const snapshots = Array.isArray(backups.snapshots) ? backups.snapshots : [];
+  const versionCommit = version.commit ? ` · ${esc(version.commit)}` : '';
+  const latestCommit = version.latest_commit ? `Latest ${esc(version.latest_commit)}` : 'Latest unknown';
+  const timerContent = timer.available === false
+    ? _unavailableReason(timer)
+    : `
+      <div style="font-size:13px;font-weight:600;">${_systemBadge(timer.active_state || 'unknown', _toneForActiveState(timer.active_state, timer.result))}</div>
+      <div class="admin-toggle-sub" style="margin-top:5px">Next: ${esc(_fmtSystemDate(timer.next_run_at))}</div>
+      <div class="admin-toggle-sub">Last trigger: ${esc(_fmtSystemDate(timer.last_triggered_at))}</div>`;
+  const serviceContent = service.available === false
+    ? _unavailableReason(service)
+    : `
+      <div style="font-size:13px;font-weight:600;">${_systemBadge(service.result || service.active_state || 'unknown', _toneForActiveState(service.active_state, service.result))}</div>
+      <div class="admin-toggle-sub" style="margin-top:5px">Finished: ${esc(_fmtSystemDate(service.finished_at))}</div>
+      <div class="admin-toggle-sub">Exit: ${esc(service.exec_main_status || 'unknown')}</div>`;
+  const backupContent = backups.available === false
+    ? _unavailableReason(backups)
+    : `
+      <div style="font-size:13px;font-weight:600;">${_systemBadge(snapshots.length ? 'snapshots visible' : 'no snapshots', snapshots.length ? 'ok' : 'warn')}</div>
+      <div class="admin-toggle-sub" style="margin-top:5px">Latest: ${esc(_fmtSystemDate(backups.latest_snapshot?.time))}</div>
+      <div class="admin-toggle-sub">Repository: ${esc(backups.repository || 'unknown')}</div>`;
+  const snapshotRows = snapshots.length
+    ? snapshots.map(s => `
+      <div class="admin-user-row" style="display:grid;grid-template-columns:minmax(90px,0.8fr) minmax(150px,1.2fr) minmax(120px,1fr);gap:8px;align-items:center;">
+        <span class="admin-badge">${esc(s.id || 'snapshot')}</span>
+        <span style="font-size:12px;">${esc(_fmtSystemDate(s.time))}</span>
+        <span class="admin-toggle-sub" style="font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc((s.paths || []).join(', ') || s.hostname || '')}</span>
+      </div>`).join('')
+    : '<div class="admin-empty">No snapshots visible</div>';
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
+      <div class="admin-user-row" style="display:block;">
+        <div class="admin-toggle-label">Version</div>
+        <div style="margin-top:5px">${_systemBadge(version.status || 'unknown', _toneForVersion(version.status))}</div>
+        <div class="admin-toggle-sub" style="margin-top:5px">v${esc(version.version || window._appVersion || 'unknown')}${versionCommit}</div>
+        <div class="admin-toggle-sub">${latestCommit}</div>
+      </div>
+      <div class="admin-user-row" style="display:block;">
+        <div class="admin-toggle-label">Schedule</div>
+        ${timerContent}
+      </div>
+      <div class="admin-user-row" style="display:block;">
+        <div class="admin-toggle-label">Last update</div>
+        ${serviceContent}
+      </div>
+      <div class="admin-user-row" style="display:block;">
+        <div class="admin-toggle-label">Backups</div>
+        ${backupContent}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+      ${_systemBadge(`systemctl ${capabilities.systemctl ? 'ok' : 'missing'}`, capabilities.systemctl ? 'ok' : 'muted')}
+      ${_systemBadge(`restic ${capabilities.restic ? 'ok' : 'missing'}`, capabilities.restic ? 'ok' : 'muted')}
+      ${_systemBadge(`podman ${capabilities.podman ? 'ok' : 'missing'}`, capabilities.podman ? 'ok' : 'muted')}
+      ${_systemBadge(`docker ${capabilities.docker ? 'ok' : 'missing'}`, capabilities.docker ? 'warn' : 'muted')}
+    </div>
+    <div style="margin-top:10px;">
+      <div class="admin-toggle-label" style="margin-bottom:6px;">Recent snapshots</div>
+      ${snapshotRows}
+    </div>`;
+
+  const backupBtn = el('adm-system-backup-now');
+  const updateBtn = el('adm-system-update-now');
+  if (backupBtn) {
+    backupBtn.disabled = actions.backup_now_enabled !== true;
+    backupBtn.title = (actions.backup_now_disabled_reasons || []).join('; ') || '';
+  }
+  if (updateBtn) {
+    updateBtn.disabled = actions.update_now_enabled !== true;
+    updateBtn.title = (actions.update_now_disabled_reasons || []).join('; ') || '';
+  }
+}
+
+async function loadSystemUpdateStatus({ forceCheck = false } = {}) {
+  const container = el('adm-system-update-status');
+  const msg = el('adm-system-update-msg');
+  const refreshBtn = el('adm-system-update-refresh');
+  const checkBtn = el('adm-system-update-check');
+  if (!container) return;
+  if (msg) { msg.textContent = forceCheck ? 'Checking...' : 'Refreshing...'; msg.className = ''; }
+  if (refreshBtn) refreshBtn.disabled = true;
+  if (checkBtn) checkBtn.disabled = true;
+  try {
+    const res = await fetch(forceCheck ? '/api/admin/system/update-check' : '/api/admin/system/update-status', {
+      method: forceCheck ? 'POST' : 'GET',
+      credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    _renderSystemUpdateStatus(data);
+    if (msg) { msg.textContent = forceCheck ? 'Check complete' : 'Updated'; msg.className = 'admin-success'; }
+    setTimeout(() => { if (msg && (msg.textContent === 'Updated' || msg.textContent === 'Check complete')) msg.textContent = ''; }, 1800);
+  } catch (err) {
+    container.innerHTML = `<div class="admin-error">Failed to load update status: ${esc(err.message || err)}</div>`;
+    if (msg) { msg.textContent = 'Failed'; msg.className = 'admin-error'; }
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+    if (checkBtn) checkBtn.disabled = false;
+  }
+}
+
+async function runSystemUpdateAction(action) {
+  const msg = el('adm-system-update-msg');
+  const backupBtn = el('adm-system-backup-now');
+  const updateBtn = el('adm-system-update-now');
+  const isUpdate = action === 'update_now';
+  const endpoint = isUpdate ? '/api/admin/system/update-now' : '/api/admin/system/backup-now';
+  const confirmText = isUpdate ? 'Run update' : 'Create backup';
+  const prompt = isUpdate
+    ? 'Run the configured Odysseus updater now? A pre-update backup must be visible and the host updater gate must be enabled.'
+    : 'Create a homeserver backup now? This starts the configured restic backup service on the host.';
+  if (!await uiModule.styledConfirm(prompt, { confirmText, danger: isUpdate })) return;
+  if (msg) { msg.textContent = isUpdate ? 'Starting update...' : 'Starting backup...'; msg.className = ''; }
+  if (backupBtn) backupBtn.disabled = true;
+  if (updateBtn) updateBtn.disabled = true;
+  try {
+    const res = await fetch(endpoint, { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status === 'failed' || data.status === 'blocked') {
+      const blocker = Array.isArray(data.blockers) && data.blockers.length ? data.blockers.join('; ') : (data.detail || `HTTP ${res.status}`);
+      throw new Error(blocker);
+    }
+    if (msg) { msg.textContent = isUpdate ? 'Update started' : 'Backup started'; msg.className = 'admin-success'; }
+    await loadSystemUpdateStatus({ forceCheck: isUpdate });
+  } catch (err) {
+    if (msg) { msg.textContent = err.message || 'Action failed'; msg.className = 'admin-error'; }
+    await loadSystemUpdateStatus();
+  }
+}
+
+function initSystemUpdateStatus() {
+  const refreshBtn = el('adm-system-update-refresh');
+  const checkBtn = el('adm-system-update-check');
+  const backupBtn = el('adm-system-backup-now');
+  const updateBtn = el('adm-system-update-now');
+  const versionLabel = el('version-label');
+  if (refreshBtn && !refreshBtn.dataset.bound) {
+    refreshBtn.dataset.bound = '1';
+    refreshBtn.addEventListener('click', () => loadSystemUpdateStatus());
+  }
+  if (checkBtn && !checkBtn.dataset.bound) {
+    checkBtn.dataset.bound = '1';
+    checkBtn.addEventListener('click', () => loadSystemUpdateStatus({ forceCheck: true }));
+  }
+  if (backupBtn && !backupBtn.dataset.bound) {
+    backupBtn.dataset.bound = '1';
+    backupBtn.addEventListener('click', () => runSystemUpdateAction('backup_now'));
+  }
+  if (updateBtn && !updateBtn.dataset.bound) {
+    updateBtn.dataset.bound = '1';
+    updateBtn.addEventListener('click', () => runSystemUpdateAction('update_now'));
+  }
+  if (versionLabel && !versionLabel.dataset.systemBound) {
+    versionLabel.dataset.systemBound = '1';
+    versionLabel.classList.add('system-link');
+    versionLabel.tabIndex = 0;
+    versionLabel.setAttribute('role', 'button');
+    versionLabel.addEventListener('click', () => {
+      open('system');
+      setTimeout(() => el('settings-system-updates-card')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+    });
+    versionLabel.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      versionLabel.click();
+    });
+  }
+  loadSystemUpdateStatus();
+}
+
 /* ═══════════════════════════════════════════
    INIT & REFRESH
    ═══════════════════════════════════════════ */
@@ -2992,7 +3208,7 @@ function initAll() {
   modalEl = el('settings-modal');
   const inits = [
     initSignupToggle, initAddUser, initEndpointForm, initMcpForm,
-    initCalDAV, initBackup, initDangerZone, initTokenForm, initLogsView,
+    initCalDAV, initBackup, initDangerZone, initTokenForm, initSystemUpdateStatus, initLogsView,
     () => settingsModule.initIntegrations()
   ];
   for (const fn of inits) {
@@ -3008,6 +3224,7 @@ function refreshAll() {
   loadBuiltinTools();
   loadMcpServers();
   loadTokens();
+  loadSystemUpdateStatus();
   loadLogs(false);
 }
 
