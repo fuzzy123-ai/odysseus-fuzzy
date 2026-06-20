@@ -20,10 +20,12 @@ from backend.memory_automation import (
     memory_automation_status,
     run_memory_automation,
 )
+from backend.raptor_cache import clear_raptor_cache
 from plugin import setup
 
 
 def test_memory_automation_status_surfaces_pending_actions_and_cost_controller():
+    clear_raptor_cache()
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Source.md"), "w", encoding="utf-8") as f:
             f.write("# Source\n\nblob automation demo\n")
@@ -33,16 +35,19 @@ def test_memory_automation_status_surfaces_pending_actions_and_cost_controller()
         assert status["job_id"] == JOB_ID
         assert "sync_memory_ledger" in status["pending_actions"]
         assert "build_derived_index" in status["pending_actions"]
+        assert "warm_raptor_cache" in status["pending_actions"]
         assert status["cost_controller"]["cooldown_seconds"] >= 0
         assert status["cost_controller"]["failure_backoff_seconds"] >= 0
         assert status["safety"] == {
             "source_note_writes": False,
             "derived_data_writes_only": True,
-            "allowed_actions": ["sync_memory_ledger", "build_derived_index"],
+            "allowed_actions": ["sync_memory_ledger", "build_derived_index", "warm_raptor_cache"],
         }
+        assert status["layers"]["raptor_cache_warming"]["pending"] is True
 
 
 def test_memory_automation_run_executes_low_risk_actions_and_respects_cooldown(monkeypatch):
+    clear_raptor_cache()
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Source.md"), "w", encoding="utf-8") as f:
             f.write("# Source\n\nblob automation demo\n")
@@ -58,14 +63,17 @@ def test_memory_automation_run_executes_low_risk_actions_and_respects_cooldown(m
         assert first["skipped"] is False
         assert "sync_memory_ledger" in first["actions_executed"]
         assert "build_derived_index" in first["actions_executed"]
+        assert "warm_raptor_cache" in first["actions_executed"]
         assert os.path.exists(report_path)
         assert second == {"skipped": True, "reason": "cooldown_active", "actions_executed": []}
         assert forced["skipped"] is False
         assert forced["safety"]["source_note_writes"] is False
         assert forced["safety"]["derived_data_writes_only"] is True
+        assert forced["safety"]["raptor_cache_warming"] is True
 
 
 def test_memory_automation_records_failures_and_respects_failure_backoff(monkeypatch):
+    clear_raptor_cache()
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Source.md"), "w", encoding="utf-8") as f:
             f.write("# Source\n\nblob automation failure demo\n")
@@ -90,6 +98,7 @@ def test_memory_automation_records_failures_and_respects_failure_backoff(monkeyp
 
 @pytest.mark.asyncio
 async def test_memory_automation_routes_expose_status_and_run(monkeypatch):
+    clear_raptor_cache()
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Source.md"), "w", encoding="utf-8") as f:
             f.write("# Source\n\nroute automation demo\n")
@@ -104,8 +113,10 @@ async def test_memory_automation_routes_expose_status_and_run(monkeypatch):
         result = await obsidian_routes.memory_automation_run_route(request, force=True)
 
         assert "sync_memory_ledger" in status["pending_actions"]
+        assert "warm_raptor_cache" in status["pending_actions"]
         assert result["skipped"] is False
         assert "build_derived_index" in result["actions_executed"]
+        assert "warm_raptor_cache" in result["actions_executed"]
 
 
 def test_plugin_setup_registers_memory_automation_job():

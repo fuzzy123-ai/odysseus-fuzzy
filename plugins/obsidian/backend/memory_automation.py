@@ -7,6 +7,7 @@ from . import vault_service
 from .derived_index import build_derived_index, derived_index_status
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
 from .query_layer import query_layer_status
+from .raptor_warming import raptor_cache_warming_status, warm_raptor_cache
 from .vault_security import VaultSecurityError
 
 
@@ -65,6 +66,7 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
     ledger = memory_ledger_status(vault_dir)
     derived = derived_index_status(vault_dir)
     query = query_layer_status(vault_dir)
+    raptor_warming = raptor_cache_warming_status(vault_dir)
     report = _read_report(vault_dir)
     now = _utcnow()
     cooldown = _cooldown_seconds()
@@ -98,6 +100,8 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
         pending_actions.append("build_derived_index")
     if not bool((query.get("readiness") or {}).get("ready", False)):
         pending_actions.append("query_layer_waits_on_index")
+    if raptor_warming.get("pending"):
+        pending_actions.append("warm_raptor_cache")
     warnings: List[str] = []
     if cooling_down:
         warnings.append("Memory automation cooldown is active; the next periodic pass will wait until the cooldown expires.")
@@ -121,12 +125,13 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
         "safety": {
             "source_note_writes": False,
             "derived_data_writes_only": True,
-            "allowed_actions": ["sync_memory_ledger", "build_derived_index"],
+            "allowed_actions": ["sync_memory_ledger", "build_derived_index", "warm_raptor_cache"],
         },
         "layers": {
             "ledger": ledger.get("summary", {}),
             "derived_index": derived.get("summary", {}),
             "query_layer": query.get("summary", {}),
+            "raptor_cache_warming": raptor_warming,
         },
         "last_run": {
             "last_run_at": last_run_raw,
@@ -214,6 +219,9 @@ def run_memory_automation(
             if not bool(derived.get("configured")) or not bool((derived.get("readiness") or {}).get("ready", False)):
                 build_derived_index(vault_dir)
                 actions_executed.append("build_derived_index")
+            warming = warm_raptor_cache(vault_dir)
+            if not warming.get("skipped") and warming.get("warmed"):
+                actions_executed.append("warm_raptor_cache")
         except Exception as exc:
             error_text = str(exc) or exc.__class__.__name__
             errors.append(error_text)
@@ -233,6 +241,7 @@ def run_memory_automation(
                 "summary": {
                     "source_note_writes": False,
                     "derived_data_writes_only": True,
+                    "raptor_cache_warming": True,
                 },
                 "context": {
                     "owner": owner or "default",
@@ -269,6 +278,7 @@ def run_memory_automation(
         "summary": {
             "source_note_writes": False,
             "derived_data_writes_only": True,
+            "raptor_cache_warming": True,
             "pending_actions_after": after.get("pending_actions", []),
         },
         "warnings": warnings,
@@ -289,6 +299,7 @@ def run_memory_automation(
         "safety": {
             "source_note_writes": False,
             "derived_data_writes_only": True,
+            "raptor_cache_warming": True,
         },
     }
 

@@ -88,13 +88,18 @@ def clear_raptor_cache(vault_dir: str | None = None) -> dict[str, int]:
     return {"cleared": len(keys), "entry_count": len(_CACHE)}
 
 
-def raptor_cache_diagnostics() -> dict[str, int]:
+def raptor_cache_diagnostics(vault_dir: str | None = None) -> dict[str, int]:
+    if vault_dir is not None:
+        target = os.path.abspath(vault_dir)
+        entry_count = sum(1 for entry in _CACHE.values() if entry.vault_dir == target)
+    else:
+        entry_count = len(_CACHE)
     return {
         "hits": int(_STATS["hits"]),
         "misses": int(_STATS["misses"]),
         "stale": int(_STATS["stale"]),
         "evictions": int(_STATS["evictions"]),
-        "entry_count": len(_CACHE),
+        "entry_count": entry_count,
     }
 
 
