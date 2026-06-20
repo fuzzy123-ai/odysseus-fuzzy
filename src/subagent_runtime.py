@@ -518,6 +518,12 @@ _TOOL_STORES = InMemorySubagentRuntimeStores()
 _TOOL_BACKEND = FakeSubagentExecutionBackend()
 
 
+def reset_subagent_tool_runtime_for_tests() -> None:
+    global _TOOL_BACKEND, _TOOL_STORES
+    _TOOL_STORES = InMemorySubagentRuntimeStores()
+    _TOOL_BACKEND = FakeSubagentExecutionBackend()
+
+
 def spawn_subagent_from_tool(content: str) -> dict[str, Any]:
     args = _parse_tool_args(content)
     spec = SubagentRunSpec.create(

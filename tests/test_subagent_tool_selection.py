@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from src.agent_tools import TOOL_TAGS, ToolBlock
 from src.chat_agent_tool_discovery_map import (
     DELEGATE_TOOLSET,
@@ -13,6 +15,12 @@ from src.tool_index import ToolIndex
 from src.tool_policy import build_effective_tool_policy
 from src.tool_schemas import function_call_to_tool_block
 from src.tool_security import is_public_blocked_tool
+import src.subagent_runtime as subagent_runtime
+
+
+@pytest.fixture(autouse=True)
+def _reset_subagent_tool_runtime():
+    subagent_runtime.reset_subagent_tool_runtime_for_tests()
 
 
 def _tools_for(query: str) -> set[str]:
@@ -62,6 +70,16 @@ def test_orchestrator_mode_allows_fake_subagent_runtime_surface():
 def test_public_policy_blocks_durable_subagent_tools():
     assert is_public_blocked_tool("spawn_subagent") is True
     assert is_public_blocked_tool("manage_subagents") is True
+
+
+async def test_manage_subagents_list_starts_with_empty_fake_runtime(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    desc, result = await execute_tool_block(ToolBlock("manage_subagents", json.dumps({"action": "list"})))
+
+    assert desc == "manage_subagents"
+    assert result["exit_code"] == 0
+    assert result["runs"] == []
 
 
 def test_spawn_subagent_schema_is_executable_fake_surface():
