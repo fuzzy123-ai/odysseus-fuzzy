@@ -102,6 +102,26 @@ def test_spawn_subagent_schema_is_executable_fake_surface():
     assert block.tool_type == "spawn_subagent"
 
 
+def test_manage_subagents_schema_accepts_snapshot_action():
+    block = function_call_to_tool_block(
+        "manage_subagents",
+        json.dumps(
+            {
+                "action": "snapshot",
+                "plan_id": "subagent-runtime-v1",
+                "last_updated_at": "2026-06-20T12:30:00Z",
+            }
+        ),
+    )
+
+    assert block.tool_type == "manage_subagents"
+    assert json.loads(block.content) == {
+        "action": "snapshot",
+        "plan_id": "subagent-runtime-v1",
+        "last_updated_at": "2026-06-20T12:30:00Z",
+    }
+
+
 async def test_spawn_subagent_tool_uses_fake_backend_only(monkeypatch):
     monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
 
