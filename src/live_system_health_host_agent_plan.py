@@ -36,6 +36,15 @@ _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "keep runtime execution disabled during operator planning",
 )
 
+_BLOCKED_LIVE_ACTIONS = (
+    "host_agent_start",
+    "host_command_execution",
+    "systemd_mutation",
+    "socket_access",
+    "network_action",
+    "secret_or_token_capture",
+)
+
 
 def _normalize_text(value: Any, *, field_name: str, allow_empty: bool = False) -> str:
     text = " ".join(str(value or "").split())
@@ -109,12 +118,14 @@ class LiveSystemHealthHostAgentPlan:
     gates: tuple[HostAgentPlanGate, ...]
     decision: HostAgentPlanDecision
     next_allowed_actions: tuple[str, ...]
+    blocked_live_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gates": tuple(gate.to_dict() for gate in self.gates),
             "decision": self.decision.to_dict(),
             "next_allowed_actions": self.next_allowed_actions,
+            "blocked_live_actions": self.blocked_live_actions,
         }
 
     def to_markdown(self) -> str:
@@ -132,6 +143,9 @@ class LiveSystemHealthHostAgentPlan:
             lines.extend(["", "## Next Allowed Actions"])
             for action in self.next_allowed_actions:
                 lines.append(f"- {action}")
+        lines.extend(["", "## Blocked Live Actions"])
+        for action in self.blocked_live_actions:
+            lines.append(f"- {action}")
         return "\n".join(lines).rstrip()
 
 
@@ -249,4 +263,5 @@ def build_live_system_health_host_agent_plan(
             next_action=next_action,
         ),
         next_allowed_actions=next_allowed_actions,
+        blocked_live_actions=_normalize_tuple(_BLOCKED_LIVE_ACTIONS, field_name="blocked_live_action"),
     )

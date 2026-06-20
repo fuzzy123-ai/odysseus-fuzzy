@@ -30,6 +30,25 @@ def test_host_agent_plan_ready_requires_all_inputs_and_runtime_execution_disable
     assert plan.decision.decision == "host_agent_plan_ready"
 
 
+def test_host_agent_plan_ready_still_blocks_host_runtime_actions():
+    plan = build_live_system_health_host_agent_plan(
+        operator_host_scope_selected=True,
+        install_method_reviewed=True,
+        snapshot_api_contract_ready=True,
+        permissions_reviewed=True,
+        rollback_plan_ready=True,
+        secrets_policy_ready=True,
+        runtime_execution_enabled=False,
+    )
+
+    assert plan.decision.decision == "host_agent_plan_ready"
+    assert "host_agent_start" in plan.blocked_live_actions
+    assert "host_command_execution" in plan.blocked_live_actions
+    assert "systemd_mutation" in plan.blocked_live_actions
+    assert "socket_access" in plan.blocked_live_actions
+    assert "secret_or_token_capture" in plan.blocked_live_actions
+
+
 def test_runtime_or_host_enablement_claims_block_the_plan():
     plan = build_live_system_health_host_agent_plan(
         operator_host_scope_selected=True,
@@ -90,6 +109,14 @@ def test_to_dict_is_stable():
             "prepare rollback and secrets-policy notes before any host-agent follow-up",
             "keep runtime execution disabled during operator planning",
         ),
+        "blocked_live_actions": (
+            "host_agent_start",
+            "host_command_execution",
+            "systemd_mutation",
+            "socket_access",
+            "network_action",
+            "secret_or_token_capture",
+        ),
     }
 
 
@@ -100,3 +127,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live System Health Host Agent MVP Plan" in markdown
     assert "needs_operator_input" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "host_agent_start" in markdown
