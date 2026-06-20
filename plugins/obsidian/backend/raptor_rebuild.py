@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from . import vault_service
 from .feature_flags import all_flags
 from .knowledge_status import normalize_status
+from .raptor_cache import clear_raptor_cache
 
 
 RAPTOR_INDEX_PATH = ".obsidian/odysseus/raptor/index.json"
@@ -244,6 +245,7 @@ def rebuild_raptor_artifacts(
     _atomic_write_json(_artifact_path(vault_dir, RAPTOR_SUMMARIES_PATH), summaries_payload)
     if write_report:
         _atomic_write_json(_artifact_path(vault_dir, RAPTOR_REBUILD_REPORT_PATH), report_payload)
+    clear_raptor_cache(vault_dir)
     return {
         "success": True,
         "blocked": False,

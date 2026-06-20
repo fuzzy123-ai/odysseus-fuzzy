@@ -105,6 +105,7 @@ from plugin import (
     handle_memory_tree_analyze,
     handle_memory_tree_status,
     handle_quarantine_list,
+    handle_raptor_graph_view,
     handle_raptor_rebuild,
     handle_raptor_status,
     handle_read_note,
@@ -429,9 +430,11 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
         "obsidian_knowledge_audit",
         "obsidian_quarantine_list",
         "obsidian_raptor_status",
+        "obsidian_raptor_graph_view",
         "obsidian_raptor_rebuild",
     } <= set(names)
     assert "obsidian_raptor_status" not in DESTRUCTIVE_TOOL_NAMES
+    assert "obsidian_raptor_graph_view" not in DESTRUCTIVE_TOOL_NAMES
     assert "obsidian_raptor_rebuild" in DESTRUCTIVE_TOOL_NAMES
     assert "readiness_gate" in memory_status_spec.description
     assert "retrieval_policy" in memory_status_spec.description
@@ -525,6 +528,18 @@ def test_vault_tool_spec_executes_raptor_rebuild(monkeypatch):
         assert result["summary"]["source_count"] == 2
         assert result["summary"]["stored_edges"] == 1
         assert os.path.exists(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"))
+
+        graph = execute_vault_tool(
+            "obsidian_raptor_graph_view",
+            tmpdir,
+            {"edge_offset": 0, "limit": 1, "owner": "mallory"},
+            "alice",
+            {"source": "test"},
+        )
+
+        assert graph["returned_edge_count"] == 1
+        assert graph["cache"]["namespace"] == "graph_view"
+        assert "edges" in graph
 
 
 def test_vault_mcp_resolves_owner_from_trusted_environment(monkeypatch):
@@ -1026,6 +1041,7 @@ def test_plugin_setup_registration():
     assert "obsidian_knowledge_audit" in tool_names
     assert "obsidian_quarantine_list" in tool_names
     assert "obsidian_raptor_status" in tool_names
+    assert "obsidian_raptor_graph_view" in tool_names
     assert "obsidian_raptor_rebuild" in tool_names
     assert "obsidian_create_folder" in tool_names
     assert "obsidian_rename_item" in tool_names

@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from .feature_flags import all_flags, freshness_filtering_state
 from .freshness import audit_knowledge
+from .raptor_cache import cached_raptor_payload
 from .readiness import readiness_gate_from_family, readiness_gate_from_signals
 from . import vault_service
 
@@ -109,6 +110,15 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
 
 
 def raptor_status(vault_dir: str) -> Dict[str, Any]:
+    return cached_raptor_payload(
+        vault_dir,
+        "status",
+        {},
+        lambda: _raptor_status_uncached(vault_dir),
+    )
+
+
+def _raptor_status_uncached(vault_dir: str) -> Dict[str, Any]:
     flags = all_flags()
     write_gate = _raptor_write_gate(flags)
     index_path = os.path.join(vault_dir, RAPTOR_INDEX_PATH)

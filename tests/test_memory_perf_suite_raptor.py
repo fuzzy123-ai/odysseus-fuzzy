@@ -23,6 +23,9 @@ def test_raptor_graph_scale_simulation_passes_large_bounded_budget(tmp_path):
     assert result.edge_count == 300_000
     assert result.returned_nodes == 1_000
     assert result.returned_edges == 2_500
+    assert result.cache_requests == 3
+    assert result.cache_hits == 2
+    assert result.cache_misses == 1
     assert result.clipped is True
     assert result.cursor == {"next_node_offset": 1000, "next_edge_offset": 2500}
     assert result.gates == {
@@ -31,6 +34,7 @@ def test_raptor_graph_scale_simulation_passes_large_bounded_budget(tmp_path):
         "dirty_and_missing_recorded": "passed",
         "output_budget_enforced": "passed",
         "full_payload_not_materialized": "passed",
+        "cache_reuse_recorded": "passed",
         "performance_gate": "passed",
     }
 
@@ -47,6 +51,12 @@ def test_raptor_graph_scale_simulation_serializes_counts_without_full_payload(tm
         "edges": 20,
         "clipped": True,
         "cursor": {"next_node_offset": 10, "next_edge_offset": 20},
+    }
+    assert payload["cache"] == {
+        "requests": 3,
+        "hits": 2,
+        "misses": 1,
+        "hit_ratio": 0.666667,
     }
     assert "raw_content" not in encoded
     assert "notes" not in payload
@@ -67,6 +77,15 @@ def test_raptor_graph_scale_simulation_can_fail_resource_gate(tmp_path):
     result = run_raptor_graph_scale_simulation(run_dir=tmp_path, budget=budget)
 
     assert result.gates["performance_gate"] == "failed"
+    assert result.passed is False
+
+
+def test_raptor_graph_scale_simulation_can_fail_cache_reuse_gate(tmp_path):
+    result = run_raptor_graph_scale_simulation(run_dir=tmp_path, repeated_view_requests=1)
+
+    assert result.gates["cache_reuse_recorded"] == "failed"
+    assert result.cache_hits == 0
+    assert result.cache_misses == 1
     assert result.passed is False
 
 

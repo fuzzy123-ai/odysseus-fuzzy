@@ -28,6 +28,7 @@ from .memory_spark import (
 )
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
+from .raptor_cache import bounded_raptor_graph_view
 from .raptor_rebuild import rebuild_raptor_artifacts
 from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
@@ -265,6 +266,14 @@ def _raptor_rebuild(vault_dir: str, args: Dict[str, Any], owner: str, source: Di
     )
 
 
+def _raptor_graph_view(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    return bounded_raptor_graph_view(
+        vault_dir,
+        edge_offset=max(0, int(args.get("edge_offset") or 0)),
+        limit=max(1, min(int(args.get("limit") or 500), 5000)),
+    )
+
+
 VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("obsidian_tree", "List the folder tree of the Obsidian vault.", _schema({
         "prefix": {"type": "string", "description": "Path prefix to filter, e.g. 'projects/'"},
@@ -357,6 +366,10 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("obsidian_knowledge_audit", "Run the read-only Freshness Gate audit for current, review, conflict, and quarantine channels.", _schema({}), "read", _knowledge_audit),
     VaultToolSpec("obsidian_quarantine_list", "List knowledge isolated from default retrieval with reasons and source hashes.", _schema({}), "read", _quarantine_list),
     VaultToolSpec("obsidian_raptor_status", "Return RAPTOR status, lineage and write-gate readiness.", _schema({}), "read", _raptor_status),
+    VaultToolSpec("obsidian_raptor_graph_view", "Return a bounded cached RAPTOR graph edge view with cursor metadata.", _schema({
+        "edge_offset": {"type": "integer", "description": "Zero-based edge offset for pagination."},
+        "limit": {"type": "integer", "description": "Maximum graph edges to return."},
+    }), "read", _raptor_graph_view),
     VaultToolSpec("obsidian_raptor_rebuild", "Rebuild derived RAPTOR index and summaries when explicit feature flags allow writes.", _schema({
         "max_sources": {"type": "integer", "description": "Maximum source records to store in the derived index."},
         "max_edges": {"type": "integer", "description": "Maximum graph edges to store in the derived index."},

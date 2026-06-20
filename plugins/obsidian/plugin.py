@@ -58,6 +58,7 @@ try:
         collect_version_sync,
     )
     from obsidian.backend.hybrid_retrieval import raptor_status
+    from obsidian.backend.raptor_cache import bounded_raptor_graph_view
     from obsidian.backend.raptor_rebuild import rebuild_raptor_artifacts
     from obsidian.backend.memory_status import memory_status
     from obsidian.backend.memory_tree import analyze_memory_tree, memory_tree_status
@@ -129,6 +130,7 @@ except ModuleNotFoundError:
         collect_version_sync,
     )
     from backend.hybrid_retrieval import raptor_status
+    from backend.raptor_cache import bounded_raptor_graph_view
     from backend.raptor_rebuild import rebuild_raptor_artifacts
     from backend.memory_status import memory_status
     from backend.memory_tree import analyze_memory_tree, memory_tree_status
@@ -943,6 +945,21 @@ async def handle_raptor_rebuild(content: str, owner: Optional[str] = None, **kwa
     except Exception as e:
         return {"error": f"Failed to rebuild RAPTOR artifacts: {e}", "exit_code": 1}
 
+
+async def handle_raptor_graph_view(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Returns a bounded cached RAPTOR graph edge view."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        payload = bounded_raptor_graph_view(
+            vault_dir,
+            edge_offset=max(0, int(params.get("edge_offset") or 0)),
+            limit=max(1, min(int(params.get("limit") or 500), 5000)),
+        )
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to read RAPTOR graph view: {e}", "exit_code": 1}
+
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler, permission: str = "user"):
     return {
         "name": name,
@@ -1128,6 +1145,10 @@ def setup(ctx):
         _tool_spec("obsidian_knowledge_audit", "Run the read-only Freshness Gate audit for current, review, conflict, and quarantine channels.", {}, [], handle_knowledge_audit),
         _tool_spec("obsidian_quarantine_list", "List knowledge isolated from default retrieval with reasons and source hashes.", {}, [], handle_quarantine_list),
         _tool_spec("obsidian_raptor_status", "Return RAPTOR status, lineage and write-gate readiness.", {}, [], handle_raptor_status),
+        _tool_spec("obsidian_raptor_graph_view", "Return a bounded cached RAPTOR graph edge view with cursor metadata.", {
+            "edge_offset": {"type": "integer", "description": "Zero-based edge offset for pagination."},
+            "limit": {"type": "integer", "description": "Maximum graph edges to return."},
+        }, [], handle_raptor_graph_view),
         _tool_spec("obsidian_raptor_rebuild", "Rebuild derived RAPTOR index and summaries when explicit feature flags allow writes.", {
             "max_sources": {"type": "integer", "description": "Maximum source records to store in the derived index."},
             "max_edges": {"type": "integer", "description": "Maximum graph edges to store in the derived index."},

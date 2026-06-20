@@ -105,6 +105,7 @@ from .memory_spark import (
 from .freshness import audit_knowledge, quarantine_list
 from .derived_index import build_derived_index, derived_index_status, retrieve_derived_chunks
 from .hybrid_retrieval import raptor_status
+from .raptor_cache import bounded_raptor_graph_view
 from .raptor_rebuild import rebuild_raptor_artifacts
 from .memory_automation import memory_automation_status, run_memory_automation
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
@@ -1588,6 +1589,13 @@ async def raptor_status_route(request: Request):
     """Return RAPTOR index status and write-gate readiness."""
     vault_dir = get_unlocked_vault_path(request)
     return raptor_status(vault_dir)
+
+
+@router.get("/raptor/graph")
+async def raptor_graph_route(request: Request, edge_offset: int = 0, limit: int = 500):
+    """Return a bounded cached RAPTOR graph edge view."""
+    vault_dir = get_unlocked_vault_path(request)
+    return bounded_raptor_graph_view(vault_dir, edge_offset=edge_offset, limit=limit)
 
 
 @router.post("/raptor/rebuild")
