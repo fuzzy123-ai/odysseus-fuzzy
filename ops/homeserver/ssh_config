@@ -1,0 +1,20 @@
+# Canonical SSH target for the Debian homeserver Odysseus deployment.
+#
+# Always use this alias from the repository root instead of spelling host,
+# user, and key paths by hand:
+#
+#   ssh -F ops/homeserver/ssh_config odysseus-homeserver 'hostname'
+#
+# If this fails with "Permission denied", the local key exists but the server
+# does not accept its public key for the configured user.
+
+Host odysseus-homeserver
+  HostName 192.168.178.122
+  User homebase
+  IdentityFile C:/Users/nkatz/odysseus/data/ssh/id_ed25519_odysseus_homeserver_new
+  IdentitiesOnly yes
+  BatchMode yes
+  ConnectTimeout 10
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 15
+  ServerAliveCountMax 2

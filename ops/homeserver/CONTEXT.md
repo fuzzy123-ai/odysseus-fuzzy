@@ -6,6 +6,8 @@ checkout.
 ## Live Host
 
 - SSH target used by existing runbooks: `homebase@192.168.178.122`
+- Canonical local SSH alias:
+  `ssh -F ops/homeserver/ssh_config odysseus-homeserver`
 - Odysseus root on the server: `/opt/odysseus`
 - Runtime: rootless Podman / `podman-compose`
 - Odysseus container name: `odysseus_odysseus_1`
