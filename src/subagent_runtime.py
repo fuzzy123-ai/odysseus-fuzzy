@@ -44,6 +44,7 @@ class SubagentRunState(StrEnum):
     PLANNED = "planned"
     SPAWNED = "spawned"
     RUNNING = "running"
+    PAUSED = "paused"
     HANDOFF = "handoff"
     BLOCKED = "blocked"
     DONE = "done"
@@ -51,7 +52,7 @@ class SubagentRunState(StrEnum):
     CANCELLED = "cancelled"
 
     def to_agent_run_status(self) -> AgentRunStatus:
-        if self in {SubagentRunState.PLANNED, SubagentRunState.SPAWNED}:
+        if self in {SubagentRunState.PLANNED, SubagentRunState.SPAWNED, SubagentRunState.PAUSED}:
             return AgentRunStatus.PENDING
         if self == SubagentRunState.RUNNING:
             return AgentRunStatus.RUNNING
@@ -74,6 +75,7 @@ class SubagentTargetKind(StrEnum):
 class SubagentDisplayStatus(StrEnum):
     PLANNED = "planned"
     RUNNING = "running"
+    PAUSED = "paused"
     HANDOFF = "handoff"
     CLAIMED_DONE = "claimed_done"
     GATE_BLOCKED = "gate_blocked"
@@ -413,6 +415,12 @@ class SubagentExecutionBackend(Protocol):
     def cancel(self, agent_run_id: str) -> BackendRunSnapshot:
         ...
 
+    def pause(self, agent_run_id: str) -> BackendRunSnapshot:
+        ...
+
+    def resume(self, agent_run_id: str) -> BackendRunSnapshot:
+        ...
+
     def retry(self, agent_run_id: str) -> BackendRunSnapshot:
         ...
 
@@ -450,6 +458,24 @@ class FakeSubagentExecutionBackend:
         normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
         current = self._require_snapshot(normalized)
         snapshot = replace(current, state=SubagentRunState.CANCELLED, summary="fake backend cancelled run")
+        self.snapshots[normalized] = snapshot
+        return snapshot
+
+    def pause(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        current = self._require_snapshot(normalized)
+        if current.state in {SubagentRunState.DONE, SubagentRunState.CANCELLED}:
+            raise SubagentRuntimeError("completed or cancelled runs cannot be paused")
+        snapshot = replace(current, state=SubagentRunState.PAUSED, summary="fake backend paused run")
+        self.snapshots[normalized] = snapshot
+        return snapshot
+
+    def resume(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        current = self._require_snapshot(normalized)
+        if current.state != SubagentRunState.PAUSED:
+            raise SubagentRuntimeError("only paused runs can be resumed")
+        snapshot = replace(current, state=SubagentRunState.SPAWNED, summary="fake backend resumed run")
         self.snapshots[normalized] = snapshot
         return snapshot
 
@@ -544,6 +570,14 @@ def manage_subagents_from_tool(content: str) -> dict[str, Any]:
         snapshot = _TOOL_BACKEND.cancel(agent_run_id)
         run = sync_subagent_backend_status(_TOOL_STORES.resolve(agent_run_id), backend=_TOOL_BACKEND, stores=_TOOL_STORES)
         return {"status": snapshot.state.value, "exit_code": 0, "snapshot": snapshot.audit_summary(), "run": run.audit_summary()}
+    if action == "pause":
+        snapshot = _TOOL_BACKEND.pause(agent_run_id)
+        run = sync_subagent_backend_status(_TOOL_STORES.resolve(agent_run_id), backend=_TOOL_BACKEND, stores=_TOOL_STORES)
+        return {"status": snapshot.state.value, "exit_code": 0, "snapshot": snapshot.audit_summary(), "run": run.audit_summary()}
+    if action == "resume":
+        snapshot = _TOOL_BACKEND.resume(agent_run_id)
+        run = sync_subagent_backend_status(_TOOL_STORES.resolve(agent_run_id), backend=_TOOL_BACKEND, stores=_TOOL_STORES)
+        return {"status": snapshot.state.value, "exit_code": 0, "snapshot": snapshot.audit_summary(), "run": run.audit_summary()}
     if action == "retry":
         snapshot = _TOOL_BACKEND.retry(agent_run_id)
         run = sync_subagent_backend_status(_TOOL_STORES.resolve(agent_run_id), backend=_TOOL_BACKEND, stores=_TOOL_STORES)
@@ -555,7 +589,7 @@ def manage_subagents_from_tool(content: str) -> dict[str, Any]:
             "exit_code": 0,
             "handoff": handoff.to_dict() if handoff else None,
         }
-    raise SubagentRuntimeError("manage_subagents action must be list, status, cancel, retry, or read")
+    raise SubagentRuntimeError("manage_subagents action must be list, status, pause, resume, cancel, retry, or read")
 
 
 def build_subagent_status_snapshot(
@@ -862,6 +896,8 @@ def _display_status(run: SubagentRun) -> SubagentDisplayStatus:
         return SubagentDisplayStatus.PLANNED
     if run.state == SubagentRunState.RUNNING:
         return SubagentDisplayStatus.RUNNING
+    if run.state == SubagentRunState.PAUSED:
+        return SubagentDisplayStatus.PAUSED
     if run.state == SubagentRunState.HANDOFF:
         return SubagentDisplayStatus.HANDOFF
     if run.state == SubagentRunState.BLOCKED:
@@ -882,7 +918,9 @@ def _allowed_actions_for(status: SubagentDisplayStatus) -> tuple[str, ...]:
         SubagentDisplayStatus.HANDOFF,
         SubagentDisplayStatus.CLAIMED_DONE,
     }:
-        return ("cancel", "retry")
+        return ("pause", "cancel", "retry")
+    if status == SubagentDisplayStatus.PAUSED:
+        return ("resume", "cancel")
     if status in {SubagentDisplayStatus.GATE_BLOCKED, SubagentDisplayStatus.BLOCKED, SubagentDisplayStatus.FAILED}:
         return ("retry",)
     return ()

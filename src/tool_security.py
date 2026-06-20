@@ -17,6 +17,7 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "bash",
     "python",
     "manage_bg_jobs",
+    "spawn_subagent",
     "manage_subagents",
     "read_file",
     "write_file",

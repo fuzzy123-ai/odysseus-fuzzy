@@ -116,10 +116,16 @@ def test_duplicate_agent_run_id_is_rejected():
         create_subagent_run(_spec(), stores=stores, backend=FakeSubagentExecutionBackend())
 
 
-def test_fake_backend_cancel_retry_status_and_read_handoff():
+def test_fake_backend_pause_resume_cancel_retry_status_and_read_handoff():
     stores = InMemorySubagentRuntimeStores()
     backend = FakeSubagentExecutionBackend()
     run = create_subagent_run(_spec(), stores=stores, backend=backend)
+
+    paused = backend.pause(run.agent_run_id)
+    assert paused.state == SubagentRunState.PAUSED
+
+    resumed = backend.resume(run.agent_run_id)
+    assert resumed.state == SubagentRunState.SPAWNED
 
     cancelled = backend.cancel(run.agent_run_id)
     assert cancelled.state == SubagentRunState.CANCELLED

@@ -8,6 +8,7 @@ from src.chat_agent_tool_discovery_map import (
 )
 from src.tool_execution import execute_tool_block
 from src.mcp_server_tool_policy import classify_mcp_tool
+import src.tool_execution as tool_execution
 from src.tool_index import ToolIndex
 from src.tool_policy import build_effective_tool_policy
 from src.tool_schemas import function_call_to_tool_block
@@ -77,7 +78,9 @@ def test_spawn_subagent_schema_is_executable_fake_surface():
     assert block.tool_type == "spawn_subagent"
 
 
-async def test_spawn_subagent_tool_uses_fake_backend_only():
+async def test_spawn_subagent_tool_uses_fake_backend_only(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
     desc, result = await execute_tool_block(
         ToolBlock(
             "spawn_subagent",
@@ -101,3 +104,39 @@ async def test_spawn_subagent_tool_uses_fake_backend_only():
     assert result["status"] == "spawned"
     assert "no live thread action" in result["summary"]
     assert result["run"]["target_kind"] == "job"
+
+
+async def test_manage_subagents_pause_and_resume_use_fake_backend_only(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    run_id = "sub5-tool-pause-run"
+    await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": run_id,
+                    "plan_id": "subagent-runtime-v1",
+                    "node_id": "sub5-pause",
+                    "slice_id": "sub5-pause",
+                    "agent_id": "bob",
+                    "objective": "Pause and resume fake runtime.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                }
+            ),
+        )
+    )
+
+    pause_desc, pause_result = await execute_tool_block(
+        ToolBlock("manage_subagents", json.dumps({"action": "pause", "agent_run_id": run_id}))
+    )
+    resume_desc, resume_result = await execute_tool_block(
+        ToolBlock("manage_subagents", json.dumps({"action": "resume", "agent_run_id": run_id}))
+    )
+
+    assert pause_desc == "manage_subagents"
+    assert pause_result["exit_code"] == 0
+    assert pause_result["status"] == "paused"
+    assert resume_desc == "manage_subagents"
+    assert resume_result["exit_code"] == 0
+    assert resume_result["status"] == "spawned"

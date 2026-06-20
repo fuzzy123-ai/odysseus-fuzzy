@@ -135,11 +135,11 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_subagents",
-            "description": "Inspect or control fake-backend subagent runs. Actions are list, status, cancel, retry, or read. No live threads or shell commands are used.",
+            "description": "Inspect or control fake-backend subagent runs. Actions are list, status, pause, resume, cancel, retry, or read. No live threads or shell commands are used.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "status", "cancel", "retry", "read"]},
+                    "action": {"type": "string", "enum": ["list", "status", "pause", "resume", "cancel", "retry", "read"]},
                     "agent_run_id": {"type": "string", "description": "Required for status, cancel, retry, and read."}
                 },
                 "required": ["action"]

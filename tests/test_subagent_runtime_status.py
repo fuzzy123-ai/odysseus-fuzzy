@@ -28,7 +28,7 @@ def test_subagent_status_snapshot_shows_fake_backend_run_without_live_refs():
     assert item.slice_id == "sub2-spawn-api"
     assert item.state == SubagentDisplayStatus.PLANNED
     assert item.backend == "fake"
-    assert item.allowed_actions == ("cancel", "retry")
+    assert item.allowed_actions == ("pause", "cancel", "retry")
     assert snapshot.audit_summary()["counts_by_state"] == {"planned": 1}
     assert "fake-job" not in repr(snapshot.audit_summary())
 
@@ -113,3 +113,27 @@ def test_subagent_fake_e2e_smoke_proves_verified_and_gate_blocked_paths():
     assert {item["agent_id"] for item in summary["items"]} == {"alice", "bob"}
     assert all("restore" not in item["allowed_actions"] for item in summary["items"])
     assert all("delete" not in item["allowed_actions"] for item in summary["items"])
+
+
+def test_subagent_status_snapshot_exposes_resume_for_paused_runs():
+    backend = FakeSubagentExecutionBackend()
+    run = create_subagent_run(_spec(), backend=backend)
+    backend.pause(run.agent_run_id)
+    paused = run.__class__(
+        spec=run.spec,
+        state=backend.status(run.agent_run_id).state,
+        capsule=run.capsule,
+        agent_run=run.agent_run,
+        backend=run.backend,
+        thread_ref=run.thread_ref,
+        job_ref=run.job_ref,
+    )
+
+    snapshot = build_subagent_status_snapshot(
+        [paused],
+        plan_id="subagent-runtime-v1",
+        last_updated_at="2026-06-20T12:10:00Z",
+    )
+
+    assert snapshot.items[0].state == SubagentDisplayStatus.PAUSED
+    assert snapshot.items[0].allowed_actions == ("resume", "cancel")
