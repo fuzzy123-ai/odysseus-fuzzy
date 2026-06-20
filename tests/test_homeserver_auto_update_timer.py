@@ -16,6 +16,7 @@ def test_auto_update_timer_installs_safe_systemd_units():
     assert "Persistent=true" in script
     assert "RandomizedDelaySec=20m" in script
     assert "After=network-online.target odysseus-homeserver-backup.service" in script
+    assert "KillMode=process" in script
 
 
 def test_auto_update_wrapper_checks_before_backup_and_backs_up_before_pull():

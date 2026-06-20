@@ -197,6 +197,7 @@ Type=oneshot
 EnvironmentFile=-$ENV_FILE
 ExecStart=$WRAPPER_PATH
 TimeoutStartSec=7200
+KillMode=process
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
