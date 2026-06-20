@@ -131,13 +131,15 @@ def test_default_steps_match_podman_safe_update_flow():
     assert [step.step_id for step in steps] == [
         "pre_update_snapshot",
         "git_pull_ff_only",
+        "update_version_metadata_env",
         "podman_compose_up",
         "podman_image_prune",
         "smoke_test_1",
     ]
     assert steps[0].env == {"ODYSSEUS_UPDATE_REASON": "release update"}
-    assert steps[2].argv == ("podman", "compose", "up", "-d", "--build")
-    assert steps[3].argv == ("podman", "image", "prune", "-f")
+    assert steps[2].argv == ("ops/homeserver/update-odysseus-version-env.sh",)
+    assert steps[3].argv == ("podman", "compose", "up", "-d", "--build")
+    assert steps[4].argv == ("podman", "image", "prune", "-f")
     assert all(command_is_allowed(step.argv) for step in steps)
 
 
@@ -149,11 +151,13 @@ def test_default_steps_can_use_explicit_docker_fallback():
 
     assert [step.step_id for step in steps] == [
         "git_pull_ff_only",
+        "update_version_metadata_env",
         "docker_compose_up",
         "docker_image_prune",
     ]
-    assert steps[1].argv == ("docker", "compose", "up", "-d", "--build")
-    assert steps[2].argv == ("docker", "image", "prune", "-f")
+    assert steps[1].argv == ("ops/homeserver/update-odysseus-version-env.sh",)
+    assert steps[2].argv == ("docker", "compose", "up", "-d", "--build")
+    assert steps[3].argv == ("docker", "image", "prune", "-f")
 
 
 def test_execute_blocks_until_live_flag_and_operator_go_are_present():

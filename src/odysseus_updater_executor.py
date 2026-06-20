@@ -202,6 +202,7 @@ def build_default_odysseus_update_steps(
     reason: str = "manual Odysseus auto update",
     container_runtime: str = "podman",
     include_pre_update_hook: bool = True,
+    include_version_metadata_update: bool = True,
     include_container_update: bool = True,
     smoke_tests: Iterable[str] = (),
 ) -> tuple[UpdaterExecutionStep, ...]:
@@ -237,6 +238,15 @@ def build_default_odysseus_update_steps(
             timeout_seconds=900,
         )
     )
+    if include_version_metadata_update:
+        steps.append(
+            UpdaterExecutionStep.create(
+                step_id="update_version_metadata_env",
+                argv=("ops/homeserver/update-odysseus-version-env.sh",),
+                summary="refresh deployment git metadata before container recreate",
+                timeout_seconds=300,
+            )
+        )
     if include_container_update:
         steps.extend(
             (
@@ -286,6 +296,8 @@ def command_is_allowed(argv: tuple[str, ...]) -> bool:
     if argv == ("docker", "image", "prune", "-f"):
         return True
     if argv == ("ops/homeserver/pre-update-snapshot.sh",):
+        return True
+    if argv == ("ops/homeserver/update-odysseus-version-env.sh",):
         return True
     if len(argv) >= 4 and argv[:3] == ("python", "-m", "pytest"):
         return True
