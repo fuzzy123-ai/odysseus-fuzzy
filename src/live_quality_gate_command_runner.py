@@ -28,6 +28,15 @@ _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "keep execution in dry-run review until explicit operator approval is recorded",
 )
 
+_BLOCKED_LIVE_ACTIONS = (
+    "command_execution",
+    "raw_stdout_capture",
+    "raw_stderr_capture",
+    "secret_env_capture",
+    "destructive_git_action",
+    "network_action",
+)
+
 _BLOCKED_PATTERNS = (
     "git reset --hard",
     "git clean -fd",
@@ -128,12 +137,14 @@ class LiveQualityGateCommandPlan:
     command: QualityGateCommand
     decision: QualityGateCommandDecision
     next_allowed_actions: tuple[str, ...]
+    blocked_live_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "command": self.command.to_dict(),
             "decision": self.decision.to_dict(),
             "next_allowed_actions": self.next_allowed_actions,
+            "blocked_live_actions": self.blocked_live_actions,
         }
 
     def to_markdown(self) -> str:
@@ -152,6 +163,9 @@ class LiveQualityGateCommandPlan:
             lines.extend(["", "## Next Allowed Actions"])
             for action in self.next_allowed_actions:
                 lines.append(f"- {action}")
+        lines.extend(["", "## Blocked Live Actions"])
+        for action in self.blocked_live_actions:
+            lines.append(f"- {action}")
         return "\n".join(lines).rstrip()
 
 
@@ -208,4 +222,5 @@ def build_live_quality_gate_command_plan(
             next_action=next_action,
         ),
         next_allowed_actions=next_allowed_actions,
+        blocked_live_actions=_normalize_tuple(_BLOCKED_LIVE_ACTIONS, field_name="blocked_live_action"),
     )

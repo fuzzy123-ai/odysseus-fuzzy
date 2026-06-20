@@ -20,6 +20,24 @@ def test_plan_ready_requires_allowed_class_timeout_redaction_and_operator_approv
     assert plan.decision.decision == "plan_ready"
 
 
+def test_plan_ready_still_blocks_live_command_execution():
+    plan = build_live_quality_gate_command_plan(
+        command_class="focused_pytest",
+        command_text="python -m pytest tests/test_live_quality_gate_command_runner.py",
+        timeout_seconds=120,
+        redacted_log_policy="command-only-no-secrets",
+        operator_approval_required=True,
+    )
+
+    assert plan.decision.decision == "plan_ready"
+    assert "command_execution" in plan.blocked_live_actions
+    assert "raw_stdout_capture" in plan.blocked_live_actions
+    assert "raw_stderr_capture" in plan.blocked_live_actions
+    assert "secret_env_capture" in plan.blocked_live_actions
+    assert "destructive_git_action" in plan.blocked_live_actions
+    assert "network_action" in plan.blocked_live_actions
+
+
 def test_destructive_and_network_patterns_are_blocked():
     destructive = build_live_quality_gate_command_plan(
         command_class="blocked_destructive",
@@ -66,6 +84,14 @@ def test_to_dict_is_stable():
             "confirm timeout and redacted logging policy before any operator-run",
             "keep execution in dry-run review until explicit operator approval is recorded",
         ),
+        "blocked_live_actions": (
+            "command_execution",
+            "raw_stdout_capture",
+            "raw_stderr_capture",
+            "secret_env_capture",
+            "destructive_git_action",
+            "network_action",
+        ),
     }
 
 
@@ -82,3 +108,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Quality Gate Command Runner Dry Run" in markdown
     assert "plan_ready" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "command_execution" in markdown
