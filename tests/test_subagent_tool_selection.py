@@ -12,6 +12,7 @@ import src.tool_execution as tool_execution
 from src.tool_index import ToolIndex
 from src.tool_policy import build_effective_tool_policy
 from src.tool_schemas import function_call_to_tool_block
+from src.tool_security import is_public_blocked_tool
 
 
 def _tools_for(query: str) -> set[str]:
@@ -56,6 +57,11 @@ def test_orchestrator_mode_allows_fake_subagent_runtime_surface():
 
     assert not policy.blocks("spawn_subagent")
     assert not policy.blocks("manage_subagents")
+
+
+def test_public_policy_blocks_durable_subagent_tools():
+    assert is_public_blocked_tool("spawn_subagent") is True
+    assert is_public_blocked_tool("manage_subagents") is True
 
 
 def test_spawn_subagent_schema_is_executable_fake_surface():
@@ -140,3 +146,59 @@ async def test_manage_subagents_pause_and_resume_use_fake_backend_only(monkeypat
     assert resume_desc == "manage_subagents"
     assert resume_result["exit_code"] == 0
     assert resume_result["status"] == "spawned"
+
+
+async def test_subagent_tool_responses_do_not_leak_thread_or_job_refs(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    thread_ref = "private-thread-ref-sub8"
+    job_ref = "private-job-ref-sub8"
+    thread_run_id = "sub8-private-thread-run"
+    job_run_id = "sub8-private-job-run"
+
+    _, thread_result = await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": thread_run_id,
+                    "plan_id": "subagent-runtime-v1",
+                    "node_id": "sub8-thread",
+                    "slice_id": "sub8-thread",
+                    "agent_id": "alice",
+                    "objective": "Spawn a fake thread-target run without leaking refs.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                    "target_kind": "thread",
+                    "thread_id": thread_ref,
+                }
+            ),
+        )
+    )
+    _, job_result = await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": job_run_id,
+                    "plan_id": "subagent-runtime-v1",
+                    "node_id": "sub8-job",
+                    "slice_id": "sub8-job",
+                    "agent_id": "bob",
+                    "objective": "Spawn a fake job-target run without leaking refs.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                    "target_kind": "job",
+                    "job_id": job_ref,
+                }
+            ),
+        )
+    )
+    _, status_result = await execute_tool_block(
+        ToolBlock("manage_subagents", json.dumps({"action": "status", "agent_run_id": thread_run_id}))
+    )
+    _, list_result = await execute_tool_block(ToolBlock("manage_subagents", json.dumps({"action": "list"})))
+
+    rendered = repr((thread_result, job_result, status_result, list_result))
+    assert thread_result["run"]["has_thread_ref"] is True
+    assert job_result["run"]["has_job_ref"] is True
+    assert thread_ref not in rendered
+    assert job_ref not in rendered
