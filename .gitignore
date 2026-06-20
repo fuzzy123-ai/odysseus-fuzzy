@@ -90,6 +90,7 @@ output.txt.txt
 # Reports and temp files
 .pytest_cache/
 .pytest-tmp-*/
+backups/
 reports/
 tasks/
 scripts/compound/*.json

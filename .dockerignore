@@ -26,6 +26,7 @@ secrets.env~
 .claude/
 .playwright-mcp/
 .pytest_cache/
+.pytest-tmp*/
 .vscode/
 .idea/
 dev-docs/
