@@ -200,10 +200,24 @@ class OdysseusUpdateExecutionReport:
 def build_default_odysseus_update_steps(
     *,
     reason: str = "manual Odysseus auto update",
+    container_runtime: str = "podman",
     include_pre_update_hook: bool = True,
-    include_docker_update: bool = True,
+    include_container_update: bool = True,
     smoke_tests: Iterable[str] = (),
 ) -> tuple[UpdaterExecutionStep, ...]:
+    runtime = _normalize_text(container_runtime, field_name="container_runtime").lower()
+    if runtime not in {"podman", "podman-compose", "docker"}:
+        raise ValueError("container_runtime must be podman, podman-compose, or docker")
+    if runtime == "podman":
+        compose_up_argv = ("podman", "compose", "up", "-d", "--build")
+        image_prune_argv = ("podman", "image", "prune", "-f")
+    elif runtime == "podman-compose":
+        compose_up_argv = ("podman-compose", "up", "-d", "--build")
+        image_prune_argv = ("podman", "image", "prune", "-f")
+    else:
+        compose_up_argv = ("docker", "compose", "up", "-d", "--build")
+        image_prune_argv = ("docker", "image", "prune", "-f")
+
     steps: list[UpdaterExecutionStep] = []
     if include_pre_update_hook:
         steps.append(
@@ -223,19 +237,19 @@ def build_default_odysseus_update_steps(
             timeout_seconds=900,
         )
     )
-    if include_docker_update:
+    if include_container_update:
         steps.extend(
             (
                 UpdaterExecutionStep.create(
-                    step_id="docker_compose_up",
-                    argv=("docker", "compose", "up", "-d", "--build"),
-                    summary="rebuild and restart the Docker Compose deployment",
+                    step_id=f"{runtime.replace('-', '_')}_compose_up",
+                    argv=compose_up_argv,
+                    summary=f"rebuild and restart the {runtime} deployment",
                     timeout_seconds=1800,
                 ),
                 UpdaterExecutionStep.create(
-                    step_id="docker_image_prune",
-                    argv=("docker", "image", "prune", "-f"),
-                    summary="remove dangling Docker images after successful update",
+                    step_id=f"{runtime.replace('-', '_')}_image_prune",
+                    argv=image_prune_argv,
+                    summary=f"remove dangling {runtime} images after successful update",
                     timeout_seconds=900,
                 ),
             )
@@ -256,6 +270,14 @@ def command_is_allowed(argv: tuple[str, ...]) -> bool:
     if argv == ("git", "pull", "--ff-only"):
         return True
     if argv == ("git", "fetch", "--all", "--tags", "--prune"):
+        return True
+    if argv == ("podman", "compose", "version"):
+        return True
+    if argv == ("podman", "compose", "up", "-d", "--build"):
+        return True
+    if argv == ("podman-compose", "up", "-d", "--build"):
+        return True
+    if argv == ("podman", "image", "prune", "-f"):
         return True
     if argv == ("docker", "compose", "version"):
         return True

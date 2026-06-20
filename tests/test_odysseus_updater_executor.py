@@ -122,7 +122,7 @@ def _green_bundle(**overrides):
     return build_odysseus_updater(**kwargs)
 
 
-def test_default_steps_match_safe_update_flow():
+def test_default_steps_match_podman_safe_update_flow():
     steps = build_default_odysseus_update_steps(
         reason="release update",
         smoke_tests=("tests/test_odysseus_updater_executor.py",),
@@ -131,12 +131,29 @@ def test_default_steps_match_safe_update_flow():
     assert [step.step_id for step in steps] == [
         "pre_update_snapshot",
         "git_pull_ff_only",
-        "docker_compose_up",
-        "docker_image_prune",
+        "podman_compose_up",
+        "podman_image_prune",
         "smoke_test_1",
     ]
     assert steps[0].env == {"ODYSSEUS_UPDATE_REASON": "release update"}
+    assert steps[2].argv == ("podman", "compose", "up", "-d", "--build")
+    assert steps[3].argv == ("podman", "image", "prune", "-f")
     assert all(command_is_allowed(step.argv) for step in steps)
+
+
+def test_default_steps_can_use_explicit_docker_fallback():
+    steps = build_default_odysseus_update_steps(
+        container_runtime="docker",
+        include_pre_update_hook=False,
+    )
+
+    assert [step.step_id for step in steps] == [
+        "git_pull_ff_only",
+        "docker_compose_up",
+        "docker_image_prune",
+    ]
+    assert steps[1].argv == ("docker", "compose", "up", "-d", "--build")
+    assert steps[2].argv == ("docker", "image", "prune", "-f")
 
 
 def test_execute_blocks_until_live_flag_and_operator_go_are_present():
@@ -172,8 +189,8 @@ def test_execute_runs_whitelisted_steps_in_order_with_fake_runner(tmp_path: Path
             summary="pull latest code",
         ),
         UpdaterExecutionStep.create(
-            step_id="docker",
-            argv=("docker", "compose", "up", "-d", "--build"),
+            step_id="podman",
+            argv=("podman", "compose", "up", "-d", "--build"),
             summary="restart deployment",
         ),
     )
@@ -196,7 +213,7 @@ def test_execute_runs_whitelisted_steps_in_order_with_fake_runner(tmp_path: Path
     assert report.executed is True
     assert [call[0] for call in calls] == [
         ("git", "pull", "--ff-only"),
-        ("docker", "compose", "up", "-d", "--build"),
+        ("podman", "compose", "up", "-d", "--build"),
     ]
     assert all(call[1] == tmp_path.resolve() for call in calls)
 

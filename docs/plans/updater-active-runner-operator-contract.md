@@ -29,8 +29,8 @@ If any condition fails, the runner returns a blocked report and executes nothing
 
 1. `ops/homeserver/pre-update-snapshot.sh`
 2. `git pull --ff-only`
-3. `docker compose up -d --build`
-4. `docker image prune -f`
+3. `podman compose up -d --build`
+4. `podman image prune -f`
 5. optional focused smoke tests
 
 The first failed command stops the update by default.
@@ -43,11 +43,17 @@ The whitelist currently allows only:
 
 - `git pull --ff-only`
 - `git fetch --all --tags --prune`
+- `podman compose version`
+- `podman compose up -d --build`
+- `podman-compose up -d --build`
+- `podman image prune -f`
 - `docker compose version`
 - `docker compose up -d --build`
 - `docker image prune -f`
 - `ops/homeserver/pre-update-snapshot.sh`
 - `python -m pytest ...`
+
+Podman is the default runtime for the homeserver/operator path. Docker commands remain whitelisted only as an explicit local development or Windows fallback.
 
 No deletes, force pushes, shell strings, Telegram, Nextcloud, or provider calls are part of this runner.
 
