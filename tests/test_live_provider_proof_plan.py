@@ -33,6 +33,22 @@ def test_ready_for_manual_operator_run_requires_all_inputs_ready():
     assert plan.decision.decision == "ready_for_manual_operator_run"
 
 
+def test_ready_plan_still_blocks_live_provider_actions():
+    plan = build_live_provider_proof_plan(
+        query_index_ready=True,
+        default_model_inputs_ready=True,
+        fallback_model_inputs_ready=True,
+        local_or_deepseek_available=True,
+        evidence_redaction_ready=True,
+    )
+
+    assert plan.decision.decision == "ready_for_manual_operator_run"
+    assert "provider_call" in plan.blocked_live_actions
+    assert "network_request" in plan.blocked_live_actions
+    assert "secret_or_token_capture" in plan.blocked_live_actions
+    assert "automatic_release_go" in plan.blocked_live_actions
+
+
 def test_to_dict_is_stable():
     plan = build_live_provider_proof_plan()
 
@@ -74,6 +90,13 @@ def test_to_dict_is_stable():
             "confirm fallback-model answer capture plan",
             "review evidence redaction before recording results",
         ),
+        "blocked_live_actions": (
+            "provider_call",
+            "network_request",
+            "raw_provider_log_capture",
+            "secret_or_token_capture",
+            "automatic_release_go",
+        ),
     }
 
 
@@ -84,3 +107,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Provider Proof Plan" in markdown
     assert "needs_operator_input" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "provider_call" in markdown
