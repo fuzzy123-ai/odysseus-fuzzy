@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "ops" / "homeserver" / "run-backup-gate-evidence.sh"
+BACKUP_SCRIPT = Path(__file__).resolve().parents[1] / "ops" / "homeserver" / "backup-homeserver.sh"
 
 
 def test_backup_gate_evidence_script_requires_explicit_execute() -> None:
@@ -40,3 +41,12 @@ def test_backup_gate_evidence_script_does_not_embed_secret_values() -> None:
     assert "password=" not in text
     assert "token=" not in text
     assert "chat_id=" not in text
+
+
+def test_backup_script_repairs_repo_ownership_after_sudo_restic_writes() -> None:
+    text = BACKUP_SCRIPT.read_text(encoding="utf-8")
+
+    assert 'RESTIC_REPAIR_REPO_OWNER="${RESTIC_REPAIR_REPO_OWNER:-1}"' in text
+    assert "repair_restic_repo_owner" in text
+    assert 'sudo -n chown -R "$owner" "$RESTIC_REPOSITORY"' in text
+    assert text.index("restic_cmd -r \"$RESTIC_REPOSITORY\" backup") < text.rindex("repair_restic_repo_owner")

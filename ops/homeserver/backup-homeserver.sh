@@ -13,6 +13,7 @@ BACKUP_MOUNT="${BACKUP_MOUNT:-/mnt/backup}"
 RESTIC_REPOSITORY="${RESTIC_REPOSITORY:-$BACKUP_MOUNT/restic/homeserver}"
 RESTIC_BIN="${RESTIC_BIN:-restic}"
 RESTIC_USE_SUDO="${RESTIC_USE_SUDO:-0}"
+RESTIC_REPAIR_REPO_OWNER="${RESTIC_REPAIR_REPO_OWNER:-1}"
 ODYSSEUS_ROOT="${ODYSSEUS_ROOT:-/opt/odysseus}"
 NEXTCLOUD_ROOT="${NEXTCLOUD_ROOT:-/opt/nextcloud}"
 HOMEBASE_HOME="${HOMEBASE_HOME:-/home/homebase}"
@@ -69,6 +70,16 @@ restic_cmd() {
   else
     "$RESTIC_BIN" "$@"
   fi
+}
+
+repair_restic_repo_owner() {
+  if [[ "$RESTIC_USE_SUDO" != "1" || "$RESTIC_REPAIR_REPO_OWNER" != "1" ]]; then
+    return
+  fi
+  local owner
+  owner="$(id -un):$(id -gn)"
+  log "repairing restic repository ownership for $owner"
+  sudo -n chown -R "$owner" "$RESTIC_REPOSITORY"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -337,6 +348,8 @@ main() {
       --keep-monthly "$RETENTION_MONTHLY" \
       --prune
   fi
+
+  repair_restic_repo_owner
 
   if [[ "$LATEST_MIRROR" -eq 1 ]]; then
     run_latest_mirror "$scope_file"
