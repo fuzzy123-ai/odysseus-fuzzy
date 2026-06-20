@@ -202,3 +202,72 @@ async def test_subagent_tool_responses_do_not_leak_thread_or_job_refs(monkeypatc
     assert job_result["run"]["has_job_ref"] is True
     assert thread_ref not in rendered
     assert job_ref not in rendered
+
+
+async def test_manage_subagents_snapshot_is_plan_scoped_and_redacted(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    plan_id = "subagent-runtime-tool-snapshot"
+    run_id = "sub9-snapshot-paused-run"
+    other_run_id = "sub9-snapshot-other-plan-run"
+    private_ref = "private-thread-ref-sub9"
+    await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": run_id,
+                    "plan_id": plan_id,
+                    "node_id": "sub9-snapshot",
+                    "slice_id": "sub9-snapshot",
+                    "agent_id": "alice",
+                    "objective": "Expose a fake status snapshot for one plan.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                    "target_kind": "thread",
+                    "thread_id": private_ref,
+                }
+            ),
+        )
+    )
+    await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": other_run_id,
+                    "plan_id": "subagent-runtime-other-plan",
+                    "node_id": "sub9-other",
+                    "slice_id": "sub9-other",
+                    "agent_id": "bob",
+                    "objective": "Stay out of the requested snapshot.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                }
+            ),
+        )
+    )
+    await execute_tool_block(ToolBlock("manage_subagents", json.dumps({"action": "pause", "agent_run_id": run_id})))
+
+    desc, result = await execute_tool_block(
+        ToolBlock(
+            "manage_subagents",
+            json.dumps(
+                {
+                    "action": "snapshot",
+                    "plan_id": plan_id,
+                    "last_updated_at": "2026-06-20T12:20:00Z",
+                }
+            ),
+        )
+    )
+
+    snapshot = result["snapshot"]
+    rendered = repr(result)
+    assert desc == "manage_subagents"
+    assert result["exit_code"] == 0
+    assert snapshot["plan_id"] == plan_id
+    assert snapshot["run_count"] == 1
+    assert snapshot["counts_by_state"] == {"paused": 1}
+    assert snapshot["items"][0]["agent_run_id"] == run_id
+    assert snapshot["items"][0]["allowed_actions"] == ("resume", "cancel")
+    assert other_run_id not in rendered
+    assert private_ref not in rendered

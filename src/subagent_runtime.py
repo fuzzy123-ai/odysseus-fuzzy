@@ -561,6 +561,19 @@ def manage_subagents_from_tool(content: str) -> dict[str, Any]:
             "exit_code": 0,
             "runs": [run.audit_summary() for run in sorted(_TOOL_STORES.runs.values(), key=lambda item: item.agent_run_id)],
         }
+    if action == "snapshot":
+        plan_id = _normalize_slug(_required_arg(args, "plan_id"), field_name="plan_id")
+        runs = tuple(
+            sync_subagent_backend_status(run, backend=_TOOL_BACKEND, stores=_TOOL_STORES)
+            for run in sorted(tuple(_TOOL_STORES.runs.values()), key=lambda item: item.agent_run_id)
+            if run.spec.plan_id == plan_id
+        )
+        snapshot = build_subagent_status_snapshot(
+            runs,
+            plan_id=plan_id,
+            last_updated_at=args.get("last_updated_at") or _now_utc(),
+        )
+        return {"status": "ok", "exit_code": 0, "snapshot": snapshot.audit_summary()}
     agent_run_id = _required_arg(args, "agent_run_id")
     if action == "status":
         run = _TOOL_STORES.resolve(agent_run_id)
@@ -589,7 +602,7 @@ def manage_subagents_from_tool(content: str) -> dict[str, Any]:
             "exit_code": 0,
             "handoff": handoff.to_dict() if handoff else None,
         }
-    raise SubagentRuntimeError("manage_subagents action must be list, status, pause, resume, cancel, retry, or read")
+    raise SubagentRuntimeError("manage_subagents action must be list, snapshot, status, pause, resume, cancel, retry, or read")
 
 
 def build_subagent_status_snapshot(

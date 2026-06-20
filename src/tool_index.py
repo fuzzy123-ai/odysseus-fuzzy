@@ -87,7 +87,7 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
     "chat_with_model": "Send a message to a different AI model. Compare responses, get specialized help, delegate tasks.",
     "delegate": "Delegate a focused subtask to an isolated worker agent. Use for bounded read-only investigation or lightweight analysis; provide a concrete task, optional context_query, and optional budget. The worker returns compact JSON and does not mutate host files or keep conversation history.",
     "spawn_subagent": "Create a durable fake-backend subagent run from a scoped plan/capsule contract. Use for long-lived worker orchestration, Alice/Bob/Charlie slices, parallel agents, or worker startup. Fake backend only: does not send to live threads, run shell commands, call providers, or mutate host files.",
-    "manage_subagents": "Inspect or control fake-backend durable subagent runs. Use for subagent status, retry, cancel, read handoff, or list active fake runs. Fake backend only: no live Codex/Odysseus thread sends and no arbitrary command execution.",
+    "manage_subagents": "Inspect or control fake-backend durable subagent runs. Use for subagent status snapshots, retry, cancel, read handoff, or list active fake runs. Fake backend only: no live Codex/Odysseus thread sends and no arbitrary command execution.",
     "ask_teacher": "Ask a more capable model for help with a difficult problem. Escalate complex tasks.",
     "pipeline": "Run a multi-step AI pipeline with multiple models. Chain tasks together in sequence.",
     "list_models": "List all available AI models and their endpoints.",
