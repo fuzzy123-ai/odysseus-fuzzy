@@ -64,11 +64,14 @@ by `install-auto-update-timer.sh`:
 - `odysseus-auto-update.service`
 - `/home/homebase/.local/bin/odysseus-auto-update.sh`
 
-The timer checks upstream first. If the checkout is already current, it exits
-without taking a backup or recreating containers. If a fast-forward update is
-available, it requires a clean worktree, runs the pre-update restic snapshot,
-updates the checkout, refreshes `ODYSSEUS_GIT_*` metadata, recreates the Podman
-deployment, and verifies the app plus ChromaDB.
+The timer checks upstream first. If the checkout is already current, it also
+checks the running app's `/api/version`; only when the runtime reports the same
+commit does it exit without taking a backup or recreating containers. If the
+checkout is current but the container still reports an older commit, it treats
+the runtime as stale, runs the pre-update restic snapshot, refreshes metadata,
+recreates the Podman deployment, and verifies the app plus ChromaDB. If a
+fast-forward update is available, it requires a clean worktree and runs the
+same backup-before-deploy flow after updating the checkout.
 
 Telegram plugin status and recent history:
 

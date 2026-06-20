@@ -23,13 +23,15 @@ def test_auto_update_wrapper_checks_before_backup_and_backs_up_before_pull():
 
     fetch_index = script.index("git fetch --prune --tags")
     no_update_index = script.index("already current")
+    stale_runtime_index = script.index("runtime is stale or unavailable")
     snapshot_index = script.index("ops/homeserver/pre-update-snapshot.sh")
     pull_index = script.index("git pull --ff-only")
     metadata_index = script.index("ops/homeserver/update-odysseus-version-env.sh")
     compose_index = script.index("compose_up", metadata_index)
 
-    assert fetch_index < no_update_index < snapshot_index
+    assert fetch_index < no_update_index < stale_runtime_index < snapshot_index
     assert snapshot_index < pull_index < metadata_index < compose_index
+    assert 'curl -fsS "$APP_URL/api/version" 2>/dev/null || true' in script
     assert "git merge-base --is-ancestor" in script
     assert "worktree is dirty; refusing scheduled update" in script
     assert "version API does not report deployed commit" in script

@@ -126,8 +126,17 @@ local_commit="$(git rev-parse HEAD)"
 remote_commit="$(git rev-parse "${remote_name}/${upstream_short}")"
 
 if [[ "$local_commit" == "$remote_commit" ]]; then
-  log "already current at $(git rev-parse --short HEAD)"
-  exit 0
+  short_commit="$(git rev-parse --short HEAD)"
+  version_json="$(curl -fsS "$APP_URL/api/version" 2>/dev/null || true)"
+  case "$version_json" in
+    *"\"commit\":\"$short_commit\""*)
+      log "already current at $short_commit"
+      exit 0
+      ;;
+    *)
+      log "checkout is current at $short_commit but runtime is stale or unavailable; rebuilding deployment"
+      ;;
+  esac
 fi
 
 if ! git merge-base --is-ancestor "$local_commit" "$remote_commit"; then
