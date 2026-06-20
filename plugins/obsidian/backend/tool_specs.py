@@ -28,6 +28,7 @@ from .memory_spark import (
 )
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
+from .raptor_rebuild import rebuild_raptor_artifacts
 from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
@@ -256,6 +257,14 @@ def _raptor_status(vault_dir: str, args: Dict[str, Any], owner: str, source: Dic
     return raptor_status(vault_dir)
 
 
+def _raptor_rebuild(vault_dir: str, args: Dict[str, Any], owner: str, source: Dict[str, Any]) -> Any:
+    return rebuild_raptor_artifacts(
+        vault_dir,
+        max_sources=max(1, min(int(args.get("max_sources") or 2000), 100_000)),
+        max_edges=max(0, min(int(args.get("max_edges") or 5000), 500_000)),
+    )
+
+
 VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("obsidian_tree", "List the folder tree of the Obsidian vault.", _schema({
         "prefix": {"type": "string", "description": "Path prefix to filter, e.g. 'projects/'"},
@@ -347,7 +356,11 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     }), "read", _memory_tree_analyze),
     VaultToolSpec("obsidian_knowledge_audit", "Run the read-only Freshness Gate audit for current, review, conflict, and quarantine channels.", _schema({}), "read", _knowledge_audit),
     VaultToolSpec("obsidian_quarantine_list", "List knowledge isolated from default retrieval with reasons and source hashes.", _schema({}), "read", _quarantine_list),
-    VaultToolSpec("obsidian_raptor_status", "Return read-only RAPTOR status; rebuild and summary writes are disabled in the MVP.", _schema({}), "read", _raptor_status),
+    VaultToolSpec("obsidian_raptor_status", "Return RAPTOR status, lineage and write-gate readiness.", _schema({}), "read", _raptor_status),
+    VaultToolSpec("obsidian_raptor_rebuild", "Rebuild derived RAPTOR index and summaries when explicit feature flags allow writes.", _schema({
+        "max_sources": {"type": "integer", "description": "Maximum source records to store in the derived index."},
+        "max_edges": {"type": "integer", "description": "Maximum graph edges to store in the derived index."},
+    }), "write", _raptor_rebuild),
 ]
 
 VAULT_TOOL_BY_NAME = {spec.name: spec for spec in VAULT_TOOL_SPECS}

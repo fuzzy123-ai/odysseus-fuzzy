@@ -58,6 +58,7 @@ try:
         collect_version_sync,
     )
     from obsidian.backend.hybrid_retrieval import raptor_status
+    from obsidian.backend.raptor_rebuild import rebuild_raptor_artifacts
     from obsidian.backend.memory_status import memory_status
     from obsidian.backend.memory_tree import analyze_memory_tree, memory_tree_status
     from obsidian.backend.vault_history import latest_reversible, list_history, mark_undone, record_action
@@ -128,6 +129,7 @@ except ModuleNotFoundError:
         collect_version_sync,
     )
     from backend.hybrid_retrieval import raptor_status
+    from backend.raptor_rebuild import rebuild_raptor_artifacts
     from backend.memory_status import memory_status
     from backend.memory_tree import analyze_memory_tree, memory_tree_status
     from backend.vault_history import latest_reversible, list_history, mark_undone, record_action
@@ -919,12 +921,27 @@ async def handle_quarantine_list(content: str, owner: Optional[str] = None, **kw
 
 
 async def handle_raptor_status(content: str, owner: Optional[str] = None, **kwargs) -> dict:
-    """Returns read-only RAPTOR status; rebuild/write is disabled in the MVP."""
+    """Returns RAPTOR status and write-gate readiness."""
     try:
         vault_dir = get_unlocked_vault_path_by_owner(owner)
         return {"output": json.dumps(raptor_status(vault_dir), ensure_ascii=False, indent=2), "exit_code": 0}
     except Exception as e:
         return {"error": f"Failed to read RAPTOR status: {e}", "exit_code": 1}
+
+
+async def handle_raptor_rebuild(content: str, owner: Optional[str] = None, **kwargs) -> dict:
+    """Rebuilds derived RAPTOR artifacts when feature gates allow writes."""
+    try:
+        params = json.loads((content or "{}").strip() or "{}")
+        vault_dir = get_unlocked_vault_path_by_owner(owner)
+        payload = rebuild_raptor_artifacts(
+            vault_dir,
+            max_sources=max(1, min(int(params.get("max_sources") or 2000), 100_000)),
+            max_edges=max(0, min(int(params.get("max_edges") or 5000), 500_000)),
+        )
+        return {"output": json.dumps(payload, ensure_ascii=False, indent=2), "exit_code": 0}
+    except Exception as e:
+        return {"error": f"Failed to rebuild RAPTOR artifacts: {e}", "exit_code": 1}
 
 def _tool_spec(name: str, description: str, properties: dict, required: list[str], handler, permission: str = "user"):
     return {
@@ -1110,7 +1127,11 @@ def setup(ctx):
         }, [], handle_memory_tree_analyze),
         _tool_spec("obsidian_knowledge_audit", "Run the read-only Freshness Gate audit for current, review, conflict, and quarantine channels.", {}, [], handle_knowledge_audit),
         _tool_spec("obsidian_quarantine_list", "List knowledge isolated from default retrieval with reasons and source hashes.", {}, [], handle_quarantine_list),
-        _tool_spec("obsidian_raptor_status", "Return read-only RAPTOR status; rebuild and summary writes are disabled in the MVP.", {}, [], handle_raptor_status),
+        _tool_spec("obsidian_raptor_status", "Return RAPTOR status, lineage and write-gate readiness.", {}, [], handle_raptor_status),
+        _tool_spec("obsidian_raptor_rebuild", "Rebuild derived RAPTOR index and summaries when explicit feature flags allow writes.", {
+            "max_sources": {"type": "integer", "description": "Maximum source records to store in the derived index."},
+            "max_edges": {"type": "integer", "description": "Maximum graph edges to store in the derived index."},
+        }, [], handle_raptor_rebuild),
         _tool_spec("obsidian_create_folder", "Create a folder in the user's Obsidian vault.", {
             "path": {"type": "string", "description": "The relative folder path to create."},
         }, ["path"], handle_create_folder),

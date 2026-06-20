@@ -184,13 +184,13 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["raptor_write_gate"] == {
             "feature_flag": "obsidian_raptor_enabled",
             "feature_enabled": False,
+            "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
+            "rebuild_enabled": False,
             "writes_supported": False,
             "state": "blocked",
             "gaps": [
                 "raptor_feature_flag_disabled",
-                "source_hash_lineage_verification_required",
-                "dirty_summary_behavior_required",
-                "raptor_rebuild_write_disabled_in_mvp",
+                "raptor_rebuild_feature_flag_disabled",
             ],
         }
         assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
@@ -567,7 +567,7 @@ def test_freshness_gate_isolates_status_aliases():
         assert quarantine["summary"]["by_status"]["superseded"] == 1
 
 
-def test_raptor_status_is_read_only_and_disabled_by_default():
+def test_raptor_status_has_write_gates_disabled_by_default():
     with tempfile.TemporaryDirectory() as tmpdir:
         status = raptor_status(tmpdir)
 
@@ -605,13 +605,13 @@ def test_raptor_status_is_read_only_and_disabled_by_default():
         assert status["write_gate"] == {
             "feature_flag": "obsidian_raptor_enabled",
             "feature_enabled": False,
+            "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
+            "rebuild_enabled": False,
             "writes_supported": False,
             "state": "blocked",
             "gaps": [
                 "raptor_feature_flag_disabled",
-                "source_hash_lineage_verification_required",
-                "dirty_summary_behavior_required",
-                "raptor_rebuild_write_disabled_in_mvp",
+                "raptor_rebuild_feature_flag_disabled",
             ],
         }
         assert status["summary"]["write_gate"] == status["write_gate"]
@@ -628,15 +628,43 @@ def test_raptor_write_gate_stays_blocked_when_feature_flag_enabled(monkeypatch):
         assert status["write_gate"] == {
             "feature_flag": "obsidian_raptor_enabled",
             "feature_enabled": True,
+            "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
+            "rebuild_enabled": False,
             "writes_supported": False,
             "state": "blocked",
             "gaps": [
-                "source_hash_lineage_verification_required",
-                "dirty_summary_behavior_required",
-                "raptor_rebuild_write_disabled_in_mvp",
+                "raptor_rebuild_feature_flag_disabled",
             ],
         }
         assert status["summary"]["write_gate"] == status["write_gate"]
+
+
+def test_raptor_status_supports_writes_when_readiness_and_write_flags_are_ready(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED", "true")
+    monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_REBUILD_ENABLED", "true")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = "---\ntype: canonical\nupdated: 2026-06-14\n---\n# Canon\nStable source.\n"
+        with open(os.path.join(tmpdir, "Canon.md"), "w", encoding="utf-8") as f:
+            f.write(content)
+        source_hash = "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"built_at": "2026-06-14T00:00:00Z", "source_hashes": {"Canon.md": source_hash}}, f)
+
+        status = raptor_status(tmpdir)
+
+        assert status["readiness"]["state"] == "ready"
+        assert status["write_gate"] == {
+            "feature_flag": "obsidian_raptor_enabled",
+            "feature_enabled": True,
+            "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
+            "rebuild_enabled": True,
+            "writes_supported": True,
+            "state": "ready",
+            "gaps": [],
+        }
+        assert status["writes_supported"] is True
+        assert status["summary"]["writes_supported"] is True
 
 
 def test_raptor_status_tracks_source_hash_lineage_without_writes():
@@ -782,7 +810,7 @@ def test_raptor_status_reports_invalid_readiness_gap():
         assert status["summary"]["readiness_state"] == "invalid"
         assert status["summary"]["readiness_gaps"] == 1
         assert status["warnings"] == [
-            "RAPTOR index metadata is invalid; rebuild remains disabled in the MVP."
+            "RAPTOR index metadata is invalid; rebuild can refresh derived artifacts when the write gate is enabled."
         ]
         assert status["summary"]["warnings"] == status["warnings"]
 

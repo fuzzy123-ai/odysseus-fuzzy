@@ -105,6 +105,7 @@ from plugin import (
     handle_memory_tree_analyze,
     handle_memory_tree_status,
     handle_quarantine_list,
+    handle_raptor_rebuild,
     handle_raptor_status,
     handle_read_note,
     handle_rename_item,
@@ -428,8 +429,10 @@ def test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools():
         "obsidian_knowledge_audit",
         "obsidian_quarantine_list",
         "obsidian_raptor_status",
+        "obsidian_raptor_rebuild",
     } <= set(names)
     assert "obsidian_raptor_status" not in DESTRUCTIVE_TOOL_NAMES
+    assert "obsidian_raptor_rebuild" in DESTRUCTIVE_TOOL_NAMES
     assert "readiness_gate" in memory_status_spec.description
     assert "retrieval_policy" in memory_status_spec.description
     assert "freshness_isolation_flags" in memory_status_spec.description
@@ -499,6 +502,29 @@ def test_vault_tool_spec_ignores_owner_argument():
         )
 
         assert result["owner"] == "alice"
+
+
+def test_vault_tool_spec_executes_raptor_rebuild(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED", "true")
+    monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_REBUILD_ENABLED", "true")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Demo.md"), "w", encoding="utf-8") as f:
+            f.write("# Demo\n\n[[Peer]]")
+        with open(os.path.join(tmpdir, "Peer.md"), "w", encoding="utf-8") as f:
+            f.write("# Peer")
+
+        result = execute_vault_tool(
+            "obsidian_raptor_rebuild",
+            tmpdir,
+            {"max_sources": 25, "max_edges": 1, "owner": "mallory"},
+            "alice",
+            {"source": "test"},
+        )
+
+        assert result["success"] is True
+        assert result["summary"]["source_count"] == 2
+        assert result["summary"]["stored_edges"] == 1
+        assert os.path.exists(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"))
 
 
 def test_vault_mcp_resolves_owner_from_trusted_environment(monkeypatch):
@@ -571,6 +597,11 @@ async def test_obsidian_api_token_scopes_gate_vault_writes(monkeypatch):
         assert exc.value.status_code == 403
         assert exc.value.detail == "API token missing required scope: vault:write"
         assert not os.path.exists(os.path.join(tmpdir, ".obsidian", "relationships.json"))
+
+        with pytest.raises(HTTPException) as exc:
+            await obsidian_routes.raptor_rebuild_route(readonly_request)
+        assert exc.value.status_code == 403
+        assert exc.value.detail == "API token missing required scope: vault:write"
 
         writer_request = token_request(["vault:read", "vault:write"])
         result = await obsidian_routes.create_relationship(
@@ -995,6 +1026,7 @@ def test_plugin_setup_registration():
     assert "obsidian_knowledge_audit" in tool_names
     assert "obsidian_quarantine_list" in tool_names
     assert "obsidian_raptor_status" in tool_names
+    assert "obsidian_raptor_rebuild" in tool_names
     assert "obsidian_create_folder" in tool_names
     assert "obsidian_rename_item" in tool_names
     assert "obsidian_delete_note" in tool_names

@@ -105,6 +105,7 @@ from .memory_spark import (
 from .freshness import audit_knowledge, quarantine_list
 from .derived_index import build_derived_index, derived_index_status, retrieve_derived_chunks
 from .hybrid_retrieval import raptor_status
+from .raptor_rebuild import rebuild_raptor_artifacts
 from .memory_automation import memory_automation_status, run_memory_automation
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
 from .query_layer import answer_query, answer_query_async, query_layer_status
@@ -1584,9 +1585,22 @@ async def quarantine(request: Request):
 
 @router.get("/raptor/status")
 async def raptor_status_route(request: Request):
-    """Return read-only RAPTOR index status; rebuild is disabled in the MVP."""
+    """Return RAPTOR index status and write-gate readiness."""
     vault_dir = get_unlocked_vault_path(request)
     return raptor_status(vault_dir)
+
+
+@router.post("/raptor/rebuild")
+async def raptor_rebuild_route(request: Request, max_sources: int = 2000, max_edges: int = 5000):
+    """Rebuild derived RAPTOR artifacts when explicit write gates allow it."""
+    vault_dir = get_unlocked_vault_path(request)
+    _require_vault_scope(request, VAULT_WRITE_SCOPE)
+    return await asyncio.to_thread(
+        rebuild_raptor_artifacts,
+        vault_dir,
+        max_sources=max(1, min(int(max_sources), 100_000)),
+        max_edges=max(0, min(int(max_edges), 500_000)),
+    )
 
 
 @router.post("/relationships")

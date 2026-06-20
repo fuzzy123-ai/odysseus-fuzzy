@@ -300,11 +300,16 @@ def _safe_raptor_write_gate(value: dict[str, Any]) -> dict[str, Any]:
         gate["state"] = str(state)
     if "feature_enabled" in value:
         gate["feature_enabled"] = bool(value.get("feature_enabled"))
+    if "rebuild_enabled" in value:
+        gate["rebuild_enabled"] = bool(value.get("rebuild_enabled"))
     if "writes_supported" in value:
         gate["writes_supported"] = bool(value.get("writes_supported"))
     feature_flag = value.get("feature_flag")
     if feature_flag is not None:
         gate["feature_flag"] = str(feature_flag)
+    rebuild_feature_flag = value.get("rebuild_feature_flag")
+    if rebuild_feature_flag is not None:
+        gate["rebuild_feature_flag"] = str(rebuild_feature_flag)
     gaps = value.get("gaps")
     if isinstance(gaps, list):
         gate["gaps"] = [str(gap) for gap in gaps[:20]]

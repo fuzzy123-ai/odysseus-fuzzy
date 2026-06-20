@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: roadmap-only, implementation not started
+Status: implementation completed with focused tests; UI controls and provider summaries remain deferred
 
 ## Goal
 
@@ -25,6 +25,9 @@ Enable a safe, gated RAPTOR memory rebuild/write path for the Obsidian plugin, w
 - `src/large_graph_budget_proof.py` and `tests/test_large_graph_budget_proof.py` already model large graph budget evidence, but not a live RAPTOR rebuild simulation.
 - `src/memory_perf_suite_*` now provides synthetic durability/performance infrastructure for event logs, metrics, performance gates and reports.
 - `plugins/obsidian/backend/vault_service.py` has trash purge functions, but large purge stress behavior is not yet covered for RAPTOR/deprecated memory paths.
+- `docs/plans/raptor-memory-write-operator-contract.md` defines the operator contract for flags, write scope, artifact privacy, deprecated/superseded source behavior, purge boundaries, performance evidence and rollback.
+- `plugins/obsidian/backend/raptor_rebuild.py` implements the derived-only rebuild path behind explicit flags.
+- `src/memory_perf_suite_raptor.py` and `tests/test_memory_perf_suite_raptor.py` simulate bounded large graph-memory workloads without full payload dumps.
 
 ## Design Decision
 
@@ -171,6 +174,8 @@ Owner: Alice
 
 Execution mode: worker
 
+Status: completed by Charlie after Alice timeout; see `docs/plans/raptor-memory-write-operator-contract.md`.
+
 Goal:
 
 - Create or refine operator wording for RAPTOR write gates, derived-only write promises, deprecated source handling, purge limits, performance budgets and Go/No-Go language.
@@ -189,6 +194,8 @@ Tests:
 Owner: Bob
 
 Execution mode: worker
+
+Status: completed.
 
 Goal:
 
@@ -216,6 +223,8 @@ Tests:
 Owner: Bob
 
 Execution mode: worker
+
+Status: completed.
 
 Goal:
 
@@ -247,6 +256,8 @@ Owner: Charlie
 
 Execution mode: worker
 
+Status: completed.
+
 Goal:
 
 - Expose RAPTOR rebuild via authenticated route and optional MCP/tool spec while preserving write-scope gates.
@@ -277,6 +288,8 @@ Owner: Bob
 
 Execution mode: worker
 
+Status: completed through RAPTOR rebuild/status tests.
+
 Goal:
 
 - Prove deprecated/obsolete/superseded/archived sources are excluded from default retrieval but retained in audit/rebuild lineage when needed.
@@ -306,6 +319,8 @@ Owner: Bob
 
 Execution mode: worker
 
+Status: completed.
+
 Goal:
 
 - Prove purge behavior is bounded, scoped and performant with many obsolete/trash entries.
@@ -331,6 +346,8 @@ Tests:
 Owner: Bob
 
 Execution mode: worker
+
+Status: completed.
 
 Goal:
 
@@ -361,6 +378,8 @@ Tests:
 Owner: Charlie
 
 Execution mode: worker
+
+Status: completed.
 
 Goal:
 

@@ -47,6 +47,7 @@ from plugin import (
     handle_project_plan_preview,
     handle_project_plan_templates,
     handle_quarantine_list,
+    handle_raptor_rebuild,
     handle_raptor_status,
     handle_read_note,
     handle_search_notes,
@@ -144,6 +145,7 @@ async def test_locked_vault_blocks_all_actions(monkeypatch):
             handle_knowledge_audit(""),
             handle_quarantine_list(""),
             handle_raptor_status(""),
+            handle_raptor_rebuild("{}"),
         ]
 
         for res in [await item for item in checks]:
@@ -277,3 +279,4 @@ async def test_locked_vault_blocks_route_level_content_surfaces(monkeypatch):
         await assert_locked(obsidian_routes.knowledge_audit(request))
         await assert_locked(obsidian_routes.quarantine(request))
         await assert_locked(obsidian_routes.raptor_status_route(request))
+        await assert_locked(obsidian_routes.raptor_rebuild_route(request))

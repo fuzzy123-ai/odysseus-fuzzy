@@ -295,28 +295,38 @@ def purge_trash(vault_dir: str, retention_days: int = TRASH_RETENTION_DAYS) -> D
     """
     trash_root = os.path.join(vault_dir, TRASH_DIR)
     if not os.path.isdir(trash_root):
-        return {"purged": 0, "errors": 0}
+        return {"purged": 0, "errors": 0, "skipped": 0}
 
     from datetime import datetime, timezone, timedelta as _timedelta
 
     cutoff = datetime.now(timezone.utc) - _timedelta(days=retention_days)
     purged = 0
     errors = 0
+    skipped = 0
 
-    for date_dir in sorted(os.listdir(trash_root)):
-        dir_path = os.path.join(trash_root, date_dir)
-        if not os.path.isdir(dir_path):
+    for entry in sorted(os.scandir(trash_root), key=lambda item: item.name):
+        date_dir = entry.name
+        try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+            is_link = entry.is_symlink()
+        except OSError:
+            errors += 1
+            continue
+        if not is_dir or is_link:
+            skipped += 1
             continue
         # Parse date from directory name (YYYY-MM-DD)
         try:
             dir_date = datetime.strptime(date_dir, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
+            skipped += 1
             continue
         if dir_date >= cutoff:
+            skipped += 1
             continue
         # This date directory is expired — remove it entirely
         try:
-            shutil.rmtree(dir_path)
+            shutil.rmtree(entry.path)
             purged += 1
         except OSError:
             errors += 1
@@ -328,7 +338,7 @@ def purge_trash(vault_dir: str, retention_days: int = TRASH_RETENTION_DAYS) -> D
     except OSError:
         pass
 
-    return {"purged": purged, "errors": errors}
+    return {"purged": purged, "errors": errors, "skipped": skipped}
 
 
 def purge_all_vault_trash(retention_days: int = TRASH_RETENTION_DAYS) -> Dict[str, Any]:

@@ -110,6 +110,7 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
 
 def raptor_status(vault_dir: str) -> Dict[str, Any]:
     flags = all_flags()
+    write_gate = _raptor_write_gate(flags)
     index_path = os.path.join(vault_dir, RAPTOR_INDEX_PATH)
     summaries_path = os.path.join(vault_dir, RAPTOR_SUMMARIES_PATH)
     index_present = os.path.exists(index_path)
@@ -156,14 +157,15 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
         invalid_summaries=invalid_summaries,
         lineage_status=lineage_status,
     )
+    readiness["writes_supported"] = bool(write_gate["writes_supported"] and readiness["ready"])
     readiness_signal = _readiness_signal("raptor", readiness)
     readiness_gate = readiness_gate_from_signals([readiness_signal])
-    write_gate = _raptor_write_gate(flags)
+    writes_supported = bool(readiness["writes_supported"])
     warnings: List[str] = []
     if invalid_index:
-        warnings.append("RAPTOR index metadata is invalid; rebuild remains disabled in the MVP.")
+        warnings.append("RAPTOR index metadata is invalid; rebuild can refresh derived artifacts when the write gate is enabled.")
     if invalid_summaries:
-        warnings.append("RAPTOR branch summaries metadata is invalid; rebuild remains disabled in the MVP.")
+        warnings.append("RAPTOR branch summaries metadata is invalid; rebuild can refresh derived artifacts when the write gate is enabled.")
     return {
         "enabled": flags.get("obsidian_raptor_enabled", False),
         "configured": index_present or summaries_present,
@@ -194,28 +196,32 @@ def raptor_status(vault_dir: str) -> Dict[str, Any]:
             "readiness_gap_names": readiness_signal["gaps"],
             "readiness_gate": readiness_gate,
             "write_gate": write_gate,
-            "writes_supported": False,
+            "writes_supported": writes_supported,
             "warnings": warnings,
         },
-        "writes_supported": False,
+        "writes_supported": writes_supported,
         "warnings": warnings,
-        "message": "RAPTOR rebuild/write is disabled in the MVP; status is read-only.",
+        "message": (
+            "RAPTOR derived-artifact writes are ready."
+            if writes_supported
+            else "RAPTOR derived-artifact writes require clean readiness plus enabled write gates."
+        ),
     }
 
 
 def _raptor_write_gate(flags: Dict[str, bool]) -> Dict[str, Any]:
-    gaps = [
-        "source_hash_lineage_verification_required",
-        "dirty_summary_behavior_required",
-        "raptor_rebuild_write_disabled_in_mvp",
-    ]
+    gaps = []
     if not flags.get("obsidian_raptor_enabled", False):
-        gaps.insert(0, "raptor_feature_flag_disabled")
+        gaps.append("raptor_feature_flag_disabled")
+    if not flags.get("obsidian_raptor_rebuild_enabled", False):
+        gaps.append("raptor_rebuild_feature_flag_disabled")
     return {
         "feature_flag": "obsidian_raptor_enabled",
         "feature_enabled": bool(flags.get("obsidian_raptor_enabled", False)),
-        "writes_supported": False,
-        "state": "blocked",
+        "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
+        "rebuild_enabled": bool(flags.get("obsidian_raptor_rebuild_enabled", False)),
+        "writes_supported": not gaps,
+        "state": "ready" if not gaps else "blocked",
         "gaps": gaps,
     }
 

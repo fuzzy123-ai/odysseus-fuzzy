@@ -122,11 +122,11 @@ def test_obsidian_context_memory_readiness_feeds_mission_snapshot(tmp_path, monk
         "raptor_write_gate": {
             "feature_enabled": False,
             "feature_flag": "obsidian_raptor_enabled",
+            "rebuild_enabled": False,
+            "rebuild_feature_flag": "obsidian_raptor_rebuild_enabled",
             "gaps": [
                 "raptor_feature_flag_disabled",
-                "source_hash_lineage_verification_required",
-                "dirty_summary_behavior_required",
-                "raptor_rebuild_write_disabled_in_mvp",
+                "raptor_rebuild_feature_flag_disabled",
             ],
             "state": "blocked",
             "writes_supported": False,
