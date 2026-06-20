@@ -1,6 +1,6 @@
 # Unified Odysseus Roadmap
 
-Stand: 2026-06-16
+Stand: 2026-06-20
 
 Status: **aktive Master-Roadmap fuer den Fork**
 
@@ -38,6 +38,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
 | `docs/plans/automated-agent-handoff-orchestration-mvp.md` | neuer Runtime-Track fuer vollautomatisches Agent-Handoff und verified Orchestration |
+| `docs/plans/subagent-runtime-v1-roadmap.md` | aktueller Follow-up-Track fuer langlebige Subagent-Runs mit Fake Backend, Gates und Status/UI; `delegate` bleibt lightweight Analyst |
 | `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md` | AUTO7-Runbook fuer deterministischen Zwei-Agenten-Smoke ohne echte Thread-Sends |
 | `docs/plans/automated-agent-n-scaling-design.md` | AUTO8-Design fuer registrierte Agent-Pools, Budgets, Queueing und Locks |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
@@ -59,7 +60,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
-| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; echte Thread-/Git-/Test-Hooks bleiben Runtime-Follow-up |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; Subagent Runtime v1 ist naechster Fake-Backend-Track, echte Thread-/Git-/Test-Hooks bleiben Live-Gates |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | aktivierbar, da Nextcloud-Infrastruktur laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
@@ -663,9 +664,22 @@ Evidence Foundation:
 
 ## Version `0.18.x`: Automated Agent Handoff & Orchestration MVP
 
-Detailplan: `docs/plans/automated-agent-handoff-orchestration-mvp.md`.
+Detailplaene:
+
+- `docs/plans/automated-agent-handoff-orchestration-mvp.md`
+- `docs/plans/subagent-runtime-v1-roadmap.md`
 
 Ziel: Der manuell bewiesene Alice/Bob/Charlie-Prozess wird native Odysseus-Runtime. `0.12.x` hat die Modelle und Contracts vorbereitet; `0.18.x` verdrahtet sie mit echter Persistenz, Thread-Zuordnung, Handoff-Parsing, Heartbeat-Ausfuehrung, Quality Gates und Dashboard-Sicht.
+
+Aktueller Befund 2026-06-20:
+
+- Die Orchestration-Foundation hat viele trockene Bausteine: ContextCapsule,
+  AgentRunStore, ThreadRegistry, HandoffMailbox, RuntimeLoop und QualityGates.
+- `delegate` ist absichtlich nur ein fokussierter LLM-Call und darf keine
+  Dateiaenderungen oder externen Zustand behaupten.
+- Der naechste Track ist deshalb `Subagent Runtime v1`: ein eigener Runtime-
+  Layer mit Fake Backend zuerst. Echte Odysseus/Codex-Thread-Ausfuehrung bleibt
+  ein separates Live-Go.
 
 ### MVP-Pfad
 
@@ -684,6 +698,14 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 7. `AUTO6-mini-orchestration-dashboard-v2`
 8. `AUTO7-end-to-end-two-agent-smoke`
 9. `AUTO8-n-agent-scaling-design`
+10. `SUB0-reconciliation`
+11. `SUB1-runtime-contract`
+12. `SUB2-spawn-api`
+13. `SUB3-execution-bridge-fake`
+14. `SUB4-handoff-gates`
+15. `SUB5-tool-discovery`
+16. `SUB6-ui-status`
+17. `SUB7-e2e-fake-smoke`
 
 ### Alice/Bob/Charlie Matrix
 
@@ -709,6 +731,10 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 - Dashboard zeigt aktive Slices, Blocker, Gate-Status und naechste Aktion.
 - E2E-Smoke belegt mindestens zwei Agenten von Plan bis `verified done`.
 - N-Agent-Skalierung ist entworfen, aber nicht als unbegrenzte Agentenfabrik freigegeben.
+- `delegate` bleibt als lightweight Analyst abgegrenzt; langlebige Worker laufen
+  ueber `subagent_runtime`.
+- Subagent Runtime v1 belegt den Fake-Pfad Plan -> Spawn Alice/Bob -> Fake
+  execution -> Handoff -> Gate -> done/blocked ohne Live-Thread-Ausfuehrung.
 
 ## Version `0.19.x`: Plugin Platform - System Health Checker
 
@@ -914,16 +940,22 @@ Charlie implementiert nur selbst, wenn:
 
 Jetzt:
 
-1. Die zwei offenen externen 1.0-Gates bleiben zuerst sichtbar: modellgestuetzter Provider-/Fallback-Antwortlauf und Export/Import/Rebuild mit kleinem Test-Vault.
-2. Keine schreibenden Vault-Aktionen gegen echte Nutzerartefakte ohne expliziten Test-Vault.
-3. Charlie haelt Roadmap, Worktree und Testplan sauber.
+1. Auto-Updater/Updates-UI gilt als abgeschlossen, wenn der Server weiter
+   `673e116f` oder neuer meldet und der Timer die naechsten Git-Aenderungen
+   regelmaessig deployed.
+2. Neue Roadmaps werden zuerst in diese Master-Roadmap integriert; No-goals
+   bleiben als Stop-Regeln sichtbar.
+3. Der naechste aktive Implementierungskandidat ist `Subagent Runtime v1` nach
+   `docs/plans/subagent-runtime-v1-roadmap.md`, zuerst mit Fake Backend und
+   fokussierten Tests.
 
 Danach:
 
-1. Alice bekommt `LENS0-ux-contract`.
-2. Bob wartet auf den UX-Vertrag oder bekommt nur einen klaren, nicht kollidierenden Shell-Smoke.
-3. Nach `LENS0` startet `LENS1-shell-stability` sequenziell, weil `plugins/obsidian/frontend/main.js`, `plugins/obsidian/frontend/style.css` und `tests/test_obsidian_sidebar_static.py` Hotfiles sind.
-4. Nach Lens-Stabilisierung startet `AUTO1-persistent-orchestration-store`; `AUTO0-roadmap-integration` ist mit dieser Master-Roadmap erledigt.
+1. `SUB0-reconciliation` ist mit dieser Integration vorbereitet.
+2. Bei Implementierungs-Go startet `SUB1-runtime-contract` und `SUB2-spawn-api`
+   sequenziell oder mit streng getrennten Tests.
+3. Erst nach gruenem Fake-Backend-Pfad folgen Tool Discovery und UI/Status.
+4. Echte Odysseus/Codex-Thread-Ausfuehrung bleibt ein eigener Live-Gate-Track.
 
 Nicht jetzt:
 
@@ -933,6 +965,8 @@ Nicht jetzt:
 - keine grosse Frontend-Framework-Migration
 - keine harte Obsidian-Plugin-Umbenennung
 - keine autonome Agentenfabrik ohne Approval, Gates und Stop-Regeln
+- keine Live-Subagent-Thread-Ausfuehrung ohne separate Freigabe
+- kein `delegate` als schreibender oder langlebiger Worker
 
 ## Master Definition of Done
 

@@ -2,8 +2,8 @@
 
 Stand: 2026-06-20
 
-Status: operator roadmap after Updates & Backups UI and homeserver auto-updater
-closure work.
+Status: operator roadmap after Updates & Backups UI, homeserver auto-updater
+closure work, and Subagent Runtime v1 handoff integration.
 
 ## Goal
 
@@ -14,16 +14,22 @@ then private-source automation, then broader release/distribution polish.
 ## Current Baseline
 
 - Updates & Backups UI is implemented and pushed to `fuzzy/dev` at `d5e3ab12`.
-- The Debian checkout reached `d5e3ab12`, but the running app still reported
-  `fa00fb50` during verification. This exposed a stale-runtime gap in the
-  auto-updater.
+- Stale-runtime handling is implemented and pushed at `c2b735e8`.
+- The auto-updater systemd script now uses `KillMode=process` so completed
+  update oneshots do not kill the rootless Podman app containers; fix pushed at
+  `673e116f`.
 - `ops/homeserver/install-auto-update-timer.sh` now treats
   "checkout current, runtime outdated" as a deploy condition instead of exiting.
+- Server verification after the final manual run reported `/api/version` at
+  `673e116f`, `update_available: false`, and Chroma heartbeat OK.
 - The scheduled homeserver timer is enabled and active:
-  `odysseus-auto-update.timer`, next run Sunday 2026-06-21 around 04:29 CEST.
+  `odysseus-auto-update.timer`, next run Sunday 2026-06-21 in the early-morning
+  randomized timer window.
 - The timer detects Git updates by fetching the configured branch and comparing
   local `HEAD` with the upstream branch. It does not deploy instantly on every
   push unless manually started; otherwise it deploys on its timer.
+- Subagent Runtime v1 is now the integrated orchestration follow-up:
+  `docs/plans/subagent-runtime-v1-roadmap.md`.
 
 ## Non-Goals
 
@@ -33,6 +39,11 @@ then private-source automation, then broader release/distribution polish.
 - No secrets, tokens, chat IDs, private source contents, raw restic logs, or raw
   provider output in roadmap evidence.
 - No broad host shell or arbitrary command UI.
+- No live Subagent/Codex/Odysseus thread execution without separate explicit
+  operator Go.
+- `delegate` is not treated as a write-capable or durable worker.
+- No feature readiness claims without runtime/live evidence when only repo
+  artifacts exist.
 
 ## P0 - Auto-Updater Runtime Closure
 
@@ -140,6 +151,28 @@ Done when:
 - Repo links and origin/fuzzy publish hygiene are current.
 - External `1.0.0` evidence stays separate from deploy/tag/distribution.
 
+## P8 - Subagent Runtime v1
+
+Goal:
+- Turn the dry-run orchestration primitives into a real durable subagent
+  lifecycle, starting with a fake execution backend.
+
+Done when:
+- `SubagentRunSpec` and `SubagentRunState` connect ContextCapsule, AgentRun, and
+  ThreadRef/JobRef safely.
+- `create_subagent_run(spec)` persists a scoped run without starting live
+  threads.
+- Fake backend can simulate spawn/read/cancel/retry/status and handoff.
+- Handoff and runtime quality gates block done-without-evidence,
+  scope violations, and ambiguous thread/job references.
+- Tool discovery routes durable worker requests to `spawn_subagent` or
+  `manage_subagents`, while `delegate` remains lightweight analysis.
+- UI/status lists active subagents, state, handoff, tests, blockers, and next
+  action without destructive controls.
+
+Verification:
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_subagent_runtime_contract.py tests\test_subagent_runtime.py tests\test_subagent_tool_selection.py tests\test_orchestration_runtime_loop.py tests\test_handoff_mailbox.py`
+
 ## Execution Order
 
 1. Finish P0 server deployment verification.
@@ -148,4 +181,6 @@ Done when:
 4. Reconcile Telegram text before voice.
 5. Continue Nextcloud only with fake-client/offline tests until live Go.
 6. Run optional GameDev write smoke only after separate approval.
-7. Finalize release/distribution wording after runtime evidence is current.
+7. Implement Subagent Runtime v1 with fake backend and tests before any live
+   thread execution.
+8. Finalize release/distribution wording after runtime evidence is current.

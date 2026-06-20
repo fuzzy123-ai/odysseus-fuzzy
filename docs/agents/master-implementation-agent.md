@@ -9,6 +9,31 @@ This repo already has the core primitives for a top-level orchestrator:
 
 This document defines how to use them as a single master-agent pattern for implementation work.
 
+## Delegate vs Durable Subagents
+
+`delegate` is not a durable implementation worker. It is a focused LLM call that
+returns compact JSON. Its system prompt explicitly says that it must not claim
+to have changed files or external state. Use it for lightweight analysis,
+summaries, option checks, or read-only reasoning.
+
+Durable subagents are a separate runtime concern. They need a
+`SubagentRunSpec`, a scoped `ContextCapsule`, a persisted `AgentRun`, an
+unambiguous `ThreadRef` or `JobRef`, an execution backend, a parsed handoff, and
+quality gates before the master can call work verified.
+
+Canonical runtime plan:
+
+- `docs/plans/subagent-runtime-v1-roadmap.md`
+
+Hard boundary:
+
+- Do not treat `delegate` output as proof that files changed, tests ran, git was
+  clean, or a worker thread completed.
+- Do not start live thread execution until the Subagent Runtime track has a
+  fake backend, tests, status visibility, and a separate explicit operator Go.
+- Do not persist secrets, raw thread IDs, chat IDs, private source contents, or
+  raw provider/tool output in prompts, docs, tests, evidence, or handoffs.
+
 ## Purpose
 
 The master agent does not implement code directly.
@@ -40,6 +65,7 @@ The master agent should not:
 - bypass worker delegation for implementation work
 - fan out broad overlapping tasks to multiple workers
 - ask multiple workers to restate the same security or contract invariant at tool, route, and UI levels in parallel
+- use `delegate` as a write-capable or durable subagent
 
 ## Test Layering Rules
 
