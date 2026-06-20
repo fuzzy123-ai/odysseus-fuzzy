@@ -33,6 +33,23 @@ def test_ready_for_manual_operator_run_requires_all_inputs_ready():
     assert plan.decision.decision == "ready_for_manual_operator_run"
 
 
+def test_ready_plan_still_blocks_live_rebuild_actions():
+    plan = build_live_test_vault_rebuild_plan(
+        test_vault_selected=True,
+        export_artifact_plan_ready=True,
+        isolated_import_target_ready=True,
+        rebuild_verification_plan_ready=True,
+        evidence_redaction_ready=True,
+    )
+
+    assert plan.decision.decision == "ready_for_manual_operator_run"
+    assert "export_execution" in plan.blocked_live_actions
+    assert "import_execution" in plan.blocked_live_actions
+    assert "rebuild_execution" in plan.blocked_live_actions
+    assert "host_path_capture" in plan.blocked_live_actions
+    assert "automatic_release_go" in plan.blocked_live_actions
+
+
 def test_to_dict_is_stable():
     plan = build_live_test_vault_rebuild_plan()
 
@@ -74,6 +91,14 @@ def test_to_dict_is_stable():
             "prepare an isolated import target manually",
             "review rebuild verification evidence before recording results",
         ),
+        "blocked_live_actions": (
+            "export_execution",
+            "import_execution",
+            "rebuild_execution",
+            "host_path_capture",
+            "raw_log_capture",
+            "automatic_release_go",
+        ),
     }
 
 
@@ -84,3 +109,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Test Vault Rebuild Plan" in markdown
     assert "needs_operator_input" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "rebuild_execution" in markdown

@@ -35,6 +35,15 @@ _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "review rebuild verification evidence before recording results",
 )
 
+_BLOCKED_LIVE_ACTIONS = (
+    "export_execution",
+    "import_execution",
+    "rebuild_execution",
+    "host_path_capture",
+    "raw_log_capture",
+    "automatic_release_go",
+)
+
 
 def _normalize_text(value: Any, *, field_name: str, allow_empty: bool = False) -> str:
     text = " ".join(str(value or "").split())
@@ -108,12 +117,14 @@ class LiveTestVaultRebuildPlan:
     gates: tuple[TestVaultRebuildGate, ...]
     decision: TestVaultRebuildDecision
     next_allowed_actions: tuple[str, ...]
+    blocked_live_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gates": tuple(gate.to_dict() for gate in self.gates),
             "decision": self.decision.to_dict(),
             "next_allowed_actions": self.next_allowed_actions,
+            "blocked_live_actions": self.blocked_live_actions,
         }
 
     def to_markdown(self) -> str:
@@ -131,6 +142,9 @@ class LiveTestVaultRebuildPlan:
             lines.extend(["", "## Next Allowed Actions"])
             for action in self.next_allowed_actions:
                 lines.append(f"- {action}")
+        lines.extend(["", "## Blocked Live Actions"])
+        for action in self.blocked_live_actions:
+            lines.append(f"- {action}")
         return "\n".join(lines).rstrip()
 
 
@@ -219,4 +233,5 @@ def build_live_test_vault_rebuild_plan(
             next_action=next_action,
         ),
         next_allowed_actions=next_allowed_actions,
+        blocked_live_actions=_normalize_tuple(_BLOCKED_LIVE_ACTIONS, field_name="blocked_live_action"),
     )
