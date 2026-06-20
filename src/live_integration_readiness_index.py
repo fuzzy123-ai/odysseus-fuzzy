@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable
 
+from src.live_release_evidence_closeout import (
+    LiveReleaseEvidenceCloseout,
+    build_live_release_evidence_closeout,
+)
+
 
 _GATE_IDS = (
     "live_slices_recorded",
@@ -269,4 +274,33 @@ def build_live_integration_readiness_index(
             external_release_ready=external_release_ready,
         ),
         next_allowed_actions=next_allowed_actions,
+    )
+
+
+def build_live_integration_readiness_index_from_closeout(
+    closeout: LiveReleaseEvidenceCloseout | None = None,
+) -> LiveIntegrationReadinessIndex:
+    source = closeout or build_live_release_evidence_closeout()
+    if not isinstance(source, LiveReleaseEvidenceCloseout):
+        raise ValueError("closeout must be a LiveReleaseEvidenceCloseout")
+
+    release_gates = {gate.gate_id: gate.status for gate in source.gates}
+    entry_gates = {gate.gate_id: gate.status for gate in source.live_phase_entry_gates}
+    entry_gates_recorded = set(entry_gates) == {
+        "export_import_rebuild_disabled",
+        "host_telegram_network_disabled",
+        "operator_review_required",
+        "provider_calls_disabled",
+        "secrets_and_raw_logs_blocked",
+    }
+    entry_gates_go = entry_gates_recorded and all(status == "go" for status in entry_gates.values())
+
+    return build_live_integration_readiness_index(
+        live_slices_recorded=entry_gates_go,
+        provider_proof_manual_gate_recorded=release_gates.get("provider_fallback_answer_run") == "go",
+        test_vault_rebuild_manual_gate_recorded=release_gates.get("test_vault_export_import_rebuild") == "go",
+        runtime_enablement_disabled=entry_gates.get("host_telegram_network_disabled") == "go",
+        network_actions_disabled=entry_gates.get("host_telegram_network_disabled") == "go",
+        plugin_imports_disabled=entry_gates_go,
+        operator_review_required=entry_gates.get("operator_review_required") == "go",
     )

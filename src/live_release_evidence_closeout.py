@@ -21,6 +21,12 @@ _GATE_STATUSES = (
     "needs_manual_evidence",
 )
 
+_ENTRY_GATE_STATUSES = (
+    "go",
+    "blocked",
+    "needs_manual_evidence",
+)
+
 _DECISION_VALUES = (
     "internal_release_candidate_ready",
     "external_go",
@@ -73,6 +79,13 @@ def _normalize_entry_gate_id(value: Any) -> str:
     text = _normalize_text(value, field_name="entry_gate_id").strip().lower()
     if text not in _ENTRY_GATE_IDS:
         raise ValueError("unsupported live phase entry gate_id")
+    return text
+
+
+def _normalize_entry_gate_status(value: Any) -> str:
+    text = _normalize_text(value, field_name="status").strip().lower()
+    if text not in _ENTRY_GATE_STATUSES:
+        raise ValueError("unsupported live phase entry gate status")
     return text
 
 
@@ -129,7 +142,7 @@ class LivePhaseEntryGate:
     def create(cls, *, gate_id: Any, status: Any, summary: Any) -> "LivePhaseEntryGate":
         return cls(
             gate_id=_normalize_entry_gate_id(gate_id),
-            status=_normalize_gate_status(status),
+            status=_normalize_entry_gate_status(status),
             summary=_normalize_text(summary, field_name="summary"),
         )
 
