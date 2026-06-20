@@ -27,6 +27,25 @@ def test_consumer_plan_ready_requires_all_inputs_and_runtime_off():
     assert plan.decision.decision == "consumer_plan_ready"
 
 
+def test_consumer_plan_ready_still_blocks_live_runtime_actions():
+    plan = build_live_system_health_local_api_consumer_plan(
+        snapshot_api_contract_selected=True,
+        offline_fixture_available=True,
+        timeout_policy_reviewed=True,
+        sanitized_payload_reviewed=True,
+        operator_review_required=True,
+    )
+
+    assert plan.blocked_live_actions == (
+        "network_request",
+        "host_access",
+        "runtime_polling",
+        "token_or_secret_capture",
+        "unsafe_payload_logging",
+        "automatic_consumer_start",
+    )
+
+
 def test_runtime_or_unsafe_logging_claims_block_the_plan():
     plan = build_live_system_health_local_api_consumer_plan(
         snapshot_api_contract_selected=True,
@@ -81,6 +100,14 @@ def test_to_dict_is_stable():
             "confirm timeout and payload-redaction policy before any follow-up",
             "keep runtime polling and network access disabled during operator planning",
         ),
+        "blocked_live_actions": (
+            "network_request",
+            "host_access",
+            "runtime_polling",
+            "token_or_secret_capture",
+            "unsafe_payload_logging",
+            "automatic_consumer_start",
+        ),
     }
 
 
@@ -91,3 +118,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live System Health Local API Consumer Plan" in markdown
     assert "needs_operator_input" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "network_request" in markdown
