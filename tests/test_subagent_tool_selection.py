@@ -130,6 +130,36 @@ async def test_spawn_subagent_tool_uses_fake_backend_only(monkeypatch):
     assert result["run"]["target_kind"] == "job"
 
 
+async def test_spawn_subagent_tool_rejects_ambiguous_thread_and_job_refs(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    desc, result = await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": "sub5-ambiguous-ref-run",
+                    "plan_id": "subagent-runtime-v1",
+                    "node_id": "sub5-ambiguous",
+                    "slice_id": "sub5-ambiguous",
+                    "agent_id": "bob",
+                    "objective": "Reject ambiguous fake runtime refs.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                    "target_kind": "job",
+                    "thread_id": "thread-ref-sub5",
+                    "job_id": "job-ref-sub5",
+                }
+            ),
+        )
+    )
+    _, list_result = await execute_tool_block(ToolBlock("manage_subagents", json.dumps({"action": "list"})))
+
+    assert desc == "spawn_subagent"
+    assert result["exit_code"] == 1
+    assert "target is ambiguous" in result["error"]
+    assert list_result["runs"] == []
+
+
 async def test_manage_subagents_pause_and_resume_use_fake_backend_only(monkeypatch):
     monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
 
