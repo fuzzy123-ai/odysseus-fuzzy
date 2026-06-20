@@ -216,6 +216,40 @@ async def test_manage_subagents_pause_and_resume_use_fake_backend_only(monkeypat
     assert resume_result["status"] == "spawned"
 
 
+async def test_manage_subagents_resume_requires_paused_fake_run(monkeypatch):
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
+
+    run_id = "sub5-tool-resume-guard-run"
+    await execute_tool_block(
+        ToolBlock(
+            "spawn_subagent",
+            json.dumps(
+                {
+                    "agent_run_id": run_id,
+                    "plan_id": "subagent-runtime-v1",
+                    "node_id": "sub5-resume-guard",
+                    "slice_id": "sub5-resume-guard",
+                    "agent_id": "bob",
+                    "objective": "Reject resume before fake pause.",
+                    "allowed_files": ["src/subagent_runtime.py"],
+                }
+            ),
+        )
+    )
+
+    desc, result = await execute_tool_block(
+        ToolBlock("manage_subagents", json.dumps({"action": "resume", "agent_run_id": run_id}))
+    )
+    _, status_result = await execute_tool_block(
+        ToolBlock("manage_subagents", json.dumps({"action": "status", "agent_run_id": run_id}))
+    )
+
+    assert desc == "manage_subagents"
+    assert result["exit_code"] == 1
+    assert "only paused runs can be resumed" in result["error"]
+    assert status_result["status"] == "spawned"
+
+
 async def test_subagent_tool_responses_do_not_leak_thread_or_job_refs(monkeypatch):
     monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
 
