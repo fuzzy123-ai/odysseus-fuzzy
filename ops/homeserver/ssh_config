@@ -11,7 +11,7 @@
 Host odysseus-homeserver
   HostName 192.168.178.122
   User homebase
-  IdentityFile C:/Users/nkatz/odysseus/data/ssh/id_ed25519_odysseus_homeserver_20260620
+  IdentityFile C:/Users/nkatz/odysseus/data/ssh/id_ed25519_odysseus_homeserver_20260620_host
   IdentitiesOnly yes
   BatchMode yes
   ConnectTimeout 10

@@ -29,6 +29,10 @@ COPY requirements.txt requirements-optional.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_OPTIONAL" = "true" ]; then pip install --no-cache-dir -r requirements-optional.txt; fi
 
+# Install Node deps used by test/dev tooling and optional npx-backed helpers.
+COPY package.json package-lock.json ./
+RUN npm ci
+
 # Copy app code
 COPY . .
 
