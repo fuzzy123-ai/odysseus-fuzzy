@@ -27,6 +27,23 @@ def test_safe_mode_plan_ready_requires_all_safe_inputs_and_import_still_blocked(
     assert plan.decision.decision == "safe_mode_plan_ready"
 
 
+def test_safe_mode_plan_ready_still_blocks_plugin_runtime_actions():
+    plan = build_live_plugin_loader_safe_mode_plan(
+        manifest_validated=True,
+        capability_boundary_validated=True,
+        local_audit_clean=True,
+        top_level_import_blocked=True,
+        operator_review_required=True,
+    )
+
+    assert plan.decision.decision == "safe_mode_plan_ready"
+    assert "plugin_import" in plan.blocked_live_actions
+    assert "plugin_setup_execution" in plan.blocked_live_actions
+    assert "host_access" in plan.blocked_live_actions
+    assert "network_action" in plan.blocked_live_actions
+    assert "secret_or_token_capture" in plan.blocked_live_actions
+
+
 def test_runtime_enable_claims_block_safe_mode_plan():
     plan = build_live_plugin_loader_safe_mode_plan(
         manifest_validated=True,
@@ -81,6 +98,14 @@ def test_to_dict_is_stable():
             "keep top-level plugin import blocked during operator review",
             "record operator notes without enabling runtime plugin loading",
         ),
+        "blocked_live_actions": (
+            "plugin_import",
+            "plugin_setup_execution",
+            "host_access",
+            "network_action",
+            "socket_access",
+            "secret_or_token_capture",
+        ),
     }
 
 
@@ -91,3 +116,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Plugin Loader Safe Mode Plan" in markdown
     assert "needs_operator_review" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "plugin_import" in markdown

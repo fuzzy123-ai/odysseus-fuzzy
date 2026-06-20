@@ -35,6 +35,15 @@ _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "record operator notes without enabling runtime plugin loading",
 )
 
+_BLOCKED_LIVE_ACTIONS = (
+    "plugin_import",
+    "plugin_setup_execution",
+    "host_access",
+    "network_action",
+    "socket_access",
+    "secret_or_token_capture",
+)
+
 
 def _normalize_text(value: Any, *, field_name: str, allow_empty: bool = False) -> str:
     text = " ".join(str(value or "").split())
@@ -108,12 +117,14 @@ class LivePluginLoaderSafeModePlan:
     gates: tuple[PluginSafeModeGate, ...]
     decision: PluginSafeModeDecision
     next_allowed_actions: tuple[str, ...]
+    blocked_live_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gates": tuple(gate.to_dict() for gate in self.gates),
             "decision": self.decision.to_dict(),
             "next_allowed_actions": self.next_allowed_actions,
+            "blocked_live_actions": self.blocked_live_actions,
         }
 
     def to_markdown(self) -> str:
@@ -131,6 +142,9 @@ class LivePluginLoaderSafeModePlan:
             lines.extend(["", "## Next Allowed Actions"])
             for action in self.next_allowed_actions:
                 lines.append(f"- {action}")
+        lines.extend(["", "## Blocked Live Actions"])
+        for action in self.blocked_live_actions:
+            lines.append(f"- {action}")
         return "\n".join(lines).rstrip()
 
 
@@ -231,4 +245,5 @@ def build_live_plugin_loader_safe_mode_plan(
             next_action=next_action,
         ),
         next_allowed_actions=next_allowed_actions,
+        blocked_live_actions=_normalize_tuple(_BLOCKED_LIVE_ACTIONS, field_name="blocked_live_action"),
     )
