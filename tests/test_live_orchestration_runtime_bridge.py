@@ -27,6 +27,23 @@ def test_dry_run_ready_requires_all_inputs_and_live_send_disabled():
     assert plan.decision.decision == "dry_run_ready"
 
 
+def test_dry_run_ready_still_blocks_live_thread_actions():
+    plan = build_live_orchestration_runtime_bridge_plan(
+        thread_ref_resolved=True,
+        mailbox_dispatch_ready=True,
+        dry_run_payload_valid=True,
+        operator_review_required=True,
+        live_send_disabled=True,
+    )
+
+    assert plan.decision.decision == "dry_run_ready"
+    assert "codex_thread_send" in plan.blocked_live_actions
+    assert "odysseus_thread_send" in plan.blocked_live_actions
+    assert "mailbox_dispatch_execution" in plan.blocked_live_actions
+    assert "automatic_agent_start" in plan.blocked_live_actions
+    assert "automatic_verified_done" in plan.blocked_live_actions
+
+
 def test_live_send_claim_blocks_bridge_plan():
     plan = build_live_orchestration_runtime_bridge_plan(
         thread_ref_resolved=True,
@@ -81,6 +98,14 @@ def test_to_dict_is_stable():
             "keep live send disabled during operator review",
             "capture operator notes before any runtime bridge follow-up",
         ),
+        "blocked_live_actions": (
+            "codex_thread_send",
+            "odysseus_thread_send",
+            "mailbox_dispatch_execution",
+            "provider_call",
+            "automatic_agent_start",
+            "automatic_verified_done",
+        ),
     }
 
 
@@ -91,3 +116,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Orchestration Runtime Bridge Dry Run" in markdown
     assert "needs_operator_review" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "codex_thread_send" in markdown

@@ -35,6 +35,15 @@ _DEFAULT_NEXT_ALLOWED_ACTIONS = (
     "capture operator notes before any runtime bridge follow-up",
 )
 
+_BLOCKED_LIVE_ACTIONS = (
+    "codex_thread_send",
+    "odysseus_thread_send",
+    "mailbox_dispatch_execution",
+    "provider_call",
+    "automatic_agent_start",
+    "automatic_verified_done",
+)
+
 
 def _normalize_text(value: Any, *, field_name: str, allow_empty: bool = False) -> str:
     text = " ".join(str(value or "").split())
@@ -108,12 +117,14 @@ class LiveOrchestrationRuntimeBridgePlan:
     gates: tuple[LiveRuntimeBridgeGate, ...]
     decision: LiveRuntimeBridgeDecision
     next_allowed_actions: tuple[str, ...]
+    blocked_live_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gates": tuple(gate.to_dict() for gate in self.gates),
             "decision": self.decision.to_dict(),
             "next_allowed_actions": self.next_allowed_actions,
+            "blocked_live_actions": self.blocked_live_actions,
         }
 
     def to_markdown(self) -> str:
@@ -131,6 +142,9 @@ class LiveOrchestrationRuntimeBridgePlan:
             lines.extend(["", "## Next Allowed Actions"])
             for action in self.next_allowed_actions:
                 lines.append(f"- {action}")
+        lines.extend(["", "## Blocked Live Actions"])
+        for action in self.blocked_live_actions:
+            lines.append(f"- {action}")
         return "\n".join(lines).rstrip()
 
 
@@ -230,4 +244,5 @@ def build_live_orchestration_runtime_bridge_plan(
             next_action=next_action,
         ),
         next_allowed_actions=next_allowed_actions,
+        blocked_live_actions=_normalize_tuple(_BLOCKED_LIVE_ACTIONS, field_name="blocked_live_action"),
     )
