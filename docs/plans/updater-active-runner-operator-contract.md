@@ -29,11 +29,19 @@ If any condition fails, the runner returns a blocked report and executes nothing
 
 1. `ops/homeserver/pre-update-snapshot.sh`
 2. `git pull --ff-only`
-3. `podman compose up -d --build`
-4. `podman image prune -f`
-5. optional focused smoke tests
+3. `ops/homeserver/update-odysseus-version-env.sh`
+4. `podman compose up -d --build`
+5. `podman image prune -f`
+6. optional focused smoke tests
 
 The first failed command stops the update by default.
+
+For unattended Debian scheduling, `ops/homeserver/install-auto-update-timer.sh`
+writes a systemd user timer and wrapper. The wrapper first fetches upstream and
+exits without a backup when no update is available. When a fast-forward update
+exists, it requires a clean worktree, runs the same pre-update backup hook
+before `git pull --ff-only`, refreshes `ODYSSEUS_GIT_*` metadata before the
+Podman recreate, and verifies the app plus ChromaDB afterward.
 
 ## Command Safety
 
@@ -51,6 +59,7 @@ The whitelist currently allows only:
 - `docker compose up -d --build`
 - `docker image prune -f`
 - `ops/homeserver/pre-update-snapshot.sh`
+- `ops/homeserver/update-odysseus-version-env.sh`
 - `python -m pytest ...`
 
 Podman is the default runtime for the homeserver/operator path. Docker commands remain whitelisted only as an explicit local development or Windows fallback.

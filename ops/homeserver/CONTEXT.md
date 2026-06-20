@@ -48,10 +48,27 @@ Run these on the Debian server:
 
 ```bash
 systemctl --user --no-pager status odysseus-podman.service
+systemctl --user --no-pager status odysseus-auto-update.timer odysseus-auto-update.service
 systemctl --user --no-pager status odysseus-telegram-poll.timer odysseus-telegram-poll.service
+journalctl --user -u odysseus-auto-update.service --no-pager -n 100
 journalctl --user -u odysseus-telegram-poll.service --no-pager -n 100
 podman ps --format '{{.Names}} {{.Status}} {{.Ports}}'
 ```
+
+## Scheduled Updates
+
+Regular Debian homeserver updates are driven by the systemd user timer created
+by `install-auto-update-timer.sh`:
+
+- `odysseus-auto-update.timer`
+- `odysseus-auto-update.service`
+- `/home/homebase/.local/bin/odysseus-auto-update.sh`
+
+The timer checks upstream first. If the checkout is already current, it exits
+without taking a backup or recreating containers. If a fast-forward update is
+available, it requires a clean worktree, runs the pre-update restic snapshot,
+updates the checkout, refreshes `ODYSSEUS_GIT_*` metadata, recreates the Podman
+deployment, and verifies the app plus ChromaDB.
 
 Telegram plugin status and recent history:
 
