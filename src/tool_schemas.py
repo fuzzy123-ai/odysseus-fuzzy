@@ -109,6 +109,46 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "spawn_subagent",
+            "description": "Create a durable subagent run using the fake runtime backend only. Use for scoped long-lived worker orchestration; this does not send to live threads, run shell commands, or call providers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "plan_id": {"type": "string", "description": "Plan or roadmap id."},
+                    "node_id": {"type": "string", "description": "Plan node id for this slice."},
+                    "slice_id": {"type": "string", "description": "Slice id such as SUB2-spawn-api."},
+                    "agent_id": {"type": "string", "description": "Scoped agent id, for example alice or bob."},
+                    "role_id": {"type": "string", "description": "Role id for the agent."},
+                    "objective": {"type": "string", "description": "Concrete scoped objective for the run."},
+                    "allowed_files": {"type": "array", "items": {"type": "string"}, "description": "Repo-relative files allowed for the fake run contract."},
+                    "blocked_files": {"type": "array", "items": {"type": "string"}, "description": "Repo-relative files blocked for the fake run contract."},
+                    "tests": {"type": "array", "items": {"type": "string"}, "description": "Expected focused tests as declarations, not commands to execute."},
+                    "handoff_format": {"type": "array", "items": {"type": "string"}, "description": "Required handoff fields."},
+                    "evidence_required": {"type": "array", "items": {"type": "string"}, "description": "Evidence expected before verified done."},
+                    "target_kind": {"type": "string", "enum": ["job", "thread"], "description": "Fake target kind; thread still means fake ThreadRef only."}
+                },
+                "required": ["plan_id", "node_id", "slice_id", "agent_id", "objective", "allowed_files"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "manage_subagents",
+            "description": "Inspect or control fake-backend subagent runs. Actions are list, status, cancel, retry, or read. No live threads or shell commands are used.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "status", "cancel", "retry", "read"]},
+                    "agent_run_id": {"type": "string", "description": "Required for status, cancel, retry, and read."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "bash",
             "description": "Run a shell command (full access). Prefer a dedicated tool whenever one fits the job (reading, writing, editing, searching, or listing files); use bash only for what no dedicated tool covers (installs, git, builds, running programs, system info). Do NOT create or edit files via bash redirects/heredocs/sed -- use the dedicated file tools.",
             "parameters": {
@@ -1501,7 +1541,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         content = json.dumps(args)
     elif tool_type == "ask_teacher":
         content = args.get("model", "auto") + "\n" + args.get("problem", "")
-    elif tool_type == "delegate":
+    elif tool_type in ("delegate", "spawn_subagent", "manage_subagents"):
         content = json.dumps(args)
     else:
         content = json.dumps(args)

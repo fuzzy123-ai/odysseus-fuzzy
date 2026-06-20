@@ -894,6 +894,18 @@ async def _execute_tool_block_impl(
             session_id=session_id,
             context_length=context_length,
         )
+    elif tool in ("spawn_subagent", "manage_subagents"):
+        from src.subagent_runtime import manage_subagents_from_tool, spawn_subagent_from_tool
+
+        desc = tool
+        try:
+            result = (
+                spawn_subagent_from_tool(content)
+                if tool == "spawn_subagent"
+                else manage_subagents_from_tool(content)
+            )
+        except Exception as exc:
+            result = {"error": f"{tool}: {exc}", "exit_code": 1}
     elif tool == "manage_bg_jobs":
         # Inspect/kill detached `bash` jobs; needs session_id to scope to chat.
         desc = f"manage_bg_jobs: {content.split(chr(10))[0][:80]}"

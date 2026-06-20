@@ -17,6 +17,7 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "bash",
     "python",
     "manage_bg_jobs",
+    "manage_subagents",
     "read_file",
     "write_file",
     "edit_file",
@@ -91,6 +92,8 @@ PLAN_MODE_READONLY_TOOLS = {
 
 ORCHESTRATOR_MODE_ALLOWED_TOOLS = {
     "delegate",
+    "spawn_subagent",
+    "manage_subagents",
     "obsidian_read_note",
     "obsidian_write_note",
     "obsidian_search_notes",
@@ -124,6 +127,7 @@ _PLAN_MODE_KNOWN_MUTATORS = {
     "suggest_document", "manage_documents", "create_session", "manage_session",
     "send_to_session", "pipeline", "manage_memory", "manage_skills",
     "manage_tasks", "manage_notes", "manage_endpoints", "manage_mcp",
+    "spawn_subagent", "manage_subagents",
     "manage_webhooks", "manage_tokens", "manage_settings", "manage_contact",
     "manage_calendar", "api_call", "app_api", "ui_control",
     "send_email", "reply_to_email", "bulk_email", "delete_email",

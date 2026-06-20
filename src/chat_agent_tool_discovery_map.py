@@ -27,14 +27,16 @@ SESSION_TOOLSET = frozenset({
     "search_chats",
 })
 
-MULTI_AGENT_TOOLSET = frozenset({
+DELEGATE_TOOLSET = frozenset({
     "delegate",
+})
+
+DURABLE_SUBAGENT_TOOLSET = frozenset({
+    "spawn_subagent",
+    "manage_subagents",
     "create_session",
     "send_to_session",
     "list_sessions",
-    "pipeline",
-    "chat_with_model",
-    "ask_teacher",
 })
 
 SESSION_INTENT_KEYWORDS = frozenset({
@@ -71,8 +73,6 @@ MULTI_AGENT_INTENT_KEYWORDS = frozenset({
     "subagent",
     "sub-agent",
     "worker",
-    "delegate",
-    "delegate to",
     "parallel agents",
     "parallel work",
     "alice and bob",
@@ -82,7 +82,6 @@ MULTI_AGENT_INTENT_KEYWORDS = frozenset({
     "agenten",
     "unteragent",
     "unter-agent",
-    "delegieren",
     "aufgaben verteilen",
     "aufgabe verteilen",
     "parallel arbeiten",
@@ -91,6 +90,21 @@ MULTI_AGENT_INTENT_KEYWORDS = frozenset({
     "alice und bob",
     "charlie koordiniert",
 })
+
+DELEGATE_INTENT_KEYWORDS = frozenset({
+    "delegate",
+    "delegate to",
+    "delegieren",
+    "focused worker",
+    "focused subtask",
+    "lightweight analysis",
+    "read-only investigation",
+    "bounded investigation",
+    "kurze analyse",
+    "fokussierte analyse",
+})
+
+MULTI_AGENT_TOOLSET = DURABLE_SUBAGENT_TOOLSET
 
 DISCOVERY_INTENTS = (
     ToolDiscoveryIntent(
@@ -101,7 +115,12 @@ DISCOVERY_INTENTS = (
     ToolDiscoveryIntent(
         name="multi_agent",
         keywords=MULTI_AGENT_INTENT_KEYWORDS,
-        tools=MULTI_AGENT_TOOLSET,
+        tools=DURABLE_SUBAGENT_TOOLSET,
+    ),
+    ToolDiscoveryIntent(
+        name="delegate_lightweight",
+        keywords=DELEGATE_INTENT_KEYWORDS,
+        tools=DELEGATE_TOOLSET,
     ),
 )
 

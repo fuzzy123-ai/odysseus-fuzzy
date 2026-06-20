@@ -59,6 +59,7 @@ _COMMON_TOOL_NAMES = {
     "manage_session",
     "manage_settings",
     "manage_skills",
+    "manage_subagents",
     "manage_tasks",
     "manage_tokens",
     "manage_webhooks",
@@ -77,6 +78,7 @@ _COMMON_TOOL_NAMES = {
     "serve_preset",
     "stop_served_model",
     "suggest_document",
+    "spawn_subagent",
     "trigger_research",
     "ui_control",
     "update_document",
@@ -222,6 +224,8 @@ def build_effective_tool_policy(
         except Exception:
             orch_disabled = known_tool_names() - {
                 "delegate",
+                "spawn_subagent",
+                "manage_subagents",
                 "obsidian_read_note",
                 "obsidian_write_note",
                 "obsidian_search_notes",
