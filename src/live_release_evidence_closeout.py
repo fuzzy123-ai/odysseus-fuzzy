@@ -28,6 +28,14 @@ _DECISION_VALUES = (
     "needs_manual_evidence",
 )
 
+_ENTRY_GATE_IDS = (
+    "provider_calls_disabled",
+    "export_import_rebuild_disabled",
+    "host_telegram_network_disabled",
+    "secrets_and_raw_logs_blocked",
+    "operator_review_required",
+)
+
 _MANUAL_NEXT_ALLOWED_SLICES = (
     "LIVE1-provider-proof-run",
 )
@@ -58,6 +66,13 @@ def _normalize_decision(value: Any) -> str:
     text = _normalize_text(value, field_name="decision").strip().lower()
     if text not in _DECISION_VALUES:
         raise ValueError("unsupported live release closeout decision")
+    return text
+
+
+def _normalize_entry_gate_id(value: Any) -> str:
+    text = _normalize_text(value, field_name="entry_gate_id").strip().lower()
+    if text not in _ENTRY_GATE_IDS:
+        raise ValueError("unsupported live phase entry gate_id")
     return text
 
 
@@ -105,14 +120,38 @@ class LiveCloseoutDecision:
 
 
 @dataclass(frozen=True, slots=True)
+class LivePhaseEntryGate:
+    gate_id: str
+    status: str
+    summary: str
+
+    @classmethod
+    def create(cls, *, gate_id: Any, status: Any, summary: Any) -> "LivePhaseEntryGate":
+        return cls(
+            gate_id=_normalize_entry_gate_id(gate_id),
+            status=_normalize_gate_status(status),
+            summary=_normalize_text(summary, field_name="summary"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "gate_id": self.gate_id,
+            "status": self.status,
+            "summary": self.summary,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class LiveReleaseEvidenceCloseout:
     gates: tuple[LiveEvidenceGate, ...]
+    live_phase_entry_gates: tuple[LivePhaseEntryGate, ...]
     decision: LiveCloseoutDecision
     next_allowed_slices: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gates": tuple(gate.to_dict() for gate in self.gates),
+            "live_phase_entry_gates": tuple(gate.to_dict() for gate in self.live_phase_entry_gates),
             "decision": self.decision.to_dict(),
             "next_allowed_slices": self.next_allowed_slices,
         }
@@ -129,6 +168,9 @@ class LiveReleaseEvidenceCloseout:
             "## Gates",
         ]
         for gate in self.gates:
+            lines.append(f"- `{gate.gate_id}`: {gate.status} - {gate.summary}")
+        lines.extend(["", "## Live Phase Entry Gates"])
+        for gate in self.live_phase_entry_gates:
             lines.append(f"- `{gate.gate_id}`: {gate.status} - {gate.summary}")
         if self.next_allowed_slices:
             lines.extend(["", "## Next Allowed Slices"])
@@ -163,6 +205,38 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
     }
 
     gates = tuple(sorted(gate_map.values(), key=lambda item: item.gate_id))
+    live_phase_entry_gates = tuple(
+        sorted(
+            (
+                LivePhaseEntryGate.create(
+                    gate_id="provider_calls_disabled",
+                    status="go",
+                    summary="provider calls remain disabled until a separate operator-run flow is approved",
+                ),
+                LivePhaseEntryGate.create(
+                    gate_id="export_import_rebuild_disabled",
+                    status="go",
+                    summary="export, import, and rebuild actions remain disabled until explicit operator execution",
+                ),
+                LivePhaseEntryGate.create(
+                    gate_id="host_telegram_network_disabled",
+                    status="go",
+                    summary="host, Telegram, and network actions remain disabled for the closeout slice",
+                ),
+                LivePhaseEntryGate.create(
+                    gate_id="secrets_and_raw_logs_blocked",
+                    status="go",
+                    summary="closeout artifacts allow only compact redacted status labels and evidence references",
+                ),
+                LivePhaseEntryGate.create(
+                    gate_id="operator_review_required",
+                    status="go",
+                    summary="operator review remains required before any live integration follow-up executes",
+                ),
+            ),
+            key=lambda item: item.gate_id,
+        )
+    )
     required_manual_gates_open = any(
         gate.status == "needs_manual_evidence"
         for gate in gates
@@ -202,6 +276,7 @@ def build_live_release_evidence_closeout() -> LiveReleaseEvidenceCloseout:
     )
     return LiveReleaseEvidenceCloseout(
         gates=gates,
+        live_phase_entry_gates=live_phase_entry_gates,
         decision=decision,
         next_allowed_slices=next_allowed_slices,
     )

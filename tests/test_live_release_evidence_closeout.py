@@ -27,6 +27,23 @@ def test_next_allowed_slices_are_empty_when_evidence_is_complete():
     assert closeout.next_allowed_slices == ()
 
 
+def test_live_phase_entry_gates_keep_runtime_actions_disabled():
+    closeout = build_live_release_evidence_closeout()
+    gate_status = {gate.gate_id: gate.status for gate in closeout.live_phase_entry_gates}
+
+    assert closeout.decision.decision == "external_go"
+    assert gate_status == {
+        "export_import_rebuild_disabled": "go",
+        "host_telegram_network_disabled": "go",
+        "operator_review_required": "go",
+        "provider_calls_disabled": "go",
+        "secrets_and_raw_logs_blocked": "go",
+    }
+    combined = " ".join(gate.summary for gate in closeout.live_phase_entry_gates)
+    assert "separate operator-run flow" in combined
+    assert "remain disabled" in combined
+
+
 def test_to_dict_is_stable():
     closeout = build_live_release_evidence_closeout()
 
@@ -53,6 +70,33 @@ def test_to_dict_is_stable():
                 "summary": "test-vault export/import/rebuild proof is recorded with isolated redacted evidence",
             },
         ),
+        "live_phase_entry_gates": (
+            {
+                "gate_id": "export_import_rebuild_disabled",
+                "status": "go",
+                "summary": "export, import, and rebuild actions remain disabled until explicit operator execution",
+            },
+            {
+                "gate_id": "host_telegram_network_disabled",
+                "status": "go",
+                "summary": "host, Telegram, and network actions remain disabled for the closeout slice",
+            },
+            {
+                "gate_id": "operator_review_required",
+                "status": "go",
+                "summary": "operator review remains required before any live integration follow-up executes",
+            },
+            {
+                "gate_id": "provider_calls_disabled",
+                "status": "go",
+                "summary": "provider calls remain disabled until a separate operator-run flow is approved",
+            },
+            {
+                "gate_id": "secrets_and_raw_logs_blocked",
+                "status": "go",
+                "summary": "closeout artifacts allow only compact redacted status labels and evidence references",
+            },
+        ),
         "decision": {
             "decision": "external_go",
             "internal_release_candidate_ready": True,
@@ -69,4 +113,6 @@ def test_markdown_is_operator_friendly():
 
     assert "# Live Release Evidence Closeout" in markdown
     assert "external_go" in markdown
+    assert "Live Phase Entry Gates" in markdown
+    assert "provider_calls_disabled" in markdown
     assert "LIVE1-provider-proof-run" not in markdown
