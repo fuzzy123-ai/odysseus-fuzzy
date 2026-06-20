@@ -8,6 +8,10 @@ checkout.
 - SSH target used by existing runbooks: `homebase@192.168.178.122`
 - Canonical local SSH alias:
   `ssh -F ops/homeserver/ssh_config odysseus-homeserver`
+- Canonical public key fingerprint:
+  `SHA256:gIo9i+URGIJy+E3nG1F8YsMh0rcW4ZNiskZ9xeDx2xA`
+- Canonical public key file:
+  `ops/homeserver/authorized_keys/odysseus-homeserver-20260620.pub`
 - Odysseus root on the server: `/opt/odysseus`
 - Runtime: rootless Podman / `podman-compose`
 - Odysseus container name: `odysseus_odysseus_1`
