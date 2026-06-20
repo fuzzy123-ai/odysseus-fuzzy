@@ -71,6 +71,18 @@ class SubagentTargetKind(StrEnum):
     JOB = "job"
 
 
+class SubagentDisplayStatus(StrEnum):
+    PLANNED = "planned"
+    RUNNING = "running"
+    HANDOFF = "handoff"
+    CLAIMED_DONE = "claimed_done"
+    GATE_BLOCKED = "gate_blocked"
+    VERIFIED_DONE = "verified_done"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 @dataclass(frozen=True, slots=True)
 class JobRef:
     job_id: str
@@ -293,6 +305,65 @@ class SubagentRun:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SubagentStatusItem:
+    agent_run_id: str
+    agent_id: str
+    slice_id: str
+    state: SubagentDisplayStatus
+    backend: str
+    target_kind: SubagentTargetKind
+    handoff_status: str
+    tests: tuple[str, ...]
+    blocker: str
+    next_action: str
+    allowed_actions: tuple[str, ...]
+    updated_at: str
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "agent_run_id": self.agent_run_id,
+            "agent_id": self.agent_id,
+            "slice_id": self.slice_id,
+            "state": self.state.value,
+            "backend": self.backend,
+            "target_kind": self.target_kind.value,
+            "handoff_status": self.handoff_status,
+            "test_count": len(self.tests),
+            "has_blocker": bool(self.blocker),
+            "next_action": self.next_action,
+            "allowed_actions": self.allowed_actions,
+            "updated_at": self.updated_at,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SubagentStatusSnapshot:
+    snapshot_id: str
+    plan_id: str
+    items: tuple[SubagentStatusItem, ...]
+    last_updated_at: str
+    warnings: tuple[str, ...]
+
+    @property
+    def counts_by_state(self) -> dict[str, int]:
+        return {
+            status.value: sum(1 for item in self.items if item.state == status)
+            for status in SubagentDisplayStatus
+        }
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "snapshot_id": self.snapshot_id,
+            "plan_id": self.plan_id,
+            "run_count": len(self.items),
+            "counts_by_state": {key: value for key, value in self.counts_by_state.items() if value},
+            "last_updated_at": self.last_updated_at,
+            "warning_count": len(self.warnings),
+            "items": tuple(item.audit_summary() for item in self.items),
+        }
+
+
 @dataclass(slots=True)
 class InMemorySubagentRuntimeStores:
     runs: dict[str, SubagentRun] = field(default_factory=dict)
@@ -485,6 +556,83 @@ def manage_subagents_from_tool(content: str) -> dict[str, Any]:
             "handoff": handoff.to_dict() if handoff else None,
         }
     raise SubagentRuntimeError("manage_subagents action must be list, status, cancel, retry, or read")
+
+
+def build_subagent_status_snapshot(
+    runs: Iterable[SubagentRun],
+    *,
+    plan_id: str,
+    last_updated_at: str,
+    warnings: Iterable[Any] = (),
+) -> SubagentStatusSnapshot:
+    normalized_plan_id = _normalize_slug(plan_id, field_name="plan_id")
+    normalized_updated = _normalize_timestamp(last_updated_at, field_name="last_updated_at")
+    run_tuple = tuple(runs)
+    if any(not isinstance(run, SubagentRun) for run in run_tuple):
+        raise SubagentRuntimeError("runs must contain SubagentRun items")
+    if any(run.spec.plan_id != normalized_plan_id for run in run_tuple):
+        raise SubagentRuntimeError("all subagent runs must belong to the requested plan_id")
+    items = tuple(
+        sorted(
+            (_status_item(run, updated_at=normalized_updated) for run in run_tuple),
+            key=lambda item: item.agent_run_id,
+        )
+    )
+    return SubagentStatusSnapshot(
+        snapshot_id=f"{normalized_plan_id}-subagents",
+        plan_id=normalized_plan_id,
+        items=items,
+        last_updated_at=normalized_updated,
+        warnings=_normalize_text_list(warnings, field_name="warnings"),
+    )
+
+
+def run_subagent_fake_e2e_smoke() -> SubagentStatusSnapshot:
+    stores = InMemorySubagentRuntimeStores()
+    backend = FakeSubagentExecutionBackend()
+    alice = create_subagent_run(_smoke_spec("alice", "sub7a"), stores=stores, backend=backend)
+    bob = create_subagent_run(_smoke_spec("bob", "sub7b"), stores=stores, backend=backend)
+
+    alice_verified = apply_subagent_handoff_and_gates(
+        alice,
+        handoff=_smoke_handoff("alice", "sub7a"),
+        git_status=GitStatusSnapshot.create(branch="dev", clean=True, commit="abcde01"),
+        test_results=[
+            TestExecutionSnapshot.create(
+                command="python -m pytest tests/test_subagent_runtime_e2e.py",
+                exit_code=0,
+                summary="alice fake smoke passed",
+            )
+        ],
+        verified_at="2026-06-20T11:05:00Z",
+        verified_by="charlie",
+        stores=stores,
+    )
+    bob_blocked = apply_subagent_handoff_and_gates(
+        bob,
+        handoff=_smoke_handoff("bob", "sub7b"),
+        git_status=GitStatusSnapshot.create(
+            branch="dev",
+            clean=False,
+            commit="bcdef12",
+            unstaged_files=["src/subagent_runtime.py"],
+        ),
+        test_results=[
+            TestExecutionSnapshot.create(
+                command="python -m pytest tests/test_subagent_runtime_e2e.py",
+                exit_code=0,
+                summary="bob fake smoke passed but git gate blocked",
+            )
+        ],
+        verified_at="2026-06-20T11:06:00Z",
+        verified_by="charlie",
+        stores=stores,
+    )
+    return build_subagent_status_snapshot(
+        [alice_verified, bob_blocked],
+        plan_id="subagent-runtime-v1",
+        last_updated_at="2026-06-20T11:07:00Z",
+    )
 
 
 def create_subagent_run(
@@ -682,6 +830,91 @@ def _agent_run_from_handoff(
         blocker=blocker,
         next_action=next_action,
         evidence=handoff.evidence,
+    )
+
+
+def _status_item(run: SubagentRun, *, updated_at: str) -> SubagentStatusItem:
+    state = _display_status(run)
+    return SubagentStatusItem(
+        agent_run_id=run.agent_run_id,
+        agent_id=run.spec.agent_id,
+        slice_id=run.spec.slice_id,
+        state=state,
+        backend=run.backend,
+        target_kind=run.spec.target_kind,
+        handoff_status=run.handoff.status.value if run.handoff else "",
+        tests=run.agent_run.evidence.tests,
+        blocker=run.agent_run.blocker,
+        next_action=run.agent_run.next_action,
+        allowed_actions=_allowed_actions_for(state),
+        updated_at=updated_at,
+    )
+
+
+def _display_status(run: SubagentRun) -> SubagentDisplayStatus:
+    if run.verified_done:
+        return SubagentDisplayStatus.VERIFIED_DONE
+    if run.handoff and run.handoff.status == HandoffStatus.DONE and not run.gate_result:
+        return SubagentDisplayStatus.CLAIMED_DONE
+    if run.handoff and run.handoff.status == HandoffStatus.DONE and run.gate_result and not run.gate_result.verified_done:
+        return SubagentDisplayStatus.GATE_BLOCKED
+    if run.state in {SubagentRunState.PLANNED, SubagentRunState.SPAWNED}:
+        return SubagentDisplayStatus.PLANNED
+    if run.state == SubagentRunState.RUNNING:
+        return SubagentDisplayStatus.RUNNING
+    if run.state == SubagentRunState.HANDOFF:
+        return SubagentDisplayStatus.HANDOFF
+    if run.state == SubagentRunState.BLOCKED:
+        return SubagentDisplayStatus.BLOCKED
+    if run.state == SubagentRunState.FAILED:
+        return SubagentDisplayStatus.FAILED
+    if run.state == SubagentRunState.CANCELLED:
+        return SubagentDisplayStatus.CANCELLED
+    if run.state == SubagentRunState.DONE:
+        return SubagentDisplayStatus.CLAIMED_DONE
+    return SubagentDisplayStatus.BLOCKED
+
+
+def _allowed_actions_for(status: SubagentDisplayStatus) -> tuple[str, ...]:
+    if status in {
+        SubagentDisplayStatus.PLANNED,
+        SubagentDisplayStatus.RUNNING,
+        SubagentDisplayStatus.HANDOFF,
+        SubagentDisplayStatus.CLAIMED_DONE,
+    }:
+        return ("cancel", "retry")
+    if status in {SubagentDisplayStatus.GATE_BLOCKED, SubagentDisplayStatus.BLOCKED, SubagentDisplayStatus.FAILED}:
+        return ("retry",)
+    return ()
+
+
+def _smoke_spec(agent_id: str, node_id: str) -> SubagentRunSpec:
+    return SubagentRunSpec.create(
+        agent_run_id=f"sub7-{agent_id}-run",
+        plan_id="subagent-runtime-v1",
+        node_id=node_id,
+        slice_id=node_id,
+        agent_id=agent_id,
+        role_id="worker",
+        objective=f"Run fake SUB7 smoke for {agent_id}.",
+        allowed_files=["src/subagent_runtime.py", "tests/test_subagent_runtime_e2e.py"],
+        tests=["python -m pytest tests/test_subagent_runtime_e2e.py"],
+        handoff_format=["Agent", "Slice", "Status", "Evidence"],
+        evidence_required=["green fake smoke"],
+        created_at="2026-06-20T11:00:00Z",
+        target_kind="job",
+    )
+
+
+def _smoke_handoff(agent_id: str, slice_id: str) -> ParsedHandoff:
+    return ParsedHandoff.create(
+        agent=agent_id,
+        slice_id=slice_id,
+        status="done",
+        commit="abcde01" if agent_id == "alice" else "bcdef12",
+        changed_files=["src/subagent_runtime.py", "tests/test_subagent_runtime_e2e.py"],
+        tests=["python -m pytest tests/test_subagent_runtime_e2e.py"],
+        evidence=[f"{agent_id} fake handoff parsed"],
     )
 
 
