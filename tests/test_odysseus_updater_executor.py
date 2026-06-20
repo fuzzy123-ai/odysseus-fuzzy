@@ -222,6 +222,32 @@ def test_execute_runs_whitelisted_steps_in_order_with_fake_runner(tmp_path: Path
     assert all(call[1] == tmp_path.resolve() for call in calls)
 
 
+def test_execute_default_flow_refreshes_version_env_before_container_recreate(tmp_path: Path):
+    bundle = _green_bundle()
+    calls = []
+
+    def runner(argv, *, cwd, timeout_seconds, env):
+        calls.append(argv)
+        return UpdaterCommandResult(exit_code=0, stdout="ok")
+
+    report = execute_odysseus_update(
+        bundle=bundle,
+        cwd=tmp_path,
+        command_runner=runner,
+        live_enabled=True,
+        operator_decision="go",
+    )
+
+    assert report.status == "completed"
+    assert calls[:5] == [
+        ("ops/homeserver/pre-update-snapshot.sh",),
+        ("git", "pull", "--ff-only"),
+        ("ops/homeserver/update-odysseus-version-env.sh",),
+        ("podman", "compose", "up", "-d", "--build"),
+        ("podman", "image", "prune", "-f"),
+    ]
+
+
 def test_execute_stops_on_first_failed_step():
     bundle = _green_bundle()
     steps = (
