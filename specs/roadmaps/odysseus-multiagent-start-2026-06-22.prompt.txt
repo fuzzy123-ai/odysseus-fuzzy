@@ -1,0 +1,109 @@
+Arbeite im Workspace C:\Users\nkatz\odysseus.
+
+Ziel fuer heute, 2026-06-22:
+Starte die Multiagent-Roadmap aus specs/roadmaps/odysseus-multiagent-roadmap.v1.json direkt mit maximal sicherer Parallelitaet, aber im ersten Schritt strikt read-only/report-first. Keine Worker duerfen Dateien aendern, bevor ihre Reports vom PlanGraph/Orchestrator verarbeitet wurden und eine explizite claimable Implementation Wave freigegeben ist.
+
+Wichtigster Grundsatz:
+Einzelne Features werden immer erst komplett bis live/readiness/live-go-faehig abgeschlossen, bevor das naechste Feature begonnen wird. Parallelitaet ist nur fuer Discovery, Reports, Validierung und voneinander unabhaengige vorbereitende Read-only-Arbeit erlaubt. Schreibende Implementierung bleibt pro Feature sequenziell und gate-gefuehrt.
+
+Pflicht-Start:
+1. Pruefe `git status --short --branch`.
+2. Lade specs/roadmaps/odysseus-multiagent-roadmap.v1.json.
+3. Verifiziere, dass `tomorrow_parallel_start.mode` `read_only_reports_first` ist.
+4. Wenn der Worktree nicht sauber ist: stoppe und melde die konkreten Dateien. Keine Reverts, keine destruktiven Git-Aktionen.
+5. Erstelle, falls Automation-Tools verfuegbar sind, eine 1-Minuten-Heartbeat-Automation mit dem Namen `multiagent-roadmap-2026-06-22`.
+6. Nutze Multiagent-Tools nur fuer die read-only Scout-Welle aus `tomorrow_parallel_start.parallel_scout_packets`.
+
+Heartbeat-Anweisung:
+Bei jedem Tick:
+- Status lesen.
+- Offene Scout-Reports einsammeln.
+- Reports validieren oder als unsicher markieren.
+- Akzeptierte Reports in vorgeschlagene PlanEvents reduzieren.
+- Keine Write-Capable-Implementation starten, solange nicht alle relevanten Reports fuer das aktuelle Feature verarbeitet wurden.
+- Stoppen bei Scope-Verletzung, fremden staged files, Live-Execution-Bedarf ohne Operator-Go, rohen privaten Inhalten, unklarem Report, Gate-Block oder Kollisionspunkt.
+- Wenn ein Feature in Implementierung geht: alle anderen Feature-Branches bleiben nur prepared_next/frontier, nicht aktiv.
+
+Read-only Scout-Welle:
+
+Scout 1: Roadmap Inventory
+- Rolle: Alice
+- Lies: docs/plans/*.md und specs/roadmaps/odysseus-multiagent-roadmap.v1.json.
+- Aufgabe: Roadmaps in active, done, deferred, speculative, stale und candidate-for-import klassifizieren.
+- Report: Statuskonflikte, neue/ungetrackte Roadmaps, Version-Horizon-Kandidaten, Roadmaps die nicht Source of Truth sein sollen.
+- Nicht tun: keine Dateien aendern, keine Nodes verified done markieren, keine rohen privaten Inhalte kopieren.
+
+Scout 2: Runtime Model Gap
+- Rolle: Bob
+- Lies: src/plan_graph_store.py, src/orchestration_registry.py, src/agent_run_store.py, src/context_capsule.py, src/subagent_runtime.py und zugehoerige Tests.
+- Aufgabe: Bestehende Modelle gegen Rolling Roadmap, Report-Protokoll und PlanRuntime abgleichen.
+- Report: fehlende Felder, sichere Wiederverwendung, Tests zum Erweitern, minimaler naechster Schema-Slice.
+- Nicht tun: kein Runtime-Code aendern, kein Live-Backend starten, keinen Tool-Scope verbreitern.
+
+Scout 3: Agent Report Protocol
+- Rolle: Bob
+- Lies: src/handoff_mailbox.py, src/tool_result_truth.py, src/agent_run_store.py und Tests.
+- Aufgabe: Erstes AgentReport-Schema und Report-to-PlanEvent-Reducer entwerfen.
+- Report: Minimum-Felder, Validierungsschritte, Redaction-Regeln, Event-Mapping, Failure Cases.
+- Nicht tun: Reports duerfen Graph-State nicht direkt mutieren, Report-Erfolg ist kein verified done, keine rohen Chatlogs speichern.
+
+Scout 4: Roadmap Lens
+- Rolle: Alice
+- Lies: Lens/Graph/Dashboard-Vertraege, static/ und routes/ nur read-only.
+- Aufgabe: Visualisierung fuer rolling tree layers, Versionen, Gates, Kollisionen, aktive Nodes und prepared_next entwerfen.
+- Report: Node-Typen, Visual Layers, Operator-Filter, read-only-v1-Grenze, spaetere Visual-Programming-Grenze.
+- Nicht tun: keine UI implementieren, kein visuelles Editing, Gates/Kollisionen nicht als Dekoration behandeln.
+
+Scout 5: Collision and Gate Policy
+- Rolle: Charlie
+- Lies: src/agent_pool_scaling.py, src/runtime_quality_gates.py, src/quality_gates.py und relevante Contracts.
+- Aufgabe: Erste erzwingbare Claimability-, Collision-, Gate-, Stop- und Lock-Regeln definieren.
+- Report: Claimability-Anforderungen, File-Lock-Regeln, Hotfile-Regeln, Gate-Status-Mapping, Stop Conditions.
+- Nicht tun: Locks nicht automatisch aufheben, keine unbekannten Agents erlauben, keine destruktiven Git-Aktionen vorschlagen.
+
+Report-Format fuer alle Scouts:
+{
+  "report_id": "...",
+  "plan_id": "odysseus-multiagent-roadmap",
+  "node_id": "...",
+  "agent_id": "...",
+  "role_id": "...",
+  "capsule_id": "...",
+  "read_scope": [],
+  "observations": [],
+  "source_refs": [],
+  "evidence_refs": [],
+  "blockers": [],
+  "collision_candidates": [],
+  "gate_observations": [],
+  "proposed_plan_events": [],
+  "confidence": "low|medium|high",
+  "redaction_summary": "",
+  "created_at": "2026-06-22T...Z"
+}
+
+PlanGraph-Reducer-Regeln:
+- `report_submitted` ist nur untrusted input.
+- Erst nach Schema-, Scope-, Redaction- und Provenance-Check darf `report_validated` entstehen.
+- Erst nach Orchestrator-/Operator-Annahme darf `report_accepted` entstehen.
+- Aus akzeptierten Reports duerfen nur abgeleitete Events entstehen: `gate_observed`, `collision_observed`, `node_proposed`, `node_blocked`, `frontier_refreshed`, `context_summary_updated`.
+- Zukuenftige Agents bekommen akzeptierte Events und redigierte Summaries, nicht rohe Reports.
+
+Feature-Fokus-Regel:
+Nach der Scout-Welle waehle genau ein Feature als aktiven Implementierungsfokus. Prioritaet:
+1. Read-only Agent Report Protocol
+2. PlanRuntime Source of Truth
+3. Roadmap Lens read-only
+4. Claim/Lease/Lock Model
+5. Real Gate Runners
+
+Arbeite das gewaehlte Feature komplett bis zu seinen Gates ab, inklusive Tests, Evidence, sauberem Worktree und optionalem Live/Readiness-Go, bevor du das naechste Feature startest.
+
+Finale Tagesmeldung:
+- Welche Reports wurden akzeptiert/rejected?
+- Welche PlanEvents wurden erzeugt?
+- Welches Feature ist aktiv?
+- Welche Gates sind gruen/blockierend?
+- Welche Dateien wurden geaendert?
+- Welche Tests liefen?
+- Was ist der naechste einzelne Schritt?

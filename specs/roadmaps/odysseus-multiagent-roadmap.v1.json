@@ -1,0 +1,1416 @@
+{
+  "schema_version": 1,
+  "plan_id": "odysseus-multiagent-roadmap",
+  "title": "Odysseus Multiagent Runtime Roadmap",
+  "created_at": "2026-06-20",
+  "updated_at": "2026-06-21",
+  "status": "draft_canonical",
+  "format_decision": {
+    "source_of_truth": "json",
+    "markdown_role": "rendered_view_only",
+    "reason": "The project has too many planning markdown files for reliable orchestration. This file captures versions, dependencies, gates, active work, and a rolling planning frontier as structured data for Roadmap Lens and PlanRuntime."
+  },
+  "planning_model": {
+    "mode": "rolling_mutating_tree",
+    "intent": "The roadmap must stay at least one useful step ahead of active execution. It is not a static snapshot and not an unbounded speculative graph.",
+    "tree_layers": [
+      {
+        "id": "current_execution",
+        "meaning": "Nodes that can be claimed or are currently running."
+      },
+      {
+        "id": "prepared_next",
+        "meaning": "Nodes that are ready to promote when current execution finishes or blocks."
+      },
+      {
+        "id": "frontier_candidates",
+        "meaning": "Likely next branches with enough metadata for planning, but not yet claimable."
+      },
+      {
+        "id": "speculative_backlog",
+        "meaning": "Ideas, domain tracks, and research branches that remain visually connected but muted."
+      }
+    ],
+    "mutation_authority": {
+      "agents_may": [
+        "propose_child_nodes",
+        "propose_gate_nodes",
+        "propose_blocker_nodes",
+        "attach_evidence_events",
+        "mark_observed_collision_points"
+      ],
+      "agents_must_not": [
+        "silently delete plan nodes",
+        "silently bypass gates",
+        "promote speculative nodes to claimable work without policy approval",
+        "rewrite completed evidence",
+        "create infinite planning branches to avoid execution"
+      ],
+      "promotion_requires": [
+        "dependencies_satisfied",
+        "no_active_lock_conflict",
+        "gate_policy_allows_promotion",
+        "owner_or_orchestrator_accepts_frontier_change"
+      ]
+    },
+    "frontier_rules": [
+      "Every active leaf should have at least one prepared_next node unless it is intentionally terminal.",
+      "A prepared_next node must include role, scope, gates, expected evidence, and stop rules.",
+      "Frontier candidates may be broader, but must state the uncertainty that keeps them unclaimable.",
+      "When a node completes, PlanRuntime promotes the best prepared_next child and asks for frontier refresh.",
+      "When a node blocks, PlanRuntime creates or activates an unblocker/gate node instead of skipping ahead.",
+      "When two branches touch the same hot file or capability, PlanRuntime adds a collision edge and blocks parallel claims.",
+      "If the graph grows without execution progress, the heartbeat must stop and ask for pruning or priority confirmation."
+    ],
+    "critical_risks": [
+      {
+        "risk": "Planning becomes self-referential and agents keep expanding the tree instead of shipping.",
+        "mitigation": "Limit frontier depth and require execution progress or explicit operator approval before broadening."
+      },
+      {
+        "risk": "Agents mutate the roadmap to make their own work look unblocked.",
+        "mitigation": "Use append-only plan events and distinguish proposed, accepted, and committed graph state."
+      },
+      {
+        "risk": "Speculative future branches become visually indistinguishable from approved work.",
+        "mitigation": "Render candidate/speculative nodes muted and make claimability a separate explicit field."
+      },
+      {
+        "risk": "Collision and gate data becomes decorative rather than enforced.",
+        "mitigation": "PlanRuntime must use collision/gate edges in assignment and dispatch decisions."
+      }
+    ]
+  },
+  "recommended_active_node": "roadmap-reconciliation-import",
+  "tomorrow_parallel_start": {
+    "date": "2026-06-22",
+    "mode": "read_only_reports_first",
+    "goal": "Start several agents in parallel without write collisions. Each agent reads a scoped slice, returns a structured report, and the PlanGraph reducer decides which reports become accepted events.",
+    "operator_intent": "Today is roadmap shaping only. Tomorrow should begin with maximum safe parallelism and no direct file writes from worker agents until the report protocol and claimability are clear.",
+    "launch_sequence": [
+      {
+        "step": 1,
+        "name": "orchestrator_bootstrap",
+        "owner": "charlie",
+        "action": "Load this roadmap, verify git status, identify current untracked roadmap files, and open a report-ingest queue.",
+        "exit": "Known worktree state and ready-to-dispatch read-only scout packets."
+      },
+      {
+        "step": 2,
+        "name": "parallel_read_only_scouts",
+        "owner": "alice_bob_charlie_pool",
+        "action": "Dispatch read-only agents for roadmap inventory, runtime model audit, report schema design, Lens graph design, and gate/collision policy.",
+        "exit": "All scouts submit AgentReport payloads only."
+      },
+      {
+        "step": 3,
+        "name": "plan_graph_reduction",
+        "owner": "charlie",
+        "action": "Validate reports, reject unsafe/raw reports, reduce accepted reports into plan events and prepared_next nodes.",
+        "exit": "Claimable implementation slices are explicit and collision-aware."
+      },
+      {
+        "step": 4,
+        "name": "implementation_wave_decision",
+        "owner": "operator_and_charlie",
+        "action": "Choose whether to start write-capable implementation or continue read-only refinement.",
+        "exit": "Operator-approved first implementation wave."
+      }
+    ],
+    "parallel_scout_packets": [
+      {
+        "id": "scout-roadmap-inventory",
+        "role": "alice",
+        "read_scope": [
+          "docs/plans/*.md",
+          "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+        ],
+        "task": "Classify current roadmap files into active, done, deferred, speculative, stale, and candidate-for-import groups.",
+        "report_focus": [
+          "status_conflicts",
+          "new_untracked_roadmaps",
+          "version_horizon_candidates",
+          "roadmaps_that_should_not_be_source_of_truth"
+        ],
+        "must_not": [
+          "edit markdown files",
+          "mark nodes verified done",
+          "copy raw private content"
+        ]
+      },
+      {
+        "id": "scout-runtime-model-gap",
+        "role": "bob",
+        "read_scope": [
+          "src/plan_graph_store.py",
+          "src/orchestration_registry.py",
+          "src/agent_run_store.py",
+          "src/context_capsule.py",
+          "src/subagent_runtime.py",
+          "tests/test_plan_graph_store.py",
+          "tests/test_orchestration_registry.py",
+          "tests/test_subagent_runtime*.py"
+        ],
+        "task": "Map existing models to the new rolling roadmap, report protocol, and PlanRuntime needs.",
+        "report_focus": [
+          "fields_missing_from_current_models",
+          "safe_reuse_points",
+          "tests_to_extend",
+          "minimal_next_schema_slice"
+        ],
+        "must_not": [
+          "change runtime code",
+          "start live backend",
+          "broaden scope into unrelated tools"
+        ]
+      },
+      {
+        "id": "scout-agent-report-protocol",
+        "role": "bob",
+        "read_scope": [
+          "src/handoff_mailbox.py",
+          "src/tool_result_truth.py",
+          "src/agent_run_store.py",
+          "tests/test_handoff_mailbox.py",
+          "tests/test_tool_result_truth.py"
+        ],
+        "task": "Design the first AgentReport schema and report-to-plan-event reducer using existing handoff and truth models where possible.",
+        "report_focus": [
+          "minimum_report_fields",
+          "validation_steps",
+          "redaction_rules",
+          "event_mapping",
+          "failure_cases"
+        ],
+        "must_not": [
+          "let reports directly mutate graph state",
+          "treat report success as verified done",
+          "store raw chat logs"
+        ]
+      },
+      {
+        "id": "scout-roadmap-lens",
+        "role": "alice",
+        "read_scope": [
+          "docs/plans/lens-ui-ux-contract.md",
+          "docs/plans/progressive-graph-api-contract.md",
+          "docs/plans/mini-orchestration-dashboard-contract.md",
+          "static/",
+          "routes/"
+        ],
+        "task": "Report how Roadmap Lens v1 should visualize rolling tree layers, versions, gates, collisions, active nodes, and prepared_next nodes.",
+        "report_focus": [
+          "graph_node_types",
+          "visual_layers",
+          "operator_filters",
+          "read_only_v1_boundary",
+          "later_visual_programming_boundary"
+        ],
+        "must_not": [
+          "implement UI",
+          "add visual editing",
+          "hide gates or collisions as decorative edges"
+        ]
+      },
+      {
+        "id": "scout-collision-gate-policy",
+        "role": "charlie",
+        "read_scope": [
+          "src/agent_pool_scaling.py",
+          "src/runtime_quality_gates.py",
+          "src/quality_gates.py",
+          "docs/plans/automated-agent-n-scaling-design.md",
+          "docs/plans/quality-gates-contract.md",
+          "docs/plans/workspace-sandbox-v2-contract.md"
+        ],
+        "task": "Report the first enforceable collision, gate, stop, and claimability rules for read-only and later write-capable agents.",
+        "report_focus": [
+          "claimability_requirements",
+          "file_lock_rules",
+          "hotfile_rules",
+          "gate_status_mapping",
+          "stop_conditions"
+        ],
+        "must_not": [
+          "auto-clear locks",
+          "allow unknown agents",
+          "propose destructive git operations"
+        ]
+      }
+    ],
+    "acceptance_for_tomorrow_start": [
+      "Every scout has a read_scope, report_focus, and must_not list.",
+      "No scout is write-capable in the first wave.",
+      "All reports go through PlanGraph ingest before becoming future context.",
+      "Parallelism is blocked on any shared write request, live execution request, or raw-private-content report."
+    ]
+  },
+  "source_roadmaps": [
+    {
+      "path": "docs/plans/unified-odysseus-roadmap.md",
+      "role": "master_roadmap",
+      "notes": "Defines 0.18 orchestration, SUB fake runtime, current LIVE tracks, and parallel-agent rules."
+    },
+    {
+      "path": "docs/plans/subagent-runtime-v1-roadmap.md",
+      "role": "subagent_runtime_contract",
+      "notes": "Fake backend path is the completed foundation; live execution remains a later operator-gated step."
+    },
+    {
+      "path": "docs/plans/automated-agent-handoff-orchestration-mvp.md",
+      "role": "orchestration_foundation",
+      "notes": "AUTO1-AUTO8 provide models and fake/injected planning, but real thread/git/test hooks remain open."
+    },
+    {
+      "path": "docs/plans/plan-graph-store-contract.md",
+      "role": "plan_model_contract",
+      "notes": "Defines PlanGraph, nodes, dependencies, status, gates, and evidence vocabulary."
+    },
+    {
+      "path": "docs/plans/agent-run-store-contract.md",
+      "role": "run_model_contract",
+      "notes": "Defines AgentRun state, evidence, tests, commits, changed files, blocker, and next action."
+    },
+    {
+      "path": "docs/plans/context-capsules-contract.md",
+      "role": "context_scope_contract",
+      "notes": "Defines scoped work capsules for subagents."
+    },
+    {
+      "path": "docs/plans/thread-lifecycle-bridge-contract.md",
+      "role": "thread_bridge_contract",
+      "notes": "Defines safe thread identity, read/send/resolve/stop semantics, and ambiguity blocking."
+    },
+    {
+      "path": "docs/plans/quality-gates-contract.md",
+      "role": "gate_contract",
+      "notes": "Defines claimed done vs verified done."
+    },
+    {
+      "path": "docs/plans/automated-agent-n-scaling-design.md",
+      "role": "scaling_policy",
+      "notes": "Defines registered agents, work items, file locks, budgets, and assignment decisions."
+    },
+    {
+      "path": "docs/plans/memory-durability-performance-suite-roadmap.md",
+      "role": "memory_reliability",
+      "notes": "Provides memory/event-log durability and performance-gate evidence for future capsules."
+    },
+    {
+      "path": "docs/plans/raptor-memory-write-enable-abc-roadmap.md",
+      "role": "derived_memory_write_gate",
+      "notes": "Defines safe derived RAPTOR write gates and bounded graph-memory evidence."
+    },
+    {
+      "path": "docs/plans/raptor-dynamic-cache-abc-roadmap.md",
+      "role": "memory_cache",
+      "notes": "Defines derived-only read-through cache and invalidation evidence."
+    },
+    {
+      "path": "docs/plans/remaining-features-roadmap-2026-06-20.md",
+      "role": "operator_feature_backlog",
+      "notes": "Lists live readiness, MCP, Telegram, Nextcloud, GameDev, Subagent, GitHub priorities."
+    },
+    {
+      "path": "docs/plans/github-issue-intelligence-roadmap.md",
+      "role": "future_worker_domain",
+      "notes": "Useful as a later multiagent benchmark for triage, duplicate detection, and field mapping."
+    },
+    {
+      "path": "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+      "role": "future_operator_channel",
+      "notes": "Useful as a later status/streaming surface for long-running agent work."
+    },
+    {
+      "path": "docs/plans/universal-inbox-abc-roadmap.md",
+      "role": "future_private_source_domain",
+      "notes": "Useful as a later source-intake and memory-routing benchmark."
+    },
+    {
+      "path": "docs/plans/gamedev-project-access-roadmap.md",
+      "role": "future_write_worker_domain",
+      "notes": "Useful as a later scoped-write worker benchmark."
+    }
+  ],
+  "version_horizons": [
+    {
+      "id": "now",
+      "label": "Now",
+      "version": "pre-0.9",
+      "visual_weight": "primary",
+      "description": "Convert roadmap sprawl into structured runtime state and reconcile completed fake-runtime work."
+    },
+    {
+      "id": "v0-9",
+      "label": "0.9",
+      "version": "0.9",
+      "visual_weight": "primary",
+      "description": "First real multiagent foundation: structured PlanRuntime, claims, capsules, real gate runners, and read-only Roadmap Lens."
+    },
+    {
+      "id": "after-v0-9",
+      "label": "After 0.9",
+      "version": "0.10+",
+      "visual_weight": "secondary",
+      "description": "Live execution backend, thread bridge integration, heartbeat dispatch, worktree isolation, and dashboard operations."
+    },
+    {
+      "id": "later",
+      "label": "Later / Research",
+      "version": "future",
+      "visual_weight": "muted",
+      "description": "Visual agent programming and domain-specific worker tracks after the core runtime is trustworthy."
+    }
+  ],
+  "status_vocabulary": [
+    "planned",
+    "active",
+    "done",
+    "blocked",
+    "deferred",
+    "partial",
+    "research"
+  ],
+  "graph_nodes": [
+    {
+      "id": "roadmap-reconciliation-import",
+      "kind": "foundation",
+      "priority_rank": 1,
+      "title": "Reconcile markdown roadmaps into structured PlanRuntime seed",
+      "horizon": "now",
+      "target_version": "pre-0.9",
+      "status": "active_candidate",
+      "objective": "Create a canonical structured plan from current roadmap files, marking AUTO/SUB fake-foundation work as done and current/future tracks as active or deferred.",
+      "why": "The current planning state is spread across many markdown files and recent untracked roadmap drafts. Multiagent orchestration needs one structured state before dispatch can be trusted.",
+      "source_refs": [
+        "docs/plans/unified-odysseus-roadmap.md",
+        "docs/plans/subagent-runtime-v1-roadmap.md",
+        "docs/plans/automated-agent-handoff-orchestration-mvp.md",
+        "docs/plans/remaining-features-roadmap-2026-06-20.md"
+      ],
+      "depends_on": [],
+      "unlocks": [
+        "read-only-agent-report-protocol",
+        "planruntime-source-of-truth",
+        "roadmap-lens-readonly"
+      ],
+      "gates": [
+        "json_valid",
+        "source_roadmaps_listed",
+        "completed_fake_runtime_not_replanned",
+        "active_and_deferred_tracks_explicit"
+      ],
+      "deliverables": [
+        "Canonical JSON roadmap artifact",
+        "Machine-readable horizon and version metadata",
+        "Dependency graph for next implementation plan"
+      ],
+      "blocked_actions": [
+        "Do not rewrite existing roadmap markdown as the source of truth.",
+        "Do not start live subagent execution from reconciliation alone."
+      ]
+    },
+    {
+      "id": "rolling-frontier-policy",
+      "kind": "foundation",
+      "priority_rank": 2,
+      "title": "Define rolling frontier and plan mutation policy",
+      "horizon": "now",
+      "target_version": "pre-0.9",
+      "status": "active_candidate",
+      "objective": "Make the roadmap a living tree that always keeps one prepared step ahead while preventing runaway planning and silent gate bypasses.",
+      "why": "A static roadmap snapshot will become stale as soon as agents complete, block, or discover collisions. The tree needs controlled mutation rules before agents navigate it.",
+      "source_refs": [
+        "data/roadmaps/odysseus-multiagent-roadmap.v1.json",
+        "docs/plans/plan-graph-store-contract.md",
+        "docs/plans/heartbeat-coordinator-contract.md",
+        "docs/plans/automated-agent-n-scaling-design.md"
+      ],
+      "depends_on": [
+        "roadmap-reconciliation-import"
+      ],
+      "unlocks": [
+        "planruntime-source-of-truth",
+        "roadmap-lens-readonly"
+      ],
+      "gates": [
+        "append_only_plan_events_defined",
+        "claimable_vs_candidate_nodes_distinct",
+        "frontier_depth_limited",
+        "collision_edges_enforced",
+        "gate_nodes_enforced"
+      ],
+      "deliverables": [
+        "Plan event model",
+        "Node claimability policy",
+        "Frontier refresh rules",
+        "Agent navigation policy",
+        "Collision/gate/stop edge semantics"
+      ],
+      "blocked_actions": [
+        "Do not let agents silently promote their own speculative nodes.",
+        "Do not allow planning expansion to replace execution progress."
+      ]
+    },
+    {
+      "id": "read-only-agent-report-protocol",
+      "kind": "foundation",
+      "priority_rank": 3,
+      "title": "Define read-only agent report protocol",
+      "horizon": "now",
+      "target_version": "pre-0.9",
+      "status": "active_candidate",
+      "objective": "Let agents inspect assigned scope read-only and submit structured reports to the PlanGraph instead of mutating plan state directly.",
+      "why": "This creates a safe first multiagent mode: agents can gather context, detect blockers, propose next nodes, and attach evidence without changing files or self-approving progress.",
+      "source_refs": [
+        "src/handoff_mailbox.py",
+        "src/tool_result_truth.py",
+        "src/agent_run_store.py",
+        "docs/plans/tool-result-truth-contract.md",
+        "docs/plans/context-capsules-contract.md"
+      ],
+      "depends_on": [
+        "rolling-frontier-policy"
+      ],
+      "unlocks": [
+        "planruntime-source-of-truth",
+        "roadmap-lens-readonly",
+        "subagent-plan-binding"
+      ],
+      "gates": [
+        "report_schema_validates",
+        "report_is_read_only",
+        "report_has_scope_and_sources",
+        "raw_private_content_redacted",
+        "proposed_events_not_auto_accepted",
+        "future_context_generated_from_accepted_events"
+      ],
+      "deliverables": [
+        "AgentReport schema",
+        "Report ingestion validator",
+        "Report-to-plan-event reducer",
+        "Redaction and source provenance rules",
+        "Context compiler rules for future agents"
+      ],
+      "blocked_actions": [
+        "Do not let read-only reports directly mark nodes done.",
+        "Do not persist raw chat logs or raw private source content as future context.",
+        "Do not treat agent observations as truth until the PlanGraph accepts the derived event."
+      ]
+    },
+    {
+      "id": "planruntime-source-of-truth",
+      "kind": "runtime",
+      "priority_rank": 4,
+      "title": "Build PlanRuntime as the source of truth",
+      "horizon": "v0-9",
+      "target_version": "0.9",
+      "status": "planned",
+      "objective": "Move from roadmap text to structured PlanGraph, slices, dependencies, horizons, gates, evidence, and status transitions.",
+      "why": "Subagents need deterministic work items, not prose. Markdown should be rendered from structured plan state.",
+      "source_refs": [
+        "src/plan_graph_store.py",
+        "src/orchestration_registry.py",
+        "docs/plans/plan-graph-store-contract.md"
+      ],
+      "depends_on": [
+        "roadmap-reconciliation-import",
+        "rolling-frontier-policy",
+        "read-only-agent-report-protocol"
+      ],
+      "unlocks": [
+        "subagent-plan-binding",
+        "claim-lease-locks",
+        "roadmap-lens-readonly"
+      ],
+      "gates": [
+        "plan_schema_validates",
+        "dependency_graph_acyclic",
+        "version_horizons_required",
+        "markdown_render_is_derived"
+      ],
+      "deliverables": [
+        "PlanRuntime schema",
+        "Load/save API",
+        "Importer for this roadmap JSON",
+        "Derived markdown renderer later, not first"
+      ],
+      "blocked_actions": [
+        "No free-form roadmap status writes without a structured event."
+      ]
+    },
+    {
+      "id": "subagent-plan-binding",
+      "kind": "runtime",
+      "priority_rank": 5,
+      "title": "Bind SubagentRuntime to PlanRuntime slices",
+      "horizon": "v0-9",
+      "target_version": "0.9",
+      "status": "planned",
+      "objective": "Require every durable subagent run to originate from a PlanRuntime node and scoped ContextCapsule.",
+      "why": "The fake subagent foundation exists; the missing trust boundary is making plan/capsule/run mandatory for worker execution.",
+      "source_refs": [
+        "src/subagent_runtime.py",
+        "src/context_capsule.py",
+        "src/agent_run_store.py",
+        "docs/plans/subagent-runtime-v1-roadmap.md"
+      ],
+      "depends_on": [
+        "planruntime-source-of-truth"
+      ],
+      "unlocks": [
+        "execution-backend-adapter",
+        "real-gate-runners"
+      ],
+      "gates": [
+        "subagent_run_requires_plan_node",
+        "context_capsule_required",
+        "done_without_evidence_blocked",
+        "delegate_not_durable_worker"
+      ],
+      "deliverables": [
+        "Plan node to SubagentRunSpec adapter",
+        "ContextCapsule v2 payload for slices",
+        "Tests for missing plan/capsule blockers"
+      ],
+      "blocked_actions": [
+        "No durable worker from natural-language prompt alone."
+      ]
+    },
+    {
+      "id": "claim-lease-locks",
+      "kind": "coordination",
+      "priority_rank": 6,
+      "title": "Implement slice claims, leases, file locks, and budgets",
+      "horizon": "v0-9",
+      "target_version": "0.9",
+      "status": "planned",
+      "objective": "Make multiagent coordination explicit before running multiple write-capable workers.",
+      "why": "AUTO8 already models agent pools and locks. The next step is making those decisions persistent and enforceable.",
+      "source_refs": [
+        "src/agent_pool_scaling.py",
+        "docs/plans/automated-agent-n-scaling-design.md",
+        "docs/plans/agent-state-isolation-contract.md"
+      ],
+      "depends_on": [
+        "planruntime-source-of-truth"
+      ],
+      "unlocks": [
+        "execution-backend-adapter",
+        "worktree-branch-isolation"
+      ],
+      "gates": [
+        "one_owner_per_active_slice",
+        "lease_timeout_visible",
+        "file_lock_blocks_overlap",
+        "unknown_agent_blocks_assignment",
+        "budget_reserve_respected"
+      ],
+      "deliverables": [
+        "Claim model",
+        "Lease model",
+        "File lock model",
+        "Assignment API"
+      ],
+      "blocked_actions": [
+        "Do not auto-clear locks without a gate.",
+        "Do not create unknown agents to satisfy capacity."
+      ]
+    },
+    {
+      "id": "roadmap-lens-readonly",
+      "kind": "lens",
+      "priority_rank": 7,
+      "title": "Roadmap Lens v1 read-only graph",
+      "horizon": "v0-9",
+      "target_version": "0.9",
+      "status": "planned",
+      "objective": "Show roadmap files, structured plan nodes, milestones, dependencies, active work, deferred work, gates, and hotspots in the existing Lens graph style.",
+      "why": "The operator loses overview when many plan files exist. A versioned graph makes current, 0.9, after-0.9, and later work visible at once.",
+      "source_refs": [
+        "docs/plans/lens-ui-ux-contract.md",
+        "docs/plans/progressive-graph-api-contract.md",
+        "docs/plans/mini-orchestration-dashboard-contract.md"
+      ],
+      "depends_on": [
+        "roadmap-reconciliation-import",
+        "rolling-frontier-policy",
+        "planruntime-source-of-truth"
+      ],
+      "unlocks": [
+        "orchestration-dashboard-control-center",
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "read_only_first",
+        "version_horizons_rendered",
+        "active_plan_highlighted",
+        "deferred_nodes_muted",
+        "no_runtime_mutation_from_lens_v1"
+      ],
+      "deliverables": [
+        "Roadmap graph snapshot builder",
+        "Nodes for roadmaps, slices, versions, gates, agents, commits, and files",
+        "Edges for depends_on, references, supersedes, active_run, touches_file, produces_evidence",
+        "Visual horizon bands: Now, 0.9, After 0.9, Later"
+      ],
+      "blocked_actions": [
+        "Do not allow visual edits in v1.",
+        "Do not infer completion from markdown wording without evidence."
+      ]
+    },
+    {
+      "id": "real-gate-runners",
+      "kind": "verification",
+      "priority_rank": 8,
+      "title": "Turn quality gates into real scoped runners",
+      "horizon": "v0-9",
+      "target_version": "0.9",
+      "status": "planned",
+      "objective": "Evaluate git, tests, evidence, scope, hotfiles, and handoff with real local checks where safe.",
+      "why": "Current runtime quality gates mostly evaluate injected snapshots. verified_done needs observed evidence.",
+      "source_refs": [
+        "src/runtime_quality_gates.py",
+        "src/quality_gates.py",
+        "docs/plans/quality-gates-contract.md"
+      ],
+      "depends_on": [
+        "subagent-plan-binding",
+        "claim-lease-locks"
+      ],
+      "unlocks": [
+        "heartbeat-runtime-live-loop",
+        "orchestration-dashboard-control-center"
+      ],
+      "gates": [
+        "git_status_readonly",
+        "test_runner_allowlisted",
+        "changed_files_within_scope",
+        "hotfile_conflicts_block",
+        "evidence_required_for_done"
+      ],
+      "deliverables": [
+        "GateRunner interface",
+        "Readonly git gate",
+        "Focused test gate",
+        "Scope and hotfile gate",
+        "Evidence and handoff gate"
+      ],
+      "blocked_actions": [
+        "No destructive git operations.",
+        "No broad shell command runner."
+      ]
+    },
+    {
+      "id": "execution-backend-adapter",
+      "kind": "runtime",
+      "priority_rank": 9,
+      "title": "Add real execution backend behind SubagentExecutionBackend",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Keep FakeSubagentExecutionBackend for tests and add a real backend adapter behind the same spawn/read/cancel/retry/status contract.",
+      "why": "Subagent Runtime v1 is fake-only by design. A real backend is the boundary between simulated and real multiagent execution.",
+      "source_refs": [
+        "src/subagent_runtime.py",
+        "src/thread_registry.py",
+        "docs/plans/thread-lifecycle-bridge-contract.md"
+      ],
+      "depends_on": [
+        "subagent-plan-binding",
+        "claim-lease-locks",
+        "real-gate-runners"
+      ],
+      "unlocks": [
+        "thread-bridge-live",
+        "heartbeat-runtime-live-loop"
+      ],
+      "gates": [
+        "operator_live_go_required",
+        "backend_capability_explicit",
+        "threadref_or_jobref_unambiguous",
+        "redacted_status_only",
+        "cancel_retry_pause_resume_supported"
+      ],
+      "deliverables": [
+        "ExecutionBackend adapter boundary",
+        "Real backend experimental implementation",
+        "Operator-gated enablement flag",
+        "Fake-vs-real parity tests"
+      ],
+      "blocked_actions": [
+        "No live thread execution by default.",
+        "No raw provider or private thread content in evidence."
+      ]
+    },
+    {
+      "id": "thread-bridge-live",
+      "kind": "runtime",
+      "priority_rank": 10,
+      "title": "Make Thread Lifecycle Bridge read and route real threads",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Read thread state, map it to AgentRuns, detect new turns and handoffs, and block ambiguity.",
+      "why": "The bridge currently validates assignments and references; live multiagent work needs observed thread lifecycle state.",
+      "source_refs": [
+        "src/thread_lifecycle_bridge.py",
+        "src/thread_registry.py",
+        "docs/plans/thread-lifecycle-bridge-contract.md"
+      ],
+      "depends_on": [
+        "execution-backend-adapter"
+      ],
+      "unlocks": [
+        "heartbeat-runtime-live-loop"
+      ],
+      "gates": [
+        "last_seen_turn_tracked",
+        "handoff_status_parsed",
+        "ambiguous_thread_blocks_send",
+        "resolved_thread_not_reprocessed"
+      ],
+      "deliverables": [
+        "Thread read adapter",
+        "Run/thread lifecycle snapshot",
+        "Handoff extraction from real turns",
+        "Ambiguity blocker"
+      ],
+      "blocked_actions": [
+        "No blind sends into unknown or ambiguous threads."
+      ]
+    },
+    {
+      "id": "heartbeat-runtime-live-loop",
+      "kind": "orchestration",
+      "priority_rank": 11,
+      "title": "Run the Heartbeat Runtime Loop against real state",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Use PlanRuntime, claims, thread state, handoff mailbox, and gates to dispatch next safe work.",
+      "why": "The current loop plans ticks from injected snapshots. Real multiagent work requires safe dispatch, wait, resolve, and stop decisions.",
+      "source_refs": [
+        "src/orchestration_runtime_loop.py",
+        "src/heartbeat_coordinator.py",
+        "docs/plans/heartbeat-coordinator-contract.md"
+      ],
+      "depends_on": [
+        "thread-bridge-live",
+        "real-gate-runners"
+      ],
+      "unlocks": [
+        "orchestration-dashboard-control-center",
+        "multiagent-e2e-benchmarks"
+      ],
+      "gates": [
+        "safe_dispatch_only",
+        "stale_ticks_stop_or_notify",
+        "handoff_required_for_next_slice",
+        "operator_stop_respected"
+      ],
+      "deliverables": [
+        "Live-state heartbeat runner",
+        "Dispatch queue execution",
+        "Stop reason persistence",
+        "Heartbeat evidence events"
+      ],
+      "blocked_actions": [
+        "No endless autonomous loop without visible stop criteria."
+      ]
+    },
+    {
+      "id": "worktree-branch-isolation",
+      "kind": "workspace",
+      "priority_rank": 12,
+      "title": "Give write-capable workers isolated branches or worktrees",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Prevent simultaneous write workers from corrupting one worktree and make integration explicit.",
+      "why": "File locks help, but real parallel implementation needs separate patch surfaces.",
+      "source_refs": [
+        "docs/plans/workspace-sandbox-v2-contract.md",
+        "docs/plans/agent-state-isolation-contract.md"
+      ],
+      "depends_on": [
+        "claim-lease-locks",
+        "execution-backend-adapter"
+      ],
+      "unlocks": [
+        "multiagent-e2e-benchmarks"
+      ],
+      "gates": [
+        "worker_branch_created",
+        "scope_diff_checked",
+        "integrator_merges_only_after_gates",
+        "conflicts_visible"
+      ],
+      "deliverables": [
+        "Worker workspace policy",
+        "Branch/worktree assignment metadata",
+        "Integrator merge gate"
+      ],
+      "blocked_actions": [
+        "No shared dirty write tree for parallel implementation workers."
+      ]
+    },
+    {
+      "id": "orchestration-dashboard-control-center",
+      "kind": "ui",
+      "priority_rank": 13,
+      "title": "Build orchestration dashboard control center",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Show active plans, subagents, claims, leases, gates, handoffs, commits, blockers, and next actions.",
+      "why": "Multiagent state must be visible without reading many chat histories.",
+      "source_refs": [
+        "src/orchestration_dashboard_v2.py",
+        "docs/plans/mini-orchestration-dashboard-contract.md"
+      ],
+      "depends_on": [
+        "roadmap-lens-readonly",
+        "heartbeat-runtime-live-loop",
+        "real-gate-runners"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "read_status_without_side_effects",
+        "actions_operator_gated",
+        "claims_and_locks_visible",
+        "verified_done_visibly_distinct"
+      ],
+      "deliverables": [
+        "Status API",
+        "Dashboard view",
+        "Pause/resume/cancel/retry controls when policy allows"
+      ],
+      "blocked_actions": [
+        "No destructive controls in dashboard v1."
+      ]
+    },
+    {
+      "id": "memory-capsule-integration",
+      "kind": "memory",
+      "priority_rank": 14,
+      "title": "Integrate Memory/RAPTOR into scoped ContextCapsules",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Use durable memory and derived graph state as bounded capsule input, not global chat dumps.",
+      "why": "Memory durability and RAPTOR foundations exist. Multiagent runs need relevant project memory, decisions, and prior evidence with strict redaction.",
+      "source_refs": [
+        "docs/plans/memory-durability-performance-suite-roadmap.md",
+        "docs/plans/raptor-memory-write-enable-abc-roadmap.md",
+        "docs/plans/raptor-dynamic-cache-abc-roadmap.md",
+        "src/context_capsule.py"
+      ],
+      "depends_on": [
+        "subagent-plan-binding",
+        "planruntime-source-of-truth"
+      ],
+      "unlocks": [
+        "multiagent-e2e-benchmarks"
+      ],
+      "gates": [
+        "capsule_memory_scope_explicit",
+        "no_raw_private_content_by_default",
+        "memory_source_provenance_present",
+        "derived_memory_budget_bounded"
+      ],
+      "deliverables": [
+        "Capsule memory section",
+        "Decision/evidence retrieval for slices",
+        "RAPTOR/Graph context budget rules"
+      ],
+      "blocked_actions": [
+        "No global memory dump into subagent prompts."
+      ]
+    },
+    {
+      "id": "multiagent-e2e-benchmarks",
+      "kind": "validation",
+      "priority_rank": 15,
+      "title": "Use domain roadmaps as multiagent end-to-end benchmarks",
+      "horizon": "later",
+      "target_version": "future",
+      "status": "planned",
+      "objective": "Validate the runtime with realistic workflows: GitHub issue triage, Telegram operator channel, Nextcloud inbox, and GameDev write work.",
+      "why": "Domain tracks should test the core runtime after it is trustworthy, not fork their own orchestration logic.",
+      "source_refs": [
+        "docs/plans/github-issue-intelligence-roadmap.md",
+        "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+        "docs/plans/universal-inbox-abc-roadmap.md",
+        "docs/plans/gamedev-project-access-roadmap.md"
+      ],
+      "depends_on": [
+        "heartbeat-runtime-live-loop",
+        "worktree-branch-isolation",
+        "memory-capsule-integration"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "benchmark_has_structured_plan",
+        "domain_tools_policy_gated",
+        "no_live_provider_without_go",
+        "operator_evidence_redacted"
+      ],
+      "deliverables": [
+        "GitHub issue triage benchmark",
+        "Telegram long-running status benchmark",
+        "Nextcloud dry-run intake benchmark",
+        "GameDev scoped write benchmark"
+      ],
+      "blocked_actions": [
+        "Do not let domain tracks bypass PlanRuntime, claims, gates, or capsules."
+      ]
+    },
+    {
+      "id": "visual-agent-programming",
+      "kind": "lens",
+      "priority_rank": 16,
+      "title": "Visual agent programming in Roadmap Lens",
+      "horizon": "later",
+      "target_version": "future",
+      "status": "research",
+      "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
+      "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
+      "source_refs": [
+        "docs/plans/lens-ui-ux-contract.md",
+        "docs/plans/mini-orchestration-dashboard-contract.md"
+      ],
+      "depends_on": [
+        "roadmap-lens-readonly",
+        "orchestration-dashboard-control-center",
+        "multiagent-e2e-benchmarks"
+      ],
+      "unlocks": [],
+      "gates": [
+        "read_only_lens_stable_first",
+        "graph_edits_validate_against_plan_schema",
+        "agent_start_requires_policy_gate",
+        "visual_changes_emit_plan_events"
+      ],
+      "deliverables": [
+        "Visual slice editor",
+        "Dependency editor",
+        "Agent assignment UI",
+        "Gate and capsule builders",
+        "Operator-gated run controls"
+      ],
+      "blocked_actions": [
+        "No visual mutation before PlanRuntime validation exists.",
+        "No direct graph-to-live-run without explicit operator action."
+      ]
+    }
+  ],
+  "graph_edges": [
+    {
+      "from": "roadmap-reconciliation-import",
+      "to": "rolling-frontier-policy",
+      "kind": "unlocks"
+    },
+    {
+      "from": "rolling-frontier-policy",
+      "to": "read-only-agent-report-protocol",
+      "kind": "unlocks"
+    },
+    {
+      "from": "read-only-agent-report-protocol",
+      "to": "planruntime-source-of-truth",
+      "kind": "unlocks"
+    },
+    {
+      "from": "read-only-agent-report-protocol",
+      "to": "roadmap-lens-readonly",
+      "kind": "unlocks"
+    },
+    {
+      "from": "rolling-frontier-policy",
+      "to": "roadmap-lens-readonly",
+      "kind": "unlocks"
+    },
+    {
+      "from": "rolling-frontier-policy",
+      "to": "planruntime-source-of-truth",
+      "kind": "depends_on"
+    },
+    {
+      "from": "read-only-agent-report-protocol",
+      "to": "planruntime-source-of-truth",
+      "kind": "depends_on"
+    },
+    {
+      "from": "planruntime-source-of-truth",
+      "to": "subagent-plan-binding",
+      "kind": "depends_on"
+    },
+    {
+      "from": "planruntime-source-of-truth",
+      "to": "claim-lease-locks",
+      "kind": "depends_on"
+    },
+    {
+      "from": "planruntime-source-of-truth",
+      "to": "roadmap-lens-readonly",
+      "kind": "depends_on"
+    },
+    {
+      "from": "subagent-plan-binding",
+      "to": "real-gate-runners",
+      "kind": "depends_on"
+    },
+    {
+      "from": "claim-lease-locks",
+      "to": "real-gate-runners",
+      "kind": "depends_on"
+    },
+    {
+      "from": "claim-lease-locks",
+      "to": "worktree-branch-isolation",
+      "kind": "depends_on"
+    },
+    {
+      "from": "subagent-plan-binding",
+      "to": "execution-backend-adapter",
+      "kind": "depends_on"
+    },
+    {
+      "from": "real-gate-runners",
+      "to": "execution-backend-adapter",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execution-backend-adapter",
+      "to": "thread-bridge-live",
+      "kind": "depends_on"
+    },
+    {
+      "from": "thread-bridge-live",
+      "to": "heartbeat-runtime-live-loop",
+      "kind": "depends_on"
+    },
+    {
+      "from": "real-gate-runners",
+      "to": "heartbeat-runtime-live-loop",
+      "kind": "depends_on"
+    },
+    {
+      "from": "roadmap-lens-readonly",
+      "to": "orchestration-dashboard-control-center",
+      "kind": "depends_on"
+    },
+    {
+      "from": "heartbeat-runtime-live-loop",
+      "to": "orchestration-dashboard-control-center",
+      "kind": "depends_on"
+    },
+    {
+      "from": "subagent-plan-binding",
+      "to": "memory-capsule-integration",
+      "kind": "depends_on"
+    },
+    {
+      "from": "heartbeat-runtime-live-loop",
+      "to": "multiagent-e2e-benchmarks",
+      "kind": "depends_on"
+    },
+    {
+      "from": "worktree-branch-isolation",
+      "to": "multiagent-e2e-benchmarks",
+      "kind": "depends_on"
+    },
+    {
+      "from": "memory-capsule-integration",
+      "to": "multiagent-e2e-benchmarks",
+      "kind": "depends_on"
+    },
+    {
+      "from": "orchestration-dashboard-control-center",
+      "to": "visual-agent-programming",
+      "kind": "depends_on"
+    },
+    {
+      "from": "roadmap-lens-readonly",
+      "to": "visual-agent-programming",
+      "kind": "depends_on"
+    }
+  ],
+  "plan_event_model": {
+    "mode": "append_only",
+    "reason": "A mutating roadmap needs an audit trail. Current graph state should be derived from accepted events, not overwritten prose.",
+    "event_types": [
+      {
+        "type": "report_submitted",
+        "writer": "read_only_agent",
+        "effect": "Stores a redacted structured observation report as untrusted input."
+      },
+      {
+        "type": "report_validated",
+        "writer": "plan_graph_ingest",
+        "effect": "Records that schema, scope, redaction, and source provenance passed validation."
+      },
+      {
+        "type": "report_rejected",
+        "writer": "plan_graph_ingest",
+        "effect": "Records why a report could not affect future context or plan state."
+      },
+      {
+        "type": "report_accepted",
+        "writer": "orchestrator_or_operator",
+        "effect": "Allows derived plan events, gates, context summaries, or frontier proposals to be generated from the report."
+      },
+      {
+        "type": "node_proposed",
+        "writer": "agent_or_operator",
+        "effect": "Adds a candidate node that is not claimable yet."
+      },
+      {
+        "type": "node_accepted",
+        "writer": "orchestrator_or_operator",
+        "effect": "Promotes a proposed node into the committed graph."
+      },
+      {
+        "type": "node_promoted_to_claimable",
+        "writer": "orchestrator",
+        "effect": "Moves a prepared node into current_execution when dependencies and gates allow it."
+      },
+      {
+        "type": "node_claimed",
+        "writer": "agent_runtime",
+        "effect": "Creates or refreshes a lease for one agent."
+      },
+      {
+        "type": "node_blocked",
+        "writer": "agent_or_gate_runner",
+        "effect": "Marks a node blocked and may propose an unblocker node."
+      },
+      {
+        "type": "gate_observed",
+        "writer": "gate_runner",
+        "effect": "Attaches pass, warn, block, fail, or skip evidence to a node or edge."
+      },
+      {
+        "type": "collision_observed",
+        "writer": "agent_runtime",
+        "effect": "Adds a collision edge between nodes, files, capabilities, or agents."
+      },
+      {
+        "type": "node_completed",
+        "writer": "gate_runner_or_orchestrator",
+        "effect": "Marks verified completion only after required evidence and gates pass."
+      },
+      {
+        "type": "frontier_refreshed",
+        "writer": "orchestrator",
+        "effect": "Adds or updates prepared_next and frontier_candidates after progress."
+      },
+      {
+        "type": "node_deferred",
+        "writer": "orchestrator_or_operator",
+        "effect": "Keeps a branch visible but removes claimability."
+      }
+    ],
+    "minimum_event_fields": [
+      "event_id",
+      "event_type",
+      "plan_id",
+      "node_id",
+      "writer",
+      "created_at",
+      "reason",
+      "evidence_refs"
+    ]
+  },
+  "read_only_agent_report_pipeline": {
+    "goal": "Keep agents read-only at first. They inspect scoped context, then send a structured report to the PlanGraph. The PlanGraph validates, redacts, reduces, and only then updates future context.",
+    "report_statuses": [
+      "submitted",
+      "validated",
+      "accepted",
+      "rejected",
+      "reduced_to_events"
+    ],
+    "minimum_report_fields": [
+      "report_id",
+      "plan_id",
+      "node_id",
+      "agent_id",
+      "role_id",
+      "capsule_id",
+      "read_scope",
+      "observations",
+      "source_refs",
+      "evidence_refs",
+      "blockers",
+      "collision_candidates",
+      "gate_observations",
+      "proposed_plan_events",
+      "confidence",
+      "redaction_summary",
+      "created_at"
+    ],
+    "validation_steps": [
+      "schema_validation",
+      "agent_identity_validation",
+      "capsule_scope_validation",
+      "read_only_tool_policy_check",
+      "source_ref_validation",
+      "secret_and_raw_content_redaction",
+      "proposal_does_not_claim_verified_done",
+      "collision_and_gate_mentions_are_structured"
+    ],
+    "reducer_outputs": [
+      "gate_observed",
+      "collision_observed",
+      "node_proposed",
+      "node_blocked",
+      "frontier_refreshed",
+      "context_summary_updated"
+    ],
+    "future_context_rules": [
+      "Future agents receive accepted report summaries and derived events, not raw report bodies by default.",
+      "Every context item must carry source_refs and confidence.",
+      "Rejected reports remain audit-only and must not be used as factual context.",
+      "Conflicting reports create a gate or blocker instead of silently choosing one.",
+      "A report may propose a next node, but cannot make that node claimable."
+    ],
+    "critical_limits": [
+      "Read-only agents can still pollute context with confident but wrong summaries.",
+      "The PlanGraph reducer must preserve uncertainty instead of smoothing it away.",
+      "Reports must be compact; large raw notes, logs, provider output, and chat dumps are not valid context artifacts."
+    ]
+  },
+  "agent_navigation_policy": {
+    "selection_order": [
+      "Read current_execution nodes assigned to the agent role.",
+      "Filter out nodes with unsatisfied dependencies.",
+      "Filter out nodes with active collision, lock, or required gate blockers.",
+      "Prefer nodes with explicit ContextCapsule and focused tests.",
+      "If no current node is claimable, inspect prepared_next and request promotion.",
+      "If prepared_next is empty for an active leaf, propose a frontier refresh instead of inventing work.",
+      "If multiple nodes are equally claimable and overlap risk is unclear, stop for orchestrator choice."
+    ],
+    "movement_edges": [
+      "depends_on",
+      "unlocks",
+      "handoff_to",
+      "blocked_by",
+      "collision_with",
+      "requires_gate",
+      "produces_evidence",
+      "supersedes"
+    ],
+    "must_stop_when": [
+      "the next node is not claimable",
+      "dependencies are ambiguous",
+      "a required gate is block or fail",
+      "a file or capability collision exists",
+      "the agent lacks role, budget, lease, or workspace permission",
+      "the node would require live execution without operator Go",
+      "the agent would need to mutate the graph to make its own work valid"
+    ],
+    "must_emit_when_stopping": [
+      "current_node",
+      "blocked_edge_or_gate",
+      "observed_evidence",
+      "proposed_next_event",
+      "operator_question_if_needed"
+    ]
+  },
+  "lens_projection": {
+    "default_view": "versioned_roadmap",
+    "horizon_order": [
+      "now",
+      "v0-9",
+      "after-v0-9",
+      "later"
+    ],
+    "node_types": [
+      "foundation",
+      "runtime",
+      "coordination",
+      "verification",
+      "workspace",
+      "ui",
+      "memory",
+      "validation",
+      "lens"
+    ],
+    "edge_types": [
+      "depends_on",
+      "unlocks",
+      "handoff_to",
+      "blocked_by",
+      "collision_with",
+      "requires_gate",
+      "references",
+      "supersedes",
+      "active_run",
+      "touches_file",
+      "produces_evidence"
+    ],
+    "visual_rules": [
+      "Show Now and 0.9 nodes as primary.",
+      "Show After 0.9 nodes behind the 0.9 milestone band.",
+      "Show Later/Research nodes muted and farther back.",
+      "Show current_execution, prepared_next, frontier_candidates, and speculative_backlog as separate visual layers inside each version band.",
+      "Highlight recommended_active_node.",
+      "Highlight claimable nodes separately from candidate nodes.",
+      "Render collision edges as blocking edges, not decorative references.",
+      "Render gate nodes and stop conditions on the path an agent would traverse.",
+      "Warn when a markdown roadmap is newer than this JSON artifact.",
+      "Render done fake-runtime work as foundation, not as active work.",
+      "Show when a branch needs frontier refresh because no prepared_next node exists."
+    ]
+  },
+  "plan_graph_projection": {
+    "compatible_with": "src/plan_graph_store.py",
+    "mapping": {
+      "graph_nodes[].id": "PlanNode.node_id",
+      "graph_nodes[].id_as_slice": "PlanNode.slice_id",
+      "graph_nodes[].title": "PlanNode.title",
+      "graph_nodes[].status": "PlanNode.status with status mapping",
+      "graph_edges[kind=depends_on]": "PlanEdge(kind=depends_on)",
+      "graph_nodes[].gates": "PlanNode.evidence_required until Gate model is richer"
+    },
+    "status_mapping": {
+      "active_candidate": "running",
+      "planned": "pending",
+      "active": "running",
+      "done": "done",
+      "blocked": "blocked",
+      "deferred": "skipped",
+      "partial": "handoff",
+      "research": "pending"
+    },
+    "known_gap": "Current PlanGraph model does not yet support target_version, horizon, blocked_actions, source_refs, or deliverables. Keep this JSON as richer roadmap source until PlanRuntime v2 supports those fields."
+  },
+  "next_actions": [
+    {
+      "rank": 1,
+      "node_id": "roadmap-reconciliation-import",
+      "action": "Validate this JSON, then reconcile existing roadmap markdown into committed, candidate, and speculative graph state."
+    },
+    {
+      "rank": 2,
+      "node_id": "rolling-frontier-policy",
+      "action": "Define the append-only event store and promotion policy that keep the roadmap one step ahead without allowing agents to self-approve speculative work."
+    },
+    {
+      "rank": 3,
+      "node_id": "planruntime-source-of-truth",
+      "action": "Extend or wrap PlanGraph so target_version, horizon, source_refs, gates, and deliverables are first-class."
+    },
+    {
+      "rank": 4,
+      "node_id": "roadmap-lens-readonly",
+      "action": "Create a read-only graph view from this file that shows current_execution, prepared_next, frontier_candidates, collisions, and gates before any visual editing is attempted."
+    }
+  ]
+}

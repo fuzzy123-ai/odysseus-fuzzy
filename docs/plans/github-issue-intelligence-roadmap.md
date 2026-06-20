@@ -1,0 +1,519 @@
+# GitHub Issue Intelligence Roadmap
+
+Stand: 2026-06-20
+
+Status: **new feature track, design-ready**
+
+## Goal
+
+Odysseus soll GitHub Issues als strukturierte Arbeitsobjekte verstehen:
+
+- moegliche Duplicate Issues vor dem Erstellen erkennen;
+- Issues mit konsistenten Feldern wie Priority, Effort, Area und Dates
+  triagieren;
+- GitHub Issue Fields nutzen, wenn sie im Ziel-Org verfuegbar sind;
+- auf Labels oder lokale Felder zurueckfallen, wenn GitHub Issue Fields nicht
+  verfuegbar sind;
+- die Funktion spaeter ueber Odysseus Tools und den Odysseus MCP Server
+  bereitstellen.
+
+## External Signal
+
+GitHub hat am 2026-06-18 im Changelog eine Public Preview fuer Duplicate Issue
+Detection und GitHub MCP Server Support fuer Issue Fields angekuendigt.
+
+Relevante Produkt-Richtung:
+
+- Duplicate Detection waehrend der Issue-Erstellung, mit bis zu drei
+  Inline-Vorschlaegen.
+- Issue Fields als org-weite, typisierte Metadaten fuer Issues.
+- GitHub MCP Server kann Issue Fields lesen, schreiben und danach filtern.
+
+## Why Odysseus Should Own A Field Model
+
+Odysseus sollte nicht direkt ueberall GitHub Labels oder GitHub Field IDs in
+Tool-, UI- und Memory-Code verstreuen. Stattdessen bekommt Odysseus ein
+provider-neutrales internes Feldmodell.
+
+Das interne Modell ist die kanonische Sprache:
+
+```json
+{
+  "type": "bug",
+  "priority": "high",
+  "effort": "medium",
+  "area": "cookbook",
+  "status": "triage",
+  "start_date": null,
+  "target_date": "2026-07-01",
+  "duplicate_of": null
+}
+```
+
+GitHub ist dann nur ein Backend:
+
+- Wenn GitHub Issue Fields verfuegbar sind, schreibt Odysseus echte Fields.
+- Wenn nicht, nutzt Odysseus Labels wie `priority/high` oder `area/cookbook`.
+- Fuer lokale Drafts, Obsidian, Tasks oder Universal Inbox bleibt dieselbe
+  Feldsprache verwendbar.
+
+## Architecture Fit
+
+Bestehende Odysseus-Bausteine:
+
+- `core/database.py`: zentrale SQLAlchemy-Modelle fuer persistente Objekte.
+- `src/mcp_manager.py` und `routes/mcp_routes.py`: externer MCP-Client-Manager.
+- `plugins/mcp_server/plugin.py`: Odysseus kann eigene Tools als MCP Server
+  policy-gated exponieren.
+- `src/tool_schemas.py` und `src/tool_implementations.py`: Agent Tools.
+- FastEmbed/Chroma/RAG: vorhandene semantische Suche fuer Duplicate Detection.
+- Scheduled Tasks: spaeter fuer periodisches Issue-Sync und Reindexing nutzbar.
+
+Neue Schicht:
+
+```text
+GitHub API / GitHub MCP
+  -> Issue Sync Adapter
+  -> IssueRecord + IssueFieldValue
+  -> Issue Embedding Index
+  -> Duplicate Candidate Service
+  -> Triage Field Mapper
+  -> Tools / Routes / UI / MCP exposure
+```
+
+## Data Model Sketch
+
+### IssueRecord
+
+Provider-neutrale Kopie eines externen oder lokalen Issues.
+
+Fields:
+
+- `id`
+- `owner`
+- `provider`: `github`, `local`, `obsidian`
+- `repository`: e.g. `fuzzy123-ai/odysseus-fuzzy`
+- `external_id`: GitHub issue number or provider ID
+- `external_node_id`
+- `title`
+- `body`
+- `state`: `open`, `closed`, `draft`
+- `url`
+- `labels_json`
+- `author`
+- `created_at`, `updated_at`, `last_synced_at`
+
+### IssueFieldDefinition
+
+Kanonische Felddefinition, optional mit Provider-Mapping.
+
+Fields:
+
+- `id`
+- `owner`
+- `name`: `priority`, `effort`, `area`, `start_date`, `target_date`
+- `field_type`: `single_select`, `text`, `number`, `date`
+- `allowed_values_json`
+- `visibility`: `public`, `private`
+- `provider`: optional
+- `provider_field_id`: optional GitHub field ID
+- `label_prefix`: optional fallback label prefix, e.g. `priority/`
+
+### IssueFieldValue
+
+Konkreter Feldwert auf einem Issue.
+
+Fields:
+
+- `id`
+- `issue_id`
+- `field_name`
+- `value_json`
+- `source`: `user`, `agent`, `github`, `inferred`, `migration`
+- `confidence`
+- `updated_at`
+
+### IssueDuplicateCandidate
+
+Auditierbare Duplicate-Erkennung.
+
+Fields:
+
+- `id`
+- `source_issue_id`
+- `candidate_issue_id`
+- `score`
+- `reason`
+- `decision`: `pending`, `accepted`, `rejected`
+- `created_at`
+
+## Default Internal Fields
+
+Initiale Felder:
+
+- `type`: `bug`, `task`, `feature`, `question`, `docs`
+- `priority`: `urgent`, `high`, `medium`, `low`
+- `effort`: `high`, `medium`, `low`
+- `area`: freie oder konfigurierbare Komponente, z. B. `cookbook`,
+  `mcp`, `telegram`, `obsidian`, `memory`, `ui`, `ops`
+- `status`: `triage`, `ready`, `blocked`, `in_progress`, `done`
+- `start_date`: date
+- `target_date`: date
+- `duplicate_of`: issue reference
+
+Diese Felder bleiben klein. Weitere Felder brauchen konkrete Workflows, nicht
+nur Vollstaendigkeit.
+
+## Duplicate Detection
+
+### Input Text
+
+Indexiert wird eine kompakte Issue-Repraesentation:
+
+```text
+title
+body summary
+labels
+area
+type
+recent comments summary, optional later
+```
+
+### Ranking
+
+Erste Version:
+
+- semantische Aehnlichkeit via FastEmbed/Chroma;
+- optional keyword boost fuer identische Tokens aus Titel/Labels;
+- Status-Filter: bevorzugt offene Issues, geschlossene aber nicht verstecken;
+- Top 3 Kandidaten fuer Create-Preview.
+
+### Output
+
+Jeder Kandidat enthaelt:
+
+- issue number and title;
+- url;
+- state;
+- score;
+- short reason;
+- matching terms or fields;
+- recommended action: `review`, `link_duplicate`, `continue_create`.
+
+## GitHub Field Mapping
+
+Odysseus prueft pro Repository/Org:
+
+1. Sind GitHub Issue Fields verfuegbar?
+2. Gibt es passende Felder fuer Odysseus-Defaults?
+3. Darf der Token diese Felder lesen/schreiben?
+
+Mapping-Strategie:
+
+- `priority` -> GitHub Issue Field `Priority`
+- `effort` -> GitHub Issue Field `Effort`
+- `start_date` -> GitHub Issue Field `Start date`
+- `target_date` -> GitHub Issue Field `Target date`
+- `area` -> GitHub Issue Field `Area` oder Label `area/<value>`
+- `type` -> GitHub Issue type if available, otherwise label `type/<value>`
+
+Fallback-Strategie:
+
+- Wenn Field write scheitert, Issue trotzdem erstellen.
+- Fallback labels nur nach expliziter Konfiguration oder sicherem Prefix.
+- Write-Ergebnis muss pro Feld reporten: `field`, `method`, `status`,
+  `error_redacted`.
+
+## Tools
+
+Neue Agent Tools:
+
+### `github_issue_sync`
+
+Sync issues from one repo into Odysseus.
+
+Actions:
+
+- `sync_repo`
+- `sync_issue`
+- `status`
+
+### `github_issue_find_duplicates`
+
+Find likely duplicate issues for a title/body draft.
+
+Inputs:
+
+- `repository`
+- `title`
+- `body`
+- `limit`
+
+### `github_issue_create_triaged`
+
+Create a GitHub issue with duplicate preview and internal fields.
+
+Inputs:
+
+- `repository`
+- `title`
+- `body`
+- `fields`
+- `confirm_create`
+- `duplicate_decision`
+
+Stop rule:
+
+- If high-confidence duplicates exist and `confirm_create` is not true, do not
+  create.
+
+### `github_issue_set_fields`
+
+Set or update Odysseus issue fields and project them to GitHub.
+
+Inputs:
+
+- `repository`
+- `issue_number`
+- `fields`
+- `confirm_write`
+
+## Routes And UI
+
+Backend routes:
+
+- `GET /api/github-issues/config`
+- `POST /api/github-issues/sync`
+- `POST /api/github-issues/duplicates`
+- `POST /api/github-issues/create-draft`
+- `POST /api/github-issues/create`
+- `PATCH /api/github-issues/{id}/fields`
+
+UI surface:
+
+- Admin/Integrations page for GitHub Issue Intelligence config.
+- Issue draft panel with duplicate preview.
+- Field chips/editor: type, priority, effort, area, dates.
+- Sync status and last indexed timestamp.
+
+Keep the first UI utilitarian: a compact tool surface, not a landing page.
+
+## MCP Exposure
+
+Odysseus MCP Server can expose read-only issue tools by default once the feature
+is stable:
+
+- `github_issue_find_duplicates`
+- `github_issue_sync_status`
+
+Write tools remain gated:
+
+- `github_issue_create_triaged`
+- `github_issue_set_fields`
+
+Policy requirements:
+
+- no token values in MCP responses;
+- no raw GitHub error payloads if they may contain secrets;
+- write tools require owner-scoped write permission;
+- no generic GitHub API passthrough as a default MCP tool.
+
+## Safety And Privacy
+
+- Store GitHub tokens through existing secret/token mechanisms, not roadmap
+  files.
+- Redact issue bodies in logs where repo privacy is unknown.
+- Do not index private repos into shared ownerless collections.
+- Duplicate results must be owner/repo scoped.
+- High-confidence duplicate detection is advisory first; no auto-close in v1.
+- No bulk migration from labels to fields without preview and explicit confirm.
+
+## Implementation Slices
+
+### GHISS0 Contract And Tests
+
+Goal:
+- Define internal issue field contract and mapping rules.
+
+Expected files:
+
+- `src/github_issue_fields.py`
+- `tests/test_github_issue_fields.py`
+- `docs/plans/github-issue-intelligence-roadmap.md`
+
+Done when:
+
+- Field definitions validate type/value/date constraints.
+- GitHub-field and label-fallback mapping are deterministic.
+- Unknown fields fail closed unless explicitly configured.
+
+### GHISS1 Persistence
+
+Goal:
+- Add issue tables and migrations/backfill helpers.
+
+Expected files:
+
+- `core/database.py`
+- migration helper in existing startup migration style
+- `tests/test_github_issue_models.py`
+
+Done when:
+
+- Issue rows are owner-scoped.
+- Field values round-trip as JSON.
+- Duplicate candidate rows can be accepted/rejected without deleting evidence.
+
+### GHISS2 Sync Adapter
+
+Goal:
+- Read issues from GitHub into IssueRecord.
+
+Expected files:
+
+- `src/github_issue_sync.py`
+- `tests/test_github_issue_sync.py`
+
+Done when:
+
+- Fake GitHub client tests cover pagination, updates, closed issues, labels.
+- Token errors are redacted.
+- Sync can be run incrementally.
+
+### GHISS3 Embedding Index
+
+Goal:
+- Index issues for semantic duplicate search.
+
+Expected files:
+
+- `src/github_issue_index.py`
+- `tests/test_github_issue_index.py`
+
+Done when:
+
+- Issue text is normalized and bounded.
+- Owner/repo filters are applied during query.
+- Reindexing is idempotent.
+
+### GHISS4 Duplicate Candidate Service
+
+Goal:
+- Return top duplicate candidates for a draft.
+
+Expected files:
+
+- `src/github_issue_duplicates.py`
+- `tests/test_github_issue_duplicates.py`
+
+Done when:
+
+- Top 3 candidates include score and reason.
+- Closed and open issues are ranked sensibly.
+- High-confidence candidates block auto-create unless confirmed.
+
+### GHISS5 Tools
+
+Goal:
+- Add agent tools for sync, duplicate search, create-triaged, set-fields.
+
+Expected files:
+
+- `src/tool_schemas.py`
+- `src/tool_implementations.py`
+- `src/tool_index.py`
+- `src/tool_security.py`
+- `tests/test_github_issue_tools.py`
+- `tests/test_tool_index_schema_parity.py`
+
+Done when:
+
+- Tool discovery routes "duplicate issue", "github issue fields", and
+  "triaged issue" requests correctly.
+- Write tools require explicit confirmation.
+- MCP policy classifies write tools as gated.
+
+### GHISS6 Routes And UI
+
+Goal:
+- Add compact admin/user UI for issue sync and draft duplicate preview.
+
+Expected files:
+
+- `routes/github_issue_routes.py`
+- `static/js/githubIssues.js`
+- `static/style.css`
+- route registration in app setup
+- focused route/UI tests
+
+Done when:
+
+- User can sync a repo.
+- User can draft an issue and see top 3 duplicate candidates.
+- User can edit internal fields before create.
+- Text fits mobile/desktop and no nested-card UI is introduced.
+
+### GHISS7 GitHub Issue Fields Projection
+
+Goal:
+- Write internal fields to GitHub Issue Fields when available.
+
+Expected files:
+
+- `src/github_issue_projection.py`
+- `tests/test_github_issue_projection.py`
+
+Done when:
+
+- GitHub field IDs are cached per repo/org.
+- Missing field support falls back cleanly.
+- Per-field write result is visible and redacted.
+
+### GHISS8 MCP Exposure
+
+Goal:
+- Expose stable read tools and gated write tools through Odysseus MCP Server.
+
+Expected files:
+
+- `src/mcp_server_tool_policy.py`
+- `plugins/mcp_server/plugin.py` if needed
+- `tests/test_mcp_server_tool_policy.py`
+
+Done when:
+
+- Read-only duplicate lookup appears when policy allows.
+- Write tools remain absent unless owner-scoped writes are enabled.
+- Generic raw GitHub passthrough remains absent.
+
+## Verification Bundle
+
+Initial focused suite:
+
+```text
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_sync.py tests\test_github_issue_index.py tests\test_github_issue_duplicates.py tests\test_github_issue_tools.py
+```
+
+Broader safety suite:
+
+```text
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_tool_index_schema_parity.py tests\test_mcp_server_tool_policy.py tests\test_null_owner_gates.py
+```
+
+## Rollout
+
+1. Offline contract and fake GitHub client tests.
+2. Read-only sync for one configured repo.
+3. Duplicate preview only.
+4. Confirmed issue creation with fallback labels.
+5. GitHub Issue Fields projection.
+6. MCP exposure after policy tests.
+7. Optional scheduled sync.
+
+## Non-Goals
+
+- No auto-close or auto-mark-duplicate in v1.
+- No bulk label migration without a separate preview and explicit operator Go.
+- No raw GitHub MCP passthrough in Odysseus MCP Server.
+- No cross-owner or cross-private-repo duplicate search.
+- No production token setup documented with real token values.

@@ -30,6 +30,8 @@ then private-source automation, then broader release/distribution polish.
   push unless manually started; otherwise it deploys on its timer.
 - Subagent Runtime v1 is now the integrated orchestration follow-up:
   `docs/plans/subagent-runtime-v1-roadmap.md`.
+- GitHub Issue Intelligence is tracked separately:
+  `docs/plans/github-issue-intelligence-roadmap.md`.
 
 ## Non-Goals
 
@@ -172,6 +174,18 @@ Done when:
 
 Verification:
 - `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_subagent_runtime_contract.py tests\test_subagent_runtime.py tests\test_subagent_tool_selection.py tests\test_orchestration_runtime_loop.py tests\test_handoff_mailbox.py`
+
+## P9 - GitHub Issue Intelligence
+
+Goal:
+- Add GitHub Issue duplicate preview, provider-neutral issue fields, and
+  GitHub Issue Fields projection.
+
+Done when:
+- `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the
+  read-only sync and duplicate preview slices.
+- Internal fields can map to GitHub Issue Fields or label fallbacks.
+- Write tools remain confirmation-gated and MCP exposure remains policy-gated.
 
 ## Execution Order
 
