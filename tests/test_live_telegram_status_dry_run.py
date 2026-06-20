@@ -27,6 +27,25 @@ def test_dry_run_plan_ready_requires_all_inputs_and_send_paths_disabled():
     assert plan.decision.decision == "dry_run_plan_ready"
 
 
+def test_dry_run_plan_ready_still_blocks_live_telegram_actions():
+    plan = build_live_telegram_status_dry_run_plan(
+        status_payload_selected=True,
+        offline_preview_fixture_available=True,
+        redaction_policy_reviewed=True,
+        operator_review_required=True,
+        send_path_disabled=True,
+    )
+
+    assert plan.blocked_live_actions == (
+        "telegram_send",
+        "telegram_token_capture",
+        "network_request",
+        "scheduler_start",
+        "runtime_hook_enablement",
+        "unsafe_payload_logging",
+    )
+
+
 def test_runtime_or_send_claims_block_the_plan():
     plan = build_live_telegram_status_dry_run_plan(
         status_payload_selected=True,
@@ -81,6 +100,14 @@ def test_to_dict_is_stable():
             "confirm redaction policy before any Telegram follow-up",
             "keep send, scheduler, network, and runtime hooks disabled during dry-run planning",
         ),
+        "blocked_live_actions": (
+            "telegram_send",
+            "telegram_token_capture",
+            "network_request",
+            "scheduler_start",
+            "runtime_hook_enablement",
+            "unsafe_payload_logging",
+        ),
     }
 
 
@@ -91,3 +118,5 @@ def test_markdown_is_operator_friendly():
     assert "# Live Telegram Status Dry Run Plan" in markdown
     assert "needs_operator_review" in markdown
     assert "Next Allowed Actions" in markdown
+    assert "Blocked Live Actions" in markdown
+    assert "telegram_send" in markdown
