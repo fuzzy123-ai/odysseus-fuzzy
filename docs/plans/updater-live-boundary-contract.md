@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **offline contract for ABC4 / ABC6; no live update execution**
+Status: **offline readiness contract; active execution moved to a separate runner**
 
 ## Goal
 
@@ -22,6 +22,8 @@ The updater may reach `ready_for_operator_go` only when all required evidence is
 - explicit operator decision.
 
 Even then, this contract only describes readiness for an operator decision. It does not execute commands, start backups, run Podman, touch Git, deploy, restore, or send Telegram messages.
+
+The separate active execution layer is documented in `docs/plans/updater-active-runner-operator-contract.md` and implemented in `src/odysseus_updater_executor.py`. That runner can execute only after explicit operator Go, active feature flag, green bundle gates, and command-whitelist validation.
 
 ## Required Evidence
 
@@ -98,3 +100,4 @@ Status: Partial until real backup/check/restore evidence is available.
 Next path:
 - `ABC5-homeserver-backup-final-evidence`
 - `ABC6-pre-update-hook-integration`
+- `updater-active-runner-operator-contract`

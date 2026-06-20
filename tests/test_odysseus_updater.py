@@ -159,6 +159,21 @@ def test_bundle_composes_offline_models_without_live_go():
     assert "not a live-go signal" in markdown
 
 
+def test_bundle_can_be_explicitly_approved_for_active_runner():
+    bundle = _build_happy_bundle(
+        live_update_enabled=True,
+        operator_decision="go",
+    )
+
+    assert bundle.decision == "go"
+    assert bundle.live_update_decision == "go"
+    assert bundle.live_execution_blocked is False
+    assert bundle.operator_decision == "go"
+    assert bundle.component_decisions["live_update"] == "go"
+    assert "active updater runner may execute whitelisted commands" in bundle.reasons
+    assert any("whitelisted commands" in action for action in bundle.next_actions)
+
+
 def test_blockers_drive_bundle_to_no_go():
     bundle = _build_happy_bundle(
         preflight_input={

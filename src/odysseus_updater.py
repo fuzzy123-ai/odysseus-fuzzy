@@ -24,7 +24,7 @@ from src.odysseus_updater_test_gate import (
 )
 
 _DECISIONS = ("go", "partial", "no_go", "deferred")
-_LIVE_UPDATE_DECISION = "no_go"
+_OPERATOR_DECISIONS = ("go", "hold", "no_go", "deferred", "missing")
 _MODE = "dry_run"
 
 
@@ -48,6 +48,13 @@ def _dedupe(items: Iterable[Any], *, field_name: str) -> tuple[str, ...]:
 def _normalize_decision(value: Any, *, field_name: str = "decision") -> str:
     decision = _normalize_text(value, field_name=field_name).lower().replace("-", "_")
     if decision not in _DECISIONS:
+        raise ValueError(f"unsupported {field_name}: {value!r}")
+    return decision
+
+
+def _normalize_operator_decision(value: Any, *, field_name: str = "operator_decision") -> str:
+    decision = _normalize_text(value, field_name=field_name).lower().replace("-", "_")
+    if decision not in _OPERATOR_DECISIONS:
         raise ValueError(f"unsupported {field_name}: {value!r}")
     return decision
 
@@ -288,7 +295,23 @@ def _derive_bundle_decision(
     return "go"
 
 
-def _derive_summary(decision: str) -> str:
+def _derive_live_update_decision(
+    *,
+    bundle_decision: str,
+    live_update_enabled: bool,
+    operator_decision: str,
+) -> str:
+    if live_update_enabled and operator_decision == "go" and bundle_decision == "go":
+        return "go"
+    return "no_go"
+
+
+def _derive_summary(decision: str, *, live_update_decision: str) -> str:
+    if live_update_decision == "go":
+        return (
+            "Updater bundle is green and active execution is enabled for the gated runner; "
+            "execution still depends on the runner's command whitelist and per-step results."
+        )
     if decision == "go":
         return (
             "Offline updater bundle is ready for manual review in dry-run mode; "
@@ -318,6 +341,9 @@ def _derive_reasons(
     backup_gate: BackupGateReport,
     test_gate: UpdaterTestGateReport,
     audit_summary_status: str,
+    live_update_decision: str,
+    operator_decision: str,
+    live_update_enabled: bool,
 ) -> tuple[str, ...]:
     reasons = [
         f"plan decision is {plan.decision}",
@@ -325,9 +351,14 @@ def _derive_reasons(
         f"backup gate decision is {backup_gate.deployment_decision}",
         f"test gate decision is {test_gate.decision}",
         f"optional audit summary status is {audit_summary_status}",
+        f"operator decision is {operator_decision}",
     ]
+    if not live_update_enabled:
+        reasons.append("active update execution feature flag is disabled")
+    if live_update_decision == "go":
+        reasons.append("active updater runner may execute whitelisted commands")
     if decision == "go":
-        reasons.append("all supplied offline updater components are review-ready while runtime remains blocked")
+        reasons.append("all supplied updater components are review-ready")
     return _dedupe(reasons, field_name="reason")
 
 
@@ -339,6 +370,7 @@ def _derive_next_actions(
     backup_gate: BackupGateReport,
     test_gate: UpdaterTestGateReport,
     audit_summary_status: str,
+    live_update_decision: str,
 ) -> tuple[str, ...]:
     actions: list[str] = []
     actions.extend(preflight.next_actions)
@@ -346,8 +378,10 @@ def _derive_next_actions(
     actions.extend(test_gate.next_actions)
     if audit_summary_status == "not_available":
         actions.append("Optional audit summary module is absent; keep the offline updater bundle self-contained.")
-    if bundle_decision == "go":
-        actions.append("Use this bundle for manual operator review only; do not execute any live updater action.")
+    if live_update_decision == "go":
+        actions.append("Run the active updater runner only with whitelisted commands and stop on the first failed step.")
+    elif bundle_decision == "go":
+        actions.append("Use this bundle for manual operator review or enable the active runner with explicit operator Go.")
     else:
         actions.append("Keep the updater slice in dry-run mode until the remaining offline gaps are resolved.")
     return _dedupe(actions, field_name="next_action")
@@ -359,6 +393,7 @@ class OdysseusUpdaterBundle:
     decision: str
     live_update_decision: str
     live_execution_blocked: bool
+    operator_decision: str
     summary: str
     reasons: tuple[str, ...]
     next_actions: tuple[str, ...]
@@ -377,6 +412,7 @@ class OdysseusUpdaterBundle:
             "decision": self.decision,
             "live_update_decision": self.live_update_decision,
             "live_execution_blocked": self.live_execution_blocked,
+            "operator_decision": self.operator_decision,
             "summary": self.summary,
             "reasons": list(self.reasons),
             "next_actions": list(self.next_actions),
@@ -398,6 +434,7 @@ class OdysseusUpdaterBundle:
             f"- Offline Decision: `{self.decision}`",
             f"- Live Update Decision: `{self.live_update_decision}`",
             f"- Live Execution Blocked: `{str(self.live_execution_blocked).lower()}`",
+            f"- Operator Decision: `{self.operator_decision}`",
             f"- Summary: {self.summary}",
             f"- Optional Audit Summary: `{self.audit_summary_status}`",
             "",
@@ -427,6 +464,8 @@ def build_odysseus_updater(
     test_gate_input: UpdaterTestGateReport | Mapping[str, Any] | None = None,
     command_plan_inputs: Iterable[UpdaterCommandPlan | Mapping[str, Any]] | None = None,
     include_audit_summary: bool = True,
+    live_update_enabled: bool = False,
+    operator_decision: Any = "missing",
 ) -> OdysseusUpdaterBundle:
     plan = _coerce_plan(plan_input)
     preflight = _coerce_preflight(preflight_input)
@@ -446,20 +485,27 @@ def build_odysseus_updater(
         test_gate=test_gate,
         audit_summary=audit_summary,
     )
+    normalized_operator_decision = _normalize_operator_decision(operator_decision)
+    live_update_decision = _derive_live_update_decision(
+        bundle_decision=decision,
+        live_update_enabled=live_update_enabled,
+        operator_decision=normalized_operator_decision,
+    )
     component_decisions = {
         "plan": plan.decision,
         "preflight": _map_preflight_status_to_decision(preflight.status),
         "backup_gate": backup_gate.deployment_decision,
         "test_gate": test_gate.decision,
         "audit_summary": audit_summary_status,
-        "live_update": _LIVE_UPDATE_DECISION,
+        "live_update": live_update_decision,
     }
     return OdysseusUpdaterBundle(
         mode=_MODE,
         decision=decision,
-        live_update_decision=_LIVE_UPDATE_DECISION,
-        live_execution_blocked=True,
-        summary=_derive_summary(decision),
+        live_update_decision=live_update_decision,
+        live_execution_blocked=live_update_decision != "go",
+        operator_decision=normalized_operator_decision,
+        summary=_derive_summary(decision, live_update_decision=live_update_decision),
         reasons=_derive_reasons(
             decision=decision,
             plan=plan,
@@ -467,6 +513,9 @@ def build_odysseus_updater(
             backup_gate=backup_gate,
             test_gate=test_gate,
             audit_summary_status=audit_summary_status,
+            live_update_decision=live_update_decision,
+            operator_decision=normalized_operator_decision,
+            live_update_enabled=live_update_enabled,
         ),
         next_actions=_derive_next_actions(
             bundle_decision=decision,
@@ -475,6 +524,7 @@ def build_odysseus_updater(
             backup_gate=backup_gate,
             test_gate=test_gate,
             audit_summary_status=audit_summary_status,
+            live_update_decision=live_update_decision,
         ),
         component_decisions=component_decisions,
         plan=plan,
