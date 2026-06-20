@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: headless MVP implemented for synthetic crash/recovery, metrics and report archive
+Status: headless MVP implemented for synthetic crash/recovery, performance gates and report archive
 
 ## Goal
 
@@ -165,7 +165,7 @@ Required invariants:
 - uncommitted intent events are either ignored or repaired with explicit status
 - raw content and secrets never appear in event log, graph, reports or archives
 
-## Performance Metrics
+## Performance Metrics And Gates
 
 Each report records:
 
@@ -187,6 +187,15 @@ Each report records:
 - duplicate count
 - recovery count
 - invariant check time
+
+The headless MVP also enforces performance gates:
+
+- runtime must stay under the scenario budget
+- peak process RSS delta must stay under the scenario memory budget
+- temp/run-directory disk usage must stay under the scenario log budget
+- performance gate failure marks the run `failed` even when recovery invariants pass
+- report archives include `performance_summary.json`
+- summary comparisons can flag regressions for runtime, memory and temp disk usage
 
 ## Report Archive
 
@@ -493,6 +502,8 @@ Go:
 - committed event count equals recovered event count
 - rebuild from event log matches expected derived state
 - reports archive JSON and Markdown safely
+- performance gate passes for runtime, memory delta and temp disk usage
+- performance summary is archived and comparable against a baseline summary
 - no raw content or secret values appear in durable artifacts
 - resource budget gate prevents unsafe runs
 - report archive is complete and marked Go
@@ -502,6 +513,7 @@ Partial:
 - scenario/report models and basic metrics work
 - recovery proof exists but covers only one crash point
 - archive works but plugin UI is not started
+- performance metrics exist but historical comparison is deferred
 - stress preset downscaled within an allowed policy and all completed invariants passed
 - report clearly states which evidence is missing
 
@@ -511,6 +523,7 @@ No-Go:
 - duplicate canonical memory can be created by retry/recovery
 - raw content or secret values appear in event log/report/archive
 - resource budget can be exceeded without clean abort
+- performance budget can be exceeded while the run still reports Go
 - tests require live private data or live services
 - report archive is missing, overwritten or ambiguous after a run starts
 
@@ -545,4 +558,4 @@ The first useful proof is:
 seeded synthetic events -> append-only event log -> crash point -> recovery -> invariant report
 ```
 
-Once that is green, add performance metrics and report archiving. The plugin shell comes after the headless suite proves value.
+Once that is green, add performance gates and report archiving. The plugin shell comes after the headless suite proves value.

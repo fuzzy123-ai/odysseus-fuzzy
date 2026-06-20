@@ -1,5 +1,6 @@
 from src.memory_perf_suite_eventlog import AppendOnlyInMemoryEventLog
 from src.memory_perf_suite_invariants import check_recovery_invariants
+from src.memory_perf_suite_models import ResourceBudget, ScenarioPreset
 from src.memory_perf_suite_runner import (
     CRASH_POINTS,
     run_memory_durability_crash_matrix,
@@ -39,3 +40,28 @@ def test_complete_runner_rebuilds_from_event_log(tmp_path):
     assert result.recovery.recovered_event_count == 4
     assert result.recovery.recovered_state.duplicate_event_ids == ()
     assert "events.jsonl" == result.event_log_path
+
+
+def test_runner_marks_performance_budget_exceeded(tmp_path):
+    preset = ScenarioPreset(
+        name="quick",
+        event_count=1,
+        seed=1,
+        batch_size=1,
+        checkpoint_interval=1,
+        budget=ResourceBudget.create(
+            max_events=10,
+            max_event_bytes=4096,
+            max_log_bytes=1500,
+            max_runtime_seconds=60,
+            max_memory_mb=1024,
+        ),
+    )
+
+    result = run_memory_durability_scenario(preset, run_dir=tmp_path, event_count=1)
+
+    assert result.recovery.passed is True
+    assert result.performance_gate.passed is False
+    assert result.status == "failed"
+    assert result.performance_gate.failures == ("temp_disk_budget_exceeded",)
+    assert result.warnings == ("performance_budget_exceeded",)

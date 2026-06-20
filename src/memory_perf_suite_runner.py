@@ -9,7 +9,12 @@ from typing import Any
 from src.memory_perf_suite_data import SyntheticMemoryEvent, generate_synthetic_memory_events
 from src.memory_perf_suite_eventlog import AppendOnlyJsonlEventLog
 from src.memory_perf_suite_invariants import InvariantCheckResult, check_recovery_invariants
-from src.memory_perf_suite_metrics import MetricsCollector
+from src.memory_perf_suite_metrics import (
+    MetricsCollector,
+    PerformanceGateResult,
+    ResourceMonitor,
+    evaluate_performance_gate,
+)
 from src.memory_perf_suite_models import (
     MetricsEnvelope,
     ReportEnvelope,
@@ -43,6 +48,7 @@ class MemoryPerfSuiteRunResult:
     committed_event_count: int
     duplicate_count: int
     recovery: InvariantCheckResult
+    performance_gate: PerformanceGateResult
     metrics: MetricsEnvelope
     warnings: tuple[str, ...] = ()
     schema: str = RUNNER_SCHEMA
@@ -68,6 +74,7 @@ class MemoryPerfSuiteRunResult:
             "committed_event_count": self.committed_event_count,
             "duplicate_count": self.duplicate_count,
             "recovery": self.recovery.to_dict(),
+            "performance_gate": self.performance_gate.to_dict(),
             "metrics": self.metrics.to_dict(),
             "warnings": self.warnings,
         }
@@ -91,6 +98,8 @@ def run_memory_durability_scenario(
 
     root = Path(run_dir)
     root.mkdir(parents=True, exist_ok=True)
+    monitor = ResourceMonitor(root)
+    monitor.start()
     log_path = root / "events.jsonl"
     log = AppendOnlyJsonlEventLog(log_path)
     collector = MetricsCollector()
@@ -107,12 +116,14 @@ def run_memory_durability_scenario(
             continue
         log.append_intent(event)
         collector.end_phase("event_log_append")
+        monitor.sample()
         if _should_crash(crash_point, "after_intent", index):
             break
 
         collector.start_phase("memory_abstraction_write")
         memory_store[event.event_id] = event
         collector.end_phase("memory_abstraction_write")
+        monitor.sample()
         if _should_crash(crash_point, "after_memory_write", index):
             break
 
@@ -120,12 +131,14 @@ def run_memory_durability_scenario(
         log.commit_event(event)
         expected_committed.append(event)
         collector.end_phase("event_log_commit")
+        monitor.sample()
         if _should_crash(crash_point, "after_commit", index):
             break
 
         collector.start_phase("graph_index_write")
         derived_index[event.event_id] = event.subject_hash
         collector.end_phase("graph_index_write")
+        monitor.sample()
         if _should_crash(crash_point, "after_derived_write", index):
             break
 
@@ -133,6 +146,7 @@ def run_memory_durability_scenario(
     recovered_log = AppendOnlyJsonlEventLog(log_path)
     recovery = check_recovery_invariants(expected_committed, recovered_log)
     collector.end_phase("recovery_replay")
+    performance_gate = evaluate_performance_gate(monitor.finish(), scenario.budget)
     collector.increment("events_requested", len(events))
     collector.increment("events_committed", len(expected_committed))
     collector.increment("duplicates", duplicate_count)
@@ -143,12 +157,15 @@ def run_memory_durability_scenario(
         preset_name=scenario.name,
         metrics=(
             *collector.metrics(),
+            *performance_gate.to_metrics(),
             SuiteMetric.create(name="event_log_records", value=len(recovered_log.records), unit="count"),
         ),
     )
-    status = "passed" if recovery.passed else "failed"
+    status = "passed" if recovery.passed and performance_gate.passed else "failed"
     if crash_point == "after_archive" and status == "passed":
         warnings = ("archive_crash_simulated_after_recovery",)
+    elif not performance_gate.passed:
+        warnings = ("performance_budget_exceeded",)
     else:
         warnings = ()
     return MemoryPerfSuiteRunResult(
@@ -160,6 +177,7 @@ def run_memory_durability_scenario(
         committed_event_count=len(expected_committed),
         duplicate_count=duplicate_count,
         recovery=recovery,
+        performance_gate=performance_gate,
         metrics=metrics,
         warnings=warnings,
     )

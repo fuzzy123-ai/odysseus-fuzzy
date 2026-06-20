@@ -1,6 +1,13 @@
 import pytest
 
-from src.memory_perf_suite_metrics import MetricsCollector, summarize_latency
+from src.memory_perf_suite_metrics import (
+    MetricsCollector,
+    ResourceMonitor,
+    ResourceObservation,
+    evaluate_performance_gate,
+    summarize_latency,
+)
+from src.memory_perf_suite_models import ResourceBudget
 
 
 def test_latency_summary_calculates_percentiles():
@@ -39,3 +46,42 @@ def test_metrics_collector_rejects_unstarted_phase():
 
     with pytest.raises(ValueError, match="not started"):
         collector.end_phase("missing")
+
+
+def test_resource_monitor_observes_runtime_memory_and_temp_disk(tmp_path):
+    (tmp_path / "artifact.bin").write_bytes(b"x" * 128)
+    monitor = ResourceMonitor(tmp_path)
+
+    monitor.start()
+    payload = [str(index) for index in range(100)]
+    monitor.sample()
+    observation = monitor.finish()
+
+    assert payload[0] == "0"
+    assert observation.runtime_seconds >= 0
+    assert observation.peak_rss_delta_mb >= 0
+    assert observation.peak_traced_memory_mb >= 0
+    assert observation.temp_disk_bytes == 128
+
+
+def test_performance_gate_fails_on_temp_disk_budget():
+    budget = ResourceBudget.create(
+        max_events=10,
+        max_event_bytes=4096,
+        max_log_bytes=10,
+        max_runtime_seconds=60,
+        max_memory_mb=1024,
+    )
+
+    result = evaluate_performance_gate(
+        ResourceObservation(
+            runtime_seconds=1,
+            peak_rss_delta_mb=1,
+            peak_traced_memory_mb=1,
+            temp_disk_bytes=128,
+        ),
+        budget,
+    )
+
+    assert result.passed is False
+    assert result.failures == ("temp_disk_budget_exceeded",)
