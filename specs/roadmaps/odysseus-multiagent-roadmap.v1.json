@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "telegram-rich-text-rendering",
+  "recommended_active_node": "telegram-rich-draft-streaming",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1249,10 +1249,13 @@
       "title": "Telegram rich text rendering",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Convert assistant Markdown into Telegram-safe rich HTML or safe fallback plaintext without exposing tokens, chat IDs, or raw rich payloads.",
       "why": "Telegram currently surfaces raw Markdown-like text. Rich text must be safe and tested before draft streaming is enabled.",
       "source_refs": [
+        "src/telegram_formatting.py",
+        "plugins/telegram/plugin.py",
+        "tests/test_telegram_formatting.py",
         "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
         "docs/plans/telegram-agent-chat-roadmap.md",
         "docs/plans/telegram-release-boundary-contract.md"
@@ -1282,7 +1285,18 @@
         "Do not send live Telegram messages without explicit operator Go.",
         "Do not persist bot tokens, raw chat IDs, sender IDs, or raw rich payloads.",
         "Do not enable draft streaming before rich text validation is green."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "17d2af63",
+        "evidence_summary": [
+          "Added Telegram-safe Markdown-to-HTML renderer with escape-first output, HTML allowlist validation, HTTP/HTTPS link handling, code/fence/table rendering, safe plaintext fallback, and classic sendMessage chunking.",
+          "Extended Telegram readiness/status with rich_messages_enabled, rich_drafts_enabled, formatting_mode, last_delivery_mode, last_delivery_status, and raw_rich_payload_visible without persisting raw rich payloads.",
+          "Focused Telegram, release-boundary, roadmap, and benchmark tests passed locally: 59 passed.",
+          "Feature commit 17d2af63 was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version, app health, Chroma heartbeat, and Telegram status route smoke passed."
+        ]
+      }
     },
     {
       "id": "telegram-rich-draft-streaming",
@@ -1776,16 +1790,11 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "telegram-rich-text-rendering",
-      "action": "Start Telegram rich text rendering after multiagent benchmarks prove the core runtime path."
-    },
-    {
-      "rank": 2,
       "node_id": "telegram-rich-draft-streaming",
       "action": "Add Telegram rich draft streaming after safe rich text rendering is live."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "visual-agent-programming",
       "action": "Keep visual agent programming visible behind Telegram streaming and the now-live orchestration foundation."
     }

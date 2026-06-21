@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "telegram-rich-text-rendering",
+    "node_id": "telegram-rich-draft-streaming",
     "status": "active",
-    "why_first": "Multiagent e2e benchmarks are live; Telegram rich text rendering is now the next claimable operator-channel feature before rich draft streaming."
+    "why_first": "Telegram rich text rendering is live; rich draft streaming is now the next claimable operator-channel feature."
   },
   "completed_features": [
     {
@@ -99,6 +99,12 @@
       "status": "live_installed",
       "evidence_commit": "f98cd926",
       "evidence": "Offline core multiagent e2e benchmark proves PlanRuntime claimability, claims/leases, SubagentRunSpec binding, accepted memory capsules, workspace integration gates, fake verified/gate-blocked subagent paths, and dashboard evidence; focused tests passed and homeserver live install is complete."
+    },
+    {
+      "node_id": "telegram-rich-text-rendering",
+      "status": "live_installed",
+      "evidence_commit": "17d2af63",
+      "evidence": "Telegram-safe rich text renderer, HTML allowlist validation, plaintext fallback, classic sendMessage HTML/chunking path, redacted readiness/status fields, focused formatting/plugin tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
