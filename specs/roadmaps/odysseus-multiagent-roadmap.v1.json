@@ -634,8 +634,9 @@
         "delegate_not_durable_worker"
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "7d226abc",
         "implementation_refs": [
           "src/subagent_plan_binding.py",
           "tests/test_subagent_plan_binding.py"
