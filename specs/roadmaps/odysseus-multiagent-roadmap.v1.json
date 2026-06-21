@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "worktree-branch-isolation",
+  "recommended_active_node": "orchestration-dashboard-control-center",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1022,10 +1022,12 @@
       "title": "Give write-capable workers isolated branches or worktrees",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Prevent simultaneous write workers from corrupting one worktree and make integration explicit.",
       "why": "File locks help, but real parallel implementation needs separate patch surfaces.",
       "source_refs": [
+        "src/workspace_policy.py",
+        "tests/test_workspace_policy.py",
         "docs/plans/workspace-sandbox-v2-contract.md",
         "docs/plans/agent-state-isolation-contract.md"
       ],
@@ -1049,7 +1051,25 @@
       ],
       "blocked_actions": [
         "No shared dirty write tree for parallel implementation workers."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "64383595",
+        "implementation_refs": [
+          "src/workspace_policy.py",
+          "tests/test_workspace_policy.py"
+        ],
+        "evidence_summary": [
+          "WorkspaceIsolationMode distinguishes shared read-only, branch, and worktree assignments.",
+          "WorkerWorkspaceAssignment records agent identity, plan/node id, integration base branch, worker branch, optional worktree root, owned files, blocked files, and audit-safe metadata.",
+          "evaluate_workspace_integration_gate blocks read-only assignments, wrong integration branches, out-of-scope changes, blocked file changes, unrelated dirty files, missing tests, and unverified quality gates.",
+          "Focused workspace policy, claim lease, PlanRuntime, and subagent plan binding tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, and Chroma heartbeat checks passed for commit 64383595."
+        ],
+        "next_claimable_node": "orchestration-dashboard-control-center"
+      }
     },
     {
       "id": "orchestration-dashboard-control-center",
@@ -1700,18 +1720,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "worktree-branch-isolation",
-      "action": "Give write-capable workers isolated branches or worktrees before scaling parallel implementation."
+      "node_id": "orchestration-dashboard-control-center",
+      "action": "Expose the now-live roadmap, claims, heartbeat, workspace assignment, and stop state in a visible operator dashboard."
     },
     {
       "rank": 2,
-      "node_id": "orchestration-dashboard-control-center",
-      "action": "Expose the now-live roadmap, claims, heartbeat, and stop state in a visible operator dashboard."
+      "node_id": "memory-capsule-integration",
+      "action": "Prepare durable context capsules after write isolation and visible orchestration state are established."
     },
     {
       "rank": 3,
-      "node_id": "memory-capsule-integration",
-      "action": "Prepare durable context capsules after write isolation and visible orchestration state are established."
+      "node_id": "multiagent-e2e-benchmarks",
+      "action": "Run multiagent end-to-end benchmarks after dashboard visibility and memory capsules are live."
     }
   ]
 }

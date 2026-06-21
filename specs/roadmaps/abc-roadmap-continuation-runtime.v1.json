@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "worktree-branch-isolation",
+    "node_id": "orchestration-dashboard-control-center",
     "status": "active",
-    "why_first": "Heartbeat runtime planning is live; isolated branches or worktrees are now the safest next step before scaling write-capable parallel implementation."
+    "why_first": "Heartbeat and workspace assignment gates are live; the operator now needs a visible control center for plans, claims, heartbeat state, assignments, gates, and stop reasons."
   },
   "completed_features": [
     {
@@ -75,6 +75,12 @@
       "status": "live_installed",
       "evidence_commit": "d65e8a38",
       "evidence": "RuntimeHeartbeatInput and plan_runtime_tick connect PlanRuntime, claims, quality gates, thread snapshots, dispatch intents, and heartbeat decisions; focused tests pass and homeserver live install is complete."
+    },
+    {
+      "node_id": "worktree-branch-isolation",
+      "status": "live_installed",
+      "evidence_commit": "64383595",
+      "evidence": "WorkspaceIsolationMode, WorkerWorkspaceAssignment, and evaluate_workspace_integration_gate model branch/worktree assignment metadata and block unsafe integration before tests, gates, scope, and dirty-worktree checks pass."
     }
   ],
   "continuation_policy": {
