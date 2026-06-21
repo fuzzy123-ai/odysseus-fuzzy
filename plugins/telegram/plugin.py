@@ -17,6 +17,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from src.telegram_formatting import chunk_telegram_html, render_telegram_markdown
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from src.user_notification_contract import (
@@ -218,6 +219,8 @@ class TelegramInboxStore:
         source_message_id: int | None = None,
         delivery_status: str = "sent",
         failure_reason: str | None = None,
+        delivery_mode: str = "",
+        formatting_mode: str = "",
     ) -> dict[str, Any]:
         data = self._read()
         message = {
@@ -229,9 +232,12 @@ class TelegramInboxStore:
             "text": text,
             "delivery_status": delivery_status,
             "failure_reason": failure_reason or "",
+            "delivery_mode": delivery_mode,
+            "formatting_mode": formatting_mode,
             "stored_at": int(time.time()),
             "token_value_visible": False,
             "chat_id_value_visible": False,
+            "raw_rich_payload_visible": False,
         }
         data["messages"].append(message)
         self._write(data)
@@ -258,6 +264,22 @@ class TelegramInboxStore:
             "blocked": sum(1 for m in messages if m.get("kind") == "blocked"),
             "duplicates": sum(1 for m in messages if m.get("kind") == "duplicate"),
             "pending_stt": sum(1 for m in messages if m.get("transcript_status") == "pending_stt"),
+        }
+
+    def last_delivery_summary(self) -> dict[str, Any]:
+        for message in reversed(self._read()["messages"]):
+            if message.get("direction") == "outbound":
+                return {
+                    "last_delivery_mode": str(message.get("delivery_mode") or "classic"),
+                    "last_delivery_status": str(message.get("delivery_status") or ""),
+                    "formatting_mode": str(message.get("formatting_mode") or "plaintext"),
+                    "raw_rich_payload_visible": False,
+                }
+        return {
+            "last_delivery_mode": "",
+            "last_delivery_status": "",
+            "formatting_mode": "html",
+            "raw_rich_payload_visible": False,
         }
 
 
@@ -722,13 +744,29 @@ def send_telegram_text(
         raise ValueError("telegram chat id is missing")
     if not text.strip():
         raise ValueError("telegram reply text is empty")
+    rendered = render_telegram_markdown(text)
+    chunks = chunk_telegram_html(rendered.html)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     post = http_post or _telegram_http_post
-    result = post(url, {"chat_id": str(chat_id), "text": text})
+    message_ids: list[Any] = []
+    ok = True
+    for chunk in chunks:
+        payload = {"chat_id": str(chat_id), "text": chunk}
+        if rendered.parse_mode:
+            payload["parse_mode"] = rendered.parse_mode
+        result = post(url, payload)
+        ok = ok and bool(result.get("ok"))
+        message_ids.append((result.get("result") or {}).get("message_id"))
     return {
-        "ok": bool(result.get("ok")),
-        "telegram_message_id": ((result.get("result") or {}).get("message_id")),
+        "ok": ok,
+        "telegram_message_id": message_ids[0] if message_ids else None,
+        "telegram_message_ids": message_ids,
+        "delivery_mode": "classic_html" if rendered.parse_mode else "classic_plaintext",
+        "formatting_mode": rendered.formatting_mode,
+        "parse_mode": rendered.parse_mode,
+        "message_count": len(chunks),
         "token_value_visible": False,
+        "raw_rich_payload_visible": False,
     }
 
 
@@ -796,6 +834,8 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
     agent_chat_enabled = _bool_env("TELEGRAM_AGENT_CHAT_ENABLED")
     reply_enabled = _bool_env("TELEGRAM_AGENT_REPLY_ENABLED")
     polling_enabled = _bool_env("TELEGRAM_POLLING_ENABLED")
+    rich_messages_enabled = _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED")
+    rich_drafts_enabled = _bool_env("TELEGRAM_RICH_DRAFTS_ENABLED")
 
     if token_present and chat_present and agent_chat_enabled and reply_enabled:
         state = "agent_reply_ready"
@@ -810,11 +850,18 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         state = "needs_token"
         summary = "Telegram token env marker is missing."
 
-    counts = (
-        TelegramInboxStore(data_dir).counts()
-        if data_dir is not None
-        else {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "pending_stt": 0}
-    )
+    if data_dir is not None:
+        inbox_store = TelegramInboxStore(data_dir)
+        counts = inbox_store.counts()
+        delivery = inbox_store.last_delivery_summary()
+    else:
+        counts = {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "pending_stt": 0}
+        delivery = {
+            "last_delivery_mode": "",
+            "last_delivery_status": "",
+            "formatting_mode": "html",
+            "raw_rich_payload_visible": False,
+        }
     return {
         "plugin": "telegram",
         "state": state,
@@ -824,8 +871,14 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         "agent_chat_enabled": agent_chat_enabled,
         "reply_gate_enabled": reply_enabled,
         "polling_enabled": polling_enabled,
+        "rich_messages_enabled": rich_messages_enabled,
+        "rich_drafts_enabled": rich_drafts_enabled,
+        "formatting_mode": delivery["formatting_mode"],
+        "last_delivery_mode": delivery["last_delivery_mode"],
+        "last_delivery_status": delivery["last_delivery_status"],
         "token_value_visible": False,
         "chat_id_value_visible": False,
+        "raw_rich_payload_visible": delivery["raw_rich_payload_visible"],
         "network_enabled": bool(token_present and reply_enabled),
         "send_enabled": bool(token_present and chat_present and reply_enabled),
         "history_counts": counts,
@@ -914,6 +967,8 @@ def setup(ctx):
                 source_message_id=source_message_id,
                 delivery_status="blocked",
                 failure_reason="reply_gate_disabled",
+                delivery_mode="blocked",
+                formatting_mode="html",
             )
             return {"error": "Telegram reply gate is disabled", "exit_code": 1, "message": outbound}
         if not _chat_allowed(chat_id):
@@ -923,6 +978,8 @@ def setup(ctx):
                 source_message_id=source_message_id,
                 delivery_status="blocked",
                 failure_reason="chat_not_allowed",
+                delivery_mode="blocked",
+                formatting_mode="html",
             )
             return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
         try:
@@ -934,6 +991,8 @@ def setup(ctx):
                 source_message_id=source_message_id,
                 delivery_status="failed",
                 failure_reason=str(exc),
+                delivery_mode="classic",
+                formatting_mode="html",
             )
             return {"error": str(exc), "exit_code": 1, "message": outbound}
         outbound = store.append_outbound(
@@ -941,6 +1000,8 @@ def setup(ctx):
             text,
             source_message_id=source_message_id,
             delivery_status="sent",
+            delivery_mode=str(sent.get("delivery_mode") or "classic"),
+            formatting_mode=str(sent.get("formatting_mode") or "plaintext"),
         )
         return {
             "output": json.dumps({"sent": sent, "message": outbound}, ensure_ascii=False),
