@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "multiagent-e2e-benchmarks",
+  "recommended_active_node": "telegram-rich-text-rendering",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1196,10 +1196,12 @@
       "title": "Use domain roadmaps as multiagent end-to-end benchmarks",
       "horizon": "later",
       "target_version": "future",
-      "status": "planned",
+      "status": "done",
       "objective": "Validate the runtime with realistic workflows: GitHub issue triage, Telegram operator channel, Nextcloud inbox, and GameDev write work.",
       "why": "Domain tracks should test the core runtime after it is trustworthy, not fork their own orchestration logic.",
       "source_refs": [
+        "src/multiagent_e2e_benchmarks.py",
+        "tests/test_multiagent_e2e_benchmarks.py",
         "docs/plans/github-issue-intelligence-roadmap.md",
         "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
         "docs/plans/universal-inbox-abc-roadmap.md",
@@ -1227,7 +1229,18 @@
       ],
       "blocked_actions": [
         "Do not let domain tracks bypass PlanRuntime, claims, gates, or capsules."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "f98cd926",
+        "evidence_summary": [
+          "Added offline core multiagent e2e benchmark covering PlanRuntime claimability, ClaimLeaseStore claims, SubagentRunSpec binding, accepted ContextCapsule memory, WorkspaceIntegrationDecision, fake subagent verified/gate-blocked paths, and dashboard snapshot visibility.",
+          "Focused benchmark/runtime tests passed locally: 50 passed.",
+          "Feature commit f98cd926 was pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version reported f98cd926 current; app health and Chroma heartbeat passed."
+        ]
+      }
     },
     {
       "id": "telegram-rich-text-rendering",
@@ -1763,18 +1776,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "multiagent-e2e-benchmarks",
-      "action": "Run multiagent end-to-end benchmarks after dashboard visibility and memory capsules are live."
-    },
-    {
-      "rank": 2,
       "node_id": "telegram-rich-text-rendering",
       "action": "Start Telegram rich text rendering after multiagent benchmarks prove the core runtime path."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "telegram-rich-draft-streaming",
       "action": "Add Telegram rich draft streaming after safe rich text rendering is live."
+    },
+    {
+      "rank": 3,
+      "node_id": "visual-agent-programming",
+      "action": "Keep visual agent programming visible behind Telegram streaming and the now-live orchestration foundation."
     }
   ]
 }

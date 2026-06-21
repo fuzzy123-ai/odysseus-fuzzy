@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "multiagent-e2e-benchmarks",
+    "node_id": "telegram-rich-text-rendering",
     "status": "active",
-    "why_first": "Heartbeat, worktree isolation, dashboard visibility, and scoped memory capsules are live; multiagent end-to-end benchmarks can now prove the core runtime path before Telegram/domain tracks."
+    "why_first": "Multiagent e2e benchmarks are live; Telegram rich text rendering is now the next claimable operator-channel feature before rich draft streaming."
   },
   "completed_features": [
     {
@@ -93,6 +93,12 @@
       "status": "live_installed",
       "evidence_commit": "28a53b32",
       "evidence": "CapsuleMemoryItem and ContextCapsule.memory_items provide bounded accepted memory summaries with source/evidence refs and reject unaccepted reports, out-of-repo sources, oversized summaries, bad confidence, and raw global memory dumps."
+    },
+    {
+      "node_id": "multiagent-e2e-benchmarks",
+      "status": "live_installed",
+      "evidence_commit": "f98cd926",
+      "evidence": "Offline core multiagent e2e benchmark proves PlanRuntime claimability, claims/leases, SubagentRunSpec binding, accepted memory capsules, workspace integration gates, fake verified/gate-blocked subagent paths, and dashboard evidence; focused tests passed and homeserver live install is complete."
     }
   ],
   "continuation_policy": {
