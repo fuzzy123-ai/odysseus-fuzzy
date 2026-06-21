@@ -351,7 +351,7 @@ def test_obsidian_surface_modes_contract():
     assert 'data-obsidian-surface-mode="fullscreen"' in main_js
     assert "Window mode" in main_js
     assert "Modals.register(OBSIDIAN_MODAL_ID" in main_js
-    assert "label: 'Obsidian'" in main_js
+    assert "label: 'ORCA Atlas'" in main_js
     assert "let minimizedSurfaceMode = null" in main_js
     assert "const mode = normalizeSurfaceMode(minimizedSurfaceMode || getStoredSurfaceMode())" in main_js
     assert "Modals.minimize(OBSIDIAN_MODAL_ID)" in main_js
@@ -981,5 +981,6 @@ def test_obsidian_app_page_boots_standalone_panel():
 
     assert 'data-obsidian-standalone="true"' in APP_HTML
     assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in APP_HTML
+    assert "<title>Odysseus ORCA Atlas</title>" in APP_HTML
     assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" not in APP_HTML
     assert 'import "/api/plugins/obsidian/web/main.js"' not in APP_HTML

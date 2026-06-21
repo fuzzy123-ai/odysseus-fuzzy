@@ -6,6 +6,24 @@ This is a **standalone plugin** designed to be dynamically loaded into the Odyss
 
 It also registers a read-only context provider for the Odysseus context-orchestrator. This allows Odysseus to preload relevant vault context through a generic plugin API while keeping all Obsidian-specific rules self-contained inside this plugin.
 
+## ORCA Naming and Migration
+
+ORCA means **Odysseus Retrieval & Context Atlas**. It is the long-term canonical name for the Odysseus memory graph and context atlas: retrieval, provenance, derived indexes, readiness, query answers, graph state, and Lens handoffs.
+
+During the migration, this repository still loads as the Obsidian plugin and keeps the existing `obsidian_*` tool names, `/api/plugins/obsidian` routes, install path, data paths, and compatibility wording. Those names are legacy compatibility surfaces, not a signal that Obsidian remains the canonical memory architecture.
+
+Use these terms consistently when describing the target model:
+
+- **Local Markdown Vault**: the filesystem-backed Markdown source adapter currently served by this plugin.
+- **Source**: a note, capture, document, archive entry, or other indexed artifact that can ground retrieval.
+- **Lens**: a read-only or review-oriented user surface over ORCA state.
+- **Atlas**: the provenance, graph, retrieval, readiness, and relationship map that ORCA maintains.
+- **Answer Lens**: the grounded answer surface with citations, confidence, mode, and readiness.
+- **Source View**: the Lens surface for inspecting source and chunk evidence.
+- **Review Queue**: staged material that needs human review before it is treated as settled canonical memory.
+
+This documentation does not claim that ORCA runtime aliases are already live. `orca_*` tools, `/api/plugins/orca` routes, ORCA environment aliases, and provider-id aliases become runtime-real only after their implementation lands and the focused compatibility tests pass. Until then, operators and agents should call the existing Obsidian routes and tools while treating them as legacy compatibility names.
+
 ## Release Candidate `0.10.0-rc.1`
 
 This RC is the current internal release line for the Obsidian plugin on the `dev` branch.
@@ -163,6 +181,8 @@ The provider does not add a public HTTP route. It uses plugin-internal vault ser
 ## API Surface
 
 All routes are registered under `/api/plugins/obsidian`.
+
+For the ORCA migration, this route prefix is a legacy compatibility surface. It remains the runtime contract until ORCA route aliases are implemented and tested; do not remove or rename these routes as part of documentation-only work.
 
 ### UI and Status
 

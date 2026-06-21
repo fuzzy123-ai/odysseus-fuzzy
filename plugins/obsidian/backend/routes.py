@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field
 
 from src.auth_helpers import effective_user, require_user
@@ -119,7 +120,10 @@ from .external_upgrade_proof import (
 from .memory_status import memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
-router = APIRouter(prefix="/api/plugins/obsidian")
+OBSIDIAN_API_PREFIX = "/api/plugins/obsidian"
+ORCA_API_PREFIX = "/api/plugins/orca"
+
+router = APIRouter(prefix=OBSIDIAN_API_PREFIX)
 
 OBSIDIAN_APP_SHELL_PATH = "/api/plugins/obsidian/app"
 OBSIDIAN_APP_SHELL_ALIASES = (
@@ -133,7 +137,7 @@ APP_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Odysseus Obsidian</title>
+  <title>Odysseus ORCA Atlas</title>
   <style>
     :root {
       --bg: #101114;
@@ -1736,3 +1740,32 @@ async def serve_web_assets(filename: str):
         media_type = "image/svg+xml"
         
     return FileResponse(target_path, media_type=media_type)
+
+
+def _build_orca_alias_router() -> APIRouter:
+    alias_router = APIRouter()
+    for route in router.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if not route.path.startswith(OBSIDIAN_API_PREFIX):
+            continue
+        alias_path = route.path.replace(OBSIDIAN_API_PREFIX, ORCA_API_PREFIX, 1)
+        alias_router.add_api_route(
+            alias_path,
+            route.endpoint,
+            methods=route.methods,
+            name=f"orca_{route.name}",
+            response_class=route.response_class,
+            status_code=route.status_code,
+            tags=route.tags,
+            dependencies=route.dependencies,
+            summary=route.summary,
+            description=route.description,
+            response_description=route.response_description,
+            deprecated=route.deprecated,
+            operation_id=f"orca_{route.operation_id}" if route.operation_id else None,
+        )
+    return alias_router
+
+
+orca_router = _build_orca_alias_router()

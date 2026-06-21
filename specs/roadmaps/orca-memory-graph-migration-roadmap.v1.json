@@ -1,0 +1,738 @@
+{
+  "schema_version": 1,
+  "plan_id": "orca-memory-graph-migration",
+  "parent_plan_id": "odysseus-multiagent-roadmap",
+  "title": "ORCA Memory Graph Migration Roadmap",
+  "created_at": "2026-06-21",
+  "updated_at": "2026-06-21",
+  "status": "draft_canonical",
+  "planning_mode": "planning_only_until_operator_go",
+  "format_decision": {
+    "source_of_truth": "json",
+    "markdown_role": "rendered_view_only",
+    "reason": "The migration should be claimable by ABC/PlanRuntime and remain separate from implementation commits until an operator Go is given."
+  },
+  "name_contract": {
+    "canonical_name": "O.R.C.A.",
+    "canonical_expansion": "Odysseus Retrieval & Context Atlas",
+    "short_name": "ORCA",
+    "meaning": "ORCA is the long-term memory graph and context atlas for Odysseus. It owns retrieval, source provenance, derived indexes, query answers, graph readiness, and Lens handoffs.",
+    "naming_rule": "New memory graph work must use ORCA naming. Existing Obsidian names are legacy aliases only until compatibility windows close."
+  },
+  "goal": "Move the current Obsidian-centered memory graph work into a durable ORCA Memory Graph architecture so Obsidian can be removed from project naming after a compatibility window.",
+  "done_definition": {
+    "planning_done_means": [
+      "A canonical ORCA roadmap exists with phases, stop rules, non-goals, risks, gates, expected tests, and ABC ownership.",
+      "Alice has a read-only wording/naming task and Bob has a read-only technical boundary task.",
+      "Charlie has a heartbeat to integrate Alice/Bob handoffs without starting code migration."
+    ],
+    "migration_done_means": [
+      "ORCA is the canonical runtime/API/tool/data/env naming surface for memory graph functions.",
+      "Legacy Obsidian routes, tools, env vars, docs, and data paths either redirect through compatibility adapters or are deleted after deprecation gates.",
+      "Obsidian is no longer required as a project concept; Markdown/local vault support is expressed as a source or Lens under ORCA.",
+      "All focused and integration tests pass under ORCA names, with legacy compatibility tests passing until their scheduled removal."
+    ]
+  },
+  "current_evidence": {
+    "observed_state_date": "2026-06-21",
+    "branch": "dev",
+    "local_status": "ahead_of_origin_dev_with_untracked_roadmaps",
+    "active_alice_bob_threads": "none_found_for_alice_bob_charlie_or_orca_obsidian_query",
+    "existing_plan_context": [
+      "specs/roadmaps/obsidian-memory-live-activation-roadmap.v1.json tracks live activation of Obsidian memory systems.",
+      "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json tracks private corpus and planning memory ingestion.",
+      "This ORCA roadmap is a naming and architecture migration plan; it should not replace live activation or ingestion plans."
+    ],
+    "known_obsidian_coupling": [
+      "plugins/obsidian/plugin.json exposes plugin name, frontend, UI label, and routes under obsidian.",
+      "plugins/obsidian/plugin.py registers obsidian_* tool names and Obsidian-oriented descriptions.",
+      "plugins/obsidian/backend/routes.py uses /api/plugins/obsidian as the route prefix and contains memory, query, RAPTOR, and Lens-adjacent endpoints.",
+      "plugins/obsidian/backend/tool_specs.py defines obsidian_* vault and memory tool specs.",
+      "plugins/obsidian/backend/feature_flags.py uses obsidian_* feature flag keys and ODYSSEUS_OBSIDIAN_* env vars.",
+      "tests/test_obsidian_bridge_contract.py currently asserts canonical Obsidian tool names and legacy MCP suggestions.",
+      "tests/test_obsidian_memory_mission_contract.py expects obsidian-context memory diagnostics and obsidian_raptor feature flag names.",
+      "tests/test_obsidian_memory_frontend_contract.py expects /api/plugins/obsidian/memory/status in frontend source."
+    ],
+    "source_refs": [
+      "plugins/obsidian/README.md",
+      "plugins/obsidian/plugin.json",
+      "plugins/obsidian/plugin.py",
+      "plugins/obsidian/backend/routes.py",
+      "plugins/obsidian/backend/tool_specs.py",
+      "plugins/obsidian/backend/feature_flags.py",
+      "tests/test_obsidian_bridge_contract.py",
+      "tests/test_obsidian_memory_mission_contract.py",
+      "tests/test_obsidian_memory_frontend_contract.py",
+      "specs/roadmaps/obsidian-memory-live-activation-roadmap.v1.json",
+      "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json"
+    ]
+  },
+  "handoff_evidence": {
+    "alice_orca1_naming_contract": {
+      "agent_id": "019eea3b-39ce-7521-8d02-12ff1ee784f3",
+      "status": "done",
+      "changed_files": [],
+      "tests": "none run; read-only planning slice",
+      "summary": [
+        "ORCA is the canonical memory graph and context atlas name.",
+        "User-facing Obsidian terms should be phased out after ORCA aliases/routes and compatibility tests exist.",
+        "Local Markdown Vault replaces generic Obsidian Vault wording.",
+        "Obsidian remains allowed only as a legacy compatibility, import, migration, data path, metadata, env, test, or deprecation term.",
+        "Go requires ORCA aliases/routes, compatibility tests, and a clear Local Markdown Vault vs ORCA core distinction."
+      ],
+      "future_docs_ui_paths": [
+        "plugins/obsidian/README.md",
+        "plugins/obsidian/SECURITY.md",
+        "plugins/obsidian/plugin.json",
+        "plugins/obsidian/plugin.py",
+        "plugins/obsidian/frontend/main.js",
+        "plugins/obsidian/frontend/style.css",
+        "tests/test_obsidian_bridge_contract.py",
+        "tests/test_obsidian_memory_mission_contract.py",
+        "tests/test_obsidian_memory_frontend_contract.py"
+      ]
+    },
+    "bob_orca2_technical_boundary_audit": {
+      "agent_id": "019eea3b-7bac-7a32-bccb-5dec42b1a4c1",
+      "status": "done",
+      "changed_files": [],
+      "tests": "none run; read-only planning slice",
+      "summary": [
+        "Current hard coupling exists in manifest/plugin identity, route prefix, obsidian_* tools, MCP bridge names, context provider id, feature flags/env vars, data paths, metadata paths, frontend routes/globals/classes, docs, and tests.",
+        "ORCA core should own memory graph semantics, source provenance, readiness, freshness/quarantine policy, derived index, query layer, RAPTOR status/cache/rebuild/warming, memory ledger, rebuild proof, automation status, and retrieval/context-provider contracts.",
+        "Local Markdown Vault/source adapter should keep filesystem vault resolution, Markdown read/write, frontmatter, tags, relationships, import/export, vault lock/history/snapshots, and current .obsidian compatibility storage.",
+        "The first implementation slice should add ORCA aliases without removals.",
+        "Deletion blockers remain: no runtime orca_* tools, /api/plugins/orca routes, ODYSSEUS_ORCA_* env aliases, or ORCA compatibility tests exist yet."
+      ],
+      "first_safe_implementation_scope": {
+        "allowed_files": [
+          "plugins/obsidian/backend/feature_flags.py",
+          "plugins/obsidian/backend/routes.py",
+          "plugins/obsidian/backend/tool_specs.py",
+          "plugins/obsidian/plugin.py",
+          "plugins/obsidian/backend/context_provider.py",
+          "tests",
+          "plugins/obsidian/tests"
+        ],
+        "forbidden": [
+          "data/vault files",
+          ".env",
+          "live probes or deploys",
+          "provider calls",
+          "frontend rename",
+          "path migration",
+          "deleting or renaming plugins/obsidian",
+          "changing .obsidian or data/obsidian_vaults"
+        ],
+        "focused_tests": [
+          "tests/test_plugin_obsidian_load.py",
+          "tests/test_obsidian_bridge_contract.py",
+          "tests/test_obsidian_memory_mission_contract.py",
+          "new ORCA compatibility tests for /api/plugins/orca, orca_* tools, ODYSSEUS_ORCA_* env aliases, and provider id aliasing"
+        ]
+      }
+    },
+    "alice_orca_docs_terminology_initial": {
+      "agent_id": "alice-slice-orca-docs-terminology-initial",
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/README.md",
+        "plugins/obsidian/SECURITY.md"
+      ],
+      "tests": "Markdown/plaintext sanity only; no code tests required for docs-only slice.",
+      "summary": [
+        "README now states that ORCA means Odysseus Retrieval & Context Atlas and is the canonical long-term memory graph/context atlas name.",
+        "README states that current Obsidian plugin, path, route, tool, and data names remain legacy compatibility surfaces until ORCA aliases are implemented and tested.",
+        "README defines Local Markdown Vault, Source, Lens, Atlas, Answer Lens, Source View, and Review Queue terminology.",
+        "SECURITY now keeps vulnerability triage tied to active obsidian_* legacy compatibility surfaces while warning that ORCA aliases are not runtime-real yet."
+      ],
+      "evidence": [
+        "Documentation-only changes stayed within plugins/obsidian/README.md and plugins/obsidian/SECURITY.md.",
+        "No manifest, plugin code, backend, frontend, tests, data, vault files, live probes, provider calls, or RAPTOR rebuilds were touched."
+      ]
+    }
+  },
+  "implementation_evidence": {
+    "alice_orca_docs_terminology_initial": {
+      "agent_id": "019eea44-463a-7a52-9d1b-abe7251354f9",
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/README.md",
+        "plugins/obsidian/SECURITY.md",
+        "specs/roadmaps/orca-memory-graph-migration-roadmap.v1.json"
+      ],
+      "tests": [
+        "ConvertFrom-Json on ORCA roadmap: pass",
+        "terminology sanity for ORCA / Local Markdown Vault / Answer Lens / Source View / Review Queue: pass",
+        "ASCII check on changed files: pass",
+        "git diff --check on tracked docs: pass with existing CRLF normalization warnings"
+      ],
+      "summary": [
+        "README now states ORCA is the canonical memory graph and context atlas.",
+        "README and SECURITY say current obsidian_* tools and /api/plugins/obsidian routes remain legacy compatibility until ORCA aliases are implemented and tested.",
+        "No manifest, plugin identity, backend route, frontend, data path, live action, provider call, or RAPTOR rebuild was changed."
+      ]
+    },
+    "bob_orca_tool_env_provider_aliases_initial": {
+      "agent_id": "019eea44-01d1-7163-8e50-70e502b3bc79",
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/backend/feature_flags.py",
+        "plugins/obsidian/backend/tool_specs.py",
+        "plugins/obsidian/backend/context_provider.py",
+        "tests/test_orca_compatibility_contract.py"
+      ],
+      "tests": [
+        "pytest tests/test_obsidian_bridge_contract.py tests/test_plugin_obsidian_load.py tests/test_obsidian_memory_mission_contract.py tests/test_orca_compatibility_contract.py: pass",
+        "pytest plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_spec_executes_shared_service: pass"
+      ],
+      "summary": [
+        "ODYSSEUS_ORCA_* env aliases now override and fall back to the existing ODYSSEUS_OBSIDIAN_* flags.",
+        "orca_* VaultToolSpec aliases share the same handlers, schemas, and access classes as legacy obsidian_* specs.",
+        "orca.vault_context provider spec alias exists while obsidian.vault_context remains intact."
+      ]
+    },
+    "charlie_runtime_registration_integration": {
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/backend/routes.py",
+        "plugins/obsidian/plugin.py",
+        "tests/test_plugin_obsidian_load.py"
+      ],
+      "tests": [
+        "C:/Users/nkatz/odysseus/venv/Scripts/python.exe -m pytest tests/test_obsidian_bridge_contract.py tests/test_plugin_obsidian_load.py tests/test_obsidian_memory_mission_contract.py tests/test_orca_compatibility_contract.py plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_spec_executes_shared_service: 20 passed"
+      ],
+      "summary": [
+        "Plugin setup now registers orca_* agent tool aliases beside obsidian_* tools.",
+        "Plugin setup now registers orca.vault_context beside obsidian.vault_context.",
+        "Plugin setup now mounts /api/plugins/orca route aliases beside /api/plugins/obsidian routes.",
+        "Plugin disable removes both legacy and ORCA tools/providers.",
+        "Focused tests prove the first ORCA app, web asset, memory, and RAPTOR route aliases are mounted while the Obsidian routes remain intact."
+      ]
+    },
+    "charlie_frontend_lens_wording_initial": {
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/frontend/main.js",
+        "plugins/obsidian/backend/routes.py",
+        "plugins/obsidian/backend/tool_specs.py",
+        "plugins/obsidian/plugin.py",
+        "tests/test_obsidian_sidebar_static.py",
+        "tests/test_plugin_obsidian_load.py"
+      ],
+      "tests": [
+        "node --check plugins/obsidian/frontend/main.js: pass",
+        "pytest tests/test_obsidian_sidebar_static.py tests/test_obsidian_memory_frontend_contract.py tests/test_plugin_obsidian_load.py tests/test_orca_compatibility_contract.py: 35 passed",
+        "pytest tests/test_obsidian_bridge_contract.py tests/test_plugin_obsidian_load.py tests/test_obsidian_memory_mission_contract.py tests/test_obsidian_memory_frontend_contract.py tests/test_obsidian_sidebar_static.py tests/test_orca_compatibility_contract.py plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_specs_cover_dispatcher_and_classify_destructive_tools plugins/obsidian/tests/test_plugin_obsidian.py::test_vault_tool_spec_executes_shared_service: 49 passed"
+      ],
+      "summary": [
+        "Dock/modal user-facing label now says ORCA Atlas.",
+        "Standalone app title now says Odysseus ORCA Atlas.",
+        "ORCA tool aliases use ORCA Local Markdown Vault wording while legacy obsidian_* descriptions remain available.",
+        "Internal obsidian CSS classes, JS function names, globals, and frontend API calls remain unchanged for compatibility."
+      ]
+    }
+  },
+  "architecture_decisions": [
+    {
+      "id": "orca-first-obsidian-legacy",
+      "decision": "ORCA becomes the canonical memory graph identity; Obsidian becomes a legacy compatibility alias and, later, an optional source/Lens/import concept.",
+      "why": "The current plugin already contains memory graph, retrieval, readiness, RAPTOR, query, and Lens surfaces that are broader than Obsidian."
+    },
+    {
+      "id": "compatibility-before-delete",
+      "decision": "Add ORCA surfaces in parallel before removing Obsidian names.",
+      "why": "Tests, routes, tool contracts, feature flags, and user workflows currently depend on Obsidian names."
+    },
+    {
+      "id": "core-before-ui",
+      "decision": "Extract or introduce the ORCA core contract before doing frontend Lens renames.",
+      "why": "The frontend is large and should consume stable ORCA contracts rather than define the architecture by string replacement."
+    },
+    {
+      "id": "data-path-migration-is-late",
+      "decision": "Do not rename vault/data directories until adapters, backups, and rollback tests exist.",
+      "why": "Data path renames are higher risk than API/tool aliases and can strand user vaults."
+    },
+    {
+      "id": "aliases-before-text-removal",
+      "decision": "Keep Obsidian user-facing text until ORCA aliases, routes, env vars, and compatibility tests exist.",
+      "why": "Alice identified that premature text removal would promise ORCA before the runtime contracts exist."
+    },
+    {
+      "id": "local-markdown-vault-is-source-adapter",
+      "decision": "Treat the Local Markdown Vault as a source adapter under ORCA, not as the ORCA core.",
+      "why": "Bob's boundary audit separates memory graph/retrieval/readiness ownership from filesystem-backed Markdown storage and legacy .obsidian metadata."
+    }
+  ],
+  "non_goals": [
+    "No code movement, route rename, feature flag flip, live deploy, vault mutation, or data path migration during this planning-only slice.",
+    "No deletion of plugins/obsidian until ORCA compatibility surfaces are proven and downstream callers are migrated.",
+    "No RAPTOR rebuild, provider calls, Nextcloud transfer, or live server action as part of naming migration planning.",
+    "No raw private note content, secrets, tokens, chat IDs, or provider output in roadmap evidence.",
+    "No attempt to solve the full 100GB ingestion roadmap inside this ORCA naming roadmap."
+  ],
+  "risks": [
+    {
+      "id": "contract-breakage",
+      "risk": "Renaming obsidian_* tools or /api/plugins/obsidian routes too early could break bridge contracts, MCP suggestions, and frontend calls.",
+      "mitigation": "Introduce orca_* aliases and /api/plugins/orca routes first; keep legacy tests green until a scheduled removal phase."
+    },
+    {
+      "id": "string-replacement-trap",
+      "risk": "A broad search-and-replace would blur vault/source names, memory graph names, data paths, and operator text.",
+      "mitigation": "Classify each occurrence as core, lens, source, compatibility, env, data path, docs, or test before editing."
+    },
+    {
+      "id": "data-loss-or-orphaned-vault",
+      "risk": "Changing data/obsidian_vaults or .obsidian metadata paths prematurely could orphan existing user data.",
+      "mitigation": "Keep data-path migration late, explicit, backed up, and reversible."
+    },
+    {
+      "id": "roadmap-collision",
+      "risk": "ORCA migration could conflict with live activation and private ingestion roadmaps.",
+      "mitigation": "Treat this roadmap as a naming/architecture track; live activation and ingestion remain separate parent/peer tracks."
+    }
+  ],
+  "stop_rules": [
+    "Stop on foreign staged files, secrets, token leakage, private raw content, or hotfile conflicts.",
+    "Stop if a slice would require destructive git, history rewrite, live deploy, live route probe, env mutation, or vault/data migration without explicit operator Go.",
+    "Stop if an implementation slice tries to remove legacy Obsidian names before ORCA aliases and compatibility tests exist.",
+    "Stop if test impact cannot be scoped to explicit bridge, route, tool, frontend, and memory readiness contracts.",
+    "Stop if Alice or Bob reports overlap with the existing live activation or private data ingestion roadmaps that changes migration priority."
+  ],
+  "release_go_language": {
+    "go": "Proceed to implementation only after Alice and Bob handoffs agree on naming boundaries, technical cut lines, compatibility windows, and focused tests.",
+    "partial": "Proceed with docs/glossary and ORCA alias tests only; defer code movement and data path changes.",
+    "no_go": "Do not implement if compatibility risk is unclear, active roadmap conflicts exist, or tests would require broad brittle rewrites.",
+    "deferred": "Keep Obsidian names as legacy longer when external callers or live deployments still depend on them."
+  },
+  "version_horizons": [
+    {
+      "id": "v0-planning",
+      "label": "Planning Only",
+      "target": "Agree on ORCA naming, boundaries, and migration gates."
+    },
+    {
+      "id": "v1-compat",
+      "label": "ORCA Compatibility Surfaces",
+      "target": "Add ORCA routes, tools, env aliases, docs, and tests while keeping Obsidian aliases."
+    },
+    {
+      "id": "v2-core",
+      "label": "ORCA Core Extraction",
+      "target": "Move memory graph, retrieval, readiness, RAPTOR, query, and Lens contracts behind ORCA modules."
+    },
+    {
+      "id": "v3-deprecation",
+      "label": "Obsidian Deprecation",
+      "target": "Warn, migrate callers, and remove Obsidian names where compatibility windows are closed."
+    },
+    {
+      "id": "v4-removal",
+      "label": "Obsidian Removal",
+      "target": "Delete or isolate the legacy Obsidian plugin shell after data/path/tool/API migration is proven."
+    }
+  ],
+  "recommended_active_node": "orca7-frontend-lens-renaming",
+  "graph_nodes": [
+    {
+      "id": "orca0-roadmap-and-delegation",
+      "kind": "planning",
+      "title": "Create ORCA migration roadmap and ABC delegation",
+      "priority_rank": 1,
+      "horizon": "v0-planning",
+      "status": "done",
+      "depends_on": [],
+      "unlocks": [
+        "orca1-naming-contract",
+        "orca2-technical-boundary-audit"
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "The coordinator creates the canonical planning artifact and dispatches read-only planning slices."
+      },
+      "deliverables": [
+        "Roadmap JSON.",
+        "Read-only Alice and Bob prompts.",
+        "Charlie heartbeat for planning follow-up."
+      ],
+      "verification": [
+        "git status --short --branch",
+        "Roadmap JSON parses as valid JSON.",
+        "Alice/Bob receive complete path-scoped prompts."
+      ],
+      "completion_state": {
+        "status": "done",
+        "commit": "not committed: planning-only slice",
+        "evidence": [
+          "Roadmap JSON created and parsed successfully.",
+          "Alice and Bob explorer prompts were dispatched.",
+          "Charlie heartbeat was created for planning follow-up."
+        ]
+      }
+    },
+    {
+      "id": "orca1-naming-contract",
+      "kind": "docs_contract",
+      "title": "ORCA naming and operator language contract",
+      "priority_rank": 2,
+      "horizon": "v0-planning",
+      "status": "done",
+      "depends_on": [
+        "orca0-roadmap-and-delegation"
+      ],
+      "unlocks": [
+        "orca3-compat-surface-design"
+      ],
+      "abc": {
+        "owner": "alice",
+        "mode": "explorer",
+        "reason": "Read-only wording review is needed before docs or UI text changes."
+      },
+      "deliverables": [
+        "Glossary proposal for ORCA, Atlas, Source, Lens, Local Markdown Vault, legacy Obsidian alias, RAPTOR family, Answer Lens, Source View, Review Queue.",
+        "Deprecation wording that distinguishes old Obsidian names from new ORCA names.",
+        "Go/No-Go language for when Obsidian can disappear from user-facing text."
+      ],
+      "verification": [
+        "No file edits.",
+        "Handoff references exact docs/tests whose wording must change later."
+      ],
+      "completion_state": {
+        "status": "done",
+        "commit": "not committed: read-only planning slice",
+        "evidence": [
+          "Alice handoff received: glossary, Obsidian term policy, deprecation wording, Go/Partial/No-Go, and future docs/UI paths."
+        ]
+      }
+    },
+    {
+      "id": "orca2-technical-boundary-audit",
+      "kind": "architecture_audit",
+      "title": "ORCA technical boundary and compatibility audit",
+      "priority_rank": 3,
+      "horizon": "v0-planning",
+      "status": "done",
+      "depends_on": [
+        "orca0-roadmap-and-delegation"
+      ],
+      "unlocks": [
+        "orca3-compat-surface-design",
+        "orca4-core-extraction-plan"
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "explorer",
+        "reason": "Read-only code/test audit is needed before choosing package and adapter boundaries."
+      },
+      "deliverables": [
+        "Occurrence map of Obsidian coupling grouped by manifest, routes, tools, feature flags, data paths, frontend, docs, and tests.",
+        "Recommended ORCA package/module boundary.",
+        "Focused test list for the first compatibility implementation slice.",
+        "Known blockers for deleting Obsidian names."
+      ],
+      "verification": [
+        "No file edits.",
+        "Handoff references exact paths and tests."
+      ],
+      "completion_state": {
+        "status": "done",
+        "commit": "not committed: read-only planning slice",
+        "evidence": [
+          "Bob handoff received: occurrence map, ORCA core/source/Lens boundary, first safe alias implementation scope, tests, and deletion blockers."
+        ]
+      }
+    },
+    {
+      "id": "orca3-compat-surface-design",
+      "kind": "compatibility_design",
+      "title": "ORCA route, tool, env, and docs compatibility design",
+      "priority_rank": 4,
+      "horizon": "v1-compat",
+      "status": "done",
+      "depends_on": [
+        "orca1-naming-contract",
+        "orca2-technical-boundary-audit"
+      ],
+      "unlocks": [
+        "orca5-tool-route-aliases"
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Integration plan must combine Alice wording and Bob technical cut lines before edits."
+      },
+      "deliverables": [
+        "Adapter map from obsidian_* to orca_* tools.",
+        "Route map from /api/plugins/obsidian to /api/plugins/orca.",
+        "Feature flag/env alias policy from ODYSSEUS_OBSIDIAN_* to ODYSSEUS_ORCA_*.",
+        "Compatibility window and warning policy.",
+        "Provider id alias policy from obsidian.vault_context to an ORCA context provider id.",
+        "Decision on whether the first implementation slice is ORCA aliases only or docs/glossary first."
+      ],
+      "verification": [
+        "No implementation until operator Go.",
+        "Plan identifies exact first tests to add/update.",
+        "Old Obsidian contracts remain explicitly protected until replacement tests are green."
+      ],
+      "completion_state": {
+        "status": "done",
+        "commit": "not committed",
+        "evidence": [
+          "Alice and Bob implementation handoffs integrated.",
+          "Initial ORCA compatibility design narrowed to docs, env aliases, tool aliases, provider aliases, and runtime plugin registration.",
+          "Route aliases are intentionally left for the next focused compatibility slice."
+        ]
+      }
+    },
+    {
+      "id": "orca4-core-extraction-plan",
+      "kind": "core_architecture",
+      "title": "ORCA core extraction plan",
+      "priority_rank": 5,
+      "horizon": "v2-core",
+      "status": "done",
+      "depends_on": [
+        "orca2-technical-boundary-audit"
+      ],
+      "unlocks": [
+        "orca6-core-modules"
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "explorer",
+        "reason": "The extraction cut must be designed before files move."
+      },
+      "deliverables": [
+        "Proposed ORCA-owned modules for ledger, derived index, query layer, readiness, RAPTOR, memory tree, and automation.",
+        "Explicit list of vault/source-specific modules that stay outside ORCA core.",
+        "Import compatibility plan."
+      ],
+      "verification": [
+        "No file moves during planning.",
+        "Focused import and contract tests are listed."
+      ],
+      "completion_state": {
+        "status": "in_progress",
+        "commit": "not committed",
+        "evidence": [
+          "Done: initial user-facing dock/modal label now says ORCA Atlas.",
+          "Done: standalone app title now says Odysseus ORCA Atlas.",
+          "Done: ORCA alias tool descriptions no longer inherit Obsidian wording when Obsidian appeared in the legacy description.",
+          "Remaining: broader frontend API call migration to /api/plugins/orca and internal CSS/JS identifier migration are deferred to a later, larger compatibility slice."
+        ]
+      }
+    },
+    {
+      "id": "orca5-tool-route-aliases",
+      "kind": "implementation_future",
+      "title": "Add ORCA tool and route aliases",
+      "priority_rank": 6,
+      "horizon": "v1-compat",
+      "status": "planned",
+      "depends_on": [
+        "orca3-compat-surface-design"
+      ],
+      "unlocks": [
+        "orca7-frontend-lens-renaming"
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Future implementation slice with focused tool/route contract tests."
+      },
+      "deliverables": [
+        "orca_* tools exist beside obsidian_* aliases.",
+        "/api/plugins/orca memory/query/raptor compatibility endpoints exist beside /api/plugins/obsidian.",
+        "Tests prove old and new names return equivalent contracts."
+      ],
+      "verification": [
+        "python -m pytest tests/test_obsidian_bridge_contract.py tests/test_plugin_obsidian_load.py tests/test_obsidian_memory_mission_contract.py",
+        "New ORCA compatibility tests to be named after Bob audit."
+      ],
+      "completion_state": {
+        "status": "done",
+        "commit": "not committed",
+        "evidence": [
+          "Done: orca_* VaultToolSpec aliases exist beside obsidian_* aliases.",
+          "Done: plugin.py registers orca_* runtime agent tool aliases beside obsidian_* tools.",
+          "Done: ODYSSEUS_ORCA_* env aliases exist with legacy ODYSSEUS_OBSIDIAN_* fallback.",
+          "Done: orca.vault_context provider alias is registered beside obsidian.vault_context.",
+          "Done: /api/plugins/orca route aliases are mounted beside /api/plugins/obsidian.",
+          "Done: focused compatibility tests pass."
+        ]
+      }
+    },
+    {
+      "id": "orca6-core-modules",
+      "kind": "implementation_future",
+      "title": "Extract ORCA core modules behind adapters",
+      "priority_rank": 7,
+      "horizon": "v2-core",
+      "status": "active",
+      "depends_on": [
+        "orca4-core-extraction-plan",
+        "orca5-tool-route-aliases"
+      ],
+      "unlocks": [
+        "orca8-legacy-deprecation"
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Future bounded code movement after compatibility tests exist."
+      },
+      "deliverables": [
+        "ORCA core owns memory graph, readiness, retrieval, RAPTOR, and query modules.",
+        "Legacy Obsidian plugin imports ORCA core instead of owning memory logic.",
+        "Import and behavior tests remain green."
+      ],
+      "verification": [
+        "Focused backend tests for derived index, query layer, RAPTOR cache/rebuild, memory status, memory tree, bridge contracts.",
+        "No frontend rewrite in this slice unless tests require import path updates."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "evidence": []
+      }
+    },
+    {
+      "id": "orca7-frontend-lens-renaming",
+      "kind": "frontend_future",
+      "title": "Rename frontend concepts to ORCA Lens surfaces",
+      "priority_rank": 8,
+      "horizon": "v2-core",
+      "status": "planned",
+      "depends_on": [
+        "orca5-tool-route-aliases"
+      ],
+      "unlocks": [
+        "orca8-legacy-deprecation"
+      ],
+      "abc": {
+        "owner": "alice",
+        "mode": "worker",
+        "reason": "Future UI/operator wording and docs updates after ORCA contracts exist."
+      },
+      "deliverables": [
+        "User-facing text says ORCA, Source Lens, Graph Lens, Answer Lens, Review Lens, Automation Lens, and Local Markdown Vault.",
+        "Frontend calls use ORCA routes where available.",
+        "Legacy Obsidian labels are restricted to compatibility or import contexts."
+      ],
+      "verification": [
+        "node --check plugins/obsidian/frontend/main.js",
+        "python -m pytest tests/test_obsidian_sidebar_static.py tests/test_obsidian_memory_frontend_contract.py",
+        "Add ORCA frontend contract tests when route aliases exist."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "evidence": []
+      }
+    },
+    {
+      "id": "orca8-legacy-deprecation",
+      "kind": "deprecation_future",
+      "title": "Deprecate legacy Obsidian names",
+      "priority_rank": 9,
+      "horizon": "v3-deprecation",
+      "status": "planned",
+      "depends_on": [
+        "orca6-core-modules",
+        "orca7-frontend-lens-renaming"
+      ],
+      "unlocks": [
+        "orca9-data-path-and-delete-plan"
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Deprecation requires integration, tests, release notes, and operator Go."
+      },
+      "deliverables": [
+        "Legacy routes/tools/env vars warn without breaking current callers.",
+        "Docs mark Obsidian names as deprecated aliases.",
+        "Downstream contract tests assert ORCA is canonical and Obsidian is compatibility-only."
+      ],
+      "verification": [
+        "Full focused compatibility suite from prior slices.",
+        "Release notes and deprecation docs reviewed."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "evidence": []
+      }
+    },
+    {
+      "id": "orca9-data-path-and-delete-plan",
+      "kind": "removal_future",
+      "title": "Plan data path migration and final Obsidian removal",
+      "priority_rank": 10,
+      "horizon": "v4-removal",
+      "status": "planned",
+      "depends_on": [
+        "orca8-legacy-deprecation"
+      ],
+      "unlocks": [],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Final removal is high impact and must be operator-gated."
+      },
+      "deliverables": [
+        "Backup and rollback plan for data/obsidian_vaults and .obsidian metadata paths.",
+        "Migration tool or documented manual migration with dry-run.",
+        "Removal PR deletes or isolates plugins/obsidian only after compatibility telemetry is acceptable."
+      ],
+      "verification": [
+        "Dry-run migration tests with sample vaults.",
+        "Rollback test restores old path mapping.",
+        "Final removal tests prove no required Obsidian project naming remains."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "evidence": []
+      }
+    }
+  ],
+  "abc_execution": {
+    "roles": {
+      "alice": "Naming contract, operator language, docs wording, deprecation language, Lens terminology, Go/No-Go phrasing.",
+      "bob": "Read-only technical occurrence map, boundary audit, compatibility test plan, future backend/frontend implementation slices.",
+      "charlie": "Scope control, roadmap integration, stop rules, final slice ordering, git hygiene, automation, and operator Go decisions."
+    },
+    "parallelism_policy": [
+      "Alice and Bob may run read-only planning tasks in parallel.",
+      "No implementation worker starts until Alice/Bob planning handoffs are integrated.",
+      "Future implementation slices must have disjoint write scopes.",
+      "Legacy Obsidian names must remain until ORCA aliases and compatibility tests are green.",
+      "Data path migration and deletion are last-stage, explicit operator-Go actions."
+    ],
+    "handoff_card_required": true
+  },
+  "next_actions": [
+    {
+      "rank": 1,
+      "node_id": "orca3-compat-surface-design",
+      "action": "Done: Charlie integrated Alice/Bob handoffs and implemented initial docs, env, tool, provider, and runtime registration aliases.",
+      "owner": "charlie"
+    },
+    {
+      "rank": 2,
+      "node_id": "orca5-tool-route-aliases",
+      "action": "Done: ORCA tool, env, provider, runtime registration, and route aliases exist while Obsidian compatibility remains intact.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "orca7-frontend-lens-renaming",
+      "action": "Continue frontend Lens migration by moving API calls toward /api/plugins/orca and then planning internal CSS/JS identifier migration after compatibility tests are expanded.",
+      "owner": "alice"
+    }
+  ]
+}

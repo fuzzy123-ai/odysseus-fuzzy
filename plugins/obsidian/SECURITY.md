@@ -12,12 +12,14 @@ For the current RC cycle:
 
 The current release-candidate scope includes a few explicit limits:
 
+- ORCA, the Odysseus Retrieval & Context Atlas, is the canonical long-term name for the memory graph and context atlas. The current `obsidian_*` tools, `/api/plugins/obsidian` routes, install path, and Local Markdown Vault paths remain legacy compatibility surfaces during migration.
+- ORCA runtime aliases are not assumed by this security document. Treat `orca_*` tools, `/api/plugins/orca` routes, and ORCA environment aliases as real only after their implementation lands and focused compatibility tests pass.
 - Vault password protection controls plugin access, but it is not full at-rest encryption for plaintext Markdown already stored on disk.
 - RAPTOR status and readiness surfaces are read-only in the RC; rebuild/write flows stay disabled until they are separately hardened and tested.
 - Risky write paths such as imports, project-plan apply flows, memory-review apply flows, and destructive file operations should only be used with the existing confirmation gates intact.
 - Memory-review queue entries under `AI Memory/Review Queue/` are staged review artifacts, not settled canonical memory, and should be treated accordingly during incident review or restore work.
 - Authenticated plugin data routes must stay protected even when the standalone app shell and static assets are allowed to load before login.
-- RC documentation should continue to distinguish Lens UX progress from the separate ledger/index/query/rebuild evidence required for Memory-first `1.0.0`.
+- RC documentation should continue to distinguish Lens UX progress from the separate ledger/index/query/rebuild evidence required for Memory-first `1.0.0`. The Answer Lens, Source View, Review Queue, Source, Lens, and Atlas terms should describe ORCA behavior without implying source mutation or automatic canonical promotion.
 
 ## RC Operator Checklist
 
@@ -44,6 +46,6 @@ Please include:
 - Potential impact
 - Suggested remediation (if available)
 
-If the issue involves vault-content leakage, path traversal, import/export handling, password flows, or authenticated route bypass, include the affected route or tool name if known.
+If the issue involves vault-content leakage, path traversal, import/export handling, password flows, or authenticated route bypass, include the affected route or tool name if known. During the ORCA migration, current `obsidian_*` route and tool names are still useful evidence because they identify the active legacy compatibility surface.
 
 Do **not** open public issues for undisclosed security vulnerabilities.

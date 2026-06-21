@@ -9,8 +9,8 @@ if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
 try:
-    from obsidian.backend.routes import _undo_entry, router
-    from obsidian.backend.context_provider import provider_spec
+    from obsidian.backend.routes import _undo_entry, orca_router, router
+    from obsidian.backend.context_provider import provider_alias_specs, provider_spec
     from obsidian.backend.consolidation_job import job_spec as consolidation_job_spec
     from obsidian.backend.memory_automation import job_spec as memory_automation_job_spec
     from obsidian.backend.project_planning import (
@@ -81,8 +81,8 @@ try:
     )
     from obsidian.backend import vault_service
 except ModuleNotFoundError:
-    from backend.routes import _undo_entry, router
-    from backend.context_provider import provider_spec
+    from backend.routes import _undo_entry, orca_router, router
+    from backend.context_provider import provider_alias_specs, provider_spec
     from backend.consolidation_job import job_spec as consolidation_job_spec
     from backend.memory_automation import job_spec as memory_automation_job_spec
     from backend.project_planning import (
@@ -999,6 +999,8 @@ def _register_context_provider(ctx) -> None:
     register = getattr(ctx, "register_context_provider", None)
     if callable(register):
         register(provider_spec())
+        for alias_spec in provider_alias_specs():
+            register(alias_spec)
 
 
 def _register_consolidation_job(ctx) -> None:
@@ -1008,11 +1010,33 @@ def _register_consolidation_job(ctx) -> None:
         register(memory_automation_job_spec())
 
 
+def _orca_tool_alias(spec: dict) -> dict:
+    name = spec["name"]
+    if name.startswith("obsidian_"):
+        alias_name = f"orca_{name.removeprefix('obsidian_')}"
+    else:
+        alias_name = f"orca_{name}"
+    alias = dict(spec)
+    alias["name"] = alias_name
+    alias["tool_tag"] = alias_name
+    alias["schema"] = dict(spec["schema"])
+    alias["schema"]["function"] = dict(spec["schema"]["function"])
+    alias["schema"]["function"]["name"] = alias_name
+    alias["schema"]["function"]["description"] = (
+        str(alias["schema"]["function"].get("description") or "").replace(
+            "Obsidian",
+            "ORCA Local Markdown Vault",
+        )
+    )
+    return alias
+
+
 def setup(ctx):
     """Setup hook to register endpoints and agent tools."""
     
     # 1. Register routes in FastAPI app
     ctx.add_router(router)
+    ctx.add_router(orca_router)
     _register_context_provider(ctx)
     _register_consolidation_job(ctx)
 
@@ -1191,5 +1215,6 @@ def setup(ctx):
             "confirm": {"type": "boolean", "description": "Must be true after the user confirms importing into the vault."},
         }, ["archive_base64"], handle_vault_import),
     ]
+    tools = [*tools, *[_orca_tool_alias(spec) for spec in tools]]
     for spec in tools:
         _register_tool(ctx, spec)

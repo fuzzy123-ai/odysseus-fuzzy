@@ -64,6 +64,14 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/obsidian/project-plan/preview" in paths
     assert "/api/plugins/obsidian/project-plan/apply" in paths
     assert "/api/plugins/obsidian/web/{filename:path}" in paths
+    assert "/api/plugins/orca/app" in paths
+    assert "/api/plugins/orca/files" in paths
+    assert "/api/plugins/orca/memory/status" in paths
+    assert "/api/plugins/orca/memory/query" in paths
+    assert "/api/plugins/orca/raptor/status" in paths
+    assert "/api/plugins/orca/raptor/graph" in paths
+    assert "/api/plugins/orca/raptor/rebuild" in paths
+    assert "/api/plugins/orca/web/{filename:path}" in paths
     assert get_tool("obsidian_list_notes") is not None
     assert get_tool("obsidian_read_note") is not None
     assert get_tool("obsidian_list_tags") is not None
@@ -80,8 +88,16 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_raptor_rebuild") is not None
     assert get_tool("obsidian_project_plan_preview") is not None
     assert get_tool("obsidian_project_plan_apply") is not None
+    assert get_tool("orca_list_notes") is not None
+    assert get_tool("orca_read_note") is not None
+    assert get_tool("orca_graph") is not None
+    assert get_tool("orca_memory_status") is not None
+    assert get_tool("orca_raptor_status") is not None
     obsidian_providers = [provider for provider in get_context_providers() if provider.id == "obsidian.vault_context"]
     assert obsidian_providers
+    orca_providers = [provider for provider in get_context_providers() if provider.id == "orca.vault_context"]
+    assert orca_providers
+    assert orca_providers[0].retrieve is obsidian_providers[0].retrieve
     assert {
         "chat",
         "agent",
@@ -95,11 +111,17 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
     assert "/api/plugins/obsidian/web/app.js" in app_response.text
+    orca_app_response = client.get("/api/plugins/orca/app")
+    assert orca_app_response.status_code == 200
+    assert "/api/plugins/obsidian/web/app.js" in orca_app_response.text
     assert "ODYSSEUS_OBSIDIAN_STANDALONE" not in app_response.text
     app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
     assert app_asset_response.status_code == 200
     assert "ODYSSEUS_OBSIDIAN_STANDALONE" in app_asset_response.text
     assert "/api/plugins/obsidian/web/main.js" in app_asset_response.text
+    orca_app_asset_response = client.get("/api/plugins/orca/web/app.js")
+    assert orca_app_asset_response.status_code == 200
+    assert "ODYSSEUS_OBSIDIAN_STANDALONE" in orca_app_asset_response.text
     asset_response = client.get("/api/plugins/obsidian/web/main.js")
     assert asset_response.status_code == 200
     assert "obsidian-panel" in asset_response.text
@@ -130,6 +152,9 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "obsidian_raptor_rebuild" in visible_tools
     assert "obsidian_project_plan_preview" in visible_tools
     assert "obsidian_project_plan_apply" in visible_tools
+    assert "orca_memory_status" in visible_tools
+    assert "orca_raptor_status" in visible_tools
+    assert "ORCA Local Markdown Vault" in visible_tools["orca_graph"]["desc"]
     ui_loader_response = TestClient(app).get("/api/plugins/ui-loader.js")
     assert ui_loader_response.status_code == 200
     assert "/api/plugins/obsidian/web/main.js" in ui_loader_response.text
@@ -155,7 +180,13 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert get_tool("obsidian_raptor_rebuild") is None
     assert get_tool("obsidian_project_plan_preview") is None
     assert get_tool("obsidian_project_plan_apply") is None
+    assert get_tool("orca_list_notes") is None
+    assert get_tool("orca_read_note") is None
+    assert get_tool("orca_graph") is None
+    assert get_tool("orca_memory_status") is None
+    assert get_tool("orca_raptor_status") is None
     assert all(provider.id != "obsidian.vault_context" for provider in get_context_providers())
+    assert all(provider.id != "orca.vault_context" for provider in get_context_providers())
 
 
 def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monkeypatch):

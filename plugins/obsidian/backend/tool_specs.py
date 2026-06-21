@@ -274,7 +274,7 @@ def _raptor_graph_view(vault_dir: str, args: Dict[str, Any], owner: str, source:
     )
 
 
-VAULT_TOOL_SPECS: List[VaultToolSpec] = [
+_OBSIDIAN_VAULT_TOOL_SPECS: List[VaultToolSpec] = [
     VaultToolSpec("obsidian_tree", "List the folder tree of the Obsidian vault.", _schema({
         "prefix": {"type": "string", "description": "Path prefix to filter, e.g. 'projects/'"},
         "depth": {"type": "integer", "description": "Max folder depth."},
@@ -374,6 +374,31 @@ VAULT_TOOL_SPECS: List[VaultToolSpec] = [
         "max_sources": {"type": "integer", "description": "Maximum source records to store in the derived index."},
         "max_edges": {"type": "integer", "description": "Maximum graph edges to store in the derived index."},
     }), "write", _raptor_rebuild),
+]
+
+ORCA_TOOL_ALIASES: Dict[str, str] = {
+    spec.name: (
+        f"orca_{spec.name.removeprefix('obsidian_')}"
+        if spec.name.startswith("obsidian_")
+        else f"orca_{spec.name}"
+    )
+    for spec in _OBSIDIAN_VAULT_TOOL_SPECS
+}
+
+
+def _orca_alias_spec(spec: VaultToolSpec) -> VaultToolSpec:
+    return VaultToolSpec(
+        ORCA_TOOL_ALIASES[spec.name],
+        spec.description.replace("Obsidian", "ORCA Local Markdown Vault"),
+        spec.input_schema,
+        spec.access,
+        spec.handler,
+    )
+
+
+VAULT_TOOL_SPECS: List[VaultToolSpec] = [
+    *_OBSIDIAN_VAULT_TOOL_SPECS,
+    *[_orca_alias_spec(spec) for spec in _OBSIDIAN_VAULT_TOOL_SPECS],
 ]
 
 VAULT_TOOL_BY_NAME = {spec.name: spec for spec in VAULT_TOOL_SPECS}

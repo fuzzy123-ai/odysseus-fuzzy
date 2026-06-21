@@ -13,6 +13,7 @@ from .vault_security import VaultSecurityError
 
 
 PROVIDER_ID = "obsidian.vault_context"
+ORCA_PROVIDER_ID = "orca.vault_context"
 SNIPPET_CHARS = 700
 MAX_ENRICHED_BACKLINKS = 3
 MAX_ENRICHED_SHARED_TAGS = 3
@@ -346,10 +347,11 @@ def _enrich_with_folder_context(
     return results
 
 
-def provider_spec() -> Dict[str, Any]:
+def provider_spec(provider_id: str = PROVIDER_ID) -> Dict[str, Any]:
+    label = "ORCA Vault Context" if provider_id == ORCA_PROVIDER_ID else "Obsidian Vault Context"
     return {
-        "id": PROVIDER_ID,
-        "label": "Obsidian Vault Context",
+        "id": provider_id,
+        "label": label,
         "priority": 50,
         "capabilities": [
             "chat",
@@ -364,6 +366,10 @@ def provider_spec() -> Dict[str, Any]:
         ],
         "retrieve": retrieve_vault_context,
     }
+
+
+def provider_alias_specs() -> List[Dict[str, Any]]:
+    return [provider_spec(ORCA_PROVIDER_ID)]
 
 
 def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:

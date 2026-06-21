@@ -1438,7 +1438,7 @@ function ensureObsidianModalRegistered() {
   Modals.register(OBSIDIAN_MODAL_ID, {
     railBtnId: 'rail-obsidian',
     sidebarBtnId: 'tool-obsidian-btn',
-    label: 'Obsidian',
+    label: 'ORCA Atlas',
     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 2 18 2 18 6 6 6"/><rect x="3" y="6" width="18" height="16" rx="2"/><path d="M8 11h8M8 15h5"/></svg>',
     restoreFn: () => {
       const mode = normalizeSurfaceMode(minimizedSurfaceMode || getStoredSurfaceMode());
