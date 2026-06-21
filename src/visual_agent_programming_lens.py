@@ -91,6 +91,28 @@ class VisualPlanEditDryRunResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class VisualPlanProposalQueueSnapshot:
+    queue_id: str
+    plan_id: str
+    mode: str
+    items: tuple[dict[str, Any], ...]
+    controls: dict[str, dict[str, str]]
+    counts: dict[str, int]
+    context_policy: dict[str, str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "queue_id": self.queue_id,
+            "plan_id": self.plan_id,
+            "mode": self.mode,
+            "items": list(self.items),
+            "controls": self.controls,
+            "counts": self.counts,
+            "context_policy": self.context_policy,
+        }
+
+
 def build_visual_agent_programming_snapshot(
     runtime: PlanRuntimeState,
     *,
@@ -123,6 +145,56 @@ def build_visual_agent_programming_snapshot(
         next_steps=_next_steps(runtime=runtime, claimable_ids=claimable_ids),
         context_policy=_context_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
+    )
+
+
+def build_visual_plan_proposal_queue(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+) -> VisualPlanProposalQueueSnapshot:
+    if not isinstance(runtime, PlanRuntimeState):
+        raise VisualAgentProgrammingLensError("runtime must be a PlanRuntimeState")
+    if not isinstance(payload, dict):
+        raise VisualAgentProgrammingLensError("payload must be an object")
+
+    proposals = _list(payload.get("proposals", []))
+    items: list[dict[str, Any]] = []
+    for index, proposal in enumerate(proposals, start=1):
+        result = validate_visual_plan_edit(runtime, proposal if isinstance(proposal, dict) else {})
+        result_payload = result.to_dict()
+        items.append(
+            {
+                "queue_item_id": f"visual-proposal-{index}",
+                "index": index,
+                "action": result_payload["action"],
+                "state": result_payload["state"],
+                "valid": result_payload["valid"],
+                "can_write": False,
+                "can_start_agent": False,
+                "stops": result_payload["stops"],
+                "collisions": result_payload["collisions"],
+                "proposed_events": result_payload["proposed_events"],
+                "accepted_events": [],
+            }
+        )
+
+    return VisualPlanProposalQueueSnapshot(
+        queue_id=f"{runtime.plan_id}-visual-proposal-review-queue",
+        plan_id=runtime.plan_id,
+        mode="read_only",
+        items=tuple(items),
+        controls=_proposal_queue_controls(),
+        counts={
+            "total_items": len(items),
+            "valid_items": sum(1 for item in items if item["valid"]),
+            "blocked_items": sum(1 for item in items if not item["valid"]),
+            "accepted_items": 0,
+        },
+        context_policy={
+            **_context_policy(runtime),
+            "queue_state": "ephemeral_dry_run",
+            "acceptance_mode": "operator_gated_future_slice",
+        },
     )
 
 
@@ -324,6 +396,16 @@ def _controls() -> dict[str, dict[str, str]]:
         "connect_dependency": {"state": "policy_gated", "reason": reason},
         "assign_agent": {"state": "policy_gated", "reason": reason},
         "start_run": {"state": "policy_gated", "reason": "agent start requires explicit operator action"},
+    }
+
+
+def _proposal_queue_controls() -> dict[str, dict[str, str]]:
+    reason = "proposal review queue is read-only; accepted plan events require a future operator-go slice"
+    return {
+        "accept_proposal": {"state": "policy_gated", "reason": reason},
+        "reject_proposal": {"state": "policy_gated", "reason": reason},
+        "apply_to_roadmap": {"state": "policy_gated", "reason": "no direct roadmap write from queue"},
+        "start_agent": {"state": "policy_gated", "reason": "no agent start from queued proposals"},
     }
 
 

@@ -3,7 +3,11 @@ from fastapi.testclient import TestClient
 
 from routes.roadmap_routes import setup_roadmap_routes
 from src.plan_runtime import PlanRuntimeState
-from src.visual_agent_programming_lens import build_visual_agent_programming_snapshot, validate_visual_plan_edit
+from src.visual_agent_programming_lens import (
+    build_visual_agent_programming_snapshot,
+    build_visual_plan_proposal_queue,
+    validate_visual_plan_edit,
+)
 
 
 def test_visual_agent_programming_snapshot_is_read_only_and_claimable():
@@ -154,3 +158,66 @@ def test_visual_plan_edit_validator_route_returns_dry_run(monkeypatch):
     assert payload["state"] == "rejected"
     assert payload["can_write"] is False
     assert payload["accepted_events"] == []
+
+
+def test_visual_plan_proposal_queue_is_read_only_review_surface():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    queue = build_visual_plan_proposal_queue(
+        runtime,
+        {
+            "proposals": [
+                {
+                    "action": "create_node",
+                    "node_id": "visual-agent-programming-review-probe",
+                    "title": "Review probe",
+                    "kind": "runtime",
+                    "horizon": "later",
+                    "target_version": "future",
+                    "status": "planned",
+                    "depends_on": ["visual-agent-programming-proposal-review-queue"],
+                    "source_refs": ["specs/roadmaps/odysseus-multiagent-roadmap.v1.json"],
+                    "deliverables": ["Review queue proof"],
+                },
+                {
+                    "action": "create_node",
+                    "node_id": "visual-agent-programming",
+                    "title": "Duplicate",
+                },
+            ]
+        },
+    ).to_dict()
+
+    assert queue["mode"] == "read_only"
+    assert queue["counts"] == {"total_items": 2, "valid_items": 1, "blocked_items": 1, "accepted_items": 0}
+    assert queue["items"][0]["state"] == "valid_dry_run"
+    assert queue["items"][0]["accepted_events"] == []
+    assert queue["items"][1]["collisions"][0]["code"] == "node_exists"
+    assert all(control["state"] == "policy_gated" for control in queue["controls"].values())
+    assert queue["context_policy"]["queue_state"] == "ephemeral_dry_run"
+
+
+def test_visual_plan_proposal_queue_route_returns_review_snapshot(monkeypatch):
+    monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    app = FastAPI()
+    app.include_router(setup_roadmap_routes())
+
+    response = TestClient(app).post(
+        "/api/roadmap/visual-agent-programming/proposals/review",
+        json={
+            "proposals": [
+                {
+                    "action": "connect_dependency",
+                    "from_node": "visual-agent-programming-proposal-review-queue",
+                    "to_node": "visual-agent-programming",
+                    "kind": "depends_on",
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["queue_id"] == "odysseus-multiagent-roadmap-visual-proposal-review-queue"
+    assert payload["counts"]["total_items"] == 1
+    assert payload["controls"]["apply_to_roadmap"]["state"] == "policy_gated"
