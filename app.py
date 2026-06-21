@@ -637,6 +637,10 @@ app.include_router(setup_chat_routes(
 from routes.research_routes import setup_research_routes
 app.include_router(setup_research_routes(research_handler, session_manager=session_manager))
 
+# Roadmap Lens
+from routes.roadmap_routes import setup_roadmap_routes
+app.include_router(setup_roadmap_routes())
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))

@@ -722,7 +722,7 @@
       "title": "Roadmap Lens v1 read-only graph",
       "horizon": "v0-9",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "objective": "Show roadmap files, structured plan nodes, milestones, dependencies, active work, deferred work, gates, and hotspots in the existing Lens graph style.",
       "why": "The operator loses overview when many plan files exist. A versioned graph makes current, 0.9, after-0.9, and later work visible at once.",
       "source_refs": [
@@ -755,7 +755,27 @@
       "blocked_actions": [
         "Do not allow visual edits in v1.",
         "Do not infer completion from markdown wording without evidence."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/roadmap_lens.py",
+          "routes/roadmap_routes.py",
+          "tests/test_roadmap_lens.py",
+          "src/plan_runtime.py",
+          "app.py"
+        ],
+        "evidence_summary": [
+          "Roadmap Lens builds a bounded read-only ProgressiveGraphPage from PlanRuntime.",
+          "The graph includes roadmap, slice, version horizon, gate, source file, commit, and agent nodes.",
+          "Active and claimable nodes are exposed for UI highlighting.",
+          "Budget clipping avoids edges to missing nodes.",
+          "GET /api/roadmap/graph exposes the read-only snapshot behind admin auth.",
+          "Roadmap Lens, PlanRuntime, and ProgressiveGraph tests pass locally."
+        ],
+        "next_claimable_node": "execution-backend-adapter"
+      }
     },
     {
       "id": "real-gate-runners",

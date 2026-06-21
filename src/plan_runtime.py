@@ -122,6 +122,7 @@ class PlanRuntimeNode:
     source_refs: tuple[str, ...]
     deliverables: tuple[str, ...]
     completion_status: str
+    completion_commit: str
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "PlanRuntimeNode":
@@ -151,6 +152,9 @@ class PlanRuntimeNode:
                 allow_empty=True,
             ),
             completion_status=_normalize_token(completion.get("status", ""), field_name="completion_status") if completion else "",
+            completion_commit=_normalize_text(completion.get("commit", ""), field_name="completion_commit", allow_empty=True, limit=40)
+            if completion
+            else "",
         )
 
     @property
