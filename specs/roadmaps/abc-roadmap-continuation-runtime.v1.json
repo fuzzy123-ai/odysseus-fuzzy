@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "execution-backend-adapter",
-    "status": "pending_current_commit_live_install",
-    "why_first": "Operator-gated execution backend adapter is implemented in the current commit; live server install and smoke evidence are still required before the next feature can start."
+    "node_id": "thread-bridge-live",
+    "status": "active",
+    "why_first": "Operator-gated execution backend adapter is live; the next claimable feature is the read-only/live Thread Lifecycle Bridge boundary."
   },
   "completed_features": [
     {
@@ -60,8 +60,9 @@
     },
     {
       "node_id": "execution-backend-adapter",
-      "status": "pending_current_commit_live_install",
-      "evidence": "Operator-gated backend adapter, default live-execution block, delegate parity, redacted capability summary, and focused tests are implemented."
+      "status": "live_installed",
+      "evidence_commit": "0d73e76f",
+      "evidence": "Operator-gated backend adapter, default live-execution block, delegate parity, redacted capability summary, focused tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {

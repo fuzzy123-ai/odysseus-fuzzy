@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "execution-backend-adapter",
+  "recommended_active_node": "thread-bridge-live",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -882,8 +882,9 @@
         "No raw provider or private thread content in evidence."
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "0d73e76f",
         "implementation_refs": [
           "src/subagent_runtime.py",
           "tests/test_subagent_runtime.py"
@@ -893,7 +894,9 @@
           "Live execution is blocked by default with operator_live_go_required and no raw provider or thread content is stored.",
           "When live_enabled and a delegate are supplied, spawn/status/read/pause/resume/cancel/retry delegate through the existing backend contract.",
           "Capability summary exposes enabled state, delegate backend, allowed actions, blocked actions, and redaction policy.",
-          "Focused subagent runtime, status, plan binding, and PlanRuntime tests pass locally."
+          "Focused subagent runtime, status, plan binding, and PlanRuntime tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, and Chroma heartbeat checks passed for commit 0d73e76f."
         ],
         "next_claimable_node": "thread-bridge-live"
       }
@@ -1659,18 +1662,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "roadmap-lens-readonly",
-      "action": "Create a read-only graph view from this file that shows current_execution, prepared_next, frontier_candidates, collisions, and gates before any visual editing is attempted."
+      "node_id": "thread-bridge-live",
+      "action": "Make Thread Lifecycle Bridge read and route real threads after the operator-gated execution backend adapter is live."
     },
     {
       "rank": 2,
-      "node_id": "execution-backend-adapter",
-      "action": "Add a real execution backend boundary after scoped gate runners are live."
+      "node_id": "memory-capsule-integration",
+      "action": "Prepare durable context capsules once the live thread bridge path is established."
     },
     {
       "rank": 3,
-      "node_id": "memory-capsule-integration",
-      "action": "Prepare durable context capsules after the read-only Roadmap Lens slice is live."
+      "node_id": "heartbeat-runtime-live-loop",
+      "action": "Run the heartbeat runtime loop after thread bridge and gate runners are live."
     }
   ]
 }
