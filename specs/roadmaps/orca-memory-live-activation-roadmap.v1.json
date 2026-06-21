@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "derived-graph-edges-live",
+  "recommended_active_node": "freshness-hybrid-filtering-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -485,7 +485,7 @@
       "priority_rank": 4,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "canonical-vault-foundation"
       ],
@@ -519,9 +519,136 @@
         "Live /api/plugins/orca/raptor/graph reports expected bounded edge_count after rebuild."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "61c0a315",
+        "completed_at": "2026-06-21T22:02:00+02:00",
+        "live_evidence": [
+          {
+            "check": "operator_go",
+            "result": "ok",
+            "summary": {
+              "scope": "derived-graph-edges-live",
+              "mutation": "live_ledger_sync_and_derived_index_rebuild"
+            }
+          },
+          {
+            "check": "POST /api/plugins/orca/memory/ledger/sync",
+            "result": "ok",
+            "summary": {
+              "scanned_sources": 6,
+              "created": 6,
+              "changed": 0,
+              "deleted": 0
+            }
+          },
+          {
+            "check": "POST /api/plugins/orca/memory/index/rebuild",
+            "result": "ok",
+            "summary": {
+              "configured": true,
+              "built_at": "2026-06-21T20:00:26Z",
+              "source_count": 6,
+              "chunk_count": 7,
+              "graph_nodes": 6,
+              "graph_edges": 14,
+              "pending_sources": 0,
+              "failed_sources": 0,
+              "readiness_state": "ready",
+              "warnings": []
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/ledger",
+            "result": "ok",
+            "summary": {
+              "total_sources": 6,
+              "indexed_sources": 6,
+              "pending_sources": 0,
+              "stale_sources": 0,
+              "failed_sources": 0,
+              "total_chunks": 7,
+              "readiness_state": "ready"
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/index",
+            "result": "ok",
+            "summary": {
+              "source_count": 6,
+              "chunk_count": 7,
+              "graph_nodes": 6,
+              "graph_edges": 14,
+              "readiness_state": "ready",
+              "readiness_gap_names": []
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/index/retrieve",
+            "result": "ok",
+            "summary": {
+              "query": "Odysseus Architecture",
+              "returned": 3,
+              "total_results": 6,
+              "source_paths_only": [
+                "AI Memory/Canonical/Odysseus Architecture.md",
+                "_state/active_run.md",
+                "AI Memory/Canonical/Open Decisions.md"
+              ]
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/baseline",
+            "result": "ok",
+            "summary": {
+              "ready_families": 4,
+              "readiness_families": 6,
+              "blocked_families": [
+                "freshness",
+                "raptor"
+              ],
+              "derived_graph_nodes": 6,
+              "derived_graph_edges": 14,
+              "warnings": []
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/graph",
+            "result": "ok",
+            "summary": {
+              "nodes": 9,
+              "edges": 28,
+              "edge_types": [
+                "filename_mention",
+                "wiki_link"
+              ]
+            }
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "61c0a315",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "command": "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_derived_index_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py",
+              "passed": 34
+            }
+          }
+        ]
       }
     },
     {
@@ -824,21 +951,21 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "derived-graph-edges-live",
-      "action": "Build or activate derived graph edges from the now-linked live canonical vault; stop before index rebuild or derived-data writes unless the live write gate is explicitly satisfied.",
+      "node_id": "freshness-hybrid-filtering-live",
+      "action": "Enable Hybrid Retrieval and activate Freshness filtering now that Memory Tree and Derived Graph are live; verify isolated items remain auditable.",
       "owner": "bob"
     },
     {
       "rank": 2,
-      "node_id": "freshness-hybrid-filtering-live",
-      "action": "Remain blocked until memory-tree-ui-live and derived-graph-edges-live are both live.",
-      "owner": "bob"
-    },
-    {
-      "rank": 3,
       "node_id": "raptor-rebuild-live",
       "action": "Remain blocked until derived-graph-edges-live is complete and operator Go is present for RAPTOR write artifacts.",
       "owner": "charlie"
+    },
+    {
+      "rank": 3,
+      "node_id": "quarantine-live-behavior",
+      "action": "Remain blocked until Freshness filtering is active and quarantine impact is visible in default retrieval.",
+      "owner": "alice"
     }
   ],
   "abc_execution": {
