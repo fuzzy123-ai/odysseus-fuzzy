@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming-apply-adapter",
+    "node_id": "visual-agent-programming-lens-ui-controls",
     "status": "active",
-    "why_first": "The visual mutation patch contract is live; the next step is the controlled apply adapter that mutates roadmap state from authorized patches."
+    "why_first": "The visual mutation apply adapter is live; the next step is exposing safe Lense UI controls for connecting nodes, creating empty paths, and displaying status/version metadata."
   },
   "completed_features": [
     {
@@ -141,6 +141,12 @@
       "status": "live_installed",
       "evidence_commit": "a12d1343",
       "evidence": "Mutation patch contract, connect/create-from-node patch operations, permission modes, visual statuses/colors, version/timestamp audit metadata, optional post-apply agent-start request, admin POST route, focused tests, push, and homeserver live install are complete."
+    },
+    {
+      "node_id": "visual-agent-programming-apply-adapter",
+      "status": "live_installed",
+      "evidence_commit": "0726fbd5",
+      "evidence": "Apply adapter applies authorized visual mutation patches to roadmap payloads, validates PlanRuntime, emits rollback/audit/version metadata, exposes a ready_for_dispatch agent-start request without execution, admin POST route, focused tests, push, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
@@ -422,6 +428,29 @@
         "rollback and audit metadata are emitted",
         "version metadata is bumped",
         "agent start remains a separate confirmed request",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC24-visual-agent-programming-lens-ui-controls",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "static/",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Expose safe Lense UI controls for connecting existing nodes, creating a new empty path from a node, and showing plan status, version, and timestamp metadata.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "UI control metadata is available from the roadmap API",
+        "status colors and version timestamps are visible to the UI",
+        "controls route through mutation contracts",
         "feature is pushed and live installed"
       ]
     }

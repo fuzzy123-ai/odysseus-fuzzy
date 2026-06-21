@@ -23,8 +23,8 @@ def test_visual_agent_programming_snapshot_is_read_only_and_at_policy_gate():
     payload = snapshot.to_dict()
 
     assert payload["mode"] == "read_only"
-    assert payload["active_node_id"] == "visual-agent-programming-apply-adapter"
-    assert payload["next_claimable_node_id"] == "visual-agent-programming-apply-adapter"
+    assert payload["active_node_id"] == "visual-agent-programming-lens-ui-controls"
+    assert payload["next_claimable_node_id"] == "visual-agent-programming-lens-ui-controls"
     assert any(node["node_id"] == "visual-agent-programming-readonly-lens" and node["live_done"] for node in payload["nodes"])
     assert any(
         node["node_id"] == "visual-agent-programming-plan-edit-validator" and node["live_done"]
@@ -46,6 +46,12 @@ def test_visual_agent_programming_snapshot_is_read_only_and_at_policy_gate():
     )
     assert any(
         node["node_id"] == "visual-agent-programming-apply-adapter"
+        and node["live_done"]
+        and node["visual_status"] == "completed"
+        for node in payload["nodes"]
+    )
+    assert any(
+        node["node_id"] == "visual-agent-programming-lens-ui-controls"
         and node["claimable"]
         and node["visual_status"] == "ready"
         for node in payload["nodes"]
@@ -67,11 +73,11 @@ def test_visual_agent_programming_snapshot_projects_future_version_layers():
         last_updated_at="2026-06-21T11:15:00+00:00",
     ).to_dict()
 
-    assert payload["progress"]["branch_nodes"] == 7
+    assert payload["progress"]["branch_nodes"] == 8
     assert any(layer["target_version"] == "0.10" for layer in payload["version_layers"])
     assert any(layer["target_version"] == "future" for layer in payload["version_layers"])
     assert [step["node_id"] for step in payload["next_steps"]] == [
-        "visual-agent-programming-apply-adapter",
+        "visual-agent-programming-lens-ui-controls",
         "visual-agent-programming",
     ]
     assert payload["next_steps"][0]["state"] == "claimable"

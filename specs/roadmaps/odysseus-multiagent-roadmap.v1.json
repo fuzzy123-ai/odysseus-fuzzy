@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-apply-adapter",
+  "recommended_active_node": "visual-agent-programming-lens-ui-controls",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1626,7 +1626,7 @@
       "title": "Visual plan mutation apply adapter",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Apply authorized visual mutation patches to roadmap state with audit, rollback metadata, version bumps, and no implicit agent start.",
       "why": "The patch contract is live; the next step is the actual write boundary that turns authorized patch documents into roadmap changes.",
       "source_refs": [
@@ -1639,7 +1639,7 @@
         "visual-agent-programming-mutation-patch-contract"
       ],
       "unlocks": [
-        "visual-agent-programming"
+        "visual-agent-programming-lens-ui-controls"
       ],
       "gates": [
         "write_requires_authorized_patch",
@@ -1656,6 +1656,60 @@
       "blocked_actions": [
         "No write without an authorized mutation patch.",
         "No agent start in the same operation without separate confirmation."
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "0726fbd5",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Added mutation apply adapter for authorized visual mutation patches.",
+          "Apply adapter applies patch operations to a roadmap payload, validates the resulting PlanRuntime state, and returns rollback operations.",
+          "Default mode requires APPLY_AUTHORIZED_VISUAL_PATCH unless the patch audit uses approve_for_me.",
+          "Apply metadata includes audit, applied version, rollback metadata, file_written=false, and optional ready_for_dispatch agent-start request.",
+          "Added admin-protected POST /api/roadmap/visual-agent-programming/mutations/apply route.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_plan_runtime.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py, 35 passed.",
+          "Feature commit 0726fbd5 was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported 0726fbd5, /api/health was healthy, Chroma heartbeat passed, and the apply route returned admin auth protection."
+        ]
+      }
+    },
+    {
+      "id": "visual-agent-programming-lens-ui-controls",
+      "kind": "lens",
+      "priority_rank": 24,
+      "title": "Visual Roadmap Lens UI controls",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Expose the visual planning capabilities in Lense UI controls for connecting existing nodes, dragging a new empty path from a node, and showing statuses, versions, and timestamps.",
+      "why": "Runtime contracts are now live; the operator needs the visual layer that makes the graph understandable and controllable.",
+      "source_refs": [
+        "static/",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "visual-agent-programming-apply-adapter"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "status_colors_visible",
+        "version_timestamp_visible",
+        "node_edge_controls_use_mutation_contracts",
+        "agent_start_controls_confirmed"
+      ],
+      "deliverables": [
+        "Visual node/edge controls",
+        "Create-from-node empty path control",
+        "Status color rendering",
+        "Version/timestamp display",
+        "Focused tests and live install"
+      ],
+      "blocked_actions": [
+        "No UI write path bypassing mutation contracts.",
+        "No agent start without explicit confirmation or approve_for_me mode."
       ]
     },
     {
@@ -1664,7 +1718,7 @@
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
-      "priority_rank": 24,
+      "priority_rank": 25,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1681,7 +1735,8 @@
         "visual-agent-programming-proposal-review-queue",
         "visual-agent-programming-operator-acceptance-contract",
         "visual-agent-programming-mutation-patch-contract",
-        "visual-agent-programming-apply-adapter"
+        "visual-agent-programming-apply-adapter",
+        "visual-agent-programming-lens-ui-controls"
       ],
       "unlocks": [],
       "gates": [
@@ -1891,6 +1946,11 @@
     },
     {
       "from": "visual-agent-programming-apply-adapter",
+      "to": "visual-agent-programming-lens-ui-controls",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-lens-ui-controls",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -2149,8 +2209,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-apply-adapter",
-      "action": "Apply authorized visual mutation patches with audit, rollback metadata, version bumping, and separate agent-start confirmation."
+      "node_id": "visual-agent-programming-lens-ui-controls",
+      "action": "Build the Lense UI controls for connecting nodes, dragging new empty paths, and showing status, version, and timestamp metadata."
     },
     {
       "rank": 2,
