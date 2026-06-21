@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "planruntime-source-of-truth",
+  "recommended_active_node": "subagent-plan-binding",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -554,7 +554,7 @@
       "title": "Build PlanRuntime as the source of truth",
       "horizon": "v0-9",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "objective": "Move from roadmap text to structured PlanGraph, slices, dependencies, horizons, gates, evidence, and status transitions.",
       "why": "Subagents need deterministic work items, not prose. Markdown should be rendered from structured plan state.",
       "source_refs": [
@@ -578,6 +578,21 @@
         "version_horizons_required",
         "markdown_render_is_derived"
       ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/plan_runtime.py",
+          "tests/test_plan_runtime.py"
+        ],
+        "evidence_summary": [
+          "PlanRuntimeState loads the canonical roadmap JSON as the source of truth.",
+          "Runtime validation rejects unknown dependencies, unknown horizons, unsafe source refs, and non-json source-of-truth payloads.",
+          "PlanRuntime projects roadmap nodes and dependencies into the existing PlanGraph model.",
+          "Claimable node selection requires dependencies to be live_installed and orders by priority_rank."
+        ],
+        "next_claimable_node": "subagent-plan-binding"
+      },
       "deliverables": [
         "PlanRuntime schema",
         "Load/save API",
@@ -1553,18 +1568,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "planruntime-source-of-truth",
-      "action": "Extend or wrap PlanGraph so target_version, horizon, source_refs, gates, deliverables, and AgentReport reductions are first-class runtime state."
-    },
-    {
-      "rank": 2,
       "node_id": "subagent-plan-binding",
       "action": "Bind SubagentRuntime to PlanRuntime slices only after PlanRuntime source-of-truth is live."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "claim-lease-locks",
       "action": "Add claim, lease, file lock, and collision enforcement after PlanRuntime owns the graph state."
+    },
+    {
+      "rank": 3,
+      "node_id": "real-gate-runners",
+      "action": "Turn quality gates into real scoped runners after subagent plan binding and claim locks are live."
     },
     {
       "rank": 4,
