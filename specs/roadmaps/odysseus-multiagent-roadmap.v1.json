@@ -579,8 +579,9 @@
         "markdown_render_is_derived"
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "92992cb2",
         "implementation_refs": [
           "src/plan_runtime.py",
           "tests/test_plan_runtime.py"
