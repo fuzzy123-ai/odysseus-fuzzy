@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "thread-bridge-live",
-    "status": "pending_current_commit_live_install",
-    "why_first": "Thread read snapshot and lifecycle bridge update logic are implemented in the current commit; live server install and smoke evidence are still required before the next feature can start."
+    "node_id": "heartbeat-runtime-live-loop",
+    "status": "active",
+    "why_first": "Thread lifecycle bridge is live; the heartbeat runtime loop can now consume PlanRuntime, claims, thread state, handoffs, and gates."
   },
   "completed_features": [
     {
@@ -66,8 +66,9 @@
     },
     {
       "node_id": "thread-bridge-live",
-      "status": "pending_current_commit_live_install",
-      "evidence": "ThreadReadAdapter protocol, ThreadReadSnapshot, redacted turn summaries, lifecycle extraction, ambiguity blocker, stale detection, resolved read suppression, and focused tests are implemented."
+      "status": "live_installed",
+      "evidence_commit": "a81a4443",
+      "evidence": "ThreadReadAdapter protocol, ThreadReadSnapshot, redacted turn summaries, lifecycle extraction, ambiguity blocker, stale detection, resolved read suppression, focused tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
