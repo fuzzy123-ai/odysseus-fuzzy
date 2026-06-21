@@ -111,9 +111,11 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     app_response = client.get("/api/plugins/obsidian/app")
     assert app_response.status_code == 200
     assert "/api/plugins/obsidian/web/app.js" in app_response.text
+    assert "/api/plugins/orca/web/app.js" not in app_response.text
     orca_app_response = client.get("/api/plugins/orca/app")
     assert orca_app_response.status_code == 200
-    assert "/api/plugins/obsidian/web/app.js" in orca_app_response.text
+    assert "/api/plugins/orca/web/app.js" in orca_app_response.text
+    assert "/api/plugins/obsidian/web/app.js" not in orca_app_response.text
     assert "ODYSSEUS_OBSIDIAN_STANDALONE" not in app_response.text
     app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
     assert app_asset_response.status_code == 200

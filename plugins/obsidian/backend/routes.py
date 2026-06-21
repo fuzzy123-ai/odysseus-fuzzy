@@ -157,9 +157,14 @@ APP_HTML = """<!doctype html>
   </style>
 </head>
 <body data-obsidian-standalone="true">
-  <script type="module" src="/api/plugins/obsidian/web/app.js"></script>
+  <script type="module" src="__PLUGIN_API_PREFIX__/web/app.js"></script>
 </body>
 </html>"""
+
+def app_html_for_request(request: Request) -> str:
+    path = request.url.path
+    api_prefix = ORCA_API_PREFIX if path.startswith(f"{ORCA_API_PREFIX}/") else OBSIDIAN_API_PREFIX
+    return APP_HTML.replace("__PLUGIN_API_PREFIX__", api_prefix)
 
 # --- Request Models ---
 class FileWriteRequest(BaseModel):
@@ -512,9 +517,9 @@ def get_file_tree(dir_path: str, base_path: str) -> List[Dict[str, Any]]:
 
 @router.get("/app")
 @router.get("/app/")
-async def obsidian_app():
+async def obsidian_app(request: Request):
     """Serve a standalone entry page for the plugin manager's Open button."""
-    return HTMLResponse(APP_HTML)
+    return HTMLResponse(app_html_for_request(request))
 
 @router.get("/status")
 async def vault_status(request: Request):

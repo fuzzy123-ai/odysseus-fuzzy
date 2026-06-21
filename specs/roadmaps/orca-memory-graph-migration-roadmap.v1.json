@@ -253,6 +253,23 @@
         "Existing legacy route tests remain intact while frontend contract tests now cover the ORCA prefix helper.",
         "Internal CSS classes, JS globals, function names, and obsidian-* identifiers intentionally remain stable in this slice."
       ]
+    },
+    "charlie_route_aware_standalone_loader_cleanup": {
+      "status": "done",
+      "commit": "recorded in the same git commit as this evidence",
+      "changed_files": [
+        "plugins/obsidian/backend/routes.py",
+        "tests/test_plugin_obsidian_load.py"
+      ],
+      "tests": [
+        "node --check plugins/obsidian/frontend/app.js: pass",
+        "pytest tests/test_plugin_obsidian_load.py tests/test_orca_compatibility_contract.py: 6 passed"
+      ],
+      "summary": [
+        "Standalone app shell HTML now chooses /api/plugins/orca/web/app.js when served through /api/plugins/orca/app.",
+        "Legacy /api/plugins/obsidian/app keeps loading /api/plugins/obsidian/web/app.js.",
+        "Plugin load tests now assert the ORCA and legacy standalone shells do not cross-load each other's app.js route."
+      ]
     }
   },
   "architecture_decisions": [
@@ -656,6 +673,7 @@
           "Done in 3a321023: standalone app title now says Odysseus ORCA Atlas.",
           "Done in d06473d3: frontend API calls now use pluginApi() or PLUGIN_API_PREFIX so ORCA standalone/routes can call /api/plugins/orca.",
           "Done in d06473d3: standalone app.js selects /api/plugins/orca when loaded through the ORCA route and keeps /api/plugins/obsidian as legacy fallback.",
+          "Done: standalone app shell HTML now loads app.js from the matching ORCA or legacy Obsidian route prefix.",
           "Deferred: internal CSS classes, JS globals, function names, and obsidian-* identifiers remain stable until a later explicit identifier migration slice."
         ]
       }
