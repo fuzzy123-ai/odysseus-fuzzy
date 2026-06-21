@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "roadmap-lens-readonly",
+  "recommended_active_node": "execution-backend-adapter",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -757,8 +757,9 @@
         "Do not infer completion from markdown wording without evidence."
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "d1613e03",
         "implementation_refs": [
           "src/roadmap_lens.py",
           "routes/roadmap_routes.py",
@@ -772,7 +773,9 @@
           "Active and claimable nodes are exposed for UI highlighting.",
           "Budget clipping avoids edges to missing nodes.",
           "GET /api/roadmap/graph exposes the read-only snapshot behind admin auth.",
-          "Roadmap Lens, PlanRuntime, and ProgressiveGraph tests pass locally."
+          "Roadmap Lens, PlanRuntime, and ProgressiveGraph tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, Chroma heartbeat, and unauthenticated /api/roadmap/graph 401 route checks passed for commit d1613e03."
         ],
         "next_claimable_node": "execution-backend-adapter"
       }

@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "roadmap-lens-readonly",
-    "status": "pending_current_commit_live_install",
-    "why_first": "Read-only Roadmap Lens graph snapshot and API route are implemented in the current commit; live server install and smoke evidence are still required before the next feature can start."
+    "node_id": "execution-backend-adapter",
+    "status": "active",
+    "why_first": "Read-only Roadmap Lens is live; the next claimable feature by roadmap next_actions is the real execution backend adapter boundary."
   },
   "completed_features": [
     {
@@ -54,8 +54,9 @@
     },
     {
       "node_id": "roadmap-lens-readonly",
-      "status": "pending_current_commit_live_install",
-      "evidence": "Bounded Roadmap Lens ProgressiveGraphPage, active/claimable highlighting, source/gate/version/commit nodes, admin read-only API route, and focused tests are implemented."
+      "status": "live_installed",
+      "evidence_commit": "d1613e03",
+      "evidence": "Bounded Roadmap Lens ProgressiveGraphPage, active/claimable highlighting, source/gate/version/commit nodes, admin read-only API route, focused tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {

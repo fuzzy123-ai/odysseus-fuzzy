@@ -14,16 +14,16 @@ def test_current_roadmap_lens_page_highlights_active_and_claimable_nodes():
     payload = lens.to_dict()
 
     assert payload["status"] == "complete"
-    assert payload["active_node_id"] == "roadmap-lens-readonly"
-    assert "execution-backend-adapter" in payload["claimable_node_ids"]
-    assert "roadmap-lens-readonly" not in payload["claimable_node_ids"]
+    assert payload["active_node_id"] == runtime.recommended_active_node
+    assert runtime.next_claimable_node_id() in payload["claimable_node_ids"]
     assert any(node["node_type"] == "version-horizon" and node["label"] == "v0-9" for node in payload["nodes"])
     assert any(node["node_type"] == "gate" for node in payload["nodes"])
     assert any(node["node_type"] == "commit" and node["label"] == "c92b143d" for node in payload["nodes"])
+    active_title = runtime.node_map()[runtime.recommended_active_node].title
     active_nodes = [
         node
         for node in payload["nodes"]
-        if node["node_type"] == "lens-slice" and node["label"] == "Roadmap Lens v1 read-only graph"
+        if node["label"] == active_title
     ]
     assert active_nodes and active_nodes[0]["score"] == 1.0
 
@@ -61,4 +61,4 @@ def test_roadmap_graph_route_returns_readonly_snapshot(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["graph_ref"] == "odysseus-roadmap-lens"
-    assert payload["active_node_id"] == "roadmap-lens-readonly"
+    assert payload["active_node_id"] == "execution-backend-adapter"
