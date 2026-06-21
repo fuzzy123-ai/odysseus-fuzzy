@@ -53,6 +53,7 @@ def test_roadmap_lens_budget_clips_without_edges_to_missing_nodes():
 
 def test_roadmap_graph_route_returns_readonly_snapshot(monkeypatch):
     monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
     app = FastAPI()
     app.include_router(setup_roadmap_routes())
 
@@ -61,4 +62,4 @@ def test_roadmap_graph_route_returns_readonly_snapshot(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["graph_ref"] == "odysseus-roadmap-lens"
-    assert payload["active_node_id"] == "execution-backend-adapter"
+    assert payload["active_node_id"] == runtime.recommended_active_node
