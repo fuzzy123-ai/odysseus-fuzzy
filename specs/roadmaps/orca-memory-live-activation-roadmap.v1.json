@@ -1,0 +1,657 @@
+{
+  "schema_version": 1,
+  "plan_id": "orca-memory-live-activation",
+  "parent_plan_id": "odysseus-multiagent-roadmap",
+  "title": "ORCA Memory Live Activation Roadmap",
+  "created_at": "2026-06-21",
+  "updated_at": "2026-06-21",
+  "status": "draft_canonical",
+  "format_decision": {
+    "source_of_truth": "json",
+    "markdown_role": "rendered_view_only",
+    "reason": "This activation track must be executable by PlanRuntime and ABC automation. Markdown plans remain reference history only."
+  },
+  "name_contract": {
+    "canonical_name": "O.R.C.A.",
+    "canonical_expansion": "Odysseus Retrieval & Context Atlas",
+    "short_name": "ORCA",
+    "legacy_name": "Obsidian",
+    "legacy_rule": "New roadmap language uses ORCA. Existing plugins/obsidian paths, obsidian_* tools, /api/plugins/obsidian routes, .obsidian metadata, and ODYSSEUS_OBSIDIAN_* env vars are legacy compatibility surfaces until the ORCA migration roadmap closes their removal gates."
+  },
+  "goal": "Bring ORCA Memory Tree UI, Freshness filtering, Quarantine, Derived Graph edges, Hybrid Retrieval, and RAPTOR graph/rebuild into verified live operation on the server.",
+  "done_definition": {
+    "feature_done_means": "Implemented, focused tests green, committed, pushed to the current integration branch, live-installed on the server, and verified through live health/API checks.",
+    "final_goal_reached_when": [
+      "ORCA Memory Tree UI is enabled live and visible.",
+      "Hybrid Retrieval is enabled live.",
+      "Freshness Gate reports filtering_state=active and excludes isolated knowledge from default retrieval.",
+      "Quarantine has a meaningful active path when isolated items exist and is no longer logically dead.",
+      "Derived Graph has audited edges with provenance for the current vault baseline.",
+      "RAPTOR is enabled, rebuilt through the write gate, has index and summaries, returns nonzero graph nodes when source notes exist, and exposes bounded graph views.",
+      "Readiness Gate no longer blocks on Freshness or RAPTOR for the configured live vault.",
+      "All roadmap evidence is recorded in this JSON plan after live verification."
+    ]
+  },
+  "current_evidence": {
+    "observed_state_date": "2026-06-21",
+    "branch": "dev",
+    "local_status": "ahead_of_origin_dev",
+    "disabled_systems": [
+      {
+        "system": "RAPTOR Graph",
+        "status": "disabled",
+        "cause": "ORCA flag aliases exist, but the canonical runtime gate still maps to obsidian_raptor_enabled=false and obsidian_raptor_rebuild_enabled=false by default."
+      },
+      {
+        "system": "Hybrid Retrieval",
+        "status": "disabled",
+        "cause": "ORCA flag aliases exist, but the canonical runtime gate still maps to obsidian_hybrid_retrieval_enabled=false by default."
+      },
+      {
+        "system": "ORCA Memory Tree UI",
+        "status": "disabled",
+        "cause": "ORCA flag aliases exist, but the canonical runtime gate still maps to obsidian_memory_tree_ui_enabled=false by default."
+      }
+    ],
+    "limited_systems": [
+      {
+        "system": "Freshness Gate",
+        "status": "audit_only",
+        "cause": "Freshness filtering only becomes active when Hybrid Retrieval is enabled."
+      },
+      {
+        "system": "Quarantine",
+        "status": "audit_only",
+        "cause": "Quarantine is observable but cannot affect default retrieval until filtering is active."
+      },
+      {
+        "system": "Derived Graph",
+        "status": "no_edges",
+        "cause": "Two nodes exist but no explicit wiki links or accepted edge relations connect them."
+      }
+    ],
+    "source_refs": [
+      "plugins/obsidian/backend/feature_flags.py",
+      "plugins/obsidian/backend/freshness.py",
+      "plugins/obsidian/backend/hybrid_retrieval.py",
+      "plugins/obsidian/backend/raptor_rebuild.py",
+      "plugins/obsidian/backend/derived_index.py",
+      "plugins/obsidian/backend/routes.py",
+      "tests/test_orca_compatibility_contract.py",
+      "tests/test_obsidian_memory_mission_contract.py",
+      "plugins/obsidian/tests/test_memory_readiness_layers.py",
+      "plugins/obsidian/tests/test_raptor_rebuild_backend.py",
+      "plugins/obsidian/tests/test_raptor_cache_backend.py",
+      "tests/test_plugin_obsidian_load.py",
+      "tests/test_obsidian_sidebar_static.py"
+    ]
+  },
+  "non_goals": [
+    "No provider calls or LLM-generated RAPTOR summaries in this activation track.",
+    "No mutation of user note content without an explicit operator-approved slice.",
+    "No automatic global RAPTOR rebuild loop before operator-gated rebuild policy is verified.",
+      "No raw note bodies, secrets, private provider output, chat IDs, or absolute host paths in roadmap evidence.",
+      "No force-push, destructive git, or unrelated UI/sidebar rework in this track."
+  ],
+  "stop_rules": [
+    "Stop on foreign staged files, secrets, token leakage, or hotfile conflicts.",
+    "Stop if focused tests remain red after one scoped fix attempt.",
+    "Stop before any live server write, deploy, env change, RAPTOR rebuild, or vault mutation without explicit operator Go for that live action.",
+    "Stop if live /api/health, /api/version, Chroma heartbeat, or ORCA memory routes fail after deployment.",
+    "Stop if Freshness filtering would remove all usable context without a visible audit trail.",
+    "Stop if RAPTOR rebuild would persist raw note content, absolute paths, provider output, or unbounded graph payloads.",
+    "Stop if the live vault path or owner context is ambiguous."
+  ],
+  "release_go_language": {
+    "go": "All focused tests pass, live install succeeded, health checks pass, feature status proves ready/active, and evidence is committed.",
+    "partial": "Code is live but one non-blocking readiness family remains audit-only with explicit follow-up node.",
+    "no_go": "Tests fail, feature flag state is ambiguous, live health fails, or write safety evidence is missing.",
+    "deferred": "The operator intentionally keeps a capability read-only after evidence shows it is safe but not desired yet."
+  },
+  "version_horizons": [
+    {
+      "id": "v0-9-activation",
+      "label": "0.9 Activation",
+      "target": "Turn visible read-only/audit foundations into live, operator-verifiable features."
+    },
+    {
+      "id": "v0-10-hardening",
+      "label": "0.10 Hardening",
+      "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
+    }
+  ],
+  "recommended_active_node": "memory-live-baseline-audit",
+  "graph_nodes": [
+    {
+      "id": "memory-live-baseline-audit",
+      "kind": "audit",
+      "title": "Live memory baseline audit",
+      "priority_rank": 1,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [],
+      "unlocks": [
+        "memory-tree-ui-live",
+        "canonical-vault-foundation"
+      ],
+      "gates": [
+        "git_status_checked",
+        "live_routes_read_only",
+        "feature_flags_reported",
+        "no_secret_output"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/feature_flags.py",
+        "plugins/obsidian/backend/routes.py",
+        "plugins/obsidian/tests/test_memory_readiness_layers.py"
+      ],
+      "deliverables": [
+        "Structured baseline report for live flags, readiness families, graph counts, quarantine counts, and RAPTOR status.",
+        "Read-only GET /api/plugins/orca/memory/baseline route returns a summary-only activation evidence packet without raw note bodies, absolute host paths, or provider output.",
+        "Explicit operator Go/No-Go recommendation for each activation slice."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "explorer",
+        "reason": "Read-only live and local evidence must be gathered before enabling write or filtering behavior."
+      },
+      "verification": [
+        "git status --short --branch",
+        "GET /api/version",
+      "GET /api/health",
+        "GET /api/plugins/orca/memory/status",
+        "GET /api/plugins/orca/memory/baseline",
+        "GET /api/plugins/orca/raptor/status",
+        "GET /api/plugins/orca/raptor/graph",
+        "Legacy fallback check: GET /api/plugins/obsidian/memory/status remains compatible until removal gates close."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "memory-tree-ui-live",
+      "kind": "frontend_live_toggle",
+      "title": "ORCA Memory Tree UI live enablement",
+      "priority_rank": 2,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "memory-live-baseline-audit"
+      ],
+      "unlocks": [
+        "freshness-hybrid-filtering-live"
+      ],
+      "gates": [
+        "ui_flag_enabled",
+        "tree_audit_quarantine_raptor_tabs_visible",
+        "read_only_no_vault_mutation",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "plugins/obsidian/frontend/main.js",
+        "plugins/obsidian/backend/feature_flags.py",
+        "tests/test_obsidian_sidebar_static.py"
+      ],
+      "deliverables": [
+        "ORCA Memory Tree UI visible behind explicit feature flag or live config.",
+        "Live UI/API evidence shows tree, audit, quarantine, and RAPTOR status surfaces."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Small frontend/config activation with focused static tests."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_obsidian_sidebar_static.py tests\\test_plugin_obsidian_load.py tests\\test_orca_compatibility_contract.py",
+        "Live browser/API check for ORCA Memory Tree UI visibility."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "canonical-vault-foundation",
+      "kind": "vault_contract",
+      "title": "Canonical vault foundation and explicit links",
+      "priority_rank": 3,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "memory-live-baseline-audit"
+      ],
+      "unlocks": [
+        "derived-graph-edges-live"
+      ],
+      "gates": [
+        "operator_approves_note_mutation",
+        "canonical_notes_exist_or_are_explicitly_deferred",
+        "active_run_not_orphaned",
+        "no_private_content_in_repo_evidence",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/project_planning.py",
+        "plugins/obsidian/backend/derived_index.py",
+        "plugins/obsidian/tests/test_project_planning_workflows.py"
+      ],
+      "deliverables": [
+        "Operator-approved canonical note set or documented deferrals for User Preferences, Odysseus Architecture, ORCA Local Markdown Vault Rules, and Open Decisions.",
+        "At least one explicit graph link from _state/active_run.md or accepted alternative source."
+      ],
+      "abc": {
+        "owner": "alice",
+        "mode": "worker",
+        "reason": "Operator-facing wording and vault content changes need narrow, reviewable scope."
+      },
+      "verification": [
+        "Vault audit reports no unintended orphan for active state.",
+        "Derived graph source scan sees explicit link candidates."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "derived-graph-edges-live",
+      "kind": "graph_activation",
+      "title": "Derived Graph edges live",
+      "priority_rank": 4,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "canonical-vault-foundation"
+      ],
+      "unlocks": [
+        "freshness-hybrid-filtering-live",
+        "raptor-rebuild-live"
+      ],
+      "gates": [
+        "edges_have_explicit_provenance",
+        "edge_types_are_allowlisted",
+        "graph_payload_bounded",
+        "live_graph_route_reports_edges"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/derived_index.py",
+        "plugins/obsidian/backend/raptor_rebuild.py",
+        "plugins/obsidian/backend/project_planning.py",
+        "plugins/obsidian/tests/test_raptor_rebuild_backend.py"
+      ],
+      "deliverables": [
+        "Derived Graph emits nonzero edges when source notes contain explicit relationships.",
+        "Edge provenance and type are visible enough for audit and safe future agent context."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Backend graph behavior and tests need a narrow implementation slice."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py",
+        "Live /api/plugins/orca/raptor/graph reports expected bounded edge_count after rebuild."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "freshness-hybrid-filtering-live",
+      "kind": "retrieval_activation",
+      "title": "Hybrid Retrieval and Freshness filtering live",
+      "priority_rank": 5,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "memory-tree-ui-live",
+        "derived-graph-edges-live"
+      ],
+      "unlocks": [
+        "quarantine-live-behavior",
+        "readiness-gate-live-green"
+      ],
+      "gates": [
+        "hybrid_flag_enabled",
+        "freshness_filtering_state_active",
+        "isolated_items_excluded_from_default_retrieval",
+        "audit_retains_excluded_items",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/context_provider.py",
+        "plugins/obsidian/backend/freshness.py",
+        "plugins/obsidian/backend/hybrid_retrieval.py",
+        "plugins/obsidian/tests/test_context_provider_backend.py"
+      ],
+      "deliverables": [
+        "Hybrid Retrieval enabled live.",
+        "Freshness Gate changes from audit_only to active filtering.",
+        "Retrieval policy reports default_retrieval_is_filtered=true and excluded relevant counts when appropriate."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Retrieval behavior needs focused test coverage and live verification."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_context_provider_backend.py tests\\test_obsidian_memory_mission_contract.py tests\\test_session_status_indicators.py",
+        "Live memory status reports filtering_state=active."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "quarantine-live-behavior",
+      "kind": "retrieval_safety",
+      "title": "Quarantine live behavior",
+      "priority_rank": 6,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "freshness-hybrid-filtering-live"
+      ],
+      "unlocks": [
+        "readiness-gate-live-green"
+      ],
+      "gates": [
+        "quarantine_items_are_auditable",
+        "quarantine_items_excluded_from_default_context",
+        "operator_can_inspect_reason",
+        "no_silent_delete_or_note_mutation"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/freshness.py",
+        "plugins/obsidian/frontend/main.js",
+        "plugins/obsidian/tests/test_memory_readiness_layers.py"
+      ],
+      "deliverables": [
+        "Quarantine is not merely a dead audit list; it has observable impact on default retrieval when relevant items exist.",
+        "UI/API still lets the operator inspect isolated items and reasons."
+      ],
+      "abc": {
+        "owner": "alice",
+        "mode": "worker",
+        "reason": "Operator wording and quarantine inspection behavior must be clear before marking readiness green."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py tests\\test_session_status_indicators.py",
+        "Live quarantine route/UI shows isolated items when test/live vault contains them."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "raptor-rebuild-live",
+      "kind": "derived_memory_write_gate",
+      "title": "RAPTOR rebuild live",
+      "priority_rank": 7,
+      "horizon": "v0-9-activation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "derived-graph-edges-live"
+      ],
+      "unlocks": [
+        "raptor-read-policy-live"
+      ],
+      "gates": [
+        "raptor_flags_enabled_with_operator_go",
+        "rebuild_write_gate_ready",
+        "derived_artifacts_only",
+        "no_raw_note_content",
+        "no_absolute_host_paths",
+        "bounded_graph_payload",
+        "live_rebuild_verified"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/raptor_rebuild.py",
+        "plugins/obsidian/backend/hybrid_retrieval.py",
+        "plugins/obsidian/backend/raptor_cache.py",
+        "plugins/obsidian/tests/test_raptor_rebuild_backend.py",
+        "plugins/obsidian/tests/test_raptor_cache_backend.py"
+      ],
+      "deliverables": [
+        "ORCA RAPTOR flags are enabled only with explicit operator Go.",
+        "Live rebuild writes index, summaries, and rebuild_report artifacts.",
+        "RAPTOR status reports configured=true and write gate readiness evidence."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "This is the first write-capable live action and requires integration, deploy, and evidence discipline."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py tests\\test_memory_perf_suite_raptor.py",
+        "Live POST /api/plugins/orca/raptor/rebuild only after operator Go.",
+        "Live GET /api/plugins/orca/raptor/status reports configured=true."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "raptor-read-policy-live",
+      "kind": "runtime_policy",
+      "title": "RAPTOR read policy and rebuild gate",
+      "priority_rank": 8,
+      "horizon": "v0-10-hardening",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "raptor-rebuild-live"
+      ],
+      "unlocks": [
+        "readiness-gate-live-green",
+        "automation-continuation-live"
+      ],
+      "gates": [
+        "raptor_read_allowed",
+        "raptor_rebuild_operator_gated",
+        "cache_invalidation_verified",
+        "dirty_lineage_blocks_ready",
+        "rollback_path_documented"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/raptor_cache.py",
+        "plugins/obsidian/backend/raptor_warming.py",
+        "plugins/obsidian/backend/memory_automation.py",
+        "plugins/obsidian/tests/test_raptor_warming_backend.py",
+        "plugins/obsidian/tests/test_memory_automation_backend.py"
+      ],
+      "deliverables": [
+        "RAPTOR graph reads remain available live.",
+        "Further rebuilds remain explicit/operator-gated or policy-gated.",
+        "Dirty or tainted lineage prevents false green readiness."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Runtime policy and cache behavior need tests before long-running automation can rely on them."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_warming_backend.py plugins\\obsidian\\tests\\test_memory_automation_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py",
+        "Live status remains bounded and cache diagnostics are stable after refresh."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "readiness-gate-live-green",
+      "kind": "release_gate",
+      "title": "Readiness Gate live green",
+      "priority_rank": 9,
+      "horizon": "v0-10-hardening",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "freshness-hybrid-filtering-live",
+        "quarantine-live-behavior",
+        "raptor-read-policy-live"
+      ],
+      "unlocks": [
+        "automation-continuation-live"
+      ],
+      "gates": [
+        "six_families_report_ready_or_intentionally_deferred",
+        "freshness_ready",
+        "raptor_configured",
+        "live_health_ok",
+        "chroma_heartbeat_ok",
+        "evidence_committed"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/memory_status.py",
+        "src/mission_status.py",
+        "tests/test_obsidian_memory_mission_contract.py",
+        "tests/test_agent_run_ledger.py"
+      ],
+      "deliverables": [
+        "Readiness Gate no longer blocks on Freshness or RAPTOR in live configuration.",
+        "Mission status surfaces memory diagnostics as green or explicitly deferred, not silent."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Final integration gate requires local tests, live deploy, and evidence update."
+      },
+      "verification": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_obsidian_memory_mission_contract.py tests\\test_agent_run_ledger.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py",
+        "GET /api/version",
+        "GET /api/health",
+        "Chroma heartbeat",
+        "Live ORCA memory status and RAPTOR status."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "automation-continuation-live",
+      "kind": "automation",
+      "title": "ABC continuation until all live",
+      "priority_rank": 10,
+      "horizon": "v0-10-hardening",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "readiness-gate-live-green"
+      ],
+      "unlocks": [],
+      "gates": [
+        "automation_reads_this_roadmap",
+        "continues_after_each_live_feature",
+        "stops_on_operator_go_missing",
+        "deletes_itself_when_goal_complete"
+      ],
+      "source_refs": [
+        "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json"
+      ],
+      "deliverables": [
+        "A 1-minute Charlie heartbeat can continue this roadmap slice by slice until every developed feature is live.",
+        "Automation stops only on roadmap completion or explicit stop rule."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Automation policy must be integrated after the feature chain is live."
+      },
+      "verification": [
+        "Automation prompt references this roadmap path.",
+        "Next claimable node selection uses PlanRuntime dependencies.",
+        "Completion deletes stale automation."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    }
+  ],
+  "plan_graph_projection": {
+    "status_mapping": {
+      "planned": "pending",
+      "active": "running",
+      "done": "done",
+      "blocked": "blocked",
+      "deferred": "skipped"
+    },
+    "edge_policy": "depends_on and unlocks edges are authoritative for claimability. Collision and live-Go gates block dispatch even when dependencies are complete."
+  },
+  "next_actions": [
+    {
+      "rank": 1,
+      "node_id": "memory-live-baseline-audit",
+      "action": "Run the read-only baseline audit before enabling any flag or live write behavior.",
+      "owner": "charlie"
+    },
+    {
+      "rank": 2,
+      "node_id": "memory-tree-ui-live",
+      "action": "Prepare low-risk UI enablement after baseline evidence exists.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "canonical-vault-foundation",
+      "action": "Prepare operator-approved canonical note/link foundation in parallel with UI enablement if no vault mutation conflict exists.",
+      "owner": "alice"
+    }
+  ],
+  "abc_execution": {
+    "roles": {
+      "alice": "Docs, operator wording, canonical note/link contract, quarantine inspection language, Go/No-Go language.",
+      "bob": "Focused backend/frontend tests, graph/retrieval implementation slices, cache/read policy behavior.",
+      "charlie": "Scope control, live gates, commits, pushes, deploys, roadmap evidence, automation, final readiness."
+    },
+    "parallelism_policy": [
+      "Start with read-only reports first.",
+      "Parallel work is allowed only when path scopes do not overlap.",
+      "Exactly one feature may move through live install at a time.",
+      "After each live install, update this roadmap evidence before selecting the next claimable node.",
+      "Live env changes, vault writes, and RAPTOR rebuilds require explicit operator Go."
+    ],
+    "handoff_card_required": true
+  },
+  "live_install_contract": {
+    "per_feature_sequence": [
+      "Check git status and stop on foreign staged files or hotfile conflicts.",
+      "Implement exactly one claimable feature.",
+      "Run focused tests.",
+      "Commit scoped changes.",
+      "Push current branch.",
+      "Install/update on homeserver.",
+      "Verify /api/version and /api/health.",
+      "Verify Chroma heartbeat.",
+      "Verify feature-specific live route/UI evidence.",
+      "Update this roadmap completion_state with commit and live evidence.",
+      "Commit/push the evidence update and install it live before starting the next feature."
+    ]
+  }
+}

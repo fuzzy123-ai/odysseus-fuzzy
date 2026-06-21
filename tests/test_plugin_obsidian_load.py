@@ -54,6 +54,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/obsidian/history" in paths
     assert "/api/plugins/obsidian/history/undo" in paths
     assert "/api/plugins/obsidian/memory/status" in paths
+    assert "/api/plugins/obsidian/memory/baseline" in paths
     assert "/api/plugins/obsidian/memory-tree/analyze" in paths
     assert "/api/plugins/obsidian/knowledge-audit" in paths
     assert "/api/plugins/obsidian/quarantine" in paths
@@ -67,6 +68,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "/api/plugins/orca/app" in paths
     assert "/api/plugins/orca/files" in paths
     assert "/api/plugins/orca/memory/status" in paths
+    assert "/api/plugins/orca/memory/baseline" in paths
     assert "/api/plugins/orca/memory/query" in paths
     assert "/api/plugins/orca/raptor/status" in paths
     assert "/api/plugins/orca/raptor/graph" in paths

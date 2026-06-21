@@ -39,7 +39,7 @@
     "local_status": "dev_ahead_origin_dev_by_754_with_two_untracked_peer_roadmaps",
     "active_alice_bob_threads": "none_found_for_alice_bob_charlie_or_orca_obsidian_query",
     "existing_plan_context": [
-      "specs/roadmaps/obsidian-memory-live-activation-roadmap.v1.json tracks live activation of Obsidian memory systems.",
+      "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json tracks live activation of ORCA memory systems.",
       "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json tracks private corpus and planning memory ingestion.",
       "This ORCA roadmap is a naming and architecture migration plan; it should not replace live activation or ingestion plans."
     ],
@@ -63,7 +63,7 @@
       "tests/test_obsidian_bridge_contract.py",
       "tests/test_obsidian_memory_mission_contract.py",
       "tests/test_obsidian_memory_frontend_contract.py",
-      "specs/roadmaps/obsidian-memory-live-activation-roadmap.v1.json",
+      "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json",
       "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json"
     ]
   },

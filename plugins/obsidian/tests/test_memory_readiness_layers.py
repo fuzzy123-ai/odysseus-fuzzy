@@ -21,7 +21,7 @@ from backend.freshness import audit_knowledge, quarantine_list
 from backend.derived_index import build_derived_index
 from backend.hybrid_retrieval import raptor_status
 from backend.knowledge_status import normalize_status
-from backend.memory_status import memory_status
+from backend.memory_status import memory_baseline_report, memory_status
 from backend.memory_tree import analyze_memory_tree, memory_tree_status
 from plugin import (
     handle_knowledge_audit,
@@ -196,6 +196,53 @@ def test_memory_status_aggregates_read_only_readiness_layers():
         assert status["summary"]["raptor_write_gate"] == status["raptor_write_gate"]
         assert status["summary"]["writes_supported"] is False
         assert status["summary"]["warnings"] == status["warnings"]
+
+
+def test_memory_baseline_report_is_summary_only_activation_evidence():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Active\n")
+        with open(os.path.join(tmpdir, "Review.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: needs_review\n---\n# Review body must not leak into baseline\n")
+        build_derived_index(tmpdir)
+
+        before = set(os.listdir(tmpdir))
+        report = memory_baseline_report(tmpdir)
+        after = set(os.listdir(tmpdir))
+
+        assert before == after
+        assert report["schema"] == "orca-memory-baseline-v1"
+        assert report["read_only"] is True
+        assert report["writes_supported"] is False
+        assert report["routes"] == {
+            "preferred": "/api/plugins/orca/memory/baseline",
+            "legacy": "/api/plugins/obsidian/memory/baseline",
+        }
+        assert report["flags"]["obsidian_memory_tree_ui_enabled"] is False
+        assert report["systems"]["memory_tree_ui"]["state"] == "disabled"
+        assert report["systems"]["hybrid_retrieval"]["state"] == "disabled"
+        assert report["systems"]["freshness_gate"]["filtering_state"] == "audit_only"
+        assert report["systems"]["quarantine"]["items"] == 1
+        assert report["systems"]["derived_graph"]["bounded"] is True
+        assert report["systems"]["raptor"]["configured"] is False
+        assert report["summary"]["quarantine_items"] == 1
+        assert report["summary"]["raptor_configured"] is False
+        assert report["evidence_contract"] == {
+            "raw_note_bodies_included": False,
+            "absolute_host_paths_included": False,
+            "provider_outputs_included": False,
+            "bounded_graph_payload": True,
+            "requires_operator_go_before_writes": True,
+        }
+        recommendations = {
+            item["node_id"]: item["decision"]
+            for item in report["activation_recommendations"]
+        }
+        assert recommendations["memory-tree-ui-live"] == "go"
+        assert recommendations["canonical-vault-foundation"] == "operator_go_required"
+        assert recommendations["derived-graph-edges-live"] == "needs_source_links"
+        assert recommendations["raptor-rebuild-live"] == "operator_go_required"
+        assert "Review body must not leak" not in json.dumps(report)
 
 
 def test_memory_status_preserves_compact_layer_warnings(monkeypatch):

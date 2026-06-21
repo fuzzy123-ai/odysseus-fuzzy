@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "plan_id": "private-data-memory-ingestion",
+  "parent_plan_id": "orca-memory-live-activation",
+  "title": "Private Data And Planning Memory Ingestion Roadmap",
+  "created_at": "2026-06-21",
+  "updated_at": "2026-06-21",
+  "status": "draft_canonical",
+  "format_decision": {
+    "source_of_truth": "json",
+    "markdown_role": "rendered_view_only",
+    "reason": "The plan must be visible in Roadmap Lens and claimable by PlanRuntime, but runtime transfer/indexing state must not be stored in monolithic planning JSON."
+  },
+  "goal": "Make Odysseus ingest its planning documents and a 100GB+ private Nextcloud corpus into durable, resumable, provenance-aware memory on the homeserver without raw-content leaks or fragile one-shot jobs.",
+  "done_definition": {
+    "feature_done_means": "Implemented, focused tests green, committed, pushed, live-installed on the server, and verified through live health/API checks.",
+    "final_goal_reached_when": [
+      "All repo planning sources under specs/roadmaps and docs/plans are discoverable as memory sources with stable IDs and provenance.",
+      "Planning-source memory ingestion is incremental and updates changed/deleted/renamed plan files without duplicate memory.",
+      "A 100GB+ Nextcloud source can be inventoried, transferred or mounted, scanned, analyzed, retried, and resumed after interruption.",
+      "Operational transfer and analysis state lives in a resumable ledger such as SQLite or an append-only event log, not in a giant JSON document.",
+      "Large-file analysis uses chunked streaming and bounded extraction lanes.",
+      "Memory writes store abstractions, hashes, provenance, and sidecar references, not raw private file bodies by default.",
+      "The live server exposes status, progress, stuck-item recovery, retry, pause/resume, and evidence for the ingestion pipeline."
+    ]
+  },
+  "current_evidence": {
+    "observed_state_date": "2026-06-21",
+    "existing_building_blocks": [
+      "scripts/agent_migration_manifest.py can build read-only manifests from source exports.",
+      "src/nextcloud_source_provider.py models offline Nextcloud source readiness.",
+      "src/nextcloud_intake_ledger.py defines redacted per-file intake ledger entries.",
+      "src/universal_inbox_pipeline.py and related universal_inbox modules model extraction, routing, placement, policy, memory abstraction, and write gates.",
+      "src/embedding_lanes.py and tests cover resumable lane backfill behavior.",
+      "src/memory_perf_suite_runner.py and tests cover checkpoint/recovery patterns for memory workloads.",
+      "ops/homeserver/nextcloud-podman contains homeserver Nextcloud deployment assets."
+    ],
+    "known_gaps": [
+      "No single Big Data Runner currently owns 100GB+ transfer, inventory, extraction, indexing, retry, resume, and status.",
+      "Planning documents are plentiful but not guaranteed to flow into bounded memory context.",
+      "Live Nextcloud access and writes remain gated and must not be assumed.",
+      "A monolithic JSON manifest is unsuitable as the operational source of truth for 100GB+ scans."
+    ],
+    "source_refs": [
+      "scripts/agent_migration_manifest.py",
+      "src/nextcloud_source_provider.py",
+      "src/nextcloud_intake_ledger.py",
+      "src/universal_inbox_worker.py",
+      "src/universal_inbox_discovery.py",
+      "src/universal_inbox_extraction.py",
+      "src/universal_inbox_memory.py",
+      "src/universal_inbox_pipeline.py",
+      "src/embedding_lanes.py",
+      "src/memory_perf_suite_runner.py",
+      "docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md",
+      "docs/plans/universal-inbox-live-readiness-runbook.md",
+      "ops/homeserver/nextcloud-podman/README.md"
+    ]
+  },
+  "architecture_decisions": [
+    {
+      "id": "no-monolithic-state-json",
+      "decision": "Use JSON roadmaps for planning only. Use SQLite or append-only event logs for transfer and analysis checkpoints.",
+      "why": "100GB+ file sets need frequent checkpoint writes, range queries, retries, stuck-item detection, and crash-safe updates."
+    },
+    {
+      "id": "manifest-vs-ledger",
+      "decision": "Use compact manifests for immutable snapshots and a ledger for mutable job state.",
+      "why": "A manifest proves what existed; a ledger proves what was attempted, failed, retried, skipped, or indexed."
+    },
+    {
+      "id": "copy-before-analysis",
+      "decision": "Separate transfer/mirror verification from content analysis.",
+      "why": "A transfer failure should not corrupt the memory index, and an extraction failure should not imply file loss."
+    },
+    {
+      "id": "abstracted-memory-only",
+      "decision": "Store summaries, derived facts, hashes, MIME metadata, source refs, and graph edges by default; keep raw content in source files.",
+      "why": "Odysseus memory should be useful without becoming an uncontrolled duplicate of private data."
+    }
+  ],
+  "non_goals": [
+    "No destructive Nextcloud sync or delete operation in the first live track.",
+    "No automatic write of new Nextcloud tags until tag governance and operator approval are live.",
+    "No provider calls over the entire 100GB corpus before local extraction, sampling, and budget gates pass.",
+    "No giant JSON dump of file contents, embeddings, or operational state.",
+    "No direct mutation of existing private files during inventory or analysis."
+  ],
+  "stop_rules": [
+    "Stop on secrets, tokens, credentials, chat IDs, or private raw content being logged into repo files or roadmap evidence.",
+    "Stop if a transfer command would delete, overwrite, move, or chmod private data without explicit operator approval.",
+    "Stop if the homeserver target path, Nextcloud data path, user/owner mapping, or available disk budget is ambiguous.",
+    "Stop if a scan cannot resume from checkpoint after forced interruption.",
+    "Stop if memory ingestion stores raw private bodies instead of bounded abstractions and provenance.",
+    "Stop if live server health, Chroma heartbeat, or ingestion status route fails after deployment.",
+    "Stop if throughput tests imply the full corpus would run unbounded or starve the main Odysseus service."
+  ],
+  "version_horizons": [
+    {
+      "id": "v0-9-foundation",
+      "label": "0.9 Foundation",
+      "target": "Planning docs enter memory and large-data ingestion has a safe dry-run ledger."
+    },
+    {
+      "id": "v0-10-transfer",
+      "label": "0.10 Transfer",
+      "target": "Nextcloud corpus transfer/inventory is resumable and live-observable."
+    },
+    {
+      "id": "v0-11-analysis",
+      "label": "0.11 Analysis",
+      "target": "Full corpus analysis and memory ingestion runs incrementally with recovery."
+    }
+  ],
+  "recommended_active_node": "planning-sources-memory-inventory",
+  "graph_nodes": [
+    {
+      "id": "planning-sources-memory-inventory",
+      "kind": "memory_source_inventory",
+      "title": "Planning sources memory inventory",
+      "priority_rank": 1,
+      "horizon": "v0-9-foundation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [],
+      "unlocks": [
+        "planning-sources-memory-ingest-live",
+        "bigdata-ledger-contract"
+      ],
+      "gates": [
+        "repo_paths_allowlisted",
+        "stable_source_ids",
+        "no_raw_private_content",
+        "incremental_changed_file_detection"
+      ],
+      "source_refs": [
+        "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json",
+        "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json",
+        "scripts/agent_migration_manifest.py",
+        "docs/plans"
+      ],
+      "deliverables": [
+        "Read-only inventory of planning files under specs/roadmaps and docs/plans.",
+        "Stable source IDs, hashes, titles, type classification, and dependency hints.",
+        "Proof that planning docs can be re-indexed incrementally without duplicate memory."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "A small read-only inventory model and tests can make planning files first-class memory sources."
+      },
+      "verification": [
+        "Focused tests for source inventory, stable IDs, changed-file detection, and redaction.",
+        "No file contents over configured preview budget in artifacts."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "planning-sources-memory-ingest-live",
+      "kind": "memory_ingest",
+      "title": "Planning sources memory ingest live",
+      "priority_rank": 2,
+      "horizon": "v0-9-foundation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "planning-sources-memory-inventory"
+      ],
+      "unlocks": [
+        "bigdata-ledger-contract"
+      ],
+      "gates": [
+        "memory_items_are_bounded",
+        "source_refs_present",
+        "superseded_plans_not_promoted_as_truth",
+        "live_ingest_status_visible",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "src/universal_inbox_memory.py",
+        "src/context_orchestrator.py",
+        "src/agent_run_ledger.py",
+        "specs/roadmaps"
+      ],
+      "deliverables": [
+        "Planning docs are available as bounded memory capsules/context sources.",
+        "Current JSON roadmaps outrank historical Markdown plans when conflicts exist.",
+        "Agents can cite source refs instead of relying on old chat history."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "This touches context correctness and must be integrated with live verification."
+      },
+      "verification": [
+        "Focused tests for current-vs-superseded plan precedence.",
+        "Live memory/context probe can retrieve this roadmap by source ref.",
+        "GET /api/health and Chroma heartbeat pass after deploy."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "bigdata-ledger-contract",
+      "kind": "storage_contract",
+      "title": "Big Data ledger contract",
+      "priority_rank": 3,
+      "horizon": "v0-9-foundation",
+      "target_version": "0.9",
+      "status": "planned",
+      "depends_on": [
+        "planning-sources-memory-inventory"
+      ],
+      "unlocks": [
+        "nextcloud-transfer-readiness",
+        "resumable-scanner-dry-run"
+      ],
+      "gates": [
+        "sqlite_or_append_log_chosen",
+        "crash_safe_checkpoints",
+        "idempotent_file_records",
+        "no_content_in_ledger",
+        "resume_after_interruption_tested"
+      ],
+      "source_refs": [
+        "src/nextcloud_intake_ledger.py",
+        "src/memory_perf_suite_runner.py",
+        "tests/test_memory_perf_suite_recovery.py"
+      ],
+      "deliverables": [
+        "Operational ledger schema for file inventory, transfer state, extraction state, analysis state, retries, and errors.",
+        "Checkpoint semantics for resume, pause, retry, skip, and stale lock recovery.",
+        "Privacy contract: metadata and hashes only unless explicitly scoped."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "The ledger is core infrastructure and must be testable offline before touching live data."
+      },
+      "verification": [
+        "Focused recovery tests simulate interruption and resume.",
+        "Ledger rejects raw content and secret-like fields.",
+        "Large synthetic inventory test stays bounded."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "nextcloud-transfer-readiness",
+      "kind": "operator_readiness",
+      "title": "Nextcloud transfer readiness",
+      "priority_rank": 4,
+      "horizon": "v0-10-transfer",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "bigdata-ledger-contract"
+      ],
+      "unlocks": [
+        "resumable-transfer-tooling"
+      ],
+      "gates": [
+        "source_and_target_paths_confirmed",
+        "disk_budget_verified",
+        "transfer_tool_chosen",
+        "dry_run_no_delete",
+        "operator_go_for_live_transfer"
+      ],
+      "source_refs": [
+        "src/live_nextcloud_readiness_check.py",
+        "src/nextcloud_source_provider.py",
+        "ops/homeserver/nextcloud-podman/README.md",
+        "docs/plans/universal-inbox-live-readiness-runbook.md"
+      ],
+      "deliverables": [
+        "Operator-reviewed transfer plan for 100GB+ Nextcloud data to homeserver.",
+        "Decision between local Nextcloud sync path, rclone/WebDAV, rsync over SSH, or server-side copy.",
+        "No-delete first-run policy with checksum/size verification."
+      ],
+      "abc": {
+        "owner": "alice",
+        "mode": "worker",
+        "reason": "Operator runbook and Go/No-Go wording must be exact before any live transfer."
+      },
+      "verification": [
+        "Readiness check has no missing source/target/disk/permission inputs.",
+        "Dry-run command is recorded without credentials.",
+        "No live transfer starts until explicit operator Go."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "resumable-transfer-tooling",
+      "kind": "transfer_tooling",
+      "title": "Resumable transfer tooling",
+      "priority_rank": 5,
+      "horizon": "v0-10-transfer",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "nextcloud-transfer-readiness"
+      ],
+      "unlocks": [
+        "resumable-scanner-dry-run",
+        "live-small-batch-transfer"
+      ],
+      "gates": [
+        "no_delete_default",
+        "partial_file_resume_supported",
+        "checksum_or_size_mtime_verify",
+        "progress_logged_to_ledger",
+        "safe_interrupt_resume_tested"
+      ],
+      "source_refs": [
+        "scripts",
+        "src/nextcloud_intake_ledger.py",
+        "tests/test_nextcloud_intake_ledger.py"
+      ],
+      "deliverables": [
+        "Scripted transfer wrapper for the chosen tool with dry-run, copy-only, resume, verify, and log modes.",
+        "Ledger records per-file status without raw content.",
+        "A forced interruption test proves resume without re-copying completed files."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Transfer wrapper and tests can be built offline with fake directories before live use."
+      },
+      "verification": [
+        "Focused tests with synthetic nested files and large sparse/fake files.",
+        "Dry-run produces no file mutation.",
+        "Interrupted run resumes from ledger state."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "resumable-scanner-dry-run",
+      "kind": "scanner",
+      "title": "Resumable scanner dry-run",
+      "priority_rank": 6,
+      "horizon": "v0-10-transfer",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "bigdata-ledger-contract"
+      ],
+      "unlocks": [
+        "chunked-extraction-lanes"
+      ],
+      "gates": [
+        "walk_is_incremental",
+        "symlink_and_loop_policy",
+        "unsupported_files_are_recorded",
+        "scan_resume_after_crash",
+        "bounded_memory_usage"
+      ],
+      "source_refs": [
+        "src/universal_inbox_discovery.py",
+        "src/nextcloud_intake_ledger.py",
+        "tests/test_universal_inbox_discovery.py"
+      ],
+      "deliverables": [
+        "Filesystem scanner can process large trees in pages/batches.",
+        "Scanner records inode/path/hash/size/mtime state and resumes after interruption.",
+        "Unsupported, denied, too-large, and unstable files become recoverable ledger states."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Scanner resilience is testable before live transfer or analysis."
+      },
+      "verification": [
+        "Focused scanner tests with thousands of synthetic files.",
+        "Forced interruption then resume reaches stable complete state.",
+        "Memory usage remains bounded by batch size."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "live-small-batch-transfer",
+      "kind": "live_transfer_gate",
+      "title": "Live small-batch transfer",
+      "priority_rank": 7,
+      "horizon": "v0-10-transfer",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "resumable-transfer-tooling"
+      ],
+      "unlocks": [
+        "full-transfer-live"
+      ],
+      "gates": [
+        "operator_go_for_live_action",
+        "small_batch_scope_fixed",
+        "no_delete_no_overwrite",
+        "verify_after_copy",
+        "live_health_ok_after_run"
+      ],
+      "source_refs": [
+        "ops/homeserver/nextcloud-podman/README.md",
+        "src/live_nextcloud_readiness_check.py"
+      ],
+      "deliverables": [
+        "A small representative subset transfers to the homeserver and verifies successfully.",
+        "Ledger records live evidence, duration, bytes, file count, skipped files, failures, and retry state.",
+        "No destructive operation is used."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "First live transfer requires operator Go, integration, health checks, and evidence."
+      },
+      "verification": [
+        "Live transfer subset completes and verifies.",
+        "GET /api/health and Chroma heartbeat pass after run.",
+        "Resume command is tested on the same subset without duplicate writes."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "chunked-extraction-lanes",
+      "kind": "analysis_lanes",
+      "title": "Chunked extraction lanes",
+      "priority_rank": 8,
+      "horizon": "v0-11-analysis",
+      "target_version": "0.11",
+      "status": "planned",
+      "depends_on": [
+        "resumable-scanner-dry-run"
+      ],
+      "unlocks": [
+        "memory-abstraction-ingest-live"
+      ],
+      "gates": [
+        "text_extraction_streaming",
+        "file_type_allowlist",
+        "oversize_policy",
+        "retry_backoff",
+        "provider_calls_disabled_by_default"
+      ],
+      "source_refs": [
+        "src/universal_inbox_extraction.py",
+        "src/embedding_lanes.py",
+        "tests/test_universal_inbox_extraction.py",
+        "tests/test_embedding_lanes.py"
+      ],
+      "deliverables": [
+        "Extraction lanes process supported file types incrementally.",
+        "Large files are chunked, skipped, or queued according to explicit policy.",
+        "Failures are retryable and do not block unrelated files."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "Extraction and lane behavior need focused offline tests before live corpus analysis."
+      },
+      "verification": [
+        "Focused extraction and embedding lane tests.",
+        "Synthetic large-file test proves bounded memory and resumability.",
+        "Unsupported file types become ledger states, not crashes."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "memory-abstraction-ingest-live",
+      "kind": "memory_ingest",
+      "title": "Memory abstraction ingest live",
+      "priority_rank": 9,
+      "horizon": "v0-11-analysis",
+      "target_version": "0.11",
+      "status": "planned",
+      "depends_on": [
+        "chunked-extraction-lanes",
+        "planning-sources-memory-ingest-live"
+      ],
+      "unlocks": [
+        "full-transfer-live",
+        "ingestion-dashboard-live"
+      ],
+      "gates": [
+        "abstraction_contains_provenance",
+        "no_raw_content_persisted",
+        "dedupe_by_source_digest",
+        "freshness_and_raptor_gates_respected",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "src/universal_inbox_memory.py",
+        "src/universal_inbox_pipeline.py",
+        "src/universal_inbox_write_gate.py",
+        "tests/test_universal_inbox_memory.py",
+        "tests/test_universal_inbox_pipeline.py"
+      ],
+      "deliverables": [
+        "Analyzed files produce durable memory abstractions with provenance.",
+        "Duplicate or changed files update memory by digest/source ref instead of creating blind duplicates.",
+        "RAPTOR/derived graph write gates are respected."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Memory correctness needs integration with the active memory gates and live verification."
+      },
+      "verification": [
+        "Focused universal inbox memory/pipeline/write-gate tests.",
+        "Live probe shows memory item source refs for a small approved batch.",
+        "Raw-content leak tests pass."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "full-transfer-live",
+      "kind": "live_transfer",
+      "title": "Full 100GB+ transfer live",
+      "priority_rank": 10,
+      "horizon": "v0-11-analysis",
+      "target_version": "0.11",
+      "status": "planned",
+      "depends_on": [
+        "live-small-batch-transfer",
+        "memory-abstraction-ingest-live"
+      ],
+      "unlocks": [
+        "full-corpus-analysis-live"
+      ],
+      "gates": [
+        "operator_go_for_full_transfer",
+        "disk_budget_still_ok",
+        "bandwidth_window_confirmed",
+        "resume_checkpoint_enabled",
+        "verify_report_complete"
+      ],
+      "source_refs": [
+        "ops/homeserver/nextcloud-podman/README.md",
+        "src/nextcloud_intake_ledger.py"
+      ],
+      "deliverables": [
+        "Full source corpus is copied or mirrored to homeserver in copy-only/resumable mode.",
+        "Verification report covers file counts, byte counts, skipped paths, failures, and retry plan.",
+        "Partial failure can be resumed without starting over."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "The full live transfer is a high-impact operator-gated action."
+      },
+      "verification": [
+        "Live transfer status reaches complete or partial-with-retry-plan.",
+        "Resume after interruption works.",
+        "No source files are deleted or mutated."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "full-corpus-analysis-live",
+      "kind": "live_analysis",
+      "title": "Full corpus analysis live",
+      "priority_rank": 11,
+      "horizon": "v0-11-analysis",
+      "target_version": "0.11",
+      "status": "planned",
+      "depends_on": [
+        "full-transfer-live"
+      ],
+      "unlocks": [
+        "ingestion-dashboard-live"
+      ],
+      "gates": [
+        "operator_go_for_full_analysis",
+        "rate_limits_and_budgets_enforced",
+        "pause_resume_retry_supported",
+        "stuck_items_reported",
+        "main_service_not_starved"
+      ],
+      "source_refs": [
+        "src/universal_inbox_worker.py",
+        "src/embedding_lanes.py",
+        "src/memory_perf_suite_runner.py"
+      ],
+      "deliverables": [
+        "The full corpus is analyzed incrementally with progress and recovery.",
+        "Failures are isolated to individual items and can be retried.",
+        "Memory/graph output remains bounded, deduped, and provenance-aware."
+      ],
+      "abc": {
+        "owner": "charlie",
+        "mode": "worker",
+        "reason": "Full corpus analysis must be live-managed and stopped safely if resource gates trip."
+      },
+      "verification": [
+        "Live pipeline status reports total, completed, failed, skipped, retryable, and throughput.",
+        "Forced pause/resume works.",
+        "Health checks remain green during and after analysis."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
+      "id": "ingestion-dashboard-live",
+      "kind": "operator_ui",
+      "title": "Ingestion dashboard live",
+      "priority_rank": 12,
+      "horizon": "v0-11-analysis",
+      "target_version": "0.11",
+      "status": "planned",
+      "depends_on": [
+        "memory-abstraction-ingest-live",
+        "full-corpus-analysis-live"
+      ],
+      "unlocks": [],
+      "gates": [
+        "progress_visible",
+        "pause_resume_retry_controls_gated",
+        "raw_paths_redacted_where_needed",
+        "stuck_items_actionable",
+        "live_install_verified"
+      ],
+      "source_refs": [
+        "static/index.html",
+        "static/app.js",
+        "src/universal_inbox_worker.py"
+      ],
+      "deliverables": [
+        "Operator can see transfer, scan, extraction, memory ingest, failures, retry queue, and throughput.",
+        "Controls are permission-gated and do not allow accidental destructive actions.",
+        "Dashboard links evidence back to source refs and roadmap nodes."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "worker",
+        "reason": "After backend status exists, frontend can expose operational controls safely."
+      },
+      "verification": [
+        "Focused frontend/static tests if available.",
+        "Live UI smoke test for dashboard status.",
+        "Controls remain disabled unless policy gate allows them."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    }
+  ],
+  "plan_graph_projection": {
+    "status_mapping": {
+      "planned": "pending",
+      "active": "running",
+      "done": "done",
+      "blocked": "blocked",
+      "deferred": "skipped"
+    },
+    "edge_policy": "Dependencies define claimability. Live transfer, live analysis, Nextcloud access, and memory writes also require explicit operator Go even when dependencies are complete."
+  },
+  "next_actions": [
+    {
+      "rank": 1,
+      "node_id": "planning-sources-memory-inventory",
+      "action": "Make repo planning sources discoverable as stable memory sources.",
+      "owner": "bob"
+    },
+    {
+      "rank": 2,
+      "node_id": "bigdata-ledger-contract",
+      "action": "Design and test the resumable operational ledger before any 100GB live operation.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "nextcloud-transfer-readiness",
+      "action": "Collect operator inputs for source path, target path, disk budget, transfer tool, and dry-run command.",
+      "owner": "alice"
+    }
+  ],
+  "abc_execution": {
+    "roles": {
+      "alice": "Operator runbooks, Go/No-Go language, live transfer input checklist, policy wording.",
+      "bob": "Offline models, scripts, scanner/ledger/extraction tests, dashboard slices.",
+      "charlie": "Integration, live gates, commits, pushes, deploys, status checks, evidence, high-impact live actions."
+    },
+    "parallelism_policy": [
+      "Planning source inventory and Big Data ledger contract may run in parallel if files do not overlap.",
+      "No live Nextcloud transfer before readiness and transfer tooling are complete.",
+      "No full-corpus analysis before small-batch live transfer and memory abstraction ingest are verified.",
+      "Exactly one live-impacting action runs at a time.",
+      "After each live-installed feature, update this roadmap evidence before selecting the next claimable node."
+    ],
+    "handoff_card_required": true
+  },
+  "live_install_contract": {
+    "per_feature_sequence": [
+      "Check git status and stop on foreign staged files or hotfile conflicts.",
+      "Implement exactly one claimable feature.",
+      "Run focused tests.",
+      "Commit scoped changes.",
+      "Push current branch.",
+      "Install/update on homeserver.",
+      "Verify /api/version and /api/health.",
+      "Verify Chroma heartbeat.",
+      "Verify feature-specific live route/UI/status evidence.",
+      "Update this roadmap completion_state with commit and live evidence.",
+      "Commit/push the evidence update and install it live before starting the next feature."
+    ]
+  }
+}

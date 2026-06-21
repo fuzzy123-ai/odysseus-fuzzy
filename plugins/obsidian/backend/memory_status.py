@@ -6,7 +6,11 @@ from .hybrid_retrieval import raptor_status
 from .memory_ledger import memory_ledger_status
 from .query_layer import query_layer_status
 from .memory_tree import memory_tree_status
+from .raptor_cache import bounded_raptor_graph_view
 from .readiness import readiness_gate_from_family
+
+
+BASELINE_SCHEMA_VERSION = "orca-memory-baseline-v1"
 
 
 def memory_status(vault_dir: str) -> Dict[str, Any]:
@@ -128,6 +132,136 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "flags": flags,
         "warnings": warnings,
     }
+
+
+def memory_baseline_report(vault_dir: str) -> Dict[str, Any]:
+    """Return the roadmap baseline as a read-only, summary-only evidence packet."""
+
+    status = memory_status(vault_dir)
+    status_summary = _mapping(status.get("summary"))
+    flags = _mapping(status.get("flags"))
+    raptor = raptor_status(vault_dir)
+    graph = bounded_raptor_graph_view(vault_dir, limit=500)
+    quarantine = quarantine_list(vault_dir)
+    quarantine_summary = _mapping(quarantine.get("summary"))
+    derived_graph = {
+        "node_count": int(status_summary.get("derived_index_graph_nodes") or graph.get("node_count") or 0),
+        "edge_count": int(status_summary.get("derived_index_graph_edges") or graph.get("edge_count") or 0),
+        "raptor_node_count": int(graph.get("node_count") or 0),
+        "raptor_edge_count": int(graph.get("edge_count") or 0),
+        "raptor_returned_edge_count": int(graph.get("returned_edge_count") or 0),
+        "bounded": True,
+        "clipped": bool(graph.get("clipped", False)),
+    }
+    filtering_state = str(status.get("filtering_state") or status_summary.get("filtering_state") or "disabled")
+    systems = {
+        "memory_tree_ui": {
+            "enabled": bool(flags.get("obsidian_memory_tree_ui_enabled", False)),
+            "state": "enabled" if flags.get("obsidian_memory_tree_ui_enabled", False) else "disabled",
+        },
+        "hybrid_retrieval": {
+            "enabled": bool(flags.get("obsidian_hybrid_retrieval_enabled", False)),
+            "state": "enabled" if flags.get("obsidian_hybrid_retrieval_enabled", False) else "disabled",
+        },
+        "freshness_gate": {
+            "enabled": bool(flags.get("obsidian_freshness_gate_enabled", False)),
+            "filtering_state": filtering_state,
+            "default_retrieval_is_filtered": filtering_state == "active",
+            "isolation_flags": _mapping(status.get("freshness_isolation_flags")),
+        },
+        "quarantine": {
+            "enabled": bool(quarantine.get("enabled", flags.get("obsidian_freshness_gate_enabled", False))),
+            "items": int(quarantine_summary.get("total") or 0),
+            "isolated": int(quarantine_summary.get("isolated") or 0),
+            "by_channel": _mapping(quarantine_summary.get("by_channel")),
+        },
+        "derived_graph": derived_graph,
+        "raptor": {
+            "enabled": bool(raptor.get("enabled", False)),
+            "configured": bool(raptor.get("configured", False)),
+            "index_present": bool(raptor.get("index_present", False)),
+            "summaries_present": bool(raptor.get("summaries_present", False)),
+            "readiness": _mapping(raptor.get("readiness")),
+            "write_gate": _mapping(raptor.get("write_gate")),
+            "lineage_flags": _mapping(raptor.get("lineage_flags")),
+        },
+    }
+    recommendations = _activation_recommendations(systems, status)
+    return {
+        "schema": BASELINE_SCHEMA_VERSION,
+        "read_only": True,
+        "writes_supported": False,
+        "routes": {
+            "preferred": "/api/plugins/orca/memory/baseline",
+            "legacy": "/api/plugins/obsidian/memory/baseline",
+        },
+        "flags": flags,
+        "systems": systems,
+        "readiness_gate": _mapping(status.get("readiness_gate")),
+        "readiness_by_family": _mapping(status.get("readiness_by_family")),
+        "summary": {
+            "readiness_state": status_summary.get("readiness_state", "unknown"),
+            "ready_families": int(status_summary.get("ready_families") or 0),
+            "readiness_families": int(status_summary.get("readiness_families") or 0),
+            "blocked_families": list(status_summary.get("blocked_families") or []),
+            "readiness_gap_names": list(status_summary.get("readiness_gap_names") or []),
+            "filtering_state": filtering_state,
+            "quarantine_items": systems["quarantine"]["items"],
+            "derived_graph_nodes": derived_graph["node_count"],
+            "derived_graph_edges": derived_graph["edge_count"],
+            "raptor_configured": systems["raptor"]["configured"],
+            "raptor_write_gate_state": systems["raptor"]["write_gate"].get("state", "unknown"),
+            "warnings": list(status_summary.get("warnings") or [])[:25],
+        },
+        "activation_recommendations": recommendations,
+        "evidence_contract": {
+            "raw_note_bodies_included": False,
+            "absolute_host_paths_included": False,
+            "provider_outputs_included": False,
+            "bounded_graph_payload": True,
+            "requires_operator_go_before_writes": True,
+        },
+    }
+
+
+def _activation_recommendations(systems: Dict[str, Any], status: Dict[str, Any]) -> List[Dict[str, str]]:
+    summary = _mapping(status.get("summary"))
+    gaps = set(str(gap) for gap in summary.get("readiness_gap_names") or [])
+    graph_edges = int(_mapping(systems.get("derived_graph")).get("edge_count") or 0)
+    recommendations = [
+        {
+            "node_id": "memory-tree-ui-live",
+            "decision": "go" if status.get("read_only") is True else "no_go",
+            "reason": "Read-only memory diagnostics are available; enabling the UI flag does not mutate the vault.",
+        },
+        {
+            "node_id": "canonical-vault-foundation",
+            "decision": "operator_go_required",
+            "reason": "Creating or linking canonical notes mutates the vault and must stay explicitly approved.",
+        },
+        {
+            "node_id": "derived-graph-edges-live",
+            "decision": "go" if graph_edges > 0 else "needs_source_links",
+            "reason": "Derived Graph needs explicit source relationships before edge readiness can turn green.",
+        },
+        {
+            "node_id": "freshness-hybrid-filtering-live",
+            "decision": "wait_for_dependencies" if graph_edges <= 0 else "operator_go_required",
+            "reason": "Freshness filtering changes default retrieval behavior and should follow graph provenance evidence.",
+        },
+        {
+            "node_id": "raptor-rebuild-live",
+            "decision": "operator_go_required",
+            "reason": "RAPTOR rebuild is a write-capable derived-memory action and remains gated.",
+        },
+    ]
+    if "raptor_index_missing" in gaps:
+        recommendations.append({
+            "node_id": "raptor-read-policy-live",
+            "decision": "blocked",
+            "reason": "RAPTOR read policy cannot be marked ready before derived RAPTOR artifacts exist.",
+        })
+    return recommendations
 
 
 def _mapping(value: Any) -> Dict[str, Any]:

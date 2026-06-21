@@ -117,7 +117,7 @@ from .external_upgrade_proof import (
     collect_external_upgrade_proof,
     collect_version_sync,
 )
-from .memory_status import memory_status
+from .memory_status import memory_baseline_report, memory_status
 from .memory_tree import analyze_memory_tree, memory_tree_status
 
 OBSIDIAN_API_PREFIX = "/api/plugins/obsidian"
@@ -1447,6 +1447,13 @@ async def memory_status_route(request: Request):
     """Return read-only status across SOMT, Freshness Gate, quarantine, and RAPTOR."""
     vault_dir = get_unlocked_vault_path(request)
     return memory_status(vault_dir)
+
+
+@router.get("/memory/baseline")
+async def memory_baseline_route(request: Request):
+    """Return summary-only baseline evidence for ORCA activation planning."""
+    vault_dir = get_unlocked_vault_path(request)
+    return memory_baseline_report(vault_dir)
 
 
 @router.get("/memory/ledger")
