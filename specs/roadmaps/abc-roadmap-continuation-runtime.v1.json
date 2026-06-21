@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "real-gate-runners",
-    "status": "pending_current_commit_live_install",
-    "why_first": "Real scoped quality-gate runners are implemented in the current commit; live server install and smoke evidence are still required before the next feature can start."
+    "node_id": "roadmap-lens-readonly",
+    "status": "active",
+    "why_first": "Real scoped quality-gate runners are live; heartbeat is still blocked by thread-bridge-live, so the next claimable feature is the read-only Roadmap Lens overview."
   },
   "completed_features": [
     {
@@ -48,8 +48,9 @@
     },
     {
       "node_id": "real-gate-runners",
-      "status": "pending_current_commit_live_install",
-      "evidence": "Scoped runtime gate runner, read-only git evidence, focused pytest allowlist, scope/hot-file/evidence/handoff gates, and focused tests are implemented."
+      "status": "live_installed",
+      "evidence_commit": "c92b143d",
+      "evidence": "Scoped runtime gate runner, read-only git evidence, focused pytest allowlist, scope/hot-file/evidence/handoff gates, focused tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {

@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "real-gate-runners",
+  "recommended_active_node": "roadmap-lens-readonly",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -799,8 +799,9 @@
         "No broad shell command runner."
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "c92b143d",
         "implementation_refs": [
           "src/runtime_quality_gates.py",
           "tests/test_runtime_quality_gates.py"
@@ -809,9 +810,11 @@
           "RuntimeQualityGateRunRequest defines scoped local verification with repo root, allowed files, hot files, handoff, verifier, and focused test commands.",
           "run_scoped_runtime_quality_gates reads git status and rev-parse through a narrow command runner and evaluates existing handoff/git/test/evidence/scope/hot-file gates.",
           "Focused pytest command validation rejects shell operators, non-pytest commands, network targets, absolute paths, traversal, and non-tests targets.",
-          "Focused runtime, subagent, and PlanRuntime tests pass locally."
+          "Focused runtime, subagent, and PlanRuntime tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, and Chroma heartbeat checks passed for commit c92b143d."
         ],
-        "next_claimable_node": "heartbeat-runtime-live-loop"
+        "next_claimable_node": "roadmap-lens-readonly"
       }
     },
     {
@@ -1617,23 +1620,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "real-gate-runners",
-      "action": "Turn quality gates into real scoped runners after subagent plan binding and claim locks are live."
+      "node_id": "roadmap-lens-readonly",
+      "action": "Create a read-only graph view from this file that shows current_execution, prepared_next, frontier_candidates, collisions, and gates before any visual editing is attempted."
     },
     {
       "rank": 2,
-      "node_id": "roadmap-lens-readonly",
-      "action": "Create a read-only graph view after PlanRuntime can provide structured graph state."
+      "node_id": "execution-backend-adapter",
+      "action": "Add a real execution backend boundary after scoped gate runners are live."
     },
     {
       "rank": 3,
-      "node_id": "roadmap-lens-readonly",
-      "action": "Create a read-only graph view after PlanRuntime can provide structured graph state."
-    },
-    {
-      "rank": 4,
-      "node_id": "roadmap-lens-readonly",
-      "action": "Create a read-only graph view from this file that shows current_execution, prepared_next, frontier_candidates, collisions, and gates before any visual editing is attempted."
+      "node_id": "memory-capsule-integration",
+      "action": "Prepare durable context capsules after the read-only Roadmap Lens slice is live."
     }
   ]
 }
