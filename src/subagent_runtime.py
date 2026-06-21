@@ -514,6 +514,153 @@ class FakeSubagentExecutionBackend:
             raise SubagentRuntimeError(f"unknown backend run: {agent_run_id}") from exc
 
 
+@dataclass(frozen=True, slots=True)
+class ExecutionBackendCapabilitySummary:
+    backend_name: str
+    delegate_backend: str
+    live_enabled: bool
+    allowed_actions: tuple[str, ...]
+    blocked_actions: tuple[str, ...]
+    redaction_policy: str
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "backend_name": self.backend_name,
+            "delegate_backend": self.delegate_backend,
+            "live_enabled": self.live_enabled,
+            "allowed_actions": self.allowed_actions,
+            "blocked_actions": self.blocked_actions,
+            "redaction_policy": self.redaction_policy,
+        }
+
+
+@dataclass(slots=True)
+class OperatorGatedSubagentExecutionBackend:
+    """Adapter boundary for future real backends.
+
+    Live execution is blocked until an operator explicitly enables a delegate.
+    The adapter never stores raw provider or thread content; handoff reads are
+    delegated only after live enablement.
+    """
+
+    delegate: SubagentExecutionBackend | None = None
+    live_enabled: bool = False
+    backend_name: str = "operator-gated"
+    snapshots: dict[str, BackendRunSnapshot] = field(default_factory=dict)
+
+    def capability_summary(self) -> ExecutionBackendCapabilitySummary:
+        blocked = () if self.live_enabled and self.delegate else ("live_thread_execution", "raw_provider_content")
+        allowed = (
+            ("spawn", "status", "read", "pause", "resume", "cancel", "retry")
+            if self.live_enabled and self.delegate
+            else ("status", "cancel")
+        )
+        return ExecutionBackendCapabilitySummary(
+            backend_name=self.backend_name,
+            delegate_backend=self.delegate.backend_name if self.delegate else "",
+            live_enabled=bool(self.live_enabled and self.delegate),
+            allowed_actions=allowed,
+            blocked_actions=blocked,
+            redaction_policy="summaries-only-no-raw-thread-content",
+        )
+
+    def spawn(self, run: SubagentRun) -> BackendRunSnapshot:
+        if not isinstance(run, SubagentRun):
+            raise SubagentRuntimeError("run must be a SubagentRun")
+        if self._can_delegate:
+            snapshot = self.delegate.spawn(run)  # type: ignore[union-attr]
+            self.snapshots[run.agent_run_id] = snapshot
+            return snapshot
+        snapshot = BackendRunSnapshot(
+            agent_run_id=run.agent_run_id,
+            state=SubagentRunState.BLOCKED,
+            backend=self.backend_name,
+            attempts=0,
+            summary="operator approval required before live backend spawn",
+            blocker="operator_live_go_required",
+        )
+        self.snapshots[run.agent_run_id] = snapshot
+        return snapshot
+
+    def read(self, agent_run_id: str) -> ParsedHandoff | None:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        self._require_snapshot(normalized)
+        if not self._can_delegate:
+            return None
+        return self.delegate.read(normalized)  # type: ignore[union-attr]
+
+    def cancel(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        if self._can_delegate:
+            snapshot = self.delegate.cancel(normalized)  # type: ignore[union-attr]
+        else:
+            current = self._require_snapshot(normalized)
+            snapshot = replace(current, state=SubagentRunState.CANCELLED, summary="operator-gated run cancelled")
+        self.snapshots[normalized] = snapshot
+        return snapshot
+
+    def pause(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        if self._can_delegate:
+            snapshot = self.delegate.pause(normalized)  # type: ignore[union-attr]
+            self.snapshots[normalized] = snapshot
+            return snapshot
+        return self._operator_blocked_action(normalized, "pause")
+
+    def resume(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        if self._can_delegate:
+            snapshot = self.delegate.resume(normalized)  # type: ignore[union-attr]
+            self.snapshots[normalized] = snapshot
+            return snapshot
+        return self._operator_blocked_action(normalized, "resume")
+
+    def retry(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        if self._can_delegate:
+            snapshot = self.delegate.retry(normalized)  # type: ignore[union-attr]
+            self.snapshots[normalized] = snapshot
+            return snapshot
+        current = self._require_snapshot(normalized)
+        snapshot = replace(
+            current,
+            attempts=current.attempts + 1,
+            summary="operator approval still required before live backend retry",
+            blocker="operator_live_go_required",
+        )
+        self.snapshots[normalized] = snapshot
+        return snapshot
+
+    def status(self, agent_run_id: str) -> BackendRunSnapshot:
+        normalized = _normalize_slug(agent_run_id, field_name="agent_run_id")
+        if self._can_delegate:
+            snapshot = self.delegate.status(normalized)  # type: ignore[union-attr]
+            self.snapshots[normalized] = snapshot
+            return snapshot
+        return self._require_snapshot(normalized)
+
+    @property
+    def _can_delegate(self) -> bool:
+        return bool(self.live_enabled and self.delegate is not None)
+
+    def _operator_blocked_action(self, agent_run_id: str, action: str) -> BackendRunSnapshot:
+        current = self._require_snapshot(agent_run_id)
+        snapshot = replace(
+            current,
+            state=SubagentRunState.BLOCKED,
+            summary=f"operator approval required before live backend {action}",
+            blocker="operator_live_go_required",
+        )
+        self.snapshots[agent_run_id] = snapshot
+        return snapshot
+
+    def _require_snapshot(self, agent_run_id: str) -> BackendRunSnapshot:
+        try:
+            return self.snapshots[agent_run_id]
+        except KeyError as exc:
+            raise SubagentRuntimeError(f"unknown backend run: {agent_run_id}") from exc
+
+
 _TOOL_STORES = InMemorySubagentRuntimeStores()
 _TOOL_BACKEND = FakeSubagentExecutionBackend()
 

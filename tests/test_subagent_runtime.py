@@ -6,6 +6,7 @@ from src.runtime_quality_gates import GitStatusSnapshot, TestExecutionSnapshot
 from src.subagent_runtime import (
     FakeSubagentExecutionBackend,
     InMemorySubagentRuntimeStores,
+    OperatorGatedSubagentExecutionBackend,
     SubagentRunSpec,
     SubagentRunState,
     SubagentRuntimeError,
@@ -137,6 +138,56 @@ def test_fake_backend_pause_resume_cancel_retry_status_and_read_handoff():
     backend.set_handoff(run.agent_run_id, _handoff())
     assert backend.read(run.agent_run_id).status.value == "done"
     assert backend.status(run.agent_run_id).state == SubagentRunState.DONE
+
+
+def test_operator_gated_backend_blocks_live_spawn_until_enabled():
+    backend = OperatorGatedSubagentExecutionBackend()
+    run = create_subagent_run(_spec(), backend=backend)
+
+    assert run.state == SubagentRunState.BLOCKED
+    assert run.backend_snapshot.blocker == "operator_live_go_required"
+    assert backend.read(run.agent_run_id) is None
+    assert backend.status(run.agent_run_id).state == SubagentRunState.BLOCKED
+
+    retried = backend.retry(run.agent_run_id)
+    assert retried.attempts == 1
+    assert retried.blocker == "operator_live_go_required"
+
+    cancelled = backend.cancel(run.agent_run_id)
+    assert cancelled.state == SubagentRunState.CANCELLED
+
+
+def test_operator_gated_backend_delegates_when_live_enabled():
+    delegate = FakeSubagentExecutionBackend()
+    backend = OperatorGatedSubagentExecutionBackend(delegate=delegate, live_enabled=True)
+    run = create_subagent_run(_spec(), backend=backend)
+
+    assert run.state == SubagentRunState.SPAWNED
+    assert backend.status(run.agent_run_id).state == SubagentRunState.SPAWNED
+
+    paused = backend.pause(run.agent_run_id)
+    assert paused.state == SubagentRunState.PAUSED
+
+    resumed = backend.resume(run.agent_run_id)
+    assert resumed.state == SubagentRunState.SPAWNED
+
+    delegate.set_handoff(run.agent_run_id, _handoff())
+    assert backend.read(run.agent_run_id).status.value == "done"
+
+
+def test_operator_gated_backend_capability_summary_is_redacted_and_explicit():
+    disabled = OperatorGatedSubagentExecutionBackend().capability_summary().audit_summary()
+    enabled = OperatorGatedSubagentExecutionBackend(
+        delegate=FakeSubagentExecutionBackend(),
+        live_enabled=True,
+    ).capability_summary().audit_summary()
+
+    assert disabled["live_enabled"] is False
+    assert "live_thread_execution" in disabled["blocked_actions"]
+    assert disabled["redaction_policy"] == "summaries-only-no-raw-thread-content"
+    assert enabled["live_enabled"] is True
+    assert enabled["delegate_backend"] == "fake"
+    assert "spawn" in enabled["allowed_actions"]
 
 
 def test_apply_handoff_and_gates_marks_verified_done_only_after_all_gates_pass():
