@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "claim-lease-locks",
+  "recommended_active_node": "real-gate-runners",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -665,7 +665,7 @@
       "title": "Implement slice claims, leases, file locks, and budgets",
       "horizon": "v0-9",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "objective": "Make multiagent coordination explicit before running multiple write-capable workers.",
       "why": "AUTO8 already models agent pools and locks. The next step is making those decisions persistent and enforceable.",
       "source_refs": [
@@ -687,6 +687,22 @@
         "unknown_agent_blocks_assignment",
         "budget_reserve_respected"
       ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/claim_lease_store.py",
+          "tests/test_claim_lease_store.py"
+        ],
+        "evidence_summary": [
+          "ClaimLeaseStore creates active slice claims and file leases from claimable PlanRuntime nodes.",
+          "Unknown agents cannot claim work.",
+          "Active file leases block overlapping claims.",
+          "Expired leases stop blocking but remain visible in audit state.",
+          "Focused claim, pool, subagent binding, and PlanRuntime tests pass locally."
+        ],
+        "next_claimable_node": "real-gate-runners"
+      },
       "deliverables": [
         "Claim model",
         "Lease model",
@@ -1585,13 +1601,13 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "claim-lease-locks",
-      "action": "Add claim, lease, file lock, and collision enforcement after PlanRuntime owns the graph state."
+      "node_id": "real-gate-runners",
+      "action": "Turn quality gates into real scoped runners after subagent plan binding and claim locks are live."
     },
     {
       "rank": 2,
-      "node_id": "real-gate-runners",
-      "action": "Turn quality gates into real scoped runners after subagent plan binding and claim locks are live."
+      "node_id": "roadmap-lens-readonly",
+      "action": "Create a read-only graph view after PlanRuntime can provide structured graph state."
     },
     {
       "rank": 3,
