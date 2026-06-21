@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "plan_id": "abc-roadmap-reconciliation-import",
+  "parent_plan_id": "odysseus-multiagent-roadmap",
+  "parent_node_id": "roadmap-reconciliation-import",
+  "title": "ABC Plan: Roadmap Reconciliation Import",
+  "created_at": "2026-06-21",
+  "status": "ready_for_dispatch",
+  "goal": "Reconcile the existing markdown roadmap sprawl into a structured PlanRuntime seed, prove it locally, push it, and install it on the Debian homeserver so the live server reports the deployed commit.",
+  "completion_definition": {
+    "feature_done_only_when": [
+      "all scoped repository changes are committed",
+      "commit is pushed to the deployment branch",
+      "server install or updater run has completed after explicit operator Go when needed",
+      "server /api/version reports the deployed commit",
+      "server smoke checks pass or the feature is explicitly marked No-Go with evidence",
+      "handoff card records tests, commit, push, install evidence, and next feature"
+    ],
+    "not_done_when": [
+      "local tests pass but commit is not pushed",
+      "commit is pushed but the Debian server still runs an older version",
+      "server install was skipped without an explicit No-Go or Deferred decision",
+      "roadmap JSON exists but future agents cannot derive context from accepted events"
+    ]
+  },
+  "current_evidence": [
+    {
+      "type": "repo_commit",
+      "value": "06a3de6f Add multiagent roadmap launch plan",
+      "notes": "Initial structured multiagent roadmap and 2026-06-22 launch prompt."
+    },
+    {
+      "type": "repo_commit",
+      "value": "eb260f5a Add Telegram rich messaging roadmap nodes",
+      "notes": "Telegram rich text and draft streaming nodes are present in the structured roadmap."
+    },
+    {
+      "type": "server_context",
+      "value": "ops/homeserver/CONTEXT.md",
+      "notes": "Debian homeserver target is odysseus-homeserver, root /opt/odysseus, rootless Podman, app URL http://127.0.0.1:7000 in container."
+    },
+    {
+      "type": "updater_contract",
+      "value": "docs/plans/updater-active-runner-operator-contract.md",
+      "notes": "Live update is operator-gated and must use the pre-update snapshot plus whitelisted command flow."
+    }
+  ],
+  "non_goals": [
+    "Do not implement PlanRuntime code in this first feature.",
+    "Do not run live subagent threads.",
+    "Do not rewrite all markdown roadmaps.",
+    "Do not deploy without explicit operator Go if the server update path needs live host access.",
+    "Do not start the second roadmap feature before this one has live install evidence or a recorded No-Go/Deferred decision."
+  ],
+  "global_stop_rules": [
+    "Stop on dirty worktree files outside the allowed scopes.",
+    "Stop on any staged file not owned by this feature.",
+    "Stop on secrets, tokens, chat IDs, raw private source contents, raw provider output, or unredacted server logs.",
+    "Stop if live server access fails with SSH/auth errors; request operator-provided output instead of pretending local Windows state is production.",
+    "Stop if tests fail without a narrow fix.",
+    "Stop if deployment would require destructive git, restore, rollback, prune, or broad host shell beyond the documented updater flow.",
+    "Stop if the feature cannot be installed on the server and no explicit Deferred/No-Go evidence is recorded."
+  ],
+  "server_install_policy": {
+    "required_for_feature_done": true,
+    "target": {
+      "ssh_alias": "odysseus-homeserver",
+      "ssh_command": "ssh -F ops/homeserver/ssh_config odysseus-homeserver",
+      "server_root": "/opt/odysseus",
+      "runtime": "rootless Podman",
+      "container": "odysseus_odysseus_1",
+      "app_url": "http://127.0.0.1:7000"
+    },
+    "preferred_path": [
+      "push current branch to the deployment remote/branch",
+      "use the installed homeserver updater flow or timer",
+      "ensure pre-update snapshot gate runs before container recreate",
+      "verify /api/version reports the expected commit",
+      "verify app and Chroma heartbeat through existing server smoke"
+    ],
+    "manual_server_commands_for_operator_or_charlie": [
+      "ssh -F ops/homeserver/ssh_config odysseus-homeserver",
+      "cd /opt/odysseus",
+      "systemctl --user --no-pager status odysseus-auto-update.timer odysseus-auto-update.service",
+      "systemctl --user start odysseus-auto-update.service",
+      "journalctl --user -u odysseus-auto-update.service --no-pager -n 120",
+      "podman exec odysseus_odysseus_1 sh -lc 'curl -fsS http://127.0.0.1:7000/api/version; echo'"
+    ],
+    "go_gate": [
+      "operator explicitly allows live server update",
+      "backup/pre-update snapshot gate is enabled",
+      "deployment branch and remote are clear",
+      "server worktree is clean or updater reports a clean state",
+      "no unrelated server-side edits would be overwritten"
+    ],
+    "evidence_required": [
+      "pushed commit hash",
+      "server updater/service result",
+      "server /api/version commit",
+      "server smoke result",
+      "backup gate result or explicit reason why not applicable"
+    ]
+  },
+  "feature_serial_execution_policy": {
+    "rule": "Only this feature may enter write-capable implementation until it is complete on the live server or explicitly deferred/no-go.",
+    "allowed_parallelism": [
+      "read-only scouts",
+      "report generation",
+      "test-plan review",
+      "server-readiness inspection that does not mutate the host"
+    ],
+    "forbidden_parallelism": [
+      "starting PlanRuntime implementation while reconciliation is not live",
+      "starting Roadmap Lens implementation while reconciliation is not live",
+      "starting Telegram implementation while reconciliation is not live",
+      "two agents writing the same repository or server feature at once"
+    ]
+  },
+  "paths": [
+    {
+      "path_id": "alice-roadmap-inventory",
+      "role": "alice",
+      "execution_mode": "explorer",
+      "goal": "Produce a read-only classification report of current roadmap sources and status conflicts.",
+      "completion": "A structured AgentReport is submitted with roadmap groups, conflicts, and import candidates."
+    },
+    {
+      "path_id": "bob-runtime-mapping",
+      "role": "bob",
+      "execution_mode": "explorer",
+      "goal": "Map existing PlanGraph/Registry/AgentRun models to the reconciliation seed needs.",
+      "completion": "A structured AgentReport is submitted with model gaps and minimal schema recommendations."
+    },
+    {
+      "path_id": "charlie-reducer-and-seed",
+      "role": "charlie",
+      "execution_mode": "worker",
+      "goal": "Reduce accepted reports into the structured roadmap seed and prepare installable evidence.",
+      "completion": "Roadmap seed is updated, JSON validates, tests/checks pass, commit is pushed, and server install evidence is recorded."
+    }
+  ],
+  "slices": [
+    {
+      "slice_id": "ABC0-preflight",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Verify worktree, deployment branch, current roadmap JSON validity, and server install prerequisites before dispatch.",
+      "tests": [
+        "git status --short --branch",
+        "PowerShell ConvertFrom-Json for specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "done_when": [
+        "worktree has no unrelated dirty files",
+        "main roadmap JSON parses",
+        "server install policy is recorded",
+        "Alice and Bob packets are ready"
+      ]
+    },
+    {
+      "slice_id": "ABC1-alice-roadmap-inventory-report",
+      "owner": "alice",
+      "mode": "explorer",
+      "allowed_files": [
+        "docs/plans/*.md",
+        "specs/roadmaps/*.json",
+        "specs/roadmaps/*.txt"
+      ],
+      "objective": "Read roadmap artifacts and produce an AgentReport classifying active, done, deferred, stale, speculative, and import-candidate plans.",
+      "tests": [
+        "none; read-only report"
+      ],
+      "done_when": [
+        "report submitted",
+        "report references source files",
+        "report contains no raw private content",
+        "report proposes no direct graph mutation"
+      ]
+    },
+    {
+      "slice_id": "ABC2-bob-runtime-mapping-report",
+      "owner": "bob",
+      "mode": "explorer",
+      "allowed_files": [
+        "src/plan_graph_store.py",
+        "src/orchestration_registry.py",
+        "src/agent_run_store.py",
+        "src/context_capsule.py",
+        "src/subagent_runtime.py",
+        "tests/test_plan_graph_store.py",
+        "tests/test_orchestration_registry.py",
+        "tests/test_agent_run_store.py",
+        "tests/test_context_capsule.py",
+        "tests/test_subagent_runtime.py",
+        "tests/test_subagent_runtime_contract.py"
+      ],
+      "objective": "Read existing runtime models and produce an AgentReport mapping what can be reused for the reconciliation import and what fields are missing.",
+      "tests": [
+        "none; read-only report"
+      ],
+      "done_when": [
+        "report submitted",
+        "minimal model gap list is present",
+        "recommended next schema slice is scoped",
+        "no code changes are made"
+      ]
+    },
+    {
+      "slice_id": "ABC3-charlie-report-reduction",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+        "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+        "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt"
+      ],
+      "objective": "Validate accepted reports and update the structured roadmap seed with accepted context, source grouping, and prepared_next nodes.",
+      "tests": [
+        "PowerShell ConvertFrom-Json for touched JSON files",
+        "git diff --check"
+      ],
+      "done_when": [
+        "accepted report summaries are represented as structured events or notes",
+        "future agents can derive context without raw reports",
+        "JSON parses",
+        "no markdown roadmap becomes the source of truth"
+      ]
+    },
+    {
+      "slice_id": "ABC4-local-verification-commit-push",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+        "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+        "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt"
+      ],
+      "objective": "Run local verification, stage only feature files, commit, and push the branch.",
+      "tests": [
+        "git status --short --branch",
+        "PowerShell ConvertFrom-Json for touched JSON files",
+        "git diff --cached --stat"
+      ],
+      "done_when": [
+        "focused checks pass",
+        "only in-scope files are staged",
+        "commit exists",
+        "push succeeds or a clear remote/branch blocker is recorded"
+      ]
+    },
+    {
+      "slice_id": "ABC5-server-install-and-live-smoke",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "ops/homeserver/CONTEXT.md",
+        "docs/plans/updater-active-runner-operator-contract.md",
+        "docs/plans/updater-live-boundary-contract.md"
+      ],
+      "objective": "Install the pushed feature on the Debian homeserver through the documented updater flow and record live evidence.",
+      "tests": [
+        "server /api/version reports pushed commit",
+        "systemctl user status for auto-update service/timer is clean",
+        "server app smoke passes",
+        "Chroma heartbeat smoke passes if updater reports it"
+      ],
+      "done_when": [
+        "operator Go is present if live access is required",
+        "server install completes",
+        "server version equals pushed commit",
+        "live evidence is redacted and recorded in handoff",
+        "feature is marked done only after install evidence"
+      ]
+    }
+  ],
+  "delegation_packets": [
+    {
+      "agent": "Alice",
+      "slice_id": "ABC1-alice-roadmap-inventory-report",
+      "execution_mode": "explorer",
+      "prompt": "Alice-Slice: ABC1-alice-roadmap-inventory-report\n\nArbeite im Odysseus-Fork an einem read-only Report.\n\nZiel:\n- Klassifiziere Roadmap-Artefakte fuer roadmap-reconciliation-import in active, done, deferred, stale, speculative und import-candidate.\n\nErlaubte Dateien:\n- docs/plans/*.md\n- specs/roadmaps/*.json\n- specs/roadmaps/*.txt\n\nNicht anfassen:\n- Keine Dateien aendern.\n- Keine Commits.\n- Keine live/server/Telegram/Provider Aktionen.\n- Keine rohen privaten Inhalte, Tokens, Chat-IDs oder Serverlogs kopieren.\n\nAnforderungen:\n- Gib einen AgentReport nach dem Format aus specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt zurueck.\n- Nenne source_refs fuer jede Beobachtung.\n- Markiere Unsicherheit als confidence low|medium|high.\n- Schlage hoechstens proposed_plan_events vor; markiere nichts als verified done.\n\nTests:\n- Keine. Read-only Explorer-Slice.\n\nStop-Regeln:\n- Scope wird verlassen.\n- Private Inhalte oder Secrets waeren noetig.\n- Du kannst den Status nur aus Chatverlauf statt Repo-Artefakten ableiten.\n\nWenn fertig:\n- Status melden.\n- Report liefern.\n- Risiken und Handoff nennen."
+    },
+    {
+      "agent": "Bob",
+      "slice_id": "ABC2-bob-runtime-mapping-report",
+      "execution_mode": "explorer",
+      "prompt": "Bob-Slice: ABC2-bob-runtime-mapping-report\n\nArbeite im Odysseus-Fork an einem read-only Runtime-Mapping-Report.\n\nZiel:\n- Mappe bestehende PlanGraph/Registry/AgentRun/ContextCapsule/Subagent-Modelle gegen die Anforderungen von roadmap-reconciliation-import.\n\nErlaubte Dateien:\n- src/plan_graph_store.py\n- src/orchestration_registry.py\n- src/agent_run_store.py\n- src/context_capsule.py\n- src/subagent_runtime.py\n- tests/test_plan_graph_store.py\n- tests/test_orchestration_registry.py\n- tests/test_agent_run_store.py\n- tests/test_context_capsule.py\n- tests/test_subagent_runtime.py\n- tests/test_subagent_runtime_contract.py\n\nNicht anfassen:\n- Keine Codeaenderungen.\n- Kein Live-Backend.\n- Keine Git-Aktionen.\n- Keine breiten Tests ausser read-only Inspektion.\n\nAnforderungen:\n- Gib einen AgentReport zurueck.\n- Nenne wiederverwendbare Modelle, fehlende Felder, Validator-Luecken und minimale naechste Schema-Slices.\n- Trenne klar zwischen vorhandener Fake-Runtime und echter Live-Ausfuehrung.\n\nTests:\n- Keine. Read-only Explorer-Slice.\n\nStop-Regeln:\n- Scope wird verlassen.\n- Eine Aussage waere Spekulation ohne source_ref.\n- Du muesstest Code aendern.\n\nWenn fertig:\n- Status melden.\n- Report liefern.\n- Risiken und Handoff nennen."
+    }
+  ],
+  "heartbeat_automation": {
+    "name": "abc-roadmap-reconciliation-import",
+    "interval": "1 minute",
+    "status": "planned_not_created",
+    "prompt": "Du bist Charlie im Odysseus-Fork und koordinierst specs/roadmaps/abc-roadmap-reconciliation-import.v1.json bis roadmap-reconciliation-import live auf dem Debian Server installiert ist.\n\nBei jedem Tick:\n1. Pruefe git status --short --branch.\n2. Sammle Alice/Bob Reports ein oder sende fehlende read-only Scout-Pakete erneut.\n3. Validiere Reports gegen Schema, Scope, Redaction und source_refs.\n4. Reduziere nur akzeptierte Reports zu PlanEvents oder strukturierten Roadmap-Updates.\n5. Starte keine andere Feature-Implementierung, solange roadmap-reconciliation-import nicht live installiert oder explizit Deferred/No-Go ist.\n6. Wenn lokale Aenderungen fertig sind: JSON validieren, scope pruefen, committen und pushen.\n7. Nach Push: Live-Server-Installation nur mit operator Go und dokumentiertem updater flow. Danach /api/version und Server-Smoke pruefen.\n8. Stoppe bei Secrets, fremden staged files, Scope-Verletzung, unklarem Serverzugang, roten Tests, ungeklärtem Remote/Branch oder Live-Go-Mangel.\n9. Wenn Server /api/version den Commit meldet und Smoke gruen ist, loesche die Automation und melde die Handoff-Karte.\n\nAusgabe kurz: Gesamtfortschritt, Alice/Bob Status, Tests, Commit, Push, Server-Install-Evidence, naechste Aktion."
+  },
+  "handoff_card_template": {
+    "path": "abc-roadmap-reconciliation-import",
+    "status": "done | blocked | deferred | no_go",
+    "goal": "Structured roadmap reconciliation seed is live on the Debian server.",
+    "changed_files": [],
+    "commit": "",
+    "push": "",
+    "tests": [],
+    "server_install": {
+      "operator_go": "",
+      "updater_result": "",
+      "server_version": "",
+      "smoke": ""
+    },
+    "evidence": [],
+    "risks": [],
+    "next_path": "read-only-agent-report-protocol"
+  }
+}

@@ -388,6 +388,9 @@
         "docs/plans/automated-agent-handoff-orchestration-mvp.md",
         "docs/plans/remaining-features-roadmap-2026-06-20.md"
       ],
+      "execution_plan_refs": [
+        "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json"
+      ],
       "depends_on": [],
       "unlocks": [
         "read-only-agent-report-protocol",
