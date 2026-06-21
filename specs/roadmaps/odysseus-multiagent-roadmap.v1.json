@@ -391,6 +391,9 @@
       "execution_plan_refs": [
         "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json"
       ],
+      "report_reduction_refs": [
+        "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json"
+      ],
       "depends_on": [],
       "unlocks": [
         "read-only-agent-report-protocol",
@@ -406,7 +409,8 @@
       "deliverables": [
         "Canonical JSON roadmap artifact",
         "Machine-readable horizon and version metadata",
-        "Dependency graph for next implementation plan"
+        "Dependency graph for next implementation plan",
+        "Accepted read-only report reduction artifact"
       ],
       "blocked_actions": [
         "Do not rewrite existing roadmap markdown as the source of truth.",

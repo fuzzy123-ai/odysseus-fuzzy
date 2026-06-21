@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "reduction_id": "roadmap-reconciliation-report-reduction-2026-06-21",
+  "plan_id": "abc-roadmap-reconciliation-import",
+  "parent_plan_id": "odysseus-multiagent-roadmap",
+  "parent_node_id": "roadmap-reconciliation-import",
+  "created_at": "2026-06-21",
+  "status": "reduced_pending_commit_push_install",
+  "purpose": "Reduce read-only Alice and Bob reports into accepted roadmap context without storing raw reports as future agent context.",
+  "input_reports": [
+    {
+      "report_id": "abc1-alice-roadmap-inventory-report-20260621T061606Z",
+      "agent": "Alice",
+      "agent_id": "019ee8d0-c750-7d02-b2d8-197ef0201dc1",
+      "slice_id": "ABC1-alice-roadmap-inventory-report",
+      "disposition": "accepted_with_warnings",
+      "warnings": [
+        "Read-only report cannot verify completed work as live done.",
+        "Several markdown roadmaps still use active or Go language while JSON is the intended source of truth."
+      ]
+    },
+    {
+      "report_id": "abc2-bob-runtime-mapping-report-20260621T061548Z",
+      "agent": "Bob",
+      "agent_id": "019ee8d1-07e9-7c42-85a6-03b586d305a3",
+      "slice_id": "ABC2-bob-runtime-mapping-report",
+      "disposition": "accepted_with_warnings",
+      "warnings": [
+        "Bob's original allowed read scope did not include specs/roadmaps/abc-roadmap-reconciliation-import.v1.json, so exact ABC-spec coverage remains unverified.",
+        "Current subagent runtime is fake/offline and must not be treated as live execution capability."
+      ]
+    }
+  ],
+  "validation_summary": {
+    "raw_private_content_stored": false,
+    "reports_used_as_facts_only_after_reduction": true,
+    "scope_policy_result": "warn",
+    "source_ref_policy_result": "pass",
+    "verified_done_claims_allowed": false,
+    "live_execution_requested": false
+  },
+  "accepted_context_summaries": [
+    {
+      "summary_id": "ctx-roadmap-source-of-truth-conflict",
+      "source_reports": [
+        "abc1-alice-roadmap-inventory-report-20260621T061606Z"
+      ],
+      "confidence": "high",
+      "summary": "The structured roadmap JSON is the active canonical seed, but multiple markdown roadmaps still read like active Go sources. Future agents must treat markdown as source material or rendered views, not authoritative mutable state."
+    },
+    {
+      "summary_id": "ctx-import-candidate-set",
+      "source_reports": [
+        "abc1-alice-roadmap-inventory-report-20260621T061606Z"
+      ],
+      "confidence": "high",
+      "summary": "The import candidate set already spans master, subagent runtime, orchestration, PlanGraph, AgentRun, ContextCapsule, thread bridge, quality gates, scaling, memory, RAPTOR, remaining features, GitHub, Telegram, Universal Inbox, and GameDev roadmap sources."
+    },
+    {
+      "summary_id": "ctx-runtime-reuse-points",
+      "source_reports": [
+        "abc2-bob-runtime-mapping-report-20260621T061548Z"
+      ],
+      "confidence": "high",
+      "summary": "PlanGraph, OrchestrationRegistry, AgentRun, ContextCapsule, and SubagentRunSpec are usable as the first runtime projection layer, but the richer roadmap JSON remains necessary until PlanRuntime supports horizon, version, provenance, gates, blocked actions, and report-reduction metadata."
+    },
+    {
+      "summary_id": "ctx-runtime-schema-gaps",
+      "source_reports": [
+        "abc2-bob-runtime-mapping-report-20260621T061548Z"
+      ],
+      "confidence": "high",
+      "summary": "The next schema slice needs an import envelope, runtime projection, and reconciliation record with source path, roadmap spec version, import batch id, source hash/provenance, raw source node id, line or span, reconciliation decision, conflict status, and redaction marker."
+    }
+  ],
+  "accepted_events": [
+    {
+      "event_id": "plan-event-20260621-abc1-report-validated",
+      "event_type": "report_validated",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Alice report was read-only, source-referenced, and suitable for reduced context with warnings."
+    },
+    {
+      "event_id": "plan-event-20260621-abc1-report-accepted",
+      "event_type": "report_accepted",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Alice report contributes source grouping, conflict candidates, and import-candidate context."
+    },
+    {
+      "event_id": "plan-event-20260621-abc2-report-validated",
+      "event_type": "report_validated",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Bob report was read-only and gives reusable runtime model mapping, with a recorded scope warning."
+    },
+    {
+      "event_id": "plan-event-20260621-abc2-report-accepted",
+      "event_type": "report_accepted",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Bob report contributes minimal schema-slice recommendations and runtime projection constraints."
+    },
+    {
+      "event_id": "plan-event-20260621-markdown-source-conflict",
+      "event_type": "collision_observed",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Markdown roadmap active/Go wording conflicts with JSON source-of-truth decision."
+    },
+    {
+      "event_id": "plan-event-20260621-fake-runtime-gate",
+      "event_type": "gate_observed",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Existing subagent runtime must remain marked fake/offline until a later live backend gate is implemented."
+    },
+    {
+      "event_id": "plan-event-20260621-context-summary-updated",
+      "event_type": "context_summary_updated",
+      "node_id": "roadmap-reconciliation-import",
+      "writer": "charlie",
+      "reason": "Future agents can now consume compact accepted summaries instead of raw report bodies."
+    }
+  ],
+  "prepared_next_candidates": [
+    {
+      "candidate_id": "import-envelope-schema",
+      "target_node_id": "planruntime-source-of-truth",
+      "claimability": "prepared_next_after_live_install",
+      "objective": "Define the first import envelope for roadmap sources and report-reduction batches.",
+      "must_include": [
+        "roadmap_source_path",
+        "roadmap_spec_version",
+        "import_batch_id",
+        "source_hash",
+        "redaction_policy",
+        "reconciliation_decision"
+      ]
+    },
+    {
+      "candidate_id": "runtime-projection-schema",
+      "target_node_id": "planruntime-source-of-truth",
+      "claimability": "prepared_next_after_live_install",
+      "objective": "Project rich roadmap nodes into current PlanGraph-compatible nodes and edges without losing source provenance.",
+      "must_include": [
+        "status_mapping",
+        "horizon_mapping",
+        "version_mapping",
+        "gate_projection",
+        "source_ref_projection"
+      ]
+    },
+    {
+      "candidate_id": "source-of-truth-conflict-gate",
+      "target_node_id": "rolling-frontier-policy",
+      "claimability": "prepared_next_after_live_install",
+      "objective": "Gate future roadmap work when markdown files claim active authority newer than the structured JSON roadmap.",
+      "must_include": [
+        "conflict_detection",
+        "operator_decision_required",
+        "no_silent_markdown_promotion"
+      ]
+    }
+  ],
+  "open_gates": [
+    {
+      "gate_id": "local-json-validation",
+      "status": "pending",
+      "required_before": "commit"
+    },
+    {
+      "gate_id": "push-to-deployment-branch",
+      "status": "pending",
+      "required_before": "server-install"
+    },
+    {
+      "gate_id": "server-live-install",
+      "status": "pending",
+      "required_before": "feature-done"
+    },
+    {
+      "gate_id": "server-version-smoke",
+      "status": "pending",
+      "required_before": "feature-done"
+    }
+  ],
+  "next_action": "Validate JSON, commit and push in-scope roadmap artifacts, then install on the Debian server through the documented updater flow."
+}

@@ -5,7 +5,7 @@
   "parent_node_id": "roadmap-reconciliation-import",
   "title": "ABC Plan: Roadmap Reconciliation Import",
   "created_at": "2026-06-21",
-  "status": "ready_for_dispatch",
+  "status": "reports_reduced_pending_commit_push_install",
   "goal": "Reconcile the existing markdown roadmap sprawl into a structured PlanRuntime seed, prove it locally, push it, and install it on the Debian homeserver so the live server reports the deployed commit.",
   "completion_definition": {
     "feature_done_only_when": [
@@ -43,6 +43,13 @@
       "type": "updater_contract",
       "value": "docs/plans/updater-active-runner-operator-contract.md",
       "notes": "Live update is operator-gated and must use the pre-update snapshot plus whitelisted command flow."
+    }
+  ],
+  "accepted_report_reductions": [
+    {
+      "path": "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",
+      "status": "reduced_pending_commit_push_install",
+      "notes": "Alice and Bob read-only reports are accepted as reduced context with warnings; raw reports are not the future-agent context source."
     }
   ],
   "non_goals": [
@@ -215,6 +222,7 @@
       "allowed_files": [
         "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
         "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+        "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",
         "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt"
       ],
       "objective": "Validate accepted reports and update the structured roadmap seed with accepted context, source grouping, and prepared_next nodes.",
@@ -236,6 +244,7 @@
       "allowed_files": [
         "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
         "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+        "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",
         "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt"
       ],
       "objective": "Run local verification, stage only feature files, commit, and push the branch.",
@@ -293,7 +302,7 @@
   "heartbeat_automation": {
     "name": "abc-roadmap-reconciliation-import",
     "interval": "1 minute",
-    "status": "planned_not_created",
+    "status": "created_active",
     "prompt": "Du bist Charlie im Odysseus-Fork und koordinierst specs/roadmaps/abc-roadmap-reconciliation-import.v1.json bis roadmap-reconciliation-import live auf dem Debian Server installiert ist.\n\nBei jedem Tick:\n1. Pruefe git status --short --branch.\n2. Sammle Alice/Bob Reports ein oder sende fehlende read-only Scout-Pakete erneut.\n3. Validiere Reports gegen Schema, Scope, Redaction und source_refs.\n4. Reduziere nur akzeptierte Reports zu PlanEvents oder strukturierten Roadmap-Updates.\n5. Starte keine andere Feature-Implementierung, solange roadmap-reconciliation-import nicht live installiert oder explizit Deferred/No-Go ist.\n6. Wenn lokale Aenderungen fertig sind: JSON validieren, scope pruefen, committen und pushen.\n7. Nach Push: Live-Server-Installation nur mit operator Go und dokumentiertem updater flow. Danach /api/version und Server-Smoke pruefen.\n8. Stoppe bei Secrets, fremden staged files, Scope-Verletzung, unklarem Serverzugang, roten Tests, ungeklärtem Remote/Branch oder Live-Go-Mangel.\n9. Wenn Server /api/version den Commit meldet und Smoke gruen ist, loesche die Automation und melde die Handoff-Karte.\n\nAusgabe kurz: Gesamtfortschritt, Alice/Bob Status, Tests, Commit, Push, Server-Install-Evidence, naechste Aktion."
   },
   "handoff_card_template": {
