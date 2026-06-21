@@ -77,6 +77,44 @@ def test_claimability_requires_live_done_dependencies():
     assert runtime.next_claimable_node_id() == ""
 
 
+def test_recommended_active_node_wins_when_claimable():
+    payload = _payload()
+    payload["recommended_active_node"] = "later-runtime-slice"
+    payload["graph_nodes"].append(
+        {
+            "id": "later-runtime-slice",
+            "kind": "runtime",
+            "priority_rank": 3,
+            "title": "Later runtime slice",
+            "horizon": "v0-9",
+            "target_version": "0.9",
+            "status": "planned",
+            "depends_on": ["roadmap-reconciliation-import"],
+            "unlocks": [],
+            "gates": ["runtime_gate"],
+            "source_refs": ["src/plan_runtime.py"],
+            "deliverables": ["Selector proof"],
+        }
+    )
+    payload["next_actions"] = [
+        {"rank": 1, "node_id": "later-runtime-slice"},
+        {"rank": 2, "node_id": "planruntime-source-of-truth"},
+    ]
+
+    runtime = PlanRuntimeState.from_dict(payload)
+
+    assert runtime.claimable_nodes()[0].node_id == "planruntime-source-of-truth"
+    assert runtime.next_claimable_node_id() == "later-runtime-slice"
+
+
+def test_next_actions_references_must_exist():
+    payload = _payload()
+    payload["next_actions"] = [{"rank": 1, "node_id": "missing-slice"}]
+
+    with pytest.raises(PlanRuntimeError, match="next_actions reference unknown nodes"):
+        PlanRuntimeState.from_dict(payload)
+
+
 def test_unknown_dependency_is_rejected():
     payload = _payload()
     payload["graph_nodes"][1]["depends_on"] = ["missing-node"]

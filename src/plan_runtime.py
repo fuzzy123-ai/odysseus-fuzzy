@@ -164,6 +164,7 @@ class PlanRuntimeState:
     title: str
     source_of_truth: str
     recommended_active_node: str
+    next_action_node_ids: tuple[str, ...]
     version_horizons: tuple[str, ...]
     nodes: tuple[PlanRuntimeNode, ...]
     status_mapping: dict[str, str]
@@ -208,6 +209,13 @@ class PlanRuntimeState:
         recommended = _normalize_slug(_required(payload, "recommended_active_node"), field_name="recommended_active_node")
         if recommended not in node_ids:
             raise PlanRuntimeError("recommended_active_node must reference a graph node")
+        next_actions = tuple(
+            _normalize_slug(_required(action, "node_id"), field_name="next_action_node_id")
+            for action in _list(payload.get("next_actions", []), field_name="next_actions")
+        )
+        unknown_next_actions = sorted(set(next_actions) - node_ids)
+        if unknown_next_actions:
+            raise PlanRuntimeError(f"next_actions reference unknown nodes: {', '.join(unknown_next_actions)}")
         projection = _dict(payload.get("plan_graph_projection", {}), field_name="plan_graph_projection")
         mapping = dict(_PLAN_STATUS_DEFAULTS)
         mapping.update(
@@ -221,6 +229,7 @@ class PlanRuntimeState:
             title=_normalize_text(_required(payload, "title"), field_name="title", allow_empty=False),
             source_of_truth=source_of_truth,
             recommended_active_node=recommended,
+            next_action_node_ids=_dedupe(next_actions),
             version_horizons=horizons,
             nodes=nodes,
             status_mapping=mapping,
@@ -242,7 +251,15 @@ class PlanRuntimeState:
 
     def next_claimable_node_id(self) -> str:
         claimable = self.claimable_nodes()
-        return claimable[0].node_id if claimable else ""
+        if not claimable:
+            return ""
+        claimable_ids = {node.node_id for node in claimable}
+        if self.recommended_active_node in claimable_ids:
+            return self.recommended_active_node
+        for node_id in self.next_action_node_ids:
+            if node_id in claimable_ids:
+                return node_id
+        return claimable[0].node_id
 
     def to_plan_graph(self) -> PlanGraph:
         nodes = [
@@ -277,6 +294,7 @@ class PlanRuntimeState:
             "plan_id": self.plan_id,
             "source_of_truth": self.source_of_truth,
             "recommended_active_node": self.recommended_active_node,
+            "next_action_node_ids": self.next_action_node_ids,
             "node_count": len(self.nodes),
             "horizon_count": len(self.version_horizons),
             "claimable_node_ids": tuple(node.node_id for node in self.claimable_nodes()),
@@ -304,3 +322,13 @@ def _dict(value: Any, *, field_name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise PlanRuntimeError(f"{field_name} must be an object")
     return value
+
+
+def _dedupe(values: Iterable[str]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            deduped.append(value)
+    return tuple(deduped)
