@@ -519,8 +519,9 @@
         "future_context_generated_from_accepted_events"
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "e61fd3cd",
         "implementation_refs": [
           "src/agent_report_store.py",
           "tests/test_agent_report_store.py"
