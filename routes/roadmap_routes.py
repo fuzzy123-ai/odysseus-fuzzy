@@ -14,6 +14,7 @@ from src.roadmap_lens import build_roadmap_lens_page
 from src.visual_agent_programming_lens import (
     build_visual_agent_programming_snapshot,
     build_visual_plan_proposal_queue,
+    validate_visual_plan_acceptance,
     validate_visual_plan_edit,
 )
 
@@ -73,5 +74,14 @@ def setup_roadmap_routes() -> APIRouter:
             return build_visual_plan_proposal_queue(runtime, payload).to_dict()
         except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"visual agent programming proposal review unavailable: {exc}") from exc
+
+    @router.post("/visual-agent-programming/proposals/acceptance/validate")
+    def api_validate_visual_agent_programming_acceptance(payload: dict[str, Any], request: Request):
+        require_admin(request)
+        try:
+            runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+            return validate_visual_plan_acceptance(runtime, payload).to_dict()
+        except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"visual agent programming acceptance unavailable: {exc}") from exc
 
     return router

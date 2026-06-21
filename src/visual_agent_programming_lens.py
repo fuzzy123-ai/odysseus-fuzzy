@@ -113,6 +113,37 @@ class VisualPlanProposalQueueSnapshot:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class VisualPlanAcceptanceContractResult:
+    decision: str
+    state: str
+    valid: bool
+    can_write: bool
+    can_start_agent: bool
+    stops: tuple[dict[str, str], ...]
+    audit: dict[str, str]
+    event_projection: dict[str, Any]
+    accepted_events: tuple[dict[str, Any], ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "decision": self.decision,
+            "state": self.state,
+            "valid": self.valid,
+            "can_write": self.can_write,
+            "can_start_agent": self.can_start_agent,
+            "stops": list(self.stops),
+            "audit": self.audit,
+            "event_projection": self.event_projection,
+            "accepted_events": list(self.accepted_events),
+            "policy": {
+                "mode": "operator_acceptance_contract",
+                "write_boundary": "event projection only; roadmap mutation belongs to a future adapter",
+                "agent_start_boundary": "acceptance never starts agents",
+            },
+        }
+
+
 def build_visual_agent_programming_snapshot(
     runtime: PlanRuntimeState,
     *,
@@ -145,6 +176,56 @@ def build_visual_agent_programming_snapshot(
         next_steps=_next_steps(runtime=runtime, claimable_ids=claimable_ids),
         context_policy=_context_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
+    )
+
+
+def validate_visual_plan_acceptance(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+) -> VisualPlanAcceptanceContractResult:
+    if not isinstance(runtime, PlanRuntimeState):
+        raise VisualAgentProgrammingLensError("runtime must be a PlanRuntimeState")
+    if not isinstance(payload, dict):
+        raise VisualAgentProgrammingLensError("payload must be an object")
+
+    decision = str(payload.get("decision", "accept")).strip().lower()
+    operator_id = str(payload.get("operator_id", "")).strip()
+    confirmation = str(payload.get("operator_confirmation", "")).strip()
+    stops: list[dict[str, str]] = []
+    if decision not in {"accept", "reject"}:
+        stops.append(_stop("unknown_decision", "decision must be accept or reject"))
+    if not operator_id:
+        stops.append(_stop("missing_operator_id", "operator_id is required for audit"))
+    expected_confirmation = "ACCEPT_PLAN_EVENT" if decision == "accept" else "REJECT_PLAN_EVENT"
+    if confirmation != expected_confirmation:
+        stops.append(_stop("missing_operator_confirmation", f"operator_confirmation must be {expected_confirmation}"))
+
+    proposal = payload.get("proposal", {})
+    dry_run = validate_visual_plan_edit(runtime, proposal if isinstance(proposal, dict) else {})
+    dry_run_payload = dry_run.to_dict()
+    if decision == "accept" and not dry_run_payload["valid"]:
+        stops.append(_stop("proposal_not_valid", "only valid dry-run proposals can be accepted"))
+
+    valid = not stops
+    event_projection = _acceptance_event_projection(
+        decision=decision,
+        operator_id=operator_id,
+        dry_run_payload=dry_run_payload,
+    ) if valid else {}
+    return VisualPlanAcceptanceContractResult(
+        decision=decision if decision in {"accept", "reject"} else "unknown",
+        state=_acceptance_state(decision, valid),
+        valid=valid,
+        can_write=False,
+        can_start_agent=False,
+        stops=tuple(stops),
+        audit={
+            "operator_id": operator_id,
+            "confirmation": confirmation,
+            "roadmap_path": runtime.roadmap_path,
+        },
+        event_projection=event_projection,
+        accepted_events=(),
     )
 
 
@@ -406,6 +487,32 @@ def _proposal_queue_controls() -> dict[str, dict[str, str]]:
         "reject_proposal": {"state": "policy_gated", "reason": reason},
         "apply_to_roadmap": {"state": "policy_gated", "reason": "no direct roadmap write from queue"},
         "start_agent": {"state": "policy_gated", "reason": "no agent start from queued proposals"},
+    }
+
+
+def _acceptance_state(decision: str, valid: bool) -> str:
+    if not valid:
+        return "rejected"
+    if decision == "reject":
+        return "rejected_event_ready"
+    return "accepted_event_ready"
+
+
+def _acceptance_event_projection(
+    *,
+    decision: str,
+    operator_id: str,
+    dry_run_payload: dict[str, Any],
+) -> dict[str, Any]:
+    event_type = "visual_plan_proposal_rejected" if decision == "reject" else "visual_plan_proposal_accepted"
+    proposed_events = dry_run_payload.get("proposed_events", [])
+    return {
+        "type": event_type,
+        "operator_id": operator_id,
+        "source_action": dry_run_payload.get("action", "unknown"),
+        "source_state": dry_run_payload.get("state", "unknown"),
+        "proposed_events": proposed_events,
+        "requires_future_write_adapter": True,
     }
 
 

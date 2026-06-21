@@ -6,6 +6,7 @@ from src.plan_runtime import PlanRuntimeState
 from src.visual_agent_programming_lens import (
     build_visual_agent_programming_snapshot,
     build_visual_plan_proposal_queue,
+    validate_visual_plan_acceptance,
     validate_visual_plan_edit,
 )
 
@@ -225,3 +226,101 @@ def test_visual_plan_proposal_queue_route_returns_review_snapshot(monkeypatch):
     assert payload["queue_id"] == "odysseus-multiagent-roadmap-visual-proposal-review-queue"
     assert payload["counts"]["total_items"] == 1
     assert payload["controls"]["apply_to_roadmap"]["state"] == "policy_gated"
+
+
+def test_visual_plan_acceptance_contract_projects_auditable_accept_event():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_acceptance(
+        runtime,
+        {
+            "decision": "accept",
+            "operator_id": "charlie",
+            "operator_confirmation": "ACCEPT_PLAN_EVENT",
+            "proposal": {
+                "action": "create_node",
+                "node_id": "visual-agent-programming-acceptance-probe",
+                "title": "Acceptance probe",
+                "kind": "runtime",
+                "horizon": "later",
+                "target_version": "future",
+                "status": "planned",
+                "depends_on": ["visual-agent-programming-operator-acceptance-contract"],
+                "source_refs": ["specs/roadmaps/odysseus-multiagent-roadmap.v1.json"],
+                "deliverables": ["Acceptance contract proof"],
+            },
+        },
+    ).to_dict()
+
+    assert result["state"] == "accepted_event_ready"
+    assert result["valid"] is True
+    assert result["can_write"] is False
+    assert result["can_start_agent"] is False
+    assert result["accepted_events"] == []
+    assert result["event_projection"]["type"] == "visual_plan_proposal_accepted"
+    assert result["event_projection"]["requires_future_write_adapter"] is True
+
+
+def test_visual_plan_acceptance_contract_rejects_missing_confirmation():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_acceptance(
+        runtime,
+        {
+            "decision": "accept",
+            "operator_id": "charlie",
+            "operator_confirmation": "",
+            "proposal": {"action": "create_node", "node_id": "visual-agent-programming-missing-confirmation"},
+        },
+    ).to_dict()
+
+    assert result["state"] == "rejected"
+    assert any(stop["code"] == "missing_operator_confirmation" for stop in result["stops"])
+    assert result["event_projection"] == {}
+
+
+def test_visual_plan_acceptance_contract_rejects_invalid_accept_proposal():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_acceptance(
+        runtime,
+        {
+            "decision": "accept",
+            "operator_id": "charlie",
+            "operator_confirmation": "ACCEPT_PLAN_EVENT",
+            "proposal": {
+                "action": "create_node",
+                "node_id": "visual-agent-programming",
+                "title": "Duplicate",
+            },
+        },
+    ).to_dict()
+
+    assert result["state"] == "rejected"
+    assert any(stop["code"] == "proposal_not_valid" for stop in result["stops"])
+    assert result["can_start_agent"] is False
+
+
+def test_visual_plan_acceptance_contract_route_returns_policy_projection(monkeypatch):
+    monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    app = FastAPI()
+    app.include_router(setup_roadmap_routes())
+
+    response = TestClient(app).post(
+        "/api/roadmap/visual-agent-programming/proposals/acceptance/validate",
+        json={
+            "decision": "reject",
+            "operator_id": "charlie",
+            "operator_confirmation": "REJECT_PLAN_EVENT",
+            "proposal": {
+                "action": "create_node",
+                "node_id": "visual-agent-programming-route-reject-probe",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] == "rejected_event_ready"
+    assert payload["can_write"] is False
+    assert payload["policy"]["agent_start_boundary"] == "acceptance never starts agents"
