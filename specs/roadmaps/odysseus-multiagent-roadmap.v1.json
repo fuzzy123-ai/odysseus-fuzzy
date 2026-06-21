@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "subagent-plan-binding",
+  "recommended_active_node": "claim-lease-locks",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -611,7 +611,7 @@
       "title": "Bind SubagentRuntime to PlanRuntime slices",
       "horizon": "v0-9",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "objective": "Require every durable subagent run to originate from a PlanRuntime node and scoped ContextCapsule.",
       "why": "The fake subagent foundation exists; the missing trust boundary is making plan/capsule/run mandatory for worker execution.",
       "source_refs": [
@@ -633,6 +633,21 @@
         "done_without_evidence_blocked",
         "delegate_not_durable_worker"
       ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/subagent_plan_binding.py",
+          "tests/test_subagent_plan_binding.py"
+        ],
+        "evidence_summary": [
+          "Claimable PlanRuntime nodes can be projected into offline SubagentRunSpec objects.",
+          "Generated specs create ContextCapsules through the existing SubagentRuntime contract.",
+          "Binding rejects non-claimable nodes and dependencies that are not live_installed.",
+          "The binding preserves the fake/offline runtime boundary and does not spawn or message live threads."
+        ],
+        "next_claimable_node": "claim-lease-locks"
+      },
       "deliverables": [
         "Plan node to SubagentRunSpec adapter",
         "ContextCapsule v2 payload for slices",
@@ -1569,18 +1584,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "subagent-plan-binding",
-      "action": "Bind SubagentRuntime to PlanRuntime slices only after PlanRuntime source-of-truth is live."
-    },
-    {
-      "rank": 2,
       "node_id": "claim-lease-locks",
       "action": "Add claim, lease, file lock, and collision enforcement after PlanRuntime owns the graph state."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "real-gate-runners",
       "action": "Turn quality gates into real scoped runners after subagent plan binding and claim locks are live."
+    },
+    {
+      "rank": 3,
+      "node_id": "roadmap-lens-readonly",
+      "action": "Create a read-only graph view after PlanRuntime can provide structured graph state."
     },
     {
       "rank": 4,
