@@ -5,7 +5,7 @@
   "parent_node_id": "roadmap-reconciliation-import",
   "title": "ABC Plan: Roadmap Reconciliation Import",
   "created_at": "2026-06-21",
-  "status": "reports_reduced_pending_commit_push_install",
+  "status": "live_installed",
   "goal": "Reconcile the existing markdown roadmap sprawl into a structured PlanRuntime seed, prove it locally, push it, and install it on the Debian homeserver so the live server reports the deployed commit.",
   "completion_definition": {
     "feature_done_only_when": [
@@ -48,10 +48,31 @@
   "accepted_report_reductions": [
     {
       "path": "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",
-      "status": "reduced_pending_commit_push_install",
+      "status": "live_installed",
       "notes": "Alice and Bob read-only reports are accepted as reduced context with warnings; raw reports are not the future-agent context source."
     }
   ],
+  "feature_completion_evidence": {
+    "status": "live_installed",
+    "completed_at": "2026-06-21",
+    "local_checks": [
+      "PowerShell ConvertFrom-Json for touched JSON files",
+      "git diff --check"
+    ],
+    "push": {
+      "remote": "fuzzy",
+      "branch": "dev",
+      "result": "pass"
+    },
+    "server_install": {
+      "method": "odysseus-auto-update.service",
+      "result": "pass",
+      "version_endpoint": "pass",
+      "app_health": "pass",
+      "chroma_heartbeat": "pass"
+    },
+    "next_path": "read-only-agent-report-protocol"
+  },
   "non_goals": [
     "Do not implement PlanRuntime code in this first feature.",
     "Do not run live subagent threads.",
@@ -302,7 +323,7 @@
   "heartbeat_automation": {
     "name": "abc-roadmap-reconciliation-import",
     "interval": "1 minute",
-    "status": "created_active",
+    "status": "completed_delete_after_final_live_install",
     "prompt": "Du bist Charlie im Odysseus-Fork und koordinierst specs/roadmaps/abc-roadmap-reconciliation-import.v1.json bis roadmap-reconciliation-import live auf dem Debian Server installiert ist.\n\nBei jedem Tick:\n1. Pruefe git status --short --branch.\n2. Sammle Alice/Bob Reports ein oder sende fehlende read-only Scout-Pakete erneut.\n3. Validiere Reports gegen Schema, Scope, Redaction und source_refs.\n4. Reduziere nur akzeptierte Reports zu PlanEvents oder strukturierten Roadmap-Updates.\n5. Starte keine andere Feature-Implementierung, solange roadmap-reconciliation-import nicht live installiert oder explizit Deferred/No-Go ist.\n6. Wenn lokale Aenderungen fertig sind: JSON validieren, scope pruefen, committen und pushen.\n7. Nach Push: Live-Server-Installation nur mit operator Go und dokumentiertem updater flow. Danach /api/version und Server-Smoke pruefen.\n8. Stoppe bei Secrets, fremden staged files, Scope-Verletzung, unklarem Serverzugang, roten Tests, ungeklärtem Remote/Branch oder Live-Go-Mangel.\n9. Wenn Server /api/version den Commit meldet und Smoke gruen ist, loesche die Automation und melde die Handoff-Karte.\n\nAusgabe kurz: Gesamtfortschritt, Alice/Bob Status, Tests, Commit, Push, Server-Install-Evidence, naechste Aktion."
   },
   "handoff_card_template": {

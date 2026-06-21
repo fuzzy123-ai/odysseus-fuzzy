@@ -5,7 +5,7 @@
   "parent_plan_id": "odysseus-multiagent-roadmap",
   "parent_node_id": "roadmap-reconciliation-import",
   "created_at": "2026-06-21",
-  "status": "reduced_pending_commit_push_install",
+  "status": "live_installed",
   "purpose": "Reduce read-only Alice and Bob reports into accepted roadmap context without storing raw reports as future agent context.",
   "input_reports": [
     {
@@ -167,24 +167,24 @@
   "open_gates": [
     {
       "gate_id": "local-json-validation",
-      "status": "pending",
+      "status": "pass",
       "required_before": "commit"
     },
     {
       "gate_id": "push-to-deployment-branch",
-      "status": "pending",
+      "status": "pass",
       "required_before": "server-install"
     },
     {
       "gate_id": "server-live-install",
-      "status": "pending",
+      "status": "pass",
       "required_before": "feature-done"
     },
     {
       "gate_id": "server-version-smoke",
-      "status": "pending",
+      "status": "pass",
       "required_before": "feature-done"
     }
   ],
-  "next_action": "Validate JSON, commit and push in-scope roadmap artifacts, then install on the Debian server through the documented updater flow."
+  "next_action": "Proceed to read-only-agent-report-protocol after operator confirms the next feature slice."
 }

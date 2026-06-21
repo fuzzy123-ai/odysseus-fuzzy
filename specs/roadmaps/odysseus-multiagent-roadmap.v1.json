@@ -379,7 +379,7 @@
       "title": "Reconcile markdown roadmaps into structured PlanRuntime seed",
       "horizon": "now",
       "target_version": "pre-0.9",
-      "status": "active_candidate",
+      "status": "done",
       "objective": "Create a canonical structured plan from current roadmap files, marking AUTO/SUB fake-foundation work as done and current/future tracks as active or deferred.",
       "why": "The current planning state is spread across many markdown files and recent untracked roadmap drafts. Multiagent orchestration needs one structured state before dispatch can be trusted.",
       "source_refs": [
@@ -394,6 +394,16 @@
       "report_reduction_refs": [
         "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json"
       ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "evidence_summary": [
+          "Alice and Bob read-only scout reports reduced into structured context.",
+          "JSON roadmap artifacts validated locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, app health, and Chroma heartbeat checks passed."
+        ]
+      },
       "depends_on": [],
       "unlocks": [
         "read-only-agent-report-protocol",
