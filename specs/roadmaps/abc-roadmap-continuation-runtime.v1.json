@@ -42,8 +42,9 @@
     },
     {
       "node_id": "claim-lease-locks",
-      "status": "pending_current_commit_live_install",
-      "evidence": "ClaimLeaseStore, active claims, visible lease timeouts, file-lock blocking, unknown-agent rejection, and focused tests are implemented in src/claim_lease_store.py and tests/test_claim_lease_store.py."
+      "status": "live_installed",
+      "evidence_commit": "831bf231",
+      "evidence": "ClaimLeaseStore, active claims, visible lease timeouts, file-lock blocking, unknown-agent rejection, focused tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {

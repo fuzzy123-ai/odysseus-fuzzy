@@ -688,8 +688,9 @@
         "budget_reserve_respected"
       ],
       "completion_state": {
-        "status": "live_install_pending_for_current_commit",
+        "status": "live_installed",
         "completed_at": "2026-06-21",
+        "commit": "831bf231",
         "implementation_refs": [
           "src/claim_lease_store.py",
           "tests/test_claim_lease_store.py"
