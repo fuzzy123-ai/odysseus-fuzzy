@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming-plan-edit-validator",
+    "node_id": "visual-agent-programming-proposal-review-queue",
     "status": "active",
-    "why_first": "The read-only visual-agent-programming Lens projection is live; the next safe step is a dry-run validator for proposed visual plan edits before any write-capable editor."
+    "why_first": "The visual plan edit dry-run validator is live; the next safe step is a read-only proposal review queue before any accepted plan event can mutate the roadmap."
   },
   "completed_features": [
     {
@@ -117,6 +117,12 @@
       "status": "live_installed",
       "evidence_commit": "2afbbdac",
       "evidence": "Read-only visual-agent-programming snapshot, version layers, policy-gated controls, blocked-action projection, admin API route, focused tests, push, and homeserver live install are complete."
+    },
+    {
+      "node_id": "visual-agent-programming-plan-edit-validator",
+      "status": "live_installed",
+      "evidence_commit": "6276ce17",
+      "evidence": "Dry-run validator for proposed visual plan edits, structured stops/collisions, no-write/no-agent-start policy, admin POST route, focused tests, push, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
@@ -304,6 +310,29 @@
         "proposed visual edits validate against PlanRuntime shape",
         "unsafe edits return structured stops instead of writes",
         "no dry-run result can start an agent",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC20-visual-agent-programming-proposal-review-queue",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Expose validated visual plan edit proposals as a read-only review queue with explicit accept/reject boundaries and policy-gated controls.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "proposal queue snapshot lists pending proposed events and validation outcomes",
+        "accept/reject controls are visible but policy_gated",
+        "no queue item mutates the roadmap or starts an agent",
         "feature is pushed and live installed"
       ]
     }

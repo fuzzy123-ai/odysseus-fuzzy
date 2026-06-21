@@ -16,11 +16,15 @@ def test_visual_agent_programming_snapshot_is_read_only_and_claimable():
     payload = snapshot.to_dict()
 
     assert payload["mode"] == "read_only"
-    assert payload["active_node_id"] == "visual-agent-programming-plan-edit-validator"
-    assert payload["next_claimable_node_id"] == "visual-agent-programming-plan-edit-validator"
+    assert payload["active_node_id"] == "visual-agent-programming-proposal-review-queue"
+    assert payload["next_claimable_node_id"] == "visual-agent-programming-proposal-review-queue"
     assert any(node["node_id"] == "visual-agent-programming-readonly-lens" and node["live_done"] for node in payload["nodes"])
     assert any(
-        node["node_id"] == "visual-agent-programming-plan-edit-validator" and node["claimable"]
+        node["node_id"] == "visual-agent-programming-plan-edit-validator" and node["live_done"]
+        for node in payload["nodes"]
+    )
+    assert any(
+        node["node_id"] == "visual-agent-programming-proposal-review-queue" and node["claimable"]
         for node in payload["nodes"]
     )
     assert all(control["state"] == "policy_gated" for control in payload["controls"].values())
@@ -40,11 +44,11 @@ def test_visual_agent_programming_snapshot_projects_future_version_layers():
         last_updated_at="2026-06-21T11:15:00+00:00",
     ).to_dict()
 
-    assert payload["progress"]["branch_nodes"] == 3
+    assert payload["progress"]["branch_nodes"] == 4
     assert any(layer["target_version"] == "0.10" for layer in payload["version_layers"])
     assert any(layer["target_version"] == "future" for layer in payload["version_layers"])
     assert [step["node_id"] for step in payload["next_steps"]] == [
-        "visual-agent-programming-plan-edit-validator",
+        "visual-agent-programming-proposal-review-queue",
         "visual-agent-programming",
     ]
     assert payload["next_steps"][0]["state"] == "claimable"

@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-plan-edit-validator",
+  "recommended_active_node": "visual-agent-programming-proposal-review-queue",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1413,7 +1413,7 @@
       "title": "Visual plan edit dry-run validator",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Validate proposed visual node and edge edits against PlanRuntime rules without committing or starting agents.",
       "why": "The roadmap graph can become editable only after proposed changes can be checked as a dry-run event with clear collisions, stops, and gate failures.",
       "source_refs": [
@@ -1426,7 +1426,7 @@
         "visual-agent-programming-readonly-lens"
       ],
       "unlocks": [
-        "visual-agent-programming"
+        "visual-agent-programming-proposal-review-queue"
       ],
       "gates": [
         "graph_edits_validate_against_plan_schema",
@@ -1443,6 +1443,58 @@
       "blocked_actions": [
         "No committed graph edits in this slice.",
         "No agent starts from a dry-run result."
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "6276ce17",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Added validate_visual_plan_edit dry-run contract for create_node and connect_dependency proposals.",
+          "Dry-run validator reports structured stops and collisions for duplicate nodes, unknown endpoints, unsafe edge kinds, existing edges, and dependency cycles.",
+          "Dry-run results never write roadmap state, never accept events, and never allow agent starts.",
+          "Added admin-protected POST /api/roadmap/visual-agent-programming/validate-edit route.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_plan_runtime.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py, 21 passed.",
+          "Feature commit 6276ce17 was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported 6276ce17, /api/health was healthy, Chroma heartbeat passed, and the new POST route returned admin auth protection."
+        ]
+      }
+    },
+    {
+      "id": "visual-agent-programming-proposal-review-queue",
+      "kind": "lens",
+      "priority_rank": 20,
+      "title": "Visual plan proposal review queue",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Expose validated visual plan edit proposals as a reviewable queue before any accepted plan event mutates the roadmap.",
+      "why": "Dry-run validation is useful only if the operator can inspect proposed events, stops, collisions, and context before accepting or rejecting them.",
+      "source_refs": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "visual-agent-programming-plan-edit-validator"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "proposal_queue_read_only_first",
+        "accepted_events_require_operator_go",
+        "no_direct_roadmap_write",
+        "no_agent_start_from_queue"
+      ],
+      "deliverables": [
+        "Proposal review snapshot",
+        "Accepted/rejected event boundary",
+        "Queue controls remain policy-gated",
+        "Focused tests and live install"
+      ],
+      "blocked_actions": [
+        "No accepted plan event without explicit operator action.",
+        "No direct agent start from queued proposals."
       ]
     },
     {
@@ -1451,7 +1503,7 @@
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
-      "priority_rank": 20,
+      "priority_rank": 21,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1464,7 +1516,8 @@
         "orchestration-dashboard-control-center",
         "multiagent-e2e-benchmarks",
         "visual-agent-programming-readonly-lens",
-        "visual-agent-programming-plan-edit-validator"
+        "visual-agent-programming-plan-edit-validator",
+        "visual-agent-programming-proposal-review-queue"
       ],
       "unlocks": [],
       "gates": [
@@ -1654,6 +1707,11 @@
     },
     {
       "from": "visual-agent-programming-plan-edit-validator",
+      "to": "visual-agent-programming-proposal-review-queue",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-proposal-review-queue",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -1912,8 +1970,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-plan-edit-validator",
-      "action": "Prepare the next dry-run validator slice so visual plan edits can be checked before any write-capable UI exists."
+      "node_id": "visual-agent-programming-proposal-review-queue",
+      "action": "Prepare a read-only proposal review queue so validated visual plan edits remain inspectable before acceptance."
     },
     {
       "rank": 2,
