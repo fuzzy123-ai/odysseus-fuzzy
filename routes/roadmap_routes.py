@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -10,7 +11,7 @@ from core.middleware import require_admin
 from src.orchestration_dashboard import build_orchestration_dashboard_snapshot
 from src.plan_runtime import PlanRuntimeError, PlanRuntimeState
 from src.roadmap_lens import build_roadmap_lens_page
-from src.visual_agent_programming_lens import build_visual_agent_programming_snapshot
+from src.visual_agent_programming_lens import build_visual_agent_programming_snapshot, validate_visual_plan_edit
 
 
 def setup_roadmap_routes() -> APIRouter:
@@ -50,5 +51,14 @@ def setup_roadmap_routes() -> APIRouter:
             return snapshot.to_dict()
         except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"visual agent programming lens unavailable: {exc}") from exc
+
+    @router.post("/visual-agent-programming/validate-edit")
+    def api_validate_visual_agent_programming_edit(payload: dict[str, Any], request: Request):
+        require_admin(request)
+        try:
+            runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+            return validate_visual_plan_edit(runtime, payload).to_dict()
+        except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"visual agent programming edit validation unavailable: {exc}") from exc
 
     return router

@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from routes.roadmap_routes import setup_roadmap_routes
 from src.plan_runtime import PlanRuntimeState
-from src.visual_agent_programming_lens import build_visual_agent_programming_snapshot
+from src.visual_agent_programming_lens import build_visual_agent_programming_snapshot, validate_visual_plan_edit
 
 
 def test_visual_agent_programming_snapshot_is_read_only_and_claimable():
@@ -63,3 +63,90 @@ def test_visual_agent_programming_route_returns_admin_snapshot(monkeypatch):
     assert payload["snapshot_id"] == "odysseus-multiagent-roadmap-visual-agent-programming"
     assert payload["controls"]["start_run"]["state"] == "policy_gated"
     assert payload["context_policy"]["agent_write_mode"] == "reports_only_until_reducer_accepts_events"
+
+
+def test_visual_plan_edit_validator_accepts_safe_create_node_as_dry_run_only():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_edit(
+        runtime,
+        {
+            "action": "create_node",
+            "node_id": "visual-agent-programming-dry-run-probe",
+            "title": "Dry-run probe",
+            "kind": "runtime",
+            "horizon": "later",
+            "target_version": "future",
+            "status": "planned",
+            "depends_on": ["visual-agent-programming-plan-edit-validator"],
+            "gates": ["operator_go_required"],
+            "source_refs": ["specs/roadmaps/odysseus-multiagent-roadmap.v1.json"],
+            "deliverables": ["Dry-run validator proof"],
+        },
+    ).to_dict()
+
+    assert result["state"] == "valid_dry_run"
+    assert result["valid"] is True
+    assert result["can_write"] is False
+    assert result["can_start_agent"] is False
+    assert result["accepted_events"] == []
+    assert result["proposed_events"][0]["type"] == "plan_node_proposed"
+
+
+def test_visual_plan_edit_validator_rejects_duplicate_node_collision():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_edit(
+        runtime,
+        {
+            "action": "create_node",
+            "node_id": "visual-agent-programming-plan-edit-validator",
+            "title": "Duplicate",
+        },
+    ).to_dict()
+
+    assert result["state"] == "rejected"
+    assert result["valid"] is False
+    assert result["collisions"][0]["code"] == "node_exists"
+    assert result["proposed_events"] == []
+
+
+def test_visual_plan_edit_validator_rejects_dependency_cycles():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+
+    result = validate_visual_plan_edit(
+        runtime,
+        {
+            "action": "connect_dependency",
+            "from_node": "visual-agent-programming",
+            "to_node": "visual-agent-programming-plan-edit-validator",
+            "kind": "depends_on",
+        },
+    ).to_dict()
+
+    assert result["state"] == "rejected"
+    assert result["collisions"][0]["code"] == "dependency_cycle"
+    assert result["can_write"] is False
+    assert result["can_start_agent"] is False
+
+
+def test_visual_plan_edit_validator_route_returns_dry_run(monkeypatch):
+    monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    app = FastAPI()
+    app.include_router(setup_roadmap_routes())
+
+    response = TestClient(app).post(
+        "/api/roadmap/visual-agent-programming/validate-edit",
+        json={
+            "action": "connect_dependency",
+            "from_node": "visual-agent-programming-readonly-lens",
+            "to_node": "visual-agent-programming-plan-edit-validator",
+            "kind": "depends_on",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] == "rejected"
+    assert payload["can_write"] is False
+    assert payload["accepted_events"] == []

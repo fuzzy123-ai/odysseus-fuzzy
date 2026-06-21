@@ -8,12 +8,16 @@ actions without mutating the roadmap or starting agents.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
-from src.plan_runtime import PlanRuntimeNode, PlanRuntimeState
+from src.plan_runtime import PlanRuntimeError, PlanRuntimeNode, PlanRuntimeState
 
 
 _BRANCH_PREFIX = "visual-agent-programming"
+_VALID_EDIT_ACTIONS = {"create_node", "connect_dependency"}
+_VALID_EDIT_STATUSES = {"planned", "research", "deferred"}
+_NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 
 
 class VisualAgentProgrammingLensError(ValueError):
@@ -56,6 +60,37 @@ class VisualAgentProgrammingSnapshot:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class VisualPlanEditDryRunResult:
+    action: str
+    state: str
+    valid: bool
+    can_write: bool
+    can_start_agent: bool
+    stops: tuple[dict[str, str], ...]
+    collisions: tuple[dict[str, str], ...]
+    proposed_events: tuple[dict[str, Any], ...]
+    accepted_events: tuple[dict[str, Any], ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action": self.action,
+            "state": self.state,
+            "valid": self.valid,
+            "can_write": self.can_write,
+            "can_start_agent": self.can_start_agent,
+            "stops": list(self.stops),
+            "collisions": list(self.collisions),
+            "proposed_events": list(self.proposed_events),
+            "accepted_events": list(self.accepted_events),
+            "policy": {
+                "mode": "dry_run_only",
+                "write_boundary": "no roadmap file writes in validator slice",
+                "agent_start_boundary": "no dry-run result can start an agent",
+            },
+        }
+
+
 def build_visual_agent_programming_snapshot(
     runtime: PlanRuntimeState,
     *,
@@ -89,6 +124,129 @@ def build_visual_agent_programming_snapshot(
         context_policy=_context_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
     )
+
+
+def validate_visual_plan_edit(runtime: PlanRuntimeState, payload: dict[str, Any]) -> VisualPlanEditDryRunResult:
+    if not isinstance(runtime, PlanRuntimeState):
+        raise VisualAgentProgrammingLensError("runtime must be a PlanRuntimeState")
+    if not isinstance(payload, dict):
+        raise VisualAgentProgrammingLensError("payload must be an object")
+
+    action = str(payload.get("action", "")).strip()
+    stops: list[dict[str, str]] = []
+    collisions: list[dict[str, str]] = []
+    proposed_events: list[dict[str, Any]] = []
+    if action not in _VALID_EDIT_ACTIONS:
+        stops.append(_stop("unknown_action", "action must be create_node or connect_dependency"))
+    elif action == "create_node":
+        _validate_create_node(runtime, payload, stops=stops, collisions=collisions, proposed_events=proposed_events)
+    elif action == "connect_dependency":
+        _validate_connect_dependency(runtime, payload, stops=stops, collisions=collisions, proposed_events=proposed_events)
+
+    valid = not stops and not collisions
+    return VisualPlanEditDryRunResult(
+        action=action or "unknown",
+        state="valid_dry_run" if valid else "rejected",
+        valid=valid,
+        can_write=False,
+        can_start_agent=False,
+        stops=tuple(stops),
+        collisions=tuple(collisions),
+        proposed_events=tuple(proposed_events) if valid else (),
+        accepted_events=(),
+    )
+
+
+def _validate_create_node(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+    *,
+    stops: list[dict[str, str]],
+    collisions: list[dict[str, str]],
+    proposed_events: list[dict[str, Any]],
+) -> None:
+    node_map = runtime.node_map()
+    node_id = _slug(payload.get("node_id", ""))
+    if not node_id:
+        stops.append(_stop("missing_node_id", "node_id must contain slug characters"))
+        return
+    if node_id in node_map:
+        collisions.append(_collision("node_exists", node_id, "a node with this id already exists"))
+        return
+    depends_on = tuple(_slug(item) for item in _list(payload.get("depends_on", [])))
+    missing_deps = tuple(dep for dep in depends_on if dep not in node_map)
+    if missing_deps:
+        stops.extend(_stop("unknown_dependency", f"dependency does not exist: {dep}") for dep in missing_deps)
+        return
+    status = _slug(payload.get("status", "planned")).replace("-", "_")
+    if status not in _VALID_EDIT_STATUSES:
+        stops.append(_stop("unsafe_status", "new visual nodes may only be planned, research, or deferred in dry-run"))
+        return
+
+    new_node = {
+        "id": node_id,
+        "kind": _slug(payload.get("kind", "runtime")),
+        "priority_rank": int(payload.get("priority_rank") or _next_priority(runtime)),
+        "title": str(payload.get("title") or node_id).strip(),
+        "horizon": _slug(payload.get("horizon", "later")),
+        "target_version": str(payload.get("target_version") or "future").strip(),
+        "status": status,
+        "depends_on": list(depends_on),
+        "unlocks": [_slug(item) for item in _list(payload.get("unlocks", []))],
+        "gates": [str(item).strip() for item in _list(payload.get("gates", [])) if str(item).strip()],
+        "source_refs": [str(item).strip() for item in _list(payload.get("source_refs", [runtime.roadmap_path]))],
+        "deliverables": [str(item).strip() for item in _list(payload.get("deliverables", ["Dry-run proposed node"]))],
+    }
+    _validate_runtime_payload(runtime, extra_nodes=(new_node,), stops=stops)
+    proposed_events.append({"type": "plan_node_proposed", "node_id": node_id, "status": status})
+
+
+def _validate_connect_dependency(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+    *,
+    stops: list[dict[str, str]],
+    collisions: list[dict[str, str]],
+    proposed_events: list[dict[str, Any]],
+) -> None:
+    node_map = runtime.node_map()
+    from_node = _slug(payload.get("from_node", ""))
+    to_node = _slug(payload.get("to_node", ""))
+    kind = str(payload.get("kind", "depends_on")).strip().lower().replace("-", "_")
+    if not from_node or not to_node:
+        stops.append(_stop("missing_endpoint", "from_node and to_node are required"))
+        return
+    missing = [node_id for node_id in (from_node, to_node) if node_id not in node_map]
+    if missing:
+        stops.extend(_stop("unknown_endpoint", f"node does not exist: {node_id}") for node_id in missing)
+        return
+    if from_node == to_node:
+        collisions.append(_collision("self_dependency", to_node, "a node cannot depend on itself"))
+        return
+    if kind not in {"depends_on", "unlocks"}:
+        stops.append(_stop("unknown_edge_kind", "kind must be depends_on or unlocks"))
+        return
+    if kind == "depends_on":
+        target = node_map[to_node]
+        if from_node in target.depends_on:
+            collisions.append(_collision("edge_exists", to_node, "dependency already exists"))
+            return
+        replacements = {
+            to_node: _node_to_payload(target) | {"depends_on": sorted(set(target.depends_on) | {from_node})}
+        }
+        if _has_dependency_cycle(runtime, extra_dependency=(from_node, to_node)):
+            collisions.append(_collision("dependency_cycle", to_node, "the proposed dependency would create a cycle"))
+            return
+    else:
+        source = node_map[from_node]
+        if to_node in source.unlocks:
+            collisions.append(_collision("edge_exists", from_node, "unlock edge already exists"))
+            return
+        replacements = {
+            from_node: _node_to_payload(source) | {"unlocks": sorted(set(source.unlocks) | {to_node})}
+        }
+    _validate_runtime_payload(runtime, replacements=replacements, stops=stops)
+    proposed_events.append({"type": "plan_edge_proposed", "from": from_node, "to": to_node, "kind": kind})
 
 
 def _progress(all_nodes: tuple[PlanRuntimeNode, ...], branch_nodes: tuple[PlanRuntimeNode, ...]) -> dict[str, int]:
@@ -218,3 +376,97 @@ def _context_policy(runtime: PlanRuntimeState) -> dict[str, str]:
         "live_boundary": "one_feature_must_be_live_installed_before_next_feature",
         "mutation_mode": "read_only",
     }
+
+
+def _validate_runtime_payload(
+    runtime: PlanRuntimeState,
+    *,
+    stops: list[dict[str, str]],
+    extra_nodes: tuple[dict[str, Any], ...] = (),
+    replacements: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    try:
+        PlanRuntimeState.from_dict(_runtime_payload(runtime, extra_nodes=extra_nodes, replacements=replacements or {}))
+    except (PlanRuntimeError, TypeError, ValueError) as exc:
+        stops.append(_stop("planruntime_validation_failed", str(exc)))
+
+
+def _runtime_payload(
+    runtime: PlanRuntimeState,
+    *,
+    extra_nodes: tuple[dict[str, Any], ...],
+    replacements: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    nodes = []
+    for node in runtime.nodes:
+        nodes.append(replacements.get(node.node_id, _node_to_payload(node)))
+    nodes.extend(extra_nodes)
+    return {
+        "schema_version": 1,
+        "plan_id": runtime.plan_id,
+        "title": runtime.title,
+        "format_decision": {"source_of_truth": runtime.source_of_truth},
+        "recommended_active_node": runtime.recommended_active_node,
+        "version_horizons": [{"id": horizon} for horizon in runtime.version_horizons],
+        "graph_nodes": nodes,
+        "next_actions": [{"node_id": node_id} for node_id in runtime.next_action_node_ids],
+        "plan_graph_projection": {"status_mapping": runtime.status_mapping},
+    }
+
+
+def _node_to_payload(node: PlanRuntimeNode) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "id": node.node_id,
+        "kind": node.kind,
+        "priority_rank": node.priority_rank,
+        "title": node.title,
+        "horizon": node.horizon,
+        "target_version": node.target_version,
+        "status": node.status,
+        "depends_on": list(node.depends_on),
+        "unlocks": list(node.unlocks),
+        "gates": list(node.gates),
+        "source_refs": list(node.source_refs),
+        "deliverables": list(node.deliverables),
+    }
+    if node.completion_status:
+        payload["completion_state"] = {"status": node.completion_status, "commit": node.completion_commit}
+    return payload
+
+
+def _has_dependency_cycle(runtime: PlanRuntimeState, *, extra_dependency: tuple[str, str]) -> bool:
+    source, target = extra_dependency
+    deps: dict[str, set[str]] = {node.node_id: set(node.depends_on) for node in runtime.nodes}
+    deps.setdefault(target, set()).add(source)
+
+    def visit(node_id: str, path: set[str]) -> bool:
+        if node_id in path:
+            return True
+        return any(visit(dep, path | {node_id}) for dep in deps.get(node_id, set()))
+
+    return any(visit(node_id, set()) for node_id in deps)
+
+
+def _next_priority(runtime: PlanRuntimeState) -> int:
+    return max((node.priority_rank for node in runtime.nodes), default=0) + 1
+
+
+def _list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _slug(value: Any) -> str:
+    normalized = _NON_SLUG_CHARS_RE.sub("-", str(value or "").strip().lower()).strip("-")
+    return re.sub(r"-{2,}", "-", normalized)
+
+
+def _stop(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def _collision(code: str, node_id: str, message: str) -> dict[str, str]:
+    return {"code": code, "node_id": node_id, "message": message}
