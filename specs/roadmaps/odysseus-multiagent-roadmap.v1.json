@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-operator-acceptance-contract",
+  "recommended_active_node": "visual-agent-programming",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1517,7 +1517,7 @@
       "title": "Visual proposal operator acceptance contract",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Define the operator-gated contract that can turn a reviewed proposal into an accepted plan event without starting agents.",
       "why": "Before the visual editor mutates roadmap truth, acceptance must be explicit, auditable, scoped, and separated from agent execution.",
       "source_refs": [
@@ -1547,7 +1547,21 @@
       "blocked_actions": [
         "No automatic acceptance of queued proposals.",
         "No agent start as part of acceptance."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "614bb774",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Added operator acceptance contract for reviewed visual plan proposals.",
+          "Acceptance requires operator_id plus explicit ACCEPT_PLAN_EVENT or REJECT_PLAN_EVENT confirmation.",
+          "Valid accept/reject requests return auditable event projections while can_write and can_start_agent remain false.",
+          "Invalid proposal acceptance is rejected with structured stops.",
+          "Added admin-protected POST /api/roadmap/visual-agent-programming/proposals/acceptance/validate route.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_plan_runtime.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py, 27 passed.",
+          "Feature commit 614bb774 was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported 614bb774, /api/health was healthy, Chroma heartbeat passed, and the acceptance route returned admin auth protection."
+        ]
+      }
     },
     {
       "id": "visual-agent-programming",
@@ -2028,13 +2042,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-operator-acceptance-contract",
-      "action": "Define an explicit operator acceptance contract for reviewed visual plan proposals without agent starts."
-    },
-    {
-      "rank": 2,
       "node_id": "visual-agent-programming",
-      "action": "Keep the future write-capable visual editor visible behind validation, gates, and explicit operator actions."
+      "action": "Policy gate: the next step is the write-capable visual editor/mutation adapter and requires explicit operator decision before becoming claimable."
     }
   ]
 }

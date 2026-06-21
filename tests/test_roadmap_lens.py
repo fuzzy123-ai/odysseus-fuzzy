@@ -15,7 +15,11 @@ def test_current_roadmap_lens_page_highlights_active_and_claimable_nodes():
 
     assert payload["status"] == "complete"
     assert payload["active_node_id"] == runtime.recommended_active_node
-    assert runtime.next_claimable_node_id() in payload["claimable_node_ids"]
+    next_claimable = runtime.next_claimable_node_id()
+    if next_claimable:
+        assert next_claimable in payload["claimable_node_ids"]
+    else:
+        assert payload["claimable_node_ids"] == ()
     assert any(node["node_type"] == "version-horizon" and node["label"] == "v0-9" for node in payload["nodes"])
     assert any(node["node_type"] == "gate" for node in payload["nodes"])
     assert any(node["node_type"] == "commit" and node["label"] == "c92b143d" for node in payload["nodes"])
