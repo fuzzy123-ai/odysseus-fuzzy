@@ -1,7 +1,20 @@
 import json
 
-from plugins.telegram.plugin import TelegramInboxStore, build_telegram_readiness, send_telegram_text
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from plugins.telegram.plugin import (
+    TelegramInboxStore,
+    build_telegram_draft_id,
+    build_telegram_readiness,
+    send_telegram_rich_draft,
+    send_telegram_rich_message,
+    send_telegram_text,
+    setup,
+)
 from src.telegram_formatting import chunk_telegram_html, render_telegram_markdown, validate_telegram_html
+from tests.test_telegram_plugin import _PluginContext
 
 
 def test_telegram_markdown_renderer_outputs_safe_html():
@@ -86,3 +99,107 @@ def test_readiness_exposes_rich_status_without_raw_payloads(tmp_path):
     assert readiness["last_delivery_status"] == "sent"
     assert readiness["raw_rich_payload_visible"] is False
     assert "chat-1" not in encoded
+
+
+def test_rich_draft_helpers_are_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_RICH_MESSAGES_ENABLED", raising=False)
+    monkeypatch.delenv("TELEGRAM_RICH_DRAFTS_ENABLED", raising=False)
+    calls = []
+
+    with pytest.raises(ValueError, match="rich messages"):
+        send_telegram_rich_draft("chat-1", "partial", http_post=lambda url, payload: calls.append(payload))
+
+    assert calls == []
+
+
+def test_rich_draft_uses_stable_nonzero_draft_id(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_RICH_MESSAGES_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_RICH_DRAFTS_ENABLED", "true")
+    calls = []
+
+    def _post(url, payload):
+        calls.append((url, dict(payload)))
+        return {"ok": True, "result": {"message_id": 7}}
+
+    first = build_telegram_draft_id(chat_id="chat-1", source_message_id=42)
+    second = build_telegram_draft_id(chat_id="chat-1", source_message_id=42)
+    result = send_telegram_rich_draft(
+        "chat-1",
+        "<tg-thinking>draft only</tg-thinking>\n**Partial**",
+        source_message_id=42,
+        http_post=_post,
+    )
+
+    assert first == second
+    assert first > 0
+    assert result["delivery_mode"] == "rich_draft"
+    assert result["draft_id"] == first
+    assert result["draft_id_value_visible"] is False
+    payload = calls[0][1]
+    assert payload["draft_id"] == first
+    assert "rich_message" in payload
+    assert "Partial" in payload["rich_message"]
+    assert result["raw_rich_payload_visible"] is False
+
+
+def test_final_rich_message_strips_draft_thinking(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_RICH_MESSAGES_ENABLED", "true")
+    calls = []
+
+    def _post(url, payload):
+        calls.append((url, dict(payload)))
+        return {"ok": True, "result": {"message_id": 10}}
+
+    result = send_telegram_rich_message(
+        "chat-1",
+        "<tg-thinking>draft only</tg-thinking>\n**Final**",
+        http_post=_post,
+    )
+
+    assert result["delivery_mode"] == "rich_final"
+    assert result["telegram_message_id"] == 10
+    assert "Final" in calls[0][1]["rich_message"]
+    assert "draft only" not in calls[0][1]["rich_message"]
+    assert result["raw_rich_payload_visible"] is False
+
+
+def test_reply_route_falls_back_to_classic_html_when_final_rich_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_RICH_MESSAGES_ENABLED", "true")
+
+    def _rich_fail(*_args, **_kwargs):
+        raise ValueError("rich transport offline")
+
+    classic_calls = []
+
+    def _classic(chat_id, text):
+        classic_calls.append((chat_id, text))
+        return {
+            "ok": True,
+            "telegram_message_id": 77,
+            "delivery_mode": "classic_html",
+            "formatting_mode": "html",
+            "token_value_visible": False,
+            "raw_rich_payload_visible": False,
+        }
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_rich_message", _rich_fail)
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _classic)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/reply", json={"chat_id": "123", "text": "**Hallo**"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sent"]["delivery_mode"] == "classic_html_fallback"
+    assert payload["sent"]["rich_fallback_reason"] == "rich transport offline"
+    assert classic_calls == [("123", "**Hallo**")]
+    history = TelegramInboxStore(tmp_path).history(chat_id="123")
+    assert history[0]["delivery_mode"] == "classic_html_fallback"
+    assert history[0]["formatting_mode"] == "html"

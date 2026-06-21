@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import hashlib
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -51,6 +52,7 @@ _CHEVRON = (
 _HISTORY_FILE = "telegram_history.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
+_THINKING_BLOCK_RE = re.compile(r"<tg-thinking>.*?</tg-thinking>", re.IGNORECASE | re.DOTALL)
 
 
 def _bool_env(name: str) -> bool:
@@ -96,6 +98,24 @@ def _voice_file_handle(file_id: Any) -> str:
 
 def _voice_unique_handle(file_unique_id: Any) -> str:
     return _stable_handle("voice_unique", file_unique_id)
+
+
+def build_telegram_draft_id(*, chat_id: str, source_message_id: Any = "") -> int:
+    digest = hashlib.sha256(f"telegram-draft:{chat_id}:{source_message_id}".encode("utf-8")).hexdigest()
+    return int(digest[:12], 16) or 1
+
+
+def _draft_interval_ms() -> int:
+    raw = os.getenv("TELEGRAM_DRAFT_INTERVAL_MS") or "750"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 750
+    return max(250, min(value, 10000))
+
+
+def _strip_draft_thinking(markdown: str) -> str:
+    return _THINKING_BLOCK_RE.sub("", str(markdown or "")).strip()
 
 
 def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
@@ -728,6 +748,93 @@ def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _rich_message_payload(markdown: str) -> tuple[dict[str, Any], str]:
+    rendered = render_telegram_markdown(markdown)
+    if not rendered.parse_mode:
+        raise ValueError("telegram rich rendering fell back to plaintext")
+    return {"html": rendered.html}, rendered.formatting_mode
+
+
+def send_telegram_rich_draft(
+    chat_id: str,
+    partial_markdown: str,
+    *,
+    draft_id: int | None = None,
+    source_message_id: Any = "",
+    token: str | None = None,
+    http_post: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Send an env-gated Telegram rich draft preview."""
+
+    if not _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
+        raise ValueError("telegram rich messages are disabled")
+    if not _bool_env("TELEGRAM_RICH_DRAFTS_ENABLED"):
+        raise ValueError("telegram rich drafts are disabled")
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    if not partial_markdown.strip():
+        raise ValueError("telegram draft text is empty")
+    resolved_draft_id = int(draft_id or build_telegram_draft_id(chat_id=chat_id, source_message_id=source_message_id))
+    if resolved_draft_id <= 0:
+        raise ValueError("telegram draft id must be nonzero")
+    rich_message, formatting_mode = _rich_message_payload(partial_markdown)
+    url = f"https://api.telegram.org/bot{token}/sendRichMessageDraft"
+    post = http_post or _telegram_http_post
+    result = post(
+        url,
+        {
+            "chat_id": str(chat_id),
+            "draft_id": resolved_draft_id,
+            "rich_message": json.dumps(rich_message, ensure_ascii=False),
+        },
+    )
+    return {
+        "ok": bool(result.get("ok")),
+        "delivery_mode": "rich_draft",
+        "formatting_mode": formatting_mode,
+        "draft_id": resolved_draft_id,
+        "draft_id_value_visible": False,
+        "token_value_visible": False,
+        "raw_rich_payload_visible": False,
+    }
+
+
+def send_telegram_rich_message(
+    chat_id: str,
+    final_markdown: str,
+    *,
+    token: str | None = None,
+    http_post: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Send an env-gated final Telegram rich message."""
+
+    if not _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
+        raise ValueError("telegram rich messages are disabled")
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    final_text = _strip_draft_thinking(final_markdown)
+    if not final_text:
+        raise ValueError("telegram rich message text is empty")
+    rich_message, formatting_mode = _rich_message_payload(final_text)
+    url = f"https://api.telegram.org/bot{token}/sendRichMessage"
+    post = http_post or _telegram_http_post
+    result = post(url, {"chat_id": str(chat_id), "rich_message": json.dumps(rich_message, ensure_ascii=False)})
+    return {
+        "ok": bool(result.get("ok")),
+        "telegram_message_id": ((result.get("result") or {}).get("message_id")),
+        "delivery_mode": "rich_final",
+        "formatting_mode": formatting_mode,
+        "token_value_visible": False,
+        "raw_rich_payload_visible": False,
+    }
+
+
 def send_telegram_text(
     chat_id: str,
     text: str,
@@ -873,6 +980,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         "polling_enabled": polling_enabled,
         "rich_messages_enabled": rich_messages_enabled,
         "rich_drafts_enabled": rich_drafts_enabled,
+        "draft_interval_ms": _draft_interval_ms(),
         "formatting_mode": delivery["formatting_mode"],
         "last_delivery_mode": delivery["last_delivery_mode"],
         "last_delivery_status": delivery["last_delivery_status"],
@@ -983,7 +1091,15 @@ def setup(ctx):
             )
             return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
         try:
-            sent = send_telegram_text(chat_id, text)
+            if _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
+                try:
+                    sent = send_telegram_rich_message(chat_id, text)
+                except Exception as rich_exc:
+                    sent = send_telegram_text(chat_id, text)
+                    sent["delivery_mode"] = f"{sent.get('delivery_mode')}_fallback"
+                    sent["rich_fallback_reason"] = str(rich_exc)[:120]
+            else:
+                sent = send_telegram_text(chat_id, text)
         except Exception as exc:
             outbound = store.append_outbound(
                 chat_id,
