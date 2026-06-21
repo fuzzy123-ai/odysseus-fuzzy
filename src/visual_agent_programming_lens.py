@@ -47,6 +47,9 @@ class VisualAgentProgrammingSnapshot:
     blocked_actions: tuple[dict[str, str], ...]
     next_steps: tuple[dict[str, str], ...]
     context_policy: dict[str, str]
+    status_palette: dict[str, str]
+    ui_controls: tuple[dict[str, Any], ...]
+    version_policy: dict[str, str]
     last_updated_at: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,6 +67,9 @@ class VisualAgentProgrammingSnapshot:
             "blocked_actions": list(self.blocked_actions),
             "next_steps": list(self.next_steps),
             "context_policy": self.context_policy,
+            "status_palette": self.status_palette,
+            "ui_controls": list(self.ui_controls),
+            "version_policy": self.version_policy,
             "last_updated_at": self.last_updated_at,
         }
 
@@ -253,6 +259,9 @@ def build_visual_agent_programming_snapshot(
         blocked_actions=_blocked_actions(),
         next_steps=_next_steps(runtime=runtime, claimable_ids=claimable_ids),
         context_policy=_context_policy(runtime),
+        status_palette=dict(_VISUAL_STATUS_COLORS),
+        ui_controls=_ui_controls(),
+        version_policy=_version_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
     )
 
@@ -699,6 +708,44 @@ def _controls() -> dict[str, dict[str, str]]:
     }
 
 
+def _ui_controls() -> tuple[dict[str, Any], ...]:
+    return (
+        {
+            "control_id": "connect_existing_nodes",
+            "label": "Connect nodes",
+            "mode": "edge_drag",
+            "endpoint": "/api/roadmap/visual-agent-programming/mutations/patch",
+            "proposal_action": "connect_dependency",
+            "permission_default": "require_confirmation",
+            "approve_for_me_supported": True,
+            "confirmation_token": "APPLY_VISUAL_PLAN_MUTATION",
+            "follow_up_endpoint": "/api/roadmap/visual-agent-programming/mutations/apply",
+        },
+        {
+            "control_id": "create_empty_path_from_node",
+            "label": "Create path",
+            "mode": "node_drag",
+            "endpoint": "/api/roadmap/visual-agent-programming/mutations/patch",
+            "proposal_action": "create_node",
+            "uses_from_node": True,
+            "permission_default": "require_confirmation",
+            "approve_for_me_supported": True,
+            "confirmation_token": "APPLY_VISUAL_PLAN_MUTATION",
+            "follow_up_endpoint": "/api/roadmap/visual-agent-programming/mutations/apply",
+        },
+        {
+            "control_id": "start_agent_after_apply",
+            "label": "Start agent",
+            "mode": "confirmed_dispatch_request",
+            "endpoint": "/api/roadmap/visual-agent-programming/mutations/patch",
+            "confirmation_token": "START_AGENT_AFTER_MUTATION",
+            "permission_default": "require_confirmation",
+            "approve_for_me_supported": True,
+            "dispatch_state": "ready_for_dispatch_after_apply",
+        },
+    )
+
+
 def _proposal_queue_controls() -> dict[str, dict[str, str]]:
     reason = "proposal review queue is read-only; accepted plan events require a future operator-go slice"
     return {
@@ -979,6 +1026,15 @@ def _context_policy(runtime: PlanRuntimeState) -> dict[str, str]:
         "agent_write_mode": "reports_only_until_reducer_accepts_events",
         "live_boundary": "one_feature_must_be_live_installed_before_next_feature",
         "mutation_mode": "read_only",
+    }
+
+
+def _version_policy(runtime: PlanRuntimeState) -> dict[str, str]:
+    return {
+        "scheme": "node-count/live-count/timestamp",
+        "source_of_truth": runtime.roadmap_path,
+        "timestamp_fields": "created_at, updated_at, completed_at",
+        "node_version_hint": "completion_commit when live, otherwise generated mutation version metadata",
     }
 
 

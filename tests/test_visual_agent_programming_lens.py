@@ -57,6 +57,17 @@ def test_visual_agent_programming_snapshot_is_read_only_and_at_policy_gate():
         for node in payload["nodes"]
     )
     assert all(control["state"] == "policy_gated" for control in payload["controls"].values())
+    assert payload["status_palette"] == {
+        "draft": "slate",
+        "reviewed": "amber",
+        "ready": "blue",
+        "working": "violet",
+        "completed": "green",
+    }
+    assert any(control["control_id"] == "connect_existing_nodes" for control in payload["ui_controls"])
+    assert any(control["control_id"] == "create_empty_path_from_node" for control in payload["ui_controls"])
+    assert any(control["control_id"] == "start_agent_after_apply" for control in payload["ui_controls"])
+    assert payload["version_policy"]["timestamp_fields"] == "created_at, updated_at, completed_at"
     assert {item["action"] for item in payload["blocked_actions"]} >= {
         "mutate_graph",
         "start_agent",
@@ -96,6 +107,7 @@ def test_visual_agent_programming_route_returns_admin_snapshot(monkeypatch):
     assert payload["snapshot_id"] == "odysseus-multiagent-roadmap-visual-agent-programming"
     assert payload["controls"]["start_run"]["state"] == "policy_gated"
     assert payload["context_policy"]["agent_write_mode"] == "reports_only_until_reducer_accepts_events"
+    assert payload["ui_controls"][0]["endpoint"] == "/api/roadmap/visual-agent-programming/mutations/patch"
 
 
 def test_visual_plan_edit_validator_accepts_safe_create_node_as_dry_run_only():
