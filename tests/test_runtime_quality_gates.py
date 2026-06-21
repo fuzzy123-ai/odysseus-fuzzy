@@ -4,10 +4,13 @@ from src.handoff_mailbox import ParsedHandoff
 from src.quality_gates import QualityGateStatus
 from src.runtime_quality_gates import (
     GitStatusSnapshot,
+    RuntimeCommandResult,
     RuntimeQualityGateError,
     RuntimeQualityGateInput,
+    RuntimeQualityGateRunRequest,
     TestExecutionSnapshot as CommandSnapshot,
     evaluate_runtime_quality_gates,
+    run_scoped_runtime_quality_gates,
 )
 
 
@@ -150,3 +153,87 @@ def test_non_done_handoff_blocks():
 def test_unsafe_paths_are_rejected_before_gate_creation():
     with pytest.raises(RuntimeQualityGateError, match="repo-relative"):
         _payload(changed_files=["../outside.py"])
+
+
+class _FakeCommandRunner:
+    def __init__(self, *, git_status: str = "## dev...origin/dev\n", rev: str = "abcdef1\n", test_exit: int = 0):
+        self.git_status = git_status
+        self.rev = rev
+        self.test_exit = test_exit
+        self.calls = []
+
+    def __call__(self, argv, *, cwd, timeout_seconds):
+        normalized = tuple(argv)
+        self.calls.append((normalized, str(cwd), timeout_seconds))
+        if normalized == ("git", "status", "--short", "--branch"):
+            return RuntimeCommandResult.create(argv=normalized, exit_code=0, output_summary=self.git_status)
+        if normalized == ("git", "rev-parse", "--short", "HEAD"):
+            return RuntimeCommandResult.create(argv=normalized, exit_code=0, output_summary=self.rev)
+        return RuntimeCommandResult.create(
+            argv=normalized,
+            exit_code=self.test_exit,
+            output_summary="2 passed" if self.test_exit == 0 else "1 failed",
+        )
+
+
+def _run_request(**overrides) -> RuntimeQualityGateRunRequest:
+    payload = {
+        "agent_run_id": "run-auto5",
+        "plan_node_id": "auto5",
+        "subject_ref": "AUTO5-git-test-quality-gates",
+        "verified_at": "2026-06-16T21:35:00Z",
+        "verified_by": "Charlie",
+        "handoff": _handoff(),
+        "repo_root": ".",
+        "test_commands": ["python -m pytest tests/test_runtime_quality_gates.py"],
+        "allowed_files": ["src/runtime_quality_gates.py", "tests/test_runtime_quality_gates.py"],
+        "hot_files": ["plugins/obsidian/frontend/main.js"],
+    }
+    payload.update(overrides)
+    return RuntimeQualityGateRunRequest.create(**payload)
+
+
+def test_scoped_runner_collects_git_and_focused_pytest_evidence():
+    runner = _FakeCommandRunner()
+
+    result = run_scoped_runtime_quality_gates(_run_request(), command_runner=runner)
+
+    assert result.verified_done is True
+    assert result.audit_summary()["git"]["branch"] == "dev"
+    assert [call[0] for call in runner.calls] == [
+        ("git", "status", "--short", "--branch"),
+        ("git", "rev-parse", "--short", "HEAD"),
+        ("python", "-m", "pytest", "tests/test_runtime_quality_gates.py"),
+    ]
+
+
+def test_scoped_runner_blocks_dirty_git_status():
+    runner = _FakeCommandRunner(git_status="## dev\n M src/runtime_quality_gates.py\n")
+
+    result = run_scoped_runtime_quality_gates(_run_request(), command_runner=runner)
+
+    assert result.verified_done is False
+    assert "git-block" in result.gate_result.blocking_gate_ids
+    assert result.git_status.unstaged_files == ("src/runtime_quality_gates.py",)
+
+
+def test_scoped_runner_turns_failed_pytest_into_test_gate_failure():
+    runner = _FakeCommandRunner(test_exit=1)
+
+    result = run_scoped_runtime_quality_gates(_run_request(), command_runner=runner)
+
+    assert result.verified_done is False
+    assert "tests-fail" in result.gate_result.blocking_gate_ids
+
+
+def test_scoped_runner_rejects_unfocused_or_shell_commands():
+    with pytest.raises(RuntimeQualityGateError, match="focused pytest"):
+        _run_request(test_commands=["python -m pip install pytest"])
+
+    with pytest.raises(RuntimeQualityGateError, match="shell operators"):
+        _run_request(test_commands=["python -m pytest tests/test_runtime_quality_gates.py && curl https://example.com"])
+
+
+def test_scoped_runner_rejects_non_tests_pytest_targets():
+    with pytest.raises(RuntimeQualityGateError, match="tests/ paths"):
+        _run_request(test_commands=["python -m pytest src/runtime_quality_gates.py"])

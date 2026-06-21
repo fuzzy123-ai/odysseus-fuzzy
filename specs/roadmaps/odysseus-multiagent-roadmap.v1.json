@@ -764,7 +764,7 @@
       "title": "Turn quality gates into real scoped runners",
       "horizon": "v0-9",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "objective": "Evaluate git, tests, evidence, scope, hotfiles, and handoff with real local checks where safe.",
       "why": "Current runtime quality gates mostly evaluate injected snapshots. verified_done needs observed evidence.",
       "source_refs": [
@@ -797,7 +797,22 @@
       "blocked_actions": [
         "No destructive git operations.",
         "No broad shell command runner."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/runtime_quality_gates.py",
+          "tests/test_runtime_quality_gates.py"
+        ],
+        "evidence_summary": [
+          "RuntimeQualityGateRunRequest defines scoped local verification with repo root, allowed files, hot files, handoff, verifier, and focused test commands.",
+          "run_scoped_runtime_quality_gates reads git status and rev-parse through a narrow command runner and evaluates existing handoff/git/test/evidence/scope/hot-file gates.",
+          "Focused pytest command validation rejects shell operators, non-pytest commands, network targets, absolute paths, traversal, and non-tests targets.",
+          "Focused runtime, subagent, and PlanRuntime tests pass locally."
+        ],
+        "next_claimable_node": "heartbeat-runtime-live-loop"
+      }
     },
     {
       "id": "execution-backend-adapter",
