@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "freshness-hybrid-filtering-live",
+  "recommended_active_node": "quarantine-live-behavior",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -658,7 +658,7 @@
       "priority_rank": 5,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "memory-tree-ui-live",
         "derived-graph-edges-live"
@@ -695,9 +695,128 @@
         "Live memory status reports filtering_state=active."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "ed449754",
+        "completed_at": "2026-06-21T22:22:00+02:00",
+        "live_evidence": [
+          {
+            "check": "compose env pass-through",
+            "result": "ok",
+            "summary": {
+              "commit": "ed449754",
+              "files": [
+                "docker-compose.yml",
+                "ops/homeserver/setup-odysseus-env.sh",
+                "ops/homeserver/fix-odysseus-env-defaults.sh"
+              ],
+              "hybrid_default_in_code_unchanged": true
+            }
+          },
+          {
+            "check": "persistent homeserver env",
+            "result": "ok",
+            "summary": {
+              "keys_present": [
+                "ODYSSEUS_OBSIDIAN_SOMT_ENABLED",
+                "ODYSSEUS_OBSIDIAN_FRESHNESS_GATE_ENABLED",
+                "ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED",
+                "ODYSSEUS_OBSIDIAN_MEMORY_TREE_UI_ENABLED",
+                "ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED",
+                "ODYSSEUS_OBSIDIAN_RAPTOR_REBUILD_ENABLED"
+              ],
+              "values_not_recorded": true
+            }
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "ed449754",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/status",
+            "result": "ok",
+            "summary": {
+              "hybrid_enabled": true,
+              "freshness_gate_enabled": true,
+              "filtering_state": "active",
+              "default_retrieval_is_filtered": true,
+              "default_retrieval": 5,
+              "isolated": 1,
+              "quarantine_items": 1,
+              "ready_families": 4,
+              "blocked_families": [
+                "freshness",
+                "raptor"
+              ],
+              "remaining_gap_names": [
+                "quarantined_items",
+                "raptor_index_missing"
+              ]
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/baseline",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "derived_graph_nodes": 6,
+              "derived_graph_edges": 14,
+              "quarantine_items": 1,
+              "raptor_configured": false,
+              "warnings": []
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/knowledge-audit",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "current": 5,
+              "quarantined": 1,
+              "isolated": 1,
+              "filtering_active": true,
+              "readiness_state": "quarantined"
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/quarantine",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "total": 1,
+              "by_channel": {
+                "quarantined": 1
+              },
+              "by_status": {
+                "archived": 1
+              }
+            }
+          },
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "hybrid_freshness_tests": 7,
+              "mission_contract_tests": 1,
+              "commands": [
+                "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_context_provider_backend.py::{hybrid_freshness_tests} plugins\\obsidian\\tests\\test_memory_readiness_layers.py::{freshness_tests} --basetemp .pytest_tmp\\orca-freshness",
+                "venv\\Scripts\\python.exe -m pytest tests\\test_obsidian_memory_mission_contract.py --basetemp .pytest_tmp\\orca-mission"
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -951,21 +1070,15 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "freshness-hybrid-filtering-live",
-      "action": "Enable Hybrid Retrieval and activate Freshness filtering now that Memory Tree and Derived Graph are live; verify isolated items remain auditable.",
-      "owner": "bob"
+      "node_id": "quarantine-live-behavior",
+      "action": "Verify quarantine impact and operator inspection semantics now that Freshness filtering is active; do not mutate notes unless an explicit review/deferral decision is approved.",
+      "owner": "alice"
     },
     {
       "rank": 2,
       "node_id": "raptor-rebuild-live",
       "action": "Remain blocked until derived-graph-edges-live is complete and operator Go is present for RAPTOR write artifacts.",
       "owner": "charlie"
-    },
-    {
-      "rank": 3,
-      "node_id": "quarantine-live-behavior",
-      "action": "Remain blocked until Freshness filtering is active and quarantine impact is visible in default retrieval.",
-      "owner": "alice"
     }
   ],
   "abc_execution": {
