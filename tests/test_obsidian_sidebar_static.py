@@ -982,7 +982,7 @@ def test_obsidian_app_page_boots_standalone_panel():
     from plugins.obsidian.backend.routes import APP_HTML
 
     assert 'data-obsidian-standalone="true"' in APP_HTML
-    assert '<script type="module" src="/api/plugins/obsidian/web/app.js"></script>' in APP_HTML
+    assert '<script type="module" src="__PLUGIN_API_PREFIX__/web/app.js"></script>' in APP_HTML
     assert "<title>Odysseus ORCA Atlas</title>" in APP_HTML
     assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" not in APP_HTML
     assert 'import "/api/plugins/obsidian/web/main.js"' not in APP_HTML

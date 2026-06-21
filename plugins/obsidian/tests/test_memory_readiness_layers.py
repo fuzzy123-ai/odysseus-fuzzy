@@ -218,8 +218,8 @@ def test_memory_baseline_report_is_summary_only_activation_evidence():
             "preferred": "/api/plugins/orca/memory/baseline",
             "legacy": "/api/plugins/obsidian/memory/baseline",
         }
-        assert report["flags"]["obsidian_memory_tree_ui_enabled"] is False
-        assert report["systems"]["memory_tree_ui"]["state"] == "disabled"
+        assert report["flags"]["obsidian_memory_tree_ui_enabled"] is True
+        assert report["systems"]["memory_tree_ui"]["state"] == "enabled"
         assert report["systems"]["hybrid_retrieval"]["state"] == "disabled"
         assert report["systems"]["freshness_gate"]["filtering_state"] == "audit_only"
         assert report["systems"]["quarantine"]["items"] == 1

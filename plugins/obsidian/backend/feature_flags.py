@@ -8,7 +8,7 @@ DEFAULT_FLAGS = {
     "obsidian_raptor_enabled": False,
     "obsidian_raptor_rebuild_enabled": False,
     "obsidian_hybrid_retrieval_enabled": False,
-    "obsidian_memory_tree_ui_enabled": False,
+    "obsidian_memory_tree_ui_enabled": True,
 }
 
 ORCA_FLAG_ALIASES = {

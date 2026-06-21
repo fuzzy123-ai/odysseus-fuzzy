@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "memory-live-baseline-audit",
+  "recommended_active_node": "memory-tree-ui-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -129,7 +129,7 @@
       "priority_rank": 1,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [],
       "unlocks": [
         "memory-tree-ui-live",
@@ -159,7 +159,7 @@
       "verification": [
         "git status --short --branch",
         "GET /api/version",
-      "GET /api/health",
+        "GET /api/health",
         "GET /api/plugins/orca/memory/status",
         "GET /api/plugins/orca/memory/baseline",
         "GET /api/plugins/orca/raptor/status",
@@ -167,9 +167,97 @@
         "Legacy fallback check: GET /api/plugins/obsidian/memory/status remains compatible until removal gates close."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "a026cf58",
+        "completed_at": "2026-06-21T20:29:25+02:00",
+        "live_evidence": [
+          {
+            "check": "homeserver_commit",
+            "result": "ok",
+            "value": "a026cf58"
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "a026cf58",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/baseline",
+            "result": "ok",
+            "summary": {
+              "schema": "orca-memory-baseline-v1",
+              "read_only": true,
+              "writes_supported": false,
+              "filtering_state": "audit_only",
+              "memory_tree_state": "disabled",
+              "hybrid_state": "disabled",
+              "quarantine_items": 0,
+              "derived_graph_edges": 0,
+              "raptor_configured": false,
+              "recommendation_count": 6
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/status",
+            "result": "ok",
+            "summary": {
+              "read_only": true,
+              "writes_supported": false,
+              "filtering_state": "audit_only",
+              "ready_families": 0,
+              "readiness_families": 6,
+              "blocked_families": [
+                "derived_index",
+                "freshness",
+                "ledger",
+                "query_layer",
+                "raptor",
+                "somt"
+              ]
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/raptor/status",
+            "result": "ok",
+            "summary": {
+              "enabled": false,
+              "configured": false,
+              "readiness_state": "not_configured",
+              "write_gate_state": "blocked"
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/raptor/graph",
+            "result": "ok",
+            "summary": {
+              "node_count": 0,
+              "edge_count": 0,
+              "returned_edge_count": 0,
+              "clipped": false
+            }
+          },
+          {
+            "check": "GET /api/plugins/obsidian/memory/status",
+            "result": "ok",
+            "summary": {
+              "legacy_fallback": true,
+              "read_only": true,
+              "filtering_state": "audit_only"
+            }
+          }
+        ]
       }
     },
     {
@@ -607,21 +695,21 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "memory-live-baseline-audit",
-      "action": "Run the read-only baseline audit before enabling any flag or live write behavior.",
-      "owner": "charlie"
-    },
-    {
-      "rank": 2,
       "node_id": "memory-tree-ui-live",
-      "action": "Prepare low-risk UI enablement after baseline evidence exists.",
+      "action": "Enable the ORCA Memory Tree UI live after baseline evidence.",
       "owner": "bob"
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "canonical-vault-foundation",
-      "action": "Prepare operator-approved canonical note/link foundation in parallel with UI enablement if no vault mutation conflict exists.",
+      "action": "Prepare operator-approved canonical note/link foundation without touching vault content until explicit Go.",
       "owner": "alice"
+    },
+    {
+      "rank": 3,
+      "node_id": "derived-graph-edges-live",
+      "action": "Remain blocked until canonical vault foundation creates explicit source links.",
+      "owner": "bob"
     }
   ],
   "abc_execution": {
