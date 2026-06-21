@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "telegram-rich-draft-streaming",
-    "status": "active",
-    "why_first": "Telegram rich text rendering is live; rich draft streaming is now the next claimable operator-channel feature."
+    "node_id": "visual-agent-programming",
+    "status": "research_gate",
+    "why_first": "Telegram rich draft streaming is live; the remaining visual-agent-programming branch is visible as the next roadmap frontier but still needs promotion from research before write-capable implementation starts."
   },
   "completed_features": [
     {
@@ -105,6 +105,12 @@
       "status": "live_installed",
       "evidence_commit": "17d2af63",
       "evidence": "Telegram-safe rich text renderer, HTML allowlist validation, plaintext fallback, classic sendMessage HTML/chunking path, redacted readiness/status fields, focused formatting/plugin tests, and homeserver live install are complete."
+    },
+    {
+      "node_id": "telegram-rich-draft-streaming",
+      "status": "live_installed",
+      "evidence_commit": "ec35bfdd",
+      "evidence": "Env-gated rich draft and rich final delivery helpers, stable nonzero draft IDs, draft interval status, final tg-thinking stripping, rich-final-to-classic fallback, focused fake-provider tests, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {

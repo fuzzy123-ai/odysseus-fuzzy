@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "telegram-rich-draft-streaming",
+  "recommended_active_node": "visual-agent-programming",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1305,10 +1305,12 @@
       "title": "Telegram rich message draft streaming",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Add gated Telegram rich-message draft previews for long-running agent turns, followed by idempotent final rich-message delivery or safe fallback.",
       "why": "Long-running agent work needs operator-visible progress, but streaming must not create duplicate messages, leak sensitive payloads, or bypass final delivery guarantees.",
       "source_refs": [
+        "plugins/telegram/plugin.py",
+        "tests/test_telegram_formatting.py",
         "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
         "docs/plans/telegram-offline-smoke-plan-contract.md",
         "docs/plans/live-telegram-status-dry-run-contract.md"
@@ -1338,7 +1340,18 @@
         "Do not broaden Telegram turns with shell or arbitrary file-write tools.",
         "Do not treat draft delivery as final answer persistence.",
         "Do not run live Telegram sends without explicit operator Go."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "ec35bfdd",
+        "evidence_summary": [
+          "Added env-gated send_telegram_rich_draft and send_telegram_rich_message helpers with stable nonzero draft IDs, TELEGRAM_RICH_MESSAGES_ENABLED, TELEGRAM_RICH_DRAFTS_ENABLED, and TELEGRAM_DRAFT_INTERVAL_MS status exposure.",
+          "Final rich delivery strips draft-only tg-thinking blocks and falls back to classic HTML sendMessage when rich final delivery fails.",
+          "Focused Telegram, release-boundary, roadmap, and benchmark tests passed locally: 63 passed.",
+          "Feature commit ec35bfdd was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version, app health, Chroma heartbeat, and plugin startup passed."
+        ]
+      }
     },
     {
       "id": "visual-agent-programming",
@@ -1790,11 +1803,6 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "telegram-rich-draft-streaming",
-      "action": "Add Telegram rich draft streaming after safe rich text rendering is live."
-    },
-    {
-      "rank": 2,
       "node_id": "visual-agent-programming",
       "action": "Keep visual agent programming visible behind Telegram streaming and the now-live orchestration foundation."
     }

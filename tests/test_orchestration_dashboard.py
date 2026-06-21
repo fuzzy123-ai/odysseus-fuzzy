@@ -14,9 +14,10 @@ def test_current_roadmap_dashboard_snapshot_is_compact_and_actionable():
         last_updated_at="2026-06-21T10:30:00+00:00",
     )
     payload = snapshot.to_dict()
+    expected_status = "healthy" if runtime.next_claimable_node_id() else "completed"
 
     assert payload["dashboard_id"] == "odysseus-multiagent-roadmap-dashboard"
-    assert payload["plan_status"] == "healthy"
+    assert payload["plan_status"] == expected_status
     assert payload["active_node_id"] == runtime.recommended_active_node
     assert payload["next_claimable_node_id"] == runtime.next_claimable_node_id()
     assert payload["progress_percent"] > 0
@@ -25,7 +26,10 @@ def test_current_roadmap_dashboard_snapshot_is_compact_and_actionable():
     assert payload["heartbeat_status"]["automation"] == "active"
     assert payload["quality_gates"]["claimed_done_without_verified_done_count"] == 0
     assert payload["controls"]["pause"]["state"] == "policy_gated"
-    assert any(action["node_id"] == runtime.next_claimable_node_id() for action in payload["next_actions"])
+    if runtime.next_claimable_node_id():
+        assert any(action["node_id"] == runtime.next_claimable_node_id() for action in payload["next_actions"])
+    else:
+        assert all(action["status"] == "waiting" for action in payload["next_actions"])
     assert all("ref" in evidence for evidence in payload["evidence_refs"])
 
 
