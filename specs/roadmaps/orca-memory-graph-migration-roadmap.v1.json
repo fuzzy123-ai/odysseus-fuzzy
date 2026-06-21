@@ -36,7 +36,7 @@
   "current_evidence": {
     "observed_state_date": "2026-06-21",
     "branch": "dev",
-    "local_status": "ahead_of_origin_dev_with_untracked_roadmaps",
+    "local_status": "dev_ahead_origin_dev_by_754_with_two_untracked_peer_roadmaps",
     "active_alice_bob_threads": "none_found_for_alice_bob_charlie_or_orca_obsidian_query",
     "existing_plan_context": [
       "specs/roadmaps/obsidian-memory-live-activation-roadmap.v1.json tracks live activation of Obsidian memory systems.",
@@ -234,6 +234,7 @@
     },
     "charlie_frontend_api_prefix_compatibility": {
       "status": "done",
+      "commit": "d06473d3",
       "changed_files": [
         "plugins/obsidian/frontend/main.js",
         "plugins/obsidian/frontend/app.js",
@@ -536,13 +537,12 @@
         "Focused import and contract tests are listed."
       ],
       "completion_state": {
-        "status": "in_progress",
-        "commit": "not committed",
+        "status": "done",
+        "commit": "not committed: read-only planning slice",
         "evidence": [
-          "Done: initial user-facing dock/modal label now says ORCA Atlas.",
-          "Done: standalone app title now says Odysseus ORCA Atlas.",
-          "Done: ORCA alias tool descriptions no longer inherit Obsidian wording when Obsidian appeared in the legacy description.",
-          "Remaining: broader frontend API call migration to /api/plugins/orca and internal CSS/JS identifier migration are deferred to a later, larger compatibility slice."
+          "Bob handoff defined the ORCA core boundary: memory graph semantics, provenance, readiness, freshness/quarantine policy, derived index, query layer, RAPTOR status/cache/rebuild/warming, ledger, rebuild proof, automation status, and retrieval/context-provider contracts.",
+          "Bob handoff defined the non-core Local Markdown Vault/source adapter boundary: vault resolution, Markdown read/write, frontmatter, tags, relationships, import/export, lock/history/snapshots, and current .obsidian compatibility storage.",
+          "No files were moved or renamed during this planning slice."
         ]
       }
     },
@@ -552,7 +552,7 @@
       "title": "Add ORCA tool and route aliases",
       "priority_rank": 6,
       "horizon": "v1-compat",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "orca3-compat-surface-design"
       ],
@@ -575,7 +575,7 @@
       ],
       "completion_state": {
         "status": "done",
-        "commit": "not committed",
+        "commit": "3a321023",
         "evidence": [
           "Done: orca_* VaultToolSpec aliases exist beside obsidian_* aliases.",
           "Done: plugin.py registers orca_* runtime agent tool aliases beside obsidian_* tools.",
@@ -592,7 +592,7 @@
       "title": "Extract ORCA core modules behind adapters",
       "priority_rank": 7,
       "horizon": "v2-core",
-      "status": "active",
+      "status": "planned",
       "depends_on": [
         "orca4-core-extraction-plan",
         "orca5-tool-route-aliases"
@@ -615,14 +615,9 @@
         "No frontend rewrite in this slice unless tests require import path updates."
       ],
       "completion_state": {
-        "status": "partial",
-        "commit": "pending local commit: Route frontend through ORCA prefix helper",
-        "evidence": [
-          "Done: frontend API calls now use pluginApi() or PLUGIN_API_PREFIX so ORCA standalone/routes can call /api/plugins/orca.",
-          "Done: standalone app.js selects /api/plugins/orca when loaded through the ORCA route and keeps /api/plugins/obsidian as legacy fallback.",
-          "Done: focused static, frontend contract, plugin load, and ORCA compatibility tests pass.",
-          "Deferred: internal CSS classes, JS globals, function names, and obsidian-* identifiers remain stable until a later explicit identifier migration slice."
-        ]
+        "status": "not_started",
+        "commit": "",
+        "evidence": []
       }
     },
     {
@@ -631,7 +626,7 @@
       "title": "Rename frontend concepts to ORCA Lens surfaces",
       "priority_rank": 8,
       "horizon": "v2-core",
-      "status": "planned",
+      "status": "active",
       "depends_on": [
         "orca5-tool-route-aliases"
       ],
@@ -654,9 +649,15 @@
         "Add ORCA frontend contract tests when route aliases exist."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "evidence": []
+        "status": "partial",
+        "commit": "d06473d3",
+        "evidence": [
+          "Done in 3a321023: initial user-facing dock/modal label now says ORCA Atlas.",
+          "Done in 3a321023: standalone app title now says Odysseus ORCA Atlas.",
+          "Done in d06473d3: frontend API calls now use pluginApi() or PLUGIN_API_PREFIX so ORCA standalone/routes can call /api/plugins/orca.",
+          "Done in d06473d3: standalone app.js selects /api/plugins/orca when loaded through the ORCA route and keeps /api/plugins/obsidian as legacy fallback.",
+          "Deferred: internal CSS classes, JS globals, function names, and obsidian-* identifiers remain stable until a later explicit identifier migration slice."
+        ]
       }
     },
     {
