@@ -187,6 +187,41 @@ class VisualPlanMutationPatchResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class VisualPlanMutationApplyResult:
+    apply_id: str
+    state: str
+    valid: bool
+    file_written: bool
+    can_start_agent: bool
+    stops: tuple[dict[str, str], ...]
+    applied_payload: dict[str, Any]
+    rollback: dict[str, Any]
+    audit: dict[str, str]
+    version: dict[str, str]
+    agent_start_request: dict[str, str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "apply_id": self.apply_id,
+            "state": self.state,
+            "valid": self.valid,
+            "file_written": self.file_written,
+            "can_start_agent": self.can_start_agent,
+            "stops": list(self.stops),
+            "applied_payload": self.applied_payload,
+            "rollback": self.rollback,
+            "audit": self.audit,
+            "version": self.version,
+            "agent_start_request": self.agent_start_request,
+            "policy": {
+                "mode": "mutation_apply_adapter",
+                "write_boundary": "applies to roadmap payload; filesystem persistence is a separate commit/deploy operation",
+                "agent_start_boundary": "agent start is returned as a request, not executed by apply",
+            },
+        }
+
+
 def build_visual_agent_programming_snapshot(
     runtime: PlanRuntimeState,
     *,
@@ -219,6 +254,77 @@ def build_visual_agent_programming_snapshot(
         next_steps=_next_steps(runtime=runtime, claimable_ids=claimable_ids),
         context_policy=_context_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
+    )
+
+
+def apply_visual_plan_mutation_patch(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+    *,
+    last_updated_at: str,
+) -> VisualPlanMutationApplyResult:
+    if not isinstance(runtime, PlanRuntimeState):
+        raise VisualAgentProgrammingLensError("runtime must be a PlanRuntimeState")
+    if not isinstance(payload, dict):
+        raise VisualAgentProgrammingLensError("payload must be an object")
+    if not str(last_updated_at or "").strip():
+        raise VisualAgentProgrammingLensError("last_updated_at must not be empty")
+
+    patch_payload = payload.get("patch_result", {})
+    stops: list[dict[str, str]] = []
+    if not isinstance(patch_payload, dict):
+        stops.append(_stop("missing_patch_result", "patch_result must be an object"))
+        patch_payload = {}
+    if patch_payload.get("state") != "patch_ready" or patch_payload.get("can_write") is not True:
+        stops.append(_stop("patch_not_authorized", "patch_result must be patch_ready and can_write=true"))
+    patch = patch_payload.get("patch", {})
+    if not isinstance(patch, dict) or not isinstance(patch.get("operations"), list):
+        stops.append(_stop("missing_patch_operations", "patch.operations must be a list"))
+    audit = patch_payload.get("audit", {}) if isinstance(patch_payload.get("audit", {}), dict) else {}
+    permission_mode = str(audit.get("permission_mode", "require_confirmation"))
+    apply_confirmation = str(payload.get("apply_confirmation", "")).strip()
+    if permission_mode != "approve_for_me" and apply_confirmation != "APPLY_AUTHORIZED_VISUAL_PATCH":
+        stops.append(_stop("missing_apply_confirmation", "apply_confirmation must be APPLY_AUTHORIZED_VISUAL_PATCH"))
+
+    if stops:
+        return _apply_result(
+            runtime,
+            payload=payload,
+            last_updated_at=str(last_updated_at).strip(),
+            state="rejected",
+            stops=stops,
+            applied_payload={},
+            rollback={},
+            agent_start_request={"state": "blocked", "reason": "patch apply was rejected"},
+        )
+
+    base_payload = _runtime_payload(runtime, extra_nodes=(), replacements={})
+    applied_payload, rollback = _apply_patch_to_payload(base_payload, patch["operations"], applied_at=str(last_updated_at).strip())
+    try:
+        PlanRuntimeState.from_dict(applied_payload)
+    except (PlanRuntimeError, TypeError, ValueError) as exc:
+        stops.append(_stop("applied_payload_invalid", str(exc)))
+        return _apply_result(
+            runtime,
+            payload=payload,
+            last_updated_at=str(last_updated_at).strip(),
+            state="rejected",
+            stops=stops,
+            applied_payload={},
+            rollback=rollback,
+            agent_start_request={"state": "blocked", "reason": "applied payload did not validate"},
+        )
+
+    agent_request = _apply_agent_start_request(patch_payload)
+    return _apply_result(
+        runtime,
+        payload=payload,
+        last_updated_at=str(last_updated_at).strip(),
+        state="applied_to_payload",
+        stops=[],
+        applied_payload=applied_payload,
+        rollback=rollback,
+        agent_start_request=agent_request,
     )
 
 
@@ -718,6 +824,99 @@ def _agent_start_request(payload: dict[str, Any], *, can_write: bool) -> dict[st
     if not can_write:
         return {"state": "blocked", "reason": "mutation patch is not write-authorized"}
     return {"state": "authorized_after_apply", "reason": "agent start is authorized only after a future apply adapter succeeds"}
+
+
+def _apply_patch_to_payload(
+    payload: dict[str, Any],
+    operations: list[Any],
+    *,
+    applied_at: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    next_payload: dict[str, Any] = {
+        **payload,
+        "graph_nodes": [dict(node) for node in payload.get("graph_nodes", [])],
+        "graph_edges": [dict(edge) for edge in payload.get("graph_edges", [])],
+    }
+    rollback_operations: list[dict[str, Any]] = []
+    node_map = {node["id"]: node for node in next_payload["graph_nodes"]}
+    for operation in operations:
+        if not isinstance(operation, dict):
+            continue
+        op = operation.get("op")
+        if op == "add_node" and isinstance(operation.get("node"), dict):
+            node = dict(operation["node"])
+            node["updated_at"] = applied_at
+            next_payload["graph_nodes"].append(node)
+            node_map[node["id"]] = node
+            rollback_operations.append({"op": "remove_node", "node_id": node["id"]})
+        elif op == "add_edge":
+            source = str(operation.get("from", "")).strip()
+            target = str(operation.get("to", "")).strip()
+            kind = str(operation.get("kind", "")).strip()
+            next_payload["graph_edges"].append({"from": source, "to": target, "kind": kind, "updated_at": applied_at})
+            if kind == "depends_on" and target in node_map:
+                deps = list(node_map[target].get("depends_on", []))
+                if source not in deps:
+                    deps.append(source)
+                node_map[target]["depends_on"] = deps
+            elif kind == "unlocks" and source in node_map:
+                unlocks = list(node_map[source].get("unlocks", []))
+                if target not in unlocks:
+                    unlocks.append(target)
+                node_map[source]["unlocks"] = unlocks
+            rollback_operations.append({"op": "remove_edge", "from": source, "to": target, "kind": kind})
+    next_payload["visual_mutation_version"] = {
+        "updated_at": applied_at,
+        "node_count": len(next_payload["graph_nodes"]),
+        "edge_count": len(next_payload["graph_edges"]),
+    }
+    return next_payload, {"operations": tuple(reversed(rollback_operations)), "created_at": applied_at}
+
+
+def _apply_agent_start_request(patch_payload: dict[str, Any]) -> dict[str, str]:
+    request = patch_payload.get("agent_start_request", {})
+    if not isinstance(request, dict) or request.get("state") != "authorized_after_apply":
+        return {"state": "not_requested", "reason": "no authorized agent start request on patch"}
+    return {"state": "ready_for_dispatch", "reason": "apply succeeded; dispatch still requires orchestration runtime"}
+
+
+def _apply_result(
+    runtime: PlanRuntimeState,
+    *,
+    payload: dict[str, Any],
+    last_updated_at: str,
+    state: str,
+    stops: list[dict[str, str]],
+    applied_payload: dict[str, Any],
+    rollback: dict[str, Any],
+    agent_start_request: dict[str, str],
+) -> VisualPlanMutationApplyResult:
+    patch_payload = payload.get("patch_result", {}) if isinstance(payload.get("patch_result", {}), dict) else {}
+    audit = patch_payload.get("audit", {}) if isinstance(patch_payload.get("audit", {}), dict) else {}
+    apply_id = f"visual-apply-{_slug(str(audit.get('operator_id', 'unknown')))}-{_slug(last_updated_at)}"
+    version = patch_payload.get("version", {}) if isinstance(patch_payload.get("version", {}), dict) else {}
+    return VisualPlanMutationApplyResult(
+        apply_id=apply_id,
+        state=state,
+        valid=not stops,
+        file_written=False,
+        can_start_agent=agent_start_request["state"] == "ready_for_dispatch",
+        stops=tuple(stops),
+        applied_payload=applied_payload,
+        rollback=rollback,
+        audit={
+            "operator_id": str(audit.get("operator_id", "")),
+            "permission_mode": str(audit.get("permission_mode", "")),
+            "roadmap_path": runtime.roadmap_path,
+            "applied_at": last_updated_at,
+        },
+        version={
+            "base_version": str(version.get("base_version", "")),
+            "patch_version": str(version.get("next_version", "")),
+            "applied_version": f"{version.get('next_version', 'unknown')}-applied-{_slug(last_updated_at)}",
+        },
+        agent_start_request=agent_start_request,
+    )
 
 
 def _visual_status(node: PlanRuntimeNode) -> str:

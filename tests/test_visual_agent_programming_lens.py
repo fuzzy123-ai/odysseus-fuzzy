@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from routes.roadmap_routes import setup_roadmap_routes
 from src.plan_runtime import PlanRuntimeState
 from src.visual_agent_programming_lens import (
+    apply_visual_plan_mutation_patch,
     build_visual_agent_programming_snapshot,
     build_visual_plan_mutation_patch,
     build_visual_plan_proposal_queue,
@@ -460,3 +461,134 @@ def test_visual_plan_mutation_patch_route_returns_patch(monkeypatch):
     payload = response.json()
     assert payload["state"] == "patch_ready"
     assert payload["policy"]["write_boundary"] == "patch is authorized but not applied by this endpoint"
+
+
+def test_visual_plan_mutation_apply_adapter_applies_patch_to_payload_with_rollback():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+    patch = build_visual_plan_mutation_patch(
+        runtime,
+        {
+            "operator_id": "charlie",
+            "permission_mode": "approve_for_me",
+            "visual_status": "ready",
+            "proposal": {
+                "action": "create_node",
+                "from_node": "visual-agent-programming-apply-adapter",
+                "node_id": "visual-agent-programming-apply-probe",
+                "title": "Apply probe",
+                "kind": "runtime",
+                "horizon": "later",
+                "target_version": "future",
+                "status": "planned",
+                "source_refs": ["specs/roadmaps/odysseus-multiagent-roadmap.v1.json"],
+                "deliverables": ["Apply adapter proof"],
+            },
+        },
+        last_updated_at="2026-06-21T13:10:00+00:00",
+    ).to_dict()
+
+    result = apply_visual_plan_mutation_patch(
+        runtime,
+        {"patch_result": patch},
+        last_updated_at="2026-06-21T13:11:00+00:00",
+    ).to_dict()
+
+    assert result["state"] == "applied_to_payload"
+    assert result["valid"] is True
+    assert result["file_written"] is False
+    assert result["version"]["applied_version"].endswith("applied-2026-06-21t13-11-00-00-00")
+    node_ids = {node["id"] for node in result["applied_payload"]["graph_nodes"]}
+    assert "visual-agent-programming-apply-probe" in node_ids
+    assert result["rollback"]["operations"][0]["op"] == "remove_edge"
+    assert result["rollback"]["operations"][1] == {
+        "op": "remove_node",
+        "node_id": "visual-agent-programming-apply-probe",
+    }
+
+
+def test_visual_plan_mutation_apply_adapter_requires_confirmation_for_default_mode():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+    patch = build_visual_plan_mutation_patch(
+        runtime,
+        {
+            "operator_id": "charlie",
+            "permission_mode": "require_confirmation",
+            "mutation_confirmation": "APPLY_VISUAL_PLAN_MUTATION",
+            "proposal": {
+                "action": "connect_dependency",
+                "from_node": "roadmap-lens-readonly",
+                "to_node": "visual-agent-programming-apply-adapter",
+                "kind": "depends_on",
+            },
+        },
+        last_updated_at="2026-06-21T13:12:00+00:00",
+    ).to_dict()
+
+    result = apply_visual_plan_mutation_patch(
+        runtime,
+        {"patch_result": patch},
+        last_updated_at="2026-06-21T13:13:00+00:00",
+    ).to_dict()
+
+    assert result["state"] == "rejected"
+    assert any(stop["code"] == "missing_apply_confirmation" for stop in result["stops"])
+    assert result["applied_payload"] == {}
+
+
+def test_visual_plan_mutation_apply_adapter_returns_agent_dispatch_request_after_apply():
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+    patch = build_visual_plan_mutation_patch(
+        runtime,
+        {
+            "operator_id": "charlie",
+            "permission_mode": "approve_for_me",
+            "start_agent_after_apply": True,
+            "agent_start_confirmation": "START_AGENT_AFTER_MUTATION",
+            "proposal": {
+                "action": "create_node",
+                "from_node": "visual-agent-programming-apply-adapter",
+                "node_id": "visual-agent-programming-agent-start-probe",
+            },
+        },
+        last_updated_at="2026-06-21T13:14:00+00:00",
+    ).to_dict()
+
+    result = apply_visual_plan_mutation_patch(
+        runtime,
+        {"patch_result": patch},
+        last_updated_at="2026-06-21T13:15:00+00:00",
+    ).to_dict()
+
+    assert result["state"] == "applied_to_payload"
+    assert result["can_start_agent"] is True
+    assert result["agent_start_request"]["state"] == "ready_for_dispatch"
+
+
+def test_visual_plan_mutation_apply_route_returns_payload(monkeypatch):
+    monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+    patch = build_visual_plan_mutation_patch(
+        runtime,
+        {
+            "operator_id": "charlie",
+            "permission_mode": "approve_for_me",
+            "proposal": {
+                "action": "create_node",
+                "from_node": "visual-agent-programming-apply-adapter",
+                "node_id": "visual-agent-programming-route-apply-probe",
+            },
+        },
+        last_updated_at="2026-06-21T13:16:00+00:00",
+    ).to_dict()
+    app = FastAPI()
+    app.include_router(setup_roadmap_routes())
+
+    response = TestClient(app).post(
+        "/api/roadmap/visual-agent-programming/mutations/apply",
+        json={"patch_result": patch},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] == "applied_to_payload"
+    assert payload["policy"]["write_boundary"] == "applies to roadmap payload; filesystem persistence is a separate commit/deploy operation"
