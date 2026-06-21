@@ -988,7 +988,7 @@
         "raptor-rebuild-live"
       ],
       "unlocks": [
-        "readiness-gate-live-green",
+        "teacher-model-orca-contract-live",
         "automation-continuation-live"
       ],
       "gates": [
@@ -1026,17 +1026,71 @@
       }
     },
     {
+      "id": "teacher-model-orca-contract-live",
+      "kind": "model_contract",
+      "title": "Teacher model ORCA contract",
+      "priority_rank": 9,
+      "horizon": "v0-10-hardening",
+      "target_version": "0.10",
+      "status": "planned",
+      "depends_on": [
+        "raptor-read-policy-live"
+      ],
+      "unlocks": [
+        "readiness-gate-live-green"
+      ],
+      "gates": [
+        "local_teacher_model_detected",
+        "teacher_route_uses_orca_context_contract",
+        "teacher_handles_plan_graph_and_memory_evidence",
+        "teacher_degrades_without_aaa_model",
+        "no_cloud_model_assumption",
+        "live_contract_verified"
+      ],
+      "source_refs": [
+        "plugins/obsidian/backend/model_router.py",
+        "plugins/obsidian/backend/context_provider.py",
+        "plugins/obsidian/backend/memory_status.py",
+        "src/mission_status.py",
+        "tests/test_agent_run_ledger.py",
+        "tests/test_obsidian_memory_mission_contract.py"
+      ],
+      "deliverables": [
+        "Audit how the existing teacher model is configured and selected in the live local-model deployment.",
+        "Define and test the teacher model contract for ORCA context: derived index citations, quarantine/freshness policy, RAPTOR read policy, and plan graph evidence.",
+        "Prove the teacher path works with a local model or an extractive fallback, without assuming an AAA/cloud model.",
+        "Surface clear capability warnings when the local teacher model is missing, too small, context-limited, or falls back to extractive mode."
+      ],
+      "abc": {
+        "owner": "bob",
+        "mode": "explorer",
+        "reason": "Start with a read-only audit of model routing and teacher responsibilities before changing model behavior."
+      },
+      "verification": [
+        "Read-only live model routing check for teacher/default/utility roles without leaking endpoints or secrets.",
+        "venv\\Scripts\\python.exe -m pytest tests\\test_obsidian_memory_mission_contract.py tests\\test_agent_run_ledger.py plugins\\obsidian\\tests\\test_context_provider_backend.py",
+        "Live ORCA memory status confirms context evidence available before teacher answer tests.",
+        "If a teacher answer route exists, live test verifies source/capability metadata without storing provider output."
+      ],
+      "completion_state": {
+        "status": "not_started",
+        "commit": "",
+        "live_evidence": []
+      }
+    },
+    {
       "id": "readiness-gate-live-green",
       "kind": "release_gate",
       "title": "Readiness Gate live green",
-      "priority_rank": 9,
+      "priority_rank": 10,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
       "status": "planned",
       "depends_on": [
         "freshness-hybrid-filtering-live",
         "quarantine-live-behavior",
-        "raptor-read-policy-live"
+        "raptor-read-policy-live",
+        "teacher-model-orca-contract-live"
       ],
       "unlocks": [
         "automation-continuation-live"
@@ -1081,7 +1135,7 @@
       "id": "automation-continuation-live",
       "kind": "automation",
       "title": "ABC continuation until all live",
-      "priority_rank": 10,
+      "priority_rank": 11,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
       "status": "planned",
@@ -1134,6 +1188,18 @@
       "rank": 1,
       "node_id": "raptor-rebuild-live",
       "action": "Requires explicit operator Go before enabling RAPTOR flags and writing derived RAPTOR artifacts.",
+      "owner": "charlie"
+    },
+    {
+      "rank": 2,
+      "node_id": "teacher-model-orca-contract-live",
+      "action": "Remain blocked until RAPTOR read policy is live; then audit and verify that the local teacher model works with ORCA context without AAA/cloud-model assumptions.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "readiness-gate-live-green",
+      "action": "Remain blocked until Freshness, Quarantine, RAPTOR read policy, and Teacher model contract are all live or explicitly deferred.",
       "owner": "charlie"
     }
   ],
