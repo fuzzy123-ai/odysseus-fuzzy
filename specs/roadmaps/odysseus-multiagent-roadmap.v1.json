@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "heartbeat-runtime-live-loop",
+  "recommended_active_node": "worktree-branch-isolation",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -964,11 +964,12 @@
       "title": "Run the Heartbeat Runtime Loop against real state",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Use PlanRuntime, claims, thread state, handoff mailbox, and gates to dispatch next safe work.",
       "why": "The current loop plans ticks from injected snapshots. Real multiagent work requires safe dispatch, wait, resolve, and stop decisions.",
       "source_refs": [
         "src/orchestration_runtime_loop.py",
+        "tests/test_orchestration_runtime_loop.py",
         "src/heartbeat_coordinator.py",
         "docs/plans/heartbeat-coordinator-contract.md"
       ],
@@ -994,7 +995,25 @@
       ],
       "blocked_actions": [
         "No endless autonomous loop without visible stop criteria."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "d65e8a38",
+        "implementation_refs": [
+          "src/orchestration_runtime_loop.py",
+          "tests/test_orchestration_runtime_loop.py"
+        ],
+        "evidence_summary": [
+          "RuntimeHeartbeatInput now binds PlanRuntimeState, ClaimLeaseStore, HeartbeatCoordinatorState, ThreadLifecycleSnapshot, RuntimeDispatchIntent, QualityGateResult, and checked_at into one safe tick input.",
+          "plan_runtime_tick stops when no roadmap node is claimable, when required quality gates block, or when a different active file lock owns the claimable node files.",
+          "When runtime inputs are unblocked, the planner delegates to the existing heartbeat tick planner and preserves PlanRuntime, claim, gate, and thread evidence.",
+          "Focused orchestration runtime, heartbeat coordinator, thread lifecycle bridge, claim lease, and PlanRuntime tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, and Chroma heartbeat checks passed for commit d65e8a38."
+        ],
+        "next_claimable_node": "worktree-branch-isolation"
+      }
     },
     {
       "id": "worktree-branch-isolation",
@@ -1681,18 +1700,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "thread-bridge-live",
-      "action": "Make Thread Lifecycle Bridge read and route real threads after the operator-gated execution backend adapter is live."
+      "node_id": "worktree-branch-isolation",
+      "action": "Give write-capable workers isolated branches or worktrees before scaling parallel implementation."
     },
     {
       "rank": 2,
-      "node_id": "memory-capsule-integration",
-      "action": "Prepare durable context capsules once the live thread bridge path is established."
+      "node_id": "orchestration-dashboard-control-center",
+      "action": "Expose the now-live roadmap, claims, heartbeat, and stop state in a visible operator dashboard."
     },
     {
       "rank": 3,
-      "node_id": "heartbeat-runtime-live-loop",
-      "action": "Run the heartbeat runtime loop after thread bridge and gate runners are live."
+      "node_id": "memory-capsule-integration",
+      "action": "Prepare durable context capsules after write isolation and visible orchestration state are established."
     }
   ]
 }
