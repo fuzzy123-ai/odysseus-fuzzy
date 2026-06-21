@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "orchestration-dashboard-control-center",
+  "recommended_active_node": "memory-capsule-integration",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1078,11 +1078,14 @@
       "title": "Build orchestration dashboard control center",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Show active plans, subagents, claims, leases, gates, handoffs, commits, blockers, and next actions.",
       "why": "Multiagent state must be visible without reading many chat histories.",
       "source_refs": [
-        "src/orchestration_dashboard_v2.py",
+        "src/orchestration_dashboard.py",
+        "routes/roadmap_routes.py",
+        "tests/test_orchestration_dashboard.py",
+        "tests/test_roadmap_lens.py",
         "docs/plans/mini-orchestration-dashboard-contract.md"
       ],
       "depends_on": [
@@ -1106,7 +1109,27 @@
       ],
       "blocked_actions": [
         "No destructive controls in dashboard v1."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "300ca137",
+        "implementation_refs": [
+          "src/orchestration_dashboard.py",
+          "routes/roadmap_routes.py",
+          "tests/test_orchestration_dashboard.py",
+          "tests/test_roadmap_lens.py"
+        ],
+        "evidence_summary": [
+          "OrchestrationDashboardSnapshot exposes compact plan status, progress, counts, Charlie path, heartbeat status, quality-gate lens, blockers, next actions, evidence refs, and policy-gated controls.",
+          "GET /api/roadmap/dashboard returns an admin-protected read-only dashboard snapshot from the canonical PlanRuntime roadmap.",
+          "Dashboard v1 keeps pause/resume/cancel/retry controls policy-gated and read-only.",
+          "Focused dashboard, Roadmap Lens, workspace policy, PlanRuntime, and orchestration runtime tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, Chroma heartbeat, and dashboard route smoke checks passed for commit 300ca137."
+        ],
+        "next_claimable_node": "memory-capsule-integration"
+      }
     },
     {
       "id": "memory-capsule-integration",
@@ -1720,18 +1743,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "orchestration-dashboard-control-center",
-      "action": "Expose the now-live roadmap, claims, heartbeat, workspace assignment, and stop state in a visible operator dashboard."
-    },
-    {
-      "rank": 2,
       "node_id": "memory-capsule-integration",
       "action": "Prepare durable context capsules after write isolation and visible orchestration state are established."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "multiagent-e2e-benchmarks",
       "action": "Run multiagent end-to-end benchmarks after dashboard visibility and memory capsules are live."
+    },
+    {
+      "rank": 3,
+      "node_id": "telegram-rich-text-rendering",
+      "action": "Start Telegram rich text rendering after multiagent benchmarks prove the core runtime path."
     }
   ]
 }

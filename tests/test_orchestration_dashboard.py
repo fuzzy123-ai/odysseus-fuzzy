@@ -31,6 +31,7 @@ def test_current_roadmap_dashboard_snapshot_is_compact_and_actionable():
 
 def test_roadmap_dashboard_route_returns_admin_snapshot(monkeypatch):
     monkeypatch.setattr("routes.roadmap_routes.require_admin", lambda request: None)
+    runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
     app = FastAPI()
     app.include_router(setup_roadmap_routes())
 
@@ -39,5 +40,5 @@ def test_roadmap_dashboard_route_returns_admin_snapshot(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["dashboard_id"] == "odysseus-multiagent-roadmap-dashboard"
-    assert payload["next_claimable_node_id"] == "orchestration-dashboard-control-center"
+    assert payload["next_claimable_node_id"] == runtime.next_claimable_node_id()
     assert payload["controls"]["retry"]["reason"] == "dashboard v1 is read-only"
