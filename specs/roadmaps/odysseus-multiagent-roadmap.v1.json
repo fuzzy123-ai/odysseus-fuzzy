@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "memory-capsule-integration",
+  "recommended_active_node": "multiagent-e2e-benchmarks",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1138,10 +1138,12 @@
       "title": "Integrate Memory/RAPTOR into scoped ContextCapsules",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Use durable memory and derived graph state as bounded capsule input, not global chat dumps.",
       "why": "Memory durability and RAPTOR foundations exist. Multiagent runs need relevant project memory, decisions, and prior evidence with strict redaction.",
       "source_refs": [
+        "src/context_capsule.py",
+        "tests/test_context_capsule.py",
         "docs/plans/memory-durability-performance-suite-roadmap.md",
         "docs/plans/raptor-memory-write-enable-abc-roadmap.md",
         "docs/plans/raptor-dynamic-cache-abc-roadmap.md",
@@ -1167,7 +1169,25 @@
       ],
       "blocked_actions": [
         "No global memory dump into subagent prompts."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "completed_at": "2026-06-21",
+        "commit": "28a53b32",
+        "implementation_refs": [
+          "src/context_capsule.py",
+          "tests/test_context_capsule.py"
+        ],
+        "evidence_summary": [
+          "CapsuleMemoryItem adds accepted, compact memory entries with kind, repo source_ref, bounded summary, confidence, and evidence refs.",
+          "ContextCapsule memory_items reject unaccepted reports, non-CapsuleMemoryItem values, out-of-repo sources, oversized summaries, bad confidence, and excessive memory-summary budgets.",
+          "memory_context returns future-agent-safe summaries rather than raw chat, provider output, or global memory dumps.",
+          "Focused context capsule, subagent runtime contract, subagent runtime, subagent plan binding, and PlanRuntime tests pass locally.",
+          "Feature pushed to fuzzy/dev and installed through the homeserver auto-updater.",
+          "Live /api/version, /api/health, and Chroma heartbeat checks passed for commit 28a53b32."
+        ],
+        "next_claimable_node": "multiagent-e2e-benchmarks"
+      }
     },
     {
       "id": "multiagent-e2e-benchmarks",
@@ -1743,18 +1763,18 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "memory-capsule-integration",
-      "action": "Prepare durable context capsules after write isolation and visible orchestration state are established."
-    },
-    {
-      "rank": 2,
       "node_id": "multiagent-e2e-benchmarks",
       "action": "Run multiagent end-to-end benchmarks after dashboard visibility and memory capsules are live."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "telegram-rich-text-rendering",
       "action": "Start Telegram rich text rendering after multiagent benchmarks prove the core runtime path."
+    },
+    {
+      "rank": 3,
+      "node_id": "telegram-rich-draft-streaming",
+      "action": "Add Telegram rich draft streaming after safe rich text rendering is live."
     }
   ]
 }

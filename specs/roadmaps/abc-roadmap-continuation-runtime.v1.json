@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "memory-capsule-integration",
+    "node_id": "multiagent-e2e-benchmarks",
     "status": "active",
-    "why_first": "Dashboard visibility is live; durable scoped context capsules are now needed so future agents receive accepted project memory and evidence instead of raw chat or global dumps."
+    "why_first": "Heartbeat, worktree isolation, dashboard visibility, and scoped memory capsules are live; multiagent end-to-end benchmarks can now prove the core runtime path before Telegram/domain tracks."
   },
   "completed_features": [
     {
@@ -87,6 +87,12 @@
       "status": "live_installed",
       "evidence_commit": "300ca137",
       "evidence": "OrchestrationDashboardSnapshot and /api/roadmap/dashboard expose compact read-only plan progress, heartbeat, gates, blockers, next actions, evidence refs, and policy-gated controls; focused tests and live route smoke pass."
+    },
+    {
+      "node_id": "memory-capsule-integration",
+      "status": "live_installed",
+      "evidence_commit": "28a53b32",
+      "evidence": "CapsuleMemoryItem and ContextCapsule.memory_items provide bounded accepted memory summaries with source/evidence refs and reject unaccepted reports, out-of-repo sources, oversized summaries, bad confidence, and raw global memory dumps."
     }
   ],
   "continuation_policy": {
