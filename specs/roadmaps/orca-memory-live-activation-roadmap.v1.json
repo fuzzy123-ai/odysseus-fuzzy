@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "canonical-vault-foundation",
+  "recommended_active_node": "derived-graph-edges-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -356,7 +356,7 @@
       "priority_rank": 3,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "memory-live-baseline-audit"
       ],
@@ -389,9 +389,93 @@
         "Derived graph source scan sees explicit link candidates."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "632db61e",
+        "completed_at": "2026-06-21T22:10:00+02:00",
+        "live_evidence": [
+          {
+            "check": "operator_go",
+            "result": "ok",
+            "summary": {
+              "scope": "canonical-vault-foundation",
+              "mutation": "create_or_seed_canonical_notes_and_active_run_links"
+            }
+          },
+          {
+            "check": "POST /api/plugins/orca/batch",
+            "result": "ok",
+            "summary": {
+              "operation_count": 5,
+              "paths": [
+                "AI Memory/Canonical/User Preferences.md",
+                "AI Memory/Canonical/Odysseus Architecture.md",
+                "AI Memory/Canonical/ORCA Local Markdown Vault Rules.md",
+                "AI Memory/Canonical/Open Decisions.md",
+                "_state/active_run.md"
+              ],
+              "no_private_content_in_evidence": true
+            }
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "632db61e",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "GET /api/plugins/orca/memory-tree",
+            "result": "ok",
+            "summary": {
+              "enabled": true,
+              "readiness_state": "ready",
+              "total_notes": 6,
+              "default_retrieval": 6,
+              "isolated": 0,
+              "issue_counts": {}
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/graph",
+            "result": "ok",
+            "summary": {
+              "nodes": 9,
+              "edges": 28,
+              "edge_types": [
+                "filename_mention",
+                "wiki_link"
+              ],
+              "active_run_outgoing_edges": 8
+            }
+          },
+          {
+            "check": "derived source link scan",
+            "result": "ok",
+            "summary": {
+              "sources_with_links": 5,
+              "total_links": 14,
+              "active_run_link_count": 4
+            }
+          },
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "command": "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_derived_index_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py",
+              "passed": 34
+            }
+          }
+        ]
       }
     },
     {
@@ -740,21 +824,21 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "canonical-vault-foundation",
-      "action": "Requires explicit operator Go before any vault note mutation; read-only prep only until then.",
-      "owner": "alice"
+      "node_id": "derived-graph-edges-live",
+      "action": "Build or activate derived graph edges from the now-linked live canonical vault; stop before index rebuild or derived-data writes unless the live write gate is explicitly satisfied.",
+      "owner": "bob"
     },
     {
       "rank": 2,
-      "node_id": "derived-graph-edges-live",
-      "action": "Remain blocked until canonical vault foundation creates explicit source links.",
+      "node_id": "freshness-hybrid-filtering-live",
+      "action": "Remain blocked until memory-tree-ui-live and derived-graph-edges-live are both live.",
       "owner": "bob"
     },
     {
       "rank": 3,
-      "node_id": "freshness-hybrid-filtering-live",
-      "action": "Remain blocked until memory-tree-ui-live and derived-graph-edges-live are both live.",
-      "owner": "bob"
+      "node_id": "raptor-rebuild-live",
+      "action": "Remain blocked until derived-graph-edges-live is complete and operator Go is present for RAPTOR write artifacts.",
+      "owner": "charlie"
     }
   ],
   "abc_execution": {
