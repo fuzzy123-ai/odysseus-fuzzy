@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming",
+  "recommended_active_node": "visual-agent-programming-mutation-patch-contract",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1094,7 +1094,7 @@
         "real-gate-runners"
       ],
       "unlocks": [
-        "visual-agent-programming"
+        "visual-agent-programming-mutation-patch-contract"
       ],
       "gates": [
         "read_status_without_side_effects",
@@ -1564,12 +1564,53 @@
       }
     },
     {
+      "id": "visual-agent-programming-mutation-patch-contract",
+      "kind": "runtime",
+      "priority_rank": 22,
+      "title": "Visual plan mutation patch contract",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Turn accepted visual plan proposals into auditable roadmap mutation patch documents with permissions, visual plan status, version, and timestamp metadata.",
+      "why": "The visual editor needs a safe bridge from validated proposals to write-capable roadmap changes before a UI apply button or agent-start path exists.",
+      "source_refs": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "visual-agent-programming-operator-acceptance-contract"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "default_requires_extra_confirmation",
+        "approve_for_me_mode_is_explicit",
+        "patch_has_audit_version_timestamp",
+        "node_status_visualized",
+        "agent_start_stays_separate"
+      ],
+      "deliverables": [
+        "Mutation patch request contract",
+        "Permission mode and confirmation handling",
+        "Plan status palette and node metadata",
+        "Version and timestamp metadata",
+        "Focused tests and live install"
+      ],
+      "blocked_actions": [
+        "No direct file write in this slice.",
+        "No automatic agent start from a mutation patch."
+      ]
+    },
+    {
       "id": "visual-agent-programming",
       "kind": "lens",
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
-      "priority_rank": 22,
+      "priority_rank": 23,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1584,7 +1625,8 @@
         "visual-agent-programming-readonly-lens",
         "visual-agent-programming-plan-edit-validator",
         "visual-agent-programming-proposal-review-queue",
-        "visual-agent-programming-operator-acceptance-contract"
+        "visual-agent-programming-operator-acceptance-contract",
+        "visual-agent-programming-mutation-patch-contract"
       ],
       "unlocks": [],
       "gates": [
@@ -1784,6 +1826,11 @@
     },
     {
       "from": "visual-agent-programming-operator-acceptance-contract",
+      "to": "visual-agent-programming-mutation-patch-contract",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-mutation-patch-contract",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -2042,6 +2089,11 @@
   "next_actions": [
     {
       "rank": 1,
+      "node_id": "visual-agent-programming-mutation-patch-contract",
+      "action": "Build the auditable mutation patch contract with permission modes, visual statuses, versioning, and timestamps."
+    },
+    {
+      "rank": 2,
       "node_id": "visual-agent-programming",
       "action": "Policy gate: the next step is the write-capable visual editor/mutation adapter and requires explicit operator decision before becoming claimable."
     }

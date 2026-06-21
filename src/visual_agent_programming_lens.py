@@ -17,6 +17,14 @@ from src.plan_runtime import PlanRuntimeError, PlanRuntimeNode, PlanRuntimeState
 _BRANCH_PREFIX = "visual-agent-programming"
 _VALID_EDIT_ACTIONS = {"create_node", "connect_dependency"}
 _VALID_EDIT_STATUSES = {"planned", "research", "deferred"}
+_VALID_VISUAL_STATUSES = {"draft", "reviewed", "ready", "working", "completed"}
+_VISUAL_STATUS_COLORS = {
+    "draft": "slate",
+    "reviewed": "amber",
+    "ready": "blue",
+    "working": "violet",
+    "completed": "green",
+}
 _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -144,6 +152,41 @@ class VisualPlanAcceptanceContractResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class VisualPlanMutationPatchResult:
+    patch_id: str
+    state: str
+    valid: bool
+    can_write: bool
+    can_start_agent: bool
+    stops: tuple[dict[str, str], ...]
+    patch: dict[str, Any]
+    audit: dict[str, str]
+    version: dict[str, str]
+    status_palette: dict[str, str]
+    agent_start_request: dict[str, str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "patch_id": self.patch_id,
+            "state": self.state,
+            "valid": self.valid,
+            "can_write": self.can_write,
+            "can_start_agent": self.can_start_agent,
+            "stops": list(self.stops),
+            "patch": self.patch,
+            "audit": self.audit,
+            "version": self.version,
+            "status_palette": self.status_palette,
+            "agent_start_request": self.agent_start_request,
+            "policy": {
+                "mode": "mutation_patch_contract",
+                "write_boundary": "patch is authorized but not applied by this endpoint",
+                "agent_start_boundary": "agent start is represented as a separate request, not executed here",
+            },
+        }
+
+
 def build_visual_agent_programming_snapshot(
     runtime: PlanRuntimeState,
     *,
@@ -176,6 +219,70 @@ def build_visual_agent_programming_snapshot(
         next_steps=_next_steps(runtime=runtime, claimable_ids=claimable_ids),
         context_policy=_context_policy(runtime),
         last_updated_at=str(last_updated_at).strip(),
+    )
+
+
+def build_visual_plan_mutation_patch(
+    runtime: PlanRuntimeState,
+    payload: dict[str, Any],
+    *,
+    last_updated_at: str,
+) -> VisualPlanMutationPatchResult:
+    if not isinstance(runtime, PlanRuntimeState):
+        raise VisualAgentProgrammingLensError("runtime must be a PlanRuntimeState")
+    if not isinstance(payload, dict):
+        raise VisualAgentProgrammingLensError("payload must be an object")
+    if not str(last_updated_at or "").strip():
+        raise VisualAgentProgrammingLensError("last_updated_at must not be empty")
+
+    operator_id = str(payload.get("operator_id", "")).strip()
+    permission_mode = str(payload.get("permission_mode", "require_confirmation")).strip().lower()
+    mutation_confirmation = str(payload.get("mutation_confirmation", "")).strip()
+    visual_status = str(payload.get("visual_status", "draft")).strip().lower()
+    proposal = payload.get("proposal", {})
+    stops: list[dict[str, str]] = []
+    if not operator_id:
+        stops.append(_stop("missing_operator_id", "operator_id is required"))
+    if permission_mode not in {"require_confirmation", "approve_for_me"}:
+        stops.append(_stop("unknown_permission_mode", "permission_mode must be require_confirmation or approve_for_me"))
+    if permission_mode == "require_confirmation" and mutation_confirmation != "APPLY_VISUAL_PLAN_MUTATION":
+        stops.append(_stop("missing_mutation_confirmation", "mutation_confirmation must be APPLY_VISUAL_PLAN_MUTATION"))
+    if visual_status not in _VALID_VISUAL_STATUSES:
+        stops.append(_stop("unknown_visual_status", "visual_status must be draft, reviewed, ready, working, or completed"))
+
+    dry_run = validate_visual_plan_edit(runtime, proposal if isinstance(proposal, dict) else {})
+    dry_run_payload = dry_run.to_dict()
+    if not dry_run_payload["valid"]:
+        stops.append(_stop("proposal_not_valid", "only valid dry-run proposals can become mutation patches"))
+
+    can_write = not stops
+    agent_start_request = _agent_start_request(payload, can_write=can_write)
+    if agent_start_request["state"] == "blocked":
+        stops.append(_stop("agent_start_not_authorized", agent_start_request["reason"]))
+        can_write = False
+        agent_start_request = _agent_start_request(payload, can_write=False)
+
+    patch = _mutation_patch(runtime, proposal if isinstance(proposal, dict) else {}, visual_status=visual_status) if can_write else {}
+    patch_id = f"visual-mutation-{_slug(operator_id or 'unknown')}-{_slug(last_updated_at)}"
+    return VisualPlanMutationPatchResult(
+        patch_id=patch_id,
+        state="patch_ready" if can_write else "rejected",
+        valid=can_write,
+        can_write=can_write,
+        can_start_agent=agent_start_request["state"] == "authorized_after_apply",
+        stops=tuple(stops),
+        patch=patch,
+        audit={
+            "operator_id": operator_id,
+            "permission_mode": permission_mode,
+            "mutation_confirmation": mutation_confirmation,
+            "self_approved": "true" if permission_mode == "approve_for_me" else "false",
+            "roadmap_path": runtime.roadmap_path,
+            "created_at": str(last_updated_at).strip(),
+        },
+        version=_version_metadata(runtime, proposal if isinstance(proposal, dict) else {}, last_updated_at=str(last_updated_at).strip()),
+        status_palette=dict(_VISUAL_STATUS_COLORS),
+        agent_start_request=agent_start_request,
     )
 
 
@@ -326,7 +433,11 @@ def _validate_create_node(
     if node_id in node_map:
         collisions.append(_collision("node_exists", node_id, "a node with this id already exists"))
         return
-    depends_on = tuple(_slug(item) for item in _list(payload.get("depends_on", [])))
+    depends_on_list = [_slug(item) for item in _list(payload.get("depends_on", []))]
+    from_node = _slug(payload.get("from_node", ""))
+    if from_node and from_node not in depends_on_list:
+        depends_on_list.insert(0, from_node)
+    depends_on = tuple(dep for dep in depends_on_list if dep)
     missing_deps = tuple(dep for dep in depends_on if dep not in node_map)
     if missing_deps:
         stops.extend(_stop("unknown_dependency", f"dependency does not exist: {dep}") for dep in missing_deps)
@@ -448,6 +559,8 @@ def _nodes(branch_nodes: tuple[PlanRuntimeNode, ...], *, claimable_ids: set[str]
             "deliverables": node.deliverables,
             "completion_status": node.completion_status,
             "completion_commit": node.completion_commit,
+            "visual_status": _visual_status(node),
+            "visual_color": _VISUAL_STATUS_COLORS[_visual_status(node)],
         }
         for node in branch_nodes
     )
@@ -514,6 +627,109 @@ def _acceptance_event_projection(
         "proposed_events": proposed_events,
         "requires_future_write_adapter": True,
     }
+
+
+def _mutation_patch(runtime: PlanRuntimeState, proposal: dict[str, Any], *, visual_status: str) -> dict[str, Any]:
+    action = str(proposal.get("action", "")).strip()
+    if action == "create_node":
+        node_id = _slug(proposal.get("node_id", ""))
+        from_node = _slug(proposal.get("from_node", ""))
+        depends_on = [dep for dep in [_slug(item) for item in _list(proposal.get("depends_on", []))] if dep]
+        if from_node and from_node not in depends_on:
+            depends_on.insert(0, from_node)
+        return {
+            "target_path": runtime.roadmap_path,
+            "operations": [
+                {
+                    "op": "add_node",
+                    "node": {
+                        "id": node_id,
+                        "kind": _slug(proposal.get("kind", "runtime")),
+                        "priority_rank": int(proposal.get("priority_rank") or _next_priority(runtime)),
+                        "title": str(proposal.get("title") or node_id).strip(),
+                        "horizon": _slug(proposal.get("horizon", "later")),
+                        "target_version": str(proposal.get("target_version") or "future").strip(),
+                        "status": str(proposal.get("status") or "planned").strip(),
+                        "visual_status": visual_status,
+                        "depends_on": depends_on,
+                        "unlocks": [_slug(item) for item in _list(proposal.get("unlocks", []))],
+                        "gates": [str(item).strip() for item in _list(proposal.get("gates", [])) if str(item).strip()],
+                        "source_refs": [
+                            str(item).strip()
+                            for item in _list(proposal.get("source_refs", [runtime.roadmap_path]))
+                            if str(item).strip()
+                        ],
+                        "deliverables": [
+                            str(item).strip()
+                            for item in _list(proposal.get("deliverables", ["Visual plan node"]))
+                            if str(item).strip()
+                        ],
+                    },
+                },
+                *(
+                    [
+                        {
+                            "op": "add_edge",
+                            "from": from_node,
+                            "to": node_id,
+                            "kind": "depends_on",
+                        }
+                    ]
+                    if from_node
+                    else []
+                ),
+            ],
+        }
+    if action == "connect_dependency":
+        return {
+            "target_path": runtime.roadmap_path,
+            "operations": [
+                {
+                    "op": "add_edge",
+                    "from": _slug(proposal.get("from_node", "")),
+                    "to": _slug(proposal.get("to_node", "")),
+                    "kind": str(proposal.get("kind", "depends_on")).strip().lower().replace("-", "_"),
+                    "visual_status": visual_status,
+                }
+            ],
+        }
+    return {"target_path": runtime.roadmap_path, "operations": []}
+
+
+def _version_metadata(runtime: PlanRuntimeState, proposal: dict[str, Any], *, last_updated_at: str) -> dict[str, str]:
+    action = str(proposal.get("action", "")).strip()
+    node_delta = 1 if action == "create_node" else 0
+    base = f"nodes-{len(runtime.nodes)}-live-{sum(1 for node in runtime.nodes if node.is_live_done)}"
+    next_version = f"nodes-{len(runtime.nodes) + node_delta}-live-{sum(1 for node in runtime.nodes if node.is_live_done)}"
+    return {
+        "base_version": base,
+        "next_version": next_version,
+        "created_at": last_updated_at,
+        "version_scheme": "node-count/live-count/timestamp",
+    }
+
+
+def _agent_start_request(payload: dict[str, Any], *, can_write: bool) -> dict[str, str]:
+    if not payload.get("start_agent_after_apply"):
+        return {"state": "not_requested", "reason": "no agent start requested"}
+    confirmation = str(payload.get("agent_start_confirmation", "")).strip()
+    if confirmation != "START_AGENT_AFTER_MUTATION":
+        return {"state": "blocked", "reason": "agent_start_confirmation must be START_AGENT_AFTER_MUTATION"}
+    if not can_write:
+        return {"state": "blocked", "reason": "mutation patch is not write-authorized"}
+    return {"state": "authorized_after_apply", "reason": "agent start is authorized only after a future apply adapter succeeds"}
+
+
+def _visual_status(node: PlanRuntimeNode) -> str:
+    if node.is_live_done:
+        return "completed"
+    if node.status == "active":
+        return "working"
+    if node.status in {"planned", "active_candidate"}:
+        return "ready"
+    if node.status in {"done", "partial"}:
+        return "reviewed"
+    return "draft"
 
 
 def _blocked_actions() -> tuple[dict[str, str], ...]:

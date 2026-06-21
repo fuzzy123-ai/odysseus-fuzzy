@@ -13,6 +13,7 @@ from src.plan_runtime import PlanRuntimeError, PlanRuntimeState
 from src.roadmap_lens import build_roadmap_lens_page
 from src.visual_agent_programming_lens import (
     build_visual_agent_programming_snapshot,
+    build_visual_plan_mutation_patch,
     build_visual_plan_proposal_queue,
     validate_visual_plan_acceptance,
     validate_visual_plan_edit,
@@ -83,5 +84,18 @@ def setup_roadmap_routes() -> APIRouter:
             return validate_visual_plan_acceptance(runtime, payload).to_dict()
         except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"visual agent programming acceptance unavailable: {exc}") from exc
+
+    @router.post("/visual-agent-programming/mutations/patch")
+    def api_build_visual_agent_programming_mutation_patch(payload: dict[str, Any], request: Request):
+        require_admin(request)
+        try:
+            runtime = PlanRuntimeState.load_json("specs/roadmaps/odysseus-multiagent-roadmap.v1.json")
+            return build_visual_plan_mutation_patch(
+                runtime,
+                payload,
+                last_updated_at=datetime.now(UTC).isoformat(),
+            ).to_dict()
+        except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"visual agent programming mutation patch unavailable: {exc}") from exc
 
     return router
