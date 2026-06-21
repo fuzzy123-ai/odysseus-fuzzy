@@ -23,8 +23,8 @@ def test_visual_agent_programming_snapshot_is_read_only_and_at_policy_gate():
     payload = snapshot.to_dict()
 
     assert payload["mode"] == "read_only"
-    assert payload["active_node_id"] == "visual-agent-programming-lens-ui-controls"
-    assert payload["next_claimable_node_id"] == "visual-agent-programming-lens-ui-controls"
+    assert payload["active_node_id"] == "visual-agent-programming"
+    assert payload["next_claimable_node_id"] == ""
     assert any(node["node_id"] == "visual-agent-programming-readonly-lens" and node["live_done"] for node in payload["nodes"])
     assert any(
         node["node_id"] == "visual-agent-programming-plan-edit-validator" and node["live_done"]
@@ -52,8 +52,8 @@ def test_visual_agent_programming_snapshot_is_read_only_and_at_policy_gate():
     )
     assert any(
         node["node_id"] == "visual-agent-programming-lens-ui-controls"
-        and node["claimable"]
-        and node["visual_status"] == "ready"
+        and node["live_done"]
+        and node["visual_status"] == "completed"
         for node in payload["nodes"]
     )
     assert all(control["state"] == "policy_gated" for control in payload["controls"].values())
@@ -87,12 +87,8 @@ def test_visual_agent_programming_snapshot_projects_future_version_layers():
     assert payload["progress"]["branch_nodes"] == 8
     assert any(layer["target_version"] == "0.10" for layer in payload["version_layers"])
     assert any(layer["target_version"] == "future" for layer in payload["version_layers"])
-    assert [step["node_id"] for step in payload["next_steps"]] == [
-        "visual-agent-programming-lens-ui-controls",
-        "visual-agent-programming",
-    ]
-    assert payload["next_steps"][0]["state"] == "claimable"
-    assert payload["next_steps"][1]["state"] == "research"
+    assert [step["node_id"] for step in payload["next_steps"]] == ["visual-agent-programming"]
+    assert payload["next_steps"][0]["state"] == "research"
 
 
 def test_visual_agent_programming_route_returns_admin_snapshot(monkeypatch):

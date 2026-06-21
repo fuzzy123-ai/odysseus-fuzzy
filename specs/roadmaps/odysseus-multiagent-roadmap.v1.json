@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-lens-ui-controls",
+  "recommended_active_node": "visual-agent-programming",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1679,7 +1679,7 @@
       "title": "Visual Roadmap Lens UI controls",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Expose the visual planning capabilities in Lense UI controls for connecting existing nodes, dragging a new empty path from a node, and showing statuses, versions, and timestamps.",
       "why": "Runtime contracts are now live; the operator needs the visual layer that makes the graph understandable and controllable.",
       "source_refs": [
@@ -1710,7 +1710,20 @@
       "blocked_actions": [
         "No UI write path bypassing mutation contracts.",
         "No agent start without explicit confirmation or approve_for_me mode."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "fabf406f",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Visual Agent Programming snapshot now exposes Lense-ready ui_controls metadata for connecting existing nodes, creating a new empty path from a node, and requesting agent start after apply.",
+          "Snapshot exposes status_palette for draft, reviewed, ready, working, and completed states plus per-node visual_status and visual_color.",
+          "Snapshot exposes version_policy with timestamp fields and node version hints for UI rendering.",
+          "Controls route through mutation patch and apply endpoints and preserve require_confirmation / approve_for_me permission semantics.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_plan_runtime.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py, 35 passed.",
+          "Feature commit fabf406f was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported fabf406f, /api/health was healthy, and Chroma heartbeat passed."
+        ]
+      }
     },
     {
       "id": "visual-agent-programming",
@@ -2209,13 +2222,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-lens-ui-controls",
-      "action": "Build the Lense UI controls for connecting nodes, dragging new empty paths, and showing status, version, and timestamp metadata."
-    },
-    {
-      "rank": 2,
       "node_id": "visual-agent-programming",
-      "action": "Policy gate: the next step is the write-capable visual editor/mutation adapter and requires explicit operator decision before becoming claimable."
+      "action": "Remaining work is the full in-browser visual editor and dispatch UX on top of the now-live contracts."
     }
   ]
 }
