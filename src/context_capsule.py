@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import PurePosixPath
 import re
 from typing import Any, Iterable
@@ -12,12 +13,21 @@ from src.agent_identity import AgentIdentity
 
 _MAX_CAPSULE_ID_LENGTH = 80
 _MAX_OBJECTIVE_LENGTH = 400
+_MAX_MEMORY_SUMMARY_LENGTH = 240
+_MAX_MEMORY_BUDGET_CHARS = 1600
 _MAX_SUMMARY_TEXT = 120
 _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 
 
 class ContextCapsuleError(ValueError):
     """Raised when a context capsule payload cannot be normalized safely."""
+
+
+class CapsuleMemoryKind(StrEnum):
+    DECISION = "decision"
+    EVIDENCE = "evidence"
+    CONSTRAINT = "constraint"
+    RISK = "risk"
 
 
 def _normalize_slug(value: str, *, field_name: str) -> str:
@@ -85,6 +95,16 @@ def _normalize_text_list(values: Iterable[str], *, field_name: str, allow_empty:
     return tuple(normalized)
 
 
+def _normalize_confidence(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        raise ContextCapsuleError("confidence must be a number between 0 and 1") from None
+    if confidence < 0 or confidence > 1:
+        raise ContextCapsuleError("confidence must be between 0 and 1")
+    return round(confidence, 3)
+
+
 def _normalize_inputs(values: dict[str, Any]) -> dict[str, Any]:
     normalized: dict[str, Any] = {}
     for key in sorted(values):
@@ -101,6 +121,54 @@ def _truncate_preview(value: Any) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class CapsuleMemoryItem:
+    item_id: str
+    kind: CapsuleMemoryKind
+    source_ref: str
+    summary: str
+    confidence: float
+    evidence_refs: tuple[str, ...]
+    accepted: bool
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        item_id: str,
+        kind: CapsuleMemoryKind | str,
+        source_ref: str,
+        summary: str,
+        confidence: Any,
+        evidence_refs: Iterable[str] = (),
+        accepted: bool = True,
+    ) -> "CapsuleMemoryItem":
+        normalized_summary = " ".join(str(summary or "").split())
+        if not normalized_summary:
+            raise ContextCapsuleError("memory summary must not be empty")
+        if len(normalized_summary) > _MAX_MEMORY_SUMMARY_LENGTH:
+            raise ContextCapsuleError(f"memory summary exceeds max length {_MAX_MEMORY_SUMMARY_LENGTH}")
+        return cls(
+            item_id=_normalize_slug(item_id, field_name="memory_item_id"),
+            kind=kind if isinstance(kind, CapsuleMemoryKind) else CapsuleMemoryKind(str(kind)),
+            source_ref=_normalize_repo_path(source_ref),
+            summary=normalized_summary,
+            confidence=_normalize_confidence(confidence),
+            evidence_refs=_normalize_text_list(evidence_refs, field_name="memory_evidence_ref", allow_empty=True),
+            accepted=bool(accepted),
+        )
+
+    def to_context_dict(self) -> dict[str, Any]:
+        return {
+            "item_id": self.item_id,
+            "kind": self.kind.value,
+            "source_ref": self.source_ref,
+            "summary": self.summary,
+            "confidence": self.confidence,
+            "evidence_refs": list(self.evidence_refs),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ContextCapsule:
     capsule_id: str
     objective: str
@@ -113,6 +181,7 @@ class ContextCapsule:
     handoff_format: tuple[str, ...]
     stop_conditions: tuple[str, ...]
     evidence_required: tuple[str, ...]
+    memory_items: tuple[CapsuleMemoryItem, ...]
 
     @classmethod
     def create(
@@ -129,6 +198,7 @@ class ContextCapsule:
         handoff_format: Iterable[str],
         stop_conditions: Iterable[str],
         evidence_required: Iterable[str],
+        memory_items: Iterable[CapsuleMemoryItem] = (),
     ) -> "ContextCapsule":
         if not isinstance(agent_identity, AgentIdentity):
             raise ContextCapsuleError("agent_identity must be an AgentIdentity")
@@ -137,6 +207,7 @@ class ContextCapsule:
         overlap = sorted(set(allowed) & set(blocked))
         if overlap:
             raise ContextCapsuleError(f"allowed_files and blocked_files overlap: {', '.join(overlap)}")
+        normalized_memory = _normalize_memory_items(memory_items)
         return cls(
             capsule_id=_normalize_slug(capsule_id, field_name="capsule_id"),
             objective=_normalize_objective(objective),
@@ -149,7 +220,11 @@ class ContextCapsule:
             handoff_format=_normalize_text_list(handoff_format, field_name="handoff_format", allow_empty=False),
             stop_conditions=_normalize_text_list(stop_conditions, field_name="stop_conditions", allow_empty=True),
             evidence_required=_normalize_text_list(evidence_required, field_name="evidence_required", allow_empty=True),
+            memory_items=normalized_memory,
         )
+
+    def memory_context(self) -> tuple[dict[str, Any], ...]:
+        return tuple(item.to_context_dict() for item in self.memory_items)
 
     def audit_summary(self) -> dict[str, Any]:
         return {
@@ -170,4 +245,27 @@ class ContextCapsule:
             "expected_output_count": len(self.expected_outputs),
             "stop_condition_count": len(self.stop_conditions),
             "evidence_required_count": len(self.evidence_required),
+            "memory_item_count": len(self.memory_items),
+            "memory_source_refs": tuple(item.source_ref for item in self.memory_items),
+            "memory_summary_previews": {
+                item.item_id: _truncate_preview(item.summary) for item in self.memory_items
+            },
         }
+
+
+def _normalize_memory_items(values: Iterable[CapsuleMemoryItem]) -> tuple[CapsuleMemoryItem, ...]:
+    items = tuple(values)
+    if any(not isinstance(item, CapsuleMemoryItem) for item in items):
+        raise ContextCapsuleError("memory_items must contain CapsuleMemoryItem instances")
+    if any(not item.accepted for item in items):
+        raise ContextCapsuleError("memory_items must be accepted before entering a context capsule")
+    total_summary_chars = sum(len(item.summary) for item in items)
+    if total_summary_chars > _MAX_MEMORY_BUDGET_CHARS:
+        raise ContextCapsuleError("memory_items exceed capsule memory summary budget")
+    seen: set[str] = set()
+    deduped: list[CapsuleMemoryItem] = []
+    for item in items:
+        if item.item_id not in seen:
+            seen.add(item.item_id)
+            deduped.append(item)
+    return tuple(deduped)

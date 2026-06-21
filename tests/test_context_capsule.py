@@ -1,7 +1,7 @@
 import pytest
 
 from src.agent_identity import AgentIdentity
-from src.context_capsule import ContextCapsule, ContextCapsuleError
+from src.context_capsule import CapsuleMemoryItem, ContextCapsule, ContextCapsuleError
 
 
 def _identity() -> AgentIdentity:
@@ -132,3 +132,100 @@ def test_context_capsule_reuses_normalized_agent_identity():
     assert capsule.agent_identity.agent_id == "bob-worker"
     assert capsule.agent_identity.role_id == "backend-owner"
     assert capsule.agent_identity.identity_key() == identity.identity_key()
+
+
+def test_context_capsule_accepts_compact_accepted_memory_items():
+    memory_item = CapsuleMemoryItem.create(
+        item_id="Decision 1",
+        kind="decision",
+        source_ref="specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+        summary="Future agents should use accepted roadmap evidence, not raw chat history.",
+        confidence=0.91,
+        evidence_refs=["commit:0155b42f", "gate:roadmap-json-valid"],
+    )
+
+    capsule = ContextCapsule.create(
+        capsule_id="capsule",
+        objective="Do a backend slice.",
+        agent_identity=_identity(),
+        allowed_files=["src/context_capsule.py"],
+        blocked_files=[],
+        inputs={},
+        expected_outputs=[],
+        tests=[],
+        handoff_format=["Agent: Bob"],
+        stop_conditions=[],
+        evidence_required=[],
+        memory_items=[memory_item],
+    )
+
+    assert capsule.memory_context() == (
+        {
+            "item_id": "decision-1",
+            "kind": "decision",
+            "source_ref": "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+            "summary": "Future agents should use accepted roadmap evidence, not raw chat history.",
+            "confidence": 0.91,
+            "evidence_refs": ["commit:0155b42f", "gate:roadmap-json-valid"],
+        },
+    )
+    summary = capsule.audit_summary()
+    assert summary["memory_item_count"] == 1
+    assert summary["memory_source_refs"] == ("specs/roadmaps/odysseus-multiagent-roadmap.v1.json",)
+
+
+def test_context_capsule_rejects_unaccepted_memory_items():
+    memory_item = CapsuleMemoryItem.create(
+        item_id="Draft report",
+        kind="evidence",
+        source_ref="specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+        summary="A read-only agent proposed this, but the reducer has not accepted it yet.",
+        confidence=0.5,
+        evidence_refs=["agent-report:draft"],
+        accepted=False,
+    )
+
+    with pytest.raises(ContextCapsuleError, match="accepted"):
+        ContextCapsule.create(
+            capsule_id="capsule",
+            objective="Do a backend slice.",
+            agent_identity=_identity(),
+            allowed_files=["src/context_capsule.py"],
+            blocked_files=[],
+            inputs={},
+            expected_outputs=[],
+            tests=[],
+            handoff_format=["Agent: Bob"],
+            stop_conditions=[],
+            evidence_required=[],
+            memory_items=[memory_item],
+        )
+
+
+def test_capsule_memory_items_are_bounded_and_repo_sourced():
+    with pytest.raises(ContextCapsuleError, match="summary exceeds"):
+        CapsuleMemoryItem.create(
+            item_id="Too long",
+            kind="evidence",
+            source_ref="specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+            summary="x" * 241,
+            confidence=0.8,
+        )
+
+    with pytest.raises(ContextCapsuleError, match="relative"):
+        CapsuleMemoryItem.create(
+            item_id="Bad path",
+            kind="evidence",
+            source_ref="/tmp/raw-chat.txt",
+            summary="This source is outside the repo.",
+            confidence=0.8,
+        )
+
+    with pytest.raises(ContextCapsuleError, match="confidence"):
+        CapsuleMemoryItem.create(
+            item_id="Bad confidence",
+            kind="risk",
+            source_ref="specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+            summary="Confidence must stay bounded.",
+            confidence=3,
+        )
