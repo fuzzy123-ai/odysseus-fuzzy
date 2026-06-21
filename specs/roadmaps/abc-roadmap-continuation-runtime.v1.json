@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming-readonly-lens",
+    "node_id": "visual-agent-programming-plan-edit-validator",
     "status": "active",
-    "why_first": "Telegram rich draft streaming is live; visual-agent-programming has been split into a safe read-only Lens slice first, then a dry-run validator, before any write-capable visual editor."
+    "why_first": "The read-only visual-agent-programming Lens projection is live; the next safe step is a dry-run validator for proposed visual plan edits before any write-capable editor."
   },
   "completed_features": [
     {
@@ -111,6 +111,12 @@
       "status": "live_installed",
       "evidence_commit": "ec35bfdd",
       "evidence": "Env-gated rich draft and rich final delivery helpers, stable nonzero draft IDs, draft interval status, final tg-thinking stripping, rich-final-to-classic fallback, focused fake-provider tests, and homeserver live install are complete."
+    },
+    {
+      "node_id": "visual-agent-programming-readonly-lens",
+      "status": "live_installed",
+      "evidence_commit": "2afbbdac",
+      "evidence": "Read-only visual-agent-programming snapshot, version layers, policy-gated controls, blocked-action projection, admin API route, focused tests, push, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
@@ -275,6 +281,29 @@
         "the route returns a read-only snapshot",
         "all visual controls are policy_gated",
         "blocked actions include no graph mutation and no agent start",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC19-visual-agent-programming-plan-edit-validator",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/visual_agent_programming_lens.py",
+        "src/plan_runtime.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Add a dry-run validation contract for proposed visual roadmap edits, reporting collisions, stop rules, and schema failures without writing roadmap state.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "proposed visual edits validate against PlanRuntime shape",
+        "unsafe edits return structured stops instead of writes",
+        "no dry-run result can start an agent",
         "feature is pushed and live installed"
       ]
     }

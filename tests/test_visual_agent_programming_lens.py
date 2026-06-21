@@ -16,10 +16,13 @@ def test_visual_agent_programming_snapshot_is_read_only_and_claimable():
     payload = snapshot.to_dict()
 
     assert payload["mode"] == "read_only"
-    assert payload["active_node_id"] == "visual-agent-programming-readonly-lens"
-    assert payload["next_claimable_node_id"] == "visual-agent-programming-readonly-lens"
-    assert any(node["node_id"] == "visual-agent-programming-readonly-lens" and node["claimable"] for node in payload["nodes"])
-    assert any(node["node_id"] == "visual-agent-programming-plan-edit-validator" for node in payload["nodes"])
+    assert payload["active_node_id"] == "visual-agent-programming-plan-edit-validator"
+    assert payload["next_claimable_node_id"] == "visual-agent-programming-plan-edit-validator"
+    assert any(node["node_id"] == "visual-agent-programming-readonly-lens" and node["live_done"] for node in payload["nodes"])
+    assert any(
+        node["node_id"] == "visual-agent-programming-plan-edit-validator" and node["claimable"]
+        for node in payload["nodes"]
+    )
     assert all(control["state"] == "policy_gated" for control in payload["controls"].values())
     assert {item["action"] for item in payload["blocked_actions"]} >= {
         "mutate_graph",
@@ -40,12 +43,12 @@ def test_visual_agent_programming_snapshot_projects_future_version_layers():
     assert payload["progress"]["branch_nodes"] == 3
     assert any(layer["target_version"] == "0.10" for layer in payload["version_layers"])
     assert any(layer["target_version"] == "future" for layer in payload["version_layers"])
-    assert [step["node_id"] for step in payload["next_steps"]][:2] == [
-        "visual-agent-programming-readonly-lens",
+    assert [step["node_id"] for step in payload["next_steps"]] == [
         "visual-agent-programming-plan-edit-validator",
+        "visual-agent-programming",
     ]
     assert payload["next_steps"][0]["state"] == "claimable"
-    assert payload["next_steps"][1]["state"] == "waiting"
+    assert payload["next_steps"][1]["state"] == "research"
 
 
 def test_visual_agent_programming_route_returns_admin_snapshot(monkeypatch):

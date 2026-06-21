@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-readonly-lens",
+  "recommended_active_node": "visual-agent-programming-plan-edit-validator",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1360,7 +1360,7 @@
       "title": "Visual agent programming read-only Lens projection",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Expose the visual-agent-programming branch as a read-only operator projection with claimability, gates, blocked actions, and policy-gated controls.",
       "why": "The first visual programming step must make the future editor observable without allowing graph mutation or direct live agent starts.",
       "source_refs": [
@@ -1393,7 +1393,18 @@
       "blocked_actions": [
         "No visual mutation before PlanRuntime validation exists.",
         "No direct graph-to-live-run without explicit operator action."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "2afbbdac",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Added src/visual_agent_programming_lens.py read-only snapshot for the visual-agent-programming branch with version layers, branch nodes/edges, policy-gated controls, blocked actions, next steps, and context policy.",
+          "Added admin-protected /api/roadmap/visual-agent-programming route.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py tests/test_plan_runtime.py, 17 passed.",
+          "Feature commit 2afbbdac was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported 2afbbdac, /api/health was healthy, Chroma heartbeat passed, and the new route returned admin auth protection."
+        ]
+      }
     },
     {
       "id": "visual-agent-programming-plan-edit-validator",
@@ -1901,16 +1912,11 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-readonly-lens",
-      "action": "Implement the read-only visual-agent-programming Lens projection with policy-gated controls and no graph mutation."
-    },
-    {
-      "rank": 2,
       "node_id": "visual-agent-programming-plan-edit-validator",
       "action": "Prepare the next dry-run validator slice so visual plan edits can be checked before any write-capable UI exists."
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "visual-agent-programming",
       "action": "Keep the future write-capable visual editor visible behind validation, gates, and explicit operator actions."
     }
