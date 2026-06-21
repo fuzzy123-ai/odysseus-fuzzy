@@ -1,6 +1,10 @@
 window.ODYSSEUS_OBSIDIAN_STANDALONE = true;
 
-await import('/api/plugins/obsidian/web/main.js');
+const pluginApiPrefix = window.location.pathname.startsWith('/api/plugins/orca/')
+  ? '/api/plugins/orca'
+  : '/api/plugins/obsidian';
+
+await import(`${pluginApiPrefix}/web/main.js`);
 
 const openObsidian = () => {
   window.OdysseusObsidian?.openPanel?.();

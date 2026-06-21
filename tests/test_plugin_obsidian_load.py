@@ -118,7 +118,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
     assert app_asset_response.status_code == 200
     assert "ODYSSEUS_OBSIDIAN_STANDALONE" in app_asset_response.text
-    assert "/api/plugins/obsidian/web/main.js" in app_asset_response.text
+    assert "await import(`${pluginApiPrefix}/web/main.js`)" in app_asset_response.text
     orca_app_asset_response = client.get("/api/plugins/orca/web/app.js")
     assert orca_app_asset_response.status_code == 200
     assert "ODYSSEUS_OBSIDIAN_STANDALONE" in orca_app_asset_response.text

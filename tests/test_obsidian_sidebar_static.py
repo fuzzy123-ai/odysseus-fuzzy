@@ -31,6 +31,7 @@ def test_obsidian_frontend_javascript_syntax_is_valid():
 
 def test_obsidian_plugin_loader_is_auth_exempt():
     app_py = (ROOT / "app.py").read_text(encoding="utf-8")
+    app_js = (ROOT / "plugins" / "obsidian" / "frontend" / "app.js").read_text(encoding="utf-8")
     routes_py = (ROOT / "plugins" / "obsidian" / "backend" / "routes.py").read_text(encoding="utf-8")
 
     assert '"/api/plugins/ui-loader.js"' in app_py
@@ -41,7 +42,8 @@ def test_obsidian_plugin_loader_is_auth_exempt():
     assert 'OBSIDIAN_APP_SHELL_PATH = "/api/plugins/obsidian/app"' in routes_py
     assert 'OBSIDIAN_APP_SHELL_ALIASES = (' in routes_py
     assert 'OBSIDIAN_WEB_ASSET_PREFIX = "/api/plugins/obsidian/web/"' in routes_py
-    assert '"/api/plugins/obsidian"' not in app_py
+    assert "const pluginApiPrefix = window.location.pathname.startsWith('/api/plugins/orca/')" in app_js
+    assert "await import(`${pluginApiPrefix}/web/main.js`)" in app_js
 
 
 def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
@@ -73,7 +75,7 @@ def test_obsidian_plugin_shell_and_assets_load_without_data_route_exemption():
         app_asset_response = client.get("/api/plugins/obsidian/web/app.js")
         assert app_asset_response.status_code == 200
         assert "window.ODYSSEUS_OBSIDIAN_STANDALONE = true" in app_asset_response.text
-        assert "await import('/api/plugins/obsidian/web/main.js')" in app_asset_response.text
+        assert "await import(`${pluginApiPrefix}/web/main.js`)" in app_asset_response.text
 
         data_response = client.get("/api/plugins/obsidian/files")
         assert data_response.status_code == 401
@@ -150,7 +152,7 @@ def test_obsidian_phase6_cytoscape_graph_renderer_contract():
 
     assert cytoscape_asset.exists()
     assert "const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer'" in main_js
-    assert "const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js'" in main_js
+    assert "const OBSIDIAN_CYTOSCAPE_ASSET = pluginApi('/web/cytoscape.min.js')" in main_js
     assert "function loadCytoscape()" in main_js
     assert "async function renderCytoscapeGraph(graph, prepared, renderToken)" in main_js
     assert "function renderSvgGraphFallback(graph, prepared)" in main_js
@@ -259,7 +261,7 @@ def test_obsidian_file_tree_selects_and_renames_folders():
     assert "await deleteNote(node.path);" in main_js
     assert "await refreshSearchResults();" in main_js
     assert "async function refreshSearchResults()" in main_js
-    assert "/api/plugins/obsidian/search?q=" in main_js
+    assert "`${PLUGIN_API_PREFIX}/search?q=${encodeURIComponent(q)}`" in main_js
     assert "if (selectedTreePath === path)" in main_js
     assert "if (currentNotePath === path)" in main_js
     assert "document.getElementById('obsidian-editor-container')?.classList.add('hidden')" in main_js
@@ -505,14 +507,14 @@ def test_obsidian_phase4_project_planning_ui_contract():
     assert "GameDev concept draft" in main_js
     assert "Approve & create plan" in main_js
     assert "Regenerate draft" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/preview'" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/sessions'" in main_js
+    assert "fetch(pluginApi('/project-plan/preview')" in main_js
+    assert "fetch(pluginApi('/project-plan/sessions')" in main_js
     assert "project-plan/sessions/${encodeURIComponent(sessionId)}/preview-stream" in main_js
     assert "project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}/apply" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/improve-description'" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/gamedev-draft'" in main_js
-    assert "'/api/plugins/obsidian/project-plan/apply'" in main_js
-    assert "fetch('/api/plugins/obsidian/project-plan/templates')" in main_js
+    assert "fetch(pluginApi('/project-plan/improve-description')" in main_js
+    assert "fetch(pluginApi('/project-plan/gamedev-draft')" in main_js
+    assert "pluginApi('/project-plan/apply')" in main_js
+    assert "fetch(pluginApi('/project-plan/templates'))" in main_js
     assert "generate_content: true" in main_js
     assert "approved_concept: approvedConcept" in main_js
     assert "concept_approved: conceptApproved" in main_js
@@ -656,8 +658,8 @@ def test_obsidian_phase5_memory_review_ui_contract():
     assert "function renderMemoryWorkspacePanel()" in main_js
     assert "renderSparkQuery()" in main_js
     assert "renderSparkQueue()" in main_js
-    assert "fetch('/api/plugins/obsidian/memory-review/preview'" in main_js
-    assert "fetch('/api/plugins/obsidian/memory-review/apply'" in main_js
+    assert "fetch(pluginApi('/memory-review/preview')" in main_js
+    assert "fetch(pluginApi('/memory-review/apply')" in main_js
     assert "Apply this memory review to the vault?" in main_js
     assert "memoryReviewPreview" in main_js
     assert "data-memory-conflicts" in main_js
@@ -767,11 +769,11 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "isolation_reason" in main_js
     assert "source_mtime" in main_js
     assert "source_hash" in main_js
-    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory/status')" in main_js
-    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze')" in main_js
-    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit')" in main_js
-    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine')" in main_js
-    assert "fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status')" in main_js
+    assert "fetchMemoryDashboardJson(pluginApi('/memory/status'))" in main_js
+    assert "fetchMemoryDashboardJson(pluginApi('/memory-tree/analyze'))" in main_js
+    assert "fetchMemoryDashboardJson(pluginApi('/knowledge-audit'))" in main_js
+    assert "fetchMemoryDashboardJson(pluginApi('/quarantine'))" in main_js
+    assert "fetchMemoryDashboardJson(pluginApi('/raptor/status'))" in main_js
     assert "const summary = raptorReport.summary || {}" in main_js
     assert "const gate = raptorReport.readiness_gate || summary.readiness_gate || {}" in main_js
     assert "const writeGate = raptorReport.write_gate || summary.write_gate || {}" in main_js

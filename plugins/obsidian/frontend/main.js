@@ -17,10 +17,32 @@ import { clearDockSide } from '/static/js/modalSnap.js';
 import { createWhirlpool } from '/static/js/spinner.js';
 import { mdToHtml, renderMermaid } from '/static/js/markdown.js';
 
+const OBSIDIAN_LEGACY_API_PREFIX = '/api/plugins/obsidian';
+const ORCA_API_PREFIX = '/api/plugins/orca';
+
+function getPluginApiPrefix() {
+  const path = window.location?.pathname || '';
+  return path.startsWith(`${ORCA_API_PREFIX}/`) ? ORCA_API_PREFIX : OBSIDIAN_LEGACY_API_PREFIX;
+}
+
+const PLUGIN_API_PREFIX = getPluginApiPrefix();
+
+function pluginApi(path) {
+  const suffix = String(path || '');
+  return `${PLUGIN_API_PREFIX}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
+}
+
+function isPluginStandalonePath(pathname) {
+  return pathname === `${OBSIDIAN_LEGACY_API_PREFIX}/app`
+    || pathname === `${OBSIDIAN_LEGACY_API_PREFIX}/app/`
+    || pathname === `${ORCA_API_PREFIX}/app`
+    || pathname === `${ORCA_API_PREFIX}/app/`;
+}
+
 // Dynamic stylesheet insertion
 const link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = '/api/plugins/obsidian/web/style.css?v=project-sessions-v1';
+link.href = pluginApi('/web/style.css?v=project-sessions-v1');
 document.head.appendChild(link);
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -447,7 +469,7 @@ let minimizedSurfaceMode = null;
 const OBSIDIAN_GRAPH_RENDERER_KEY = 'odysseus.obsidian.graphRenderer';
 const OBSIDIAN_GRAPH_RENDERER_CYTOSCAPE = 'cytoscape';
 const OBSIDIAN_GRAPH_RENDERER_SVG = 'svg';
-const OBSIDIAN_CYTOSCAPE_ASSET = '/api/plugins/obsidian/web/cytoscape.min.js';
+const OBSIDIAN_CYTOSCAPE_ASSET = pluginApi('/web/cytoscape.min.js');
 const OBSIDIAN_GRAPH_WHEEL_SENSITIVITY = 0.55;
 const VAULT_ROOT_TREE_PATH = '__vault_root__';
 const OBSIDIAN_SURFACE_MODE_KEY = 'odysseus.obsidian.surfaceMode';
@@ -620,7 +642,7 @@ async function openTagDetails(tag, anchor) {
   popover.querySelector('[data-tag-meta-path]')?.addEventListener('click', async (e) => {
     const path = e.currentTarget.dataset.tagMetaPath;
     if (!findFileInTree(vaultFiles, path)) {
-      const res = await fetch('/api/plugins/obsidian/file', {
+      const res = await fetch(pluginApi('/file'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -903,7 +925,7 @@ function applyMarkdownAction(action) {
 async function getVaultTags() {
   if (tagCache) return tagCache;
   try {
-    const res = await fetch('/api/plugins/obsidian/tags');
+    const res = await fetch(pluginApi('/tags'));
     if (!res.ok) return [];
     tagCache = await res.json();
     return tagCache;
@@ -1100,7 +1122,7 @@ async function moveVaultItem(oldPath, targetFolder) {
     return;
   }
   try {
-    const res = await fetch('/api/plugins/obsidian/rename', {
+    const res = await fetch(pluginApi('/rename'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ old_path: oldPath, new_path: newPath }),
@@ -1133,7 +1155,7 @@ async function importDroppedMarkdownFiles(files, targetFolder) {
   for (const file of markdownFiles) {
     const content = await file.text();
     const path = joinPath(targetFolder, file.name);
-    const res = await fetch('/api/plugins/obsidian/file', {
+    const res = await fetch(pluginApi('/file'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path, content }),
@@ -1210,7 +1232,7 @@ async function refreshObsidianAiStatus() {
   valueEl.removeAttribute('title');
   hintEl.textContent = '';
   try {
-    const res = await fetch('/api/plugins/obsidian/ai-status', { credentials: 'same-origin' });
+    const res = await fetch(pluginApi('/ai-status'), { credentials: 'same-origin' });
     if (!res.ok) throw new Error('AI status unavailable');
     const status = await res.json();
     if (!status.available || !status.model) {
@@ -1258,7 +1280,7 @@ async function handleVaultSettingsAction(action) {
         password = await styledPrompt('Export password:', { confirmText: 'Export' });
         if (!password) return;
       }
-      const res = await fetch('/api/plugins/obsidian/vault/export', {
+      const res = await fetch(pluginApi('/vault/export'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -1289,7 +1311,7 @@ async function handleVaultSettingsAction(action) {
         { confirmText: 'Set password' }
       );
       if (!password) return;
-      const res = await fetch('/api/plugins/obsidian/vault/password', {
+      const res = await fetch(pluginApi('/vault/password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -1304,7 +1326,7 @@ async function handleVaultSettingsAction(action) {
       if (!confirmed) return;
       const password = await styledPrompt('Current vault password:', { confirmText: 'Remove' });
       if (!password) return;
-      const res = await fetch('/api/plugins/obsidian/vault/password', {
+      const res = await fetch(pluginApi('/vault/password'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -1332,7 +1354,7 @@ async function handleVaultSettingsAction(action) {
 function isStandaloneMode() {
   return window.ODYSSEUS_OBSIDIAN_STANDALONE === true
     || document.body?.dataset.obsidianStandalone === 'true'
-    || window.location.pathname === '/api/plugins/obsidian/app';
+    || isPluginStandalonePath(window.location.pathname);
 }
 
 function normalizeSurfaceMode(mode) {
@@ -2057,7 +2079,7 @@ function minimizePanel() {
 
 async function loadProjectPlanSessions() {
   try {
-    const res = await fetch('/api/plugins/obsidian/project-plan/sessions');
+    const res = await fetch(pluginApi('/project-plan/sessions'));
     if (!res.ok) {
       projectPlanSessions = [];
       return;
@@ -2073,7 +2095,7 @@ async function loadProjectPlanSessions() {
 async function loadVaultFiles() {
   try {
     const [res] = await Promise.all([
-      fetch('/api/plugins/obsidian/files'),
+      fetch(pluginApi('/files')),
       loadProjectPlanSessions(),
     ]);
     if (res.ok) {
@@ -2105,7 +2127,7 @@ function scheduleVaultRefresh(reason = 'vault_changed') {
 
 function startVaultEventStream() {
   if (vaultEvents || typeof EventSource === 'undefined') return;
-  vaultEvents = new EventSource('/api/plugins/obsidian/vault/events');
+  vaultEvents = new EventSource(pluginApi('/vault/events'));
   vaultEvents.addEventListener('ready', () => {
     scheduleVaultRefresh('ready');
   });
@@ -2403,7 +2425,7 @@ function buildTreeHTML(nodes, container, level) {
 async function openNote(path) {
   try {
     currentNoteDocumentIntelligence = { state: 'loading' };
-    const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(path)}`);
+    const res = await fetch(`${PLUGIN_API_PREFIX}/file?path=${encodeURIComponent(path)}`);
     if (res.ok) {
       const data = await res.json();
       currentNotePath = path;
@@ -2536,7 +2558,7 @@ async function promptRenameSelectedItem() {
 
 async function renameVaultItem(oldPath, newPath, isFolder) {
   try {
-    const res = await fetch('/api/plugins/obsidian/rename', {
+    const res = await fetch(pluginApi('/rename'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ old_path: oldPath, new_path: newPath })
@@ -2640,7 +2662,7 @@ async function deleteNote(path) {
   if (!confirm) return;
 
   try {
-    const res = await fetch(`/api/plugins/obsidian/file?path=${encodeURIComponent(path)}`, {
+    const res = await fetch(`${PLUGIN_API_PREFIX}/file?path=${encodeURIComponent(path)}`, {
       method: 'DELETE'
     });
     if (res.ok) {
@@ -2670,7 +2692,7 @@ async function deleteFolder(path) {
   if (!confirm) return;
 
   try {
-    const res = await fetch(`/api/plugins/obsidian/folder?path=${encodeURIComponent(path)}`, {
+    const res = await fetch(`${PLUGIN_API_PREFIX}/folder?path=${encodeURIComponent(path)}`, {
       method: 'DELETE'
     });
     if (res.ok) {
@@ -2844,7 +2866,7 @@ async function loadProjectTemplateOptions() {
   const kindSelect = document.getElementById('obsidian-project-kind');
   if (!kindSelect) return;
   if (!projectTemplateOptions) {
-    const res = await fetch('/api/plugins/obsidian/project-plan/templates');
+    const res = await fetch(pluginApi('/project-plan/templates'));
     if (!res.ok) throw new Error('Failed to load project templates');
     projectTemplateOptions = await res.json();
   }
@@ -3015,7 +3037,7 @@ async function cancelActiveProjectPlanSession() {
   const confirmed = await styledConfirm('Cancel this recoverable project planning session?', { confirmText: 'Cancel planning', danger: true });
   if (!confirmed) return;
   try {
-    const res = await fetch(`/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}`, {
+    const res = await fetch(`${PLUGIN_API_PREFIX}/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error((await res.json()).detail || 'Failed to cancel planning session');
@@ -3484,7 +3506,7 @@ async function showProjectPlanner({ preserveSession = false } = {}) {
 async function openProjectPlanSession(sessionId) {
   if (!sessionId) return;
   try {
-    const res = await fetch(`/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(sessionId)}`);
+    const res = await fetch(`${PLUGIN_API_PREFIX}/project-plan/sessions/${encodeURIComponent(sessionId)}`);
     if (!res.ok) throw new Error((await res.json()).detail || 'Failed to load planning session');
     const session = await res.json();
     await showProjectPlanner({ preserveSession: true });
@@ -3636,11 +3658,11 @@ async function loadMemoryTreeDashboard() {
   renderMemoryTreePanel();
   try {
     const [status, tree, audit, quarantine, raptor] = await Promise.all([
-      fetchMemoryDashboardJson('/api/plugins/obsidian/memory/status'),
-      fetchMemoryDashboardJson('/api/plugins/obsidian/memory-tree/analyze'),
-      fetchMemoryDashboardJson('/api/plugins/obsidian/knowledge-audit'),
-      fetchMemoryDashboardJson('/api/plugins/obsidian/quarantine'),
-      fetchMemoryDashboardJson('/api/plugins/obsidian/raptor/status'),
+      fetchMemoryDashboardJson(pluginApi('/memory/status')),
+      fetchMemoryDashboardJson(pluginApi('/memory-tree/analyze')),
+      fetchMemoryDashboardJson(pluginApi('/knowledge-audit')),
+      fetchMemoryDashboardJson(pluginApi('/quarantine')),
+      fetchMemoryDashboardJson(pluginApi('/raptor/status')),
     ]);
     memoryStatusReport = status;
     memoryTreeReport = tree;
@@ -4594,7 +4616,7 @@ async function loadSparkQueryStatus() {
   sparkQueryError = '';
   renderMemoryQuerySurfaces();
   try {
-    sparkQueryStatus = await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
+    sparkQueryStatus = await fetchMemoryDashboardJson(pluginApi('/memory/query/status'));
     if (!sparkQueryStatus?.readiness?.ready) sparkQueryResult = null;
   } catch (e) {
     console.error('Spark query status failed:', e);
@@ -4616,8 +4638,8 @@ async function runSparkQuery() {
   sparkQueryError = '';
   renderMemoryQuerySurfaces();
   try {
-    sparkQueryStatus = sparkQueryStatus || await fetchMemoryDashboardJson('/api/plugins/obsidian/memory/query/status');
-    sparkQueryResult = await fetchMemoryDashboardJson(`/api/plugins/obsidian/memory/query?q=${encodeURIComponent(query)}&top_k=5`);
+    sparkQueryStatus = sparkQueryStatus || await fetchMemoryDashboardJson(pluginApi('/memory/query/status'));
+    sparkQueryResult = await fetchMemoryDashboardJson(`${PLUGIN_API_PREFIX}/memory/query?q=${encodeURIComponent(query)}&top_k=5`);
   } catch (e) {
     console.error('Spark query failed:', e);
     sparkQueryError = e.message || 'Query failed';
@@ -4632,7 +4654,7 @@ async function analyzeSpark() {
   const content = document.getElementById('obsidian-spark-content');
   if (content) content.innerHTML = renderLensStateCard('insights', 'loading', 'Insights werden geladen.', 'Ladevorgang ansehen', 'obsidian-insights-loading-action', { disabled: true });
   try {
-    const res = await fetch('/api/plugins/obsidian/spark/analyze', {
+    const res = await fetch(pluginApi('/spark/analyze'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scope: 'vault', limit: 5000 }),
@@ -4651,7 +4673,7 @@ async function createSparkPlan() {
   const content = document.getElementById('obsidian-spark-content');
   if (content) content.innerHTML = renderLensStateCard('insights', 'loading', 'Insights werden geladen.', 'Ladevorgang ansehen', 'obsidian-insights-plan-loading-action', { disabled: true });
   try {
-    const res = await fetch('/api/plugins/obsidian/spark/plan', {
+    const res = await fetch(pluginApi('/spark/plan'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scope: 'vault', limit: 5000 }),
@@ -4675,7 +4697,7 @@ async function applySparkPlan() {
   const applyBtn = document.getElementById('obsidian-spark-apply');
   if (applyBtn) applyBtn.disabled = true;
   try {
-    const res = await fetch('/api/plugins/obsidian/spark/apply', {
+    const res = await fetch(pluginApi('/spark/apply'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -4993,7 +5015,7 @@ async function createGameDevDraft() {
   }
   if (previewBtn) previewBtn.disabled = true;
   try {
-    const res = await fetch('/api/plugins/obsidian/project-plan/gamedev-draft', {
+    const res = await fetch(pluginApi('/project-plan/gamedev-draft'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, kind, description, custom_focus }),
@@ -5124,7 +5146,7 @@ function parseProjectPlanSseBlock(block) {
 }
 
 async function previewProjectPlanFallback(payload) {
-  const res = await fetch('/api/plugins/obsidian/project-plan/preview', {
+  const res = await fetch(pluginApi('/project-plan/preview'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -5137,7 +5159,7 @@ async function previewProjectPlanFallback(payload) {
 
 async function ensureProjectPlanSession(payload) {
   if (activeProjectPlanSessionId) return activeProjectPlanSessionId;
-  const res = await fetch('/api/plugins/obsidian/project-plan/sessions', {
+  const res = await fetch(pluginApi('/project-plan/sessions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ request: payload }),
@@ -5153,8 +5175,8 @@ async function ensureProjectPlanSession(payload) {
 
 async function previewProjectPlanStream(payload, sessionId) {
   const url = sessionId
-    ? `/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(sessionId)}/preview-stream`
-    : '/api/plugins/obsidian/project-plan/preview-stream';
+    ? `${PLUGIN_API_PREFIX}/project-plan/sessions/${encodeURIComponent(sessionId)}/preview-stream`
+    : pluginApi('/project-plan/preview-stream');
   const body = sessionId ? { request: payload } : payload;
   const res = await fetch(url, {
     method: 'POST',
@@ -5236,7 +5258,7 @@ async function improveProjectDescription() {
   const stopLoadingAnimation = startProjectDescriptionImproveLoading(textarea);
   try {
     if (btn) btn.disabled = true;
-    const res = await fetch('/api/plugins/obsidian/project-plan/improve-description', {
+    const res = await fetch(pluginApi('/project-plan/improve-description'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, kind, description, custom_focus }),
@@ -5274,7 +5296,7 @@ async function previewMemoryReview() {
   const panel = document.getElementById('obsidian-memory-preview-panel');
   if (panel) panel.innerHTML = '<div class="obsidian-project-loading">Previewing memory changes...</div>';
   try {
-    const res = await fetch('/api/plugins/obsidian/memory-review/preview', {
+    const res = await fetch(pluginApi('/memory-review/preview'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5311,7 +5333,7 @@ async function applyMemoryReview() {
     if (!confirmed) return;
   }
   try {
-    const res = await fetch('/api/plugins/obsidian/memory-review/apply', {
+    const res = await fetch(pluginApi('/memory-review/apply'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan: memoryReviewPreview, confirm: needsConfirm }),
@@ -5343,8 +5365,8 @@ async function applyProjectPlan() {
   if (applyBtn) applyBtn.disabled = true;
   try {
     const url = activeProjectPlanSessionId
-      ? `/api/plugins/obsidian/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}/apply`
-      : '/api/plugins/obsidian/project-plan/apply';
+      ? `${PLUGIN_API_PREFIX}/project-plan/sessions/${encodeURIComponent(activeProjectPlanSessionId)}/apply`
+      : pluginApi('/project-plan/apply');
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5422,7 +5444,7 @@ async function renderGraphView() {
 async function fetchGraphData() {
   const focusPath = graphFocusPath();
   const focus = focusPath ? `?focus=${encodeURIComponent(focusPath)}` : '';
-  const res = await fetch(`/api/plugins/obsidian/graph${focus}`);
+  const res = await fetch(`${PLUGIN_API_PREFIX}/graph${focus}`);
   if (!res.ok) throw new Error(`Graph request failed: ${res.status}`);
   return res.json();
 }
@@ -6340,7 +6362,7 @@ async function handleWikiLinkClick(targetPath) {
   const fullPath = dir + notePath;
 
   try {
-    const res = await fetch('/api/plugins/obsidian/file', {
+    const res = await fetch(pluginApi('/file'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -6465,7 +6487,7 @@ async function refreshSearchResults() {
   const q = searchInput?.value.trim() || '';
   if (!q) return;
   try {
-    const res = await fetch(`/api/plugins/obsidian/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`${PLUGIN_API_PREFIX}/search?q=${encodeURIComponent(q)}`);
     if (res.ok) {
       renderSearchResults(await res.json());
     }
@@ -6526,7 +6548,7 @@ function setupEventListeners() {
     const fullPath = joinPath(dir, path);
 
     try {
-      const res = await fetch('/api/plugins/obsidian/file', {
+      const res = await fetch(pluginApi('/file'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -6560,7 +6582,7 @@ function setupEventListeners() {
     const fullPath = joinPath(dir, name);
 
     try {
-      const res = await fetch('/api/plugins/obsidian/folder', {
+      const res = await fetch(pluginApi('/folder'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: fullPath })
@@ -6723,7 +6745,7 @@ function setupEventListeners() {
     const password = await styledPrompt('Archive password, if needed:', { defaultValue: '', confirmText: 'Import' });
     try {
       const archive_base64 = await fileToBase64(file);
-      const res = await fetch('/api/plugins/obsidian/vault/import', {
+      const res = await fetch(pluginApi('/vault/import'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ archive_base64, password: password || null }),
@@ -6771,7 +6793,7 @@ function setupEventListeners() {
     autosaveTimeout = setTimeout(async () => {
       if (!currentNotePath) return;
       try {
-        await fetch('/api/plugins/obsidian/file', {
+        await fetch(pluginApi('/file'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: currentNotePath, content })
@@ -6808,7 +6830,7 @@ function setupEventListeners() {
     }
     searchTimeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/plugins/obsidian/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${PLUGIN_API_PREFIX}/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
           const results = await res.json();
           renderSearchResults(results);

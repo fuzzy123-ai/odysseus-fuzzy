@@ -8,7 +8,8 @@ def test_obsidian_memory_dashboard_uses_unified_status_contract():
     source = (ROOT / "plugins" / "obsidian" / "frontend" / "main.js").read_text(encoding="utf-8")
     styles = (ROOT / "plugins" / "obsidian" / "frontend" / "style.css").read_text(encoding="utf-8")
 
-    assert "/api/plugins/obsidian/memory/status" in source
+    assert "fetchMemoryDashboardJson(pluginApi('/memory/status'))" in source
+    assert "const ORCA_API_PREFIX = '/api/plugins/orca'" in source
     assert "function renderUnifiedMemoryStatus()" in source
     assert "summary?.readiness_gap_names" in source
     assert "renderMemoryReadinessGaps()" in source

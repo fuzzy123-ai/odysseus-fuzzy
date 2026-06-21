@@ -231,6 +231,27 @@
         "ORCA tool aliases use ORCA Local Markdown Vault wording while legacy obsidian_* descriptions remain available.",
         "Internal obsidian CSS classes, JS function names, globals, and frontend API calls remain unchanged for compatibility."
       ]
+    },
+    "charlie_frontend_api_prefix_compatibility": {
+      "status": "done",
+      "changed_files": [
+        "plugins/obsidian/frontend/main.js",
+        "plugins/obsidian/frontend/app.js",
+        "tests/test_obsidian_sidebar_static.py",
+        "tests/test_obsidian_memory_frontend_contract.py",
+        "tests/test_plugin_obsidian_load.py"
+      ],
+      "tests": [
+        "node --check plugins/obsidian/frontend/main.js: pass",
+        "node --check plugins/obsidian/frontend/app.js: pass",
+        "pytest tests/test_obsidian_sidebar_static.py tests/test_obsidian_memory_frontend_contract.py tests/test_plugin_obsidian_load.py tests/test_orca_compatibility_contract.py: 35 passed"
+      ],
+      "summary": [
+        "Frontend API calls now go through a small pluginApi() helper that chooses /api/plugins/orca when the standalone route is ORCA, otherwise keeping /api/plugins/obsidian.",
+        "Standalone app.js imports main.js from the matching ORCA or legacy Obsidian plugin route prefix.",
+        "Existing legacy route tests remain intact while frontend contract tests now cover the ORCA prefix helper.",
+        "Internal CSS classes, JS globals, function names, and obsidian-* identifiers intentionally remain stable in this slice."
+      ]
     }
   },
   "architecture_decisions": [
@@ -594,9 +615,14 @@
         "No frontend rewrite in this slice unless tests require import path updates."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "evidence": []
+        "status": "partial",
+        "commit": "pending local commit: Route frontend through ORCA prefix helper",
+        "evidence": [
+          "Done: frontend API calls now use pluginApi() or PLUGIN_API_PREFIX so ORCA standalone/routes can call /api/plugins/orca.",
+          "Done: standalone app.js selects /api/plugins/orca when loaded through the ORCA route and keeps /api/plugins/obsidian as legacy fallback.",
+          "Done: focused static, frontend contract, plugin load, and ORCA compatibility tests pass.",
+          "Deferred: internal CSS classes, JS globals, function names, and obsidian-* identifiers remain stable until a later explicit identifier migration slice."
+        ]
       }
     },
     {
@@ -731,7 +757,7 @@
     {
       "rank": 3,
       "node_id": "orca7-frontend-lens-renaming",
-      "action": "Continue frontend Lens migration by moving API calls toward /api/plugins/orca and then planning internal CSS/JS identifier migration after compatibility tests are expanded.",
+      "action": "Partial done: frontend API-prefix compatibility is ready for commit; pause before any internal CSS/JS identifier migration or ORCA core extraction.",
       "owner": "alice"
     }
   ]
