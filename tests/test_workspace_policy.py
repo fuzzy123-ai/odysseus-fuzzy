@@ -2,7 +2,14 @@ import pytest
 
 from src.agent_identity import AgentIdentity
 from src.context_capsule import ContextCapsule
-from src.workspace_policy import WorkspaceAccessAction, WorkspacePolicy, WorkspacePolicyError
+from src.workspace_policy import (
+    WorkspaceAccessAction,
+    WorkspaceIsolationMode,
+    WorkspacePolicy,
+    WorkspacePolicyError,
+    WorkerWorkspaceAssignment,
+    evaluate_workspace_integration_gate,
+)
 
 
 def _identity(agent_id: str = "bob-worker") -> AgentIdentity:
@@ -168,3 +175,101 @@ def test_delete_is_default_blocked():
 
     assert decision.allowed is False
     assert decision.reason == "delete_not_explicitly_allowed"
+
+
+def _assignment(*, mode: WorkspaceIsolationMode | str = WorkspaceIsolationMode.WORKTREE) -> WorkerWorkspaceAssignment:
+    return WorkerWorkspaceAssignment.create(
+        agent_identity=_identity(),
+        plan_id="odysseus-multiagent-roadmap",
+        node_id="worktree-branch-isolation",
+        isolation_mode=mode,
+        integration_base_branch="dev",
+        worker_branch="agents/bob-worker/worktree-branch-isolation",
+        worker_workspace_root=(
+            ".worktrees/bob-worker-worktree-branch-isolation"
+            if mode == WorkspaceIsolationMode.WORKTREE
+            else ""
+        ),
+        owned_files=["src/workspace_policy.py", "tests/test_workspace_policy.py"],
+        blocked_files=[".git/index"],
+        created_at="2026-06-21T10:15:00Z",
+    )
+
+
+def test_worker_workspace_assignment_records_branch_and_worktree_metadata():
+    assignment = _assignment()
+
+    assert assignment.isolation_mode == WorkspaceIsolationMode.WORKTREE
+    assert assignment.integration_base_branch == "dev"
+    assert assignment.worker_branch == "agents/bob-worker/worktree-branch-isolation"
+    assert assignment.worker_workspace_root == ".worktrees/bob-worker-worktree-branch-isolation"
+    assert assignment.audit_summary()["owned_file_count"] == 2
+
+
+def test_shared_readonly_assignment_cannot_claim_write_files():
+    with pytest.raises(WorkspacePolicyError, match="shared_readonly"):
+        _assignment(mode=WorkspaceIsolationMode.SHARED_READONLY)
+
+
+def test_integration_gate_allows_owned_changes_after_tests_and_gates():
+    decision = evaluate_workspace_integration_gate(
+        _assignment(),
+        target_branch="dev",
+        changed_files=["src/workspace_policy.py", "tests/test_workspace_policy.py"],
+        dirty_files=["src/workspace_policy.py"],
+        tests_passed=True,
+        gates_verified=True,
+    )
+
+    assert decision.allowed is True
+    assert decision.reason == "integration_allowed"
+    assert decision.required_handoff is False
+
+
+def test_integration_gate_blocks_wrong_target_branch():
+    decision = evaluate_workspace_integration_gate(
+        _assignment(),
+        target_branch="main",
+        changed_files=["src/workspace_policy.py"],
+        tests_passed=True,
+        gates_verified=True,
+    )
+
+    assert decision.allowed is False
+    assert decision.reason == "wrong_integration_branch"
+    assert decision.required_handoff is True
+
+
+def test_integration_gate_blocks_unrelated_dirty_files():
+    decision = evaluate_workspace_integration_gate(
+        _assignment(),
+        target_branch="dev",
+        changed_files=["src/workspace_policy.py"],
+        dirty_files=["src/other.py"],
+        tests_passed=True,
+        gates_verified=True,
+    )
+
+    assert decision.allowed is False
+    assert decision.reason == "unrelated_dirty_files"
+    assert decision.blocking_files == ("src/other.py",)
+
+
+def test_integration_gate_blocks_before_tests_and_quality_gates():
+    tests_decision = evaluate_workspace_integration_gate(
+        _assignment(),
+        target_branch="dev",
+        changed_files=["src/workspace_policy.py"],
+        tests_passed=False,
+        gates_verified=True,
+    )
+    gates_decision = evaluate_workspace_integration_gate(
+        _assignment(),
+        target_branch="dev",
+        changed_files=["src/workspace_policy.py"],
+        tests_passed=True,
+        gates_verified=False,
+    )
+
+    assert tests_decision.reason == "tests_not_passed"
+    assert gates_decision.reason == "quality_gates_not_verified"
