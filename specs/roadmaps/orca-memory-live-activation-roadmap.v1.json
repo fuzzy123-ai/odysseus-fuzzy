@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "quarantine-live-behavior",
+  "recommended_active_node": "raptor-rebuild-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -826,7 +826,7 @@
       "priority_rank": 6,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "freshness-hybrid-filtering-live"
       ],
@@ -858,9 +858,71 @@
         "Live quarantine route/UI shows isolated items when test/live vault contains them."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "9892a852",
+        "completed_at": "2026-06-21T22:31:00+02:00",
+        "live_evidence": [
+          {
+            "check": "GET /api/plugins/orca/quarantine",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "total": 1,
+              "default_retrieval": 0,
+              "isolated": 1,
+              "by_channel": {
+                "quarantined": 1
+              },
+              "by_status": {
+                "archived": 1
+              },
+              "has_inspection_reason": true,
+              "raw_body_included": false
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/knowledge-audit",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "current": 5,
+              "default_retrieval": 5,
+              "isolated": 1,
+              "quarantined": 1,
+              "readiness_state": "quarantined",
+              "readiness_gap_names": [
+                "quarantined_items"
+              ],
+              "warnings": []
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/status",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "default_retrieval_is_filtered": true,
+              "default_retrieval": 5,
+              "isolated": 1,
+              "quarantine_items": 1,
+              "freshness_isolation_flags": {
+                "filtering_active": true,
+                "isolated": true,
+                "quarantined": true,
+                "needs_review": false,
+                "conflicts": false
+              }
+            }
+          },
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "command": "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py::{quarantine_tests} plugins\\obsidian\\tests\\test_context_provider_backend.py::test_obsidian_context_provider_filters_freshness_when_hybrid_flag_enabled --basetemp .pytest_tmp\\orca-quarantine",
+              "passed": 4
+            }
+          }
+        ]
       }
     },
     {
@@ -1070,14 +1132,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "quarantine-live-behavior",
-      "action": "Verify quarantine impact and operator inspection semantics now that Freshness filtering is active; do not mutate notes unless an explicit review/deferral decision is approved.",
-      "owner": "alice"
-    },
-    {
-      "rank": 2,
       "node_id": "raptor-rebuild-live",
-      "action": "Remain blocked until derived-graph-edges-live is complete and operator Go is present for RAPTOR write artifacts.",
+      "action": "Requires explicit operator Go before enabling RAPTOR flags and writing derived RAPTOR artifacts.",
       "owner": "charlie"
     }
   ],
