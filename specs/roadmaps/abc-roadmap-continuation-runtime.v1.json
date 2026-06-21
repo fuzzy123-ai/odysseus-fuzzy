@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming-mutation-patch-contract",
+    "node_id": "visual-agent-programming-apply-adapter",
     "status": "active",
-    "why_first": "The operator has approved crossing the policy gate in a controlled way: build an auditable mutation patch contract before the full write-capable visual editor."
+    "why_first": "The visual mutation patch contract is live; the next step is the controlled apply adapter that mutates roadmap state from authorized patches."
   },
   "completed_features": [
     {
@@ -135,6 +135,12 @@
       "status": "live_installed",
       "evidence_commit": "614bb774",
       "evidence": "Operator acceptance contract, explicit confirmation tokens, audit/event projections, no-write/no-agent-start policy, admin POST route, focused tests, push, and homeserver live install are complete."
+    },
+    {
+      "node_id": "visual-agent-programming-mutation-patch-contract",
+      "status": "live_installed",
+      "evidence_commit": "a12d1343",
+      "evidence": "Mutation patch contract, connect/create-from-node patch operations, permission modes, visual statuses/colors, version/timestamp audit metadata, optional post-apply agent-start request, admin POST route, focused tests, push, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
@@ -392,6 +398,30 @@
         "new nodes can be created from an existing node as a patch proposal",
         "default permission requires extra confirmation unless approve_for_me is explicit",
         "patch metadata includes status, version, timestamp, and audit",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC23-visual-agent-programming-apply-adapter",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Apply authorized visual mutation patch documents to roadmap state with audit, rollback metadata, version bumping, and no implicit agent start.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "authorized patches can be applied to roadmap payloads",
+        "rollback and audit metadata are emitted",
+        "version metadata is bumped",
+        "agent start remains a separate confirmed request",
         "feature is pushed and live installed"
       ]
     }
