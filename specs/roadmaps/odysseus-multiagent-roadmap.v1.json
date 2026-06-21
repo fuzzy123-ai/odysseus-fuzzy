@@ -908,7 +908,7 @@
       "title": "Make Thread Lifecycle Bridge read and route real threads",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Read thread state, map it to AgentRuns, detect new turns and handoffs, and block ambiguity.",
       "why": "The bridge currently validates assignments and references; live multiagent work needs observed thread lifecycle state.",
       "source_refs": [
@@ -936,7 +936,23 @@
       ],
       "blocked_actions": [
         "No blind sends into unknown or ambiguous threads."
-      ]
+      ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "implementation_refs": [
+          "src/thread_lifecycle_bridge.py",
+          "tests/test_thread_lifecycle_bridge.py"
+        ],
+        "evidence_summary": [
+          "ThreadReadAdapter protocol defines a read-only thread state boundary.",
+          "ThreadReadSnapshot tracks observed_turn_count, redacted turn summaries, read_at, and ambiguity reason.",
+          "build_lifecycle_snapshot_from_thread_read updates last_seen_turn, extracts handoff status, blocks ambiguity, marks stale reads, and avoids reprocessing already resolved threads.",
+          "Dispatch decisions continue to block ambiguous or mismatched threads before send.",
+          "Focused thread lifecycle, subagent runtime, and PlanRuntime tests pass locally."
+        ],
+        "next_claimable_node": "heartbeat-runtime-live-loop"
+      }
     },
     {
       "id": "heartbeat-runtime-live-loop",

@@ -3,8 +3,11 @@ from src.thread_lifecycle_bridge import (
     ThreadDispatchDecision,
     ThreadDispatchRequest,
     ThreadLifecycleSnapshot,
+    ThreadReadSnapshot,
     ThreadRef,
     ThreadStatus,
+    ThreadTurnSummary,
+    build_lifecycle_snapshot_from_thread_read,
 )
 
 
@@ -73,6 +76,93 @@ def test_ambiguous_thread_blocks_dispatch():
     assert decision.action == DispatchAction.BLOCKED
     assert decision.allowed is False
     assert decision.reason == "ambiguous_thread"
+
+
+def test_thread_read_snapshot_extracts_ready_handoff_without_raw_content_dump():
+    read = ThreadReadSnapshot.create(
+        thread_ref=_thread_ref(),
+        observed_turn_count=12,
+        read_at="2026-06-21T07:45:00Z",
+        turns=[
+            ThreadTurnSummary.create(
+                turn_index=12,
+                actor="bob-worker",
+                summary="structured handoff ready with focused tests",
+                handoff_status="ready_for_handoff",
+                status_hint="completed",
+            )
+        ],
+    )
+
+    snapshot = build_lifecycle_snapshot_from_thread_read(read)
+    decision = ThreadDispatchDecision.decide(snapshot=snapshot, request=_request())
+
+    assert snapshot.thread_status == ThreadStatus.COMPLETED
+    assert snapshot.last_seen_turn == 12
+    assert snapshot.handoff_status == "ready_for_handoff"
+    assert decision.action == DispatchAction.RESOLVE
+    assert "structured handoff ready" not in repr(read.audit_summary())
+
+
+def test_thread_read_ambiguity_becomes_hard_dispatch_block():
+    read = ThreadReadSnapshot.create(
+        thread_ref=_thread_ref(),
+        observed_turn_count=13,
+        read_at="2026-06-21T07:46:00Z",
+        turns=[],
+        ambiguous_reason="two candidate runs claim this thread",
+    )
+
+    snapshot = build_lifecycle_snapshot_from_thread_read(read)
+    decision = ThreadDispatchDecision.decide(snapshot=snapshot, request=_request())
+
+    assert snapshot.thread_status == ThreadStatus.AMBIGUOUS
+    assert snapshot.handoff_status == "ambiguous"
+    assert decision.action == DispatchAction.BLOCKED
+    assert decision.reason == "ambiguous_thread"
+
+
+def test_thread_read_without_new_turns_goes_stale_unless_resolved():
+    previous = ThreadLifecycleSnapshot.create(
+        thread_ref=_thread_ref(),
+        thread_status="idle",
+        last_seen_turn=8,
+        handoff_status="none",
+        acknowledged_at="2026-06-21T07:40:00Z",
+    )
+    read = ThreadReadSnapshot.create(
+        thread_ref=_thread_ref(),
+        observed_turn_count=8,
+        read_at="2026-06-21T07:47:00Z",
+        turns=[],
+    )
+
+    stale = build_lifecycle_snapshot_from_thread_read(read, previous_snapshot=previous)
+
+    assert stale.thread_status == ThreadStatus.STALE
+    assert stale.last_seen_turn == 8
+
+
+def test_resolved_thread_read_is_not_reprocessed_without_new_turns():
+    previous = ThreadLifecycleSnapshot.create(
+        thread_ref=_thread_ref(),
+        thread_status="completed",
+        last_seen_turn=14,
+        handoff_status="resolved",
+        dispatch_intent="resolve_handoff",
+        acknowledged_at="2026-06-21T07:40:00Z",
+        resolved_at="2026-06-21T07:41:00Z",
+    )
+    read = ThreadReadSnapshot.create(
+        thread_ref=_thread_ref(),
+        observed_turn_count=14,
+        read_at="2026-06-21T07:48:00Z",
+        turns=[],
+    )
+
+    snapshot = build_lifecycle_snapshot_from_thread_read(read, previous_snapshot=previous)
+
+    assert snapshot is previous
 
 
 def test_running_thread_is_not_restarted():

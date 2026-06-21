@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 import re
-from typing import Any
+from typing import Any, Iterable, Protocol
 
 
 _MAX_ID = 80
@@ -48,6 +48,13 @@ class DispatchAction(StrEnum):
     BLOCKED = "blocked"
     RESOLVE = "resolve"
     NOOP = "noop"
+
+
+class ThreadReadAdapter(Protocol):
+    adapter_name: str
+
+    def read_thread(self, thread_ref: "ThreadRef") -> "ThreadReadSnapshot":
+        ...
 
 
 def _normalize_slug(value: Any, *, field_name: str) -> str:
@@ -212,6 +219,161 @@ class ThreadLifecycleSnapshot:
             acknowledged_at=normalized_acknowledged_at,
             resolved_at=normalized_resolved_at,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ThreadTurnSummary:
+    turn_index: int
+    actor: str
+    summary: str
+    handoff_status: str
+    status_hint: ThreadStatus
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        turn_index: Any,
+        actor: Any,
+        summary: Any,
+        handoff_status: Any = "none",
+        status_hint: ThreadStatus | str = ThreadStatus.UNKNOWN,
+    ) -> "ThreadTurnSummary":
+        try:
+            index = int(turn_index)
+        except (TypeError, ValueError):
+            raise ThreadLifecycleBridgeError("turn_index must be an int") from None
+        if index < 0:
+            raise ThreadLifecycleBridgeError("turn_index must be >= 0")
+        return cls(
+            turn_index=index,
+            actor=_normalize_slug(actor, field_name="actor"),
+            summary=_normalize_text(summary, field_name="summary", allow_empty=False),
+            handoff_status=_normalize_handoff_status(handoff_status),
+            status_hint=status_hint if isinstance(status_hint, ThreadStatus) else _normalize_thread_status(status_hint, field_name="status_hint"),
+        )
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "turn_index": self.turn_index,
+            "actor": self.actor,
+            "handoff_status": self.handoff_status,
+            "status_hint": self.status_hint.value,
+            "has_summary": bool(self.summary),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ThreadReadSnapshot:
+    thread_ref: ThreadRef
+    observed_turn_count: int
+    turns: tuple[ThreadTurnSummary, ...]
+    read_at: str
+    ambiguous_reason: str = ""
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        thread_ref: ThreadRef,
+        observed_turn_count: Any,
+        turns: Iterable[ThreadTurnSummary],
+        read_at: Any,
+        ambiguous_reason: Any = "",
+    ) -> "ThreadReadSnapshot":
+        if not isinstance(thread_ref, ThreadRef):
+            raise ThreadLifecycleBridgeError("thread_ref must be a ThreadRef")
+        try:
+            count = int(observed_turn_count)
+        except (TypeError, ValueError):
+            raise ThreadLifecycleBridgeError("observed_turn_count must be an int") from None
+        if count < 0:
+            raise ThreadLifecycleBridgeError("observed_turn_count must be >= 0")
+        normalized_turns = tuple(sorted(turns, key=lambda turn: turn.turn_index))
+        if any(not isinstance(turn, ThreadTurnSummary) for turn in normalized_turns):
+            raise ThreadLifecycleBridgeError("turns must contain ThreadTurnSummary items")
+        indexes = [turn.turn_index for turn in normalized_turns]
+        if len(indexes) != len(set(indexes)):
+            raise ThreadLifecycleBridgeError("turn_index values must be unique")
+        if indexes and max(indexes) > count:
+            raise ThreadLifecycleBridgeError("turn_index must not exceed observed_turn_count")
+        return cls(
+            thread_ref=thread_ref,
+            observed_turn_count=count,
+            turns=normalized_turns,
+            read_at=_normalize_timestamp(read_at, field_name="read_at"),
+            ambiguous_reason=_normalize_text(ambiguous_reason, field_name="ambiguous_reason", allow_empty=True),
+        )
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "thread_id": self.thread_ref.thread_id,
+            "agent_id": self.thread_ref.agent_id,
+            "agent_run_id": self.thread_ref.agent_run_id,
+            "node_id": self.thread_ref.node_id,
+            "observed_turn_count": self.observed_turn_count,
+            "turn_summary_count": len(self.turns),
+            "read_at": self.read_at,
+            "has_ambiguous_reason": bool(self.ambiguous_reason),
+            "turns": tuple(turn.audit_summary() for turn in self.turns),
+        }
+
+
+def build_lifecycle_snapshot_from_thread_read(
+    read: ThreadReadSnapshot,
+    *,
+    previous_snapshot: ThreadLifecycleSnapshot | None = None,
+) -> ThreadLifecycleSnapshot:
+    if not isinstance(read, ThreadReadSnapshot):
+        raise ThreadLifecycleBridgeError("read must be a ThreadReadSnapshot")
+    if previous_snapshot is not None and not isinstance(previous_snapshot, ThreadLifecycleSnapshot):
+        raise ThreadLifecycleBridgeError("previous_snapshot must be a ThreadLifecycleSnapshot or None")
+    if previous_snapshot and previous_snapshot.thread_ref.thread_id != read.thread_ref.thread_id:
+        raise ThreadLifecycleBridgeError("previous_snapshot thread_id must match read thread_id")
+    if previous_snapshot and read.observed_turn_count <= previous_snapshot.last_seen_turn:
+        if previous_snapshot.resolved_at:
+            return previous_snapshot
+        return ThreadLifecycleSnapshot.create(
+            thread_ref=read.thread_ref,
+            thread_status="stale",
+            last_seen_turn=previous_snapshot.last_seen_turn,
+            handoff_status=previous_snapshot.handoff_status,
+            dispatch_intent="read_only",
+            acknowledged_at=previous_snapshot.acknowledged_at,
+            resolved_at=previous_snapshot.resolved_at,
+        )
+    if read.ambiguous_reason:
+        return ThreadLifecycleSnapshot.create(
+            thread_ref=read.thread_ref,
+            thread_status="ambiguous",
+            last_seen_turn=read.observed_turn_count,
+            handoff_status="ambiguous",
+            dispatch_intent="stop",
+        )
+    latest = read.turns[-1] if read.turns else None
+    handoff_status = latest.handoff_status if latest else "none"
+    status = _status_from_latest_turn(latest)
+    return ThreadLifecycleSnapshot.create(
+        thread_ref=read.thread_ref,
+        thread_status=status,
+        last_seen_turn=read.observed_turn_count,
+        handoff_status=handoff_status,
+        dispatch_intent="resolve_handoff" if handoff_status in {"ready_for_handoff", "resolved"} else "read_only",
+        acknowledged_at=read.read_at if latest else "",
+        resolved_at=read.read_at if handoff_status == "resolved" else "",
+    )
+
+
+def _status_from_latest_turn(turn: ThreadTurnSummary | None) -> ThreadStatus:
+    if turn is None:
+        return ThreadStatus.IDLE
+    if turn.handoff_status in {"ready_for_handoff", "resolved"}:
+        return ThreadStatus.COMPLETED
+    if turn.handoff_status == "ambiguous":
+        return ThreadStatus.AMBIGUOUS
+    if turn.status_hint != ThreadStatus.UNKNOWN:
+        return turn.status_hint
+    return ThreadStatus.IDLE
 
 
 @dataclass(frozen=True, slots=True)
