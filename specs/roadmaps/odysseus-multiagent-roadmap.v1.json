@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming",
+  "recommended_active_node": "visual-agent-programming-readonly-lens",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -737,7 +737,7 @@
       ],
       "unlocks": [
         "orchestration-dashboard-control-center",
-        "visual-agent-programming"
+        "visual-agent-programming-readonly-lens"
       ],
       "gates": [
         "read_only_first",
@@ -1354,12 +1354,93 @@
       }
     },
     {
-      "id": "visual-agent-programming",
+      "id": "visual-agent-programming-readonly-lens",
       "kind": "lens",
       "priority_rank": 18,
+      "title": "Visual agent programming read-only Lens projection",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Expose the visual-agent-programming branch as a read-only operator projection with claimability, gates, blocked actions, and policy-gated controls.",
+      "why": "The first visual programming step must make the future editor observable without allowing graph mutation or direct live agent starts.",
+      "source_refs": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "roadmap-lens-readonly",
+        "orchestration-dashboard-control-center",
+        "multiagent-e2e-benchmarks"
+      ],
+      "unlocks": [
+        "visual-agent-programming-plan-edit-validator"
+      ],
+      "gates": [
+        "read_only_lens_stable_first",
+        "controls_policy_gated",
+        "no_graph_mutation",
+        "no_agent_start"
+      ],
+      "deliverables": [
+        "Read-only visual agent programming snapshot",
+        "Policy-gated visual controls",
+        "Blocked-action and next-step projection",
+        "Admin API route",
+        "Focused tests and live install"
+      ],
+      "blocked_actions": [
+        "No visual mutation before PlanRuntime validation exists.",
+        "No direct graph-to-live-run without explicit operator action."
+      ]
+    },
+    {
+      "id": "visual-agent-programming-plan-edit-validator",
+      "kind": "runtime",
+      "priority_rank": 19,
+      "title": "Visual plan edit dry-run validator",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Validate proposed visual node and edge edits against PlanRuntime rules without committing or starting agents.",
+      "why": "The roadmap graph can become editable only after proposed changes can be checked as a dry-run event with clear collisions, stops, and gate failures.",
+      "source_refs": [
+        "src/plan_runtime.py",
+        "src/visual_agent_programming_lens.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "visual-agent-programming-readonly-lens"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "graph_edits_validate_against_plan_schema",
+        "dry_run_reports_collisions",
+        "no_write_without_operator_go",
+        "proposed_events_not_accepted_automatically"
+      ],
+      "deliverables": [
+        "Dry-run edit request contract",
+        "Validation result with collisions and stops",
+        "Tests for rejected unsafe edits",
+        "Roadmap evidence after live install"
+      ],
+      "blocked_actions": [
+        "No committed graph edits in this slice.",
+        "No agent starts from a dry-run result."
+      ]
+    },
+    {
+      "id": "visual-agent-programming",
+      "kind": "lens",
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
+      "priority_rank": 20,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1370,7 +1451,9 @@
       "depends_on": [
         "roadmap-lens-readonly",
         "orchestration-dashboard-control-center",
-        "multiagent-e2e-benchmarks"
+        "multiagent-e2e-benchmarks",
+        "visual-agent-programming-readonly-lens",
+        "visual-agent-programming-plan-edit-validator"
       ],
       "unlocks": [],
       "gates": [
@@ -1535,16 +1618,31 @@
     },
     {
       "from": "orchestration-dashboard-control-center",
-      "to": "visual-agent-programming",
+      "to": "visual-agent-programming-readonly-lens",
       "kind": "depends_on"
     },
     {
       "from": "roadmap-lens-readonly",
-      "to": "visual-agent-programming",
+      "to": "visual-agent-programming-readonly-lens",
+      "kind": "depends_on"
+    },
+    {
+      "from": "multiagent-e2e-benchmarks",
+      "to": "visual-agent-programming-readonly-lens",
       "kind": "depends_on"
     },
     {
       "from": "telegram-rich-draft-streaming",
+      "to": "visual-agent-programming-readonly-lens",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-readonly-lens",
+      "to": "visual-agent-programming-plan-edit-validator",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-plan-edit-validator",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -1803,8 +1901,18 @@
   "next_actions": [
     {
       "rank": 1,
+      "node_id": "visual-agent-programming-readonly-lens",
+      "action": "Implement the read-only visual-agent-programming Lens projection with policy-gated controls and no graph mutation."
+    },
+    {
+      "rank": 2,
+      "node_id": "visual-agent-programming-plan-edit-validator",
+      "action": "Prepare the next dry-run validator slice so visual plan edits can be checked before any write-capable UI exists."
+    },
+    {
+      "rank": 3,
       "node_id": "visual-agent-programming",
-      "action": "Keep visual agent programming visible behind Telegram streaming and the now-live orchestration foundation."
+      "action": "Keep the future write-capable visual editor visible behind validation, gates, and explicit operator actions."
     }
   ]
 }

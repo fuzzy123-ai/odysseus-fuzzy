@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming",
-    "status": "research_gate",
-    "why_first": "Telegram rich draft streaming is live; the remaining visual-agent-programming branch is visible as the next roadmap frontier but still needs promotion from research before write-capable implementation starts."
+    "node_id": "visual-agent-programming-readonly-lens",
+    "status": "active",
+    "why_first": "Telegram rich draft streaming is live; visual-agent-programming has been split into a safe read-only Lens slice first, then a dry-run validator, before any write-capable visual editor."
   },
   "completed_features": [
     {
@@ -251,6 +251,30 @@
         "read-only scope and redaction checks exist",
         "proposed events remain proposed until accepted",
         "future context uses accepted summaries rather than raw reports",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC18-visual-agent-programming-readonly-lens",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Expose the visual-agent-programming roadmap branch as a read-only API projection with policy-gated controls, explicit blocked actions, and next-step context.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_roadmap_lens.py tests\\test_orchestration_dashboard.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "PlanRuntime has a claimable visual-agent-programming-readonly-lens node",
+        "the route returns a read-only snapshot",
+        "all visual controls are policy_gated",
+        "blocked actions include no graph mutation and no agent start",
         "feature is pushed and live installed"
       ]
     }
