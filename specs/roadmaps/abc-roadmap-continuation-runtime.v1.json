@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "read-only-agent-report-protocol",
+    "node_id": "planruntime-source-of-truth",
     "status": "active",
-    "why_first": "rolling-frontier-policy has been codified as the dependency policy node; the next claimable feature is the report protocol."
+    "why_first": "rolling-frontier-policy is live and read-only-agent-report-protocol is implemented in the current commit; the next claimable runtime feature is PlanRuntime source-of-truth."
   },
   "completed_features": [
     {
@@ -19,8 +19,13 @@
     },
     {
       "node_id": "rolling-frontier-policy",
+      "status": "live_installed",
+      "evidence_commit": "35e3bfa7"
+    },
+    {
+      "node_id": "read-only-agent-report-protocol",
       "status": "pending_current_commit_live_install",
-      "evidence": "Policy gates and next-claim rule are codified in specs/roadmaps/odysseus-multiagent-roadmap.v1.json."
+      "evidence": "AgentReport schema, validator, reducer output, and focused tests are implemented in src/agent_report_store.py and tests/test_agent_report_store.py."
     }
   ],
   "continuation_policy": {
