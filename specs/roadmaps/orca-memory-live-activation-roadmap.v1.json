@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "memory-tree-ui-live",
+  "recommended_active_node": "canonical-vault-foundation",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -267,7 +267,7 @@
       "priority_rank": 2,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "memory-live-baseline-audit"
       ],
@@ -299,9 +299,54 @@
         "Live browser/API check for ORCA Memory Tree UI visibility."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "fccde3d3",
+        "completed_at": "2026-06-21T20:43:00+02:00",
+        "live_evidence": [
+          {
+            "check": "homeserver_commit",
+            "result": "ok",
+            "value": "fccde3d3"
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "fccde3d3",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/baseline",
+            "result": "ok",
+            "summary": {
+              "schema": "orca-memory-baseline-v1",
+              "read_only": true,
+              "writes_supported": false,
+              "memory_tree_state": "enabled",
+              "filtering_state": "audit_only"
+            }
+          },
+          {
+            "check": "GET /api/plugins/orca/memory-tree",
+            "result": "ok",
+            "summary": {
+              "enabled": true,
+              "writes_performed": false,
+              "readiness_state": "empty",
+              "total_notes": 0
+            }
+          }
+        ]
       }
     },
     {
@@ -695,20 +740,20 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "memory-tree-ui-live",
-      "action": "Enable the ORCA Memory Tree UI live after baseline evidence.",
-      "owner": "bob"
-    },
-    {
-      "rank": 2,
       "node_id": "canonical-vault-foundation",
-      "action": "Prepare operator-approved canonical note/link foundation without touching vault content until explicit Go.",
+      "action": "Requires explicit operator Go before any vault note mutation; read-only prep only until then.",
       "owner": "alice"
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "derived-graph-edges-live",
       "action": "Remain blocked until canonical vault foundation creates explicit source links.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "freshness-hybrid-filtering-live",
+      "action": "Remain blocked until memory-tree-ui-live and derived-graph-edges-live are both live.",
       "owner": "bob"
     }
   ],
