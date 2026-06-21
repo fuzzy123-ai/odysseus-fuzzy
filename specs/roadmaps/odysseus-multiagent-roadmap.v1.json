@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming-proposal-review-queue",
+  "recommended_active_node": "visual-agent-programming-operator-acceptance-contract",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1465,7 +1465,7 @@
       "title": "Visual plan proposal review queue",
       "horizon": "after-v0-9",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "objective": "Expose validated visual plan edit proposals as a reviewable queue before any accepted plan event mutates the roadmap.",
       "why": "Dry-run validation is useful only if the operator can inspect proposed events, stops, collisions, and context before accepting or rejecting them.",
       "source_refs": [
@@ -1478,7 +1478,7 @@
         "visual-agent-programming-plan-edit-validator"
       ],
       "unlocks": [
-        "visual-agent-programming"
+        "visual-agent-programming-operator-acceptance-contract"
       ],
       "gates": [
         "proposal_queue_read_only_first",
@@ -1495,6 +1495,58 @@
       "blocked_actions": [
         "No accepted plan event without explicit operator action.",
         "No direct agent start from queued proposals."
+      ],
+      "completion_state": {
+        "status": "live_installed",
+        "commit": "ad2630aa",
+        "completed_at": "2026-06-21",
+        "evidence": [
+          "Added read-only VisualPlanProposalQueueSnapshot for validated visual plan edit proposals.",
+          "Proposal queue reports valid/blocked counts, proposed events, collisions, stops, and zero accepted events.",
+          "Accept, reject, apply-to-roadmap, and start-agent controls remain policy_gated.",
+          "Added admin-protected POST /api/roadmap/visual-agent-programming/proposals/review route.",
+          "Focused tests passed locally: tests/test_visual_agent_programming_lens.py tests/test_plan_runtime.py tests/test_roadmap_lens.py tests/test_orchestration_dashboard.py, 23 passed.",
+          "Feature commit ad2630aa was pushed to fuzzy/dev and installed through the homeserver auto-updater; live /api/version reported ad2630aa, /api/health was healthy, Chroma heartbeat passed, and the new proposal review route returned admin auth protection."
+        ]
+      }
+    },
+    {
+      "id": "visual-agent-programming-operator-acceptance-contract",
+      "kind": "runtime",
+      "priority_rank": 21,
+      "title": "Visual proposal operator acceptance contract",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Define the operator-gated contract that can turn a reviewed proposal into an accepted plan event without starting agents.",
+      "why": "Before the visual editor mutates roadmap truth, acceptance must be explicit, auditable, scoped, and separated from agent execution.",
+      "source_refs": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "depends_on": [
+        "visual-agent-programming-proposal-review-queue"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "operator_acceptance_requires_explicit_go",
+        "accepted_event_is_auditable",
+        "roadmap_mutation_separate_from_agent_start",
+        "rollback_or_reject_path_visible"
+      ],
+      "deliverables": [
+        "Acceptance request contract",
+        "Accepted-event audit projection",
+        "Reject path projection",
+        "Focused tests and live install"
+      ],
+      "blocked_actions": [
+        "No automatic acceptance of queued proposals.",
+        "No agent start as part of acceptance."
       ]
     },
     {
@@ -1503,7 +1555,7 @@
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
-      "priority_rank": 21,
+      "priority_rank": 22,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1517,7 +1569,8 @@
         "multiagent-e2e-benchmarks",
         "visual-agent-programming-readonly-lens",
         "visual-agent-programming-plan-edit-validator",
-        "visual-agent-programming-proposal-review-queue"
+        "visual-agent-programming-proposal-review-queue",
+        "visual-agent-programming-operator-acceptance-contract"
       ],
       "unlocks": [],
       "gates": [
@@ -1712,6 +1765,11 @@
     },
     {
       "from": "visual-agent-programming-proposal-review-queue",
+      "to": "visual-agent-programming-operator-acceptance-contract",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-operator-acceptance-contract",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -1970,8 +2028,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming-proposal-review-queue",
-      "action": "Prepare a read-only proposal review queue so validated visual plan edits remain inspectable before acceptance."
+      "node_id": "visual-agent-programming-operator-acceptance-contract",
+      "action": "Define an explicit operator acceptance contract for reviewed visual plan proposals without agent starts."
     },
     {
       "rank": 2,

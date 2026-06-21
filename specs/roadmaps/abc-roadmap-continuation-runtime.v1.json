@@ -7,9 +7,9 @@
   "status": "active",
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
-    "node_id": "visual-agent-programming-proposal-review-queue",
+    "node_id": "visual-agent-programming-operator-acceptance-contract",
     "status": "active",
-    "why_first": "The visual plan edit dry-run validator is live; the next safe step is a read-only proposal review queue before any accepted plan event can mutate the roadmap."
+    "why_first": "The visual proposal review queue is live; the next safe step is an explicit operator acceptance contract before any accepted plan event can mutate the roadmap."
   },
   "completed_features": [
     {
@@ -123,6 +123,12 @@
       "status": "live_installed",
       "evidence_commit": "6276ce17",
       "evidence": "Dry-run validator for proposed visual plan edits, structured stops/collisions, no-write/no-agent-start policy, admin POST route, focused tests, push, and homeserver live install are complete."
+    },
+    {
+      "node_id": "visual-agent-programming-proposal-review-queue",
+      "status": "live_installed",
+      "evidence_commit": "ad2630aa",
+      "evidence": "Read-only proposal review queue, valid/blocked counts, policy-gated accept/reject/apply/start controls, admin POST route, focused tests, push, and homeserver live install are complete."
     }
   ],
   "continuation_policy": {
@@ -333,6 +339,29 @@
         "proposal queue snapshot lists pending proposed events and validation outcomes",
         "accept/reject controls are visible but policy_gated",
         "no queue item mutates the roadmap or starts an agent",
+        "feature is pushed and live installed"
+      ]
+    },
+    {
+      "slice_id": "ABC21-visual-agent-programming-operator-acceptance-contract",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Define an explicit operator-gated acceptance contract for reviewed visual proposals, keeping accepted events auditable and separate from agent starts.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "acceptance request validation requires explicit operator confirmation",
+        "accepted/rejected event projections are auditable",
+        "acceptance never starts agents",
         "feature is pushed and live installed"
       ]
     }
