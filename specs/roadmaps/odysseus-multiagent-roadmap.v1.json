@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "roadmap-reconciliation-import",
+  "recommended_active_node": "read-only-agent-report-protocol",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -434,7 +434,7 @@
       "title": "Define rolling frontier and plan mutation policy",
       "horizon": "now",
       "target_version": "pre-0.9",
-      "status": "active_candidate",
+      "status": "done",
       "objective": "Make the roadmap a living tree that always keeps one prepared step ahead while preventing runaway planning and silent gate bypasses.",
       "why": "A static roadmap snapshot will become stale as soon as agents complete, block, or discover collisions. The tree needs controlled mutation rules before agents navigate it.",
       "source_refs": [
@@ -455,14 +455,29 @@
         "claimable_vs_candidate_nodes_distinct",
         "frontier_depth_limited",
         "collision_edges_enforced",
-        "gate_nodes_enforced"
+        "gate_nodes_enforced",
+        "feature_done_requires_live_evidence",
+        "next_claimable_node_selected_or_stop_recorded",
+        "no_report_to_claimable_without_acceptance"
       ],
+      "completion_state": {
+        "status": "live_install_pending_for_current_commit",
+        "completed_at": "2026-06-21",
+        "evidence_summary": [
+          "Rolling frontier policy now requires live feature evidence before done.",
+          "After live-verified completion, the orchestrator must select the next claimable node by dependencies, gate/collision/lock clearance, and priority_rank.",
+          "If no unambiguous node is claimable, the orchestrator must record the blocking gate or stop reason instead of inventing work.",
+          "Read-only reports may propose nodes or events but cannot make nodes claimable without accepted reducer/orchestrator policy."
+        ],
+        "next_claimable_node": "read-only-agent-report-protocol"
+      },
       "deliverables": [
         "Plan event model",
         "Node claimability policy",
         "Frontier refresh rules",
         "Agent navigation policy",
-        "Collision/gate/stop edge semantics"
+        "Collision/gate/stop edge semantics",
+        "Live completion and next-claim selection rule"
       ],
       "blocked_actions": [
         "Do not let agents silently promote their own speculative nodes.",
@@ -1418,6 +1433,7 @@
       "Filter out nodes with unsatisfied dependencies.",
       "Filter out nodes with active collision, lock, or required gate blockers.",
       "Prefer nodes with explicit ContextCapsule and focused tests.",
+      "After live-verified completion, select the next claimable node by dependency satisfaction, gate/collision/lock clearance, and priority_rank.",
       "If no current node is claimable, inspect prepared_next and request promotion.",
       "If prepared_next is empty for an active leaf, propose a frontier refresh instead of inventing work.",
       "If multiple nodes are equally claimable and overlap risk is unclear, stop for orchestrator choice."

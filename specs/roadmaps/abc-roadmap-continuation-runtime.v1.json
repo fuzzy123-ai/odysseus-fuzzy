@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "plan_id": "abc-roadmap-continuation-runtime",
+  "parent_plan_id": "odysseus-multiagent-roadmap",
+  "title": "ABC Plan: Roadmap Continuation Runtime",
+  "created_at": "2026-06-21",
+  "status": "active",
+  "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
+  "active_feature": {
+    "node_id": "read-only-agent-report-protocol",
+    "status": "active",
+    "why_first": "rolling-frontier-policy has been codified as the dependency policy node; the next claimable feature is the report protocol."
+  },
+  "completed_features": [
+    {
+      "node_id": "roadmap-reconciliation-import",
+      "status": "live_installed",
+      "evidence_commit": "fd22b9f2"
+    },
+    {
+      "node_id": "rolling-frontier-policy",
+      "status": "pending_current_commit_live_install",
+      "evidence": "Policy gates and next-claim rule are codified in specs/roadmaps/odysseus-multiagent-roadmap.v1.json."
+    }
+  ],
+  "continuation_policy": {
+    "mode": "serial_live_completion_then_next_claimable",
+    "rule": "After a feature is committed, pushed, installed live, and smoke-verified, choose the next claimable roadmap node from specs/roadmaps/odysseus-multiagent-roadmap.v1.json by dependency satisfaction and priority_rank.",
+    "must_continue_until": [
+      "the full roadmap is complete",
+      "the two-hour work window ends",
+      "a stop rule fires",
+      "operator explicitly pauses or redirects"
+    ],
+    "must_not_stop_at": [
+      "local tests only",
+      "commit only",
+      "push only",
+      "server updater start only",
+      "one passed gate when the feature still has open completion evidence"
+    ],
+    "feature_done_only_when": [
+      "all scoped repository changes are committed",
+      "commit is pushed to fuzzy/dev",
+      "Debian homeserver auto-updater completes",
+      "live /api/version reports the pushed commit",
+      "live app health passes",
+      "Chroma heartbeat passes when relevant",
+      "roadmap status and handoff evidence are updated"
+    ]
+  },
+  "current_evidence": [
+    {
+      "type": "live_commit",
+      "value": "fd22b9f2",
+      "notes": "roadmap-reconciliation-import is live on the Debian homeserver."
+    },
+    {
+      "type": "roadmap_node",
+      "value": "rolling-frontier-policy",
+      "notes": "Priority 2 active_candidate; depends on roadmap-reconciliation-import."
+    },
+    {
+      "type": "next_dependency",
+      "value": "read-only-agent-report-protocol",
+      "notes": "Priority 3 active_candidate; depends on rolling-frontier-policy."
+    }
+  ],
+  "non_goals": [
+    "Do not start visual Roadmap Lens before PlanRuntime source-of-truth prerequisites are satisfied.",
+    "Do not start live subagent execution while the runtime is still explicitly fake/offline.",
+    "Do not let agents directly mutate roadmap truth; reports must be reduced into accepted events.",
+    "Do not batch several unrelated feature commits into one live install."
+  ],
+  "stop_rules": [
+    "Stop on unrelated staged files or dirty files in an active write scope.",
+    "Stop on secrets, tokens, raw chat IDs, raw private source content, or raw provider output.",
+    "Stop on destructive git, rollback, force-push, delete, or broad host shell needs.",
+    "Stop when live server access fails with SSH/auth errors.",
+    "Stop when focused tests fail and the fix would leave the feature scope.",
+    "Stop when the next roadmap node is not claimable because dependencies, gates, or collision data are ambiguous."
+  ],
+  "paths": [
+    {
+      "path_id": "alice-policy-contract",
+      "role": "alice",
+      "execution_mode": "explorer",
+      "goal": "Review the current roadmap policy language and propose the smallest completion criteria for rolling-frontier-policy.",
+      "completion": "A compact report lists policy gaps, wording to preserve, and unsafe shortcuts."
+    },
+    {
+      "path_id": "bob-runtime-protocol-scout",
+      "role": "bob",
+      "execution_mode": "explorer",
+      "goal": "Inspect current runtime models and propose the smallest AgentReport/PlanEvent implementation surface for the next node.",
+      "completion": "A compact report lists files, tests, schema choices, and reducer boundaries."
+    },
+    {
+      "path_id": "charlie-integration-and-live",
+      "role": "charlie",
+      "execution_mode": "worker",
+      "goal": "Implement or codify the active feature, run focused checks, commit, push, install live, and advance to the next claimable node.",
+      "completion": "Feature is live and the roadmap records evidence and the next active node."
+    }
+  ],
+  "slices": [
+    {
+      "slice_id": "ABC0-continuation-preflight",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Record continuation policy and verify the active roadmap node after the previous live install.",
+      "tests": [
+        "git status --short --branch",
+        "PowerShell ConvertFrom-Json for touched JSON files"
+      ],
+      "done_when": [
+        "continuation policy exists",
+        "active feature is explicit",
+        "automation can continue beyond the next gate"
+      ]
+    },
+    {
+      "slice_id": "ABC1-rolling-frontier-policy",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Complete rolling-frontier-policy as an enforceable roadmap policy node with claimability, depth, gate, collision, and continuation rules.",
+      "tests": [
+        "PowerShell ConvertFrom-Json for touched JSON files",
+        "git diff --check"
+      ],
+      "done_when": [
+        "rolling-frontier-policy requires live install evidence before the feature is accepted as complete",
+        "read-only-agent-report-protocol becomes the next active feature",
+        "automation remains active for the next claimable node"
+      ]
+    },
+    {
+      "slice_id": "ABC2-read-only-agent-report-protocol",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "src/agent_report_store.py",
+        "tests/test_agent_report_store.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Add the first AgentReport validation and report-to-plan-event reducer surface after rolling-frontier-policy is live.",
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_agent_report_store.py"
+      ],
+      "done_when": [
+        "AgentReport schema validates",
+        "read-only scope and redaction checks exist",
+        "proposed events remain proposed until accepted",
+        "future context uses accepted summaries rather than raw reports",
+        "feature is pushed and live installed"
+      ]
+    }
+  ],
+  "delegation_packets": [
+    {
+      "agent": "Alice",
+      "slice_id": "ABC1-alice-policy-contract-scout",
+      "execution_mode": "explorer",
+      "prompt": "Alice-Slice: ABC1-alice-policy-contract-scout\n\nArbeite im Odysseus-Fork read-only.\n\nZiel:\n- Pruefe, ob rolling-frontier-policy als Policy-Knoten ausreichend konkret ist, damit Agenten nicht nur bis zum naechsten Gate arbeiten, sondern nach Live-Abschluss den naechsten claimbaren Roadmap-Knoten waehlen.\n\nErlaubte Dateien:\n- specs/roadmaps/odysseus-multiagent-roadmap.v1.json\n- specs/roadmaps/abc-roadmap-continuation-runtime.v1.json\n- specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json\n\nNicht anfassen:\n- Keine Dateien aendern.\n- Keine Commits.\n- Keine Live-/Server-/Provider-Aktionen.\n- Keine rohen privaten Inhalte kopieren.\n\nAnforderungen:\n- Liefere einen kompakten Report mit: policy gaps, required gates, unsafe shortcuts, recommended wording.\n- Trenne Muss-Regeln von Nice-to-have.\n- Keine verified-done Behauptungen.\n\nTests:\n- Keine. Read-only Explorer-Slice.\n\nStop-Regeln:\n- Scope wird verlassen.\n- Aussagen waeren nur Chat-Erinnerung ohne Repo-Quelle.\n\nWenn fertig:\n- Status melden.\n- Report liefern.\n- Risiken und Handoff nennen."
+    },
+    {
+      "agent": "Bob",
+      "slice_id": "ABC2-bob-agent-report-protocol-scout",
+      "execution_mode": "explorer",
+      "prompt": "Bob-Slice: ABC2-bob-agent-report-protocol-scout\n\nArbeite im Odysseus-Fork read-only.\n\nZiel:\n- Bereite die kleinste Implementierungsflaeche fuer read-only-agent-report-protocol vor.\n\nErlaubte Dateien:\n- src/plan_graph_store.py\n- src/orchestration_registry.py\n- src/agent_run_store.py\n- src/handoff_mailbox.py\n- src/tool_result_truth.py\n- tests/test_plan_graph_store.py\n- tests/test_orchestration_registry.py\n- tests/test_agent_run_store.py\n- tests/test_handoff_mailbox.py\n- tests/test_tool_result_truth.py\n- specs/roadmaps/odysseus-multiagent-roadmap.v1.json\n- specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json\n\nNicht anfassen:\n- Keine Codeaenderungen.\n- Keine Tests ausfuehren, ausser du brauchst reine Read-only-Inspektion.\n- Keine Git-Aktionen.\n- Kein Live-Backend.\n\nAnforderungen:\n- Liefere einen kompakten Report mit: empfohlene neue Dateien, minimale Dataclasses/Felder, Validierungsregeln, Reducer-Ausgabe, fokussierte Tests.\n- Benenne Fake-vs-Live-Grenzen klar.\n- Schlage keine direkte Graphmutation durch Reports vor.\n\nTests:\n- Keine. Read-only Explorer-Slice.\n\nStop-Regeln:\n- Scope wird verlassen.\n- Eine Aussage braucht Codequelle, die nicht erlaubt ist.\n\nWenn fertig:\n- Status melden.\n- Report liefern.\n- Risiken und Handoff nennen."
+    }
+  ],
+  "heartbeat_automation": {
+    "name": "abc-roadmap-continuation-runtime",
+    "interval": "1 minute",
+    "status": "planned",
+    "intent": "Keep working through the roadmap serially; do not stop at the next gate when a feature still needs push/live install, and do not stop after live install if another claimable node exists within the active roadmap."
+  },
+  "handoff_card_template": {
+    "path": "abc-roadmap-continuation-runtime",
+    "status": "done | blocked | deferred | active",
+    "active_node": "",
+    "changed_files": [],
+    "commit": "",
+    "push": "",
+    "tests": [],
+    "server_install": {
+      "updater_result": "",
+      "server_version": "",
+      "app_health": "",
+      "chroma": ""
+    },
+    "next_node": ""
+  }
+}
