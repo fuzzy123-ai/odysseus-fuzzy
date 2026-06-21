@@ -319,7 +319,7 @@
     {
       "path": "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
       "role": "future_operator_channel",
-      "notes": "Useful as a later status/streaming surface for long-running agent work."
+      "notes": "Concrete Telegram plugin feature track for safe rich text rendering and rich-message draft streaming."
     },
     {
       "path": "docs/plans/universal-inbox-abc-roadmap.md",
@@ -971,9 +971,93 @@
       ]
     },
     {
+      "id": "telegram-rich-text-rendering",
+      "kind": "operator_channel",
+      "priority_rank": 16,
+      "title": "Telegram rich text rendering",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Convert assistant Markdown into Telegram-safe rich HTML or safe fallback plaintext without exposing tokens, chat IDs, or raw rich payloads.",
+      "why": "Telegram currently surfaces raw Markdown-like text. Rich text must be safe and tested before draft streaming is enabled.",
+      "source_refs": [
+        "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+        "docs/plans/telegram-agent-chat-roadmap.md",
+        "docs/plans/telegram-release-boundary-contract.md"
+      ],
+      "depends_on": [
+        "real-gate-runners",
+        "multiagent-e2e-benchmarks"
+      ],
+      "unlocks": [
+        "telegram-rich-draft-streaming"
+      ],
+      "gates": [
+        "telegram_html_allowlist_validated",
+        "plaintext_fallback_exists",
+        "message_chunking_respects_limits",
+        "tokens_and_chat_ids_not_persisted",
+        "focused_telegram_formatting_tests_pass"
+      ],
+      "deliverables": [
+        "Telegram-safe Markdown-to-HTML renderer",
+        "Allowlist validator",
+        "Classic sendMessage HTML fallback path",
+        "Redacted status fields for formatting mode",
+        "Focused formatting and chunking tests"
+      ],
+      "blocked_actions": [
+        "Do not send live Telegram messages without explicit operator Go.",
+        "Do not persist bot tokens, raw chat IDs, sender IDs, or raw rich payloads.",
+        "Do not enable draft streaming before rich text validation is green."
+      ]
+    },
+    {
+      "id": "telegram-rich-draft-streaming",
+      "kind": "operator_channel",
+      "priority_rank": 17,
+      "title": "Telegram rich message draft streaming",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "status": "planned",
+      "objective": "Add gated Telegram rich-message draft previews for long-running agent turns, followed by idempotent final rich-message delivery or safe fallback.",
+      "why": "Long-running agent work needs operator-visible progress, but streaming must not create duplicate messages, leak sensitive payloads, or bypass final delivery guarantees.",
+      "source_refs": [
+        "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+        "docs/plans/telegram-offline-smoke-plan-contract.md",
+        "docs/plans/live-telegram-status-dry-run-contract.md"
+      ],
+      "depends_on": [
+        "telegram-rich-text-rendering",
+        "heartbeat-runtime-live-loop"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "rich_drafts_env_gated",
+        "async_reply_flow_idempotent",
+        "draft_preview_expires_safely",
+        "final_delivery_confirmed_or_fallback",
+        "live_telegram_smoke_requires_operator_go"
+      ],
+      "deliverables": [
+        "Async Telegram reply flow",
+        "Rich draft preview sender",
+        "Final rich message sender with fallback",
+        "Redacted timing/status metadata",
+        "Fake Telegram provider tests and optional operator-gated live smoke"
+      ],
+      "blocked_actions": [
+        "Do not broaden Telegram turns with shell or arbitrary file-write tools.",
+        "Do not treat draft delivery as final answer persistence.",
+        "Do not run live Telegram sends without explicit operator Go."
+      ]
+    },
+    {
       "id": "visual-agent-programming",
       "kind": "lens",
-      "priority_rank": 16,
+      "priority_rank": 18,
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
@@ -1131,6 +1215,26 @@
       "kind": "depends_on"
     },
     {
+      "from": "real-gate-runners",
+      "to": "telegram-rich-text-rendering",
+      "kind": "depends_on"
+    },
+    {
+      "from": "multiagent-e2e-benchmarks",
+      "to": "telegram-rich-text-rendering",
+      "kind": "depends_on"
+    },
+    {
+      "from": "telegram-rich-text-rendering",
+      "to": "telegram-rich-draft-streaming",
+      "kind": "depends_on"
+    },
+    {
+      "from": "heartbeat-runtime-live-loop",
+      "to": "telegram-rich-draft-streaming",
+      "kind": "depends_on"
+    },
+    {
       "from": "orchestration-dashboard-control-center",
       "to": "visual-agent-programming",
       "kind": "depends_on"
@@ -1139,6 +1243,11 @@
       "from": "roadmap-lens-readonly",
       "to": "visual-agent-programming",
       "kind": "depends_on"
+    },
+    {
+      "from": "telegram-rich-draft-streaming",
+      "to": "visual-agent-programming",
+      "kind": "unlocks"
     }
   ],
   "plan_event_model": {
