@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "raptor-rebuild-live",
+  "recommended_active_node": "raptor-read-policy-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -932,7 +932,7 @@
       "priority_rank": 7,
       "horizon": "v0-9-activation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "derived-graph-edges-live"
       ],
@@ -971,9 +971,136 @@
         "Live GET /api/plugins/orca/raptor/status reports configured=true."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "2cd7de33",
+        "completed_at": "2026-06-22T08:28:00+02:00",
+        "live_evidence": [
+          {
+            "check": "operator_go",
+            "result": "ok",
+            "summary": {
+              "scope": "raptor-rebuild-live",
+              "mutation": "enable_raptor_rebuild_gate_temporarily_and_write_derived_raptor_artifacts"
+            }
+          },
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "command": "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py tests\\test_memory_perf_suite_raptor.py --basetemp .pytest_tmp\\orca-raptor",
+              "passed": 47
+            }
+          },
+          {
+            "check": "temporary live RAPTOR write gate",
+            "result": "ok",
+            "summary": {
+              "raptor_enabled": true,
+              "raptor_rebuild_enabled_during_rebuild": true,
+              "write_gate_state_during_rebuild": "ready"
+            }
+          },
+          {
+            "check": "live RAPTOR rebuild",
+            "result": "ok",
+            "summary": {
+              "owner_vault": "default",
+              "source_count": 6,
+              "active_sources": 6,
+              "stored_sources": 6,
+              "graph_edges": 14,
+              "stored_edges": 14,
+              "artifact_count": 3,
+              "warnings": 0
+            }
+          },
+          {
+            "check": "rebuild report security",
+            "result": "ok",
+            "summary": {
+              "derived_artifacts_only": true,
+              "raw_note_content_stored": false,
+              "absolute_host_paths_stored": false,
+              "provider_output_stored": false
+            }
+          },
+          {
+            "check": "post-rebuild live RAPTOR status",
+            "result": "ok",
+            "summary": {
+              "enabled": true,
+              "configured": true,
+              "index_present": true,
+              "summaries_present": true,
+              "source_count": 6,
+              "readiness_state": "tainted",
+              "tainted_sources": 1,
+              "readiness_gap_names": [
+                "source_isolated_from_default_retrieval"
+              ]
+            }
+          },
+          {
+            "check": "bounded RAPTOR graph route",
+            "result": "ok",
+            "summary": {
+              "node_count": 6,
+              "edge_count": 14,
+              "stored_edge_count": 14,
+              "returned_edge_count": 14,
+              "limit": 20,
+              "clipped": false
+            }
+          },
+          {
+            "check": "post-rebuild gate close",
+            "result": "ok",
+            "summary": {
+              "raptor_enabled": true,
+              "raptor_rebuild_enabled": false,
+              "write_gate_state": "blocked",
+              "write_gate_gap_names": [
+                "raptor_rebuild_feature_flag_disabled"
+              ],
+              "graph_reads_remain_available": true
+            }
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "2cd7de33",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "GET /api/plugins/orca/memory/status",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "ready_families": 4,
+              "blocked_families": [
+                "freshness",
+                "raptor"
+              ],
+              "readiness_gap_names": [
+                "quarantined_items",
+                "source_isolated_from_default_retrieval"
+              ],
+              "raptor_sources": 6,
+              "raptor_lineage_tainted": true
+            }
+          }
+        ]
       }
     },
     {
@@ -1186,9 +1313,9 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "raptor-rebuild-live",
-      "action": "Requires explicit operator Go before enabling RAPTOR flags and writing derived RAPTOR artifacts.",
-      "owner": "charlie"
+      "node_id": "raptor-read-policy-live",
+      "action": "Define and verify the live read policy for configured-but-tainted RAPTOR lineage, keep graph reads available, and keep further rebuilds operator-gated.",
+      "owner": "bob"
     },
     {
       "rank": 2,
