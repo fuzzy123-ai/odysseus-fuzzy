@@ -496,6 +496,18 @@ def _stem(path: str) -> str:
 
 
 def _cache_key(payload: Dict[str, Any]) -> str:
-    stable = {key: value for key, value in payload.items() if key != "cache_key"}
+    stable = _stable_cache_payload(payload)
     raw = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _stable_cache_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _stable_cache_payload(nested)
+            for key, nested in value.items()
+            if key not in {"cache_key", "cache"}
+        }
+    if isinstance(value, list):
+        return [_stable_cache_payload(item) for item in value]
+    return value

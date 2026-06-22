@@ -1,13 +1,13 @@
-"""Teacher-escalation loop for self-hosted models in agent mode.
+"""Teacher-escalation loop for smaller/local-first models in agent mode.
 
-When the student (self-hosted) model finishes a turn, evaluate whether
-it succeeded. If it didn't, escalate to a SOTA teacher endpoint, which
-both produces a corrective reply AND writes a SKILL.md procedure so
-the student can do it itself next time.
+When the student model finishes a turn, evaluate whether it succeeded.
+If it didn't, escalate to the configured teacher endpoint, which both
+produces a corrective reply AND writes a SKILL.md procedure so the
+student can do it itself next time.
 
 Trigger conditions (ALL must hold):
   1. Agent mode (not chat mode).
-  2. The student's endpoint is self-hosted (not a known SOTA cloud API).
+  2. Teacher escalation is enabled.
   3. `teacher_model` setting is configured.
 
 Detection tiers:
@@ -30,6 +30,101 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+
+_DEFAULT_CONTEXT_TOKENS = 8192
+
+
+def _provider_name(url: str) -> str:
+    host = str(url or "").strip().lower()
+    if not host:
+        return ""
+    if "deepseek" in host:
+        return "DeepSeek"
+    if "openrouter" in host:
+        return "OpenRouter"
+    if "openai" in host:
+        return "OpenAI"
+    if "anthropic" in host:
+        return "Anthropic"
+    if "ollama" in host:
+        return "Ollama"
+    if "localhost" in host or "127.0.0.1" in host:
+        return "Local"
+    return "OpenAI-compatible"
+
+
+def _context_warnings(tokens: int, *, mode: str) -> List[str]:
+    warnings: List[str] = []
+    if int(tokens or 0) <= 0 or int(tokens) == _DEFAULT_CONTEXT_TOKENS:
+        warnings.append("model_context_tokens_unverified")
+    elif int(tokens) < 16000:
+        warnings.append("model_context_below_recommended_16k")
+    if mode == "local":
+        warnings.append("teacher_model_local_capability_may_be_limited")
+    return warnings
+
+
+def resolve_teacher_capability_status(owner: Optional[str] = None) -> Dict[str, Any]:
+    """Return a redacted status payload for the configured teacher role.
+
+    The payload intentionally excludes endpoint URLs and headers. It is safe to
+    surface in live health/evidence views and lets ORCA distinguish a working
+    teacher route from a local/missing/degraded best-effort route.
+    """
+    from src.settings import get_setting
+
+    enabled = bool(get_setting("teacher_enabled", False))
+    teacher_spec = str(get_setting("teacher_model", "") or "").strip()
+    payload: Dict[str, Any] = {
+        "role": "teacher.escalation",
+        "enabled": enabled,
+        "configured": bool(teacher_spec),
+        "selected_model": "",
+        "provider": "",
+        "mode": "",
+        "model_context_tokens": 0,
+        "model_capability_warnings": [],
+        "fallback_policy": "skip_teacher_and_continue_student_result",
+        "orca_context_contract": {
+            "inherits_agent_context_providers": True,
+            "provider_mode": "agent",
+            "untrusted_context_boundary": True,
+            "recursion_guard": True,
+        },
+    }
+    if not enabled:
+        payload["model_capability_warnings"] = ["teacher_disabled"]
+        return payload
+    if not teacher_spec:
+        payload["model_capability_warnings"] = ["teacher_model_not_configured"]
+        return payload
+
+    try:
+        from src.ai_interaction import _resolve_model
+        from src.model_context import DEFAULT_CONTEXT, get_context_length, is_local_endpoint
+
+        url, model, _headers = _resolve_model(teacher_spec, owner=owner)
+        mode = "local" if is_local_endpoint(url) else "cloud"
+        tokens = int(get_context_length(url, model) or 0)
+        default_tokens = int(DEFAULT_CONTEXT or _DEFAULT_CONTEXT_TOKENS)
+        warnings = _context_warnings(tokens, mode=mode)
+        if tokens == default_tokens and "model_context_tokens_unverified" not in warnings:
+            warnings.append("model_context_tokens_unverified")
+        payload.update(
+            {
+                "selected_model": model,
+                "provider": _provider_name(url),
+                "mode": mode,
+                "model_context_tokens": tokens,
+                "model_capability_warnings": warnings,
+            }
+        )
+        return payload
+    except Exception as e:
+        logger.warning("teacher capability status unresolved: %s", e)
+        payload["model_capability_warnings"] = ["teacher_endpoint_unresolvable"]
+        return payload
 
 
 # Hosts considered SOTA / paid APIs — if the student's endpoint URL
@@ -534,6 +629,14 @@ async def run_teacher_inline(
             }) + '\n\n'
         )
         return
+
+    capability_status = resolve_teacher_capability_status(owner=owner)
+    yield (
+        'data: ' + json.dumps({
+            "type": "teacher_capability_status",
+            "status": capability_status,
+        }) + '\n\n'
+    )
 
     # Announce takeover so the frontend can render a banner
     yield (
