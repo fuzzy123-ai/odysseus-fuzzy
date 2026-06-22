@@ -54,6 +54,40 @@ def test_compose_files_forward_every_upload_limit_env_var():
         assert expected <= _compose_env_names(path), path.name
 
 
+def test_base_compose_provisions_internal_ollama_service():
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    odysseus = services["odysseus"]
+    assert odysseus["build"]["args"]["INSTALL_OPTIONAL"] == "${INSTALL_OPTIONAL:-false}"
+    assert "ollama" in odysseus["depends_on"]
+    assert "LLM_HOST=${LLM_HOST:-ollama}" in odysseus["environment"]
+    assert "LLM_HOSTS=${LLM_HOSTS:-ollama}" in odysseus["environment"]
+    assert "OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}" in odysseus["environment"]
+
+    ollama = services["ollama"]
+    assert ollama["image"] == "docker.io/ollama/ollama:latest"
+    assert ollama["restart"] == "unless-stopped"
+    assert "ports" not in ollama
+    assert "ollama-data:/root/.ollama" in ollama["volumes"]
+    assert "ollama-data" in compose["volumes"]
+
+
+def test_homeserver_env_defaults_point_at_compose_ollama():
+    for relpath in (
+        "ops/homeserver/setup-odysseus-env.sh",
+        "ops/homeserver/fix-odysseus-env-defaults.sh",
+    ):
+        text = (ROOT / relpath).read_text(encoding="utf-8")
+        assert "LLM_HOST=ollama" in text or "add_if_missing LLM_HOST ollama" in text
+        assert "LLM_HOSTS=ollama" in text or "add_if_missing LLM_HOSTS ollama" in text
+        assert (
+            "OLLAMA_BASE_URL=http://ollama:11434" in text
+            or "add_if_missing OLLAMA_BASE_URL http://ollama:11434" in text
+        )
+        assert "INSTALL_OPTIONAL" in text
+
+
 def test_docker_entrypoint_does_not_resolve_root_commands_from_app_local_path():
     script = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
     path_export = script.index('export PATH="/app/.local/bin:$PATH"')

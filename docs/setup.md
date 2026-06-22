@@ -25,7 +25,7 @@ cd odysseus
 cp .env.example .env       # optional, but recommended for explicit defaults
 docker compose up -d --build
 ```
-To include optional extras in the image (PDF viewer, Office extraction; includes AGPL PyMuPDF), build with `docker compose build --build-arg INSTALL_OPTIONAL=true` before `up`.
+To include optional extras in the image (PDF viewer, Office extraction; includes AGPL PyMuPDF), set `INSTALL_OPTIONAL=true` in `.env` before running `docker compose up -d --build`.
 
 Open `http://localhost:7000` when the containers are healthy. Docker Compose
 binds the web UI to `127.0.0.1` by default. If the port is taken, set
@@ -189,8 +189,21 @@ docker compose exec odysseus sh -lc 'test -e /dev/kfd && test -d /dev/dri && ls 
 > ROCm-enabled vLLM/llama.cpp build. `rocm-smi` and `rocminfo` are not expected
 > inside the slim Odysseus image.
 
-**Ollama with Docker.** If Ollama runs on the host, add this endpoint in
-Settings:
+**Ollama with Docker.** The default compose stack starts an internal `ollama`
+service and keeps its model cache in the `ollama-data` volume. Add this endpoint
+in Settings when you want to register it explicitly:
+
+```text
+http://ollama:11434
+```
+
+Pull a model into the compose-managed cache:
+
+```bash
+docker compose exec ollama ollama pull gemma3:4b
+```
+
+If Ollama instead runs on the host, add this endpoint in Settings:
 
 ```text
 http://host.docker.internal:11434/v1
@@ -202,8 +215,8 @@ Ollama must listen outside its own loopback interface:
 OLLAMA_HOST=0.0.0.0:11434 ollama serve
 ```
 
-This connects Odysseus in Docker to an Ollama server that is already running on
-your host machine; it does not start Ollama inside the container.
+This host endpoint connects Odysseus in Docker to an Ollama server that is
+already running on your host machine.
 `host.docker.internal` is Docker's hostname for the host machine from inside the
 container. Cookbook **Serve** is a separate workflow for serving downloaded
 models through Odysseus/llama.cpp, so Windows users with an existing Ollama
@@ -366,8 +379,9 @@ Key settings:
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_HOST` | `localhost` | Your LLM server (e.g. `llm-host.local:8000`) |
-| `LLM_HOSTS` | -- | Comma-separated list for model discovery |
+| `LLM_HOST` | `ollama` | Your LLM server (e.g. `llm-host.local:8000`) |
+| `LLM_HOSTS` | `ollama` | Comma-separated list for model discovery |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` | Internal compose Ollama endpoint, or your host/remote Ollama URL |
 | `OPENAI_API_KEY` | -- | Optional OpenAI key. Prefer adding providers in the app unless pre-seeding. |
 | `SEARXNG_INSTANCE` | `http://localhost:8080` | SearXNG URL. Docker overrides this to `http://searxng:8080`. |
 | `SEARXNG_SECRET` | generated on first Docker boot | Optional SearXNG cookie/CSRF secret. Leave blank unless you need to pin it. |

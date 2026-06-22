@@ -11,13 +11,14 @@ add_if_missing() {
   fi
 }
 
-add_if_missing LLM_HOST localhost
-add_if_missing LLM_HOSTS ""
+add_if_missing LLM_HOST ollama
+add_if_missing LLM_HOSTS ollama
 add_if_missing OPENAI_API_KEY ""
-add_if_missing OLLAMA_BASE_URL ""
+add_if_missing OLLAMA_BASE_URL http://ollama:11434
 add_if_missing RESEARCH_LLM_ENDPOINT ""
 add_if_missing HF_TOKEN ""
 add_if_missing HUGGING_FACE_HUB_TOKEN ""
+add_if_missing INSTALL_OPTIONAL false
 add_if_missing EMBEDDING_URL ""
 add_if_missing EMBEDDING_MODEL ""
 add_if_missing EMBEDDING_API_KEY ""

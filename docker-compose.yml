@@ -1,6 +1,9 @@
 services:
   odysseus:
-    build: .
+    build:
+      context: .
+      args:
+        INSTALL_OPTIONAL: ${INSTALL_OPTIONAL:-false}
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-7000}:7000"
     volumes:
@@ -21,10 +24,10 @@ services:
       # Ollama at http://host.docker.internal:11434.
       - "host.docker.internal:host-gateway"
     environment:
-      - LLM_HOST=${LLM_HOST:-localhost}
-      - LLM_HOSTS=${LLM_HOSTS:-}
+      - LLM_HOST=${LLM_HOST:-ollama}
+      - LLM_HOSTS=${LLM_HOSTS:-ollama}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - RESEARCH_LLM_ENDPOINT=${RESEARCH_LLM_ENDPOINT:-}
       - HF_TOKEN=${HF_TOKEN:-}
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
@@ -92,6 +95,16 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
     restart: unless-stopped
 
   chromadb:
@@ -169,3 +182,4 @@ volumes:
   searxng-data:
   chromadb-data:
   ntfy-cache:
+  ollama-data:
