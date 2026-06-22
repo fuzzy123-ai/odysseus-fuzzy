@@ -10,9 +10,15 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from core.middleware import require_admin
+from src.constants import DATA_DIR
+from src.memory import MemoryManager
 from src.orchestration_dashboard import build_orchestration_dashboard_snapshot
 from src.plan_runtime import PlanRuntimeError, PlanRuntimeState
 from src.planning_source_inventory import build_planning_source_inventory
+from src.planning_source_memory import (
+    build_planning_memory_capsules,
+    ingest_planning_sources_to_memory,
+)
 from src.roadmap_lens import build_roadmap_lens_page
 from src.visual_agent_programming_lens import (
     apply_visual_plan_mutation_patch,
@@ -22,6 +28,16 @@ from src.visual_agent_programming_lens import (
     validate_visual_plan_acceptance,
     validate_visual_plan_edit,
 )
+
+
+def _repo_root() -> str:
+    return os.getenv("ODYSSEUS_ROOT") or str(Path(__file__).resolve().parents[1])
+
+
+def _memory_manager() -> MemoryManager:
+    data_dir = os.getenv("ODYSSEUS_DATA_DIR") or DATA_DIR
+    os.makedirs(data_dir, exist_ok=True)
+    return MemoryManager(data_dir)
 
 
 def setup_roadmap_routes() -> APIRouter:
@@ -53,10 +69,44 @@ def setup_roadmap_routes() -> APIRouter:
     def api_planning_sources_inventory(request: Request, preview_chars: int = 240):
         require_admin(request)
         try:
-            repo_root = os.getenv("ODYSSEUS_ROOT") or str(Path(__file__).resolve().parents[1])
-            return build_planning_source_inventory(repo_root, preview_chars=max(0, min(int(preview_chars), 1000)))
+            return build_planning_source_inventory(_repo_root(), preview_chars=max(0, min(int(preview_chars), 1000)))
         except (OSError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"planning source inventory unavailable: {exc}") from exc
+
+    @router.get("/planning-sources/memory/status")
+    def api_planning_sources_memory_status(request: Request, preview_chars: int = 240):
+        require_admin(request)
+        try:
+            manager = _memory_manager()
+            dry_run = ingest_planning_sources_to_memory(
+                manager,
+                _repo_root(),
+                preview_chars=max(0, min(int(preview_chars), 1000)),
+                dry_run=True,
+            )
+            return {
+                "schema": "odysseus.planning_source_memory_status.v1",
+                "capsules": build_planning_memory_capsules(
+                    _repo_root(),
+                    preview_chars=max(0, min(int(preview_chars), 1000)),
+                )["summary"],
+                "ingest": dry_run["summary"],
+            }
+        except (OSError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"planning source memory status unavailable: {exc}") from exc
+
+    @router.post("/planning-sources/memory/ingest")
+    def api_planning_sources_memory_ingest(request: Request, preview_chars: int = 240, dry_run: bool = True):
+        require_admin(request)
+        try:
+            return ingest_planning_sources_to_memory(
+                _memory_manager(),
+                _repo_root(),
+                preview_chars=max(0, min(int(preview_chars), 1000)),
+                dry_run=bool(dry_run),
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"planning source memory ingest unavailable: {exc}") from exc
 
     @router.get("/visual-agent-programming")
     def api_visual_agent_programming(request: Request):
