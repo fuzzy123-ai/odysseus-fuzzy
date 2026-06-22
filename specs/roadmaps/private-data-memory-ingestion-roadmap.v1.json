@@ -112,7 +112,7 @@
       "target": "Full corpus analysis and memory ingestion runs incrementally with recovery."
     }
   ],
-  "recommended_active_node": "bigdata-ledger-contract",
+  "recommended_active_node": "nextcloud-transfer-readiness",
   "graph_nodes": [
     {
       "id": "planning-sources-memory-inventory",
@@ -231,7 +231,7 @@
       "priority_rank": 3,
       "horizon": "v0-9-foundation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "planning-sources-memory-inventory"
       ],
@@ -267,9 +267,18 @@
         "Large synthetic inventory test stays bounded."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "098c40af",
+        "completed_at": "2026-06-22T13:35:00+02:00",
+        "live_evidence": [
+          "Focused tests passed locally: tests/test_bigdata_ledger_contract.py tests/test_planning_source_memory.py tests/test_planning_source_inventory.py (20 passed).",
+          "Integration tests passed locally: tests/test_bigdata_ledger_contract.py tests/test_plan_runtime.py tests/test_roadmap_lens.py (26 passed).",
+          "Pushed to fuzzy/dev and homeserver auto-update installed commit 098c40af.",
+          "Live /api/version reported commit 098c40af and /api/health reported healthy.",
+          "Live Chroma heartbeat succeeded.",
+          "Live ledger smoke created append-only JSONL events, ignored one uncommitted intent during replay, and rebuilt latest state with 1 completed transfer record.",
+          "Ledger contract rejects raw/secret fields, supports metadata-only item IDs, retry records, digest-chain events, and bounded synthetic replay."
+        ]
       }
     },
     {
@@ -714,20 +723,20 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "bigdata-ledger-contract",
-      "action": "Implement the resumable metadata-only operational ledger contract for large private-data ingestion.",
-      "owner": "bob"
-    },
-    {
-      "rank": 2,
       "node_id": "nextcloud-transfer-readiness",
-      "action": "Collect operator inputs for source path, target path, disk budget, transfer tool, and dry-run command after ledger contract is live.",
+      "action": "Collect and validate operator inputs for source path, target path, disk budget, transfer tool, and no-delete dry-run command.",
       "owner": "alice"
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "resumable-scanner-dry-run",
-      "action": "Build a resumable scanner dry-run after the ledger contract exists.",
+      "action": "Build a resumable scanner dry-run on top of the metadata-only ledger contract.",
+      "owner": "bob"
+    },
+    {
+      "rank": 3,
+      "node_id": "resumable-transfer-tooling",
+      "action": "Build transfer tooling after operator readiness and tool choice are complete.",
       "owner": "bob"
     }
   ],
