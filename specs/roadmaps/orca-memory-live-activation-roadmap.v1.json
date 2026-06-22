@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "readiness-gate-live-green",
+  "recommended_active_node": "automation-continuation-live",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -1401,7 +1401,7 @@
       "priority_rank": 10,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
-      "status": "claimable",
+      "status": "done",
       "depends_on": [
         "freshness-hybrid-filtering-live",
         "quarantine-live-behavior",
@@ -1442,9 +1442,96 @@
         "Live ORCA memory status and RAPTOR status."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "dca33f65",
+        "completed_at": "2026-06-22T09:02:35+02:00",
+        "live_evidence": [
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "commands": [
+                "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py plugins\\obsidian\\tests\\test_context_provider_backend.py tests\\test_obsidian_memory_mission_contract.py tests\\test_agent_run_ledger.py --basetemp .pytest_tmp\\orca-readiness",
+                "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_derived_index_backend.py plugins\\obsidian\\tests\\test_query_layer_backend.py plugins\\obsidian\\tests\\test_memory_rebuild_proof_backend.py --basetemp .pytest_tmp\\orca-readiness-derived"
+              ],
+              "passed": 83
+            }
+          },
+          {
+            "check": "session log readiness policy",
+            "result": "ok",
+            "summary": {
+              "session_logs_isolated_from_default_truth": true,
+              "session_logs_not_release_blocking": true,
+              "blocking_quarantine_items_still_block": true,
+              "raptor_ignores_non_blocking_session_log_taint": true
+            }
+          },
+          {
+            "check": "live derived memory rebuild",
+            "result": "ok",
+            "summary": {
+              "ledger_scanned_sources": 6,
+              "ledger_indexed_sources": 6,
+              "derived_index_sources": 6,
+              "derived_index_chunks": 7,
+              "derived_graph_edges": 14,
+              "query_layer_sources": 6,
+              "query_layer_ready": true
+            }
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "dca33f65",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "Live ORCA memory status",
+            "result": "ok",
+            "summary": {
+              "filtering_state": "active",
+              "readiness_state": "ready",
+              "families": 6,
+              "ready_families": 6,
+              "blocked_families": [],
+              "readiness_gap_names": [],
+              "ledger_sources": 6,
+              "derived_index_sources": 6,
+              "derived_index_chunks": 7,
+              "query_layer_sources": 6
+            }
+          },
+          {
+            "check": "Live RAPTOR status",
+            "result": "ok",
+            "summary": {
+              "enabled": true,
+              "configured": true,
+              "readiness_state": "ready",
+              "lineage_flags": {
+                "dirty": false,
+                "missing": false,
+                "tainted": false,
+                "invalid_index": false,
+                "invalid_summaries": false
+              },
+              "write_gate_state": "blocked",
+              "rebuilds_require_operator_gate": true
+            }
+          }
+        ]
       }
     },
     {
@@ -1454,7 +1541,7 @@
       "priority_rank": 11,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "claimable",
       "depends_on": [
         "readiness-gate-live-green"
       ],
@@ -1502,14 +1589,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "readiness-gate-live-green",
-      "action": "Verify the final ORCA readiness gate live: Freshness, Quarantine, RAPTOR read policy, Teacher contract, health, Chroma, and evidence consistency.",
-      "owner": "charlie"
-    },
-    {
-      "rank": 2,
       "node_id": "automation-continuation-live",
-      "action": "Continue only after readiness-gate-live-green is live-installed or explicitly blocked/deferred.",
+      "action": "Verify the 1-minute ABC continuation automation references this roadmap, continues after live-installed features, and stops when the ORCA roadmap is complete.",
       "owner": "charlie"
     }
   ],
