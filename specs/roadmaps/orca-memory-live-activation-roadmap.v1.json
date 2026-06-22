@@ -5,7 +5,7 @@
   "title": "ORCA Memory Live Activation Roadmap",
   "created_at": "2026-06-21",
   "updated_at": "2026-06-22",
-  "status": "in_progress",
+  "status": "completed",
   "format_decision": {
     "source_of_truth": "json",
     "markdown_role": "rendered_view_only",
@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "automation-continuation-live",
+  "recommended_active_node": "",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -1541,7 +1541,7 @@
       "priority_rank": 11,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
-      "status": "claimable",
+      "status": "done",
       "depends_on": [
         "readiness-gate-live-green"
       ],
@@ -1570,9 +1570,53 @@
         "Completion deletes stale automation."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "032d3211",
+        "completed_at": "2026-06-22T09:05:30+02:00",
+        "live_evidence": [
+          {
+            "check": "automation_update",
+            "result": "ok",
+            "summary": {
+              "automation_id": "abc-orca-roadmap-continuation",
+              "kind": "heartbeat",
+              "status": "ACTIVE",
+              "rrule": "FREQ=MINUTELY;INTERVAL=1",
+              "roadmap_path": "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json",
+              "expected_node": "automation-continuation-live"
+            }
+          },
+          {
+            "check": "automation prompt contract",
+            "result": "ok",
+            "summary": {
+              "reads_roadmap_source_of_truth": true,
+              "selects_next_claimable_node": true,
+              "continues_after_live_feature": true,
+              "requires_code_tests_push_deploy_evidence_sequence": true,
+              "stops_on_stop_rules_or_completion": true,
+              "path_scoped_agents_only": true
+            }
+          },
+          {
+            "check": "roadmap completion scan",
+            "result": "ok",
+            "summary": {
+              "graph_nodes_done": 11,
+              "remaining_claimable_nodes": 0,
+              "roadmap_status": "completed"
+            }
+          },
+          {
+            "check": "GET /api/version before final evidence commit",
+            "result": "ok",
+            "summary": {
+              "commit": "032d3211",
+              "branch": "dev",
+              "status": "current"
+            }
+          }
+        ]
       }
     }
   ],
@@ -1586,14 +1630,7 @@
     },
     "edge_policy": "depends_on and unlocks edges are authoritative for claimability. Collision and live-Go gates block dispatch even when dependencies are complete."
   },
-  "next_actions": [
-    {
-      "rank": 1,
-      "node_id": "automation-continuation-live",
-      "action": "Verify the 1-minute ABC continuation automation references this roadmap, continues after live-installed features, and stops when the ORCA roadmap is complete.",
-      "owner": "charlie"
-    }
-  ],
+  "next_actions": [],
   "abc_execution": {
     "roles": {
       "alice": "Docs, operator wording, canonical note/link contract, quarantine inspection language, Go/No-Go language.",
