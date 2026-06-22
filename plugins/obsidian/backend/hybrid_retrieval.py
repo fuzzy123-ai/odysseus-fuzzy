@@ -86,15 +86,16 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
             })
         if path in audit_records:
             record = audit_records[path]
-            tainted_sources.append({
-                "path": path,
-                "status": record.get("status", ""),
-                "channel": record.get("channel", ""),
-                "policy": record.get("policy", ""),
-                "reason": record.get("reason", ""),
-                "source_hash": record.get("source_hash", ""),
-                "source_mtime": record.get("source_mtime", ""),
-            })
+            if record.get("readiness_blocking", True):
+                tainted_sources.append({
+                    "path": path,
+                    "status": record.get("status", ""),
+                    "channel": record.get("channel", ""),
+                    "policy": record.get("policy", ""),
+                    "reason": record.get("reason", ""),
+                    "source_hash": record.get("source_hash", ""),
+                    "source_mtime": record.get("source_mtime", ""),
+                })
     return {
         "source_count": len(lineage),
         "dirty_sources": dirty_sources,

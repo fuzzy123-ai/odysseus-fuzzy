@@ -61,13 +61,24 @@ def _policy(path: str, frontmatter: Dict[str, Any]) -> str:
     return "implementation_status"
 
 
-def _record(path: str, frontmatter: Dict[str, Any], content: str, mtime: str, status: str, reason: str, channel: str) -> Dict[str, Any]:
+def _record(
+    path: str,
+    frontmatter: Dict[str, Any],
+    content: str,
+    mtime: str,
+    status: str,
+    reason: str,
+    channel: str,
+    *,
+    readiness_blocking: bool = True,
+) -> Dict[str, Any]:
     return {
         "path": path,
         "status": status,
         "channel": channel,
         "policy": _policy(path, frontmatter),
         "reason": reason,
+        "readiness_blocking": bool(readiness_blocking),
         "source_hash": _source_hash(content),
         "source_mtime": mtime,
         "frontmatter": {
@@ -96,7 +107,16 @@ def _classify(path: str, frontmatter: Dict[str, Any], content: str, source_mtime
     if frontmatter.get("confidence") == "low":
         return _record(path, frontmatter, content, source_mtime, "needs_review", "Low confidence frontmatter.", "needs_review")
     if policy == "session_log":
-        return _record(path, frontmatter, content, source_mtime, "archived", "Session logs are traceability records, not default truth.", "quarantined")
+        return _record(
+            path,
+            frontmatter,
+            content,
+            source_mtime,
+            "archived",
+            "Session logs are traceability records, not default truth.",
+            "quarantined",
+            readiness_blocking=False,
+        )
     if policy in {"implementation_status", "roadmap"} and age is None:
         return _record(path, frontmatter, content, source_mtime, "needs_review", "No updated or last_verified_at date for a volatile policy.", "needs_review")
     if policy == "implementation_status" and age is not None and age > 45:
@@ -214,23 +234,26 @@ def _freshness_readiness(
     channels: Dict[str, List[Dict[str, Any]]],
 ) -> Dict[str, Any]:
     gaps = []
+    blocking_needs_review = [item for item in channels["needs_review"] if item.get("readiness_blocking", True)]
+    blocking_conflicts = [item for item in channels["conflicts"] if item.get("readiness_blocking", True)]
+    blocking_quarantined = [item for item in channels["quarantined"] if item.get("readiness_blocking", True)]
     if not enabled:
         gaps.append("freshness_gate_disabled")
     if filtering_state != "active":
         gaps.append("freshness_filtering_not_active")
-    if channels["needs_review"]:
+    if blocking_needs_review:
         gaps.append("needs_review_items")
-    if channels["conflicts"]:
+    if blocking_conflicts:
         gaps.append("conflict_items")
-    if channels["quarantined"]:
+    if blocking_quarantined:
         gaps.append("quarantined_items")
     if not enabled:
         state = "disabled"
-    elif channels["conflicts"]:
+    elif blocking_conflicts:
         state = "conflicts"
-    elif channels["needs_review"]:
+    elif blocking_needs_review:
         state = "needs_review"
-    elif channels["quarantined"]:
+    elif blocking_quarantined:
         state = "quarantined"
     elif filtering_state != "active":
         state = "audit_only"

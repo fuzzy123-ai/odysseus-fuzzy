@@ -561,6 +561,58 @@ def test_freshness_readiness_is_ready_when_filtering_active_and_clean(monkeypatc
         assert audit["summary"]["readiness_gaps"] == 0
 
 
+def test_session_log_is_isolated_but_not_readiness_blocking(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Current.md"), "w", encoding="utf-8") as f:
+            f.write("---\nstatus: active\ntype: canonical\nupdated: 2026-06-14\n---\n# Current\n")
+        os.makedirs(os.path.join(tmpdir, "_state"), exist_ok=True)
+        with open(os.path.join(tmpdir, "_state", "active_run.md"), "w", encoding="utf-8") as f:
+            f.write("---\ntype: session_log\n---\n# Active Run\n\nTraceability state only.\n")
+
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED", "true")
+
+        audit = audit_knowledge(tmpdir)
+
+        assert audit["summary"]["quarantined"] == 1
+        assert audit["summary"]["isolated"] == 1
+        assert audit["isolation_flags"] == {
+            "needs_review": False,
+            "conflicts": False,
+            "quarantined": True,
+            "isolated": True,
+            "filtering_active": True,
+        }
+        assert audit["readiness"] == {
+            "ready": True,
+            "state": "ready",
+            "gaps": [],
+            "writes_supported": False,
+        }
+        assert audit["channels"]["quarantined"][0]["path"] == "_state/active_run.md"
+        assert audit["channels"]["quarantined"][0]["readiness_blocking"] is False
+
+
+def test_raptor_lineage_ignores_non_blocking_session_log_taint(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "_state"), exist_ok=True)
+        state_content = "---\ntype: session_log\n---\n# Active Run\n\nTraceability state only.\n"
+        with open(os.path.join(tmpdir, "_state", "active_run.md"), "w", encoding="utf-8") as f:
+            f.write(state_content)
+        os.makedirs(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor"), exist_ok=True)
+        source_hash = "sha256:" + hashlib.sha256(state_content.encode("utf-8")).hexdigest()
+        with open(os.path.join(tmpdir, ".obsidian", "odysseus", "raptor", "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"source_hashes": {"_state/active_run.md": source_hash}}, f)
+
+        monkeypatch.setenv("ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED", "true")
+
+        status = raptor_status(tmpdir)
+
+        assert status["lineage_flags"]["tainted"] is False
+        assert status["lineage"]["tainted_sources"] == []
+        assert status["readiness"]["state"] == "ready"
+        assert status["readiness"]["gaps"] == []
+
+
 def test_unresolved_conflict_status_is_isolated_from_default_truth():
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Conflict.md"), "w", encoding="utf-8") as f:
