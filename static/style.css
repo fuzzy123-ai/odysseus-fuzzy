@@ -5324,6 +5324,282 @@ body.bg-pattern-sparkles {
     .modal-dock-close:hover { color:var(--red); opacity:1; }
     .modal-body { flex:1; overflow-y:auto; }
     .modal-body button { margin-top:6px; }
+    .vap-modal-content {
+      width:min(1180px, 94vw);
+      height:min(780px, 88vh);
+      container-type:inline-size;
+      overflow:hidden;
+    }
+    .vap-modal-content .modal-body {
+      overflow:auto;
+      padding:2px;
+    }
+    .vap-busy {
+      font-size:11px;
+      color:var(--muted, color-mix(in srgb, var(--fg) 55%, transparent));
+      margin-right:8px;
+    }
+    .vap-layout {
+      display:grid;
+      grid-template-columns:minmax(360px, 1fr) minmax(360px, 0.92fr);
+      gap:10px;
+      min-height:0;
+    }
+    .vap-column {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width:0;
+    }
+    .vap-panel {
+      border:1px solid var(--border);
+      background:var(--bg);
+      border-radius:8px;
+      padding:10px;
+      min-width:0;
+    }
+    .vap-panel-head {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .vap-panel-head h5,
+    .vap-selected h5 {
+      margin:0;
+      font-size:13px;
+      color:var(--fg);
+      letter-spacing:0;
+    }
+    .vap-pill {
+      display:inline-flex;
+      align-items:center;
+      min-height:20px;
+      padding:2px 7px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      font-size:11px;
+      color:var(--fg);
+      background:var(--panel);
+      margin-left:auto;
+    }
+    .vap-pill-ok { border-color:color-mix(in srgb, #49b36d 55%, var(--border)); color:#49b36d; }
+    .vap-pill-locked { border-color:color-mix(in srgb, #e2a74f 55%, var(--border)); color:#e2a74f; }
+    .vap-metrics,
+    .vap-tags,
+    .vap-status-palette,
+    .vap-actions {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+    }
+    .vap-metrics span,
+    .vap-tags span,
+    .vap-status-palette span,
+    .vap-draft-count,
+    .vap-policy-line {
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:4px 6px;
+      font-size:11px;
+      color:var(--muted, color-mix(in srgb, var(--fg) 60%, transparent));
+      background:var(--panel);
+    }
+    .vap-split {
+      display:grid;
+      grid-template-columns:minmax(220px, 0.85fr) minmax(260px, 1fr);
+      gap:10px;
+      margin-top:10px;
+      min-width:0;
+    }
+    .vap-node-list {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      max-height:560px;
+      overflow:auto;
+      min-width:0;
+    }
+    .vap-node {
+      display:grid;
+      grid-template-columns:14px minmax(0, 1fr);
+      gap:6px;
+      align-items:center;
+      width:100%;
+      text-align:left;
+      background:var(--panel);
+      color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:7px;
+      padding:7px;
+      margin:0;
+      cursor:pointer;
+    }
+    .vap-node.active {
+      border-color:var(--brand-color, var(--red));
+      box-shadow:0 0 0 1px color-mix(in srgb, var(--brand-color, var(--red)) 35%, transparent);
+    }
+    .vap-node span,
+    .vap-selected code,
+    .vap-row {
+      overflow-wrap:anywhere;
+    }
+    .vap-node small {
+      grid-column:2;
+      opacity:0.65;
+      font-size:10px;
+    }
+    .vap-selected {
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .vap-kicker {
+      font-size:10px;
+      text-transform:uppercase;
+      color:var(--muted, color-mix(in srgb, var(--fg) 55%, transparent));
+      letter-spacing:0;
+    }
+    .vap-selected code {
+      font-size:11px;
+      color:var(--fg);
+      background:var(--code-bg, var(--panel));
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:5px;
+    }
+    .vap-mini-grid {
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:8px;
+      margin-top:8px;
+    }
+    .vap-mini-grid > div {
+      min-width:0;
+      border:1px solid var(--border);
+      border-radius:7px;
+      padding:7px;
+      background:color-mix(in srgb, var(--panel) 82%, transparent);
+    }
+    .vap-mini-grid strong {
+      display:block;
+      font-size:11px;
+      margin-bottom:5px;
+      color:var(--fg);
+    }
+    .vap-row,
+    .vap-empty,
+    .vap-error {
+      font-size:11px;
+      line-height:1.35;
+      color:var(--muted, color-mix(in srgb, var(--fg) 62%, transparent));
+    }
+    .vap-row + .vap-row { margin-top:4px; }
+    .vap-error { color:#e55; }
+    .vap-boundary-grid {
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:6px;
+      margin-bottom:8px;
+    }
+    .vap-disabled-action,
+    .vap-actions button {
+      min-height:30px;
+      border-radius:6px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--fg);
+      font-size:12px;
+      padding:5px 9px;
+    }
+    .vap-disabled-action {
+      opacity:0.55;
+      cursor:not-allowed;
+    }
+    .vap-primary {
+      border-color:var(--brand-color, var(--red)) !important;
+    }
+    .vap-status-dot {
+      display:inline-block;
+      width:9px;
+      height:9px;
+      border-radius:999px;
+      margin-right:5px;
+      background:#8792a2;
+      flex-shrink:0;
+    }
+    .vap-status-slate { background:#8792a2; }
+    .vap-status-amber { background:#e2a74f; }
+    .vap-status-blue { background:#4f8fe2; }
+    .vap-status-violet { background:#8d6ee8; }
+    .vap-status-green { background:#49b36d; }
+    .vap-segmented {
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:6px;
+      margin-bottom:8px;
+    }
+    .vap-segmented label {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      border-radius:6px;
+      padding:6px 8px;
+      font-size:12px;
+    }
+    .vap-form {
+      display:flex;
+      flex-direction:column;
+      gap:7px;
+    }
+    .vap-form-row {
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:7px;
+    }
+    .vap-form input,
+    .vap-form select {
+      min-width:0;
+      width:100%;
+      box-sizing:border-box;
+      border:1px solid var(--border);
+      border-radius:6px;
+      background:var(--input-bg, var(--panel));
+      color:var(--fg);
+      padding:7px 8px;
+      font-size:12px;
+    }
+    .vap-actions {
+      margin-top:8px;
+    }
+    .vap-review-list {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .vap-review-item {
+      border:1px solid var(--border);
+      border-radius:7px;
+      padding:8px;
+      background:var(--panel);
+    }
+    .vap-review-item > div:first-child {
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    @container (max-width: 880px) {
+      .vap-layout,
+      .vap-split,
+      .vap-mini-grid,
+      .vap-form-row {
+        grid-template-columns:1fr;
+      }
+    }
     /* Styled confirm dialog — keeps backdrop */
     #styled-confirm-overlay {
       background:rgba(0,0,0,0.5);

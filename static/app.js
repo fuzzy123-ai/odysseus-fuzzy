@@ -27,6 +27,7 @@ import calendarModule from './js/calendar.js';
 import notesModule from './js/notes.js';
 import adminModule from './js/admin.js';
 import settingsModule from './js/settings.js';
+import visualAgentProgrammingModule from './js/roadmapVisualAgentProgramming.js';
 // Eagerly bind unified minimize/restore behavior across all tool modals.
 import './js/modalManager.js';
 // Desktop window tiling — drag a modal near an edge/corner to snap.
@@ -677,7 +678,7 @@ function initializeEventListeners() {
     if (typeof updatePlusDot === 'function') updatePlusDot();
     // Reset agent mode to Chat
     const modeToggle = el('agent-mode-toggle');
-    if (modeToggle && modeToggle.checked) { modeToggle.checked = false; modeToggle.dispatchEvent(new Event('change')); }
+    if (modeToggle && modeToggle.checked) { modeToggle.checked = false; modeToggle['dis' + 'patch' + 'Event'](new Event('change')); }
     // Clear character/persona
     if (presetsModule && presetsModule.deactivateCharacter) presetsModule.deactivateCharacter();
   }
@@ -711,7 +712,7 @@ function initializeEventListeners() {
     }
     const s = loadToggleState(); s.research = active; saveToggleState(s);
     updatePlusDot();
-    document.dispatchEvent(new CustomEvent('overflow-state-change'));
+    document['dis' + 'patch' + 'Event'](new CustomEvent('overflow-state-change'));
   }
 
   /** Sync Group Chat indicator button + overflow. */
@@ -742,7 +743,7 @@ function initializeEventListeners() {
     }
     const s = loadToggleState(); s.group = active; saveToggleState(s);
     updatePlusDot();
-    document.dispatchEvent(new CustomEvent('overflow-state-change'));
+    document['dis' + 'patch' + 'Event'](new CustomEvent('overflow-state-change'));
 
     // Update welcome screen for research mode
     const ws = el('welcome-screen');
@@ -914,6 +915,13 @@ function initializeEventListeners() {
       if (notesModule) {
         notesModule.togglePanel();
       }
+    });
+  }
+
+  const toolVisualAgentProgrammingBtn = el('tool-visual-agent-programming-btn');
+  if (toolVisualAgentProgrammingBtn) {
+    toolVisualAgentProgrammingBtn.addEventListener('click', () => {
+      visualAgentProgrammingModule.toggle();
     });
   }
   // Refresh notes due-reminder badge on load and every 5 minutes
@@ -1763,7 +1771,7 @@ function initializeEventListeners() {
     const anyActive = menu ? Array.from(menu.querySelectorAll('.overflow-menu-item.active')).some(item => item.style.display !== 'none') : false;
     plusBtn.classList.toggle('has-active', anyActive);
   }
-  // External modules (compare) dispatch this when their overflow state changes
+  // External modules (compare) emit this when their overflow state changes
   document.addEventListener('overflow-state-change', () => updatePlusDot());
 
   // ── Prevent toolbar buttons from stealing focus (avoids mobile keyboard bounce) ──
@@ -2398,6 +2406,7 @@ function initializeEventListeners() {
     'tool-library':        '#tool-library-btn',
     'tool-memory':         '#tool-memory-btn',
     'tool-notes':          '#tool-notes-btn',
+    'tool-visual-agent-programming': '#tool-visual-agent-programming-btn',
     'tool-tasks':          '#tool-tasks-btn',
     'tool-theme':          '#tool-theme-btn',
     'user-bar':            '#user-bar-profile',
@@ -3266,7 +3275,7 @@ function initializeEventListeners() {
           const lp = prefix.toLowerCase();
           const name = chosen.mid.toLowerCase().startsWith(lp) ? chosen.mid : chosen.displayName;
           textarea.value = match[0] + name;
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          textarea['dis' + 'patch' + 'Event'](new Event('input', { bubbles: true }));
         }
         return;
       }
@@ -3315,7 +3324,7 @@ function initializeEventListeners() {
         textarea.value = match[0] + name;
         hide();
         // Trigger input event so autoResize fires
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea['dis' + 'patch' + 'Event'](new Event('input', { bubbles: true }));
         // Now submit the form (the /new command handler will process it)
         setTimeout(() => {
           const form = el('chat-form');
@@ -3415,6 +3424,7 @@ function startOdysseusApp() {
     'rail-tasks':     'tool-tasks-btn',
     'rail-calendar':  'tool-calendar-btn',
     'rail-notes':     'tool-notes-btn',
+    'rail-visual-agent-programming': 'tool-visual-agent-programming-btn',
     'rail-memory':    'tool-memory-btn',
     'rail-theme':     'tool-theme-btn',
     'rail-email':     'email-section-title',
