@@ -1571,7 +1571,7 @@
       ],
       "completion_state": {
         "status": "live_installed",
-        "commit": "032d3211",
+        "commit": "a4a6ed9e",
         "completed_at": "2026-06-22T09:05:30+02:00",
         "live_evidence": [
           {
@@ -1580,10 +1580,12 @@
             "summary": {
               "automation_id": "abc-orca-roadmap-continuation",
               "kind": "heartbeat",
-              "status": "ACTIVE",
+              "status": "DELETED_AFTER_COMPLETION",
               "rrule": "FREQ=MINUTELY;INTERVAL=1",
               "roadmap_path": "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json",
-              "expected_node": "automation-continuation-live"
+              "expected_node": "automation-continuation-live",
+              "deleted_after_roadmap_completed": true,
+              "automation_toml_present_after_delete": false
             }
           },
           {
@@ -1614,6 +1616,16 @@
               "commit": "032d3211",
               "branch": "dev",
               "status": "current"
+            }
+          },
+          {
+            "check": "automation cleanup",
+            "result": "ok",
+            "summary": {
+              "automation_id": "abc-orca-roadmap-continuation",
+              "delete_status": "deleted",
+              "reason": "roadmap completed; no remaining claimable ORCA nodes",
+              "automation_toml_present": false
             }
           }
         ]
