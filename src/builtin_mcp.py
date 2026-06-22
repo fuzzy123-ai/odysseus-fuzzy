@@ -264,9 +264,12 @@ def _npx_package_name(package_spec):
 
 def _npm_cache_roots():
     roots = []
-    configured = os.environ.get("npm_config_cache")
-    if configured:
-        roots.append(os.path.expanduser(configured))
+    for configured in (os.environ.get("npm_config_cache"), os.environ.get("NPM_CONFIG_CACHE")):
+        if configured:
+            roots.append(os.path.expanduser(configured))
+    home = os.environ.get("HOME")
+    if home:
+        roots.append(os.path.join(os.path.expanduser(home), ".npm"))
     roots.append(os.path.join(os.path.expanduser("~"), ".npm"))
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:

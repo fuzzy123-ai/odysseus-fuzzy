@@ -1,6 +1,8 @@
 fastapi
 uvicorn
 python-multipart
+# MIME detection for uploads. libmagic1 is installed in the Docker image.
+python-magic
 python-dotenv
 httpx
 pydantic>=2.13.4

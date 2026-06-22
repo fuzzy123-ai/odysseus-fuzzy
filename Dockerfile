@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     curl \
     git \
+    libmagic1 \
     nodejs \
     npm \
     tmux \
@@ -21,6 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+ENV HOME=/app \
+    npm_config_cache=/app/.cache/npm \
+    NPM_CONFIG_CACHE=/app/.cache/npm
 
 # Install Python deps first (layer cache). Optional extras (PyMuPDF AGPL, etc.)
 # are opt-in so the default image stays MIT-core; see requirements-optional.txt.
@@ -31,7 +36,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 # Install Node deps used by test/dev tooling and optional npx-backed helpers.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci \
+    && npx -y @playwright/mcp@latest --version
 
 # Copy app code
 COPY . .

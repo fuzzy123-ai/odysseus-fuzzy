@@ -75,7 +75,7 @@ repair_bind_mount_ownership() {
 # Repair image-owned writable paths without walking into bind-mounted host
 # trees, then repair the app-owned mount roots separately.
 repair_app_tree_ownership
-for dir in /app/data /app/logs /app/.ssh /app/.cache/huggingface /app/.local; do
+for dir in /app/data /app/logs /app/.ssh /app/.cache/huggingface /app/.cache/npm /app/.local; do
     repair_bind_mount_ownership "$dir"
 done
 

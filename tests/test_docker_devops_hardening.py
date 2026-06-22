@@ -88,6 +88,18 @@ def test_homeserver_env_defaults_point_at_compose_ollama():
         assert "INSTALL_OPTIONAL" in text
 
 
+def test_docker_image_preloads_runtime_optional_dependencies():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    entrypoint = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
+
+    assert "libmagic1" in dockerfile
+    assert "python-magic" in requirements
+    assert "NPM_CONFIG_CACHE=/app/.cache/npm" in dockerfile
+    assert "npx -y @playwright/mcp@latest --version" in dockerfile
+    assert "/app/.cache/npm" in entrypoint
+
+
 def test_docker_entrypoint_does_not_resolve_root_commands_from_app_local_path():
     script = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
     path_export = script.index('export PATH="/app/.local/bin:$PATH"')
