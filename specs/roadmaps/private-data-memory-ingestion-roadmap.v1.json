@@ -4,7 +4,7 @@
   "parent_plan_id": "orca-memory-live-activation",
   "title": "Private Data And Planning Memory Ingestion Roadmap",
   "created_at": "2026-06-21",
-  "updated_at": "2026-06-21",
+  "updated_at": "2026-06-22",
   "status": "draft_canonical",
   "format_decision": {
     "source_of_truth": "json",
@@ -112,7 +112,7 @@
       "target": "Full corpus analysis and memory ingestion runs incrementally with recovery."
     }
   ],
-  "recommended_active_node": "planning-sources-memory-inventory",
+  "recommended_active_node": "planning-sources-memory-ingest-live",
   "graph_nodes": [
     {
       "id": "planning-sources-memory-inventory",
@@ -121,7 +121,7 @@
       "priority_rank": 1,
       "horizon": "v0-9-foundation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [],
       "unlocks": [
         "planning-sources-memory-ingest-live",
@@ -154,9 +154,17 @@
         "No file contents over configured preview budget in artifacts."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "81912743",
+        "completed_at": "2026-06-22T13:17:00+02:00",
+        "live_evidence": [
+          "Focused tests passed locally: tests/test_planning_source_inventory.py tests/test_roadmap_lens.py tests/test_plan_runtime.py (15 passed).",
+          "Pushed to fuzzy/dev and homeserver auto-update installed commit 81912743.",
+          "Live /api/version reported commit 81912743 and /api/health reported healthy.",
+          "Live Chroma heartbeat succeeded.",
+          "Live planning inventory returned schema planning-source-inventory-v1 with 7 sources, stable IDs true, raw_content_bounded true, writes_supported false, and no absolute paths recorded.",
+          "Unauthenticated live route was auth-protected with 401; isolated live route test with admin gate satisfied returned 200 and bounded preview payload."
+        ]
       }
     },
     {
@@ -697,20 +705,20 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "planning-sources-memory-inventory",
-      "action": "Make repo planning sources discoverable as stable memory sources.",
-      "owner": "bob"
+      "node_id": "planning-sources-memory-ingest-live",
+      "action": "Ingest bounded planning-source capsules into memory/context with source refs and current-plan precedence.",
+      "owner": "charlie"
     },
     {
       "rank": 2,
       "node_id": "bigdata-ledger-contract",
-      "action": "Design and test the resumable operational ledger before any 100GB live operation.",
+      "action": "Implement the resumable operational ledger contract after planning ingest is live or in a non-overlapping slice.",
       "owner": "bob"
     },
     {
       "rank": 3,
       "node_id": "nextcloud-transfer-readiness",
-      "action": "Collect operator inputs for source path, target path, disk budget, transfer tool, and dry-run command.",
+      "action": "Collect operator inputs for source path, target path, disk budget, transfer tool, and dry-run command after ledger contract is live.",
       "owner": "alice"
     }
   ],
