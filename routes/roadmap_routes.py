@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
+import os
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -10,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from core.middleware import require_admin
 from src.orchestration_dashboard import build_orchestration_dashboard_snapshot
 from src.plan_runtime import PlanRuntimeError, PlanRuntimeState
+from src.planning_source_inventory import build_planning_source_inventory
 from src.roadmap_lens import build_roadmap_lens_page
 from src.visual_agent_programming_lens import (
     apply_visual_plan_mutation_patch,
@@ -45,6 +48,15 @@ def setup_roadmap_routes() -> APIRouter:
             return snapshot.to_dict()
         except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"roadmap dashboard unavailable: {exc}") from exc
+
+    @router.get("/planning-sources/inventory")
+    def api_planning_sources_inventory(request: Request, preview_chars: int = 240):
+        require_admin(request)
+        try:
+            repo_root = os.getenv("ODYSSEUS_ROOT") or str(Path(__file__).resolve().parents[1])
+            return build_planning_source_inventory(repo_root, preview_chars=max(0, min(int(preview_chars), 1000)))
+        except (OSError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"planning source inventory unavailable: {exc}") from exc
 
     @router.get("/visual-agent-programming")
     def api_visual_agent_programming(request: Request):
