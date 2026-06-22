@@ -112,7 +112,7 @@
       "target": "Full corpus analysis and memory ingestion runs incrementally with recovery."
     }
   ],
-  "recommended_active_node": "planning-sources-memory-ingest-live",
+  "recommended_active_node": "bigdata-ledger-contract",
   "graph_nodes": [
     {
       "id": "planning-sources-memory-inventory",
@@ -174,7 +174,7 @@
       "priority_rank": 2,
       "horizon": "v0-9-foundation",
       "target_version": "0.9",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "planning-sources-memory-inventory"
       ],
@@ -210,9 +210,18 @@
         "GET /api/health and Chroma heartbeat pass after deploy."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "706e3fb4",
+        "completed_at": "2026-06-22T13:26:00+02:00",
+        "live_evidence": [
+          "Focused tests passed locally: tests/test_planning_source_memory.py tests/test_planning_source_inventory.py tests/test_roadmap_lens.py tests/test_plan_runtime.py (18 passed).",
+          "Pushed to fuzzy/dev and homeserver auto-update installed commit 706e3fb4.",
+          "Live /api/version reported commit 706e3fb4 and /api/health reported healthy.",
+          "Live Chroma heartbeat succeeded.",
+          "Live planning-source memory ingest created 7 bounded memory entries and a second dry-run reported unchanged=7.",
+          "Live status route returned schema odysseus.planning_source_memory_status.v1 with 7 capsules.",
+          "Ingest evidence: source_refs_present true, raw_content_bounded true, current_json_roadmaps_have_priority true."
+        ]
       }
     },
     {
@@ -705,21 +714,21 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "planning-sources-memory-ingest-live",
-      "action": "Ingest bounded planning-source capsules into memory/context with source refs and current-plan precedence.",
-      "owner": "charlie"
-    },
-    {
-      "rank": 2,
       "node_id": "bigdata-ledger-contract",
-      "action": "Implement the resumable operational ledger contract after planning ingest is live or in a non-overlapping slice.",
+      "action": "Implement the resumable metadata-only operational ledger contract for large private-data ingestion.",
       "owner": "bob"
     },
     {
-      "rank": 3,
+      "rank": 2,
       "node_id": "nextcloud-transfer-readiness",
       "action": "Collect operator inputs for source path, target path, disk budget, transfer tool, and dry-run command after ledger contract is live.",
       "owner": "alice"
+    },
+    {
+      "rank": 3,
+      "node_id": "resumable-scanner-dry-run",
+      "action": "Build a resumable scanner dry-run after the ledger contract exists.",
+      "owner": "bob"
     }
   ],
   "abc_execution": {
