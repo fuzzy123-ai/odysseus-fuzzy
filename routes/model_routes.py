@@ -1021,6 +1021,32 @@ def _api_key_fingerprint(api_key: Optional[str]) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:8]
 
 
+def _configured_ollama_base_urls() -> List[str]:
+    """Ollama bases configured for this Odysseus runtime.
+
+    The compose install ships an internal ``ollama`` service. Discovering that
+    the service has models is not enough for the UI: the model picker reads
+    saved ModelEndpoint rows via /api/models. These bases are therefore used to
+    bootstrap a real endpoint row when the runtime has a configured Ollama.
+    """
+    urls: List[str] = []
+    for env_name in ("OLLAMA_BASE_URL", "OLLAMA_URL"):
+        raw = (os.getenv(env_name) or "").strip()
+        if not raw:
+            continue
+        if "://" not in raw:
+            raw = "http://" + raw
+        base = _normalize_base(raw)
+        if base and base not in urls:
+            urls.append(base)
+    return urls
+
+
+def _auto_ollama_endpoint_id(base_url: str) -> str:
+    digest = hashlib.sha1(base_url.encode("utf-8")).hexdigest()[:10]
+    return f"ollama-{digest}"
+
+
 def setup_model_routes(model_discovery):
     router = APIRouter(prefix="/api")
 
@@ -1038,6 +1064,101 @@ def setup_model_routes(model_discovery):
         affects the visible endpoint list (CRUD on ModelEndpoint, prefs
         flip)."""
         _models_cache.clear()
+
+    _ollama_bootstrap_state = {"last_attempt": 0.0}
+
+    def _bootstrap_configured_ollama_endpoint(force: bool = False) -> bool:
+        """Ensure a configured local Ollama is a real UI-selectable endpoint.
+
+        Provider discovery alone only proves the server can see Ollama. The
+        client model picker, tasks, defaults, and sessions all operate on
+        ModelEndpoint rows, so Docker's internal Ollama service needs a saved
+        shared endpoint once it has at least one model installed.
+        """
+        bases = _configured_ollama_base_urls()
+        if not bases:
+            return False
+
+        now = _time.time()
+        if not force and now - float(_ollama_bootstrap_state.get("last_attempt") or 0.0) < 60.0:
+            return False
+        _ollama_bootstrap_state["last_attempt"] = now
+
+        changed = False
+        db = SessionLocal()
+        try:
+            rows = db.query(ModelEndpoint).all()
+            enabled_ids = {
+                getattr(row, "id", "")
+                for row in rows
+                if getattr(row, "is_enabled", True)
+            }
+            settings = None
+            for base in bases:
+                existing = None
+                for row in rows:
+                    if _normalize_base(getattr(row, "base_url", "") or "") == base:
+                        existing = row
+                        break
+
+                if existing and getattr(existing, "cached_models", None) and getattr(existing, "is_enabled", True):
+                    continue
+                if existing and not getattr(existing, "is_enabled", True):
+                    continue
+
+                models = _probe_endpoint(base, None, timeout=5)
+                if not models:
+                    continue
+
+                if existing:
+                    existing.cached_models = json.dumps(models)
+                    if not (getattr(existing, "name", "") or "").strip():
+                        existing.name = "Local Ollama"
+                    if _endpoint_kind(existing) == "auto":
+                        existing.endpoint_kind = "local"
+                    changed = True
+                    endpoint_id = existing.id
+                else:
+                    endpoint_id = _auto_ollama_endpoint_id(base)
+                    ep = ModelEndpoint(
+                        id=endpoint_id,
+                        name="Local Ollama",
+                        base_url=base,
+                        api_key=None,
+                        is_enabled=True,
+                        model_type="llm",
+                        endpoint_kind="local",
+                        model_refresh_mode="auto",
+                        model_refresh_interval=None,
+                        model_refresh_timeout=10,
+                        hidden_models=None,
+                        cached_models=json.dumps(models),
+                        pinned_models=None,
+                        supports_tools=False,
+                        owner=None,
+                        provider_auth_id=None,
+                    )
+                    db.add(ep)
+                    rows.append(ep)
+                    enabled_ids.add(endpoint_id)
+                    changed = True
+
+                if settings is None:
+                    settings = _load_settings()
+                if _default_endpoint_needs_assignment(settings.get("default_endpoint_id") or "", enabled_ids):
+                    from src.endpoint_resolver import _first_chat_model
+                    settings["default_endpoint_id"] = endpoint_id
+                    settings["default_model"] = _first_chat_model(models) or ""
+                    _save_settings(settings)
+            if changed:
+                db.commit()
+                _invalidate_models_cache()
+            return changed
+        except Exception as exc:
+            logger.warning("Configured Ollama endpoint bootstrap failed: %s", exc)
+            return False
+        finally:
+            db.close()
 
     # Track model-list refreshes by URL+key. This prevents repeated picker/API
     # opens from starting duplicate /models probes, and gives slow/offline
@@ -1290,6 +1411,7 @@ def setup_model_routes(model_discovery):
                 _is_admin = bool(auth_mgr.is_admin(owner))
         except Exception:
             _is_admin = False
+        _bootstrap_configured_ollama_endpoint(force=refresh)
         now = _time.time()
         # Cache key includes the admin flag so a demotion / promotion doesn't
         # serve the wrong scoped view from cache.

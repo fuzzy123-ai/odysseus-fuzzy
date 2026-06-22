@@ -1457,6 +1457,42 @@ def test_api_models_returns_cached_proxy_models_without_refresh_probe(monkeypatc
     assert json.loads(row.cached_models) == ["cached-model"]
 
 
+def test_api_models_bootstraps_configured_ollama_for_picker(monkeypatch):
+    db = _RouteDb([])
+    router = model_routes.setup_model_routes(model_discovery=None)
+    settings = {}
+    saved = []
+
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    monkeypatch.setattr(model_routes, "ModelEndpoint", _RouteModelEndpoint)
+    monkeypatch.setattr(model_routes, "SessionLocal", lambda: db)
+    monkeypatch.setattr(model_routes, "_auth_disabled", lambda: True)
+    monkeypatch.setattr(model_routes, "_load_settings", lambda: settings)
+    monkeypatch.setattr(model_routes, "_save_settings", lambda value: saved.append(dict(value)))
+    monkeypatch.setattr(model_routes, "_probe_endpoint", lambda *a, **k: ["gemma3:4b"])
+    monkeypatch.setattr(threading, "Thread", _NoopThread)
+
+    result = _route_endpoint(router, "/api/models")(_route_request())
+
+    assert len(db.rows) == 1
+    row = db.rows[0]
+    assert row.id.startswith("ollama-")
+    assert row.name == "Local Ollama"
+    assert row.base_url == "http://ollama:11434"
+    assert row.endpoint_kind == "local"
+    assert row.owner is None
+    assert row.supports_tools is False
+    assert json.loads(row.cached_models) == ["gemma3:4b"]
+    assert settings["default_endpoint_id"] == row.id
+    assert settings["default_model"] == "gemma3:4b"
+    assert saved[-1]["default_model"] == "gemma3:4b"
+    assert result["items"][0]["endpoint_id"] == row.id
+    assert result["items"][0]["endpoint_name"] == "Local Ollama"
+    assert result["items"][0]["models"] == ["gemma3:4b"]
+    assert result["items"][0]["category"] == "local"
+    assert result["items"][0]["endpoint_kind"] == "local"
+
+
 @pytest.mark.asyncio
 async def test_probe_local_skips_tailscale_proxy_endpoint(monkeypatch):
     proxy = _route_ep(
