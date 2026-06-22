@@ -81,7 +81,7 @@
       }
     ]
   },
-  "recommended_active_node": "visual-agent-programming",
+  "recommended_active_node": "visual-agent-programming-browser-editor-v1",
   "tomorrow_parallel_start": {
     "date": "2026-06-22",
     "mode": "read_only_reports_first",
@@ -1692,7 +1692,7 @@
         "visual-agent-programming-apply-adapter"
       ],
       "unlocks": [
-        "visual-agent-programming"
+        "visual-agent-programming-browser-editor-v1"
       ],
       "gates": [
         "status_colors_visible",
@@ -1726,12 +1726,61 @@
       }
     },
     {
+      "id": "visual-agent-programming-browser-editor-v1",
+      "kind": "lens",
+      "title": "Visual Agent Programming browser proposal panel",
+      "horizon": "after-v0-9",
+      "target_version": "0.10",
+      "priority_rank": 25,
+      "status": "active_candidate",
+      "objective": "Wire the browser Roadmap Lens to the existing visual-agent-programming snapshot, validation, and proposal-review contracts for a local proposal UI without patch, apply, file persistence, or dispatch actions.",
+      "why": "The runtime contracts are live and the remaining gap is the first browser editor shell; the full visual-agent-programming node is too broad to claim as one slice.",
+      "source_refs": [
+        "static/index.html",
+        "static/app.js",
+        "static/style.css",
+        "static/js/",
+        "src/visual_agent_programming_lens.py",
+        "routes/roadmap_routes.py",
+        "tests/test_visual_agent_programming_lens.py",
+        "docs/plans/lens-ui-ux-contract.md",
+        "docs/plans/development-orchestration-plan-graph.md"
+      ],
+      "depends_on": [
+        "visual-agent-programming-lens-ui-controls"
+      ],
+      "unlocks": [
+        "visual-agent-programming"
+      ],
+      "gates": [
+        "browser_editor_uses_existing_contracts",
+        "proposal_validation_visible",
+        "patch_and_apply_controls_absent",
+        "agent_dispatch_separate_and_confirmed",
+        "focused_static_and_contract_tests_pass"
+      ],
+      "deliverables": [
+        "Roadmap Lens browser editor shell",
+        "Selected-node proposal draft state",
+        "Validate and proposal-review status panels",
+        "Clear file-persistence and dispatch boundary copy",
+        "Focused static and contract tests"
+      ],
+      "blocked_actions": [
+        "No direct roadmap file write from browser controls.",
+        "No graph mutation bypassing validate/review/patch/apply contracts.",
+        "No calls to mutation patch or apply endpoints in this UI slice.",
+        "No agent dispatch in the same operation as edit, acceptance, or apply.",
+        "No live provider, Telegram, Nextcloud, SSH, or host action."
+      ]
+    },
+    {
       "id": "visual-agent-programming",
       "kind": "lens",
       "title": "Visual agent programming in Roadmap Lens",
       "horizon": "later",
       "target_version": "future",
-      "priority_rank": 25,
+      "priority_rank": 26,
       "status": "research",
       "objective": "Allow the operator to visually create slices, connect dependencies, assign agents, attach gates, and start runs.",
       "why": "This is the long-term interface for planning and steering agents, but it should only come after read-only Lens and runtime gates are reliable.",
@@ -1749,7 +1798,8 @@
         "visual-agent-programming-operator-acceptance-contract",
         "visual-agent-programming-mutation-patch-contract",
         "visual-agent-programming-apply-adapter",
-        "visual-agent-programming-lens-ui-controls"
+        "visual-agent-programming-lens-ui-controls",
+        "visual-agent-programming-browser-editor-v1"
       ],
       "unlocks": [],
       "gates": [
@@ -1964,6 +2014,11 @@
     },
     {
       "from": "visual-agent-programming-lens-ui-controls",
+      "to": "visual-agent-programming-browser-editor-v1",
+      "kind": "unlocks"
+    },
+    {
+      "from": "visual-agent-programming-browser-editor-v1",
       "to": "visual-agent-programming",
       "kind": "unlocks"
     }
@@ -2222,8 +2277,8 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "visual-agent-programming",
-      "action": "Remaining work is the full in-browser visual editor and dispatch UX on top of the now-live contracts."
+      "node_id": "visual-agent-programming-browser-editor-v1",
+      "action": "Implement the first in-browser editor shell on top of the now-live visual-agent-programming contracts without direct file writes or agent dispatch."
     }
   ]
 }

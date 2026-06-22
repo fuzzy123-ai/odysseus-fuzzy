@@ -459,6 +459,33 @@
         "controls route through mutation contracts",
         "feature is pushed and live installed"
       ]
+    },
+    {
+      "slice_id": "ABC25-browser-visual-agent-programming-proposal-panel",
+      "owner": "charlie",
+      "mode": "worker",
+      "allowed_files": [
+        "static/index.html",
+        "static/app.js",
+        "static/style.css",
+        "static/js/",
+        "tests/test_visual_agent_programming_lens.py",
+        "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+        "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+      ],
+      "objective": "Implement the first browser proposal panel for visual-agent-programming using the existing snapshot, validate-edit, and proposal-review contracts while keeping patch, apply, file persistence, and agent dispatch unavailable.",
+      "tests": [
+        "node --check static/app.js",
+        "PowerShell ConvertFrom-Json for touched JSON files",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_visual_agent_programming_lens.py tests\\test_plan_runtime.py"
+      ],
+      "done_when": [
+        "Roadmap Lens browser UI exposes selected-node proposal drafting",
+        "snapshot, validate-edit, and proposal-review status are visible without direct roadmap file writes",
+        "copy distinguishes proposal review from patch, apply payload, file persistence, and dispatch",
+        "patch, apply, and agent start are absent or explicitly unavailable",
+        "feature is pushed and live installed"
+      ]
     }
   ],
   "delegation_packets": [
