@@ -4,8 +4,8 @@
   "parent_plan_id": "odysseus-multiagent-roadmap",
   "title": "ORCA Memory Live Activation Roadmap",
   "created_at": "2026-06-21",
-  "updated_at": "2026-06-21",
-  "status": "draft_canonical",
+  "updated_at": "2026-06-22",
+  "status": "in_progress",
   "format_decision": {
     "source_of_truth": "json",
     "markdown_role": "rendered_view_only",
@@ -90,8 +90,8 @@
     "No provider calls or LLM-generated RAPTOR summaries in this activation track.",
     "No mutation of user note content without an explicit operator-approved slice.",
     "No automatic global RAPTOR rebuild loop before operator-gated rebuild policy is verified.",
-      "No raw note bodies, secrets, private provider output, chat IDs, or absolute host paths in roadmap evidence.",
-      "No force-push, destructive git, or unrelated UI/sidebar rework in this track."
+    "No raw note bodies, secrets, private provider output, chat IDs, or absolute host paths in roadmap evidence.",
+    "No force-push, destructive git, or unrelated UI/sidebar rework in this track."
   ],
   "stop_rules": [
     "Stop on foreign staged files, secrets, token leakage, or hotfile conflicts.",
@@ -120,7 +120,7 @@
       "target": "Keep RAPTOR rebuild and graph memory safe under ongoing live use."
     }
   ],
-  "recommended_active_node": "teacher-model-orca-contract-live",
+  "recommended_active_node": "readiness-gate-live-green",
   "graph_nodes": [
     {
       "id": "memory-live-baseline-audit",
@@ -1269,7 +1269,7 @@
       "priority_rank": 9,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "raptor-read-policy-live"
       ],
@@ -1310,9 +1310,88 @@
         "If a teacher answer route exists, live test verifies source/capability metadata without storing provider output."
       ],
       "completion_state": {
-        "status": "not_started",
-        "commit": "",
-        "live_evidence": []
+        "status": "live_installed",
+        "commit": "f3d5dd3a",
+        "completed_at": "2026-06-22T08:51:30+02:00",
+        "live_evidence": [
+          {
+            "check": "focused tests",
+            "result": "ok",
+            "summary": {
+              "commands": [
+                "venv\\Scripts\\python.exe -m pytest tests\\test_teacher_audit_owner_scope.py tests\\test_reflector_agent.py tests\\test_teacher_eval_nonstring_reply.py tests\\test_obsidian_memory_mission_contract.py plugins\\obsidian\\tests\\test_model_router_backend.py --basetemp .pytest_tmp\\orca-teacher",
+                "venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_context_provider_backend.py tests\\test_agent_run_ledger.py --basetemp .pytest_tmp\\orca-teacher-adjacent"
+              ],
+              "passed": 52
+            }
+          },
+          {
+            "check": "teacher ORCA contract implementation",
+            "result": "ok",
+            "summary": {
+              "redacted_capability_status": true,
+              "owner_scoped_resolution": true,
+              "local_model_warning": true,
+              "missing_teacher_degrades": true,
+              "inherits_agent_context_providers": true,
+              "untrusted_context_boundary": true,
+              "recursion_guard": true,
+              "no_endpoint_or_secret_in_status": true
+            }
+          },
+          {
+            "check": "context provider cache stability",
+            "result": "ok",
+            "summary": {
+              "volatile_runtime_cache_stats_excluded_from_cache_key": true,
+              "memory_diagnostics_still_visible": true
+            }
+          },
+          {
+            "check": "homeserver_commit",
+            "result": "ok",
+            "value": "f3d5dd3a"
+          },
+          {
+            "check": "GET /api/version",
+            "result": "ok",
+            "summary": {
+              "commit": "f3d5dd3a",
+              "branch": "dev",
+              "status": "current"
+            }
+          },
+          {
+            "check": "GET /api/health",
+            "result": "ok"
+          },
+          {
+            "check": "Chroma heartbeat",
+            "result": "ok"
+          },
+          {
+            "check": "live teacher capability status",
+            "result": "ok",
+            "summary": {
+              "enabled": true,
+              "configured": true,
+              "mode": "cloud",
+              "provider": "DeepSeek",
+              "model_context_tokens": 128000,
+              "warnings": [
+                "model_context_tokens_unverified"
+              ],
+              "fallback_policy": "skip_teacher_and_continue_student_result",
+              "orca_context_contract": {
+                "inherits_agent_context_providers": true,
+                "provider_mode": "agent",
+                "untrusted_context_boundary": true,
+                "recursion_guard": true
+              },
+              "endpoint_or_secret_recorded": false
+            }
+          }
+        ]
       }
     },
     {
@@ -1322,7 +1401,7 @@
       "priority_rank": 10,
       "horizon": "v0-10-hardening",
       "target_version": "0.10",
-      "status": "planned",
+      "status": "claimable",
       "depends_on": [
         "freshness-hybrid-filtering-live",
         "quarantine-live-behavior",
@@ -1423,14 +1502,14 @@
   "next_actions": [
     {
       "rank": 1,
-      "node_id": "teacher-model-orca-contract-live",
-      "action": "Audit and verify that the local teacher model works with ORCA context, RAPTOR read policy, and plan graph evidence without assuming AAA/cloud-model capability.",
-      "owner": "bob"
+      "node_id": "readiness-gate-live-green",
+      "action": "Verify the final ORCA readiness gate live: Freshness, Quarantine, RAPTOR read policy, Teacher contract, health, Chroma, and evidence consistency.",
+      "owner": "charlie"
     },
     {
       "rank": 2,
-      "node_id": "readiness-gate-live-green",
-      "action": "Remain blocked until Freshness, Quarantine, RAPTOR read policy, and Teacher model contract are all live or explicitly deferred.",
+      "node_id": "automation-continuation-live",
+      "action": "Continue only after readiness-gate-live-green is live-installed or explicitly blocked/deferred.",
       "owner": "charlie"
     }
   ],
