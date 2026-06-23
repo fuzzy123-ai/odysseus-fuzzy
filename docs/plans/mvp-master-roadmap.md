@@ -88,7 +88,7 @@ Stand: 2026-06-23
 | 2 | Secure Data Mode Runtime Hooks | 100 | - |
 | 3 | Private Data / Nextcloud Memory Ingestion | 100 | - |
 | 4 | System Health Checker Host-Agent | 100 | - |
-| 5 | Telegram Voice Pipeline | 90 | Live-Server ist fuer Telegram Agent-Reply bereit, aber Voice bleibt metadata-only: Voice-Download/STT-Gates sind aus und im Container ist kein lokaler STT-Stack installiert. |
+| 5 | Telegram Voice Pipeline | 90 | Live-Server hat Voice-Download/STT-Gates aktiv und lokalen `faster-whisper` STT geladen; es fehlt noch eine kurze eingehende Voice-Nachricht fuer den finalen Download/STT/Agent/Reply-Smoke. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
 | 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
 | 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
@@ -101,9 +101,8 @@ Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 5: STT-Pfad entscheiden: lokalen STT-Stack auf Debian installieren/konfigurieren
-  oder bewusst einen Fake-STT-Runtime-Smoke erlauben; danach genau eine kurze erlaubte
-  Voice-Nachricht mit Download/STT-Gates testen.
+- Roadmap 5: eine kurze Telegram-Voice-Nachricht aus dem erlaubten Chat senden,
+  dann genau einen bounded Poll-Smoke fuer Download, lokalen STT, Agent-Turn und Reply laufen lassen.
 - Roadmap 6: UI-Lens-Renaming bis zum gemeinsamen Redesign parken;
   Datenpfad-Migration und finaler Legacy-Removal bleiben Live-Go mit Rollback.
 - Roadmap 7: Browser-Editor/UI bis zum Redesign parken; post-apply Dispatch ist
@@ -321,17 +320,18 @@ Aktuelle Gate-Zusammenfassung:
 | Voice transcript to agent turn | go | repo_only | Successful transcripts become internal Telegram voice agent prompts. |
 | Gated Telegram text reply plan | go | repo_only | Reply planning remains disabled until the reply gate and reply text are present. |
 | Plugin runtime integration | go | repo_only | Telegram plugin wires the default-off offline voice pipeline through fakeable download/STT/voice agent-turn hooks. |
-| Manual live voice smoke | needs_live_go | needs_live_go | Live server is agent-reply ready, but Voice remains metadata-only: `TELEGRAM_VOICE_DOWNLOAD_ENABLED` and `TELEGRAM_VOICE_STT_ENABLED` are disabled and no local STT stack is installed. |
+| Manual live voice smoke | needs_live_go | needs_live_go | Live server is voice-ready with download/STT gates enabled and local `faster-whisper` loaded; final proof needs one short incoming voice message. |
 | Voice UI live | deferred | needs_design | Voice UI/status controls are deferred until the shared UI redesign and remain covered by the global Version-1.0 UI gate. |
 
 Live-Smoke Evidence, 2026-06-23:
 
 - Telegram Bot API `getMe` returned 200 in Roadmap 1 smoke.
 - Live Debian app readiness reports `agent_reply_ready`: bot token marker, allowed chat marker, polling, agent-chat and reply gate are present; raw chat ids and token values were not printed or persisted.
-- Voice boundary still reports `metadata_only`; `TELEGRAM_VOICE_DOWNLOAD_ENABLED=false`, `TELEGRAM_VOICE_STT_ENABLED=false`, and raw voice ids are not visible.
-- Container module probe found no local STT stack installed (`faster_whisper`, `whisper`, `torch`, `speech_recognition`, `librosa` absent), so no real STT-provider action has been executed.
+- `INSTALL_STT=true` rebuild installed `faster-whisper` without enabling the full optional dependency set.
+- Live container reports `TELEGRAM_VOICE_DOWNLOAD_ENABLED=true`, `TELEGRAM_VOICE_STT_ENABLED=true`, local STT provider `local`, model `base`, and `stt_model_loaded=true`.
+- Bounded live poll ran with redacted output and returned `poll_ok`, `processed=0`, `agent_turns=0`, `replies=0`; no pending incoming voice message existed to transcribe.
 - `tests/test_mvp_telegram_voice_closure.py`, `tests/test_telegram_voice_pipeline.py`, `tests/test_telegram_plugin.py`, `tests/test_telegram_voice_boundary.py` and `tests/test_telegram_text_boundary.py` liefen gruen.
-- Kein Live-Voice-Download, keine STT-Provider-Aktion und kein voice-spezifischer Reply-Smoke wurden ausgefuehrt.
+- Noch kein Live-Voice-Download, keine echte STT-Transkription und kein voice-spezifischer Reply-Smoke wurden ausgefuehrt, weil keine neue Voice-Nachricht im Polling lag.
 
 ## Roadmap 6 Backend Evidence
 

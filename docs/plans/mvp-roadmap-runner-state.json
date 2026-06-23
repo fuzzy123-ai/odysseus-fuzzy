@@ -27,8 +27,8 @@
     "operator_intent": "live_and_tested",
     "telegram_bot_api_readiness": true,
     "telegram_text_roundtrip": true,
-    "telegram_voice_download": false,
-    "telegram_voice_stt": false,
+    "telegram_voice_download": true,
+    "telegram_voice_stt": true,
     "telegram_reply_send": true,
     "nextcloud_readiness_check": true,
     "nextcloud_transfer_write": true,
@@ -171,7 +171,7 @@
       "name": "Telegram Voice Pipeline",
       "percent": 90,
       "status": "needs_live_go",
-      "why_not_100": "Live server is Telegram agent-reply ready, but Voice remains metadata-only because voice download/STT gates are disabled and no local STT stack is installed.",
+      "why_not_100": "Live server has Telegram voice download/STT gates enabled and local faster-whisper STT installed, but no incoming voice message has been processed yet.",
       "next_slices": [
         {
           "id": "r5-voice-gate-readiness",
@@ -193,7 +193,7 @@
             "tests/test_telegram_text_boundary.py"
           ],
           "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
-          "blocker": "Live server is agent-reply ready with allowed chat, polling, agent-chat, and reply gates; Voice remains metadata-only because TELEGRAM_VOICE_DOWNLOAD_ENABLED and TELEGRAM_VOICE_STT_ENABLED are disabled and no local STT stack is installed."
+          "blocker": "Live server is voice-ready with download/STT gates enabled and local faster-whisper loaded; bounded poll processed 0 updates, so one short allowed incoming voice message is still needed for the final smoke."
         }
       ]
     },
@@ -290,8 +290,8 @@
       "id": "R5-TELEGRAM-VOICE-GATES",
       "class": "needs_live_go",
       "blocks": "Roadmap 5 live voice smoke",
-      "decision_needed": "Choose STT path: install/configure local STT on Debian or explicitly allow a fake-STT runtime smoke; then enable bounded voice download/STT gates for one allowed short voice message.",
-      "safe_preparation_done": "Bot token, allowed chat, polling, agent-chat, and reply gates are live-ready; offline voice pipeline and fake STT/reply planning are tested.",
+      "decision_needed": "Send one short Telegram voice message from the allowed chat, then run one bounded poll smoke to prove download, local STT, agent turn, and reply.",
+      "safe_preparation_done": "Bot token, allowed chat, polling, agent-chat, reply, voice download, and voice STT gates are live-ready; faster-whisper base model is installed and loaded.",
       "risk_if_bypassed": "Could download or transcribe private Telegram audio without explicit bounded gates and redaction policy.",
       "next_safe_slice": "R9"
     }
