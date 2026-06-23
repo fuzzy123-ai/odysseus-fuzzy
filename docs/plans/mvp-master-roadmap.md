@@ -47,7 +47,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | ---: | --- | --- | ---: | --- | --- |
 | 1 | Runtime Closure Gates | 100% / go | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
 | 2 | Secure Data Mode Runtime Hooks | 100% / go | 7 | Sensible Quellen, Secure Chats und Local-only Policy greifen an den echten Runtime-Grenzen. | Provider, Retrieval, Telegram und private Quellen respektieren Policy Gates; unsichere Faelle blockieren oder gehen in Review. |
-| 3 | Private Data / Nextcloud Memory Ingestion | 50% / repo_open | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Scanner-Dry-Run, Ledger und kleine Live-Batches sind gated; Full 100GB+ Transfer bleibt erst spaeter claimable. |
+| 3 | Private Data / Nextcloud Memory Ingestion | 60% / repo_open | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Privacy-Partition, Scanner-Dry-Run, Ledger und kleine Live-Batches sind gated; Full Transfer bleibt erst spaeter claimable. |
 | 4 | System Health Checker Host-Agent | 60% / needs_operator_input | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
 | 5 | Telegram Voice Pipeline | 80% / needs_live_go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests belegen Transcript-to-Agent und Reply-Pfad. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80% / needs_design | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | Kompatibilitaetsadapter und Alias-Regeln sind getestet; interne Core-Module koennen schrittweise von Legacy-Namen entkoppelt werden. |
@@ -86,7 +86,7 @@ Stand: 2026-06-23
 | - | - | -: | - |
 | 1 | Runtime Closure Gates | 100 | - |
 | 2 | Secure Data Mode Runtime Hooks | 100 | - |
-| 3 | Private Data / Nextcloud Memory Ingestion | 50 | Resumable Transfer Tooling, Scanner-Dry-Run, Chunked Extraction Lanes und metadata-only Ledger sind erledigt; Live-Go ist erteilt, aber `.env` enthaelt keine Nextcloud/WebDAV-Konfiguration und es fehlen weiter Quelle, Ziel, Diskbudget und No-Delete-Dry-Run. |
+| 3 | Private Data / Nextcloud Memory Ingestion | 60 | Resumable Transfer Tooling, Privacy-Partition, Scanner-Dry-Run, Chunked Extraction Lanes und metadata-only Ledger sind erledigt; Quelle/Ziel sind operativ benannt, aber Ziel-User/Secret, Testbudget, lokales Modell-Live-Gate und kleiner Copy-/Memory-Testlauf fehlen weiter. |
 | 4 | System Health Checker Host-Agent | 60 | Foundation, Interface, Collectors, Rule Engine und Ops-Readiness sind repo-only erledigt und fokussiert getestet; Live-Go ist erteilt, aber `.env` enthaelt keinen Host-Agent/Local-API-Marker und Install/Start/Snapshot bleiben ohne Host-Scope blockiert. |
 | 5 | Telegram Voice Pipeline | 80 | Offline-Kette fuer Download-Plan, lokale Referenz, fake STT, Agent-Turn, Reply-Plan und Plugin-Hooks ist getestet; R1 belegt Chat/Poll/Reply live, aber Voice-Download, STT-Gate und ein bounded Voice-Smoke fehlen weiter. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
@@ -95,16 +95,15 @@ Stand: 2026-06-23
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 84%
+Gesamtfortschritt MVP-Roadmaps: 85%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 3: echte Transfer-Inputs entweder liefern oder das Live-Gate bewusst
-  deferred markieren; backend-safe kann als naechstes Resumable Transfer
-  Tooling als abgeschlossen behandeln und weitere Memory-Abstraction-Dry-Run-
-  Vorbereitung ohne Live-Nextcloud-Go fortsetzen.
+- Roadmap 3: Ziel-Nextcloud User/Secret serverseitig bereitstellen,
+  kleines Testbudget festlegen und lokales Gemma/Ollama-Modell starten oder
+  als blockiert bestaetigen; danach copy-only Mirror- und Memory-Testlauf.
 - Roadmap 4: Host-Agent-Plan und Local-API-Consumer entweder manuell reviewen
   oder bewusst deferred markieren; Live-Host-Agent-Smoke bleibt ohne Go blockiert.
 - Roadmap 5: echten Telegram-Voice-Smoke ohne explizites Go weiter blockieren;
@@ -204,6 +203,7 @@ Backend-Artefakte:
 - `src/nextcloud_transfer_readiness.py`
 - `src/nextcloud_resumable_scanner.py`
 - `src/nextcloud_resumable_transfer.py`
+- `src/nextcloud_privacy_partition.py`
 - `src/nextcloud_chunked_extraction.py`
 - `src/bigdata_ledger_contract.py`
 - `src/nextcloud_intake_ledger.py`
@@ -214,6 +214,7 @@ Fokussierte Tests:
 - `tests/test_nextcloud_transfer_readiness.py`
 - `tests/test_nextcloud_resumable_scanner.py`
 - `tests/test_nextcloud_resumable_transfer.py`
+- `tests/test_nextcloud_privacy_partition.py`
 - `tests/test_nextcloud_chunked_extraction.py`
 - `tests/test_bigdata_ledger_contract.py`
 - `tests/test_nextcloud_source_provider.py`
@@ -227,10 +228,11 @@ Aktuelle Gate-Zusammenfassung:
 | Planning sources memory inventory | go | repo_only | Planning source inventory is bounded, read-only, and redacted. |
 | Planning sources memory ingest live | go | repo_only | Planning documents can be ingested as bounded memory capsules. |
 | Big Data ledger contract | go | repo_only | Append-only metadata ledger contract exists without raw content. |
-| Nextcloud transfer readiness | blocked | needs_operator_input | Offline validator existiert und fokussierte Tests sind gruen; Live-Check 2026-06-23 fand keine Nextcloud/WebDAV-Konfiguration in `.env`, Quelle/Ziel/Diskbudget/No-Delete-Dry-Run fehlen. |
-| Resumable transfer tooling | go | repo_only | Copy-only transfer planner records pending transfer ledger progress with redacted target labels and no live copy. |
-| Resumable scanner dry-run | go | repo_only | Scanner-Dry-Run schreibt metadata-only Inventory-Records, kann Batch-Unterbrechungen fortsetzen und blockiert Ledger im Scan-Root. |
-| Live small-batch transfer | blocked | needs_operator_input | Live-Go ist erteilt, aber ohne konfigurierte Quelle, Zielpfad, Diskbudget und No-Delete-Dry-Run darf kein echter Transfer-Smoke laufen. |
+| Nextcloud transfer readiness | partial | needs_operator_input | Quelle/Ziel sind operativ benannt und sensible Top-Level-Roots sind runtime-only bekannt; Ziel-User/Secret, Testbudget und lokales Modell-Live-Gate fehlen. |
+| Privacy partition | go | repo_only | Runtime-sensitive roots werden nur als Parameter angenommen; Ledger/Reports speichern nur generische Klassen wie `local_sensitive` und `archive_candidate`, keine echten Namen, Pfade, Inhalte oder Counts. |
+| Resumable transfer tooling | go | repo_only | Copy-only transfer planner records pending transfer ledger progress with redacted target labels, plans only archive candidates for the new Nextcloud mirror, and performs no live copy. |
+| Resumable scanner dry-run | go | repo_only | Scanner-Dry-Run schreibt metadata-only Inventory-Records, markiert lokale sensible Bereiche fuer local-only Verarbeitung, kann Batch-Unterbrechungen fortsetzen und blockiert Ledger im Scan-Root. |
+| Live small-batch transfer | blocked | needs_operator_input | Ohne Ziel-User/Secret, lokales Modell-Live-Gate, Testbudget und explizites Copy-/Memory-Testlauf-Go darf kein echter Transfer-Smoke laufen. |
 | Chunked extraction lanes | go | repo_only | Offline Chunking schreibt nur Chunk-Hashes/Offsets und modelliert retryable sowie needs_review Ledger-Zustaende ohne Raw-Content-Persistenz. |
 | Memory abstraction ingest live | blocked | needs_operator_input | Braucht zuerst konfigurierte Quelle und erfolgreichen kleinen Transfer-/Scanner-Smoke. |
 | Full 100GB+ transfer live | blocked | needs_operator_input | High-impact Live-Aktion bleibt blockiert, bis kleine Batches und Diskbudget belegt sind. |
@@ -238,8 +240,9 @@ Aktuelle Gate-Zusammenfassung:
 
 Live-Smoke Evidence, 2026-06-23:
 
-- `.env` enthaelt keinen Nextcloud/WebDAV-Provider-Marker.
-- `tests/test_live_nextcloud_readiness_check.py`, `tests/test_nextcloud_transfer_readiness.py` und `tests/test_mvp_runtime_closure.py` liefen gruen.
+- Operator hat Quelle/Ziel und zwei sensible Top-Level-Root-Klassen benannt; diese echten Namen werden nicht in Repo-Artefakten persistiert.
+- Lokale Ollama/Gemma API war beim Check nicht erreichbar; sensibler Pipeline-Pfad bleibt deshalb `local_only` geplant, aber nicht live ausgefuehrt.
+- `tests/test_nextcloud_privacy_partition.py`, `tests/test_nextcloud_resumable_scanner.py`, `tests/test_nextcloud_resumable_transfer.py`, `tests/test_live_nextcloud_readiness_check.py`, `tests/test_nextcloud_transfer_readiness.py` und `tests/test_mvp_runtime_closure.py` liefen gruen.
 - Kein Netzwerk-, Transfer-, Delete-, Move-, Memory- oder Graph-Write wurde ausgefuehrt.
 | Ingestion dashboard live | needs_design | needs_design | Bewusst auf UI-Neugestaltung verschoben. |
 

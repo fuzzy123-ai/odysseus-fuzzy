@@ -1,4 +1,5 @@
 from src.nextcloud_resumable_scanner import run_nextcloud_scanner_dry_run
+from src.bigdata_ledger_contract import AppendOnlyBigDataLedger
 
 
 def test_resumable_scanner_writes_metadata_inventory_and_resumes(tmp_path):
@@ -74,3 +75,34 @@ def test_resumable_scanner_rejects_ledger_inside_scanned_root(tmp_path):
         assert "ledger_path must not live inside the scanned root" in str(exc)
     else:
         raise AssertionError("ledger inside source root should be rejected")
+
+
+def test_resumable_scanner_marks_sensitive_roots_without_reading_content(tmp_path):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "sensitive-root").mkdir()
+    (root / "sensitive-root" / "a.txt").write_text("sensitive body", encoding="utf-8")
+    (root / "archive-root").mkdir()
+    (root / "archive-root" / "b.txt").write_text("archive body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger.jsonl"
+
+    result = run_nextcloud_scanner_dry_run(
+        root=root,
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        sensitive_roots=("sensitive-root",),
+    )
+    latest = AppendOnlyBigDataLedger(ledger_path).latest_state()
+    records = {record.item.relative_path: record for record in latest.values()}
+    encoded = ledger_path.read_text(encoding="utf-8")
+
+    assert result.committed == 2
+    assert records["sensitive-root/a.txt"].metadata["privacy"]["privacy_class"] == "local_sensitive"
+    assert records["sensitive-root/a.txt"].metadata["privacy"]["archive_allowed"] is False
+    assert records["sensitive-root/a.txt"].metadata["privacy"]["mirror_to_new_nextcloud"] is False
+    assert records["sensitive-root/a.txt"].metadata["privacy"]["required_model_scope"] == "local_only"
+    assert records["archive-root/b.txt"].metadata["privacy"]["privacy_class"] == "archive_candidate"
+    assert records["archive-root/b.txt"].metadata["privacy"]["archive_allowed"] is True
+    assert records["archive-root/b.txt"].metadata["privacy"]["mirror_to_new_nextcloud"] is True
+    assert "sensitive body" not in encoded
+    assert "archive body" not in encoded

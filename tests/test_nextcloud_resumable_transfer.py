@@ -12,7 +12,7 @@ def _inventory_item(path: str, *, source_id: str = "nextcloud-main") -> BigDataL
     )
 
 
-def _seed_inventory(ledger_path, *paths: str) -> None:
+def _seed_inventory(ledger_path, *paths: str, privacy_class: str = "archive_candidate") -> None:
     ledger = AppendOnlyBigDataLedger(ledger_path)
     for path in paths:
         ledger.append_record(
@@ -20,7 +20,14 @@ def _seed_inventory(ledger_path, *paths: str) -> None:
                 _inventory_item(path),
                 stage="inventory",
                 status="completed",
-                metadata={"scanner": "test"},
+                metadata={
+                    "scanner": "test",
+                    "privacy": {
+                        "privacy_class": privacy_class,
+                        "archive_allowed": privacy_class == "archive_candidate",
+                        "mirror_to_new_nextcloud": privacy_class == "archive_candidate",
+                    },
+                },
             )
         )
 
@@ -89,3 +96,24 @@ def test_resumable_transfer_rejects_unsafe_target_label(tmp_path):
         assert "target_label must be a safe redacted label" in str(exc)
     else:
         raise AssertionError("raw target paths should be rejected")
+
+
+def test_resumable_transfer_skips_local_sensitive_inventory(tmp_path):
+    ledger_path = tmp_path / "events.jsonl"
+    _seed_inventory(ledger_path, "archive-root/a.txt")
+    _seed_inventory(ledger_path, "sensitive-root/b.txt", privacy_class="local_sensitive")
+
+    result = plan_nextcloud_resumable_transfer(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        target_label="nextcloud-mirror",
+    )
+    latest = AppendOnlyBigDataLedger(ledger_path).latest_state()
+    transfer_paths = {
+        record.item.relative_path
+        for record in latest.values()
+        if record.stage == "transfer"
+    }
+
+    assert result.planned == 1
+    assert transfer_paths == {"archive-root/a.txt"}

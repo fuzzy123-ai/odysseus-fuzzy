@@ -7,13 +7,14 @@ from datetime import datetime, timezone
 import hashlib
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from src.bigdata_ledger_contract import (
     AppendOnlyBigDataLedger,
     BigDataLedgerItem,
     BigDataLedgerRecord,
 )
+from src.nextcloud_privacy_partition import classify_nextcloud_relative_path
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +44,8 @@ def run_nextcloud_scanner_dry_run(
     source_id: str,
     provider: str = "nextcloud",
     batch_limit: int | None = None,
+    sensitive_roots: Iterable[str] = (),
+    default_unknown_private: bool = False,
 ) -> ScannerDryRunResult:
     """Scan file metadata into the append-only ledger without reading contents."""
 
@@ -68,6 +71,11 @@ def run_nextcloud_scanner_dry_run(
         relative = path.relative_to(root_path).as_posix()
         try:
             stat = path.stat()
+            privacy = classify_nextcloud_relative_path(
+                relative,
+                sensitive_roots=sensitive_roots,
+                default_unknown_private=default_unknown_private,
+            )
             item = BigDataLedgerItem(
                 provider=provider,
                 source_id=source_id,
@@ -83,7 +91,11 @@ def run_nextcloud_scanner_dry_run(
                 item,
                 stage="inventory",
                 status="completed",
-                metadata={"scanner": "nextcloud_resumable_scanner", "dry_run": True},
+                metadata={
+                    "scanner": "nextcloud_resumable_scanner",
+                    "dry_run": True,
+                    "privacy": privacy.to_metadata(),
+                },
             )
             ledger.append_record(record)
             existing_inventory.add(item.item_id)

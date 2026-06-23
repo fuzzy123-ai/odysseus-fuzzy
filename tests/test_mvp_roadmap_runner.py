@@ -27,7 +27,7 @@ def test_runner_state_has_exactly_ten_mvp_roadmaps():
 def test_runner_progress_matches_master_average():
     state = _load_state()
 
-    assert overall_progress(state) == 84
+    assert overall_progress(state) == 85
 
 
 def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
@@ -45,11 +45,12 @@ def test_runner_report_uses_required_product_progress_format():
 
     report = render_report(state)
 
-    assert "MVP-Gesamtfortschritt: 84%" in report
+    assert "MVP-Gesamtfortschritt: 85%" in report
     assert "Version-1.0-Gate: UI live? nein" in report
     assert "Aktiver Runner-Schritt: R3 r3-nextcloud-readiness-inputs" in report
     assert "Recommended next human decision:" in report
     assert "| 1 | Runtime Closure Gates | 100 | - |" in report
+    assert "| 3 | Private Data / Nextcloud Memory Ingestion | 60 |" in report
     assert "| 9 | Image Tools Worker Final Smoke | 100 | - |" in report
     assert "| 10 | GameDev Mount Write Smoke | 100 | - |" in report
 

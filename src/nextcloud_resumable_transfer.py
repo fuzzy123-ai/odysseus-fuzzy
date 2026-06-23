@@ -11,6 +11,7 @@ from src.bigdata_ledger_contract import (
     AppendOnlyBigDataLedger,
     BigDataLedgerRecord,
 )
+from src.nextcloud_privacy_partition import privacy_metadata_allows_archive
 
 
 _SAFE_LABEL_RE = re.compile(r"^[a-z0-9][a-z0-9._:-]{0,79}$")
@@ -61,6 +62,7 @@ def plan_nextcloud_resumable_transfer(
         if record.stage == "inventory"
         and record.status == "completed"
         and record.item.source_id == source
+        and privacy_metadata_allows_archive(record.metadata.get("privacy") or {})
     ]
     existing_transfer_ids = {
         record.item.item_id for record in latest.values()
