@@ -661,6 +661,10 @@ app.include_router(setup_diagnostics_routes(rag_manager, rag_available, research
 from routes.system_update_routes import setup_system_update_routes
 app.include_router(setup_system_update_routes())
 
+# Recent local patch-note snapshots
+from routes.recent_changes_routes import setup_recent_changes_routes
+app.include_router(setup_recent_changes_routes())
+
 # Cleanup
 from routes.cleanup_routes import setup_cleanup_routes
 app.include_router(setup_cleanup_routes(session_manager))
@@ -1124,6 +1128,17 @@ async def _startup_event():
         _startup_tasks.append(start_bg_monitor())
     except Exception as _e:
         logger.warning("Failed to start background-job monitor: %s", _e)
+    # Keep local patch-note history warm across restarts. This is best-effort
+    # and deduped, so repeated restarts do not spam the history.
+    async def _startup_recent_changes_snapshot():
+        try:
+            from src.recent_changes import maybe_record_startup_snapshot
+            await asyncio.to_thread(maybe_record_startup_snapshot)
+            logger.info("[startup] Recent-change snapshot checked")
+        except Exception as e:
+            logger.warning(f"Recent-change startup snapshot failed (non-critical): {type(e).__name__}: {e}")
+
+    _startup_tasks.append(asyncio.create_task(_startup_recent_changes_snapshot()))
     # MCP servers can be slow or blocked by local tooling. Connect them after
     # the web server is accepting traffic instead of delaying the whole UI.
     async def _startup_mcp_connections():

@@ -3028,9 +3028,11 @@ function _renderSystemUpdateStatus(data) {
   const timer = data?.schedule?.timer || {};
   const service = data?.updater?.service || {};
   const backups = data?.backups || {};
+  const recentChanges = data?.recent_changes || {};
   const capabilities = data?.capabilities || {};
   const actions = data?.actions || {};
   const snapshots = Array.isArray(backups.snapshots) ? backups.snapshots : [];
+  const changeHistory = Array.isArray(recentChanges.history) ? recentChanges.history : [];
   const versionCommit = version.commit ? ` · ${esc(version.commit)}` : '';
   const latestCommit = version.latest_commit ? `Latest ${esc(version.latest_commit)}` : 'Latest unknown';
   const timerContent = timer.available === false
@@ -3059,6 +3061,16 @@ function _renderSystemUpdateStatus(data) {
         <span class="admin-toggle-sub" style="font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc((s.paths || []).join(', ') || s.hostname || '')}</span>
       </div>`).join('')
     : '<div class="admin-empty">No snapshots visible</div>';
+  const latestChange = recentChanges.latest || null;
+  const latestChangeSummary = Array.isArray(latestChange?.summary) ? latestChange.summary.join(' ') : '';
+  const changeRows = changeHistory.length
+    ? changeHistory.map(item => `
+      <div class="admin-user-row" style="display:grid;grid-template-columns:minmax(120px,0.8fr) minmax(150px,1.2fr) minmax(160px,1.4fr);gap:8px;align-items:center;">
+        <span class="admin-badge">${esc(item.id || 'snapshot')}</span>
+        <span style="font-size:12px;">${esc(_fmtSystemDate(item.generated_at))}</span>
+        <span class="admin-toggle-sub" style="font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc((item.summary || []).join(' ') || '')}</span>
+      </div>`).join('')
+    : '<div class="admin-empty">No patch-note snapshots stored yet</div>';
 
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
@@ -3090,6 +3102,11 @@ function _renderSystemUpdateStatus(data) {
     <div style="margin-top:10px;">
       <div class="admin-toggle-label" style="margin-bottom:6px;">Recent snapshots</div>
       ${snapshotRows}
+    </div>
+    <div style="margin-top:10px;">
+      <div class="admin-toggle-label" style="margin-bottom:6px;">Patch notes history</div>
+      <div class="admin-toggle-sub" style="margin-bottom:6px;">Latest: ${esc(latestChange?.id || 'none')} ${latestChangeSummary ? '· ' + esc(latestChangeSummary) : ''}</div>
+      ${changeRows}
     </div>`;
 
   const backupBtn = el('adm-system-backup-now');

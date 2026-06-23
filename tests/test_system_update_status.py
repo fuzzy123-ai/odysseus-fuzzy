@@ -59,6 +59,7 @@ def test_collect_status_degrades_without_host_tools():
         runner=lambda argv, timeout: StatusCommandResult(exit_code=1, stderr="should not run"),
         tool_resolver=lambda name: None,
         version_provider=lambda **_: {"status": "current", "commit": "abc123"},
+        recent_changes_provider=lambda force: {"available": True, "latest": None, "history": []},
     )
 
     assert status["status"] == "success"
@@ -66,7 +67,45 @@ def test_collect_status_degrades_without_host_tools():
     assert status["capabilities"]["systemctl"] is False
     assert status["schedule"]["timer"]["available"] is False
     assert status["backups"]["available"] is False
+    assert status["recent_changes"]["available"] is True
     assert status["actions"]["update_now_enabled"] is False
+
+
+def test_collect_status_links_recent_changes_and_forces_on_update_check():
+    calls = []
+
+    def fake_recent(force_collect):
+        calls.append(force_collect)
+        return {
+            "available": True,
+            "latest": {
+                "id": "snap-1",
+                "generated_at": "2026-06-23T10:00:00Z",
+                "since": "2026-06-22T22:00:00Z",
+                "hours": 12,
+                "summary": ["local changes found"],
+                "persisted": True,
+                "patch_notes": "Patch notes snapshot",
+                "repo_root": "/secret/repo",
+                "tracked_changes": [{"path": "src/x.py"}],
+            },
+            "history": [{"id": "snap-1", "summary": ["local changes found"]}],
+        }
+
+    status = collect_system_update_status(
+        env={},
+        runner=lambda argv, timeout: StatusCommandResult(exit_code=1, stderr="should not run"),
+        tool_resolver=lambda name: None,
+        version_provider=lambda **_: {"status": "current"},
+        recent_changes_provider=fake_recent,
+        force_version_refresh=True,
+    )
+
+    assert calls == [True]
+    assert status["recent_changes"]["latest"]["id"] == "snap-1"
+    assert status["recent_changes"]["latest"]["patch_notes"] == "Patch notes snapshot"
+    assert "repo_root" not in status["recent_changes"]["latest"]
+    assert "tracked_changes" not in status["recent_changes"]["latest"]
 
 
 def test_collect_status_parses_systemd_and_restic(tmp_path):
@@ -157,6 +196,7 @@ def test_collect_status_redacts_secret_bearing_errors():
         runner=fake_runner,
         tool_resolver=lambda name: f"/usr/bin/{name}",
         version_provider=lambda **_: {"status": "current"},
+        recent_changes_provider=lambda force: {"available": True, "latest": None, "history": []},
     )
 
     assert status["backups"]["reason"] == "[redacted]"
@@ -262,6 +302,7 @@ def test_update_action_is_blocked_when_live_gate_is_missing(tmp_path):
         runner=fake_runner,
         tool_resolver=lambda name: f"/usr/bin/{name}",
         version_provider=lambda **_: {"status": "outdated"},
+        recent_changes_provider=lambda force: {"available": True, "latest": None, "history": []},
     )
 
     assert result["status"] == "blocked"
@@ -294,6 +335,7 @@ def test_update_action_starts_auto_update_service_when_gates_are_green(tmp_path)
         runner=fake_runner,
         tool_resolver=lambda name: f"/usr/bin/{name}",
         version_provider=lambda **_: {"status": "outdated"},
+        recent_changes_provider=lambda force: {"available": True, "latest": None, "history": []},
     )
 
     assert result["status"] == "started"

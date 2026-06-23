@@ -38,6 +38,7 @@ class StatusCommandResult:
 
 CommandRunner = Callable[[tuple[str, ...], int], StatusCommandResult]
 ToolResolver = Callable[[str], str | None]
+RecentChangesProvider = Callable[[bool], dict[str, Any]]
 
 
 def _redact(value: Any) -> str:
@@ -254,12 +255,64 @@ def _version_status(version_provider: Callable[..., dict[str, Any]], *, force_re
         return {"status": "unknown", "error": _redact(exc)}
 
 
+def _default_recent_changes_provider(force_collect: bool) -> dict[str, Any]:
+    from src.recent_changes import collect_recent_changes, list_change_history, read_change_snapshot
+
+    if force_collect:
+        snapshot = collect_recent_changes(hours=24, persist=True)
+    else:
+        snapshot = read_change_snapshot("latest")
+    history = list_change_history(limit=5)
+    return {
+        "available": True,
+        "latest": snapshot,
+        "history": history,
+    }
+
+
+def _recent_changes_status(
+    *,
+    force_collect: bool,
+    provider: RecentChangesProvider | None = None,
+) -> dict[str, Any]:
+    try:
+        data = dict((provider or _default_recent_changes_provider)(force_collect))
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": _redact(exc),
+            "latest": None,
+            "history": [],
+        }
+    latest = data.get("latest")
+    if isinstance(latest, Mapping):
+        latest_summary = {
+            "id": latest.get("id"),
+            "generated_at": latest.get("generated_at"),
+            "since": latest.get("since"),
+            "hours": latest.get("hours"),
+            "summary": latest.get("summary") or [],
+            "persisted": latest.get("persisted"),
+            "duplicate_of": latest.get("duplicate_of"),
+            "patch_notes": latest.get("patch_notes"),
+        }
+    else:
+        latest_summary = None
+    history = data.get("history") if isinstance(data.get("history"), list) else []
+    return {
+        "available": data.get("available", True) is not False,
+        "latest": latest_summary,
+        "history": history[:5],
+    }
+
+
 def collect_system_update_status(
     *,
     env: Mapping[str, str] | None = None,
     runner: CommandRunner | None = None,
     tool_resolver: ToolResolver | None = None,
     version_provider: Callable[..., dict[str, Any]] = get_version_info,
+    recent_changes_provider: RecentChangesProvider | None = None,
     force_version_refresh: bool = False,
 ) -> dict[str, Any]:
     """Collect bounded, read-only update/backup status for the admin UI."""
@@ -294,6 +347,10 @@ def collect_system_update_status(
         env=effective_env,
         runner=command_runner,
         tool_resolver=resolver,
+    )
+    recent_changes = _recent_changes_status(
+        force_collect=force_version_refresh,
+        provider=recent_changes_provider,
     )
     live_enabled = str(effective_env.get("ODYSSEUS_UPDATER_LIVE_ENABLED", "")).strip().lower() in {
         "1",
@@ -332,6 +389,7 @@ def collect_system_update_status(
             **backups,
             "service": backup_service,
         },
+        "recent_changes": recent_changes,
         "capabilities": {
             "systemctl": _tool_available("systemctl", resolver),
             "restic": _tool_available("restic", resolver),
@@ -355,6 +413,7 @@ def start_system_update_action(
     runner: CommandRunner | None = None,
     tool_resolver: ToolResolver | None = None,
     version_provider: Callable[..., dict[str, Any]] = get_version_info,
+    recent_changes_provider: RecentChangesProvider | None = None,
 ) -> dict[str, Any]:
     """Start one approved system update/backup action without blocking for completion."""
 
@@ -381,6 +440,7 @@ def start_system_update_action(
         runner=command_runner,
         tool_resolver=resolver,
         version_provider=version_provider,
+        recent_changes_provider=recent_changes_provider,
         force_version_refresh=(action == "update_now"),
     )
     action_spec = action_map[action]
@@ -427,6 +487,7 @@ def start_system_update_action(
             runner=command_runner,
             tool_resolver=resolver,
             version_provider=version_provider,
+            recent_changes_provider=recent_changes_provider,
             force_version_refresh=(action == "update_now"),
         ),
     }
