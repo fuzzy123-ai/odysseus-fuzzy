@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-06-23",
+  "mode": "mvp_roadmap_runner",
+  "branch": "dev",
+  "push_remote": "fuzzy",
+  "push_branch": "dev",
+  "forbidden_remotes": ["origin"],
+  "master_roadmap": "docs/plans/mvp-master-roadmap.md",
+  "version_1_0_gate": {
+    "ui_live": false,
+    "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
+  },
+  "runner": {
+    "active_roadmap": 9,
+    "active_slice": "r9-rembg-worker-smoke",
+    "selection_policy": "lowest roadmap number below 100, then first open or running slice",
+    "tick_outcome_required": [
+      "progress_changed",
+      "commit_pushed",
+      "gate_updated",
+      "blocker_clarified",
+      "queue_exhausted"
+    ]
+  },
+  "live_go_ledger": {
+    "operator_intent": "live_and_tested",
+    "telegram_bot_api_readiness": true,
+    "telegram_text_roundtrip": false,
+    "telegram_voice_download": false,
+    "telegram_voice_stt": false,
+    "telegram_reply_send": false,
+    "nextcloud_readiness_check": true,
+    "nextcloud_transfer_write": false,
+    "host_agent_plan_review": true,
+    "host_agent_install_or_start": false,
+    "image_worker_health": true,
+    "image_worker_remove_bg": true,
+    "gamedev_mount_write_smoke": true,
+    "deploy_tag_distribution": false
+  },
+  "roadmaps": [
+    {
+      "number": 1,
+      "name": "Runtime Closure Gates",
+      "percent": 82,
+      "status": "partial_live_evidence",
+      "why_not_100": "Debian/systemd/restic backup evidence and Telegram allowed-chat text roundtrip are not executable in the current configured runtime.",
+      "next_slices": [
+        {
+          "id": "r1-debian-backup-evidence",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Collect Debian systemd/restic updater and backup evidence without overclaiming Windows runtime behavior.",
+          "required_inputs": ["debian host target", "systemd service name", "restic repository marker", "updater wrapper path"],
+          "required_live_go": [],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": [],
+          "blocker": "Current runtime is Windows and lacks Debian/systemd/restic target details."
+        },
+        {
+          "id": "r1-telegram-text-roundtrip",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Run a redacted Telegram text intake and reply roundtrip.",
+          "required_inputs": ["allowed chat marker", "polling gate", "agent intake gate", "reply gate"],
+          "required_live_go": ["telegram_text_roundtrip", "telegram_reply_send"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_telegram_text_boundary.py"],
+          "blocker": "Bot token readiness exists, but allowed chat and polling/reply gates are absent."
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "name": "Secure Data Mode Runtime Hooks",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
+      "next_slices": []
+    },
+    {
+      "number": 3,
+      "name": "Private Data / Nextcloud Memory Ingestion",
+      "percent": 50,
+      "status": "repo_open",
+      "why_not_100": "Nextcloud/WebDAV configuration, source, target, disk budget, and no-delete dry-run are missing.",
+      "next_slices": [
+        {
+          "id": "r3-nextcloud-readiness-inputs",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Verify redacted Nextcloud/WebDAV readiness and record exact missing inputs.",
+          "required_inputs": ["provider marker", "source path", "target path", "disk budget", "no-delete dry-run decision"],
+          "required_live_go": ["nextcloud_readiness_check"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md", "docs/plans/mvp-roadmap-runner-state.json"],
+          "tests": ["tests/test_live_nextcloud_readiness_check.py"],
+          "blocker": ".env has no Nextcloud/WebDAV marker and transfer inputs are not defined."
+        },
+        {
+          "id": "r3-small-batch-transfer-smoke",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Run the smallest reversible transfer/readiness smoke after config is present.",
+          "required_inputs": ["successful readiness", "bounded batch size", "target path", "disk budget"],
+          "required_live_go": ["nextcloud_transfer_write"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_nextcloud_resumable_transfer.py"],
+          "blocker": "Depends on configured readiness inputs."
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "name": "System Health Checker Host-Agent",
+      "percent": 60,
+      "status": "needs_operator_input",
+      "why_not_100": "Host-Agent/local API config, install/start target, and snapshot endpoint are missing.",
+      "next_slices": [
+        {
+          "id": "r4-host-agent-config-review",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Validate host-agent config markers and prepare first live snapshot smoke.",
+          "required_inputs": ["host-agent endpoint", "auth or local socket policy", "timeout", "fixture review"],
+          "required_live_go": ["host_agent_plan_review"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md", "docs/plans/mvp-roadmap-runner-state.json"],
+          "tests": ["tests/test_live_system_health_host_agent_plan.py", "tests/test_live_system_health_local_api_consumer.py"],
+          "blocker": ".env contains no Host-Agent or local API marker."
+        },
+        {
+          "id": "r4-host-agent-runtime-smoke",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Install/start or query the host-agent and record a sanitized runtime snapshot.",
+          "required_inputs": ["Debian target", "install/start command", "rollback command", "sanitized payload fixture"],
+          "required_live_go": ["host_agent_install_or_start"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_system_health_agent_interface.py"],
+          "blocker": "No concrete host target or install/start permission is defined."
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "name": "Telegram Voice Pipeline",
+      "percent": 80,
+      "status": "needs_live_go",
+      "why_not_100": "Allowed chat, polling, download, STT, and reply gates are missing.",
+      "next_slices": [
+        {
+          "id": "r5-voice-gate-readiness",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Check live voice pipeline gates without downloading user audio.",
+          "required_inputs": ["allowed chat marker", "polling gate", "voice download gate", "STT gate", "reply gate"],
+          "required_live_go": ["telegram_voice_download", "telegram_voice_stt", "telegram_reply_send"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
+          "blocker": "Only bot token readiness exists; no voice or reply gates are configured."
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "name": "ORCA / Lens Naming & Backend Migration",
+      "percent": 80,
+      "status": "needs_design",
+      "why_not_100": "Data-path migration needs a target and rollback decision; UI Lens wording waits for redesign.",
+      "next_slices": [
+        {
+          "id": "r6-data-path-migration-decision",
+          "class": "blocked",
+          "status": "blocked",
+          "objective": "Prepare final ORCA data-path cutover only after target and rollback are named.",
+          "required_inputs": ["migration target", "rollback plan", "backup evidence", "compatibility cutover decision"],
+          "required_live_go": [],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_orca_compatibility_contract.py"],
+          "blocker": "No concrete migration target or rollback plan is selected."
+        },
+        {
+          "id": "r6-lens-wording-ui",
+          "class": "needs_design",
+          "status": "blocked",
+          "objective": "Rename Lens UI surfaces during the shared UI redesign.",
+          "required_inputs": ["UI naming decision"],
+          "required_live_go": [],
+          "allowed_paths": [],
+          "tests": [],
+          "blocker": "UI redesign is intentionally handled later."
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "name": "PlanRuntime / Visual Planning Logic",
+      "percent": 92,
+      "status": "needs_design",
+      "why_not_100": "Backend logic is closed; browser editor UI remains a shared redesign gate.",
+      "next_slices": [
+        {
+          "id": "r7-browser-editor-ui",
+          "class": "needs_design",
+          "status": "blocked",
+          "objective": "Build the browser proposal editor in the new UI.",
+          "required_inputs": ["UI design decision", "new UI shell"],
+          "required_live_go": [],
+          "allowed_paths": [],
+          "tests": [],
+          "blocker": "New UI is not live."
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "name": "Release / Distribution Evidence",
+      "percent": 82,
+      "status": "needs_live_go",
+      "why_not_100": "Deploy/tag/distribution target and new UI live gate are missing.",
+      "next_slices": [
+        {
+          "id": "r8-release-target-decision",
+          "class": "needs_live_go",
+          "status": "blocked",
+          "objective": "Turn the evidence bundle into a concrete release/deploy/tag decision.",
+          "required_inputs": ["version", "target", "rollback plan", "announcement decision"],
+          "required_live_go": ["deploy_tag_distribution"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_release_decision_bundle.py", "tests/test_mvp_master_roadmap_gate.py"],
+          "blocker": "No deploy/tag/distribution target is selected and UI live gate is false."
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "name": "Image Tools Worker Final Smoke",
+      "percent": 85,
+      "status": "dependency_missing",
+      "why_not_100": "Final successful remove-background smoke needs rembg in the isolated worker environment; UI remains later.",
+      "next_slices": [
+        {
+          "id": "r9-rembg-worker-smoke",
+          "class": "needs_live_go",
+          "status": "open",
+          "objective": "Run or prepare the final isolated worker remove-background smoke.",
+          "required_inputs": ["isolated worker venv", "rembg installed or explicit install permission", "bounded fixture image"],
+          "required_live_go": ["image_worker_remove_bg"],
+          "allowed_paths": ["workers/image_tools_worker", "docs/plans/mvp-master-roadmap.md"],
+          "tests": ["tests/test_image_tools_worker.py", "tests/test_gallery_remove_bg_worker.py"],
+          "blocker": "The current worker reports dependency_missing for rembg."
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "name": "GameDev Mount Write Smoke",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
+      "next_slices": []
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "R1-DEBIAN-RUNTIME",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 1 Debian updater/backup evidence",
+      "decision_needed": "Provide Debian host/systemd/restic target details or accept this gate as deferred.",
+      "safe_preparation_done": "Windows runtime correctly blocks update/backup execution and records partial evidence.",
+      "risk_if_bypassed": "Would overclaim backup/update readiness outside the observed runtime.",
+      "next_safe_slice": "R3/R4/R5 gate validation or R9 worker smoke"
+    },
+    {
+      "id": "R3-NEXTCLOUD-CONFIG",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 3 live readiness and small-batch transfer",
+      "decision_needed": "Provide provider marker, source, target, disk budget, and no-delete dry-run decision.",
+      "safe_preparation_done": "Resumable transfer, scanner, chunking, and ledger contracts are implemented offline.",
+      "risk_if_bypassed": "Could touch private data without bounded source/target or disk budget.",
+      "next_safe_slice": "R4/R5/R9"
+    },
+    {
+      "id": "R4-HOST-AGENT-TARGET",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 4 host-agent runtime smoke",
+      "decision_needed": "Provide local API/host-agent endpoint or Debian install/start target plus rollback.",
+      "safe_preparation_done": "Collectors, rules, ops readiness, and consumer plan are tested offline.",
+      "risk_if_bypassed": "Could run host-level operations without clear permissions or rollback.",
+      "next_safe_slice": "R5/R9"
+    },
+    {
+      "id": "R5-TELEGRAM-VOICE-GATES",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 5 live voice smoke",
+      "decision_needed": "Provide allowed chat plus polling, download, STT, and reply gates.",
+      "safe_preparation_done": "Offline voice pipeline and fake STT/reply planning are tested.",
+      "risk_if_bypassed": "Could ingest or send private Telegram content without explicit bounded gates.",
+      "next_safe_slice": "R9"
+    },
+    {
+      "id": "R9-REMBG-DEPENDENCY",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 9 final remove-background smoke",
+      "decision_needed": "Allow isolated worker dependency install or provide an environment where rembg is installed.",
+      "safe_preparation_done": "Worker health and dependency_missing behavior are proven without polluting core venv.",
+      "risk_if_bypassed": "Could pollute core dependencies or fake a successful image smoke.",
+      "next_safe_slice": "none if all earlier live gates remain blocked"
+    }
+  ],
+  "report_contract": {
+    "include": [
+      "MVP-Gesamtfortschritt",
+      "Version-1.0-Gate",
+      "Aktiver Runner-Schritt",
+      "Ergebnis",
+      "Warum",
+      "Fortschritt geaendert",
+      "Naechster Schritt",
+      "Roadmap-Fortschritt",
+      "Recommended next human decision"
+    ],
+    "exclude": ["routine commit logs", "routine push logs", "routine passing test logs"]
+  }
+}
