@@ -358,11 +358,11 @@ def setup_personal_routes(personal_docs_manager, rag_manager, rag_available):
                 except Exception as e:
                     logger.warning(f"RAG removal failed for {filepath}: {e}")
 
-            # Delete file from disk if it's in uploads dir
+            # Delete file from disk only if it is in the caller's own uploads dir.
             deleted_from_disk = False
             try:
                 abs_target = os.path.realpath(filepath)
-                base_abs = os.path.realpath(UPLOADS_DIR)
+                base_abs = os.path.realpath(_personal_upload_dir_for_owner(owner, create=False))
                 in_uploads = (
                     abs_target == base_abs
                     or os.path.commonpath([abs_target, base_abs]) == base_abs

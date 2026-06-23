@@ -50,6 +50,7 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 
 - Class: repo_only
 - Effort: 4/10
+- Status: done in `dev`.
 - Port commits:
   - `16026741` personal RAG file delete confinement.
   - `ca4973c4` email-to-calendar ReDoS fix.
@@ -63,6 +64,9 @@ These 22 files changed both in our fork and upstream since the merge base. They 
   - `python -m pytest tests/test_personal_delete_file_confinement.py tests/test_redos_cal_extract.py tests/test_log_safety.py tests/test_auth_disabled_document_access.py tests/test_serve_html_with_nonce.py`
   - JS check for calendar escaping if the test is JS-backed.
 - Exit: commit and push to `fuzzy/dev` when green.
+- Implementation note:
+  - The upstream `contacts_routes.py` URL-redaction hunk was not applicable because this fork does not have the same post-DELETE UID recheck log line. No new contacts log surface was invented.
+  - Focused verification on 2026-06-23: `20 passed, 1 skipped` for the U1 regression suite. The skip is the existing Windows symlink privilege gate.
 
 ### U2 - P0 LLM, Chat, Stream, and Latency Patch Bundle
 

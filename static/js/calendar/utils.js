@@ -65,13 +65,20 @@ export function _calBgImageUrl(c) {
   return _isCalBgImage(c) ? c.slice(3) : '';
 }
 
+export function _cssUrlEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '%22');
+}
+
 // Returns a value safe to drop into `style="background:..."`. Falls back to
 // the calendar default for bg-image events in spots where an image would be
 // too small to render usefully (small grid dots, multi-day bars).
 export function _calBgCss(c, fallback) {
   if (_isCalBgImage(c)) {
     const u = _calBgImageUrl(c);
-    return u ? `center/cover no-repeat url('${u.replace(/'/g, "\\'")}')` : (fallback || 'var(--accent)');
+    return u ? `center/cover no-repeat url('${_cssUrlEscape(u)}')` : (fallback || 'var(--accent)');
   }
   return c || fallback || 'var(--accent)';
 }
