@@ -327,6 +327,7 @@ _ADMIN_TOOLS = {
     "manage_webhooks",
     "manage_tokens",
     "manage_settings",
+    "recent_changes",
     "download_model",
     "serve_model",
     "serve_preset",
@@ -660,7 +661,7 @@ async def _execute_tool_block_impl(
     """
     from src.tool_implementations import (
         do_search_chats, do_manage_tasks,
-        do_manage_skills, do_api_call, do_manage_endpoints,
+        do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
         do_manage_mcp, do_manage_webhooks, do_manage_tokens,
         do_manage_settings, do_manage_notes,
         do_manage_calendar,
@@ -948,6 +949,9 @@ async def _execute_tool_block_impl(
     elif tool == "manage_skills":
         desc = "manage_skills"
         result = await do_manage_skills(content, owner=owner)
+    elif tool == "recent_changes":
+        desc = "recent_changes"
+        result = await do_recent_changes(content, owner=owner)
     elif tool == "api_call":
         first_line = content.split("\n")[0].strip()[:60]
         desc = f"api_call: {first_line}"

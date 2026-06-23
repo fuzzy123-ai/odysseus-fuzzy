@@ -75,6 +75,7 @@ _AGENT_RULES = """\
 ## Rules
 - Only use tools when needed. Don't search for things you already know.
 - For web lookup/search/latest/current requests, use `web_search` or `web_fetch`. Do NOT use `bash`, `python`, `curl`, `requests`, or scraping code for web lookup unless web tools are disabled or already failed.
+- For local Odysseus Neuerungen, patch notes, or questions about what changed in the last N hours, use `recent_changes`. Do not answer from memory, release version, git commits alone, or web search.
 - These exact tags execute automatically. For showing code examples, use ```shell, ```sh, ```py, etc. instead.
 - Multiple tool blocks per response OK. 60s timeout per tool, 10K char output limit.
 - Code/content >15 lines → ```create_document (NOT in chat). Short snippets OK in chat.
@@ -122,6 +123,7 @@ _API_AGENT_RULES = """\
 - Only call tools when they materially help answer the request.
 - You MUST use tools to take action — do not describe what you would do. Act, don't narrate.
 - For web lookup/search/latest/current requests, call `web_search` or `web_fetch`. Do NOT use shell, Python, curl, requests, or scraping code for web lookup unless web tools are unavailable or already failed.
+- For local Odysseus Neuerungen, patch notes, or questions about what changed in the last N hours, call `recent_changes`; do not answer from memory, release version, git commits alone, or web search.
 - Keep answers concise unless the user asks for depth.
 - For long code or content, use document tools instead of pasting large blocks into chat.
 - Editing an existing document: ALWAYS use `edit_document` with find/replace. Only use `update_document` for genuine full rewrites (>50% changed) — do NOT echo the entire file back for small edits.
@@ -277,6 +279,10 @@ _DOMAIN_RULES = {
 ## Integration/API rules
 - To query or control a configured service integration (Home Assistant, Miniflux, Gitea, Linkding, Jellyfin, or any other registered service), use `api_call` with the integration name, HTTP method, path, and optional JSON body.
 - Do not use shell, curl, or `app_api` to reach a user's connected integration when `api_call` is available.""",
+    "changes": """\
+## Recent-change rules
+- For local Odysseus patch notes, Neuerungen, or "what changed in the last N hours/today/yesterday", use `recent_changes`.
+- Do not use web search for local project changes. Git commits alone are insufficient because active work may be dirty or untracked.""",
 }
 
 _DOMAIN_TOOL_MAP = {
@@ -291,6 +297,7 @@ _DOMAIN_TOOL_MAP = {
     "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "app_api"},
     "contacts": {"resolve_contact", "manage_contact"},
     "integrations": {"api_call"},
+    "changes": {"recent_changes"},
 }
 
 def _domain_rules_for_tools(tool_names: set) -> list[str]:
@@ -429,6 +436,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "manage_documents": "- ```manage_documents``` — List, read/open, delete, or tidy documents in the editor panel. Args (JSON): {\"action\": \"list|read|delete|tidy\", ...}. `list` returns rows like `[Title](#document-<id>) — lang, size, updated 5m ago` sorted MOST-RECENT FIRST; the user clicks the anchor to open. `read` (aliases: view/open/get) takes `document_id` and returns the content. When the user asks \"open/show/read my notes\" or \"what documents do I have\", use this — do NOT shell out, do NOT curl.",
     "manage_research": "- ```manage_research``` — List, read/open, or delete saved DEEP RESEARCH results from the Library. Args (JSON): {\"action\": \"list|read|delete\", \"id\": \"<id>\", \"search\": \"...\"}. `list` returns rows like `[query](#research-<id>) — N sources` MOST-RECENT FIRST; the user clicks to open. `read` (aliases: open/view/get) takes `id` and returns the report text + sources. Use when the user says \"open/read/find/delete my research\" or \"that report\". This IS how you read a finished report: when the user refers to a just-completed deep-research job (\"check it out\", \"read that report\", \"summarize the research\") WITHOUT giving an id, call `manage_research` with `action:list` to get the most-recent id, then `action:read` with that id, and answer from the returned text. Do NOT `web_fetch`/`app_api` the `/api/research/report/{id}` URL — that endpoint renders HTML for the browser, not clean text — and do NOT start a fresh `web_search`/`trigger_research` just to read an existing report. To START new research, use trigger_research instead.",
     "manage_settings": "- ```manage_settings``` — View/change the REAL app settings (same ones the Settings panel writes) AND turn tools on/off. Change a setting: `{\"action\":\"set\",\"key\":\"...\",\"value\":\"...\"}` — keys accept friendly aliases, e.g. voice→tts_voice, \"search engine\"→search_provider, \"default model\"→default_model, \"teacher model\"→teacher_model, \"task/background model\"→task_model, \"image quality\"→image_quality, \"reminder channel\"→reminder_channel (browser|email|ntfy), \"agent timeout\"/\"max tool calls\"/\"token budget\". Read: `{\"action\":\"get\",\"key\":\"...\"}`; see all: `{\"action\":\"list\"}`; reset one: `{\"action\":\"reset\",\"key\":\"...\"}`. Use this when the user asks to change ANY preference instead of making them open Settings. Secrets/API keys are read-only (tell them to set those in the panel). Tool toggles: `{\"action\":\"disable_tool|enable_tool\",\"tool\":\"shell\"}` (aliases: shell/search/browser/documents/memory/skills/images/tasks/notes/calendar/email), list disabled: `{\"action\":\"list_tools\"}`.",
+    "recent_changes": "- ```recent_changes``` — Local Odysseus patch-note history. Args (JSON): {\"action\":\"collect|list|read\", \"hours\":12, \"snapshot_id\":\"latest\"}. Use for \"Neuerungen\", \"was hat sich geändert\", \"Patch Notes\", \"what changed today/yesterday/in the last 12h\". It checks local commits, dirty tracked files, untracked files, and recent mtimes, then stores deduped snapshots in history.",
     "manage_notes": """\
 ```manage_notes
 {"action": "add", "title": "<short todo>", "due_date": "<natural language or ISO datetime>"}
@@ -667,7 +675,7 @@ _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens",
     "create_session", "list_sessions", "send_to_session", "pipeline",
-    "ask_teacher", "list_models", "search_chats",
+    "ask_teacher", "list_models", "search_chats", "recent_changes",
 ])
 _TOOL_SELECTION_TIMEOUT_SECONDS = 1.5
 
@@ -719,6 +727,9 @@ _ADMIN_KEYWORDS = [
     "task", "tasks", "schedule", "cron", "setting", "settings", "preference",
     "configure", "config", "setup", "manage", "admin", "pipeline", "second opinion",
     "list models", "switch model", "change model", "theme", "create theme",
+    "neuerungen", "neuigkeiten", "änderungen", "aenderungen",
+    "patch notes", "changelog", "recent changes",
+    "what changed", "was ist neu", "was hat sich",
     # Documents — "show/list/read my docs", "open my notes file", etc.
     # Without these, manage_documents never reaches the prompt and the
     # agent flails (curl, bash) instead of using the right tool.
@@ -864,6 +875,13 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("settings")
     if has(r"\b(contact|contacts|phone|phone number|address book|vcard)\b"):
         domains.add("contacts")
+    if has(
+        r"\b(neuerungen|neuigkeiten|änderungen|aenderungen|patch notes?|changelog|change ?log|what changed|recent changes|changed|changes)\b",
+        r"\b(was hat sich ge[aä]ndert|was wurde ge[aä]ndert|was ist neu|was gibt es neu)\b",
+        r"\b(letzte[nrsm]?|last)\s+\d+\s*(?:h|std|stunden|hours?)\b",
+        r"\b(heute|gestern|today|yesterday)\b.*\b(neu|ge[aä]ndert|changed|changes|patch)\b",
+    ):
+        domains.add("changes")
     # API-integration intent — calling a configured service via the api_call
     # tool. Without this the #3794 repro ("Use the api_call tool to call Home
     # Assistant GET /api/states") matched no domain, classified as low-signal,
@@ -1401,6 +1419,7 @@ _ADMIN_TOOLS = {
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
+    "recent_changes",
 }
 
 def _build_base_prompt(

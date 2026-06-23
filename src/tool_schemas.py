@@ -910,6 +910,25 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "recent_changes",
+            "description": "Read or create local Odysseus patch-note snapshots. Use when the user asks what changed, what is new, Neuerungen, Patch Notes, or changes in the last N hours. This checks local commits, dirty files, untracked files, and recently modified files; it does not search the web.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["collect", "list", "read"], "description": "collect creates or returns a recent snapshot; list shows stored snapshots; read returns one stored snapshot."},
+                    "hours": {"type": "integer", "description": "Lookback window for collect, default 12."},
+                    "limit": {"type": "integer", "description": "Max history rows for list, default 20."},
+                    "snapshot_id": {"type": "string", "description": "Snapshot id for read, or latest."},
+                    "persist": {"type": "boolean", "description": "Whether collect should store the snapshot in history, default true."},
+                    "force": {"type": "boolean", "description": "Store even if the fingerprint matches the latest snapshot."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "download_model",
             "description": "Download a HuggingFace model to a server. If `host` is omitted, defaults to the cookbook's currently-selected server (NOT localhost) — call list_cookbook_servers first if you're unsure where it should go.",
             "parameters": {
@@ -1536,7 +1555,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
                     content += f" {ak}={colors[ak]}"
         else:
             content = action
-    elif tool_type in ("manage_tasks", "manage_skills", "api_call",
+    elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
                         "manage_tokens", "manage_documents", "manage_settings"):
         content = json.dumps(args)

@@ -218,7 +218,6 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if text is None:
             return {"error": f"Reference {ref!r} not found under {name!r}", "exit_code": 1}
         return {"results": text}
-
     if action == "add":
         if not name:
             return {
@@ -367,6 +366,58 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         ),
         "exit_code": 1,
     }
+
+
+async def do_recent_changes(content: str, owner: Optional[str] = None) -> Dict:
+    """Create/read persistent local patch-note snapshots."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action") or "collect").strip().lower()
+    try:
+        from src.recent_changes import (
+            collect_recent_changes,
+            list_change_history,
+            read_change_snapshot,
+            render_patch_notes,
+        )
+
+        if action in {"collect", "summary", "summarize", ""}:
+            snapshot = collect_recent_changes(
+                hours=int(args.get("hours") or 12),
+                persist=bool(args.get("persist", True)),
+                force=bool(args.get("force", False)),
+            )
+            if snapshot.get("persisted"):
+                note = "stored"
+            else:
+                note = f"not stored (duplicate of {snapshot.get('duplicate_of')})"
+            return {
+                "output": render_patch_notes(snapshot) + f"\n\nHistory: {note}.",
+                "snapshot": snapshot,
+                "exit_code": 0,
+            }
+        if action == "list":
+            items = list_change_history(limit=int(args.get("limit") or 20))
+            if not items:
+                return {"output": "No recent-change snapshots stored yet.", "items": [], "exit_code": 0}
+            lines = ["Recent-change snapshot history:"]
+            for item in items:
+                summary = " ".join(item.get("summary") or [])[:180]
+                lines.append(f"- `{item.get('id')}` ({item.get('generated_at')}): {summary}")
+            return {"output": "\n".join(lines), "items": items, "exit_code": 0}
+        if action == "read":
+            snapshot_id = str(args.get("snapshot_id") or args.get("id") or "latest").strip()
+            snapshot = read_change_snapshot(snapshot_id)
+            if snapshot is None:
+                return {"error": f"Recent-change snapshot '{snapshot_id}' not found.", "exit_code": 1}
+            return {"output": render_patch_notes(snapshot), "snapshot": snapshot, "exit_code": 0}
+        return {"error": "Use action collect, list, or read.", "exit_code": 1}
+    except Exception as exc:
+        logger.error("recent_changes failed: %s", exc)
+        return {"error": str(exc), "exit_code": 1}
 
 
 def _skill_dump(sk) -> Dict:
