@@ -59,7 +59,7 @@ class PlanRuntimeVisualClosureGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -123,6 +123,7 @@ def build_planruntime_visual_closure_report(
     apply_adapter_go: bool = True,
     route_contracts_go: bool = True,
     browser_editor_ui_go: bool = False,
+    browser_editor_ui_deferred: bool = True,
     post_apply_dispatch_go: bool = True,
 ) -> PlanRuntimeVisualClosureReport:
     gates = (
@@ -239,11 +240,19 @@ def build_planruntime_visual_closure_report(
         PlanRuntimeVisualClosureGate.create(
             gate_id="browser_editor_ui",
             title="Browser proposal editor UI",
-            status="go" if browser_editor_ui_go else "needs_design",
+            status=(
+                "go"
+                if browser_editor_ui_go
+                else "deferred"
+                if browser_editor_ui_deferred
+                else "needs_design"
+            ),
             slice_class="needs_design",
             reason=(
                 "browser proposal editor UI is live on the redesigned interface"
                 if browser_editor_ui_go
+                else "browser proposal editor UI is deliberately deferred until the shared UI redesign"
+                if browser_editor_ui_deferred
                 else "browser proposal editor UI is deferred until the shared UI redesign"
             ),
         ),

@@ -51,7 +51,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 4 | System Health Checker Host-Agent | 100% / go | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
 | 5 | Telegram Voice Pipeline | 100% / go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests und Operator-Live-Evidence belegen Download, lokalen STT, Transcript-to-Agent und Reply-Pfad. |
 | 6 | ORCA / Lens Naming & Backend Migration | 100% / go | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | ORCA ist backendseitig kanonisch, Kompatibilitaetsadapter und Alias-Regeln sind getestet; Legacy-Pfade bleiben bewusst als Compatibility Layer, bis UI/Cutover spaeter live gehen. |
-| 7 | PlanRuntime / Visual Planning Logic | 92% / needs_design | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch. |
+| 7 | PlanRuntime / Visual Planning Logic | 100% / go | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch; Browser-Editor bleibt bewusst Teil des gemeinsamen UI-Redesigns. |
 | 8 | Release / Distribution Evidence | 82% / needs_live_go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | 1.0/externes Release kann als Go, Partial oder No-Go begruendet werden, ohne Runtime-Gates zu ueberzeichnen. |
 | 9 | Image Tools Worker Final Smoke | 100% / go | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
 | 10 | GameDev Mount Write Smoke | 100% / go | 2 | Der optionale Schreibpfad fuer GameDev-Mounts wird eng und reversibel belegt. | Write-Smoke erfolgt nur mit explizitem Go, schreibt ein reversibles Testartefakt und leakt keine Host-Pfade. |
@@ -90,19 +90,17 @@ Stand: 2026-06-23
 | 4 | System Health Checker Host-Agent | 100 | - |
 | 5 | Telegram Voice Pipeline | 100 | - |
 | 6 | ORCA / Lens Naming & Backend Migration | 100 | - |
-| 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
+| 7 | PlanRuntime / Visual Planning Logic | 100 | - |
 | 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 97%
+Gesamtfortschritt MVP-Roadmaps: 98%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 7: Browser-Editor/UI bis zum Redesign parken; post-apply Dispatch ist
-  als bestaetigter Request ohne Runtime-Ausfuehrung backendseitig vorbereitet.
 - Roadmap 8: Deploy/Tag/Distribution weiter als separates Live-Go behandeln;
   Version-1.0-Claim bleibt automatisch blockiert bis 10/10 Roadmaps und neue UI live sind.
 - Roadmap 10: optionalen GameDev-Write-Smoke entweder explizit freigeben oder
@@ -408,13 +406,14 @@ Aktuelle Gate-Zusammenfassung:
 | Mutation patch contract | go | repo_only | Accepted proposals become mutation patches with audit and version metadata. |
 | Mutation apply adapter | go | repo_only | Authorized patches apply to roadmap payloads with rollback metadata and no implicit agent start. |
 | Admin route contracts | go | repo_only | Roadmap graph, visual snapshot, validate, review, acceptance, patch and apply routes are admin-protected. |
-| Browser proposal editor UI | needs_design | needs_design | Browser proposal editor UI is deferred until the shared UI redesign. |
+| Browser proposal editor UI | deferred | needs_design | Browser proposal editor UI is deliberately deferred to the shared UI redesign; backend PlanRuntime/visual planning contracts are complete for MVP. |
 | Post-apply agent dispatch | go | repo_only | Post-apply dispatch erzeugt einen bestaetigten, auditierbaren Request mit SubagentRunSpec, bleibt aber ohne Thread-, Job- oder Runtime-Ausfuehrung. |
 
 Test Evidence, 2026-06-23:
 
 - `tests/test_mvp_planruntime_visual_closure.py`, `tests/test_plan_runtime.py`, `tests/test_roadmap_lens.py`, `tests/test_visual_agent_programming_lens.py`, `tests/test_planruntime_post_apply_dispatch.py` und `tests/test_subagent_plan_binding.py` liefen gruen.
 - Kein UI-Editor wurde gebaut und kein Agent wurde implizit gestartet.
+- R7 ist damit als Backend-/Logic-Feature abgeschlossen; der Browser-Editor bleibt bewusst Teil des globalen UI-Live-Gates.
 
 ## Roadmap 8 Backend Evidence
 

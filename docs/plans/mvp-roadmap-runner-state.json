@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 7,
-    "active_slice": "r7-browser-editor-ui",
+    "active_roadmap": 8,
+    "active_slice": "r8-release-target-decision",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -246,20 +246,39 @@
     {
       "number": 7,
       "name": "PlanRuntime / Visual Planning Logic",
-      "percent": 92,
-      "status": "needs_design",
-      "why_not_100": "Backend logic is closed; browser editor UI remains a shared redesign gate.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r7-browser-editor-ui",
           "class": "needs_design",
-          "status": "blocked",
+          "status": "deferred",
           "objective": "Build the browser proposal editor in the new UI.",
           "required_inputs": ["UI design decision", "new UI shell"],
           "required_live_go": [],
-          "allowed_paths": [],
-          "tests": [],
-          "blocker": "New UI is not live."
+          "allowed_paths": [
+            "docs/plans/mvp-master-roadmap.md",
+            "docs/plans/mvp-roadmap-runner-state.json",
+            "src/mvp_planruntime_visual_closure.py",
+            "tests/test_mvp_planruntime_visual_closure.py",
+            "tests/test_plan_runtime.py",
+            "tests/test_roadmap_lens.py",
+            "tests/test_visual_agent_programming_lens.py",
+            "tests/test_planruntime_post_apply_dispatch.py",
+            "tests/test_subagent_plan_binding.py",
+            "tests/test_mvp_roadmap_runner.py",
+            "tests/test_mvp_master_roadmap_gate.py"
+          ],
+          "tests": [
+            "tests/test_mvp_planruntime_visual_closure.py",
+            "tests/test_plan_runtime.py",
+            "tests/test_roadmap_lens.py",
+            "tests/test_visual_agent_programming_lens.py",
+            "tests/test_planruntime_post_apply_dispatch.py",
+            "tests/test_subagent_plan_binding.py"
+          ],
+          "blocker": "Deferred to the shared UI redesign; PlanRuntime validation, review, patch, apply and post-apply dispatch-request backend contracts are complete for MVP."
         }
       ]
     },
@@ -302,13 +321,13 @@
   ],
   "gate_queue": [
     {
-      "id": "R7-BROWSER-EDITOR-UI",
-      "class": "needs_design",
-      "blocks": "Roadmap 7 browser proposal editor UI",
-      "decision_needed": "Design the new UI shell/browser editor, or keep Roadmap 7 backend-only until the shared UI redesign starts.",
-      "safe_preparation_done": "PlanRuntime validation, proposal queue, acceptance, patch, apply and post-apply dispatch-request backend contracts are implemented and tested.",
-      "risk_if_bypassed": "Building UI now would violate the backend-first MVP consolidation and create throwaway frontend work.",
-      "next_safe_slice": "R8"
+      "id": "R8-RELEASE-TARGET",
+      "class": "needs_live_go",
+      "blocks": "Roadmap 8 release/deploy/tag decision",
+      "decision_needed": "Select a deploy/tag/distribution target and rollback plan, or defer external release until the new UI is live.",
+      "safe_preparation_done": "Release evidence, known limits and Version-1.0 gate language are aggregated from backend/runtime gates.",
+      "risk_if_bypassed": "A release claim without target, rollback and UI-live evidence would overstate MVP readiness.",
+      "next_safe_slice": "none"
     }
   ],
   "report_contract": {

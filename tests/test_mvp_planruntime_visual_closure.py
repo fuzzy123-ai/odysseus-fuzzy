@@ -4,20 +4,29 @@ from src.mvp_planruntime_visual_closure import (
 )
 
 
-def test_default_planruntime_visual_progress_tracks_backend_logic_done_ui_open():
+def test_default_planruntime_visual_progress_tracks_backend_mvp_complete_with_deferred_ui():
     report = build_planruntime_visual_closure_report()
 
     assert report.roadmap_id == "planruntime_visual_planning_logic"
-    assert report.percent_complete == 92
-    assert "Browser proposal editor UI" in report.why_not_100
-    assert "shared UI redesign" in report.recommended_next_human_decision
+    assert report.percent_complete == 100
+    assert report.why_not_100 == "-"
+    assert "Release / Distribution Evidence" in report.recommended_next_human_decision
 
     gates = {gate.gate_id: gate for gate in report.gates}
     assert gates["planruntime_source"].status == "go"
     assert gates["apply_adapter"].status == "go"
     assert gates["route_contracts"].status == "go"
+    assert gates["browser_editor_ui"].status == "deferred"
     assert gates["browser_editor_ui"].slice_class == "needs_design"
     assert gates["post_apply_dispatch"].status == "go"
+
+
+def test_planruntime_visual_strict_mode_still_blocks_browser_editor_ui():
+    report = build_planruntime_visual_closure_report(browser_editor_ui_deferred=False)
+
+    assert report.percent_complete == 92
+    assert "Browser proposal editor UI" in report.why_not_100
+    assert "shared UI redesign" in report.recommended_next_human_decision
 
 
 def test_planruntime_visual_reaches_100_when_all_gates_complete():
