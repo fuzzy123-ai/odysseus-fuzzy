@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 5,
-    "active_slice": "r5-voice-gate-readiness",
+    "active_roadmap": 6,
+    "active_slice": "r6-data-path-migration-decision",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -169,14 +169,14 @@
     {
       "number": 5,
       "name": "Telegram Voice Pipeline",
-      "percent": 90,
-      "status": "needs_live_go",
-      "why_not_100": "Live server has Telegram voice download/STT gates enabled and local faster-whisper STT installed; the first voice was consumed before the final log-redaction deploy and now exists only as a redacted pending_stt entry, so one fresh post-deploy voice is needed for the final smoke.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r5-voice-gate-readiness",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Check live voice pipeline gates without downloading user audio.",
           "required_inputs": ["voice download gate", "STT gate", "bounded voice smoke policy"],
           "required_live_go": ["telegram_voice_download", "telegram_voice_stt", "telegram_reply_send"],
@@ -195,7 +195,7 @@
             "tests/test_telegram_text_boundary.py"
           ],
           "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
-          "blocker": "Live server is voice-ready with download/STT gates enabled and local faster-whisper loaded; a post-deploy bounded poll processed 0 updates while the older voice exists only as a redacted pending_stt entry without raw Telegram file id, so one fresh allowed voice message is needed for final download/STT/agent/reply proof."
+          "blocker": ""
         }
       ]
     },
@@ -289,13 +289,13 @@
   ],
   "gate_queue": [
     {
-      "id": "R5-TELEGRAM-VOICE-GATES",
-      "class": "needs_live_go",
-      "blocks": "Roadmap 5 live voice smoke",
-      "decision_needed": "Send one short Telegram voice message from the allowed chat, then run one bounded poll smoke to prove download, local STT, agent turn, and reply.",
-      "safe_preparation_done": "Bot token, allowed chat, polling, agent-chat, reply, voice download, and voice STT gates are live-ready; faster-whisper base model is installed and loaded.",
-      "risk_if_bypassed": "Could download or transcribe private Telegram audio without explicit bounded gates and redaction policy.",
-      "next_safe_slice": "R9"
+      "id": "R6-DATA-PATH-MIGRATION",
+      "class": "blocked",
+      "blocks": "Roadmap 6 data-path migration decision",
+      "decision_needed": "Select the ORCA data-path migration target and rollback plan, or defer the data-path cutover until after the shared UI redesign.",
+      "safe_preparation_done": "ORCA naming, boundary, env/tool/provider/route aliases, ORCA-core adapter and legacy deprecation contract are implemented and tested.",
+      "risk_if_bypassed": "A data-path cutover without a named target, backup and rollback plan could strand existing data or break compatibility paths.",
+      "next_safe_slice": "R8"
     }
   ],
   "report_contract": {
