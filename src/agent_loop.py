@@ -1568,10 +1568,9 @@ def _resolve_tool_blocks(round_response: str, native_tool_calls: list, round_num
         if tool_blocks:
             logger.info(f"Agent round {round_num}: {len(tool_blocks)} fenced tool block(s) detected")
 
-    resp_preview = round_response[:200].replace('\n', '\\n') if round_response else "(empty)"
     logger.info(f"Agent round {round_num} summary: {len(round_response)} chars, "
                 f"{len(native_tool_calls)} native calls, "
-                f"{len(tool_blocks)} tool blocks. Preview: {resp_preview}")
+                f"{len(tool_blocks)} tool blocks.")
 
     return tool_blocks, used_native
 
@@ -2136,12 +2135,12 @@ async def stream_agent_loop(
     # user turns only for explicit continuations ("yes", "do it", "1").
     _retrieval_query = str(_intent.get("retrieval_query") or _last_user)
     logger.info(
-        "[agent-intent] latest=%r continuation=%s low_signal=%s domains=%s retrieval_query=%r",
-        _last_user[:120],
+        "[agent-intent] latest_len=%s continuation=%s low_signal=%s domains=%s retrieval_query_len=%s",
+        len(_last_user),
         bool(_intent.get("continuation")),
         bool(_intent.get("low_signal")),
         sorted(_intent.get("domains") or []),
-        _retrieval_query[:200],
+        len(_retrieval_query),
     )
     _mcp_disabled_map = _load_mcp_disabled_map() if mcp_mgr else {}
     if mcp_mgr and public_mcp_allowlist is not None:
