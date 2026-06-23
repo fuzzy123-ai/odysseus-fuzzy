@@ -59,7 +59,7 @@ class ReleaseDistributionClosureGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -122,7 +122,9 @@ def build_release_distribution_closure_report(
     live_phase_boundaries_go: bool = True,
     mvp_roadmap_aggregate_go: bool = True,
     deploy_tag_distribution_go: bool = False,
+    deploy_tag_distribution_deferred: bool = True,
     new_ui_release_gate_go: bool = False,
+    new_ui_release_gate_deferred: bool = True,
 ) -> ReleaseDistributionClosureReport:
     gates = (
         ReleaseDistributionClosureGate.create(
@@ -227,22 +229,38 @@ def build_release_distribution_closure_report(
         ReleaseDistributionClosureGate.create(
             gate_id="deploy_tag_distribution",
             title="Deploy, tag and distribution execution",
-            status="go" if deploy_tag_distribution_go else "needs_live_go",
+            status=(
+                "go"
+                if deploy_tag_distribution_go
+                else "deferred"
+                if deploy_tag_distribution_deferred
+                else "needs_live_go"
+            ),
             slice_class="needs_live_go",
             reason=(
                 "deploy, tag and distribution execution are explicitly approved and evidenced"
                 if deploy_tag_distribution_go
+                else "deploy, tag and distribution are deliberately deferred until Version 1.0 release conditions are met"
+                if deploy_tag_distribution_deferred
                 else "deploy, tag and distribution remain separate explicit operator Go gates"
             ),
         ),
         ReleaseDistributionClosureGate.create(
             gate_id="new_ui_release_gate",
             title="New UI live release gate",
-            status="go" if new_ui_release_gate_go else "needs_design",
+            status=(
+                "go"
+                if new_ui_release_gate_go
+                else "deferred"
+                if new_ui_release_gate_deferred
+                else "needs_design"
+            ),
             slice_class="needs_design",
             reason=(
                 "new UI is live and included in Version 1.0 release language"
                 if new_ui_release_gate_go
+                else "new UI live release remains deliberately deferred to the global Version 1.0 gate"
+                if new_ui_release_gate_deferred
                 else "Version 1.0 still requires the new UI to be live"
             ),
         ),

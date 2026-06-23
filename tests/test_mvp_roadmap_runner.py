@@ -27,16 +27,16 @@ def test_runner_state_has_exactly_ten_mvp_roadmaps():
 def test_runner_progress_matches_master_average():
     state = _load_state()
 
-    assert overall_progress(state) == 98
+    assert overall_progress(state) == 100
 
 
-def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
+def test_runner_returns_queue_exhausted_when_all_roadmaps_are_complete():
     state = _load_state()
 
     step = select_next_step(state)
 
-    assert step["roadmap"]["number"] == 8
-    assert step["slice"]["id"] == "r8-release-target-decision"
+    assert step["roadmap"] is None
+    assert step["slice"] is None
     assert step["runnable"] is False
 
 
@@ -45,9 +45,10 @@ def test_runner_report_uses_required_product_progress_format():
 
     report = render_report(state)
 
-    assert "MVP-Gesamtfortschritt: 98%" in report
+    assert "MVP-Gesamtfortschritt: 100%" in report
     assert "Version-1.0-Gate: UI live? nein" in report
-    assert "Aktiver Runner-Schritt: R8 r8-release-target-decision" in report
+    assert "Aktiver Runner-Schritt: none" in report
+    assert "Ergebnis: queue_exhausted" in report
     assert "Recommended next human decision:" in report
     assert "| 1 | Runtime Closure Gates | 100 | - |" in report
     assert "| 3 | Private Data / Nextcloud Memory Ingestion | 100 | - |" in report

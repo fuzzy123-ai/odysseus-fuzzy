@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 8,
-    "active_slice": "r8-release-target-decision",
+    "active_roadmap": null,
+    "active_slice": null,
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -285,20 +285,36 @@
     {
       "number": 8,
       "name": "Release / Distribution Evidence",
-      "percent": 82,
-      "status": "needs_live_go",
-      "why_not_100": "Deploy/tag/distribution target and new UI live gate are missing.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r8-release-target-decision",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "deferred",
           "objective": "Turn the evidence bundle into a concrete release/deploy/tag decision.",
           "required_inputs": ["version", "target", "rollback plan", "announcement decision"],
           "required_live_go": ["deploy_tag_distribution"],
-          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
-          "tests": ["tests/test_release_decision_bundle.py", "tests/test_mvp_master_roadmap_gate.py"],
-          "blocker": "No deploy/tag/distribution target is selected and UI live gate is false."
+          "allowed_paths": [
+            "docs/plans/mvp-master-roadmap.md",
+            "docs/plans/mvp-roadmap-runner-state.json",
+            "src/mvp_release_distribution_closure.py",
+            "tests/test_mvp_release_distribution_closure.py",
+            "tests/test_release_readiness_report.py",
+            "tests/test_release_readiness_pipeline.py",
+            "tests/test_release_decision_bundle.py",
+            "tests/test_mvp_roadmap_runner.py",
+            "tests/test_mvp_master_roadmap_gate.py"
+          ],
+          "tests": [
+            "tests/test_mvp_release_distribution_closure.py",
+            "tests/test_release_readiness_report.py",
+            "tests/test_release_readiness_pipeline.py",
+            "tests/test_release_decision_bundle.py",
+            "tests/test_mvp_master_roadmap_gate.py"
+          ],
+          "blocker": "Deferred to the global Version 1.0 gate; release evidence is complete, but deploy/tag/distribution execution still requires UI live, concrete target, rollback plan and explicit operator release Go."
         }
       ]
     },
@@ -321,12 +337,12 @@
   ],
   "gate_queue": [
     {
-      "id": "R8-RELEASE-TARGET",
-      "class": "needs_live_go",
-      "blocks": "Roadmap 8 release/deploy/tag decision",
-      "decision_needed": "Select a deploy/tag/distribution target and rollback plan, or defer external release until the new UI is live.",
-      "safe_preparation_done": "Release evidence, known limits and Version-1.0 gate language are aggregated from backend/runtime gates.",
-      "risk_if_bypassed": "A release claim without target, rollback and UI-live evidence would overstate MVP readiness.",
+      "id": "VERSION-1-UI-LIVE",
+      "class": "needs_design",
+      "blocks": "Version 1.0 release claim",
+      "decision_needed": "Ship the new UI before claiming Version 1.0 or performing external deploy/tag/distribution release.",
+      "safe_preparation_done": "All ten MVP roadmaps are complete at the backend/runtime evidence level; release evidence explicitly blocks external release while UI live is false.",
+      "risk_if_bypassed": "Claiming Version 1.0 before the new UI is live would contradict the MasterRoadmap release gate.",
       "next_safe_slice": "none"
     }
   ],

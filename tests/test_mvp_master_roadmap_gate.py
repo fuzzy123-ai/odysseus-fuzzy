@@ -14,14 +14,14 @@ def test_current_mvp_gate_blocks_version_1_until_all_roadmaps_and_ui_are_done():
     gate = build_current_mvp_version_gate("docs/plans/mvp-master-roadmap.md", ui_live=False)
 
     assert gate.gate_id == "mvp_version_1_gate"
-    assert gate.overall_percent == 98
+    assert gate.overall_percent == 100
     assert gate.version_1_ready is False
     assert gate.ui_live is False
     assert len(gate.roadmaps) == 10
     assert "mvp_roadmap:5:100" not in gate.blocking_reasons
     assert "mvp_roadmap:6:100" not in gate.blocking_reasons
     assert "mvp_roadmap:7:100" not in gate.blocking_reasons
-    assert "mvp_roadmap:8:82" in gate.blocking_reasons
+    assert "mvp_roadmap:8:100" not in gate.blocking_reasons
     assert "mvp_roadmap:4:100" not in gate.blocking_reasons
     assert "mvp_ui:not_live" in gate.blocking_reasons
     assert "Version 1.0" in gate.next_human_decision

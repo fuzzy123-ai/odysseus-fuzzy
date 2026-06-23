@@ -52,7 +52,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 5 | Telegram Voice Pipeline | 100% / go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests und Operator-Live-Evidence belegen Download, lokalen STT, Transcript-to-Agent und Reply-Pfad. |
 | 6 | ORCA / Lens Naming & Backend Migration | 100% / go | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | ORCA ist backendseitig kanonisch, Kompatibilitaetsadapter und Alias-Regeln sind getestet; Legacy-Pfade bleiben bewusst als Compatibility Layer, bis UI/Cutover spaeter live gehen. |
 | 7 | PlanRuntime / Visual Planning Logic | 100% / go | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch; Browser-Editor bleibt bewusst Teil des gemeinsamen UI-Redesigns. |
-| 8 | Release / Distribution Evidence | 82% / needs_live_go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | 1.0/externes Release kann als Go, Partial oder No-Go begruendet werden, ohne Runtime-Gates zu ueberzeichnen. |
+| 8 | Release / Distribution Evidence | 100% / go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | Evidence-Go ist abgeschlossen; externes Deploy/Tag/Distribution bleibt bewusst deferred bis Version-1.0-Gate, UI-live, Ziel, Rollback und explizites Release-Go vorliegen. |
 | 9 | Image Tools Worker Final Smoke | 100% / go | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
 | 10 | GameDev Mount Write Smoke | 100% / go | 2 | Der optionale Schreibpfad fuer GameDev-Mounts wird eng und reversibel belegt. | Write-Smoke erfolgt nur mit explizitem Go, schreibt ein reversibles Testartefakt und leakt keine Host-Pfade. |
 
@@ -91,20 +91,17 @@ Stand: 2026-06-23
 | 5 | Telegram Voice Pipeline | 100 | - |
 | 6 | ORCA / Lens Naming & Backend Migration | 100 | - |
 | 7 | PlanRuntime / Visual Planning Logic | 100 | - |
-| 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
+| 8 | Release / Distribution Evidence | 100 | - |
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 98%
+Gesamtfortschritt MVP-Roadmaps: 100%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 8: Deploy/Tag/Distribution weiter als separates Live-Go behandeln;
-  Version-1.0-Claim bleibt automatisch blockiert bis 10/10 Roadmaps und neue UI live sind.
-- Roadmap 10: optionalen GameDev-Write-Smoke entweder explizit freigeben oder
-  bewusst deferred markieren; ohne Go bleibt nur der reversible Plan claimbar.
+- Version 1.0: neue UI live schalten, bevor Version 1.0 oder externes Deploy/Tag/Distribution-Release beansprucht wird.
 
 ## Roadmap 1 Backend Evidence
 
@@ -453,13 +450,14 @@ Aktuelle Gate-Zusammenfassung:
 | Evidence-Go closeout language | go | repo_only | Closeout language separates Evidence-Go from deploy, tag and distribution. |
 | Live phase boundary gates | go | repo_only | Provider, export/import/rebuild, host, Telegram and network actions remain separate operator gates. |
 | MVP roadmap aggregate for 1.0 | go | repo_only | Release-Pipeline liest das MVP-MasterRoadmap-Aggregat und blockiert Version 1.0, solange nicht alle zehn Roadmaps 100% sind und die neue UI live ist. |
-| Deploy, tag and distribution execution | blocked | needs_operator_input | Live-Go is broad, but external deploy/tag/distribution still needs a concrete target, version decision and rollback/announcement plan; Version 1.0 gate is not ready. |
-| New UI live release gate | needs_design | needs_design | Version 1.0 still requires the new UI to be live. |
+| Deploy, tag and distribution execution | deferred | needs_live_go | External deploy/tag/distribution is deliberately deferred until Version 1.0 release conditions are met. |
+| New UI live release gate | deferred | needs_design | New UI live remains deliberately deferred to the global Version 1.0 gate. |
 
 Test Evidence, 2026-06-23:
 
-- Release/Evidence focused suite lief gruen after updating the expected MasterRoadmap aggregate to 79%.
+- Release/Evidence focused suite lief gruen after updating the expected MasterRoadmap aggregate to 100%.
 - Kein Deploy, Tag, Push oder Distribution wurde ausgefuehrt.
+- R8 ist damit als Evidence-/Release-Language-Feature abgeschlossen; externe Distribution bleibt durch das separate Version-1.0-UI-Gate blockiert.
 
 ## Roadmap 9 Backend Evidence
 
