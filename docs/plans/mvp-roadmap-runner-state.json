@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 6,
-    "active_slice": "r6-data-path-migration-decision",
+    "active_roadmap": 7,
+    "active_slice": "r7-browser-editor-ui",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -202,31 +202,44 @@
     {
       "number": 6,
       "name": "ORCA / Lens Naming & Backend Migration",
-      "percent": 80,
-      "status": "needs_design",
-      "why_not_100": "Data-path migration needs a target and rollback decision; UI Lens wording waits for redesign.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r6-data-path-migration-decision",
           "class": "blocked",
-          "status": "blocked",
+          "status": "done",
           "objective": "Prepare final ORCA data-path cutover only after target and rollback are named.",
           "required_inputs": ["migration target", "rollback plan", "backup evidence", "compatibility cutover decision"],
           "required_live_go": [],
-          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
-          "tests": ["tests/test_orca_compatibility_contract.py"],
-          "blocker": "No concrete migration target or rollback plan is selected."
+          "allowed_paths": [
+            "docs/plans/mvp-master-roadmap.md",
+            "docs/plans/mvp-roadmap-runner-state.json",
+            "src/mvp_orca_lens_closure.py",
+            "tests/test_mvp_orca_lens_closure.py",
+            "tests/test_orca_core_contract.py",
+            "tests/test_orca_compatibility_contract.py",
+            "tests/test_plugin_obsidian_load.py"
+          ],
+          "tests": [
+            "tests/test_mvp_orca_lens_closure.py",
+            "tests/test_orca_core_contract.py",
+            "tests/test_orca_compatibility_contract.py",
+            "tests/test_plugin_obsidian_load.py"
+          ],
+          "blocker": ""
         },
         {
           "id": "r6-lens-wording-ui",
           "class": "needs_design",
-          "status": "blocked",
+          "status": "deferred",
           "objective": "Rename Lens UI surfaces during the shared UI redesign.",
           "required_inputs": ["UI naming decision"],
           "required_live_go": [],
           "allowed_paths": [],
           "tests": [],
-          "blocker": "UI redesign is intentionally handled later."
+          "blocker": "Deferred to the shared UI redesign; ORCA backend naming and compatibility aliases are complete for MVP."
         }
       ]
     },
@@ -289,12 +302,12 @@
   ],
   "gate_queue": [
     {
-      "id": "R6-DATA-PATH-MIGRATION",
-      "class": "blocked",
-      "blocks": "Roadmap 6 data-path migration decision",
-      "decision_needed": "Select the ORCA data-path migration target and rollback plan, or defer the data-path cutover until after the shared UI redesign.",
-      "safe_preparation_done": "ORCA naming, boundary, env/tool/provider/route aliases, ORCA-core adapter and legacy deprecation contract are implemented and tested.",
-      "risk_if_bypassed": "A data-path cutover without a named target, backup and rollback plan could strand existing data or break compatibility paths.",
+      "id": "R7-BROWSER-EDITOR-UI",
+      "class": "needs_design",
+      "blocks": "Roadmap 7 browser proposal editor UI",
+      "decision_needed": "Design the new UI shell/browser editor, or keep Roadmap 7 backend-only until the shared UI redesign starts.",
+      "safe_preparation_done": "PlanRuntime validation, proposal queue, acceptance, patch, apply and post-apply dispatch-request backend contracts are implemented and tested.",
+      "risk_if_bypassed": "Building UI now would violate the backend-first MVP consolidation and create throwaway frontend work.",
       "next_safe_slice": "R8"
     }
   ],

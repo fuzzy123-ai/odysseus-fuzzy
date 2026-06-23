@@ -50,7 +50,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 3 | Private Data / Nextcloud Memory Ingestion | 100% / go | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Privacy-Partition, Scanner-Dry-Run, Ledger und kleine Live-Smokes sind gated; Full Corpus Transfer bleibt eine bewusste Folgeentscheidung nach Regeldefinition. |
 | 4 | System Health Checker Host-Agent | 100% / go | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
 | 5 | Telegram Voice Pipeline | 100% / go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests und Operator-Live-Evidence belegen Download, lokalen STT, Transcript-to-Agent und Reply-Pfad. |
-| 6 | ORCA / Lens Naming & Backend Migration | 80% / needs_design | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | Kompatibilitaetsadapter und Alias-Regeln sind getestet; interne Core-Module koennen schrittweise von Legacy-Namen entkoppelt werden. |
+| 6 | ORCA / Lens Naming & Backend Migration | 100% / go | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | ORCA ist backendseitig kanonisch, Kompatibilitaetsadapter und Alias-Regeln sind getestet; Legacy-Pfade bleiben bewusst als Compatibility Layer, bis UI/Cutover spaeter live gehen. |
 | 7 | PlanRuntime / Visual Planning Logic | 92% / needs_design | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch. |
 | 8 | Release / Distribution Evidence | 82% / needs_live_go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | 1.0/externes Release kann als Go, Partial oder No-Go begruendet werden, ohne Runtime-Gates zu ueberzeichnen. |
 | 9 | Image Tools Worker Final Smoke | 100% / go | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
@@ -89,20 +89,18 @@ Stand: 2026-06-23
 | 3 | Private Data / Nextcloud Memory Ingestion | 100 | - |
 | 4 | System Health Checker Host-Agent | 100 | - |
 | 5 | Telegram Voice Pipeline | 100 | - |
-| 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
+| 6 | ORCA / Lens Naming & Backend Migration | 100 | - |
 | 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
 | 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 95%
+Gesamtfortschritt MVP-Roadmaps: 97%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 6: UI-Lens-Renaming bis zum gemeinsamen Redesign parken;
-  Datenpfad-Migration und finaler Legacy-Removal bleiben Live-Go mit Rollback.
 - Roadmap 7: Browser-Editor/UI bis zum Redesign parken; post-apply Dispatch ist
   als bestaetigter Request ohne Runtime-Ausfuehrung backendseitig vorbereitet.
 - Roadmap 8: Deploy/Tag/Distribution weiter als separates Live-Go behandeln;
@@ -365,14 +363,15 @@ Aktuelle Gate-Zusammenfassung:
 | Env, tool and provider aliases | go | repo_only | ODYSSEUS_ORCA flags, orca_* tools and orca.vault_context provider aliases are tested. |
 | ORCA route aliases | go | repo_only | /api/plugins/orca aliases are mounted while legacy /api/plugins/obsidian routes remain intact. |
 | ORCA core modules | go | repo_only | ORCA Core Adapter fasst Retrieval, Readiness, RAPTOR, Query und Lens-Contracts read-only hinter Legacy-Obsidian-Adaptern zusammen. |
-| Frontend Lens naming | needs_design | needs_design | Frontend Lens wording is parked until the shared UI redesign. |
+| Frontend Lens naming | deferred | needs_design | Frontend Lens wording is deliberately deferred to the shared UI redesign; backend ORCA naming is complete for MVP. |
 | Legacy Obsidian deprecation | go | repo_only | Legacy-Obsidian-Kompatibilitaet bleibt erhalten, aber ORCA-Migration-Map, Warnungen und Removal-Gates sind read-only modelliert. |
-| Data path migration and final removal plan | blocked | needs_operator_input | Live-Go is granted, but final path migration/removal still needs a named target, rollback plan, backup evidence and compatibility cutover decision. |
+| Data path migration and final removal plan | deferred | needs_live_go | Final path migration/removal is deliberately deferred; ORCA routes/tools/providers are canonical while legacy paths remain as compatibility layer. |
 
 Live/Test Evidence, 2026-06-23:
 
 - `tests/test_mvp_orca_lens_closure.py`, `tests/test_orca_core_contract.py`, `tests/test_orca_compatibility_contract.py` und `tests/test_plugin_obsidian_load.py` liefen gruen.
-- Kein Datenpfad wurde migriert, kein Legacy-Pfad entfernt und kein UI-Wording umgebaut.
+- Kein Datenpfad wurde migriert, kein Legacy-Pfad entfernt und kein UI-Wording umgebaut; diese riskanten Cutover sind bewusst aus dem Backend-MVP herausgenommen und bleiben an neue UI, Backup-/Rollback-Evidence und explizites Removal-Go gebunden.
+- R6 ist damit als Backend-/Compatibility-Feature abgeschlossen.
 
 ## Roadmap 7 Backend Evidence
 

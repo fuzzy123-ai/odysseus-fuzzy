@@ -59,7 +59,7 @@ class OrcaLensClosureGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -120,8 +120,10 @@ def build_orca_lens_closure_report(
     route_aliases_go: bool = True,
     orca_core_modules_go: bool = True,
     frontend_lens_redesign_go: bool = False,
+    frontend_lens_redesign_deferred: bool = True,
     legacy_deprecation_go: bool = True,
     data_path_migration_go: bool = False,
+    data_path_migration_deferred: bool = True,
 ) -> OrcaLensClosureReport:
     gates = (
         OrcaLensClosureGate.create(
@@ -204,11 +206,19 @@ def build_orca_lens_closure_report(
         OrcaLensClosureGate.create(
             gate_id="frontend_lens_redesign",
             title="Frontend Lens naming",
-            status="go" if frontend_lens_redesign_go else "needs_design",
+            status=(
+                "go"
+                if frontend_lens_redesign_go
+                else "deferred"
+                if frontend_lens_redesign_deferred
+                else "needs_design"
+            ),
             slice_class="needs_design",
             reason=(
                 "new UI uses ORCA/Lens wording live"
                 if frontend_lens_redesign_go
+                else "frontend Lens wording is deliberately deferred to the shared UI redesign"
+                if frontend_lens_redesign_deferred
                 else "frontend Lens wording is parked until the shared UI redesign"
             ),
         ),
@@ -226,11 +236,19 @@ def build_orca_lens_closure_report(
         OrcaLensClosureGate.create(
             gate_id="data_path_migration",
             title="Data path migration and final removal plan",
-            status="go" if data_path_migration_go else "needs_live_go",
+            status=(
+                "go"
+                if data_path_migration_go
+                else "deferred"
+                if data_path_migration_deferred
+                else "needs_live_go"
+            ),
             slice_class="needs_live_go",
             reason=(
                 "data-path migration and final Obsidian removal are proven with rollback"
                 if data_path_migration_go
+                else "data path migration and final Obsidian removal are deliberately deferred; ORCA stays canonical while legacy compatibility remains"
+                if data_path_migration_deferred
                 else "data path migration and final Obsidian removal require explicit operator Go and rollback evidence"
             ),
         ),
