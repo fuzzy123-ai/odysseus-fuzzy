@@ -10,7 +10,7 @@ import { attachColorPicker } from './colorPicker.js';
 import { makeWindowDraggable } from './windowDrag.js';
 import { snapModalToZone } from './tileManager.js';
 import { applyEdgeDock, clearDockSide } from './modalSnap.js';
-import { topToolWindowZ } from './toolWindowZOrder.js';
+import { topPortalZ, topToolWindowZ } from './toolWindowZOrder.js';
 
 const API_BASE = window.location.origin;
 let _open = false;
@@ -4855,7 +4855,7 @@ function _beginGrab(card, touch) {
   card.style.width  = rect.width + 'px';
   card.style.height = rect.height + 'px';
   card.style.margin = '0';
-  card.style.zIndex = '10001';
+  card.style.zIndex = String(topPortalZ());
   // pointer-events:none so elementFromPoint sees the card BENEATH the finger
   card.style.pointerEvents = 'none';
 

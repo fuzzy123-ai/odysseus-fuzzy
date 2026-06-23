@@ -131,6 +131,7 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 ### U5 - P2 Portable Frontend Behavior Fixes
 
 - Class: repo_only
+- Status: done in dev.
 - Effort: 5/10
 - Port only behavior fixes that still matter before the new UI:
   - `e812a292` markdown inline code URL preservation.
@@ -139,9 +140,12 @@ These 22 files changed both in our fork and upstream since the merge base. They 
   - `fef08ed1` body-portaled dropdown z-order.
   - Selected JS from `8cc76b53` and `30dd7893` if not already covered in U2.
 - Verification:
-  - `python -m pytest tests/test_markdown_rendering_js.py tests/test_portal_dropdown_z_js.py`
-  - Node syntax checks for touched JS files.
-- Exit: commit and push. Do not redesign UI here.
+  - `python -m pytest tests/test_markdown_rendering_js.py tests/test_portal_dropdown_z_js.py` - 13 passed.
+  - Node syntax checks passed for touched JS files.
+- Design-hook review:
+  - Existing color/radius/font findings in legacy dropdown strings were left unchanged because U5 only changes behavior/z-order; new UI design remains deferred.
+  - The `markdown.js` broken-image finding is a false positive from an XSS sanitizer comment, not a shipped `<img>`.
+- Exit: committed and pushed to `fuzzy/dev`. Do not redesign UI here.
 
 ### U6 - Deferred UI, A11y, Docs, and Assets
 

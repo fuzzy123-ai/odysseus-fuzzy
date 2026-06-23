@@ -170,6 +170,29 @@ def test_extract_thinking_blocks_handles_thought_tag(node_available):
     assert result["content"] == "Final answer."
 
 
+def test_url_inside_inline_code_is_not_autolinked(node_available):
+    html = _run_markdown_case("Run `$j = irm http://127.0.0.1:3000/x` to fetch.")
+
+    assert "<code>$j = irm http://127.0.0.1:3000/x</code>" in html
+    assert "___ALLOWED_HTML_" not in html
+    assert "<a " not in html
+    assert 'href="http://127.0.0.1:3000/x"' not in html
+
+
+def test_url_outside_inline_code_is_still_autolinked(node_available):
+    html = _run_markdown_case("Use `irm` then visit https://example.com/page now.")
+
+    assert "<code>irm</code>" in html
+    assert 'href="https://example.com/page"' in html
+
+
+def test_inline_code_content_is_html_escaped(node_available):
+    html = _run_markdown_case("Render `<b>$1 & 'q'</b>` literally.")
+
+    assert "<code>&lt;b&gt;$1 &amp; &#39;q&#39;&lt;/b&gt;</code>" in html
+    assert "<b>" not in html
+
+
 def test_dotted_python_import_paths_are_not_autolinked(node_available):
     html = _run_markdown_case(
         "from imblearn.combine import SMOTETomek\n"

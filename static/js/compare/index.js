@@ -36,6 +36,7 @@ import Storage from '../storage.js';
 import uiModule from '../ui.js';
 import sessionModule from '../sessions.js';
 import spinnerModule from '../spinner.js';
+import { topPortalZ } from '../toolWindowZOrder.js';
 import themeModule from '../theme.js';
 import presetsModule from '../presets.js';
 import markdownModule from '../markdown.js';
@@ -1022,7 +1023,7 @@ function _toggleExportMenu(btn) {
   const r = btn.getBoundingClientRect();
   const m = document.createElement('div');
   m.className = 'compare-export-menu';
-  m.style.cssText = 'position:fixed;z-index:10001;top:' + (r.bottom + 4) + 'px;left:' + r.left + 'px;background:var(--panel,var(--bg));border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.3);padding:4px;font-size:12px;display:flex;flex-direction:column;min-width:170px;';
+  m.style.cssText = 'position:fixed;z-index:' + topPortalZ() + ';top:' + (r.bottom + 4) + 'px;left:' + r.left + 'px;background:var(--panel,var(--bg));border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.3);padding:4px;font-size:12px;display:flex;flex-direction:column;min-width:170px;';
   const opts = [
     { label: 'Copy as Markdown', fn: () => _exportCopyMarkdown(btn) },
     { label: 'Download .md',     fn: () => _exportDownloadMarkdown() },

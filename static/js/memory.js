@@ -6,6 +6,7 @@ import sessionModule from './sessions.js';
 import spinnerModule from './spinner.js';
 import { makeWindowDraggable } from './windowDrag.js';
 import { snapModalToZone } from './tileManager.js';
+import { topPortalZ } from './toolWindowZOrder.js';
 
 var escapeHtml = uiModule.esc;
 
@@ -865,7 +866,7 @@ export function renderMemoryList() {
         dropdown.style.top = rect.bottom + 2 + 'px';
         dropdown.style.right = (window.innerWidth - rect.right) + 'px';
         dropdown.style.left = 'auto';
-        dropdown.style.zIndex = '10001';
+        dropdown.style.zIndex = String(topPortalZ());
         dropdown.style.display = 'block';
         document.body.appendChild(dropdown);
         // Keep on-screen (mobile): flip above the button if it overflows the

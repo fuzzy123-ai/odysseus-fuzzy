@@ -27,3 +27,9 @@ export function nextToolWindowZ(options = {}) {
   if (Number.isFinite(currentZ) && currentZ > top) return currentZ;
   return top + 1;
 }
+
+const DOCK_OVERLAY_FLOOR = 10030;
+
+export function topPortalZ(options = {}) {
+  return Math.max(topToolWindowZ(options), DOCK_OVERLAY_FLOOR) + 1;
+}
