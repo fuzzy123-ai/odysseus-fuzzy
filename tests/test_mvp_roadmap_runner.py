@@ -36,7 +36,7 @@ def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
     step = select_next_step(state)
 
     assert step["roadmap"]["number"] == 1
-    assert step["slice"]["id"] == "r1-debian-backup-evidence"
+    assert step["slice"]["id"] == "r1-telegram-text-roundtrip"
     assert step["runnable"] is False
 
 
@@ -47,7 +47,7 @@ def test_runner_report_uses_required_product_progress_format():
 
     assert "MVP-Gesamtfortschritt: 83%" in report
     assert "Version-1.0-Gate: UI live? nein" in report
-    assert "Aktiver Runner-Schritt: R1 r1-debian-backup-evidence" in report
+    assert "Aktiver Runner-Schritt: R1 r1-telegram-text-roundtrip" in report
     assert "Recommended next human decision:" in report
     assert "| 9 | Image Tools Worker Final Smoke | 100 | - |" in report
     assert "| 10 | GameDev Mount Write Smoke | 100 | - |" in report

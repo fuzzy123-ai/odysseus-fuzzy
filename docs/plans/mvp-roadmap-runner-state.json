@@ -13,7 +13,7 @@
   },
   "runner": {
     "active_roadmap": 1,
-    "active_slice": "r1-debian-backup-evidence",
+    "active_slice": "r1-telegram-text-roundtrip",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -43,20 +43,20 @@
     {
       "number": 1,
       "name": "Runtime Closure Gates",
-      "percent": 82,
-      "status": "partial_live_evidence",
-      "why_not_100": "Debian/systemd/restic backup evidence and Telegram allowed-chat text roundtrip are not executable in the current configured runtime.",
+      "percent": 88,
+      "status": "partial_telegram_live",
+      "why_not_100": "Debian/systemd/restic backup evidence is live-proven; Telegram allowed-chat text roundtrip is still not executable without chat/polling/reply gates.",
       "next_slices": [
         {
           "id": "r1-debian-backup-evidence",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Collect Debian systemd/restic updater and backup evidence without overclaiming Windows runtime behavior.",
           "required_inputs": ["debian host target", "systemd service name", "restic repository marker", "updater wrapper path"],
           "required_live_go": [],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
           "tests": [],
-          "blocker": "Current runtime is Windows and lacks Debian/systemd/restic target details."
+          "blocker": ""
         },
         {
           "id": "r1-telegram-text-roundtrip",
@@ -67,7 +67,7 @@
           "required_live_go": ["telegram_text_roundtrip", "telegram_reply_send"],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
           "tests": ["tests/test_telegram_text_boundary.py"],
-          "blocker": "Bot token readiness exists, but allowed chat and polling/reply gates are absent."
+          "blocker": "Debian runtime evidence is closed; Telegram text roundtrip still needs allowed chat, polling gate, agent intake gate, and reply gate."
         }
       ]
     },
@@ -251,13 +251,13 @@
   ],
   "gate_queue": [
     {
-      "id": "R1-DEBIAN-RUNTIME",
+      "id": "R1-TELEGRAM-TEXT-ROUNDTRIP",
       "class": "needs_live_go",
-      "blocks": "Roadmap 1 Debian updater/backup evidence",
-      "decision_needed": "Provide Debian host/systemd/restic target details or accept this gate as deferred.",
-      "safe_preparation_done": "Windows runtime correctly blocks update/backup execution and records partial evidence.",
-      "risk_if_bypassed": "Would overclaim backup/update readiness outside the observed runtime.",
-      "next_safe_slice": "R3/R4/R5 gate validation or R9 worker smoke"
+      "blocks": "Roadmap 1 final Telegram text runtime roundtrip",
+      "decision_needed": "Provide an allowed chat plus polling, agent intake, and reply gates, or mark the text roundtrip deferred.",
+      "safe_preparation_done": "Debian systemd, Podman, auto-update, backup timer, Restic check, and Nextcloud-Podman evidence are live-proven.",
+      "risk_if_bypassed": "Would overclaim Telegram runtime delivery without a real redacted roundtrip.",
+      "next_safe_slice": "R3/R4/R5 gate validation"
     },
     {
       "id": "R3-NEXTCLOUD-CONFIG",

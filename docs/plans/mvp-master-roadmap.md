@@ -45,7 +45,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 
 | Prio | Track | Status | Aufwand 0-10 | MVP-Ziel | Done wenn |
 | ---: | --- | --- | ---: | --- | --- |
-| 1 | Runtime Closure Gates | 82% / partial_live_evidence | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
+| 1 | Runtime Closure Gates | 88% / partial_telegram_live | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
 | 2 | Secure Data Mode Runtime Hooks | 100% / go | 7 | Sensible Quellen, Secure Chats und Local-only Policy greifen an den echten Runtime-Grenzen. | Provider, Retrieval, Telegram und private Quellen respektieren Policy Gates; unsichere Faelle blockieren oder gehen in Review. |
 | 3 | Private Data / Nextcloud Memory Ingestion | 50% / repo_open | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Scanner-Dry-Run, Ledger und kleine Live-Batches sind gated; Full 100GB+ Transfer bleibt erst spaeter claimable. |
 | 4 | System Health Checker Host-Agent | 60% / needs_operator_input | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
@@ -84,7 +84,7 @@ Stand: 2026-06-23
 
 | # | Roadmap | % | Warum nicht 100% |
 | - | - | -: | - |
-| 1 | Runtime Closure Gates | 82 | Live-Server, Admin-Update-Status/Check, MCP-Runtime/JSON-RPC und Telegram Bot-API sind redacted getestet; nicht 100%, weil diese Windows-Runtime kein systemd/restic/Debian-Backup ausfuehren kann und Telegram keinen erlaubten Chat plus Poll/Reply-Gates fuer einen echten Text-Roundtrip konfiguriert hat. |
+| 1 | Runtime Closure Gates | 88 | Debian systemd, Podman runtime, auto-update timer, backup timer, Restic repo/check und Nextcloud-Podman-Stack sind redacted live belegt; nicht 100%, weil der Telegram Text Roundtrip noch kein erlaubtes Chat-/Polling-/Reply-Go hat. |
 | 2 | Secure Data Mode Runtime Hooks | 100 | - |
 | 3 | Private Data / Nextcloud Memory Ingestion | 50 | Resumable Transfer Tooling, Scanner-Dry-Run, Chunked Extraction Lanes und metadata-only Ledger sind erledigt; Live-Go ist erteilt, aber `.env` enthaelt keine Nextcloud/WebDAV-Konfiguration und es fehlen weiter Quelle, Ziel, Diskbudget und No-Delete-Dry-Run. |
 | 4 | System Health Checker Host-Agent | 60 | Foundation, Interface, Collectors, Rule Engine und Ops-Readiness sind repo-only erledigt und fokussiert getestet; Live-Go ist erteilt, aber `.env` enthaelt keinen Host-Agent/Local-API-Marker und Install/Start/Snapshot bleiben ohne Host-Scope blockiert. |
@@ -101,9 +101,8 @@ Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 1: fuer 100% entweder Debian/systemd/restic auf dem Zielhost testen
-  oder bewusst als No-Go/Deferred akzeptieren; fuer Telegram einen erlaubten
-  Chat und Poll/Reply-Gates setzen oder Text-Roundtrip bewusst deferred lassen.
+- Roadmap 1: fuer 100% einen erlaubten Telegram Chat plus Poll/Reply-Gates
+  setzen oder den echten Text-Roundtrip bewusst deferred lassen.
 - Roadmap 2: backendseitig geschlossen; weiter mit Roadmap 3 Transfer-/Scanner-
   und Chunked-Extraction-Lanes ohne Live-Nextcloud-Go.
 - Roadmap 3: echte Transfer-Inputs entweder liefern oder das Live-Gate bewusst
@@ -142,8 +141,8 @@ Aktuelle Gate-Zusammenfassung:
 | Gate | Status | Klasse | Warum |
 | --- | --- | --- | --- |
 | Updates and backups backend contract | go | repo_only | Admin-gated update/backup status/action contract exists. |
-| Updater server runtime evidence | partial | needs_live_go | Local live server returned `/api/version` and admin update status/check; updater/timer evidence is No-Go in this Windows runtime because `systemctl` is unavailable. |
-| Updates and backups live smoke | partial | needs_live_go | `backup-now` and `update-now` routes were live-called and correctly blocked; Debian backup/update execution still needs a Debian host with systemd/restic and updater wrapper configured. |
+| Updater server runtime evidence | go | needs_live_go | Debian homeserver user systemd has `odysseus-podman.service` active, `odysseus-auto-update.timer` active, and `/api/version` reports the running runtime and pending fuzzy commit without exposing secrets. |
+| Updates and backups live smoke | go | needs_live_go | Debian homeserver has the backup timer active, Restic repo marker present, latest daily snapshot evidence, repository check without errors, and retention preview evidence; no destructive restore was run. |
 | MCP offline route and policy coverage | go | repo_only | MCP route, policy, notification, and owner gates have offline coverage. |
 | MCP plugin present in rebuilt runtime | go | needs_live_go | Local runtime loaded `mcp_server`; `/api/plugins/mcp/info` returned 200 with the plugin disabled by default. |
 | MCP local route smoke | go | needs_live_go | MCP was temporarily enabled with all risky permissions false; JSON-RPC initialize, ping, tools/list, resources/list and readiness read returned 200, then config was restored to disabled. |
@@ -154,6 +153,10 @@ Live-Smoke Evidence, 2026-06-23:
 
 - Local server: `GET /api/version` returned 200, version `0.99.6`, branch `dev`.
 - Admin update routes: `GET /api/admin/system/update-status` and `POST /api/admin/system/update-check` returned 200 with redacted status; `backup-now` and `update-now` returned 200 but `status=blocked`, as expected on Windows without `systemctl`, restic repository, updater wrapper or `ODYSSEUS_UPDATER_LIVE_ENABLED`.
+- Debian homeserver SSH evidence: host reachable as the configured homeserver target; user systemd shows `odysseus-podman.service`, `odysseus-auto-update.timer`, `odysseus-homeserver-backup.timer`, and `nextcloud-podman.service` active/loaded.
+- Debian runtime evidence: `/api/version` on the homeserver returns version `0.99.6`, branch `dev`, fuzzy remote, running commit `cf28ce8f`, latest fuzzy commit `ca8889d6fe5f`, and `update_available=true`.
+- Podman evidence: Odysseus containers are up, and a Nextcloud Podman stack exists with `nextcloud-app`, `nextcloud-cron`, `nextcloud-db`, and `nextcloud-redis` running.
+- Backup evidence: backup target is mounted, Restic binary and repo markers are present, backup env marker is present, latest daily backup service exited successfully, Restic repository check found no errors, and retention preview completed.
 - MCP runtime: `/api/plugins/mcp/info` and `/config` returned 200; disabled probe returned 403; temporary safe enable returned 200; JSON-RPC initialize/ping/tools/list/resources/list/readiness returned 200; config restored to disabled.
 - Telegram runtime: `/api/plugins/telegram/status` returned 200 with token marker present, no chat-id marker, polling/reply/network disabled; Telegram Bot API `getMe` returned 200 without exposing bot identity.
 
