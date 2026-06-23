@@ -72,6 +72,7 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 
 - Class: repo_only
 - Effort: 6/10
+- Status: done in `dev`.
 - Port commits:
   - `a10bfc46` per-category model probe timeouts: local 15s, ollama 3s, api 2s.
   - `2fbfd229` compact tool-use hints for local/small models.
@@ -86,6 +87,8 @@ These 22 files changed both in our fork and upstream since the merge base. They 
   - `python -m pytest tests/test_llm_core_mistral_content.py tests/test_ollama_multimodal.py tests/test_ask_user_persistence.py tests/test_ask_user_tool.py tests/test_live_strip_email_tool_fences.py`
   - Existing agent/model route tests touched by conflict resolution.
 - Exit: commit and push to `fuzzy/dev` when green.
+- Implementation note:
+  - Focused verification on 2026-06-23: U2 suite `25 passed`; `node --check static/js/chat.js`; `node --check static/js/chatRenderer.js`; Python compile for touched backend modules.
 
 ### U3 - P1 Cookbook Backend, Docker, GPU, and Real-ESRGAN
 

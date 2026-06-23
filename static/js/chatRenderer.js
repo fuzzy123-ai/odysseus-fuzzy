@@ -3,6 +3,7 @@
 
 import uiModule from './ui.js';
 import markdownModule from './markdown.js';
+import { svgifyEmoji } from './markdown.js';
 import { addAITTSButton } from './tts-ai.js';
 import { providerLogo, providerLabel } from './providers.js';
 import settingsModule from './settings.js';
@@ -406,8 +407,24 @@ function _openVisionEditor(att, userMsgEl) {
 
 // Tool call syntax patterns to strip from displayed text
 const TOOL_CALL_RE = /\[TOOL_CALL\][\s\S]*?\[\/TOOL_CALL\]/gi;
-// Only strip fenced tool-call blocks that look like structured invocations, not regular code examples
-const EXEC_FENCE_RE = /```(?:web_search|read_file|write_file|create_document|edit_document|update_document)\s*\n[\s\S]*?```/gi;
+let EXEC_FENCE_RE = null;
+const EXEC_FENCE_NON_TOOL = new Set(['bash', 'python']);
+
+async function loadExecFenceRegex() {
+  try {
+    const res = await fetch('/api/tools', { credentials: 'same-origin' });
+    const data = await res.json();
+    const tags = (data.tools || [])
+      .map((t) => t.id)
+      .filter((id) => id && !EXEC_FENCE_NON_TOOL.has(id));
+    if (tags.length) {
+      EXEC_FENCE_RE = new RegExp('```(?:' + tags.join('|') + ')\\s*\\n[\\s\\S]*?```', 'gi');
+    }
+  } catch (err) {
+    console.warn('chatRenderer: /api/tools fetch failed; live exec-fence stripping disabled until reload', err);
+  }
+}
+loadExecFenceRegex();
 // XML-style tool calls: <minimax:tool_call>, <tool_call>, <function_call>, bare <invoke>
 const XML_TOOL_CALL_RE = /<(?:[\w]+:)?(?:tool_call|function_call)>[\s\S]*?<\/(?:[\w]+:)?(?:tool_call|function_call)>/gi;
 const XML_INVOKE_RE = /<invoke\s+name=['"][^'"]*['"]>[\s\S]*?<\/invoke>/gi;
@@ -852,7 +869,7 @@ export function roleTimestamp(when) {
  */
 export function stripToolBlocks(text) {
   let cleaned = text.replace(TOOL_CALL_RE, '');
-  cleaned = cleaned.replace(EXEC_FENCE_RE, '');
+  if (EXEC_FENCE_RE) cleaned = cleaned.replace(EXEC_FENCE_RE, '');
   cleaned = cleaned.replace(DSML_TOOL_RE, '');
   cleaned = cleaned.replace(DSML_STRAY_RE, '');
   cleaned = cleaned.replace(XML_TOOL_CALL_RE, '');
@@ -860,6 +877,120 @@ export function stripToolBlocks(text) {
   cleaned = cleaned.replace(TOOL_NARRATION_RE, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   return cleaned.trim();
+}
+
+export function renderAskUserCard(data) {
+  const aq = data || {};
+  const opts = Array.isArray(aq.options) ? aq.options : [];
+  if (!aq.question || !opts.length) return null;
+  const chatBox = document.getElementById('chat-history');
+  if (!chatBox) return null;
+  chatBox.querySelectorAll('.ask-user-card').forEach(n => n.remove());
+  const card = document.createElement('div');
+  card.className = 'ask-user-card';
+  card.setAttribute('role', 'group');
+  card.tabIndex = -1;
+  const multi = !!aq.multi;
+  const emo = (s) => svgifyEmoji(uiModule.esc(String(s)));
+
+  const head = document.createElement('div');
+  head.className = 'ask-user-head';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close ask-user-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss question');
+  closeBtn.textContent = 'x';
+  closeBtn.addEventListener('click', () => {
+    card.remove();
+    const mi = uiModule.el('message');
+    if (mi) mi.focus();
+  });
+  head.appendChild(closeBtn);
+  card.appendChild(head);
+
+  const q = document.createElement('div');
+  q.className = 'ask-user-question';
+  q.id = `ask-user-q-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
+  q.innerHTML = emo(aq.question);
+  card.appendChild(q);
+  card.setAttribute('aria-labelledby', q.id);
+
+  const list = document.createElement('div');
+  list.className = 'ask-user-options';
+  card.appendChild(list);
+  const send = (text) => {
+    if (!text) return;
+    card.remove();
+    const mi = uiModule.el('message');
+    if (mi) mi.value = text;
+    const sb = document.querySelector('.send-btn');
+    if (sb) sb.click();
+  };
+  opts.forEach((opt) => {
+    const label = (opt && opt.label) ? String(opt.label) : String(opt || '');
+    if (!label) return;
+    const descr = (opt && opt.description) ? String(opt.description) : '';
+    const row = document.createElement(multi ? 'label' : 'button');
+    row.className = 'ask-user-option';
+    if (multi) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = label;
+      row.appendChild(cb);
+    }
+    const txt = document.createElement('span');
+    txt.className = 'ask-user-option-label';
+    txt.innerHTML = emo(label);
+    row.appendChild(txt);
+    if (descr) {
+      const d = document.createElement('span');
+      d.className = 'ask-user-option-desc';
+      d.innerHTML = emo(descr);
+      row.appendChild(d);
+    }
+    if (!multi) {
+      row.type = 'button';
+      row.addEventListener('click', () => send(label));
+    }
+    list.appendChild(row);
+  });
+
+  const other = document.createElement('div');
+  other.className = 'ask-user-other';
+  const otherInput = document.createElement('input');
+  otherInput.type = 'text';
+  otherInput.className = 'styled-prompt-input ask-user-other-input';
+  otherInput.placeholder = multi ? 'Other (added to selection)...' : 'Other...';
+  otherInput.setAttribute('aria-label', multi ? 'Add a custom option' : 'Type a custom answer');
+  const otherSend = document.createElement('button');
+  otherSend.type = 'button';
+  otherSend.className = 'confirm-btn confirm-btn-primary ask-user-other-send';
+  otherSend.setAttribute('aria-label', 'Send answer');
+  otherSend.textContent = multi ? 'Send selection' : 'Send';
+  const submit = () => {
+    const free = otherInput.value.trim();
+    if (multi) {
+      const picked = Array.from(card.querySelectorAll('.ask-user-option input:checked')).map(c => c.value);
+      if (free) picked.push(free);
+      if (picked.length) send(picked.join(', '));
+    } else if (free) {
+      send(free);
+    }
+  };
+  otherSend.addEventListener('click', submit);
+  otherInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      submit();
+    }
+  });
+  other.appendChild(otherInput);
+  other.appendChild(otherSend);
+  card.appendChild(other);
+  chatBox.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  try { card.focus(); } catch (_) {}
+  return card;
 }
 
 /**
@@ -2104,6 +2235,9 @@ export function addMessage(role, content, modelName, metadata) {
             node.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${ok ? '\u2713' : '\u2717'}</span><span class="agent-thread-tool">${esc(ev.tool)}</span><span class="agent-thread-status">${ok ? 'done' : 'failed'}</span><span class="agent-thread-chevron">\u25B6</span></div><div class="agent-thread-content">${evCmdHtml}${outHtml}${evDiffHtml}</div>`;
             // Click handling is delegated globally \u2014 see chat.js init.
             threadWrap.appendChild(node);
+            if (ev.ask_user) {
+              renderAskUserCard(ev.ask_user);
+            }
           }
           // Check if next round has text — extend line down to connect
           const nextTxt = (roundTexts[r + 1] || '').trim();
@@ -2458,6 +2592,7 @@ const chatRenderer = {
   updateSessionCostUI,
   roleTimestamp,
   stripToolBlocks,
+  renderAskUserCard,
   copyMessageText,
   safeToolScreenshotSrc,
   safeDisplayImageSrc,

@@ -85,6 +85,15 @@ def test_serializer_round_trips_structured_args():
     assert json.loads(block.content) == args
 
 
+def test_serializer_keeps_unicode_labels_readable():
+    from src.tool_schemas import function_call_to_tool_block
+    args = {"question": "Wählen?", "options": [{"label": "Mañana"}, {"label": "Übermorgen"}]}
+    block = function_call_to_tool_block("ask_user", json.dumps(args))
+    assert block is not None
+    assert "\\u00" not in block.content
+    assert json.loads(block.content) == args
+
+
 def test_registered_everywhere():
     # TOOL_TAGS gate (serializer rejects unknown tools)
     assert "ask_user" in TOOL_TAGS
