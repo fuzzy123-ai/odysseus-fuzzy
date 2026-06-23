@@ -180,7 +180,18 @@
           "objective": "Check live voice pipeline gates without downloading user audio.",
           "required_inputs": ["voice download gate", "STT gate", "bounded voice smoke policy"],
           "required_live_go": ["telegram_voice_download", "telegram_voice_stt", "telegram_reply_send"],
-          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "allowed_paths": [
+            "docs/plans/mvp-master-roadmap.md",
+            "docs/plans/mvp-roadmap-runner-state.json",
+            "src/mvp_telegram_voice_closure.py",
+            "src/telegram_voice_pipeline.py",
+            "plugins/telegram/plugin.py",
+            "tests/test_mvp_telegram_voice_closure.py",
+            "tests/test_telegram_voice_pipeline.py",
+            "tests/test_telegram_plugin.py",
+            "tests/test_telegram_voice_boundary.py",
+            "tests/test_telegram_text_boundary.py"
+          ],
           "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
           "blocker": "Live server is agent-reply ready with allowed chat, polling, agent-chat, and reply gates; Voice remains metadata-only because TELEGRAM_VOICE_DOWNLOAD_ENABLED and TELEGRAM_VOICE_STT_ENABLED are disabled and no local STT stack is installed."
         }

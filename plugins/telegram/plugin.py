@@ -667,6 +667,87 @@ def run_telegram_voice_pipeline(
     }
 
 
+def download_telegram_voice_bytes(
+    message: dict[str, Any],
+    *,
+    max_bytes: int | None = None,
+    token: str | None = None,
+    urlopen: Callable[..., Any] | None = None,
+) -> bytes:
+    """Download a Telegram voice file for immediate STT without persisting it."""
+
+    media = message.get("media") if isinstance(message.get("media"), dict) else {}
+    file_id = str(media.get("file_id") or "").strip()
+    if not file_id:
+        raise ValueError("telegram voice file id is missing")
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    limit = max(1, min(int(max_bytes or _telegram_voice_max_bytes()), 100_000_000))
+    open_url = urlopen or urllib.request.urlopen
+
+    metadata_url = f"https://api.telegram.org/bot{token}/getFile?{urllib.parse.urlencode({'file_id': file_id})}"
+    with open_url(metadata_url, timeout=20) as response:  # nosec: token-gated Telegram API endpoint
+        payload = json.loads(response.read().decode("utf-8"))
+    if not payload.get("ok"):
+        raise ValueError("telegram getFile failed")
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    declared_size = result.get("file_size")
+    if isinstance(declared_size, int) and declared_size > limit:
+        raise ValueError("telegram voice file too large")
+    file_path = str(result.get("file_path") or "").strip()
+    if not file_path:
+        raise ValueError("telegram getFile returned no file path")
+
+    quoted_path = urllib.parse.quote(file_path, safe="/")
+    download_url = f"https://api.telegram.org/file/bot{token}/{quoted_path}"
+    with open_url(download_url, timeout=30) as response:  # nosec: file path returned by token-gated Telegram API
+        header_size = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
+        try:
+            if header_size and int(header_size) > limit:
+                raise ValueError("telegram voice file too large")
+        except ValueError:
+            raise ValueError("telegram voice file too large") from None
+        data = response.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("telegram voice file too large")
+    if not data:
+        raise ValueError("telegram voice file is empty")
+    return data
+
+
+def _call_voice_bytes_provider(
+    provider: Callable[..., bytes],
+    message: dict[str, Any],
+    *,
+    max_bytes: int,
+) -> bytes:
+    try:
+        return bytes(provider(message, max_bytes=max_bytes))
+    except TypeError:
+        return bytes(provider(message))
+
+
+def build_telegram_live_voice_stt_provider(
+    raw_message: dict[str, Any],
+    *,
+    voice_bytes_provider: Callable[..., bytes] | None = None,
+) -> Callable[[str], str] | None:
+    """Build the default live Telegram voice STT provider for one raw update."""
+
+    if not _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") or not _bool_env("TELEGRAM_VOICE_STT_ENABLED"):
+        return None
+
+    def _provider(_local_file_ref: str) -> str:
+        provider = voice_bytes_provider or download_telegram_voice_bytes
+        audio_bytes = _call_voice_bytes_provider(provider, raw_message, max_bytes=_telegram_voice_max_bytes())
+        from services.stt import get_stt_service
+
+        return str(get_stt_service().transcribe(audio_bytes) or "")
+
+    return _provider
+
+
 def _run_agent_turn(
     handler: Callable[[dict[str, Any]], Any] | None,
     bridge: dict[str, Any],
@@ -763,6 +844,7 @@ def run_telegram_polling_cycle(
     session_creator: Callable[..., Any] | None = None,
     agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
     voice_stt_provider: Callable[[str], str] | None = None,
+    voice_bytes_provider: Callable[..., bytes] | None = None,
     image_bytes_provider: Callable[[str], bytes] | None = None,
     image_worker_client: Any | None = None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
@@ -795,9 +877,13 @@ def run_telegram_polling_cycle(
             continue
         stored = store.append_inbound(message)
         if stored["stored"]:
+            message_voice_stt_provider = voice_stt_provider or build_telegram_live_voice_stt_provider(
+                message,
+                voice_bytes_provider=voice_bytes_provider,
+            )
             voice_agent_turn, _voice_pipeline = run_telegram_voice_pipeline(
                 stored["message"],
-                stt_provider=voice_stt_provider,
+                stt_provider=message_voice_stt_provider,
             )
             run_telegram_image_action(
                 stored["message"],
@@ -1220,6 +1306,7 @@ def setup(ctx):
     session_creator = _ctx_attr("telegram_session_bridge")
     agent_turn_handler = _ctx_attr("telegram_agent_turn_handler")
     voice_stt_provider = _ctx_attr("telegram_voice_stt_provider")
+    voice_bytes_provider = _ctx_attr("telegram_voice_bytes_provider")
     image_bytes_provider = _ctx_attr("telegram_image_bytes_provider")
     image_worker_client = _ctx_attr("telegram_image_worker_client")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
@@ -1404,6 +1491,7 @@ def setup(ctx):
             session_creator=session_creator,
             agent_turn_handler=agent_turn_handler,
             voice_stt_provider=voice_stt_provider,
+            voice_bytes_provider=voice_bytes_provider,
             image_bytes_provider=image_bytes_provider,
             image_worker_client=image_worker_client,
             reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
@@ -1426,9 +1514,13 @@ def setup(ctx):
             store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
             raise HTTPException(400, "invalid telegram update") from exc
         stored = store.append_inbound(message)
+        message_voice_stt_provider = voice_stt_provider or build_telegram_live_voice_stt_provider(
+            message,
+            voice_bytes_provider=voice_bytes_provider,
+        )
         voice_agent_turn, voice_pipeline = run_telegram_voice_pipeline(
             stored["message"],
-            stt_provider=voice_stt_provider,
+            stt_provider=message_voice_stt_provider,
         )
         image_action = run_telegram_image_action(
             stored["message"],

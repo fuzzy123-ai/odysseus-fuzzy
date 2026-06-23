@@ -106,6 +106,19 @@ def test_stt_redacts_sensitive_transcript_fragments_before_agent_turn():
     assert "[redacted]" in turn.prompt
 
 
+def test_stt_provider_errors_fail_closed_without_leaking_exception_text():
+    stt = run_fakeable_stt(
+        local_file_ref="telegram_voice_cache/audio.ogg",
+        stt_enabled=True,
+        stt_provider=lambda _: (_ for _ in ()).throw(RuntimeError("token=raw-secret")),
+    )
+
+    assert stt.allowed is False
+    assert stt.status == "failed"
+    assert stt.reason == "stt_provider_failed"
+    assert "raw-secret" not in str(stt)
+
+
 def test_reply_requires_explicit_gate_and_nonempty_text():
     stt = run_fakeable_stt(
         local_file_ref="telegram_voice_cache/audio.ogg",

@@ -121,7 +121,10 @@ def run_fakeable_stt(
         return VoiceSttDecision(False, "failed", "invalid_local_file_ref")
     if stt_provider is None:
         return VoiceSttDecision(False, "pending_stt", "stt_provider_missing")
-    transcript = str(stt_provider(safe_ref) or "").strip()
+    try:
+        transcript = str(stt_provider(safe_ref) or "").strip()
+    except Exception:
+        return VoiceSttDecision(False, "failed", "stt_provider_failed")
     if not transcript:
         return VoiceSttDecision(False, "failed", "empty_transcript")
     transcript = _redact_transcript(transcript)

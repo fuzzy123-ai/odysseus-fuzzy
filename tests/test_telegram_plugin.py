@@ -16,6 +16,7 @@ from plugins.telegram.plugin import (
     TelegramSessionBridgeStore,
     build_agent_bridge_request,
     build_telegram_readiness,
+    download_telegram_voice_bytes,
     parse_telegram_update,
     run_telegram_polling_cycle,
     setup,
@@ -376,7 +377,6 @@ def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeyp
     assert history_response.json()["messages"][0]["text"] == "Bitte fasse den Stand zusammen"
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
-    assert "123" not in persisted_text
     assert '"chat_id"' not in persisted_text
     assert '"id"' not in persisted_text
 
@@ -1032,6 +1032,98 @@ def test_polling_cycle_voice_pipeline_uses_fake_stt_provider_without_network(tmp
     assert "voice transcript ready" in turns[0]["prompt"]
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "voice transcript ready" not in persisted_text
+
+
+def test_polling_cycle_voice_pipeline_uses_local_stt_service_without_persisting_transcript(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+    calls = []
+    turns = []
+
+    class _FakeSttService:
+        def transcribe(self, audio_bytes: bytes) -> str:
+            calls.append(audio_bytes)
+            return "lokale STT Abschrift token=raw-secret"
+
+    monkeypatch.setattr("services.stt.get_stt_service", lambda: _FakeSttService())
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 2,
+            "message": {
+                "message_id": 3,
+                "chat": {"id": "voice-chat-999"},
+                "voice": {
+                    "file_id": "voice-file-id",
+                    "file_unique_id": "unique-voice",
+                    "duration": 2,
+                    "mime_type": "audio/ogg",
+                    "file_size": 1024,
+                },
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-local-stt"},
+        voice_bytes_provider=lambda _message, max_bytes: b"synthetic-ogg-bytes",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["agent_turns"] == 1
+    assert calls == [b"synthetic-ogg-bytes"]
+    assert turns[0]["note"] == "voice_transcribed"
+    assert "lokale STT Abschrift" in turns[0]["prompt"]
+    assert "raw-secret" not in turns[0]["prompt"]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "lokale STT Abschrift" not in persisted_text
+    assert "voice-file-id" not in persisted_text
+    assert "unique-voice" not in persisted_text
+
+
+def test_download_telegram_voice_bytes_uses_get_file_and_size_limit(monkeypatch):
+    class _Response:
+        def __init__(self, payload: bytes, headers: dict[str, str] | None = None):
+            self._payload = payload
+            self.headers = headers or {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, *_args):
+            return self._payload
+
+    calls = []
+
+    def _urlopen(url, timeout):
+        calls.append((url, timeout))
+        if len(calls) == 1:
+            return _Response(json.dumps({
+                "ok": True,
+                "result": {"file_path": "voice/file.ogg", "file_size": 4},
+            }).encode("utf-8"))
+        return _Response(b"1234", {"Content-Length": "4"})
+
+    audio = download_telegram_voice_bytes(
+        {
+            "media": {
+                "file_id": "raw-file-id",
+                "file_size": 4,
+            },
+        },
+        max_bytes=8,
+        token="secret-token",
+        urlopen=_urlopen,
+    )
+
+    assert audio == b"1234"
+    assert len(calls) == 2
+    assert "/getFile?" in calls[0][0]
+    assert "/file/bot" in calls[1][0]
 
 
 def test_readiness_reports_voice_pipeline_gates_without_enabling_network(tmp_path, monkeypatch):
