@@ -171,7 +171,7 @@
       "name": "Telegram Voice Pipeline",
       "percent": 90,
       "status": "needs_live_go",
-      "why_not_100": "Live server has Telegram voice download/STT gates enabled and local faster-whisper STT installed, but no incoming voice message has been processed yet.",
+      "why_not_100": "Live server has Telegram voice download/STT gates enabled and local faster-whisper STT installed; the first voice was consumed before the final log-redaction deploy and now exists only as a redacted pending_stt entry, so one fresh post-deploy voice is needed for the final smoke.",
       "next_slices": [
         {
           "id": "r5-voice-gate-readiness",
@@ -195,7 +195,7 @@
             "tests/test_telegram_text_boundary.py"
           ],
           "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
-          "blocker": "Live server is voice-ready with download/STT gates enabled and local faster-whisper loaded; bounded poll processed 0 updates, so one short allowed incoming voice message is still needed for the final smoke."
+          "blocker": "Live server is voice-ready with download/STT gates enabled and local faster-whisper loaded; a post-deploy bounded poll processed 0 updates while the older voice exists only as a redacted pending_stt entry without raw Telegram file id, so one fresh allowed voice message is needed for final download/STT/agent/reply proof."
         }
       ]
     },
