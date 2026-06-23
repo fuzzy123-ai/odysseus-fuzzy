@@ -15,10 +15,21 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from src.chat_security_state import ChatSecurityState
+from src.secure_channel_policy import ChannelContext, decide_channel_access
 from src.telegram_formatting import chunk_telegram_html, render_telegram_markdown
+from src.telegram_image_actions import run_telegram_image_action, select_telegram_photo_variant
+from src.telegram_voice_pipeline import (
+    VoiceAgentTurn,
+    build_voice_agent_turn,
+    build_voice_local_file_ref,
+    plan_voice_download,
+    run_fakeable_stt,
+)
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from src.user_notification_contract import (
@@ -100,6 +111,14 @@ def _voice_unique_handle(file_unique_id: Any) -> str:
     return _stable_handle("voice_unique", file_unique_id)
 
 
+def _image_file_handle(file_id: Any) -> str:
+    return _stable_handle("image_file", file_id)
+
+
+def _image_unique_handle(file_unique_id: Any) -> str:
+    return _stable_handle("image_unique", file_unique_id)
+
+
 def build_telegram_draft_id(*, chat_id: str, source_message_id: Any = "") -> int:
     digest = hashlib.sha256(f"telegram-draft:{chat_id}:{source_message_id}".encode("utf-8")).hexdigest()
     return int(digest[:12], 16) or 1
@@ -135,15 +154,22 @@ def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
         sanitized_media = dict(media)
         raw_file_id = sanitized_media.pop("file_id", "")
         raw_unique_id = sanitized_media.pop("file_unique_id", "")
+        media_type = str(sanitized_media.get("type") or "")
         if raw_file_id:
-            sanitized_media["file_handle"] = _voice_file_handle(raw_file_id)
+            sanitized_media["file_handle"] = (
+                _image_file_handle(raw_file_id) if media_type == "image" else _voice_file_handle(raw_file_id)
+            )
         if raw_unique_id:
-            sanitized_media["file_unique_handle"] = _voice_unique_handle(raw_unique_id)
+            sanitized_media["file_unique_handle"] = (
+                _image_unique_handle(raw_unique_id) if media_type == "image" else _voice_unique_handle(raw_unique_id)
+            )
         stored["media"] = sanitized_media
     stored["chat_id_value_visible"] = False
     stored["sender_id_value_visible"] = False
     stored["voice_file_id_value_visible"] = False
     stored["voice_file_unique_id_value_visible"] = False
+    stored["image_file_id_value_visible"] = False
+    stored["image_file_unique_id_value_visible"] = False
     return stored
 
 
@@ -281,9 +307,11 @@ class TelegramInboxStore:
             "inbound": sum(1 for m in messages if m.get("direction") == "inbound"),
             "outbound": sum(1 for m in messages if m.get("direction") == "outbound"),
             "voice": sum(1 for m in messages if m.get("kind") == "voice"),
+            "image": sum(1 for m in messages if m.get("kind") == "image"),
             "blocked": sum(1 for m in messages if m.get("kind") == "blocked"),
             "duplicates": sum(1 for m in messages if m.get("kind") == "duplicate"),
             "pending_stt": sum(1 for m in messages if m.get("transcript_status") == "pending_stt"),
+            "pending_image_action": sum(1 for m in messages if m.get("image_action_status") == "pending_image_action"),
         }
 
     def last_delivery_summary(self) -> dict[str, Any]:
@@ -476,6 +504,23 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
                 "file_size": voice.get("file_size"),
             },
         })
+    elif isinstance(message.get("photo"), list):
+        photo = select_telegram_photo_variant(message.get("photo"))
+        base.update({
+            "kind": "image",
+            "text": "",
+            "image_action_status": "pending_image_action",
+            "intake_status": "pending_image_action" if base["chat_allowed"] else "blocked_chat",
+            "media": {
+                "type": "image",
+                "file_id": photo.get("file_id") or "",
+                "file_unique_id": photo.get("file_unique_id") or "",
+                "width": photo.get("width"),
+                "height": photo.get("height"),
+                "file_size": photo.get("file_size"),
+                "mime_type": "image/jpeg",
+            },
+        })
     else:
         base.update({
             "kind": "unsupported",
@@ -491,6 +536,7 @@ def build_agent_bridge_request(
     *,
     session_binding: dict[str, Any] | None = None,
     raw_chat_id: str | None = None,
+    voice_agent_turn: VoiceAgentTurn | None = None,
 ) -> dict[str, Any]:
     """Build the internal agent-turn envelope for a stored Telegram message."""
 
@@ -505,13 +551,27 @@ def build_agent_bridge_request(
         note = "text_ready"
     elif kind == "voice":
         media = message.get("media") or {}
+        if voice_agent_turn is not None and voice_agent_turn.ready_for_agent:
+            prompt = voice_agent_turn.prompt
+            ready_for_agent = True
+            note = "voice_transcribed"
+        else:
+            prompt = (
+                "[Telegram voice message received. "
+                f"file_handle={media.get('file_handle', '')}; duration={media.get('duration', 'unknown')}; "
+                "transcription pending.]"
+            )
+            ready_for_agent = False
+            note = "voice_needs_transcription"
+    elif kind == "image":
+        media = message.get("media") or {}
         prompt = (
-            "[Telegram voice message received. "
-            f"file_handle={media.get('file_handle', '')}; duration={media.get('duration', 'unknown')}; "
-            "transcription pending.]"
+            "[Telegram image received. "
+            f"file_handle={media.get('file_handle', '')}; size={media.get('file_size', 'unknown')}; "
+            "image action pending.]"
         )
         ready_for_agent = False
-        note = "voice_needs_transcription"
+        note = "image_action_pending"
     else:
         prompt = "[Unsupported Telegram message received.]"
         ready_for_agent = False
@@ -527,10 +587,83 @@ def build_agent_bridge_request(
         "source_message_id": message.get("message_id"),
         "kind": kind,
         "prompt": prompt,
-        "ready_for_agent": ready_for_agent and message.get("intake_status") == "ready",
-        "reply_required": ready_for_agent and message.get("intake_status") == "ready",
+        "ready_for_agent": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
+        "reply_required": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
         "note": note,
         "intake_status": message.get("intake_status") or note,
+    }
+
+
+def _bridge_intake_ready(message: dict[str, Any], *, kind: Any, note: str) -> bool:
+    if message.get("intake_status") == "ready":
+        return True
+    return kind == "voice" and note == "voice_transcribed" and message.get("chat_allowed") is True
+
+
+def _telegram_voice_max_bytes() -> int:
+    raw = os.getenv("TELEGRAM_VOICE_MAX_BYTES") or "10000000"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 10_000_000
+    return max(1, min(value, 100_000_000))
+
+
+def run_telegram_voice_pipeline(
+    message: dict[str, Any],
+    *,
+    stt_provider: Callable[[str], str] | None = None,
+    download_enabled: bool | None = None,
+    stt_enabled: bool | None = None,
+) -> tuple[VoiceAgentTurn | None, dict[str, Any] | None]:
+    """Run the default-off offline voice pipeline without Telegram or provider IO."""
+
+    if message.get("kind") != "voice":
+        return None, None
+    media = message.get("media") if isinstance(message.get("media"), dict) else {}
+    download = plan_voice_download(
+        message,
+        download_enabled=_bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") if download_enabled is None else download_enabled,
+        max_bytes=_telegram_voice_max_bytes(),
+    )
+    local_ref = build_voice_local_file_ref(download, mime_type=str(media.get("mime_type") or "audio/ogg"))
+    stt = run_fakeable_stt(
+        local_file_ref=local_ref.local_file_ref,
+        stt_enabled=_bool_env("TELEGRAM_VOICE_STT_ENABLED") if stt_enabled is None else stt_enabled,
+        stt_provider=stt_provider,
+    )
+    chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")))
+    turn = build_voice_agent_turn(stt, chat_handle=chat_handle)
+    return turn, {
+        "download": {
+            "allowed": download.allowed,
+            "status": download.status,
+            "reason": download.reason,
+            "file_handle_present": bool(download.file_handle),
+            "raw_identifiers_visible": download.raw_identifiers_visible,
+        },
+        "local_file_ref": {
+            "ready": local_ref.ready,
+            "status": local_ref.status,
+            "reason": local_ref.reason,
+            "local_file_ref_present": bool(local_ref.local_file_ref),
+            "raw_identifiers_visible": local_ref.raw_identifiers_visible,
+        },
+        "stt": {
+            "allowed": stt.allowed,
+            "status": stt.status,
+            "reason": stt.reason,
+            "transcript_present": bool(stt.transcript),
+            "transcript_value_visible": False,
+            "raw_identifiers_visible": stt.raw_identifiers_visible,
+        },
+        "agent_turn": {
+            "ready_for_agent": turn.ready_for_agent,
+            "status": turn.status,
+            "reason": turn.reason,
+            "prompt_value_visible": False,
+            "raw_identifiers_visible": turn.raw_identifiers_visible,
+        },
     }
 
 
@@ -629,6 +762,9 @@ def run_telegram_polling_cycle(
     fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
     session_creator: Callable[..., Any] | None = None,
     agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
+    voice_stt_provider: Callable[[str], str] | None = None,
+    image_bytes_provider: Callable[[str], bytes] | None = None,
+    image_worker_client: Any | None = None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
@@ -659,7 +795,21 @@ def run_telegram_polling_cycle(
             continue
         stored = store.append_inbound(message)
         if stored["stored"]:
-            bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
+            voice_agent_turn, _voice_pipeline = run_telegram_voice_pipeline(
+                stored["message"],
+                stt_provider=voice_stt_provider,
+            )
+            run_telegram_image_action(
+                stored["message"],
+                enabled=_bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
+                image_bytes_provider=image_bytes_provider,
+                worker_client=image_worker_client,
+            )
+            bridge = build_agent_bridge_request(
+                stored["message"],
+                raw_chat_id=str(message.get("chat_id") or ""),
+                voice_agent_turn=voice_agent_turn,
+            )
             if bridge["ready_for_agent"]:
                 binding = sessions.bind_chat(
                     chat_id=bridge["chat_id"],
@@ -671,6 +821,7 @@ def run_telegram_polling_cycle(
                     stored["message"],
                     session_binding=binding,
                     raw_chat_id=str(message.get("chat_id") or ""),
+                    voice_agent_turn=voice_agent_turn,
                 )
                 store.append_event(
                     kind="session_bridge",
@@ -962,7 +1113,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         counts = inbox_store.counts()
         delivery = inbox_store.last_delivery_summary()
     else:
-        counts = {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "pending_stt": 0}
+        counts = {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "image": 0, "pending_stt": 0, "pending_image_action": 0}
         delivery = {
             "last_delivery_mode": "",
             "last_delivery_status": "",
@@ -991,11 +1142,17 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
         "send_enabled": bool(token_present and chat_present and reply_enabled),
         "history_counts": counts,
         "voice_boundary": {
-            "mode": "metadata_only",
+            "mode": "fakeable_pipeline" if _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") or _bool_env("TELEGRAM_VOICE_STT_ENABLED") else "metadata_only",
             "pending_stt_count": int(counts.get("pending_stt") or 0),
-            "download_enabled": False,
-            "stt_enabled": False,
+            "download_enabled": _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED"),
+            "stt_enabled": _bool_env("TELEGRAM_VOICE_STT_ENABLED"),
             "raw_voice_ids_visible": False,
+        },
+        "image_boundary": {
+            "mode": "worker_client_ready" if _bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED") else "metadata_only",
+            "pending_image_action_count": int(counts.get("pending_image_action") or 0),
+            "image_actions_enabled": _bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
+            "raw_image_ids_visible": False,
         },
         "next_allowed_action": "Enable TELEGRAM_AGENT_CHAT_ENABLED for intake and TELEGRAM_AGENT_REPLY_ENABLED for bot replies.",
     }
@@ -1062,12 +1219,24 @@ def setup(ctx):
 
     session_creator = _ctx_attr("telegram_session_bridge")
     agent_turn_handler = _ctx_attr("telegram_agent_turn_handler")
+    voice_stt_provider = _ctx_attr("telegram_voice_stt_provider")
+    image_bytes_provider = _ctx_attr("telegram_image_bytes_provider")
+    image_worker_client = _ctx_attr("telegram_image_worker_client")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
         admin_gate(request)
 
-    def _reply_with_gate(chat_id: str, text: str, *, source_message_id: int | None = None) -> dict[str, Any]:
+    def _reply_with_gate(
+        chat_id: str,
+        text: str,
+        *,
+        source_message_id: int | None = None,
+        classification: Any = None,
+        security_mode: Any = "",
+        secure_transport: bool = False,
+        can_start_secure_flow: bool = False,
+    ) -> dict[str, Any]:
         if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
             outbound = store.append_outbound(
                 chat_id,
@@ -1090,6 +1259,37 @@ def setup(ctx):
                 formatting_mode="html",
             )
             return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
+        if classification is not None or str(security_mode or "").strip():
+            state = ChatSecurityState.create(
+                chat_id=f"telegram-{_stable_handle('chat', chat_id)}",
+                thread_id=f"telegram-{_stable_handle('chat', chat_id)}",
+                security_mode=str(security_mode or "normal"),
+                created_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                requested_by="telegram-runtime",
+            )
+            channel = ChannelContext.create(
+                channel_id=f"telegram-{_stable_handle('chat', chat_id)}",
+                channel_kind="telegram",
+                secure_transport=secure_transport,
+                user_allowlisted=True,
+                can_start_secure_flow=can_start_secure_flow,
+            )
+            policy = decide_channel_access(
+                state=state,
+                channel=channel,
+                classification=classification,
+            )
+            if not policy.allowed:
+                outbound = store.append_outbound(
+                    chat_id,
+                    text,
+                    source_message_id=source_message_id,
+                    delivery_status="blocked",
+                    failure_reason=policy.block_reason,
+                    delivery_mode="blocked",
+                    formatting_mode="html",
+                )
+                return {"error": policy.block_reason, "exit_code": 1, "message": outbound}
         try:
             if _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
                 try:
@@ -1132,7 +1332,15 @@ def setup(ctx):
         chat_id = str(payload.get("chat_id") or "")
         text = str(payload.get("text") or "")
         source_message_id = payload.get("source_message_id")
-        return _reply_with_gate(chat_id, text, source_message_id=source_message_id)
+        return _reply_with_gate(
+            chat_id,
+            text,
+            source_message_id=source_message_id,
+            classification=payload.get("classification"),
+            security_mode=payload.get("security_mode") or "",
+            secure_transport=bool(payload.get("secure_transport")),
+            can_start_secure_flow=bool(payload.get("can_start_secure_flow")),
+        )
 
     async def _odysseus_notify_user_tool(content: str, **kwargs):
         payload = _parse_tool_payload(content)
@@ -1195,6 +1403,9 @@ def setup(ctx):
             fetch_updates=_ctx_attr("telegram_fetch_updates"),
             session_creator=session_creator,
             agent_turn_handler=agent_turn_handler,
+            voice_stt_provider=voice_stt_provider,
+            image_bytes_provider=image_bytes_provider,
+            image_worker_client=image_worker_client,
             reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
                 chat_id,
                 text,
@@ -1215,7 +1426,21 @@ def setup(ctx):
             store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
             raise HTTPException(400, "invalid telegram update") from exc
         stored = store.append_inbound(message)
-        bridge = build_agent_bridge_request(stored["message"], raw_chat_id=str(message.get("chat_id") or ""))
+        voice_agent_turn, voice_pipeline = run_telegram_voice_pipeline(
+            stored["message"],
+            stt_provider=voice_stt_provider,
+        )
+        image_action = run_telegram_image_action(
+            stored["message"],
+            enabled=_bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
+            image_bytes_provider=image_bytes_provider,
+            worker_client=image_worker_client,
+        )
+        bridge = build_agent_bridge_request(
+            stored["message"],
+            raw_chat_id=str(message.get("chat_id") or ""),
+            voice_agent_turn=voice_agent_turn,
+        )
         session_binding = None
         agent_turn = None
         reply_result = None
@@ -1230,6 +1455,7 @@ def setup(ctx):
             stored["message"],
             session_binding=session_binding,
             raw_chat_id=str(message.get("chat_id") or ""),
+            voice_agent_turn=voice_agent_turn,
         )
         if bridge["ready_for_agent"]:
             send_telegram_typing_indicator(bridge["chat_id"], store=store)
@@ -1253,6 +1479,8 @@ def setup(ctx):
             "stored": stored["stored"],
             "message": stored["message"],
             "agent_bridge": bridge,
+            "voice_pipeline": voice_pipeline,
+            "image_action": image_action,
             "agent_turn": _public_agent_turn_result(agent_turn),
             "reply": _public_reply_result(reply_result),
             "token_value_visible": False,
@@ -1264,7 +1492,15 @@ def setup(ctx):
         body = await request.json()
         chat_id = str(body.get("chat_id") or "")
         text = str(body.get("text") or "")
-        result = _reply_with_gate(chat_id, text, source_message_id=body.get("source_message_id"))
+        result = _reply_with_gate(
+            chat_id,
+            text,
+            source_message_id=body.get("source_message_id"),
+            classification=body.get("classification"),
+            security_mode=body.get("security_mode") or "",
+            secure_transport=bool(body.get("secure_transport")),
+            can_start_secure_flow=bool(body.get("can_start_secure_flow")),
+        )
         if result.get("exit_code") != 0:
             raise HTTPException(403, str(result.get("error") or "Telegram reply refused"))
         return json.loads(str(result["output"]))
@@ -1290,6 +1526,8 @@ def setup(ctx):
                     "chat_id": {"type": "string", "description": "Telegram chat id from the stored inbound message."},
                     "text": {"type": "string", "description": "Reply text to send through the Telegram bot."},
                     "source_message_id": {"type": "integer", "description": "Optional Telegram source message id."},
+                    "classification": {"type": "string", "enum": ["public", "private", "sensitive", "secret"], "description": "Optional data classification for secure channel policy."},
+                    "security_mode": {"type": "string", "enum": ["normal", "secure"], "description": "Optional chat security mode for secure channel policy."},
                 },
                 "required": ["chat_id", "text"],
             },

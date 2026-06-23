@@ -4,6 +4,7 @@ from plugins.obsidian.backend.context_provider import (
     PROVIDER_ID,
     provider_alias_specs,
     provider_spec,
+    retrieve_orca_vault_context,
     retrieve_vault_context,
 )
 from plugins.obsidian.backend.tool_specs import (
@@ -81,6 +82,7 @@ def test_orca_context_provider_alias_spec_preserves_obsidian_provider_contract()
     assert legacy["id"] == PROVIDER_ID
     assert alias["id"] == ORCA_PROVIDER_ID
     assert legacy["retrieve"] is retrieve_vault_context
-    assert alias["retrieve"] is retrieve_vault_context
+    assert alias["retrieve"] is retrieve_orca_vault_context
+    assert alias["retrieve"] is not legacy["retrieve"]
     assert set(alias["capabilities"]) == set(legacy["capabilities"])
     assert provider_alias_specs() == [alias]

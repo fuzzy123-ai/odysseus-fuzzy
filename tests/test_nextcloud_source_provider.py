@@ -28,6 +28,8 @@ def test_nextcloud_sync_ready_with_recommended_actor_and_readonly_scope() -> Non
 
     assert report.status == "ready"
     assert report.reasons == ("offline_readonly_policy_satisfied",)
+    assert report.secure_policy_decision == "allow"
+    assert report.secure_policy_allowed is True
     assert report.root_path == "/Odysseus/Intake"
     assert report.webdav_endpoint is None
 
@@ -139,6 +141,46 @@ def test_disabled_provider_is_deferred() -> None:
     assert report.status == "deferred"
     assert report.reasons == ("provider_disabled_by_config",)
     assert "disabled" in report.next_actions[0].lower()
+
+
+def test_sensitive_nextcloud_source_requires_secure_chat_before_ingestion() -> None:
+    report = assess_nextcloud_source_provider(
+        {
+            "provider_id": "nextcloud_sync",
+            "actor": "odysseus-intake",
+            "permission_scope": ["copy-only", "review-gated"],
+            "root_path": "/Odysseus/Intake",
+            "folders": _folders(),
+            "enabled": True,
+        },
+        security_mode="normal",
+        source_classification="sensitive",
+    )
+
+    assert report.status == "blocked"
+    assert report.secure_policy_decision == "require_secure_chat"
+    assert report.secure_policy_allowed is False
+    assert report.secure_policy_reason == "sensitive_source_in_normal_chat"
+    assert "start_secure_chat" in report.next_actions
+
+
+def test_sensitive_nextcloud_source_is_allowed_in_secure_chat() -> None:
+    report = assess_nextcloud_source_provider(
+        {
+            "provider_id": "nextcloud_sync",
+            "actor": "odysseus-intake",
+            "permission_scope": ["copy-only", "review-gated"],
+            "root_path": "/Odysseus/Intake",
+            "folders": _folders(),
+            "enabled": True,
+        },
+        security_mode="secure",
+        source_classification="sensitive",
+    )
+
+    assert report.status == "ready"
+    assert report.secure_policy_decision == "allow"
+    assert report.secure_policy_allowed is True
 
 
 def test_summary_is_compact_and_redacts_error_details_to_codes() -> None:

@@ -72,11 +72,12 @@ def _normalize_repo_path(value: Any, *, field_name: str) -> str:
     lowered = raw.lower()
     if lowered.startswith("/") or lowered.startswith("./") or re.match(r"^[a-z]:", lowered):
         raise PlanRuntimeError(f"{field_name} must be repo-relative")
-    path_part = raw.split(":", 1)[0]
+    path_part = raw.split(":", 1)[0].rstrip("/")
     parts = PurePosixPath(path_part).parts
     if not parts or any(part in {"", ".", ".."} for part in parts):
         raise PlanRuntimeError(f"{field_name} must not contain traversal segments")
-    return raw
+    suffix = raw[len(raw.split(":", 1)[0]):]
+    return f"{path_part}{suffix}"
 
 
 def _normalize_path_list(values: Iterable[Any], *, field_name: str, allow_empty: bool) -> tuple[str, ...]:

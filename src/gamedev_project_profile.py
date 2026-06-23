@@ -116,6 +116,18 @@ class GameDevMountReport:
     host_path_visible: bool = False
 
 
+@dataclass(frozen=True)
+class GameDevWriteSmokePlan:
+    ready: bool
+    virtual_path: str
+    cleanup_virtual_path: str = ""
+    owner: str = "default"
+    byte_count: int = 0
+    reason: str = ""
+    operator_go_required: bool = True
+    host_path_visible: bool = False
+
+
 def godot_mount_profile(
     *,
     name: str,
@@ -226,6 +238,110 @@ def public_gamedev_mount_report(report: GameDevMountReport) -> dict[str, Any]:
         "reasons": list(report.reasons),
         "host_path_visible": False,
     }
+
+
+def _normalize_virtual_project_path(path: Any) -> str:
+    value = str(path or "").strip().replace("\\", "/")
+    while "//" in value:
+        value = value.replace("//", "/")
+    if value.endswith("/") and value != "/":
+        value = value.rstrip("/")
+    return value
+
+
+def build_gamedev_write_smoke_plan(
+    mount: Mapping[str, Any],
+    *,
+    virtual_path: str = "/mnt/canyon-racer/.odysseus-write-smoke.txt",
+    content: str = "odysseus gamedev mount write smoke\n",
+    owner: str = "default",
+    operator_go: bool = False,
+) -> GameDevWriteSmokePlan:
+    """Validate a reversible GameDev write-smoke target without writing it."""
+
+    normalized_path = _normalize_virtual_project_path(virtual_path)
+    mount_virtual = _normalize_virtual_project_path(mount.get("virtual_path") or "/mnt/canyon-racer")
+    expected_owner = str(mount.get("owner") or "default")
+    if expected_owner != str(owner or "default"):
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=str(owner or "default"),
+            reason="owner_mismatch",
+        )
+    if normalized_path == mount_virtual or not normalized_path.startswith(f"{mount_virtual}/"):
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            reason="target_must_stay_under_virtual_mount",
+        )
+    if any(part in (".", "..") for part in normalized_path.split("/") if part):
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            reason="target_must_not_contain_dot_segments",
+        )
+    validation = validate_gamedev_mount_profile(mount)
+    if not validation.ok:
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            reason="mount_profile_not_write_ready",
+        )
+    write_policy = mount.get("write_policy") if isinstance(mount.get("write_policy"), Mapping) else {}
+    if not bool(write_policy.get("enabled")):
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            reason="write_policy_disabled",
+        )
+    ext = PurePosixPath(normalized_path).suffix.lower()
+    allowed_extensions = {
+        str(item).lower() if str(item).startswith(".") else f".{str(item).lower()}"
+        for item in (write_policy.get("allowed_extensions") or [])
+    }
+    if ext not in allowed_extensions:
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            reason="extension_not_allowed",
+        )
+    body = str(content or "")
+    byte_count = len(body.encode("utf-8"))
+    try:
+        max_bytes = int(write_policy.get("max_bytes") or 0)
+    except (TypeError, ValueError):
+        max_bytes = 0
+    if byte_count <= 0 or byte_count > max_bytes:
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            owner=expected_owner,
+            byte_count=byte_count,
+            reason="payload_size_not_allowed",
+        )
+    if not operator_go:
+        return GameDevWriteSmokePlan(
+            ready=False,
+            virtual_path=normalized_path,
+            cleanup_virtual_path=normalized_path,
+            owner=expected_owner,
+            byte_count=byte_count,
+            reason="operator_go_required",
+        )
+    return GameDevWriteSmokePlan(
+        ready=True,
+        virtual_path=normalized_path,
+        cleanup_virtual_path=normalized_path,
+        owner=expected_owner,
+        byte_count=byte_count,
+        reason="ready_for_reversible_write_smoke",
+    )
 
 
 def decide_gamedev_command_intent(intent: str, *, operator_go: bool = False) -> GameDevCommandDecision:

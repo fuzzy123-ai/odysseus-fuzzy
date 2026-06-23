@@ -1,0 +1,632 @@
+# Odysseus MVP MasterRoadmap
+
+Stand: 2026-06-23
+
+Status: **aktive MVP-Konsolidierungsroadmap**
+
+Diese Roadmap fasst die offenen Odysseus-Arbeiten zu einem MVP zusammen. Sie
+ordnet die zuvor verstreuten Roadmaps nach Produktwert, Abhaengigkeiten und
+Integrationsrisiko.
+
+## Leitentscheidung
+
+Das MVP besteht aus den Prioritaeten 1-10. Die Punkte 11 und 12 bleiben
+Post-MVP-Ideen und werden erst relevant, wenn der Kern stabil laeuft.
+
+MVP heisst hier:
+
+```text
+laufender Homeserver + belastbare Backend-Logik + sichere Datenpfade +
+Runtime-Gates + ehrliche Evidence
+```
+
+UI-Arbeit ist fuer diese MVP-Phase kein Treiber. Bestehende UI wird nur dann
+angefasst, wenn Backend-Logik sonst nicht pruefbar oder bedienbar waere. Die
+eigentliche Gestaltung neuer Oberflaechen passiert spaeter gemeinsam.
+
+## Quellenlage
+
+- `specs/roadmaps/odysseus-multiagent-roadmap.v1.json` bleibt die operative
+  strukturierte Quelle fuer PlanRuntime und Roadmap Lens.
+- `docs/plans/unified-odysseus-roadmap.md` bleibt historischer und fachlicher
+  Master-Kontext.
+- Diese MVP-MasterRoadmap ist die menschliche Priorisierung fuer die naechste
+  Konsolidierungsphase.
+
+Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
+
+1. Sicherheits- und Stop-Regeln aus den Detailplaenen bleiben gueltig.
+2. Die Reihenfolge dieser MVP-Roadmap entscheidet, was als naechstes
+   zusammengefuehrt wird.
+3. JSON-PlanRuntime-State entscheidet, ob ein konkreter Node wirklich
+   claimable ist.
+
+## MVP Prioritaeten
+
+| Prio | Track | Status | Aufwand 0-10 | MVP-Ziel | Done wenn |
+| ---: | --- | --- | ---: | --- | --- |
+| 1 | Runtime Closure Gates | 82% / partial_live_evidence | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
+| 2 | Secure Data Mode Runtime Hooks | 100% / go | 7 | Sensible Quellen, Secure Chats und Local-only Policy greifen an den echten Runtime-Grenzen. | Provider, Retrieval, Telegram und private Quellen respektieren Policy Gates; unsichere Faelle blockieren oder gehen in Review. |
+| 3 | Private Data / Nextcloud Memory Ingestion | 50% / repo_open | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Scanner-Dry-Run, Ledger und kleine Live-Batches sind gated; Full 100GB+ Transfer bleibt erst spaeter claimable. |
+| 4 | System Health Checker Host-Agent | 60% / needs_operator_input | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
+| 5 | Telegram Voice Pipeline | 80% / needs_live_go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests belegen Transcript-to-Agent und Reply-Pfad. |
+| 6 | ORCA / Lens Naming & Backend Migration | 80% / needs_design | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | Kompatibilitaetsadapter und Alias-Regeln sind getestet; interne Core-Module koennen schrittweise von Legacy-Namen entkoppelt werden. |
+| 7 | PlanRuntime / Visual Planning Logic | 92% / needs_design | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch. |
+| 8 | Release / Distribution Evidence | 82% / needs_live_go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | 1.0/externes Release kann als Go, Partial oder No-Go begruendet werden, ohne Runtime-Gates zu ueberzeichnen. |
+| 9 | Image Tools Worker Final Smoke | 85% / dependency_missing | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
+| 10 | GameDev Mount Write Smoke | 100% / go | 2 | Der optionale Schreibpfad fuer GameDev-Mounts wird eng und reversibel belegt. | Write-Smoke erfolgt nur mit explizitem Go, schreibt ein reversibles Testartefakt und leakt keine Host-Pfade. |
+
+## Post-MVP Ideen
+
+| Prio | Track | Status | Warum spaeter |
+| ---: | --- | --- | --- |
+| 11 | GitHub Issue Intelligence | design-ready | Neues Feature mit Sync, Persistence, Embeddings, UI und MCP-Gates. Wertvoll, aber nicht noetig, um den Odysseus-Kern zusammenzubringen. |
+| 12 | Qdrant/Kuzu/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. |
+
+## UI-Gestaltung Spaeter
+
+Diese Flaechen werden bewusst nicht als MVP-Blocker behandelt:
+
+- Roadmap Lens / Visual Agent Programming Browser Editor als fertige
+  Operator-Oberflaeche.
+- ORCA/Lens Navigation, Naming, Layout und Informationsarchitektur.
+- System Health Dashboard.
+- Nextcloud/Private-Data Review UI.
+- Telegram Voice und Image Worker Nutzerflaechen.
+
+Fuer das MVP reichen stabile Backend-Vertraege, API-Snapshots, Tests, redacted
+Evidence und minimale vorhandene Bedienpfade. Die eigentlichen UIs gestalten wir
+danach gemeinsam.
+
+## Aktueller Fortschritt
+
+Stand: 2026-06-23
+
+| # | Roadmap | % | Warum nicht 100% |
+| - | - | -: | - |
+| 1 | Runtime Closure Gates | 82 | Live-Server, Admin-Update-Status/Check, MCP-Runtime/JSON-RPC und Telegram Bot-API sind redacted getestet; nicht 100%, weil diese Windows-Runtime kein systemd/restic/Debian-Backup ausfuehren kann und Telegram keinen erlaubten Chat plus Poll/Reply-Gates fuer einen echten Text-Roundtrip konfiguriert hat. |
+| 2 | Secure Data Mode Runtime Hooks | 100 | - |
+| 3 | Private Data / Nextcloud Memory Ingestion | 50 | Resumable Transfer Tooling, Scanner-Dry-Run, Chunked Extraction Lanes und metadata-only Ledger sind erledigt; Live-Go ist erteilt, aber `.env` enthaelt keine Nextcloud/WebDAV-Konfiguration und es fehlen weiter Quelle, Ziel, Diskbudget und No-Delete-Dry-Run. |
+| 4 | System Health Checker Host-Agent | 60 | Foundation, Interface, Collectors, Rule Engine und Ops-Readiness sind repo-only erledigt und fokussiert getestet; Live-Go ist erteilt, aber `.env` enthaelt keinen Host-Agent/Local-API-Marker und Install/Start/Snapshot bleiben ohne Host-Scope blockiert. |
+| 5 | Telegram Voice Pipeline | 80 | Offline-Kette fuer Download-Plan, lokale Referenz, fake STT, Agent-Turn, Reply-Plan und Plugin-Hooks ist getestet; Live-Go ist erteilt, aber `.env` enthaelt nur den Bot-Token, keine erlaubten Chats und keine Polling/Download/STT/Reply-Gates. |
+| 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
+| 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
+| 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
+| 9 | Image Tools Worker Final Smoke | 85 | Worker-Contract, Core-Client, Route-Integration, isolierter Worker-MVP, Fake-Smoke, Dependency-Isolation und default-off Telegram-Image-Hook sind erledigt; Live-Worker startet und `/health` ist 200, finaler Remove-BG-Smoke blockiert wegen fehlendem `rembg`, neue UI fehlt. |
+| 10 | GameDev Mount Write Smoke | 100 | - |
+
+Gesamtfortschritt MVP-Roadmaps: 81%
+
+Version-1.0-Gate: UI live? nein
+
+Recommended next human decision:
+
+- Roadmap 1: fuer 100% entweder Debian/systemd/restic auf dem Zielhost testen
+  oder bewusst als No-Go/Deferred akzeptieren; fuer Telegram einen erlaubten
+  Chat und Poll/Reply-Gates setzen oder Text-Roundtrip bewusst deferred lassen.
+- Roadmap 2: backendseitig geschlossen; weiter mit Roadmap 3 Transfer-/Scanner-
+  und Chunked-Extraction-Lanes ohne Live-Nextcloud-Go.
+- Roadmap 3: echte Transfer-Inputs entweder liefern oder das Live-Gate bewusst
+  deferred markieren; backend-safe kann als naechstes Resumable Transfer
+  Tooling als abgeschlossen behandeln und weitere Memory-Abstraction-Dry-Run-
+  Vorbereitung ohne Live-Nextcloud-Go fortsetzen.
+- Roadmap 4: Host-Agent-Plan und Local-API-Consumer entweder manuell reviewen
+  oder bewusst deferred markieren; Live-Host-Agent-Smoke bleibt ohne Go blockiert.
+- Roadmap 5: echten Telegram-Voice-Smoke ohne explizites Go weiter blockieren;
+  UI/status controls bis zur gemeinsamen UI-Neugestaltung parken.
+- Roadmap 6: UI-Lens-Renaming bis zum gemeinsamen Redesign parken;
+  Datenpfad-Migration und finaler Legacy-Removal bleiben Live-Go mit Rollback.
+- Roadmap 7: Browser-Editor/UI bis zum Redesign parken; post-apply Dispatch ist
+  als bestaetigter Request ohne Runtime-Ausfuehrung backendseitig vorbereitet.
+- Roadmap 8: Deploy/Tag/Distribution weiter als separates Live-Go behandeln;
+  Version-1.0-Claim bleibt automatisch blockiert bis 10/10 Roadmaps und neue UI live sind.
+- Roadmap 9: echten Remove-BG-Smoke ohne explizites Worker-Runtime-Go weiter
+  blockieren; Image-Worker-UI bis zum gemeinsamen Redesign parken.
+- Roadmap 10: optionalen GameDev-Write-Smoke entweder explizit freigeben oder
+  bewusst deferred markieren; ohne Go bleibt nur der reversible Plan claimbar.
+
+## Roadmap 1 Backend Evidence
+
+Backend-Artefakt:
+
+- `src/mvp_runtime_closure.py`
+- `scripts/live_runtime_smoke.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_runtime_closure.py`
+- `tests/test_updates_backups_ui_static.py`
+- `tests/test_mcp_server_plugin.py`
+- `tests/test_telegram_text_boundary.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Updates and backups backend contract | go | repo_only | Admin-gated update/backup status/action contract exists. |
+| Updater server runtime evidence | partial | needs_live_go | Local live server returned `/api/version` and admin update status/check; updater/timer evidence is No-Go in this Windows runtime because `systemctl` is unavailable. |
+| Updates and backups live smoke | partial | needs_live_go | `backup-now` and `update-now` routes were live-called and correctly blocked; Debian backup/update execution still needs a Debian host with systemd/restic and updater wrapper configured. |
+| MCP offline route and policy coverage | go | repo_only | MCP route, policy, notification, and owner gates have offline coverage. |
+| MCP plugin present in rebuilt runtime | go | needs_live_go | Local runtime loaded `mcp_server`; `/api/plugins/mcp/info` returned 200 with the plugin disabled by default. |
+| MCP local route smoke | go | needs_live_go | MCP was temporarily enabled with all risky permissions false; JSON-RPC initialize, ping, tools/list, resources/list and readiness read returned 200, then config was restored to disabled. |
+| Telegram text offline boundary | go | repo_only | Telegram text intake, allowlist, bridge, and identifier redaction have offline coverage. |
+| Telegram text live roundtrip | partial | needs_live_go | Telegram Bot API `getMe` returned 200 and plugin status is token-ready; no real text roundtrip because allowed chat marker is absent and agent intake, polling, network and reply gates are disabled. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- Local server: `GET /api/version` returned 200, version `0.99.6`, branch `dev`.
+- Admin update routes: `GET /api/admin/system/update-status` and `POST /api/admin/system/update-check` returned 200 with redacted status; `backup-now` and `update-now` returned 200 but `status=blocked`, as expected on Windows without `systemctl`, restic repository, updater wrapper or `ODYSSEUS_UPDATER_LIVE_ENABLED`.
+- MCP runtime: `/api/plugins/mcp/info` and `/config` returned 200; disabled probe returned 403; temporary safe enable returned 200; JSON-RPC initialize/ping/tools/list/resources/list/readiness returned 200; config restored to disabled.
+- Telegram runtime: `/api/plugins/telegram/status` returned 200 with token marker present, no chat-id marker, polling/reply/network disabled; Telegram Bot API `getMe` returned 200 without exposing bot identity.
+
+## Roadmap 2 Backend Evidence
+
+Backend-Artefakt:
+
+- `src/mvp_secure_data_closure.py`
+- `src/secure_provider_runtime.py`
+- `src/memory_provider.py`
+- `src/nextcloud_source_provider.py`
+- `routes/session_routes.py`
+- `plugins/telegram/plugin.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_secure_data_closure.py`
+- `tests/test_secure_provider_runtime.py`
+- `tests/test_secure_provider_runtime_hook_static.py`
+- `tests/test_memory_provider.py`
+- `tests/test_nextcloud_source_provider.py`
+- `tests/test_telegram_plugin.py`
+- `tests/test_data_classification.py`
+- `tests/test_secure_policy_gate.py`
+- `tests/test_secure_model_routing.py`
+- `tests/test_sensitive_retrieval_guard.py`
+- `tests/test_secure_channel_policy.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Data classification model | go | repo_only | Public/private/sensitive/secret classification and strict merge rules exist. |
+| Immutable chat security state | go | repo_only | Normal/secure chat state is immutable and local-only scope is modeled. |
+| Central secure policy gate | go | repo_only | Source, provider, embedding, tool, export, and ambiguous-state decisions are modeled. |
+| Local-only model routing guard | go | repo_only | Secure chats require local primary, fallback, and embedding model routes. |
+| Sensitive retrieval guard | go | repo_only | Memory/RAG/graph guard blocks sensitive normal-chat context without refs. |
+| Telegram and channel policy | go | repo_only | Channel policy blocks sensitive Telegram/unsupported secure-flow paths. |
+| Provider runtime hook | go | repo_only | Session provider/model selection calls secure policy before external model probes or model switches when secure mode is requested. |
+| Retrieval runtime hook | go | repo_only | Native memory recall calls the sensitive retrieval guard before returning context hits when security state is supplied. |
+| Telegram runtime hook | go | repo_only | Telegram reply route/tool calls channel policy before sending classified secure content. |
+| Private source runtime hook | go | repo_only | Nextcloud/private-source readiness calls secure source policy before ingestion/review can proceed. |
+
+## Roadmap 3 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_private_data_ingestion_closure.py`
+- `src/nextcloud_transfer_readiness.py`
+- `src/nextcloud_resumable_scanner.py`
+- `src/nextcloud_resumable_transfer.py`
+- `src/nextcloud_chunked_extraction.py`
+- `src/bigdata_ledger_contract.py`
+- `src/nextcloud_intake_ledger.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_private_data_ingestion_closure.py`
+- `tests/test_nextcloud_transfer_readiness.py`
+- `tests/test_nextcloud_resumable_scanner.py`
+- `tests/test_nextcloud_resumable_transfer.py`
+- `tests/test_nextcloud_chunked_extraction.py`
+- `tests/test_bigdata_ledger_contract.py`
+- `tests/test_nextcloud_source_provider.py`
+- `tests/test_live_nextcloud_readiness_check.py`
+- `tests/test_nextcloud_intake_ledger.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Planning sources memory inventory | go | repo_only | Planning source inventory is bounded, read-only, and redacted. |
+| Planning sources memory ingest live | go | repo_only | Planning documents can be ingested as bounded memory capsules. |
+| Big Data ledger contract | go | repo_only | Append-only metadata ledger contract exists without raw content. |
+| Nextcloud transfer readiness | blocked | needs_operator_input | Offline validator existiert und fokussierte Tests sind gruen; Live-Check 2026-06-23 fand keine Nextcloud/WebDAV-Konfiguration in `.env`, Quelle/Ziel/Diskbudget/No-Delete-Dry-Run fehlen. |
+| Resumable transfer tooling | go | repo_only | Copy-only transfer planner records pending transfer ledger progress with redacted target labels and no live copy. |
+| Resumable scanner dry-run | go | repo_only | Scanner-Dry-Run schreibt metadata-only Inventory-Records, kann Batch-Unterbrechungen fortsetzen und blockiert Ledger im Scan-Root. |
+| Live small-batch transfer | blocked | needs_operator_input | Live-Go ist erteilt, aber ohne konfigurierte Quelle, Zielpfad, Diskbudget und No-Delete-Dry-Run darf kein echter Transfer-Smoke laufen. |
+| Chunked extraction lanes | go | repo_only | Offline Chunking schreibt nur Chunk-Hashes/Offsets und modelliert retryable sowie needs_review Ledger-Zustaende ohne Raw-Content-Persistenz. |
+| Memory abstraction ingest live | blocked | needs_operator_input | Braucht zuerst konfigurierte Quelle und erfolgreichen kleinen Transfer-/Scanner-Smoke. |
+| Full 100GB+ transfer live | blocked | needs_operator_input | High-impact Live-Aktion bleibt blockiert, bis kleine Batches und Diskbudget belegt sind. |
+| Full corpus analysis live | blocked | needs_operator_input | Braucht erfolgreichen Transfer plus operator-approved Analyse-Freigabe. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- `.env` enthaelt keinen Nextcloud/WebDAV-Provider-Marker.
+- `tests/test_live_nextcloud_readiness_check.py`, `tests/test_nextcloud_transfer_readiness.py` und `tests/test_mvp_runtime_closure.py` liefen gruen.
+- Kein Netzwerk-, Transfer-, Delete-, Move-, Memory- oder Graph-Write wurde ausgefuehrt.
+| Ingestion dashboard live | needs_design | needs_design | Bewusst auf UI-Neugestaltung verschoben. |
+
+## Roadmap 4 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_system_health_closure.py`
+- `src/live_system_health_host_agent_plan.py`
+- `src/live_system_health_local_api_consumer.py`
+- `src/system_health_ops_readiness.py`
+- `src/system_health_agent_interface.py`
+- `src/system_health_basic_collectors.py`
+- `src/system_health_advanced_collectors.py`
+- `src/system_health_rule_engine.py`
+- `src/system_health_plugin_foundation_bundle.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_system_health_closure.py`
+- `tests/test_live_system_health_host_agent_plan.py`
+- `tests/test_live_system_health_local_api_consumer.py`
+- `tests/test_system_health_ops_readiness.py`
+- `tests/test_system_health_plugin_foundation_bundle.py`
+- `tests/test_system_health_agent_interface.py`
+- `tests/test_system_health_basic_collectors.py`
+- `tests/test_system_health_advanced_collectors.py`
+- `tests/test_system_health_rule_engine.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Plugin foundation bundle | go | repo_only | Plugin foundation, audit, readiness, review, score and release summaries exist. |
+| Health-agent snapshot interface | go | repo_only | Sanitized snapshot interface is modeled without core host commands. |
+| Basic collector normalization | go | repo_only | Basic CPU, memory, disk, load and uptime collectors degrade safely. |
+| Advanced collector normalization | go | repo_only | Advanced sensor, SMART, update and reboot collectors expose unsupported/unknown states. |
+| Rule engine and alert dedupe | go | repo_only | Rule engine, alert severity, dedupe and cooldown behavior are modeled. |
+| Ops and security readiness | go | repo_only | Ops readiness keeps host access outside core and blocks auto-repair. |
+| Host-agent MVP plan reviewed | needs_operator_input | repo_only | Focused plan tests are green; manual host-agent scope, install, permissions, rollback and secrets review is still required. |
+| Local API consumer plan | needs_operator_input | repo_only | Focused consumer tests are green; manual local API endpoint, timeout, fixture and payload review is still required. |
+| Host-agent runtime live smoke | blocked | needs_operator_input | Live-Go is granted, but no Host-Agent/Local-API config is present and no Debian host-agent install/start/snapshot target is defined. |
+| Dashboard and alert UI live | needs_design | needs_design | Dashboard and alert UX are deferred until backend gates are stable and UI is redesigned. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- `.env` enthaelt keinen Host-Agent-, Health-Agent- oder Local-API-Marker.
+- `tests/test_live_system_health_host_agent_plan.py`, `tests/test_live_system_health_local_api_consumer.py`, `tests/test_system_health_agent_interface.py`, `tests/test_system_health_basic_collectors.py`, `tests/test_system_health_advanced_collectors.py`, `tests/test_system_health_rule_engine.py` und `tests/test_mvp_system_health_closure.py` liefen gruen.
+- Kein Host-Agent wurde installiert, gestartet oder gegen Host-/Root-/Socket-Zugriff getestet.
+
+## Roadmap 5 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_telegram_voice_closure.py`
+- `src/telegram_voice_pipeline.py`
+- `plugins/telegram/plugin.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_telegram_voice_closure.py`
+- `tests/test_telegram_voice_pipeline.py`
+- `tests/test_telegram_plugin.py`
+- `tests/test_telegram_voice_boundary.py`
+- `tests/test_telegram_text_boundary.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Voice operator contract | go | repo_only | Operator status language and separate download/STT/reply gates are documented. |
+| Metadata-only voice intake | go | repo_only | Voice intake stores redacted metadata and does not become agent-ready before STT. |
+| Redacted history and readiness | go | repo_only | History/readiness expose counts and redacted handles without raw chat or file ids. |
+| Voice download gate plan | go | repo_only | Download planning is disabled by default, bounded and produces safe local refs. |
+| Fakeable STT boundary | go | repo_only | Fakeable STT requires a local ref and redacts sensitive transcript fragments. |
+| Voice transcript to agent turn | go | repo_only | Successful transcripts become internal Telegram voice agent prompts. |
+| Gated Telegram text reply plan | go | repo_only | Reply planning remains disabled until the reply gate and reply text are present. |
+| Plugin runtime integration | go | repo_only | Telegram plugin wires the default-off offline voice pipeline through fakeable download/STT/voice agent-turn hooks. |
+| Manual live voice smoke | blocked | needs_operator_input | Live-Go is granted and Bot API readiness is proven, but no allowed chat marker, polling gate, voice download gate, STT gate or reply gate is configured. |
+| Voice UI live | needs_design | needs_design | Voice UI/status controls are deferred until the shared UI redesign. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- Telegram Bot API `getMe` returned 200 in Roadmap 1 smoke.
+- `.env` contains `TELEGRAM_BOT_TOKEN` only; no `TELEGRAM_ALLOWED_CHAT_IDS`, `TELEGRAM_CHAT_ID`, `TELEGRAM_POLLING_ENABLED`, voice download, STT or reply gate marker was present.
+- `tests/test_mvp_telegram_voice_closure.py`, `tests/test_telegram_voice_pipeline.py`, `tests/test_telegram_plugin.py`, `tests/test_telegram_voice_boundary.py` and `tests/test_telegram_text_boundary.py` liefen gruen.
+- Kein Live-Voice-Download, keine STT-Provider-Aktion und keine Telegram-Reply wurden ausgefuehrt.
+
+## Roadmap 6 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_orca_lens_closure.py`
+- `specs/roadmaps/orca-memory-graph-migration-roadmap.v1.json`
+- `plugins/obsidian/backend/feature_flags.py`
+- `plugins/obsidian/backend/tool_specs.py`
+- `plugins/obsidian/backend/context_provider.py`
+- `plugins/obsidian/backend/orca_core.py`
+- `plugins/obsidian/backend/routes.py`
+- `plugins/obsidian/plugin.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_orca_lens_closure.py`
+- `tests/test_orca_core_contract.py`
+- `tests/test_orca_compatibility_contract.py`
+- `tests/test_obsidian_bridge_contract.py`
+- `tests/test_plugin_obsidian_load.py`
+- `tests/test_obsidian_memory_mission_contract.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| ORCA roadmap and delegation | go | repo_only | Canonical ORCA migration roadmap and ABC slices exist. |
+| ORCA naming contract | go | repo_only | ORCA, Local Markdown Vault, Lens, Atlas and legacy Obsidian wording are defined. |
+| Technical boundary audit | go | repo_only | ORCA core, source adapter, Lens and legacy compatibility boundaries are mapped. |
+| Compatibility surface design | go | repo_only | Route, tool, env and docs compatibility design exists without deleting legacy surfaces. |
+| Env, tool and provider aliases | go | repo_only | ODYSSEUS_ORCA flags, orca_* tools and orca.vault_context provider aliases are tested. |
+| ORCA route aliases | go | repo_only | /api/plugins/orca aliases are mounted while legacy /api/plugins/obsidian routes remain intact. |
+| ORCA core modules | go | repo_only | ORCA Core Adapter fasst Retrieval, Readiness, RAPTOR, Query und Lens-Contracts read-only hinter Legacy-Obsidian-Adaptern zusammen. |
+| Frontend Lens naming | needs_design | needs_design | Frontend Lens wording is parked until the shared UI redesign. |
+| Legacy Obsidian deprecation | go | repo_only | Legacy-Obsidian-Kompatibilitaet bleibt erhalten, aber ORCA-Migration-Map, Warnungen und Removal-Gates sind read-only modelliert. |
+| Data path migration and final removal plan | blocked | needs_operator_input | Live-Go is granted, but final path migration/removal still needs a named target, rollback plan, backup evidence and compatibility cutover decision. |
+
+Live/Test Evidence, 2026-06-23:
+
+- `tests/test_mvp_orca_lens_closure.py`, `tests/test_orca_core_contract.py`, `tests/test_orca_compatibility_contract.py` und `tests/test_plugin_obsidian_load.py` liefen gruen.
+- Kein Datenpfad wurde migriert, kein Legacy-Pfad entfernt und kein UI-Wording umgebaut.
+
+## Roadmap 7 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_planruntime_visual_closure.py`
+- `src/plan_runtime.py`
+- `src/roadmap_lens.py`
+- `src/visual_agent_programming_lens.py`
+- `src/planruntime_post_apply_dispatch.py`
+- `src/subagent_plan_binding.py`
+- `routes/roadmap_routes.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_planruntime_visual_closure.py`
+- `tests/test_plan_runtime.py`
+- `tests/test_roadmap_lens.py`
+- `tests/test_visual_agent_programming_lens.py`
+- `tests/test_planruntime_post_apply_dispatch.py`
+- `tests/test_subagent_plan_binding.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| PlanRuntime source of truth | go | repo_only | Structured roadmap JSON loads, validates and projects into PlanGraph. |
+| Subagent PlanRuntime binding | go | repo_only | Subagent run specs are bound to PlanRuntime nodes and context capsules. |
+| Roadmap Lens read-only graph | go | repo_only | Roadmap Lens exposes bounded read-only graph snapshots. |
+| Visual programming read-only snapshot | go | repo_only | Visual programming snapshot exposes policy-gated controls without mutation. |
+| Visual edit dry-run validator | go | repo_only | Create-node and connect-dependency proposals validate without writing or starting agents. |
+| Proposal review queue | go | repo_only | Validated proposals are exposed as read-only review queue items. |
+| Operator acceptance contract | go | repo_only | Operator-gated acceptance creates auditable accepted/rejected events. |
+| Mutation patch contract | go | repo_only | Accepted proposals become mutation patches with audit and version metadata. |
+| Mutation apply adapter | go | repo_only | Authorized patches apply to roadmap payloads with rollback metadata and no implicit agent start. |
+| Admin route contracts | go | repo_only | Roadmap graph, visual snapshot, validate, review, acceptance, patch and apply routes are admin-protected. |
+| Browser proposal editor UI | needs_design | needs_design | Browser proposal editor UI is deferred until the shared UI redesign. |
+| Post-apply agent dispatch | go | repo_only | Post-apply dispatch erzeugt einen bestaetigten, auditierbaren Request mit SubagentRunSpec, bleibt aber ohne Thread-, Job- oder Runtime-Ausfuehrung. |
+
+Test Evidence, 2026-06-23:
+
+- `tests/test_mvp_planruntime_visual_closure.py`, `tests/test_plan_runtime.py`, `tests/test_roadmap_lens.py`, `tests/test_visual_agent_programming_lens.py`, `tests/test_planruntime_post_apply_dispatch.py` und `tests/test_subagent_plan_binding.py` liefen gruen.
+- Kein UI-Editor wurde gebaut und kein Agent wurde implizit gestartet.
+
+## Roadmap 8 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_release_distribution_closure.py`
+- `src/release_evidence_snapshot.py`
+- `src/manual_release_evidence.py`
+- `src/release_readiness_report.py`
+- `src/release_readiness_pipeline.py`
+- `src/mvp_master_roadmap_gate.py`
+- `src/live_release_evidence_closeout.py`
+- `docs/plans/external-1.0-evidence-closeout.md`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_release_distribution_closure.py`
+- `tests/test_release_readiness_report.py`
+- `tests/test_release_evidence_snapshot.py`
+- `tests/test_live_release_evidence_closeout.py`
+- `tests/test_manual_release_evidence.py`
+- `tests/test_plugin_release_gate.py`
+- `tests/test_release_readiness_pipeline.py`
+- `tests/test_mvp_master_roadmap_gate.py`
+- `tests/test_release_decision_bundle.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Automated release gates | go | repo_only | Automated release evidence snapshot and readiness reports are modeled. |
+| Manual provider proof evidence | go | needs_live_go | Provider proof is recorded with isolated redacted evidence. |
+| Manual test-vault export/import/rebuild evidence | go | needs_live_go | Test-vault export/import/rebuild proof is recorded with isolated redacted evidence. |
+| Known limits review | go | repo_only | Known limits are reviewed without implying deploy, tag or distribution execution. |
+| Plugin release gate | go | repo_only | Plugin release gate is modeled separately from release decision language. |
+| Release readiness pipeline | go | repo_only | Readiness pipeline aggregates snapshots, manual evidence and plugin gates. |
+| Evidence-Go closeout language | go | repo_only | Closeout language separates Evidence-Go from deploy, tag and distribution. |
+| Live phase boundary gates | go | repo_only | Provider, export/import/rebuild, host, Telegram and network actions remain separate operator gates. |
+| MVP roadmap aggregate for 1.0 | go | repo_only | Release-Pipeline liest das MVP-MasterRoadmap-Aggregat und blockiert Version 1.0, solange nicht alle zehn Roadmaps 100% sind und die neue UI live ist. |
+| Deploy, tag and distribution execution | blocked | needs_operator_input | Live-Go is broad, but external deploy/tag/distribution still needs a concrete target, version decision and rollback/announcement plan; Version 1.0 gate is not ready. |
+| New UI live release gate | needs_design | needs_design | Version 1.0 still requires the new UI to be live. |
+
+Test Evidence, 2026-06-23:
+
+- Release/Evidence focused suite lief gruen after updating the expected MasterRoadmap aggregate to 79%.
+- Kein Deploy, Tag, Push oder Distribution wurde ausgefuehrt.
+
+## Roadmap 9 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_image_tools_worker_closure.py`
+- `src/image_tools_worker.py`
+- `src/telegram_image_actions.py`
+- `workers/image_tools_worker/app.py`
+- `workers/image_tools_worker/README.md`
+- `routes/gallery_routes.py`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_image_tools_worker_closure.py`
+- `tests/test_image_tools_worker_mvp_static.py`
+- `tests/test_image_tools_worker.py`
+- `tests/test_telegram_image_actions.py`
+- `tests/test_gallery_remove_bg_worker.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| Image worker contract | go | repo_only | Worker modes, config, errors, payload limits and security boundaries are documented. |
+| Core worker client | go | repo_only | Core client handles disabled, timeout, unreachable, payload and PNG response semantics. |
+| Remove-BG route integration | go | repo_only | Gallery remove-bg route calls the worker client after privilege checks and maps errors. |
+| Isolated worker MVP | go | repo_only | workers/image_tools_worker exposes /remove-background with structured JSON errors. |
+| Fake worker smoke | go | safe_offline | Worker response builder can be smoke-tested with a fake PNG without importing rembg. |
+| Core dependency isolation | go | repo_only | Core starts without hard rembg, PIL or worker dependency imports on the client path. |
+| UI and cookbook contract | go | repo_only | Setup/error wording is frozen for the later UI and cookbook redesign. |
+| Telegram image action readiness | go | repo_only | Telegram-Image-Actions laufen default-off ueber redacted Metadata, injizierbare Bytes und den ImageToolsWorkerClient ohne neue Core-Dependencies. |
+| Manual Remove-BG smoke | partial | needs_live_go | Local worker runtime starts, `/health` returns 200 and `/remove-background` returns structured `dependency_missing`; final successful Remove-BG needs the isolated worker venv with `rembg` installed. |
+| Image tools UI live | needs_design | needs_design | Image-worker UI/status controls are deferred until the shared UI redesign. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- Local worker started on `127.0.0.1:8123`.
+- `GET /health` returned 200 with `remove_background` capability.
+- `POST /remove-background` returned 503 with `error_code=dependency_missing` because `rembg` is not installed in the current environment.
+- Core venv remains dependency-isolated; no `rembg` install was performed.
+
+## Roadmap 10 Backend Evidence
+
+Backend-Artefakte:
+
+- `src/mvp_gamedev_mount_closure.py`
+- `src/gamedev_project_profile.py`
+- `core/mount_manager.py`
+- `core/path_resolver.py`
+- `src/agent_tools/filesystem_tools.py`
+- `docs/gamedev-project-access-runbook.md`
+- `docs/plans/gamedev-project-access-roadmap.md`
+
+Fokussierte Tests:
+
+- `tests/test_mvp_gamedev_mount_closure.py`
+- `tests/test_gamedev_project_profile.py`
+- `tests/test_mount_points.py`
+
+Aktuelle Gate-Zusammenfassung:
+
+| Gate | Status | Klasse | Warum |
+| --- | --- | --- | --- |
+| GameDev mount profile | go | repo_only | Safe Godot mount profile includes write extensions, backup policy and broad-root rejection. |
+| Runtime config and read smoke | go | needs_live_go | Runtime config validation and read-only virtual mount smoke are recorded without host-path leakage. |
+| Path and owner scope | go | repo_only | Virtual mount access is owner-scoped and blocks traversal, broad roots and sensitive paths. |
+| Write policy guards | go | repo_only | write_file/edit_file require explicit tools, allowed extensions, size limits and symlink checks. |
+| Named command gate | go | repo_only | GameDev commands are named argv plans and free-form shell is rejected. |
+| Operator runbook | go | repo_only | Runbook documents enablement, dry-run validation, smoke steps and cleanup constraints. |
+| Reversible write-smoke plan | go | safe_offline | Write-smoke target and cleanup are planned with virtual paths, size limits and operator gate. |
+| Manual write smoke | go | needs_live_go | Live write-smoke wrote 46 bytes through `/mnt/canyon-racer`, read them back, audited the virtual mount write and removed the temporary file without exposing the host path. |
+
+Live-Smoke Evidence, 2026-06-23:
+
+- Mount `/mnt/canyon-racer`, owner `fuzzy`, write policy and backup enabled, `.txt` allowed.
+- Wrote `/mnt/canyon-racer/.odysseus-write-smoke-20260623.txt`, read back exact content, then removed the file.
+- Smoke result: `write_ok=true`, `readback_ok=true`, `cleanup_ok=true`, `host_path_visible=false`.
+
+## Arbeitsreihenfolge
+
+### Phase 1: Runtime und Gates stabilisieren
+
+1. Updates-/Backup-Logik und Runtime-Version sauber belegen.
+2. MCP Production Activation Smoke schliessen.
+3. Telegram Text Runtime Smoke schliessen.
+4. Release-/Distribution-Evidence erst danach aktualisieren.
+
+Exit:
+
+- Jeder Runtime-Track hat Go, Partial oder No-Go mit redacted Evidence.
+- Deploy, Provider, Telegram, Nextcloud und Host-Aktionen bleiben separate Gates.
+
+### Phase 2: Daten- und Policy-Backbone bauen
+
+1. Secure Data Mode Runtime Hooks aktivieren.
+2. Nextcloud Transfer Readiness erfassen.
+3. Resumable Scanner Dry-Run und Ledger pruefen.
+4. Kleine Live-Batches erst nach Operator-Go.
+
+Exit:
+
+- Private Datenpfade sind messbar, resumable und review-gated.
+- Keine Raw-Content-Leaks in Logs, Evidence, Tests oder Handoffs.
+
+### Phase 3: Betriebslogik und Kanaele schliessen
+
+1. System Health Checker Host-Agent.
+2. Telegram Voice Pipeline.
+3. Image Tools Worker Final Smoke.
+4. GameDev Mount Write Smoke.
+
+Exit:
+
+- Homeserver-Betrieb ist backendseitig sichtbar.
+- Externe Kanaele und Worker sind realistisch nutzbar oder sauber deferred.
+
+### Phase 4: Naming und PlanRuntime-Logik entkoppeln
+
+1. ORCA/Lens Backend-Naming und Compatibility-Aliases stabilisieren.
+2. PlanRuntime / Visual Planning Logic ohne UI-Abhaengigkeit schliessen.
+3. UI-Anforderungen als gemeinsame Folgearbeit sammeln, nicht nebenbei bauen.
+
+Exit:
+
+- Backend-Begriffe und Datenpfade laufen nicht weiter auseinander.
+- Roadmap-Vorschlaege, Gates und Apply-Logik sind ohne neue UI testbar.
+
+## Globale Stop-Regeln
+
+- Keine Live-Netzwerk-, Provider-, Telegram-, Nextcloud-, Host-, Backup-,
+  Restore-, Deploy- oder Write-Smoke-Aktion ohne explizites Go.
+- Keine Tokens, Chat-IDs, Secrets, privaten Pfade, Raw-Provider-Ausgaben oder
+  private Inhalte in Repo, Tests, Logs, Evidence oder Handoffs.
+- Keine destruktiven Git-Kommandos, keine Force-Pushes, kein Reset/Checkout-
+  Rewrite.
+- Keine neue UI bauen, wenn ein Backend-/Runtime-Gate noch offen ist. UI-Edits
+  nur fuer minimale Bedienbarkeit oder Verifikation.
+- Keine neuen Grossfeatures starten, solange ein hoeher priorisierter MVP-Track
+  blockiert ist und kein klares Deferred/No-Go existiert.
+- Kein Post-MVP Research starten, bevor die MVP-Punkte 1-10 mindestens Go oder
+  bewusst Partial/Deferred sind.
+
+## Fortschrittsformat
+
+```text
+MVP-Gesamtfortschritt: XX %
+Aktiver Track: <Prio + Name>
+Status: go | partial | blocked | deferred | no_go
+Evidence:
+- ...
+Naechster Schritt:
+- ...
+```
+
+## Master Definition Of Done
+
+Das MVP ist erreicht, wenn:
+
+- Prioritaeten 1-10 jeweils Go, bewusstes Partial oder bewusstes Deferred haben.
+- PlanRuntime, Gate-Runner, Datenpfade und Runtime-Smokes backendseitig
+  verlaesslich sind.
+- ORCA/Lens/Memory-Backend-Sprache nicht mehr auseinanderlaeuft.
+- Runtime-Gates nicht mehr als offene Bauchgefuehl-Claims herumliegen.
+- Private Datenpfade policy-gated, resumable und redacted sind.
+- Homeserver Health, Telegram, Image Worker und GameDev Mounts als echte
+  Backend-/Betriebspfade eingeordnet sind.
+- UI-Neugestaltung als eigener gemeinsamer Folgeblock vorbereitet ist.
+- Post-MVP-Ideen 11 und 12 nicht mehr mit MVP-Arbeit konkurrieren.

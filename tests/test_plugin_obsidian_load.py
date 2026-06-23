@@ -99,7 +99,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert obsidian_providers
     orca_providers = [provider for provider in get_context_providers() if provider.id == "orca.vault_context"]
     assert orca_providers
-    assert orca_providers[0].retrieve is obsidian_providers[0].retrieve
+    assert orca_providers[0].retrieve is not obsidian_providers[0].retrieve
     assert {
         "chat",
         "agent",

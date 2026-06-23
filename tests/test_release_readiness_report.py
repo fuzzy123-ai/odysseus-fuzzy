@@ -1,4 +1,5 @@
 from src.manual_release_evidence import current_manual_evidence_entries, summarize_manual_evidence
+from src.mvp_master_roadmap_gate import MvpRoadmapProgress, build_mvp_version_gate
 from src.plugin_release_gate import PluginReleaseGate
 from src.release_evidence_snapshot import (
     AUTOMATED,
@@ -96,6 +97,31 @@ def test_manual_missing_and_pending_actions_are_deduplicated_with_release_snapsh
 
     assert "manual:missing:provider-proof" in report.blocking_reasons
     assert report.next_actions == ("complete_manual_release_evidence",)
+
+
+def test_version_gate_blocks_otherwise_green_release():
+    snapshot = build_release_evidence_snapshot(
+        [
+            ReleaseGate("auto", "Automated", AUTOMATED, PASS, ("pytest",)),
+            ReleaseGate("manual", "Manual", MANUAL, PASS, ("manual log",)),
+        ]
+    )
+    version_gate = build_mvp_version_gate(
+        tuple(
+            MvpRoadmapProgress(index=index, roadmap=f"Roadmap {index}", percent=100, why_not_100="-")
+            for index in range(1, 10)
+        )
+        + (MvpRoadmapProgress(index=10, roadmap="Roadmap 10", percent=88, why_not_100="live go"),),
+        ui_live=False,
+    )
+
+    report = build_release_readiness_report(snapshot, version_gate=version_gate)
+
+    assert report.status == "blocked"
+    assert report.external_release_go is False
+    assert "version_1:mvp_roadmap:10:88" in report.blocking_reasons
+    assert "version_1:mvp_ui:not_live" in report.blocking_reasons
+    assert report.next_actions == ("complete_mvp_master_roadmap", "ship_new_ui")
 
 
 def test_warnings_do_not_block_green_release():

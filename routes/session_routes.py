@@ -494,6 +494,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         skip_validation: str = Form(None),
         api_key: str = Form(""),
         endpoint_id: str = Form(""),
+        security_mode: str = Form(""),
     ):
         skip_val = str(skip_validation).lower() == "true"
         user = effective_user(request)
@@ -527,6 +528,19 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         model_to_use = model
         request_api_key = api_key.strip() if api_key else ""
         effective_api_key = request_api_key or endpoint_api_key
+        if security_mode:
+            from src.secure_provider_runtime import SecureProviderRuntimeError, enforce_session_provider_runtime_gate
+            try:
+                enforce_session_provider_runtime_gate(
+                    security_mode=security_mode,
+                    session_id="pending-session",
+                    owner=user or "runtime",
+                    provider_base_url=endpoint_base_url or endpoint_url,
+                    model_id=model_to_use or "pending-model",
+                    provider_id=endpoint_id.strip() if endpoint_id else "session-provider",
+                )
+            except (SecureProviderRuntimeError, ValueError) as exc:
+                raise HTTPException(400, str(exc))
         validation_headers = None
         if effective_api_key:
             from src.endpoint_resolver import build_headers
@@ -621,6 +635,7 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         name: str = Form(None), folder: str = Form(None),
         model: str = Form(None), endpoint_url: str = Form(None),
         endpoint_id: str = Form(None),
+        security_mode: str = Form(""),
     ):
         _verify_session_owner(request, sid)
         try:
@@ -669,6 +684,19 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     endpoint_url = build_chat_url(normalize_base(endpoint_base_url))
                 finally:
                     _db.close()
+            if security_mode:
+                from src.secure_provider_runtime import SecureProviderRuntimeError, enforce_session_provider_runtime_gate
+                try:
+                    enforce_session_provider_runtime_gate(
+                        security_mode=security_mode,
+                        session_id=sid,
+                        owner=user or "runtime",
+                        provider_base_url=endpoint_base_url or endpoint_url,
+                        model_id=model or "pending-model",
+                        provider_id=endpoint_id.strip() if endpoint_id else "session-provider",
+                    )
+                except (SecureProviderRuntimeError, ValueError) as exc:
+                    raise HTTPException(400, str(exc))
             session.model = model
             session.endpoint_url = endpoint_url
             # Update auth headers from the endpoint's stored API key

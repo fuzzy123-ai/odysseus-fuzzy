@@ -8,6 +8,7 @@ from . import vault_service
 from .feature_flags import is_enabled
 from .freshness import audit_knowledge
 from .hybrid_retrieval import enrich_context_payload
+from .orca_core import decorate_orca_context_payload
 from .vault_model import extract_tags, search_semantic
 from .vault_security import VaultSecurityError
 
@@ -364,12 +365,16 @@ def provider_spec(provider_id: str = PROVIDER_ID) -> Dict[str, Any]:
             "raptor",
             "hybrid_retrieval",
         ],
-        "retrieve": retrieve_vault_context,
+        "retrieve": retrieve_orca_vault_context if provider_id == ORCA_PROVIDER_ID else retrieve_vault_context,
     }
 
 
 def provider_alias_specs() -> List[Dict[str, Any]]:
     return [provider_spec(ORCA_PROVIDER_ID)]
+
+
+def retrieve_orca_vault_context(owner: Optional[str], query: str, budget: int, mode: str = "chat") -> Dict[str, Any]:
+    return decorate_orca_context_payload(retrieve_vault_context(owner, query, budget, mode))
 
 
 def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:

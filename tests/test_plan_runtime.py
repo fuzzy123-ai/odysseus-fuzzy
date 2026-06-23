@@ -150,6 +150,15 @@ def test_projection_revalidates_unsafe_source_refs():
         PlanRuntimeState.from_dict(payload)
 
 
+def test_runtime_normalizes_trailing_slash_source_refs_for_subagent_specs():
+    payload = _payload()
+    payload["graph_nodes"][1]["source_refs"] = ["static/js/"]
+
+    runtime = PlanRuntimeState.from_dict(payload)
+
+    assert runtime.node_map()["planruntime-source-of-truth"].source_refs == ("static/js",)
+
+
 def test_runtime_input_is_not_mutated():
     payload = _payload()
     before = copy.deepcopy(payload)

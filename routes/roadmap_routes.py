@@ -28,6 +28,7 @@ from src.visual_agent_programming_lens import (
     validate_visual_plan_acceptance,
     validate_visual_plan_edit,
 )
+from src.planruntime_post_apply_dispatch import build_post_apply_agent_dispatch_request
 
 
 def _repo_root() -> str:
@@ -173,5 +174,16 @@ def setup_roadmap_routes() -> APIRouter:
             ).to_dict()
         except (OSError, PlanRuntimeError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"visual agent programming mutation apply unavailable: {exc}") from exc
+
+    @router.post("/visual-agent-programming/dispatch/request")
+    def api_request_visual_agent_programming_dispatch(payload: dict[str, Any], request: Request):
+        require_admin(request)
+        try:
+            return build_post_apply_agent_dispatch_request(
+                payload,
+                created_at=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            ).to_dict()
+        except (PlanRuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=f"visual agent programming dispatch request unavailable: {exc}") from exc
 
     return router

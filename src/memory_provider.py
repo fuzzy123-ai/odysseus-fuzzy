@@ -6,6 +6,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
+from src.chat_security_state import ChatSecurityState
+from src.data_classification import DataClassification
+from src.secure_model_routing import ModelRouteDecision
+from src.sensitive_retrieval_guard import SourceRef, decide_retrieval_access
+
 
 @dataclass
 class MemoryRecord:
@@ -68,6 +73,8 @@ class MemoryProvider(ABC):
         *,
         owner: Optional[str] = None,
         top_k: int = 5,
+        security_state: ChatSecurityState | None = None,
+        model_route: ModelRouteDecision | None = None,
     ) -> List[MemorySearchHit]:
         """Return provider memories relevant to the query."""
 
@@ -172,6 +179,8 @@ class NativeMemoryProvider(MemoryProvider):
         *,
         owner: Optional[str] = None,
         top_k: int = 5,
+        security_state: ChatSecurityState | None = None,
+        model_route: ModelRouteDecision | None = None,
     ) -> List[MemorySearchHit]:
         memories = self.memory_manager.load(owner=owner)
         by_id = {m.get("id"): m for m in memories}
@@ -195,14 +204,14 @@ class NativeMemoryProvider(MemoryProvider):
                     )
                 )
             if hits:
-                return hits
+                return self._apply_retrieval_guard(hits, security_state=security_state, model_route=model_route)
 
         fallback = self.memory_manager.get_relevant_memories(
             query,
             memories,
             max_items=top_k,
         )
-        return [
+        hits = [
             MemorySearchHit(
                 memory=self._to_record(entry),
                 provider_id=self.provider_id,
@@ -210,6 +219,7 @@ class NativeMemoryProvider(MemoryProvider):
             )
             for entry in fallback
         ]
+        return self._apply_retrieval_guard(hits, security_state=security_state, model_route=model_route)
 
     async def list_memories(
         self,
@@ -246,6 +256,43 @@ class NativeMemoryProvider(MemoryProvider):
 
     def _vector_available(self) -> bool:
         return bool(self.memory_vector and getattr(self.memory_vector, "healthy", True))
+
+    def _apply_retrieval_guard(
+        self,
+        hits: List[MemorySearchHit],
+        *,
+        security_state: ChatSecurityState | None,
+        model_route: ModelRouteDecision | None,
+    ) -> List[MemorySearchHit]:
+        if security_state is None or not hits:
+            return hits
+        sources = [
+            SourceRef.create(
+                source_id=hit.memory.id,
+                classification=self._classification_for_record(hit.memory),
+            )
+            for hit in hits
+        ]
+        decision = decide_retrieval_access(
+            state=security_state,
+            surface="memory",
+            sources=sources,
+            model_route=model_route,
+        )
+        if not decision.allowed:
+            return []
+        allowed_ids = set(decision.context_ref_ids)
+        return [hit for hit in hits if hit.memory.id in allowed_ids]
+
+    @staticmethod
+    def _classification_for_record(record: MemoryRecord) -> DataClassification:
+        raw = record.metadata.get("classification") or record.metadata.get("ai_classification")
+        if isinstance(raw, str):
+            normalized = raw.strip().lower()
+            for item in DataClassification:
+                if item.value == normalized:
+                    return item
+        return DataClassification.PRIVATE
 
 
 class MemoryProviderRegistry:

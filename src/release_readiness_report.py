@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.manual_release_evidence import ManualEvidenceSummary
+from src.mvp_master_roadmap_gate import MvpVersionGate
 from src.plugin_release_gate import PluginReleaseGate
 from src.release_evidence_snapshot import ReleaseEvidenceSnapshot
 
@@ -39,11 +40,12 @@ def build_release_readiness_report(
     release_snapshot: ReleaseEvidenceSnapshot,
     plugin_gate: PluginReleaseGate | None = None,
     manual_evidence: ManualEvidenceSummary | None = None,
+    version_gate: MvpVersionGate | None = None,
 ) -> ReleaseReadinessReport:
     plugin_ok = True if plugin_gate is None else plugin_gate.ok
     blockers = _release_blockers(release_snapshot)
     warnings = tuple(f"release:{gate_id}" for gate_id in release_snapshot.warning_gate_ids)
-    next_actions = _next_actions(release_snapshot, plugin_gate, manual_evidence)
+    next_actions = _next_actions(release_snapshot, plugin_gate, manual_evidence, version_gate)
 
     if plugin_gate is not None and not plugin_gate.ok:
         blockers += tuple(f"plugin:{error}" for error in plugin_gate.errors)
@@ -51,9 +53,12 @@ def build_release_readiness_report(
         warnings += tuple(f"plugin:{warning}" for warning in plugin_gate.warnings)
     if manual_evidence is not None and not manual_evidence.external_go:
         blockers += _manual_evidence_blockers(manual_evidence)
+    if version_gate is not None and not version_gate.version_1_ready:
+        blockers += tuple(f"version_1:{reason}" for reason in version_gate.blocking_reasons)
 
     manual_ok = True if manual_evidence is None else manual_evidence.external_go
-    external_go = release_snapshot.external_release_go and plugin_ok and manual_ok and not blockers
+    version_ok = True if version_gate is None else version_gate.version_1_ready
+    external_go = release_snapshot.external_release_go and plugin_ok and manual_ok and version_ok and not blockers
     if blockers:
         status = "blocked"
     elif warnings:
@@ -82,6 +87,7 @@ def _next_actions(
     snapshot: ReleaseEvidenceSnapshot,
     plugin_gate: PluginReleaseGate | None,
     manual_evidence: ManualEvidenceSummary | None = None,
+    version_gate: MvpVersionGate | None = None,
 ) -> tuple[str, ...]:
     actions: list[str] = []
     if snapshot.pending_manual_gate_ids:
@@ -97,6 +103,10 @@ def _next_actions(
             actions.append("complete_manual_release_evidence")
     if plugin_gate is not None and not plugin_gate.ok:
         actions.append("fix_plugin_release_gate")
+    if version_gate is not None and not version_gate.version_1_ready:
+        actions.append("complete_mvp_master_roadmap")
+        if not version_gate.ui_live:
+            actions.append("ship_new_ui")
     if not actions and snapshot.external_release_go:
         actions.append("prepare_external_release_review")
     return tuple(dict.fromkeys(actions))

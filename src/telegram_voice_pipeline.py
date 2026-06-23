@@ -8,6 +8,8 @@ decisions later.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import re
 from typing import Callable, Mapping
 
 
@@ -39,6 +41,30 @@ class VoiceAgentTurn:
     raw_identifiers_visible: bool = False
 
 
+@dataclass(frozen=True)
+class VoiceLocalFileRef:
+    ready: bool
+    status: str
+    reason: str
+    local_file_ref: str = ""
+    raw_identifiers_visible: bool = False
+
+
+@dataclass(frozen=True)
+class VoiceReplyDecision:
+    reply_allowed: bool
+    status: str
+    reason: str
+    reply_text_present: bool = False
+    raw_identifiers_visible: bool = False
+
+
+_SECRET_RE = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password|passwd|authorization|chat[_-]?id|file[_-]?id)\b\s*[:=]\s*[^\s,;]+"
+)
+_HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+
+
 def plan_voice_download(
     message: Mapping[str, object],
     *,
@@ -59,6 +85,27 @@ def plan_voice_download(
     return VoiceDownloadDecision(True, "pending_download", "download_planned", file_handle=file_handle, max_bytes=max_bytes)
 
 
+def build_voice_local_file_ref(
+    decision: VoiceDownloadDecision,
+    *,
+    mime_type: str = "audio/ogg",
+) -> VoiceLocalFileRef:
+    """Create a deterministic local cache reference without downloading bytes."""
+
+    if not decision.allowed:
+        return VoiceLocalFileRef(False, decision.status, decision.reason)
+    if not decision.file_handle or not _HANDLE_RE.fullmatch(decision.file_handle):
+        return VoiceLocalFileRef(False, "download_blocked", "invalid_redacted_file_handle")
+    extension = _extension_for_mime(mime_type)
+    digest = hashlib.sha256(f"telegram-voice:{decision.file_handle}".encode("utf-8")).hexdigest()
+    return VoiceLocalFileRef(
+        True,
+        "local_ref_ready",
+        "download_target_planned",
+        local_file_ref=f"telegram_voice_cache/{digest[:32]}{extension}",
+    )
+
+
 def run_fakeable_stt(
     *,
     local_file_ref: str,
@@ -75,6 +122,9 @@ def run_fakeable_stt(
     if stt_provider is None:
         return VoiceSttDecision(False, "pending_stt", "stt_provider_missing")
     transcript = str(stt_provider(safe_ref) or "").strip()
+    if not transcript:
+        return VoiceSttDecision(False, "failed", "empty_transcript")
+    transcript = _redact_transcript(transcript)
     if not transcript:
         return VoiceSttDecision(False, "failed", "empty_transcript")
     return VoiceSttDecision(True, "transcribed", "stt_completed", transcript=transcript)
@@ -95,3 +145,36 @@ def build_voice_agent_turn(
         "agent_ready",
         "transcript_ready",
     )
+
+
+def plan_voice_reply(
+    turn: VoiceAgentTurn,
+    *,
+    reply_enabled: bool = False,
+    reply_text: str = "",
+) -> VoiceReplyDecision:
+    """Plan a Telegram text reply after the agent turn without sending it."""
+
+    if not turn.ready_for_agent:
+        return VoiceReplyDecision(False, turn.status, turn.reason)
+    if not reply_enabled:
+        return VoiceReplyDecision(False, "reply_blocked", "reply_gate_disabled")
+    if not str(reply_text or "").strip():
+        return VoiceReplyDecision(False, "reply_blocked", "reply_text_missing")
+    return VoiceReplyDecision(True, "reply_ready", "reply_planned", reply_text_present=True)
+
+
+def _extension_for_mime(mime_type: str) -> str:
+    normalized = str(mime_type or "").strip().lower()
+    if normalized == "audio/ogg":
+        return ".ogg"
+    if normalized in {"audio/mpeg", "audio/mp3"}:
+        return ".mp3"
+    if normalized == "audio/wav":
+        return ".wav"
+    return ".bin"
+
+
+def _redact_transcript(value: str) -> str:
+    text = _SECRET_RE.sub("[redacted]", str(value or ""))
+    return " ".join(text.split())

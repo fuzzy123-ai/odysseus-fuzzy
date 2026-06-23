@@ -24,6 +24,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 
 | Plan | Rolle ab jetzt |
 | --- | --- |
+| `docs/plans/mvp-master-roadmap.md` | aktive menschliche MVP-Priorisierung mit Backend-/Logik-Fokus: Punkte 1-10 sind MVP, UI-Neugestaltung folgt gemeinsam, GitHub Issue Intelligence und Research bleiben Post-MVP |
 | `docs/obsidian/00-priorisierte-roadmap.md` | Archiv und Detailplan fuer Memory-first/Obsidian-Lens bis M6 |
 | `docs/plans/deepseek-model-router-graceful-degradation.md` | Detail- und Evidence-Plan fuer M6 Model Router |
 | `docs/plans/1.0-evidence-release-checklist.md` | aktive 1.0-Go/No-Go-Checkliste fuer Evidence, manuelle Release-Gates und Bugfix-Fenster |

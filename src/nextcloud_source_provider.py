@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from src.chat_security_state import ChatSecurityState
 from src.nextcloud_source_policy import (
     RECOMMENDED_ACTOR,
     REQUIRED_FOLDERS,
@@ -15,6 +16,7 @@ from src.nextcloud_source_policy import (
     validate_root_path,
     validate_webdav_endpoint,
 )
+from src.secure_policy_gate import PolicyDecision, PolicyGateResult, decide_source_access
 
 
 ALLOWED_STATUSES = ("ready", "partial", "blocked", "deferred")
@@ -33,6 +35,9 @@ class NextcloudSourceReadinessReport:
     next_actions: tuple[str, ...]
     errors: tuple[SourcePolicyIssue, ...]
     warnings: tuple[SourcePolicyIssue, ...]
+    secure_policy_decision: str = ""
+    secure_policy_allowed: bool = True
+    secure_policy_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,10 +52,18 @@ class NextcloudSourceReadinessReport:
             "next_actions": self.next_actions,
             "errors": tuple(issue.code for issue in self.errors),
             "warnings": tuple(issue.code for issue in self.warnings),
+            "secure_policy_decision": self.secure_policy_decision,
+            "secure_policy_allowed": self.secure_policy_allowed,
+            "secure_policy_reason": self.secure_policy_reason,
         }
 
 
-def assess_nextcloud_source_provider(config: Mapping[str, Any]) -> NextcloudSourceReadinessReport:
+def assess_nextcloud_source_provider(
+    config: Mapping[str, Any],
+    *,
+    security_mode: Any = "normal",
+    source_classification: Any = "private",
+) -> NextcloudSourceReadinessReport:
     if not isinstance(config, Mapping):
         raise TypeError("config must be a mapping")
 
@@ -108,10 +121,22 @@ def assess_nextcloud_source_provider(config: Mapping[str, Any]) -> NextcloudSour
     if folders and tuple(folders) == REQUIRED_FOLDERS:
         pass
 
+    secure_policy = _decide_private_source_policy(
+        provider_id=provider_id or "nextcloud_source",
+        actor=actor or RECOMMENDED_ACTOR,
+        security_mode=security_mode,
+        source_classification=source_classification,
+    )
+    if not secure_policy.allowed:
+        reasons.append(secure_policy.block_reason)
+        next_actions.append(secure_policy.next_action)
+
     if not errors and not warnings and "provider_disabled_by_config" not in reasons:
         reasons.append("offline_readonly_policy_satisfied")
 
     status = _derive_status(errors=errors, warnings=warnings, reasons=reasons)
+    if not secure_policy.allowed:
+        status = "partial" if secure_policy.decision == PolicyDecision.REQUIRE_REVIEW else "blocked"
     next_actions = list(dict.fromkeys(next_actions or _default_next_actions(status, provider_id)))
     reasons = list(dict.fromkeys(reasons))
 
@@ -127,11 +152,34 @@ def assess_nextcloud_source_provider(config: Mapping[str, Any]) -> NextcloudSour
         next_actions=tuple(next_actions),
         errors=tuple(errors),
         warnings=tuple(warnings),
+        secure_policy_decision=secure_policy.decision.value,
+        secure_policy_allowed=secure_policy.allowed,
+        secure_policy_reason=secure_policy.block_reason,
     )
 
 
-def summarize_nextcloud_source_provider(config: Mapping[str, Any]) -> dict[str, Any]:
-    return assess_nextcloud_source_provider(config).to_dict()
+def summarize_nextcloud_source_provider(config: Mapping[str, Any], **kwargs: Any) -> dict[str, Any]:
+    return assess_nextcloud_source_provider(config, **kwargs).to_dict()
+
+
+def _decide_private_source_policy(
+    *,
+    provider_id: str,
+    actor: str,
+    security_mode: Any,
+    source_classification: Any,
+) -> PolicyGateResult:
+    state = ChatSecurityState.create(
+        chat_id=f"{provider_id}-readiness",
+        thread_id=f"{provider_id}-readiness",
+        security_mode=str(security_mode or "normal"),
+        created_at="2026-06-22T00:00:00Z",
+        requested_by=actor,
+    )
+    return decide_source_access(
+        state=state,
+        source_classifications=[source_classification],
+    )
 
 
 def _capture(

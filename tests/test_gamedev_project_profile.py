@@ -1,6 +1,7 @@
 from src.gamedev_project_profile import (
     GODOT_WRITE_EXTENSIONS,
     build_gamedev_command_plan,
+    build_gamedev_write_smoke_plan,
     build_gamedev_mount_report,
     decide_gamedev_command_intent,
     godot_mount_profile,
@@ -160,3 +161,59 @@ def test_gamedev_mount_report_returns_redacted_profile_reasons():
     assert report.status == "partial"
     assert "missing_godot_extensions" in report.reasons
     assert "E:" not in str(public)
+
+
+def test_gamedev_write_smoke_plan_requires_operator_go_without_host_path():
+    profile = godot_mount_profile(name="Canyon", host_path=r"E:\Canyoning", owner="fuzzy")
+
+    plan = build_gamedev_write_smoke_plan(profile, owner="fuzzy")
+
+    assert plan.ready is False
+    assert plan.reason == "operator_go_required"
+    assert plan.virtual_path == "/mnt/canyon-racer/.odysseus-write-smoke.txt"
+    assert plan.cleanup_virtual_path == plan.virtual_path
+    assert plan.operator_go_required is True
+    assert plan.host_path_visible is False
+    assert "E:" not in str(plan)
+
+
+def test_gamedev_write_smoke_plan_can_become_ready_after_explicit_go():
+    profile = godot_mount_profile(name="Canyon", host_path=r"E:\Canyoning", owner="fuzzy")
+
+    plan = build_gamedev_write_smoke_plan(
+        profile,
+        virtual_path="/mnt/canyon-racer/tests/write-smoke.md",
+        content="temporary smoke artifact\n",
+        owner="fuzzy",
+        operator_go=True,
+    )
+
+    assert plan.ready is True
+    assert plan.reason == "ready_for_reversible_write_smoke"
+    assert plan.cleanup_virtual_path == "/mnt/canyon-racer/tests/write-smoke.md"
+    assert plan.byte_count == len("temporary smoke artifact\n".encode("utf-8"))
+
+
+def test_gamedev_write_smoke_plan_rejects_unsafe_targets():
+    profile = godot_mount_profile(name="Canyon", host_path=r"E:\Canyoning", owner="fuzzy")
+
+    outside = build_gamedev_write_smoke_plan(
+        profile,
+        virtual_path="/mnt/other/write-smoke.txt",
+        owner="fuzzy",
+        operator_go=True,
+    )
+    disallowed_extension = build_gamedev_write_smoke_plan(
+        profile,
+        virtual_path="/mnt/canyon-racer/write-smoke.exe",
+        owner="fuzzy",
+        operator_go=True,
+    )
+    wrong_owner = build_gamedev_write_smoke_plan(profile, owner="other", operator_go=True)
+
+    assert outside.ready is False
+    assert outside.reason == "target_must_stay_under_virtual_mount"
+    assert disallowed_extension.ready is False
+    assert disallowed_extension.reason == "extension_not_allowed"
+    assert wrong_owner.ready is False
+    assert wrong_owner.reason == "owner_mismatch"

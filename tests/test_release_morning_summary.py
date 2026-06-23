@@ -5,16 +5,16 @@ from src.local_release_readiness_bundle import build_local_release_readiness_bun
 from src.release_morning_summary import build_current_release_morning_summary, build_release_morning_summary
 
 
-def test_current_release_morning_summary_is_compact_and_go():
+def test_current_release_morning_summary_is_compact_and_version_gated():
     summary = build_current_release_morning_summary()
 
-    assert summary.status == "go"
-    assert summary.external_release_go is True
+    assert summary.status == "blocked"
+    assert summary.external_release_go is False
     assert summary.plugin_gate_ok is True
     assert summary.local_plugin_audit_ok is True
     assert summary.artifact_manifest_ok is True
     assert summary.active_owners == ("Charlie",)
-    assert summary.next_action_ids == ("REL-final-external-review",)
+    assert summary.next_action_ids == ("REL-mvp-version-1-gate",)
     assert summary.missing_required_artifacts == ()
     assert summary.local_plugin_failing_ids == ()
 
@@ -41,12 +41,13 @@ def test_release_morning_summary_reports_missing_artifacts(tmp_path):
 def test_release_morning_summary_to_dict_is_stable():
     payload = build_current_release_morning_summary().to_dict()
 
-    assert payload["status"] == "go"
-    assert payload["external_release_go"] is True
+    assert payload["status"] == "blocked"
+    assert payload["external_release_go"] is False
     assert payload["plugin_gate_ok"] is True
     assert payload["local_plugin_audit_ok"] is True
     assert payload["artifact_manifest_ok"] is True
     assert payload["active_owners"] == ("Charlie",)
+    assert payload["next_action_ids"] == ("REL-mvp-version-1-gate",)
     assert payload["missing_required_artifacts"] == ()
     assert payload["local_plugin_failing_ids"] == ()
 

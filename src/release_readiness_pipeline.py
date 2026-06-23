@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.manual_release_evidence import current_manual_evidence_entries, summarize_manual_evidence
+from src.mvp_master_roadmap_gate import MvpVersionGate, build_current_mvp_version_gate
 from src.plugin_release_gate import PluginReleaseGate
 from src.release_followup_matrix import ReleaseFollowupMatrix, build_release_followup_matrix
 from src.release_evidence_snapshot import AUTOMATED, PASS, ReleaseGate, build_release_evidence_snapshot
@@ -22,6 +23,7 @@ class ReleaseReadinessPipelineSnapshot:
     report: ReleaseReadinessReport
     followup_slices: tuple[ReleaseFollowupSlice, ...]
     followup_matrix: ReleaseFollowupMatrix
+    version_gate: MvpVersionGate
 
     @property
     def external_release_go(self) -> bool:
@@ -48,25 +50,30 @@ class ReleaseReadinessPipelineSnapshot:
             },
             "followup_slices": tuple(item.to_dict() for item in self.followup_slices),
             "followup_matrix": self.followup_matrix.to_dict(),
+            "version_gate": self.version_gate.to_dict(),
         }
 
 
 def build_current_release_readiness_pipeline(
     plugin_gate: PluginReleaseGate | None = None,
+    version_gate: MvpVersionGate | None = None,
 ) -> ReleaseReadinessPipelineSnapshot:
     """Build the current documented 1.0 state without running live checks."""
     release_snapshot = build_release_evidence_snapshot(current_automated_release_gates())
     manual_summary = summarize_manual_evidence(current_manual_evidence_entries())
+    resolved_version_gate = version_gate or build_current_mvp_version_gate(ui_live=False)
     report = build_release_readiness_report(
         release_snapshot,
         plugin_gate=plugin_gate,
         manual_evidence=manual_summary,
+        version_gate=resolved_version_gate,
     )
     followup_slices = route_release_followups(report)
     return ReleaseReadinessPipelineSnapshot(
         report=report,
         followup_slices=followup_slices,
         followup_matrix=build_release_followup_matrix(followup_slices),
+        version_gate=resolved_version_gate,
     )
 
 

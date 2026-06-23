@@ -114,6 +114,15 @@ def _map_blocker(reason: str) -> ReleaseFollowupSlice | None:
             "Plugin release gate passes or a focused plugin blocker is documented",
             False,
         )
+    if reason.startswith("version_1:mvp_roadmap:") or reason == "version_1:mvp_ui:not_live":
+        return ReleaseFollowupSlice(
+            "REL-mvp-version-1-gate",
+            "Charlie",
+            "Close MVP MasterRoadmap Version 1.0 gate",
+            ("docs/plans/mvp-master-roadmap.md",),
+            "All ten MVP roadmaps are 100% and the new UI live gate is true before Version 1.0 is claimed",
+            False,
+        )
     if reason.startswith("release:blocking:"):
         return ReleaseFollowupSlice(
             "REL-automated-gate-fix",
@@ -149,6 +158,15 @@ def _map_action(action: str) -> ReleaseFollowupSlice | None:
                 "docs/plans/1.0-manual-release-evidence-log.md",
             ),
             "No required manual gate is missing or pending",
+            False,
+        )
+    if action in {"complete_mvp_master_roadmap", "ship_new_ui"}:
+        return ReleaseFollowupSlice(
+            "REL-mvp-version-1-gate",
+            "Charlie",
+            "Close MVP MasterRoadmap Version 1.0 gate",
+            ("docs/plans/mvp-master-roadmap.md",),
+            "All ten MVP roadmaps are 100% and the new UI live gate is true before Version 1.0 is claimed",
             False,
         )
     return None

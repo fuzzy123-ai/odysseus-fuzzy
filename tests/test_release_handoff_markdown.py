@@ -6,9 +6,9 @@ def test_render_current_release_handoff_markdown_combines_status_and_followups()
 
     assert markdown.startswith("# Release Orchestration Status\n\n")
     assert "# Release Followups" in markdown
-    assert "- Status: `go`" in markdown
-    assert "- External release go: `true`" in markdown
-    assert "| `REL-final-external-review` | Charlie | no |" in markdown
+    assert "- Status: `blocked`" in markdown
+    assert "- External release go: `false`" in markdown
+    assert "| `REL-mvp-version-1-gate` | Charlie | no |" in markdown
     assert "| `REL-provider-proof-evidence` |" not in markdown
     assert "| `REL-test-vault-rebuild-evidence` |" not in markdown
 

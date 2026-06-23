@@ -20,6 +20,7 @@ from plugins.telegram.plugin import (
     run_telegram_polling_cycle,
     setup,
 )
+from src.image_tools_worker import ImageToolsWorkerResult
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 
 
@@ -157,6 +158,9 @@ def test_setup_registers_gated_telegram_reply_tool(tmp_path, monkeypatch):
 
     tools = {tool.name: tool for tool in ctx.registered_tools}
     assert "telegram_reply" in tools
+    properties = tools["telegram_reply"].parameters["properties"]
+    assert properties["classification"]["enum"] == ["public", "private", "sensitive", "secret"]
+    assert properties["security_mode"]["enum"] == ["normal", "secure"]
     result = asyncio.run(tools["telegram_reply"].execute(json.dumps({
         "chat_id": "123",
         "text": "Hallo",
@@ -554,6 +558,67 @@ def test_reply_route_rejects_disallowed_chat_when_reply_gate_enabled(tmp_path, m
     assert '"chat_id"' not in persisted_text
 
 
+def test_reply_route_blocks_sensitive_classification_by_channel_policy(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _send(chat_id, text):
+        sent.append((chat_id, text))
+        return {"ok": True}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _send)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/reply",
+        json={
+            "chat_id": "123",
+            "text": "Sensible Antwort",
+            "classification": "sensitive",
+            "security_mode": "normal",
+        },
+    )
+
+    assert response.status_code == 403
+    assert sent == []
+    history = TelegramInboxStore(tmp_path).history(chat_id="123")
+    assert history[0]["delivery_status"] == "blocked"
+    assert history[0]["failure_reason"] == "sensitive_source_in_normal_chat"
+
+
+def test_reply_route_allows_public_classification_by_channel_policy(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _send(chat_id, text):
+        sent.append((chat_id, text))
+        return {"ok": True, "telegram_message_id": 77, "token_value_visible": False}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _send)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/reply",
+        json={
+            "chat_id": "123",
+            "text": "Public Antwort",
+            "classification": "public",
+            "security_mode": "normal",
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [("123", "Public Antwort")]
+
+
 def test_session_bridge_reuses_existing_mapping(tmp_path):
     store = TelegramSessionBridgeStore(tmp_path)
     created = []
@@ -809,6 +874,176 @@ def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypat
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert "voice-file-id" not in persisted_text
     assert "unique-voice" not in persisted_text
+
+
+def test_image_identifiers_are_redacted_and_actions_are_default_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "image-chat-999")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 28,
+        "message": {
+            "message_id": 32,
+            "chat": {"id": "image-chat-999"},
+            "photo": [
+                {"file_id": "small-image-file-id", "file_unique_id": "small-unique", "width": 32, "height": 32, "file_size": 128},
+                {"file_id": "large-image-file-id", "file_unique_id": "large-unique", "width": 512, "height": 512, "file_size": 4096},
+            ],
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["message"]["kind"] == "image"
+    assert payload["message"]["media"]["file_handle"].startswith("image_file_")
+    assert payload["message"]["media"]["file_unique_handle"].startswith("image_unique_")
+    assert payload["image_action"]["plan"]["status"] == "disabled"
+    assert payload["agent_bridge"]["note"] == "image_action_pending"
+    assert "file_id" not in payload["message"]["media"]
+    assert "file_unique_id" not in payload["message"]["media"]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "large-image-file-id" not in persisted_text
+    assert "large-unique" not in persisted_text
+
+
+def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "image-chat-999")
+    monkeypatch.setenv("TELEGRAM_IMAGE_ACTIONS_ENABLED", "true")
+    calls = []
+
+    class FakeImageWorker:
+        def remove_background(self, image_bytes, hint_mask_bytes=None):
+            calls.append((image_bytes, hint_mask_bytes))
+            return ImageToolsWorkerResult(ok=True, image_bytes=b"\x89PNG\r\n\x1a\ntelegram-worker")
+
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_image_bytes_provider = lambda file_handle: b"source:" + file_handle.encode("ascii")
+    ctx.telegram_image_worker_client = FakeImageWorker()
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 29,
+        "message": {
+            "message_id": 33,
+            "chat": {"id": "image-chat-999"},
+            "photo": [
+                {"file_id": "image-file-id", "file_unique_id": "image-unique", "width": 128, "height": 128, "file_size": 2048},
+            ],
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["image_action"]["plan"]["allowed"] is True
+    assert payload["image_action"]["worker"]["called"] is True
+    assert payload["image_action"]["worker"]["ok"] is True
+    assert payload["image_action"]["worker"]["output_image_present"] is True
+    assert payload["image_action"]["worker"]["raw_image_visible"] is False
+    assert calls and calls[0][0].startswith(b"source:image_file_")
+    assert "image-file-id" not in response.text
+
+
+def test_webhook_voice_pipeline_can_create_fake_stt_agent_turn_without_persisting_transcript(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+    turns = []
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "sess-voice"}
+
+    def _agent_turn(bridge):
+        turns.append(bridge)
+        return {"status": "accepted", "reply_text": ""}
+
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path, telegram_agent_turn_handler=_agent_turn)
+    ctx.telegram_session_bridge = _session_bridge
+    ctx.telegram_voice_stt_provider = lambda _local_ref: "Bitte fasse meine Notiz zusammen token=raw-secret"
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 18,
+        "message": {
+            "message_id": 22,
+            "chat": {"id": "voice-chat-999"},
+            "voice": {
+                "file_id": "voice-file-id",
+                "file_unique_id": "unique-voice",
+                "duration": 3,
+                "mime_type": "audio/ogg",
+                "file_size": 2048,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["voice_pipeline"]["download"]["allowed"] is True
+    assert payload["voice_pipeline"]["stt"]["transcript_present"] is True
+    assert payload["voice_pipeline"]["stt"]["transcript_value_visible"] is False
+    assert payload["agent_bridge"]["ready_for_agent"] is True
+    assert payload["agent_bridge"]["note"] == "voice_transcribed"
+    assert "Bitte fasse meine Notiz" in turns[0]["prompt"]
+    assert "raw-secret" not in turns[0]["prompt"]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "Bitte fasse meine Notiz" not in persisted_text
+    assert "voice-file-id" not in persisted_text
+    assert "unique-voice" not in persisted_text
+
+
+def test_polling_cycle_voice_pipeline_uses_fake_stt_provider_without_network(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 1,
+            "message": {
+                "message_id": 2,
+                "chat": {"id": "voice-chat-999"},
+                "voice": {
+                    "file_id": "voice-file-id",
+                    "file_unique_id": "unique-voice",
+                    "duration": 2,
+                    "mime_type": "audio/ogg",
+                    "file_size": 1024,
+                },
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-poll-voice"},
+        voice_stt_provider=lambda _local_ref: "voice transcript ready",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["agent_turns"] == 1
+    assert turns[0]["note"] == "voice_transcribed"
+    assert "voice transcript ready" in turns[0]["prompt"]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "voice transcript ready" not in persisted_text
+
+
+def test_readiness_reports_voice_pipeline_gates_without_enabling_network(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+
+    readiness = build_telegram_readiness(tmp_path)
+
+    assert readiness["voice_boundary"]["mode"] == "fakeable_pipeline"
+    assert readiness["voice_boundary"]["download_enabled"] is True
+    assert readiness["voice_boundary"]["stt_enabled"] is True
+    assert readiness["network_enabled"] is False
 
 
 def test_readiness_reports_pending_voice_without_raw_identifiers(tmp_path, monkeypatch):

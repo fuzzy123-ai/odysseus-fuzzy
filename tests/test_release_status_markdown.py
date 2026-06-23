@@ -50,10 +50,11 @@ def test_render_release_status_markdown_for_empty_lists():
     assert "- Next actions: `none`" in markdown
 
 
-def test_render_current_release_status_markdown_uses_documented_go_state():
+def test_render_current_release_status_markdown_uses_mvp_version_gate():
     markdown = render_current_release_status_markdown()
 
-    assert "- Status: `go`" in markdown
-    assert "- External release go: `true`" in markdown
+    assert "- Status: `blocked`" in markdown
+    assert "- External release go: `false`" in markdown
     assert "- Active owners: `Charlie`" in markdown
     assert "- Parallel candidates: `none`" in markdown
+    assert "- Sequential gates: `REL-mvp-version-1-gate`" in markdown

@@ -111,6 +111,71 @@ def test_native_provider_recall_falls_back_to_keyword_search(tmp_path):
     assert hits[0].score is None
 
 
+def test_native_provider_recall_blocks_sensitive_hits_in_normal_chat(tmp_path):
+    from src.chat_security_state import ChatSecurityState
+    from src.memory import MemoryManager
+    from src.memory_provider import NativeMemoryProvider
+
+    manager = MemoryManager(str(tmp_path))
+    provider = NativeMemoryProvider(manager)
+    run(provider.remember(
+        "classified secret",
+        owner="alice",
+        metadata={"classification": "secret"},
+    ))
+    state = ChatSecurityState.create(
+        chat_id="normal-memory",
+        thread_id="normal-memory",
+        security_mode="normal",
+        created_at="2026-06-22T12:00:00Z",
+        requested_by="memory-test",
+    )
+
+    hits = run(provider.recall("classified", owner="alice", security_state=state))
+
+    assert hits == []
+
+
+def test_native_provider_recall_allows_sensitive_hits_with_secure_local_route(tmp_path):
+    from src.chat_security_state import ChatSecurityState
+    from src.memory import MemoryManager
+    from src.memory_provider import NativeMemoryProvider
+    from src.secure_model_routing import ModelCandidate, decide_model_route
+
+    manager = MemoryManager(str(tmp_path))
+    provider = NativeMemoryProvider(manager)
+    stored = run(provider.remember(
+        "classified secret",
+        owner="alice",
+        metadata={"classification": "sensitive"},
+    ))
+    state = ChatSecurityState.create(
+        chat_id="secure-memory",
+        thread_id="secure-memory",
+        security_mode="secure",
+        created_at="2026-06-22T12:00:00Z",
+        requested_by="memory-test",
+    )
+    route = decide_model_route(
+        state=state,
+        primary=ModelCandidate.create(
+            model_id="local-chat",
+            provider_id="ollama",
+            provider_scope="local_only",
+            use="chat",
+        ),
+    )
+
+    hits = run(provider.recall(
+        "classified",
+        owner="alice",
+        security_state=state,
+        model_route=route,
+    ))
+
+    assert [hit.memory.id for hit in hits] == [stored.id]
+
+
 def test_memory_provider_registry_exposes_only_active_provider_tools():
     from src.memory_provider import MemoryProvider, MemoryProviderRegistry
 
