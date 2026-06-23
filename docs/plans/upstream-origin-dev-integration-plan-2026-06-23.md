@@ -108,14 +108,19 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 ### U4 - P1 Hardware Fit Catalog
 
 - Class: repo_only
+- Status: done in dev.
 - Effort: 3/10
 - Port commits:
   - `b57989f0` remote Windows hardware scan over SSH.
   - `119228a6` Gemma 4 12B/QAT catalog entries and RTX 3050 bandwidth.
 - Expected touched areas: `services/hwfit/*`, `tests/test_hwfit_*`.
+- Implemented:
+  - Remote Windows hardware probing now uses PowerShell `-EncodedCommand` over SSH and auto-detects remote platform when no platform is supplied.
+  - RTX 3050 / 3050 Ti bandwidth values are included in the fit heuristic.
+  - Gemma 4 12B instruct and QAT INT4/INT8/GGUF catalog entries are available to ranking.
 - Verification:
-  - `python -m pytest tests/test_hwfit_windows.py tests/test_hwfit_gemma4_12b.py`
-- Exit: commit and push.
+  - `python -m pytest tests/test_hwfit_windows.py tests/test_hwfit_gemma4_12b.py` - 12 passed.
+- Exit: committed and pushed to `fuzzy/dev`.
 
 ### U5 - P2 Portable Frontend Behavior Fixes
 
