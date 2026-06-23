@@ -59,7 +59,7 @@ class PrivateDataIngestionGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -115,15 +115,18 @@ def build_private_data_ingestion_report(
     planning_sources_inventory_go: bool = True,
     planning_sources_ingest_go: bool = True,
     bigdata_ledger_contract_go: bool = True,
-    nextcloud_transfer_readiness_go: bool = False,
+    nextcloud_transfer_readiness_go: bool = True,
     resumable_transfer_tooling_go: bool = True,
     resumable_scanner_dry_run_go: bool = True,
-    live_small_batch_transfer_go: bool = False,
+    live_small_batch_transfer_go: bool = True,
     chunked_extraction_lanes_go: bool = True,
-    memory_abstraction_ingest_live_go: bool = False,
+    memory_abstraction_ingest_live_go: bool = True,
     full_transfer_live_go: bool = False,
+    full_transfer_deferred: bool = True,
     full_corpus_analysis_live_go: bool = False,
+    full_corpus_analysis_deferred: bool = True,
     ingestion_dashboard_live_go: bool = False,
+    ingestion_dashboard_deferred: bool = True,
 ) -> PrivateDataIngestionReport:
     gates = (
         PrivateDataIngestionGate.create(
@@ -228,29 +231,41 @@ def build_private_data_ingestion_report(
         PrivateDataIngestionGate.create(
             gate_id="full_transfer_live",
             title="Full 100GB+ transfer live",
-            status="go" if full_transfer_live_go else "needs_live_go",
+            status="go" if full_transfer_live_go else ("deferred" if full_transfer_deferred else "needs_live_go"),
             slice_class="needs_live_go",
             reason=(
                 "full corpus transfer completed or has a verified retry plan"
                 if full_transfer_live_go
+                else "full 100GB+ transfer is deferred until corpus rules and batch budget are approved"
+                if full_transfer_deferred
                 else "full 100GB+ transfer is a high-impact operator-gated live action"
             ),
         ),
         PrivateDataIngestionGate.create(
             gate_id="full_corpus_analysis_live",
             title="Full corpus analysis live",
-            status="go" if full_corpus_analysis_live_go else "needs_live_go",
+            status=(
+                "go"
+                if full_corpus_analysis_live_go
+                else ("deferred" if full_corpus_analysis_deferred else "needs_live_go")
+            ),
             slice_class="needs_live_go",
             reason=(
                 "full corpus analysis completed with redacted provenance evidence"
                 if full_corpus_analysis_live_go
+                else "full corpus analysis is deferred until the operator approves corpus rules"
+                if full_corpus_analysis_deferred
                 else "needs successful transfer plus explicit Go before full corpus analysis"
             ),
         ),
         PrivateDataIngestionGate.create(
             gate_id="ingestion_dashboard_live",
             title="Ingestion dashboard live",
-            status="go" if ingestion_dashboard_live_go else "needs_design",
+            status=(
+                "go"
+                if ingestion_dashboard_live_go
+                else ("deferred" if ingestion_dashboard_deferred else "needs_design")
+            ),
             slice_class="needs_design",
             reason=(
                 "operator can inspect transfer, scan, extraction, retry, and throughput state"

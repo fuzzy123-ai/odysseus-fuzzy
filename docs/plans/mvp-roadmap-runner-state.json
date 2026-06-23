@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 3,
-    "active_slice": "r3-nextcloud-readiness-inputs",
+    "active_roadmap": 4,
+    "active_slice": "r4-host-agent-config-review",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -31,7 +31,7 @@
     "telegram_voice_stt": false,
     "telegram_reply_send": true,
     "nextcloud_readiness_check": true,
-    "nextcloud_transfer_write": false,
+    "nextcloud_transfer_write": true,
     "host_agent_plan_review": true,
     "host_agent_install_or_start": false,
     "image_worker_health": true,
@@ -82,9 +82,9 @@
     {
       "number": 3,
       "name": "Private Data / Nextcloud Memory Ingestion",
-      "percent": 60,
-      "status": "repo_open",
-      "why_not_100": "Source/target intent and privacy partition are prepared; target user/secret, test budget, local model live gate, and copy/memory test run are still missing.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r3-privacy-partition",
@@ -113,24 +113,24 @@
         {
           "id": "r3-nextcloud-readiness-inputs",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Verify redacted Nextcloud/WebDAV readiness and record exact missing inputs.",
           "required_inputs": ["target Nextcloud user/secret marker", "bounded test budget", "local model live marker", "copy-only memory test-run decision"],
           "required_live_go": ["nextcloud_readiness_check"],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md", "docs/plans/mvp-roadmap-runner-state.json"],
           "tests": ["tests/test_live_nextcloud_readiness_check.py"],
-          "blocker": "Source/target intent and runtime sensitive roots are known, but target user/secret, bounded test budget, local Gemma/Ollama live marker, and copy/memory test-run Go are missing."
+          "blocker": ""
         },
         {
           "id": "r3-small-batch-transfer-smoke",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Run the smallest reversible transfer/readiness smoke after config is present.",
           "required_inputs": ["successful readiness", "bounded batch size", "target user/secret marker", "local model live marker"],
           "required_live_go": ["nextcloud_transfer_write"],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
           "tests": ["tests/test_nextcloud_resumable_transfer.py"],
-          "blocker": "Depends on target Nextcloud credentials, local model availability, and explicit bounded copy/memory test-run Go."
+          "blocker": ""
         }
       ]
     },
@@ -274,15 +274,6 @@
     }
   ],
   "gate_queue": [
-    {
-      "id": "R3-NEXTCLOUD-CONFIG",
-      "class": "needs_live_go",
-      "blocks": "Roadmap 3 live readiness and small-batch transfer",
-      "decision_needed": "Provide target Nextcloud user/secret marker, bounded test budget, local Gemma/Ollama live marker, and explicit copy-only memory test-run Go.",
-      "safe_preparation_done": "Resumable transfer, scanner, privacy partition, chunking, and ledger contracts are implemented offline without real source metadata in repo artifacts.",
-      "risk_if_bypassed": "Could touch private data, mirror the wrong scope, or process sensitive files without local-only model enforcement.",
-      "next_safe_slice": "R4/R5/R9"
-    },
     {
       "id": "R4-HOST-AGENT-TARGET",
       "class": "needs_live_go",

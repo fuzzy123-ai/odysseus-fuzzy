@@ -8,19 +8,23 @@ def test_default_private_data_ingestion_progress_matches_canonical_done_nodes():
     report = build_private_data_ingestion_report()
 
     assert report.roadmap_id == "private_data_nextcloud_memory_ingestion"
-    assert report.percent_complete == 50
-    assert "Nextcloud transfer readiness" in report.why_not_100
-    assert "Nextcloud transfer readiness" in report.recommended_next_human_decision
+    assert report.percent_complete == 100
+    assert report.why_not_100 == "-"
+    assert "System Health Checker Host-Agent" in report.recommended_next_human_decision
 
     gates = {gate.gate_id: gate for gate in report.gates}
     assert gates["planning_sources_inventory"].status == "go"
     assert gates["planning_sources_ingest"].status == "go"
     assert gates["bigdata_ledger_contract"].status == "go"
-    assert gates["nextcloud_transfer_readiness"].status == "repo_open"
+    assert gates["nextcloud_transfer_readiness"].status == "go"
     assert gates["resumable_transfer_tooling"].status == "go"
     assert gates["resumable_scanner_dry_run"].status == "go"
     assert gates["chunked_extraction_lanes"].status == "go"
-    assert gates["live_small_batch_transfer"].slice_class == "needs_live_go"
+    assert gates["live_small_batch_transfer"].status == "go"
+    assert gates["memory_abstraction_ingest_live"].status == "go"
+    assert gates["full_transfer_live"].status == "deferred"
+    assert gates["full_corpus_analysis_live"].status == "deferred"
+    assert gates["ingestion_dashboard_live"].status == "deferred"
     assert gates["ingestion_dashboard_live"].slice_class == "needs_design"
 
 
@@ -47,7 +51,12 @@ def test_private_data_ingestion_live_gate_is_recommended_after_repo_gates():
     report = build_private_data_ingestion_report(
         nextcloud_transfer_readiness_go=True,
         resumable_scanner_dry_run_go=True,
+        live_small_batch_transfer_go=False,
         chunked_extraction_lanes_go=True,
+        memory_abstraction_ingest_live_go=False,
+        full_transfer_deferred=False,
+        full_corpus_analysis_deferred=False,
+        ingestion_dashboard_deferred=False,
     )
 
     assert report.percent_complete == 58
