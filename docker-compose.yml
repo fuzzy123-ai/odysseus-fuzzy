@@ -4,6 +4,7 @@ services:
       context: .
       args:
         INSTALL_OPTIONAL: ${INSTALL_OPTIONAL:-false}
+        INSTALL_STT: ${INSTALL_STT:-false}
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-7000}:7000"
     volumes:
