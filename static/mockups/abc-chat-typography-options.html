@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Chat Typography Options</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --panel: #07111d;
+      --panel-soft: #0a1622;
+      --ink: #d7f7ff;
+      --muted: #7da5b4;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --line: rgba(71, 202, 236, 0.2);
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --sans: Aptos, "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+      --system: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Inter";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/Inter-Regular.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        linear-gradient(rgba(69, 215, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(69, 215, 255, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at 52% 18%, rgba(22, 217, 245, 0.13), transparent 28%),
+        var(--bg);
+      background-size: 42px 42px, 42px 42px, auto, auto;
+      color: var(--ink);
+      font-family: var(--system);
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 38px 0 52px;
+    }
+
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font: 600 18px var(--mono);
+      color: var(--cyan);
+    }
+
+    .note {
+      margin: 0;
+      max-width: 560px;
+      color: var(--muted);
+      font: 13px/1.45 var(--sans);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+    }
+
+    .option {
+      border: 1px solid rgba(71, 202, 236, 0.2);
+      border-radius: 10px;
+      background: rgba(5, 15, 26, 0.88);
+      overflow: hidden;
+      min-height: 360px;
+    }
+
+    .option-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(71, 202, 236, 0.13);
+      background: rgba(2, 8, 15, 0.62);
+    }
+
+    .option-title {
+      font: 600 12px var(--mono);
+      color: var(--ink);
+    }
+
+    .fit {
+      color: var(--cyan);
+      font: 11px var(--mono);
+    }
+
+    .chat-sample {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .msg {
+      max-width: 92%;
+      color: rgba(218, 246, 255, 0.9);
+    }
+
+    .msg.user { align-self: flex-end; }
+    .msg.abc { align-self: flex-start; }
+
+    .caption {
+      margin: 0;
+      padding: 0 18px 18px;
+      color: var(--muted);
+      font: 12px/1.45 var(--sans);
+    }
+
+    /* Option A: Hybrid Prompt */
+    .hybrid .msg {
+      border: 1px solid rgba(71, 202, 236, 0.14);
+      background: rgba(3, 12, 21, 0.72);
+      border-radius: 7px;
+      padding: 12px 13px;
+    }
+
+    .hybrid .user {
+      font: 400 13px/1.55 var(--mono);
+      border-color: rgba(75, 140, 255, 0.28);
+      background: rgba(75, 140, 255, 0.07);
+    }
+
+    .hybrid .user::before {
+      content: "> ";
+      color: var(--cyan);
+    }
+
+    .hybrid .abc {
+      font: 14px/1.56 var(--sans);
+    }
+
+    /* Option B: Logbook */
+    .logbook .msg {
+      width: 100%;
+      max-width: 100%;
+      border-left: 1px solid rgba(22, 217, 245, 0.42);
+      padding: 2px 0 2px 12px;
+      background: transparent;
+    }
+
+    .logbook .meta {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--cyan);
+      font: 600 10px var(--mono);
+      letter-spacing: 0.04em;
+    }
+
+    .logbook .body {
+      display: block;
+      font: 14px/1.52 var(--sans);
+    }
+
+    .logbook .user .body {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
+    /* Option C: Cut Edge */
+    .cutedge .msg {
+      position: relative;
+      border: 1px solid rgba(71, 202, 236, 0.12);
+      background:
+        linear-gradient(90deg, rgba(22, 217, 245, 0.12), transparent 4px),
+        rgba(3, 12, 21, 0.7);
+      border-radius: 3px;
+      padding: 12px 13px 12px 16px;
+      font: 14px/1.48 var(--sans);
+    }
+
+    .cutedge .user {
+      font-family: var(--mono);
+      font-size: 12.8px;
+      background:
+        linear-gradient(90deg, rgba(75, 140, 255, 0.22), transparent 5px),
+        rgba(75, 140, 255, 0.055);
+    }
+
+    .cutedge .msg::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 28px;
+      height: 1px;
+      background: var(--cyan);
+    }
+
+    /* Option D: Command Strip */
+    .strip .msg {
+      border: 1px solid rgba(71, 202, 236, 0.12);
+      border-radius: 0;
+      background: rgba(3, 12, 21, 0.72);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .strip .label {
+      display: block;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(71, 202, 236, 0.1);
+      background: rgba(22, 217, 245, 0.055);
+      color: var(--cyan);
+      font: 600 10px var(--mono);
+    }
+
+    .strip .text {
+      display: block;
+      padding: 11px 12px;
+      font: 14px/1.5 var(--sans);
+    }
+
+    .strip .user .text {
+      font-family: var(--mono);
+      font-size: 12.8px;
+    }
+
+    /* Option E: Rough Sans */
+    .rough .msg {
+      border: 1px solid rgba(71, 202, 236, 0.11);
+      border-radius: 6px;
+      background: rgba(3, 12, 21, 0.72);
+      padding: 11px 13px;
+      font: 14px/1.46 var(--system);
+      letter-spacing: 0.005em;
+    }
+
+    .rough .user {
+      font-weight: 520;
+      color: rgba(230, 250, 255, 0.9);
+      background: rgba(75, 140, 255, 0.06);
+    }
+
+    /* Option F: Terminal Soft */
+    .terminal .msg {
+      border: 1px solid rgba(71, 202, 236, 0.14);
+      border-radius: 5px;
+      background: rgba(0, 8, 15, 0.78);
+      padding: 12px;
+      font: 12.8px/1.58 var(--mono);
+    }
+
+    .terminal .abc {
+      color: rgba(198, 232, 240, 0.88);
+    }
+
+    @media (max-width: 720px) {
+      main { width: calc(100vw - 28px); padding-top: 24px; }
+      header { display: block; }
+      .note { margin-top: 10px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ABC Chat Text Styles</h1>
+      <p class="note">Visuelle Varianten fuer Chatnachrichten. Ziel: weniger sauber, mehr Arbeitswerkzeug, aber weiterhin normal lesbar und user-first.</p>
+    </header>
+
+    <section class="grid">
+      <article class="option hybrid">
+        <div class="option-head"><span class="option-title">A / Hybrid Prompt</span><span class="fit">Empfehlung</span></div>
+        <div class="chat-sample">
+          <div class="msg user">Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</div>
+          <div class="msg abc">Ich sehe drei wahrscheinliche Ursachen: zu viele alte Treffer, doppelte Bewertungsschritte und fehlende Grenzen fuer sehr lange Verlaeufe.</div>
+        </div>
+        <p class="caption">User wirkt wie Eingabe/Anweisung, ABC bleibt gut lesbar. Technisch, aber nicht kalt.</p>
+      </article>
+
+      <article class="option logbook">
+        <div class="option-head"><span class="option-title">B / Logbuch</span><span class="fit">Klar</span></div>
+        <div class="chat-sample">
+          <div class="msg user"><span class="meta">DU / 20:41</span><span class="body">Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</span></div>
+          <div class="msg abc"><span class="meta">ABC / ANALYSE</span><span class="body">Ich wuerde zuerst pruefen, ob alte Chat-Kontexte zu lange im Suchraum bleiben.</span></div>
+        </div>
+        <p class="caption">Mehr Arbeitsjournal als Messenger. Sehr nachvollziehbar, aber etwas distanzierter.</p>
+      </article>
+
+      <article class="option cutedge">
+        <div class="option-head"><span class="option-title">C / Cut Edge</span><span class="fit">Rauer</span></div>
+        <div class="chat-sample">
+          <div class="msg user">Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</div>
+          <div class="msg abc">Ich starte mit dem Suchraum, dann mit Re-Ranking, dann mit Speicherlast.</div>
+        </div>
+        <p class="caption">Kantiger und weniger glatt. Die Kante gibt Sci-Fi-Charakter ohne viele Fachbegriffe.</p>
+      </article>
+
+      <article class="option strip">
+        <div class="option-head"><span class="option-title">D / Command Strip</span><span class="fit">Strukturiert</span></div>
+        <div class="chat-sample">
+          <div class="msg user"><span class="label">EINGABE</span><span class="text">Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</span></div>
+          <div class="msg abc"><span class="label">ANTWORT</span><span class="text">Der wahrscheinlichste Engpass ist ein wachsender Suchraum ohne klare Grenze.</span></div>
+        </div>
+        <p class="caption">Sehr gut fuehrend, aber kann bei vielen Nachrichten etwas schwer werden.</p>
+      </article>
+
+      <article class="option rough">
+        <div class="option-head"><span class="option-title">E / Rough Sans</span><span class="fit">Leise</span></div>
+        <div class="chat-sample">
+          <div class="msg user">Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</div>
+          <div class="msg abc">Ich sehe zuerst nach, ob alte Treffer zu lange gleichwertig bleiben.</div>
+        </div>
+        <p class="caption">Weniger clean durch Dichte und Farbe, aber am naechsten an normalem Chat.</p>
+      </article>
+
+      <article class="option terminal">
+        <div class="option-head"><span class="option-title">F / Terminal Soft</span><span class="fit">Technisch</span></div>
+        <div class="chat-sample">
+          <div class="msg user">> Pruefe bitte, warum die Memory-Suche bei langen Sessions langsamer wird.</div>
+          <div class="msg abc">abc: pruefe suchraum, bewertung, speicherlast. erster verdacht: verlauf wird zu breit.</div>
+        </div>
+        <p class="caption">Starkes Werkzeuggefuehl. Gut fuer Power-User, aber fuer lange Texte riskanter.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

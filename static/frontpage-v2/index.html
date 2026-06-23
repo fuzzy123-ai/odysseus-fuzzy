@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Frontend V2</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="aurora" aria-hidden="true"></div>
+    <canvas class="grid-brush" id="grid-brush" aria-hidden="true"></canvas>
+
+    <header class="topline" aria-label="ABC Frontend V2">
+      <div class="brand-stack">
+        <div class="brand-mark">ABC</div>
+        <div class="chat-carousel" id="chat-carousel" aria-label="Open chats" hidden></div>
+      </div>
+      <div class="build-state" id="build-state">V2 &middot; Main chat window</div>
+    </header>
+
+    <section class="workspace" aria-label="ABC workspace">
+      <article class="floating-window core-window active" data-window data-core>
+        <header class="window-head core-head" data-drag-handle>
+          <div class="chat-title">Vector Debug</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+            <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+            <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+          </div>
+        </header>
+
+        <div class="window-body chat-body">
+          <main class="messages" aria-label="Chat messages">
+            <div class="message user">Check why memory search slows down during long sessions.</div>
+            <div class="message ai">I see three likely causes: a growing candidate pool, duplicate re-ranking paths, and no budget cutoff for older chat context.</div>
+            <div class="message ai">The next step is to trace where old context still enters the search path and cap it before ranking starts.</div>
+            <div class="message ai working">
+              <span class="busy-signal">Tracing memory graph <span class="pixel-wave" data-wave>&#9601;&#9602;&#9603;</span></span>
+            </div>
+          </main>
+
+          <div class="composer-shell">
+            <div class="composer">
+              <button class="composer-menu-button" title="Open composer tools" aria-label="Open composer tools" aria-expanded="false" aria-controls="composer-tools-menu">
+                <span class="composer-menu-icon" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                </span>
+              </button>
+              <div class="mode-switch" role="group" aria-label="Workspace mode">
+                <button class="mode-option" type="button" data-mode-option="plan" aria-pressed="false">Plan</button>
+                <button class="mode-option active" type="button" data-mode-option="agent" aria-pressed="true">Agent</button>
+              </div>
+              <textarea class="prompt-input" rows="3" placeholder="/ ask ABC something"></textarea>
+              <button class="send-btn" title="Send" aria-label="Send">&uarr;</button>
+            </div>
+            <div class="composer-tools-menu" id="composer-tools-menu" aria-hidden="true">
+              <button class="composer-tool" type="button" data-composer-tool="Deep Research">
+                <span class="composer-tool-icon">&#9678;</span>
+                <span>Deep Research</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Plan">
+                <span class="composer-tool-icon">&#9671;</span>
+                <span>Plan</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Attachments">
+                <span class="composer-tool-icon">&#9639;</span>
+                <span>Attachments</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Skills">
+                <span class="composer-tool-icon">&#10022;</span>
+                <span>Skills</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Hooks">
+                <span class="composer-tool-icon">&#8984;</span>
+                <span>Hooks</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Project">
+                <span class="composer-tool-icon">&#9635;</span>
+                <span>Project</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="window-dock" id="window-dock" aria-label="Minimized windows"></div>
+    <button class="chat-nodge chat-nodge-left" id="chat-nodge-left" type="button" aria-label="Previous chat" hidden>
+      <span aria-hidden="true">&lsaquo;</span>
+    </button>
+    <button class="chat-nodge chat-nodge-right" id="chat-nodge-right" type="button" aria-label="Next chat" hidden>
+      <span aria-hidden="true">&rsaquo;</span>
+    </button>
+
+    <div class="toolwheel constellation" id="toolwheel" aria-hidden="true">
+      <div class="toolwheel-panel">
+        <div class="wheel-ring inner" aria-hidden="true"></div>
+        <div class="wheel-ring outer" aria-hidden="true"></div>
+        <div class="wheel-arrow" id="wheel-arrow" aria-hidden="true"></div>
+
+        <button class="wheel-core" id="wheel-core" aria-label="Prepare new item">
+          <span>+</span>
+        </button>
+        <div class="core-new-tree" aria-hidden="true">
+          <button class="core-new-item" type="button" data-action="New Chat">New Chat</button>
+          <button class="core-new-item" type="button" data-action="New Task">New Task</button>
+          <button class="core-new-item" type="button" data-action="New Workspace">New Workspace</button>
+        </div>
+
+        <button class="wheel-node" style="--x:-220px;--y:-120px;--node-color:var(--red)" data-node="Projects">
+          <span class="num">1</span><span class="glyph">&#9671;</span><span class="label">Projects</span>
+          <span class="wheel-tree tree-left" aria-hidden="true">
+            <span class="tree-item" data-action="Plan">Plan</span>
+            <span class="tree-item" data-action="Tasks">Tasks</span>
+          </span>
+        </button>
+
+        <button class="wheel-node" style="--x:220px;--y:-120px;--node-color:var(--teal)" data-node="Knowledge">
+          <span class="num">2</span><span class="glyph">&#9678;</span><span class="label">Knowledge</span>
+          <span class="wheel-tree tree-right" aria-hidden="true">
+            <span class="tree-item" data-action="Search">Search</span>
+            <span class="tree-item" data-action="Notes">Notes</span>
+          </span>
+        </button>
+
+        <button class="wheel-node" style="--x:220px;--y:150px;--node-color:var(--blue)" data-node="Tools">
+          <span class="num">3</span><span class="glyph">&#8984;</span><span class="label">Tools</span>
+          <span class="wheel-tree tree-down" aria-hidden="true">
+            <span class="tree-item" data-action="Open Tool">Open Tool</span>
+            <span class="tree-item" data-action="Connect">Connect</span>
+          </span>
+        </button>
+
+        <button class="wheel-node" style="--x:-220px;--y:150px;--node-color:var(--blue)" data-node="Settings">
+          <span class="num">4</span><span class="glyph">&#9881;</span><span class="label">Settings</span>
+          <span class="wheel-tree tree-down" aria-hidden="true">
+            <span class="tree-item" data-action="Model">Model</span>
+            <span class="tree-item" data-action="View">View</span>
+          </span>
+        </button>
+
+        <div class="wheel-readout" id="wheel-readout">Alt+Space or right-click. Use 1-4 to select a section.</div>
+        <div class="wheel-footer">
+          <span>Alt+Space</span>
+          <span>Numbers select</span>
+          <span>Esc closes</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
