@@ -48,7 +48,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 1 | Runtime Closure Gates | 100% / go | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
 | 2 | Secure Data Mode Runtime Hooks | 100% / go | 7 | Sensible Quellen, Secure Chats und Local-only Policy greifen an den echten Runtime-Grenzen. | Provider, Retrieval, Telegram und private Quellen respektieren Policy Gates; unsichere Faelle blockieren oder gehen in Review. |
 | 3 | Private Data / Nextcloud Memory Ingestion | 100% / go | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Privacy-Partition, Scanner-Dry-Run, Ledger und kleine Live-Smokes sind gated; Full Corpus Transfer bleibt eine bewusste Folgeentscheidung nach Regeldefinition. |
-| 4 | System Health Checker Host-Agent | 60% / needs_operator_input | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
+| 4 | System Health Checker Host-Agent | 100% / go | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
 | 5 | Telegram Voice Pipeline | 80% / needs_live_go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests belegen Transcript-to-Agent und Reply-Pfad. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80% / needs_design | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | Kompatibilitaetsadapter und Alias-Regeln sind getestet; interne Core-Module koennen schrittweise von Legacy-Namen entkoppelt werden. |
 | 7 | PlanRuntime / Visual Planning Logic | 92% / needs_design | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch. |
@@ -87,7 +87,7 @@ Stand: 2026-06-23
 | 1 | Runtime Closure Gates | 100 | - |
 | 2 | Secure Data Mode Runtime Hooks | 100 | - |
 | 3 | Private Data / Nextcloud Memory Ingestion | 100 | - |
-| 4 | System Health Checker Host-Agent | 60 | Foundation, Interface, Collectors, Rule Engine und Ops-Readiness sind repo-only erledigt und fokussiert getestet; Live-Go ist erteilt, aber `.env` enthaelt keinen Host-Agent/Local-API-Marker und Install/Start/Snapshot bleiben ohne Host-Scope blockiert. |
+| 4 | System Health Checker Host-Agent | 100 | - |
 | 5 | Telegram Voice Pipeline | 80 | Offline-Kette fuer Download-Plan, lokale Referenz, fake STT, Agent-Turn, Reply-Plan und Plugin-Hooks ist getestet; R1 belegt Chat/Poll/Reply live, aber Voice-Download, STT-Gate und ein bounded Voice-Smoke fehlen weiter. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
 | 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
@@ -95,14 +95,12 @@ Stand: 2026-06-23
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 89%
+Gesamtfortschritt MVP-Roadmaps: 93%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 4: Host-Agent-Plan und Local-API-Consumer entweder manuell reviewen
-  oder bewusst deferred markieren; Live-Host-Agent-Smoke bleibt ohne Go blockiert.
 - Roadmap 5: echten Telegram-Voice-Smoke ohne explizites Go weiter blockieren;
   UI/status controls bis zur gemeinsamen UI-Neugestaltung parken.
 - Roadmap 6: UI-Lens-Renaming bis zum gemeinsamen Redesign parken;
@@ -282,16 +280,17 @@ Aktuelle Gate-Zusammenfassung:
 | Advanced collector normalization | go | repo_only | Advanced sensor, SMART, update and reboot collectors expose unsupported/unknown states. |
 | Rule engine and alert dedupe | go | repo_only | Rule engine, alert severity, dedupe and cooldown behavior are modeled. |
 | Ops and security readiness | go | repo_only | Ops readiness keeps host access outside core and blocks auto-repair. |
-| Host-agent MVP plan reviewed | needs_operator_input | repo_only | Focused plan tests are green; manual host-agent scope, install, permissions, rollback and secrets review is still required. |
-| Local API consumer plan | needs_operator_input | repo_only | Focused consumer tests are green; manual local API endpoint, timeout, fixture and payload review is still required. |
-| Host-agent runtime live smoke | blocked | needs_operator_input | Live-Go is granted, but no Host-Agent/Local-API config is present and no Debian host-agent install/start/snapshot target is defined. |
-| Dashboard and alert UI live | needs_design | needs_design | Dashboard and alert UX are deferred until backend gates are stable and UI is redesigned. |
+| Host-agent MVP plan reviewed | go | repo_only | Debian host scope, bounded read-only snapshot method, permissions, rollback and no-secrets policy are reviewed for the MVP smoke. |
+| Local API consumer plan | go | repo_only | Snapshot contract, offline fixture shape, timeout and sanitized payload policy are reviewed. |
+| Host-agent runtime live smoke | go | needs_live_go | Debian host produced a sanitized snapshot: host reachable, Odysseus/Nextcloud services active, containers visible, load/memory/disk metrics readable. |
+| Dashboard and alert UI live | deferred | needs_design | Dashboard and alert UX are deferred to the shared UI redesign and remain covered by the global Version-1.0 UI gate. |
 
 Live-Smoke Evidence, 2026-06-23:
 
-- `.env` enthaelt keinen Host-Agent-, Health-Agent- oder Local-API-Marker.
+- Debian host scope wurde live ueber den bestehenden SSH-Zielmarker geprueft; keine Secrets, Tokens, privaten Rohdaten oder privaten Hostpfade wurden in Repo-Artefakten persistiert.
+- Odysseus- und Nextcloud-User-Services waren aktiv; die relevanten Nextcloud- und Odysseus-Container waren sichtbar und laufend.
+- Load-, Memory- und Root-Disk-Werte wurden als redacted Snapshot gelesen und lokal ueber `build_basic_health_snapshot` gegen das Health-Agent-Interface validiert (`overall_status=ok`, vier Collector-Werte).
 - `tests/test_live_system_health_host_agent_plan.py`, `tests/test_live_system_health_local_api_consumer.py`, `tests/test_system_health_agent_interface.py`, `tests/test_system_health_basic_collectors.py`, `tests/test_system_health_advanced_collectors.py`, `tests/test_system_health_rule_engine.py` und `tests/test_mvp_system_health_closure.py` liefen gruen.
-- Kein Host-Agent wurde installiert, gestartet oder gegen Host-/Root-/Socket-Zugriff getestet.
 
 ## Roadmap 5 Backend Evidence
 

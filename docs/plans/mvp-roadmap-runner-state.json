@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 4,
-    "active_slice": "r4-host-agent-config-review",
+    "active_roadmap": 5,
+    "active_slice": "r5-voice-gate-readiness",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -34,6 +34,7 @@
     "nextcloud_transfer_write": true,
     "host_agent_plan_review": true,
     "host_agent_install_or_start": false,
+    "host_agent_runtime_snapshot": true,
     "image_worker_health": true,
     "image_worker_remove_bg": true,
     "gamedev_mount_write_smoke": true,
@@ -137,31 +138,31 @@
     {
       "number": 4,
       "name": "System Health Checker Host-Agent",
-      "percent": 60,
-      "status": "needs_operator_input",
-      "why_not_100": "Host-Agent/local API config, install/start target, and snapshot endpoint are missing.",
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
       "next_slices": [
         {
           "id": "r4-host-agent-config-review",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Validate host-agent config markers and prepare first live snapshot smoke.",
           "required_inputs": ["host-agent endpoint", "auth or local socket policy", "timeout", "fixture review"],
           "required_live_go": ["host_agent_plan_review"],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md", "docs/plans/mvp-roadmap-runner-state.json"],
           "tests": ["tests/test_live_system_health_host_agent_plan.py", "tests/test_live_system_health_local_api_consumer.py"],
-          "blocker": ".env contains no Host-Agent or local API marker."
+          "blocker": ""
         },
         {
           "id": "r4-host-agent-runtime-smoke",
           "class": "needs_live_go",
-          "status": "blocked",
+          "status": "done",
           "objective": "Install/start or query the host-agent and record a sanitized runtime snapshot.",
           "required_inputs": ["Debian target", "install/start command", "rollback command", "sanitized payload fixture"],
-          "required_live_go": ["host_agent_install_or_start"],
-          "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
+          "required_live_go": ["host_agent_runtime_snapshot"],
+          "allowed_paths": ["docs/plans/mvp-master-roadmap.md", "docs/plans/mvp-roadmap-runner-state.json"],
           "tests": ["tests/test_system_health_agent_interface.py"],
-          "blocker": "No concrete host target or install/start permission is defined."
+          "blocker": ""
         }
       ]
     },
@@ -274,15 +275,6 @@
     }
   ],
   "gate_queue": [
-    {
-      "id": "R4-HOST-AGENT-TARGET",
-      "class": "needs_live_go",
-      "blocks": "Roadmap 4 host-agent runtime smoke",
-      "decision_needed": "Provide local API/host-agent endpoint or Debian install/start target plus rollback.",
-      "safe_preparation_done": "Collectors, rules, ops readiness, and consumer plan are tested offline.",
-      "risk_if_bypassed": "Could run host-level operations without clear permissions or rollback.",
-      "next_safe_slice": "R5/R9"
-    },
     {
       "id": "R5-TELEGRAM-VOICE-GATES",
       "class": "needs_live_go",

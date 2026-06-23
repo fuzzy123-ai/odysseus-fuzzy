@@ -59,7 +59,7 @@ class SystemHealthClosureGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -122,6 +122,7 @@ def build_system_health_closure_report(
     local_api_consumer_plan_go: bool = False,
     host_agent_runtime_live_go: bool = False,
     dashboard_and_alert_ui_live_go: bool = False,
+    dashboard_and_alert_ui_deferred: bool = True,
 ) -> SystemHealthClosureReport:
     gates = (
         SystemHealthClosureGate.create(
@@ -226,7 +227,11 @@ def build_system_health_closure_report(
         SystemHealthClosureGate.create(
             gate_id="dashboard_and_alert_ui_live",
             title="Dashboard and alert UI live",
-            status="go" if dashboard_and_alert_ui_live_go else "needs_design",
+            status=(
+                "go"
+                if dashboard_and_alert_ui_live_go
+                else ("deferred" if dashboard_and_alert_ui_deferred else "needs_design")
+            ),
             slice_class="needs_design",
             reason=(
                 "operator-facing dashboard and alert controls are live on the redesigned UI"

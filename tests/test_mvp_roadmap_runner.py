@@ -27,7 +27,7 @@ def test_runner_state_has_exactly_ten_mvp_roadmaps():
 def test_runner_progress_matches_master_average():
     state = _load_state()
 
-    assert overall_progress(state) == 89
+    assert overall_progress(state) == 93
 
 
 def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
@@ -35,8 +35,8 @@ def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
 
     step = select_next_step(state)
 
-    assert step["roadmap"]["number"] == 4
-    assert step["slice"]["id"] == "r4-host-agent-config-review"
+    assert step["roadmap"]["number"] == 5
+    assert step["slice"]["id"] == "r5-voice-gate-readiness"
     assert step["runnable"] is False
 
 
@@ -45,9 +45,9 @@ def test_runner_report_uses_required_product_progress_format():
 
     report = render_report(state)
 
-    assert "MVP-Gesamtfortschritt: 89%" in report
+    assert "MVP-Gesamtfortschritt: 93%" in report
     assert "Version-1.0-Gate: UI live? nein" in report
-    assert "Aktiver Runner-Schritt: R4 r4-host-agent-config-review" in report
+    assert "Aktiver Runner-Schritt: R5 r5-voice-gate-readiness" in report
     assert "Recommended next human decision:" in report
     assert "| 1 | Runtime Closure Gates | 100 | - |" in report
     assert "| 3 | Private Data / Nextcloud Memory Ingestion | 100 | - |" in report
