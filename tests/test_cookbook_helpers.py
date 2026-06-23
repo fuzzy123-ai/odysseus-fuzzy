@@ -265,6 +265,7 @@ def test_pip_install_fallback_chain_accepts_python_executable():
     assert 'python -c "import sys; sys.exit(0 if sys.prefix != sys.base_prefix else 1)"' in chain
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Git Bash pipe handling can hang on Windows")
 def test_pip_install_fallback_chain_propagates_failure_in_venv():
     """When base install fails inside a venv, the chain must exit non-zero.
 

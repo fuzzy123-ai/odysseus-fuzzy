@@ -64,6 +64,8 @@ def test_base_compose_provisions_internal_ollama_service():
     assert "LLM_HOST=${LLM_HOST:-ollama}" in odysseus["environment"]
     assert "LLM_HOSTS=${LLM_HOSTS:-ollama}" in odysseus["environment"]
     assert "OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}" in odysseus["environment"]
+    assert "/var/run/docker.sock:/var/run/docker.sock" in odysseus["volumes"]
+    assert odysseus["group_add"] == ["${DOCKER_GID:-963}"]
 
     ollama = services["ollama"]
     assert ollama["image"] == "docker.io/ollama/ollama:latest"
@@ -93,11 +95,16 @@ def test_docker_image_preloads_runtime_optional_dependencies():
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     entrypoint = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
 
+    assert "AS realesrgan-wheels" in dockerfile
+    assert "docker-${DOCKER_CLI_VERSION}.tgz" in dockerfile
     assert "libmagic1" in dockerfile
+    assert "libxcb1" in dockerfile
     assert "python-magic" in requirements
     assert "NPM_CONFIG_CACHE=/app/.cache/npm" in dockerfile
     assert "npx -y @playwright/mcp@latest --version" in dockerfile
     assert "/app/.cache/npm" in entrypoint
+    assert "DOCKER_SOCK" in entrypoint
+    assert 'exec "$GOSU_BIN" "$ODY_USER" "$@"' in entrypoint
 
 
 def test_docker_entrypoint_does_not_resolve_root_commands_from_app_local_path():
@@ -105,8 +112,8 @@ def test_docker_entrypoint_does_not_resolve_root_commands_from_app_local_path():
     path_export = script.index('export PATH="/app/.local/bin:$PATH"')
     gosu_capture = script.index('GOSU_BIN="$(command -v gosu)"')
     python_capture = script.index('PYTHON_BIN="$(command -v python)"')
-    setup_call = script.index('"$GOSU_BIN" "$PUID:$PGID" "$PYTHON_BIN" /app/setup.py')
-    final_exec = script.index('exec "$GOSU_BIN" "$PUID:$PGID" "$@"')
+    setup_call = script.index('"$GOSU_BIN" "$ODY_USER" "$PYTHON_BIN" /app/setup.py')
+    final_exec = script.index('exec "$GOSU_BIN" "$ODY_USER" "$@"')
 
     assert gosu_capture < path_export < setup_call
     assert python_capture < path_export < setup_call

@@ -25,6 +25,24 @@ fi
 if ! getent passwd "$PUID" >/dev/null 2>&1; then
     useradd -u "$PUID" -g "$PGID" -M -s /bin/sh -d /app odysseus
 fi
+ODY_USER="$(getent passwd "$PUID" | cut -d: -f1)"
+[ -z "$ODY_USER" ] && ODY_USER=odysseus
+
+# Docker-socket group plumbing. When /var/run/docker.sock is bind-mounted, the
+# app user needs the socket's owning group to run Docker client commands.
+DOCKER_SOCK="${DOCKER_SOCK:-/var/run/docker.sock}"
+if [ -S "$DOCKER_SOCK" ]; then
+    SOCK_GID="$(stat -c '%g' "$DOCKER_SOCK" 2>/dev/null || echo '')"
+    if [ -n "$SOCK_GID" ] && [ "$SOCK_GID" != "0" ]; then
+        if ! getent group "$SOCK_GID" >/dev/null 2>&1; then
+            groupadd -g "$SOCK_GID" docker_host || true
+        fi
+        SOCK_GROUP="$(getent group "$SOCK_GID" | cut -d: -f1)"
+        if [ -n "$SOCK_GROUP" ]; then
+            usermod -aG "$SOCK_GROUP" "$ODY_USER" 2>/dev/null || true
+        fi
+    fi
+fi
 
 mount_root_for() {
     awk -v target="$1" '$5 == target { print $4; exit }' /proc/self/mountinfo 2>/dev/null || true
@@ -116,9 +134,9 @@ export PATH="/app/.local/bin:$PATH"
 # Run first-time setup as the app user so data/ files get the right ownership.
 # setup.py is idempotent — skips auth.json / .env if they already exist.
 # || true so a setup failure never prevents the container from starting.
-"$GOSU_BIN" "$PUID:$PGID" "$PYTHON_BIN" /app/setup.py || true
+"$GOSU_BIN" "$ODY_USER" "$PYTHON_BIN" /app/setup.py || true
 
 # Drop root and run the actual app. `gosu` is preferred over `su` /
 # `sudo` because it cleans up the process tree (no extra shell layer)
 # so signals (SIGTERM from `docker stop`) reach uvicorn directly.
-exec "$GOSU_BIN" "$PUID:$PGID" "$@"
+exec "$GOSU_BIN" "$ODY_USER" "$@"

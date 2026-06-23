@@ -93,16 +93,22 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 ### U3 - P1 Cookbook Backend, Docker, GPU, and Real-ESRGAN
 
 - Class: repo_only with live-gate awareness
+- Status: done in dev for repo-only backend/config; live Docker/Real-ESRGAN smoke remains gated.
 - Effort: 8/10
 - Port commits:
   - `b3e18674`, `1324e1b0`, `f01465e8`, `c5042149`, `92daf4e5`, `57e72292`, `19dd82b8`, `fbdec22d`, `993d504d`, `d4771503`.
 - Expected touched areas: `Dockerfile`, `docker-compose*.yml`, `docker/entrypoint.sh`, `docker/build-realesrgan-wheels.sh`, `routes/cookbook_*`, `routes/shell_routes.py`, `routes/upload_routes.py`, `routes/hwfit_routes.py`, `src/llm_core.py`, `src/tool_parsing.py`, Cookbook tests.
+- Implemented:
+  - Standalone GPU compose files are regenerated from current base compose plus overlays, including the internal Ollama service.
+  - Base compose exposes the Docker socket with an explicit Docker GID group, and the entrypoint preserves the app user's supplementary socket group.
+  - Dockerfile includes Docker CLI client support and patched Real-ESRGAN dependency wheels for Python 3.14.
+  - The Windows-local bash regression test is skipped because Git Bash pipe handling can hang under Windows; static install-chain checks remain active.
 - Safety gates:
   - Docker socket mount is powerful. It can be committed as config, but live use on the Debian host needs operator Go.
   - `install-system-deps` endpoint must be reviewed against our shell/security policy before enabling live.
 - Verification:
-  - `python -m pytest tests/test_cookbook_cpu_only_serve.py tests/test_cookbook_helpers.py tests/test_cookbook_same_host_server_profiles_js.py tests/test_gpu_compose_standalone.py tests/test_docker_devops_hardening.py tests/test_upload_multifile.py`
-  - No live Docker build unless explicitly requested.
+  - `python -m pytest tests/test_cookbook_cpu_only_serve.py tests/test_cookbook_helpers.py tests/test_cookbook_same_host_server_profiles_js.py tests/test_gpu_compose_standalone.py tests/test_docker_devops_hardening.py tests/test_upload_multifile.py` - 98 passed, 1 skipped.
+  - No live Docker build or host Docker smoke was executed.
 - Exit: commit backend/config only; defer live Docker/Real-ESRGAN smoke to a gate.
 
 ### U4 - P1 Hardware Fit Catalog

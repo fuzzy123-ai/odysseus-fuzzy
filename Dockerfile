@@ -1,3 +1,13 @@
+# ---- builder: patch + build wheels for Real-ESRGAN's broken-on-3.14 deps ----
+# basicsr/gfpgan/facexlib read their version via exec()+locals()['__version__'],
+# which raises KeyError on Python 3.13+ (PEP 667). Build patched wheels here so
+# Cookbook can install Real-ESRGAN on the Python 3.14 image.
+FROM python:3.14-slim AS realesrgan-wheels
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/build-realesrgan-wheels.sh /usr/local/bin/build-realesrgan-wheels.sh
+RUN bash /usr/local/bin/build-realesrgan-wheels.sh /wheels
+
 FROM python:3.14-slim
 
 # System deps. tmux is required by Cookbook for background downloads/serves.
@@ -13,13 +23,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     curl \
     git \
+    libgl1 \
+    libglib2.0-0t64 \
     libmagic1 \
+    libxcb1 \
     nodejs \
     npm \
     tmux \
     openssh-client \
     gosu \
     && rm -rf /var/lib/apt/lists/*
+
+# Docker CLI client only. The daemon remains on the host via the optional
+# /var/run/docker.sock mount in docker-compose.yml.
+ARG DOCKER_CLI_VERSION=27.5.1
+RUN ARCH="$(dpkg --print-architecture)" \
+    && case "$ARCH" in \
+         amd64) DARCH=x86_64 ;; \
+         arm64) DARCH=aarch64 ;; \
+         *) echo "unsupported arch $ARCH"; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://download.docker.com/linux/static/stable/${DARCH}/docker-${DOCKER_CLI_VERSION}.tgz" \
+       -o /tmp/docker.tgz \
+    && tar -xzf /tmp/docker.tgz -C /tmp \
+    && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
+    && rm -rf /tmp/docker /tmp/docker.tgz
 
 WORKDIR /app
 
@@ -35,6 +63,10 @@ COPY requirements.txt requirements-optional.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_OPTIONAL" = "true" ]; then pip install --no-cache-dir -r requirements-optional.txt; fi \
     && if [ "$INSTALL_STT" = "true" ] && [ "$INSTALL_OPTIONAL" != "true" ]; then pip install --no-cache-dir faster-whisper; fi
+
+COPY --from=realesrgan-wheels /wheels/ /tmp/odysseus-wheels/
+RUN pip install --no-cache-dir --no-deps /tmp/odysseus-wheels/*.whl \
+    && rm -rf /tmp/odysseus-wheels
 
 # Install Node deps used by test/dev tooling and optional npx-backed helpers.
 COPY package.json package-lock.json ./
