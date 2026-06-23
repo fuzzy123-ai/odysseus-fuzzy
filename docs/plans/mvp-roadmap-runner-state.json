@@ -12,8 +12,8 @@
     "done_when": "all ten MVP roadmaps are 100 and the new UI is live"
   },
   "runner": {
-    "active_roadmap": 9,
-    "active_slice": "r9-rembg-worker-smoke",
+    "active_roadmap": 1,
+    "active_slice": "r1-debian-backup-evidence",
     "selection_policy": "lowest roadmap number below 100, then first open or running slice",
     "tick_outcome_required": [
       "progress_changed",
@@ -235,22 +235,10 @@
     {
       "number": 9,
       "name": "Image Tools Worker Final Smoke",
-      "percent": 85,
-      "status": "dependency_missing",
-      "why_not_100": "Final successful remove-background smoke needs rembg in the isolated worker environment; UI remains later.",
-      "next_slices": [
-        {
-          "id": "r9-rembg-worker-smoke",
-          "class": "needs_live_go",
-          "status": "open",
-          "objective": "Run or prepare the final isolated worker remove-background smoke.",
-          "required_inputs": ["isolated worker venv", "rembg installed or explicit install permission", "bounded fixture image"],
-          "required_live_go": ["image_worker_remove_bg"],
-          "allowed_paths": ["workers/image_tools_worker", "docs/plans/mvp-master-roadmap.md"],
-          "tests": ["tests/test_image_tools_worker.py", "tests/test_gallery_remove_bg_worker.py"],
-          "blocker": "The current worker reports dependency_missing for rembg."
-        }
-      ]
+      "percent": 100,
+      "status": "go",
+      "why_not_100": "-",
+      "next_slices": []
     },
     {
       "number": 10,
@@ -297,15 +285,6 @@
       "safe_preparation_done": "Offline voice pipeline and fake STT/reply planning are tested.",
       "risk_if_bypassed": "Could ingest or send private Telegram content without explicit bounded gates.",
       "next_safe_slice": "R9"
-    },
-    {
-      "id": "R9-REMBG-DEPENDENCY",
-      "class": "needs_live_go",
-      "blocks": "Roadmap 9 final remove-background smoke",
-      "decision_needed": "Allow isolated worker dependency install or provide an environment where rembg is installed.",
-      "safe_preparation_done": "Worker health and dependency_missing behavior are proven without polluting core venv.",
-      "risk_if_bypassed": "Could pollute core dependencies or fake a successful image smoke.",
-      "next_safe_slice": "none if all earlier live gates remain blocked"
     }
   ],
   "report_contract": {

@@ -53,7 +53,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 6 | ORCA / Lens Naming & Backend Migration | 80% / needs_design | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | Kompatibilitaetsadapter und Alias-Regeln sind getestet; interne Core-Module koennen schrittweise von Legacy-Namen entkoppelt werden. |
 | 7 | PlanRuntime / Visual Planning Logic | 92% / needs_design | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch. |
 | 8 | Release / Distribution Evidence | 82% / needs_live_go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | 1.0/externes Release kann als Go, Partial oder No-Go begruendet werden, ohne Runtime-Gates zu ueberzeichnen. |
-| 9 | Image Tools Worker Final Smoke | 85% / dependency_missing | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
+| 9 | Image Tools Worker Final Smoke | 100% / go | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
 | 10 | GameDev Mount Write Smoke | 100% / go | 2 | Der optionale Schreibpfad fuer GameDev-Mounts wird eng und reversibel belegt. | Write-Smoke erfolgt nur mit explizitem Go, schreibt ein reversibles Testartefakt und leakt keine Host-Pfade. |
 
 ## Post-MVP Ideen
@@ -92,10 +92,10 @@ Stand: 2026-06-23
 | 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
 | 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
 | 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
-| 9 | Image Tools Worker Final Smoke | 85 | Worker-Contract, Core-Client, Route-Integration, isolierter Worker-MVP, Fake-Smoke, Dependency-Isolation und default-off Telegram-Image-Hook sind erledigt; Live-Worker startet und `/health` ist 200, finaler Remove-BG-Smoke blockiert wegen fehlendem `rembg`, neue UI fehlt. |
+| 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 81%
+Gesamtfortschritt MVP-Roadmaps: 83%
 
 Version-1.0-Gate: UI live? nein
 
@@ -120,8 +120,6 @@ Recommended next human decision:
   als bestaetigter Request ohne Runtime-Ausfuehrung backendseitig vorbereitet.
 - Roadmap 8: Deploy/Tag/Distribution weiter als separates Live-Go behandeln;
   Version-1.0-Claim bleibt automatisch blockiert bis 10/10 Roadmaps und neue UI live sind.
-- Roadmap 9: echten Remove-BG-Smoke ohne explizites Worker-Runtime-Go weiter
-  blockieren; Image-Worker-UI bis zum gemeinsamen Redesign parken.
 - Roadmap 10: optionalen GameDev-Write-Smoke entweder explizit freigeben oder
   bewusst deferred markieren; ohne Go bleibt nur der reversible Plan claimbar.
 
@@ -493,15 +491,16 @@ Aktuelle Gate-Zusammenfassung:
 | Core dependency isolation | go | repo_only | Core starts without hard rembg, PIL or worker dependency imports on the client path. |
 | UI and cookbook contract | go | repo_only | Setup/error wording is frozen for the later UI and cookbook redesign. |
 | Telegram image action readiness | go | repo_only | Telegram-Image-Actions laufen default-off ueber redacted Metadata, injizierbare Bytes und den ImageToolsWorkerClient ohne neue Core-Dependencies. |
-| Manual Remove-BG smoke | partial | needs_live_go | Local worker runtime starts, `/health` returns 200 and `/remove-background` returns structured `dependency_missing`; final successful Remove-BG needs the isolated worker venv with `rembg` installed. |
-| Image tools UI live | needs_design | needs_design | Image-worker UI/status controls are deferred until the shared UI redesign. |
+| Manual Remove-BG smoke | go | needs_live_go | Isolated worker venv uses Python 3.11.9 with `rembg` 2.0.76 and `onnxruntime` 1.27.0; local `/remove-background` smoke returned 200 with PNG output. |
+| Image tools UI live | deferred | needs_design | Image-worker UI/status controls are deferred to the shared UI redesign and remain part of the separate Version-1.0 UI-live gate, not the Roadmap 9 backend blocker. |
 
 Live-Smoke Evidence, 2026-06-23:
 
 - Local worker started on `127.0.0.1:8123`.
 - `GET /health` returned 200 with `remove_background` capability.
-- `POST /remove-background` returned 503 with `error_code=dependency_missing` because `rembg` is not installed in the current environment.
-- Core venv remains dependency-isolated; no `rembg` install was performed.
+- Isolated worker venv used Python 3.11.9 with `rembg` 2.0.76 and `onnxruntime` 1.27.0; the core venv remains dependency-isolated.
+- `POST /remove-background` with a bounded synthetic PNG returned 200, `mime_type=image/png`, 2339 output bytes, PNG signature true, and no hint-mask side effects.
+- The worker process was stopped after the smoke.
 
 ## Roadmap 10 Backend Evidence
 

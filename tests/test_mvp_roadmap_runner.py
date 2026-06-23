@@ -27,17 +27,17 @@ def test_runner_state_has_exactly_ten_mvp_roadmaps():
 def test_runner_progress_matches_master_average():
     state = _load_state()
 
-    assert overall_progress(state) == 81
+    assert overall_progress(state) == 83
 
 
-def test_runner_selects_first_open_runnable_slice():
+def test_runner_returns_lowest_blocked_slice_when_no_runnable_slice_remains():
     state = _load_state()
 
     step = select_next_step(state)
 
-    assert step["roadmap"]["number"] == 9
-    assert step["slice"]["id"] == "r9-rembg-worker-smoke"
-    assert step["runnable"] is True
+    assert step["roadmap"]["number"] == 1
+    assert step["slice"]["id"] == "r1-debian-backup-evidence"
+    assert step["runnable"] is False
 
 
 def test_runner_report_uses_required_product_progress_format():
@@ -45,10 +45,11 @@ def test_runner_report_uses_required_product_progress_format():
 
     report = render_report(state)
 
-    assert "MVP-Gesamtfortschritt: 81%" in report
+    assert "MVP-Gesamtfortschritt: 83%" in report
     assert "Version-1.0-Gate: UI live? nein" in report
-    assert "Aktiver Runner-Schritt: R9 r9-rembg-worker-smoke" in report
+    assert "Aktiver Runner-Schritt: R1 r1-debian-backup-evidence" in report
     assert "Recommended next human decision:" in report
+    assert "| 9 | Image Tools Worker Final Smoke | 100 | - |" in report
     assert "| 10 | GameDev Mount Write Smoke | 100 | - |" in report
 
 
