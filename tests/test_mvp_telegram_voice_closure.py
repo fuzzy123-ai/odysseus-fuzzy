@@ -8,7 +8,7 @@ def test_default_telegram_voice_progress_tracks_offline_pipeline_done_runtime_op
     report = build_telegram_voice_closure_report()
 
     assert report.roadmap_id == "telegram_voice_pipeline"
-    assert report.percent_complete == 80
+    assert report.percent_complete == 90
     assert "Manual live voice smoke" in report.why_not_100
     assert "Grant or defer" in report.recommended_next_human_decision
 
@@ -19,6 +19,7 @@ def test_default_telegram_voice_progress_tracks_offline_pipeline_done_runtime_op
     assert gates["gated_reply_plan"].status == "go"
     assert gates["plugin_runtime_integration"].status == "go"
     assert gates["live_voice_smoke"].slice_class == "needs_live_go"
+    assert gates["voice_ui_live"].status == "deferred"
     assert gates["voice_ui_live"].slice_class == "needs_design"
 
 
@@ -38,7 +39,7 @@ def test_telegram_voice_reaches_100_when_all_gates_complete():
 def test_telegram_voice_live_gate_is_next_after_plugin_hooks():
     report = build_telegram_voice_closure_report(plugin_runtime_integration_go=True)
 
-    assert report.percent_complete == 80
+    assert report.percent_complete == 90
     assert "Manual live voice smoke" in report.why_not_100
     assert "Grant or defer" in report.recommended_next_human_decision
 

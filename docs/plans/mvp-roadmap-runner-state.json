@@ -169,9 +169,9 @@
     {
       "number": 5,
       "name": "Telegram Voice Pipeline",
-      "percent": 80,
+      "percent": 90,
       "status": "needs_live_go",
-      "why_not_100": "Text chat, polling, and reply gates are proven in Roadmap 1; voice download, STT gate, and a bounded voice smoke are still missing.",
+      "why_not_100": "Live server is Telegram agent-reply ready, but Voice remains metadata-only because voice download/STT gates are disabled and no local STT stack is installed.",
       "next_slices": [
         {
           "id": "r5-voice-gate-readiness",
@@ -182,7 +182,7 @@
           "required_live_go": ["telegram_voice_download", "telegram_voice_stt", "telegram_reply_send"],
           "allowed_paths": ["docs/plans/mvp-master-roadmap.md"],
           "tests": ["tests/test_telegram_voice_pipeline.py", "tests/test_telegram_plugin.py"],
-          "blocker": "Text bot readiness is live-proven in Roadmap 1; no voice download or STT gate is configured."
+          "blocker": "Live server is agent-reply ready with allowed chat, polling, agent-chat, and reply gates; Voice remains metadata-only because TELEGRAM_VOICE_DOWNLOAD_ENABLED and TELEGRAM_VOICE_STT_ENABLED are disabled and no local STT stack is installed."
         }
       ]
     },
@@ -279,9 +279,9 @@
       "id": "R5-TELEGRAM-VOICE-GATES",
       "class": "needs_live_go",
       "blocks": "Roadmap 5 live voice smoke",
-      "decision_needed": "Provide allowed chat plus polling, download, STT, and reply gates.",
-      "safe_preparation_done": "Offline voice pipeline and fake STT/reply planning are tested.",
-      "risk_if_bypassed": "Could ingest or send private Telegram content without explicit bounded gates.",
+      "decision_needed": "Choose STT path: install/configure local STT on Debian or explicitly allow a fake-STT runtime smoke; then enable bounded voice download/STT gates for one allowed short voice message.",
+      "safe_preparation_done": "Bot token, allowed chat, polling, agent-chat, and reply gates are live-ready; offline voice pipeline and fake STT/reply planning are tested.",
+      "risk_if_bypassed": "Could download or transcribe private Telegram audio without explicit bounded gates and redaction policy.",
       "next_safe_slice": "R9"
     }
   ],

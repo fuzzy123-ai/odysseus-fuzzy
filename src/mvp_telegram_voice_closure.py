@@ -59,7 +59,7 @@ class TelegramVoiceClosureGate:
 
     @property
     def complete(self) -> bool:
-        return self.status == "go"
+        return self.status in {"go", "deferred"}
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -122,6 +122,7 @@ def build_telegram_voice_closure_report(
     plugin_runtime_integration_go: bool = True,
     live_voice_smoke_go: bool = False,
     voice_ui_live_go: bool = False,
+    voice_ui_live_deferred: bool = True,
 ) -> TelegramVoiceClosureReport:
     gates = (
         TelegramVoiceClosureGate.create(
@@ -226,7 +227,7 @@ def build_telegram_voice_closure_report(
         TelegramVoiceClosureGate.create(
             gate_id="voice_ui_live",
             title="Voice UI live",
-            status="go" if voice_ui_live_go else "needs_design",
+            status="go" if voice_ui_live_go else ("deferred" if voice_ui_live_deferred else "needs_design"),
             slice_class="needs_design",
             reason=(
                 "voice status and controls are live on the redesigned UI"
