@@ -45,7 +45,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 
 | Prio | Track | Status | Aufwand 0-10 | MVP-Ziel | Done wenn |
 | ---: | --- | --- | ---: | --- | --- |
-| 1 | Runtime Closure Gates | 88% / partial_telegram_live | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
+| 1 | Runtime Closure Gates | 100% / go | 5 | Updates-/Backup-Logik, MCP Production Smoke und Telegram Text Runtime Smoke werden als getrennte Backend-/Runtime-Gates geschlossen. | Live-Smokes sind redacted dokumentiert oder explizit Partial/No-Go; kein Gate impliziert ein anderes. |
 | 2 | Secure Data Mode Runtime Hooks | 100% / go | 7 | Sensible Quellen, Secure Chats und Local-only Policy greifen an den echten Runtime-Grenzen. | Provider, Retrieval, Telegram und private Quellen respektieren Policy Gates; unsichere Faelle blockieren oder gehen in Review. |
 | 3 | Private Data / Nextcloud Memory Ingestion | 50% / repo_open | 9 | Nextcloud/private Daten werden resumable, provenance-aware und ohne Raw-Content-Leaks in Memory vorbereitet. | Transfer-Readiness, Scanner-Dry-Run, Ledger und kleine Live-Batches sind gated; Full 100GB+ Transfer bleibt erst spaeter claimable. |
 | 4 | System Health Checker Host-Agent | 60% / needs_operator_input | 8 | Homeserver Health wird ueber einen getrennten Host-Agent und bereinigte APIs sichtbar, nicht ueber versteckte Core-Kommandos. | Debian Host-Agent liefert bereinigte Snapshots; Odysseus verarbeitet Health/Alerts ohne Root-, Socket- oder Secret-Leak. |
@@ -84,27 +84,23 @@ Stand: 2026-06-23
 
 | # | Roadmap | % | Warum nicht 100% |
 | - | - | -: | - |
-| 1 | Runtime Closure Gates | 88 | Debian systemd, Podman runtime, auto-update timer, backup timer, Restic repo/check und Nextcloud-Podman-Stack sind redacted live belegt; nicht 100%, weil der Telegram Text Roundtrip noch kein erlaubtes Chat-/Polling-/Reply-Go hat. |
+| 1 | Runtime Closure Gates | 100 | - |
 | 2 | Secure Data Mode Runtime Hooks | 100 | - |
 | 3 | Private Data / Nextcloud Memory Ingestion | 50 | Resumable Transfer Tooling, Scanner-Dry-Run, Chunked Extraction Lanes und metadata-only Ledger sind erledigt; Live-Go ist erteilt, aber `.env` enthaelt keine Nextcloud/WebDAV-Konfiguration und es fehlen weiter Quelle, Ziel, Diskbudget und No-Delete-Dry-Run. |
 | 4 | System Health Checker Host-Agent | 60 | Foundation, Interface, Collectors, Rule Engine und Ops-Readiness sind repo-only erledigt und fokussiert getestet; Live-Go ist erteilt, aber `.env` enthaelt keinen Host-Agent/Local-API-Marker und Install/Start/Snapshot bleiben ohne Host-Scope blockiert. |
-| 5 | Telegram Voice Pipeline | 80 | Offline-Kette fuer Download-Plan, lokale Referenz, fake STT, Agent-Turn, Reply-Plan und Plugin-Hooks ist getestet; Live-Go ist erteilt, aber `.env` enthaelt nur den Bot-Token, keine erlaubten Chats und keine Polling/Download/STT/Reply-Gates. |
+| 5 | Telegram Voice Pipeline | 80 | Offline-Kette fuer Download-Plan, lokale Referenz, fake STT, Agent-Turn, Reply-Plan und Plugin-Hooks ist getestet; R1 belegt Chat/Poll/Reply live, aber Voice-Download, STT-Gate und ein bounded Voice-Smoke fehlen weiter. |
 | 6 | ORCA / Lens Naming & Backend Migration | 80 | ORCA Naming, Boundary, Env-/Tool-/Provider-/Route-Aliases, ORCA-Core-Adapter und Legacy-Deprecation-Contract sind erledigt und getestet; Data-Path-Migration braucht noch konkretes Ziel/Rollback, UI-Lens-Wording bleibt Design-Gate. |
 | 7 | PlanRuntime / Visual Planning Logic | 92 | Backend-Logik fuer PlanRuntime, Lens, Validation, Proposal Queue, Acceptance, Patch, Apply und bestaetigten post-apply Dispatch-Request ist erledigt und getestet; Browser-Editor/UI bleibt bis zur gemeinsamen UI-Neugestaltung offen. |
 | 8 | Release / Distribution Evidence | 82 | MVP-MasterRoadmap-Aggregat und UI-live Gate blockieren 1.0-Claims korrekt und sind getestet; Deploy/Tag/Distribution brauchen ein konkretes Ziel-Go und die neue UI bleibt offen. |
 | 9 | Image Tools Worker Final Smoke | 100 | - |
 | 10 | GameDev Mount Write Smoke | 100 | - |
 
-Gesamtfortschritt MVP-Roadmaps: 83%
+Gesamtfortschritt MVP-Roadmaps: 84%
 
 Version-1.0-Gate: UI live? nein
 
 Recommended next human decision:
 
-- Roadmap 1: fuer 100% einen erlaubten Telegram Chat plus Poll/Reply-Gates
-  setzen oder den echten Text-Roundtrip bewusst deferred lassen.
-- Roadmap 2: backendseitig geschlossen; weiter mit Roadmap 3 Transfer-/Scanner-
-  und Chunked-Extraction-Lanes ohne Live-Nextcloud-Go.
 - Roadmap 3: echte Transfer-Inputs entweder liefern oder das Live-Gate bewusst
   deferred markieren; backend-safe kann als naechstes Resumable Transfer
   Tooling als abgeschlossen behandeln und weitere Memory-Abstraction-Dry-Run-
@@ -147,7 +143,7 @@ Aktuelle Gate-Zusammenfassung:
 | MCP plugin present in rebuilt runtime | go | needs_live_go | Local runtime loaded `mcp_server`; `/api/plugins/mcp/info` returned 200 with the plugin disabled by default. |
 | MCP local route smoke | go | needs_live_go | MCP was temporarily enabled with all risky permissions false; JSON-RPC initialize, ping, tools/list, resources/list and readiness read returned 200, then config was restored to disabled. |
 | Telegram text offline boundary | go | repo_only | Telegram text intake, allowlist, bridge, and identifier redaction have offline coverage. |
-| Telegram text live roundtrip | partial | needs_live_go | Telegram Bot API `getMe` returned 200 and plugin status is token-ready; no real text roundtrip because allowed chat marker is absent and agent intake, polling, network and reply gates are disabled. |
+| Telegram text live roundtrip | go | needs_live_go | Debian container runtime has token, allowed-chat, agent-intake, polling and reply gates enabled; polling returned `poll_ok`, synthetic intake stored and bridged through the live webhook path, and the reply route sent a Telegram message with a message-id marker. |
 
 Live-Smoke Evidence, 2026-06-23:
 
@@ -158,7 +154,7 @@ Live-Smoke Evidence, 2026-06-23:
 - Podman evidence: Odysseus containers are up, and a Nextcloud Podman stack exists with `nextcloud-app`, `nextcloud-cron`, `nextcloud-db`, and `nextcloud-redis` running.
 - Backup evidence: backup target is mounted, Restic binary and repo markers are present, backup env marker is present, latest daily backup service exited successfully, Restic repository check found no errors, and retention preview completed.
 - MCP runtime: `/api/plugins/mcp/info` and `/config` returned 200; disabled probe returned 403; temporary safe enable returned 200; JSON-RPC initialize/ping/tools/list/resources/list/readiness returned 200; config restored to disabled.
-- Telegram runtime: `/api/plugins/telegram/status` returned 200 with token marker present, no chat-id marker, polling/reply/network disabled; Telegram Bot API `getMe` returned 200 without exposing bot identity.
+- Telegram runtime: container-local `/api/plugins/telegram/status` returned 200 with token, allowed-chat, agent-intake, polling and reply markers present and no token/chat values visible; `/poll` returned `poll_ok`; bounded synthetic `/webhook` intake stored and bridged a smoke message; `/reply` sent one Telegram test message and returned a message-id marker without exposing token, chat ID or private content.
 
 ## Roadmap 2 Backend Evidence
 
@@ -328,9 +324,9 @@ Aktuelle Gate-Zusammenfassung:
 Live-Smoke Evidence, 2026-06-23:
 
 - Telegram Bot API `getMe` returned 200 in Roadmap 1 smoke.
-- `.env` contains `TELEGRAM_BOT_TOKEN` only; no `TELEGRAM_ALLOWED_CHAT_IDS`, `TELEGRAM_CHAT_ID`, `TELEGRAM_POLLING_ENABLED`, voice download, STT or reply gate marker was present.
+- Roadmap 1 now proves text chat, polling and reply gates live; voice download and STT gate markers remain absent, so no Live-Voice-Download or STT-provider action has been executed.
 - `tests/test_mvp_telegram_voice_closure.py`, `tests/test_telegram_voice_pipeline.py`, `tests/test_telegram_plugin.py`, `tests/test_telegram_voice_boundary.py` and `tests/test_telegram_text_boundary.py` liefen gruen.
-- Kein Live-Voice-Download, keine STT-Provider-Aktion und keine Telegram-Reply wurden ausgefuehrt.
+- Kein Live-Voice-Download, keine STT-Provider-Aktion und kein voice-spezifischer Reply-Smoke wurden ausgefuehrt.
 
 ## Roadmap 6 Backend Evidence
 
