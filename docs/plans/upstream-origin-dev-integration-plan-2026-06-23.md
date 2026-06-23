@@ -171,12 +171,17 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 ### U7 - Final Integration Evidence
 
 - Class: repo_only
+- Status: done in dev.
 - Effort: 2/10
 - After all selected slices:
   - Run focused backend/security/chat/cookbook/hwfit test bundle.
   - Run `python scripts/mvp_roadmap_runner.py --report` to ensure MVP state still reads as complete.
   - Update this plan with imported commit coverage and deferred decisions.
   - Commit and push to `fuzzy/dev`.
+- Final evidence:
+  - Focused integration suite on 2026-06-23: 168 passed, 2 skipped.
+  - `scripts/mvp_roadmap_runner.py --report`: MVP-Gesamtfortschritt 100%; Version-1.0-Gate UI live? nein; queue exhausted.
+  - Remaining product gate: ship the new UI before claiming Version 1.0 or external release/tag/distribution.
 
 ## Recommended Order
 
@@ -197,4 +202,4 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 
 ## Recommended Next Move
 
-Start with U1 and U2. They give us the most product value with the least design risk: security hardening, safer logs, fewer route edge failures, lower perceived latency, better model routing, and more reliable long-running streams.
+All U1-U7 integration slices selected for this pass are complete on `fuzzy/dev`. Next product move: finish and ship the new UI before claiming Version 1.0 or external release/tag/distribution.
