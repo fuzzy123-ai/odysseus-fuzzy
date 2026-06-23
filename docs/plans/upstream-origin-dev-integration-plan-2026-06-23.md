@@ -150,6 +150,7 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 ### U6 - Deferred UI, A11y, Docs, and Assets
 
 - Class: needs_design for UI; repo_only for docs
+- Status: docs-only done in dev; old-UI/a11y/theme/assets/version choices deferred.
 - Effort: 4/10
 - Decide separately:
   - Import OpenDyslexic/Text-size control from `91b4171b` into the old UI, or re-spec it for the new UI.
@@ -158,7 +159,14 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 - Safe docs-only imports:
   - `c062c276` setup link fix.
   - `b899095f` Windows `-BindHost` note.
-- Exit: docs commit if accepted; UI/a11y deferred to new UI workstream.
+- Implemented:
+  - Fixed the setup guide's relative `CONTRIBUTING.md` link.
+  - Documented Windows launcher `-BindHost` for trusted LAN/Tailscale exposure.
+- Deferred decisions:
+  - Old-UI a11y/theme changes stay deferred and should be re-specified for the new UI.
+  - Upstream README screenshots/assets are not adopted before the new UI is live.
+  - Upstream `APP_VERSION=1.0.1` is not adopted; this fork keeps Version 1.0 reserved for "10 MVP roadmaps complete + new UI live".
+- Exit: docs commit; UI/a11y deferred to new UI workstream.
 
 ### U7 - Final Integration Evidence
 
@@ -183,9 +191,9 @@ These 22 files changed both in our fork and upstream since the merge base. They 
 
 ## Human Decisions Needed
 
-1. Should upstream old-UI a11y/theme changes be imported now, or should they be reimplemented only in the new UI?
+1. Old-UI a11y/theme changes are deferred and should be reimplemented in the new UI.
 2. Should the Docker socket mount and `install-system-deps` endpoint be enabled for live Debian use, or kept as repo-only until a live ops review?
-3. Should upstream `APP_VERSION=1.0.1` be adopted, or should our fork keep Version 1.0 reserved for "10 MVP roadmaps complete + new UI live"?
+3. Upstream `APP_VERSION=1.0.1` is deferred; this fork keeps Version 1.0 reserved for "10 MVP roadmaps complete + new UI live".
 
 ## Recommended Next Move
 
