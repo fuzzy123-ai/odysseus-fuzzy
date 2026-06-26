@@ -1082,6 +1082,106 @@ def test_polling_cycle_voice_pipeline_uses_local_stt_service_without_persisting_
     assert "unique-voice" not in persisted_text
 
 
+def test_polling_cycle_holds_offset_for_pending_voice_stt_retry(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 11,
+            "message": {
+                "message_id": 12,
+                "chat": {"id": "voice-chat-999"},
+                "voice": {
+                    "file_id": "voice-file-id",
+                    "file_unique_id": "unique-voice",
+                    "duration": 2,
+                    "mime_type": "audio/ogg",
+                    "file_size": 1024,
+                },
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-pending-stt"},
+        voice_stt_provider=lambda _local_ref: "",
+        agent_turn_handler=lambda _bridge: {"status": "accepted", "reply_text": ""},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["pending_retries"] == 1
+    assert result["offset"] == 0
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(
+        item.get("kind") == "voice_retry" and item.get("status") == "pending_stt_retry_scheduled"
+        for item in history
+    )
+
+
+def test_polling_cycle_retries_duplicate_pending_voice_before_advancing_offset(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_VOICE_STT_ENABLED", "true")
+    turns = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 21,
+            "message": {
+                "message_id": 22,
+                "chat": {"id": "voice-chat-999"},
+                "voice": {
+                    "file_id": "voice-file-id",
+                    "file_unique_id": "unique-voice",
+                    "duration": 2,
+                    "mime_type": "audio/ogg",
+                    "file_size": 1024,
+                },
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-retry-stt"},
+        voice_stt_provider=lambda _local_ref: "",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 21,
+            "message": {
+                "message_id": 22,
+                "chat": {"id": "voice-chat-999"},
+                "voice": {
+                    "file_id": "voice-file-id",
+                    "file_unique_id": "unique-voice",
+                    "duration": 2,
+                    "mime_type": "audio/ogg",
+                    "file_size": 1024,
+                },
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-retry-stt"},
+        voice_stt_provider=lambda _local_ref: "voice transcript after restart",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    assert first["offset"] == 0
+    assert second["offset"] == 22
+    assert second["agent_turns"] == 1
+    assert turns[0]["note"] == "voice_transcribed"
+    assert "voice transcript after restart" in turns[0]["prompt"]
+    counts = TelegramInboxStore(tmp_path).counts()
+    assert counts["voice"] == 1
+    assert counts["pending_stt"] == 0
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "voice transcript after restart" not in persisted_text
+    assert "voice-file-id" not in persisted_text
+    assert "unique-voice" not in persisted_text
+
+
 def test_download_telegram_voice_bytes_uses_get_file_and_size_limit(monkeypatch):
     class _Response:
         def __init__(self, payload: bytes, headers: dict[str, str] | None = None):

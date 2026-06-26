@@ -226,14 +226,19 @@ class TelegramInboxStore:
                 existing.get("message_id"),
             )
             if existing_key == key:
+                retry_pending_voice = (
+                    existing.get("kind") == "voice"
+                    and existing.get("transcript_status") == "pending_stt"
+                    and message.get("kind") == "voice"
+                )
                 self.append_event(
                     kind="duplicate",
-                    status="duplicate_ignored",
+                    status="duplicate_pending_stt_retry" if retry_pending_voice else "duplicate_ignored",
                     chat_id=str(message.get("chat_id") or ""),
                     update_id=message.get("update_id"),
                     message_id=message.get("message_id"),
                 )
-                return {"stored": False, "message": existing}
+                return {"stored": False, "message": existing, "retry_pending_voice": retry_pending_voice}
 
         stored = _sanitize_persisted_message(message)
         stored["stored_at"] = int(time.time())
@@ -255,7 +260,36 @@ class TelegramInboxStore:
                 update_id=stored.get("update_id"),
                 message_id=stored.get("message_id"),
             )
-        return {"stored": True, "message": stored}
+        return {"stored": True, "message": stored, "retry_pending_voice": False}
+
+    def update_inbound_status(
+        self,
+        message: dict[str, Any],
+        *,
+        transcript_status: str | None = None,
+        voice_status: str | None = None,
+        intake_status: str | None = None,
+    ) -> dict[str, Any] | None:
+        data = self._read()
+        key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
+        for existing in data["messages"]:
+            existing_key = (
+                existing.get("direction"),
+                existing.get("update_id"),
+                existing.get("message_id"),
+            )
+            if existing_key != key:
+                continue
+            if transcript_status is not None:
+                existing["transcript_status"] = transcript_status
+            if voice_status is not None:
+                existing["voice_status"] = voice_status
+            if intake_status is not None:
+                existing["intake_status"] = intake_status
+            existing["updated_at"] = int(time.time())
+            self._write(data)
+            return dict(existing)
+        return None
 
     def append_outbound(
         self,
@@ -861,6 +895,8 @@ def run_telegram_polling_cycle(
     invalid = 0
     agent_turns = 0
     replies = 0
+    pending_retries = 0
+    hold_offset_for_retry = False
     last_update_id = offset - 1 if offset else 0
     try:
         updates = loader(offset)
@@ -876,7 +912,8 @@ def run_telegram_polling_cycle(
             store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
             continue
         stored = store.append_inbound(message)
-        if stored["stored"]:
+        should_process = bool(stored["stored"]) or bool(stored.get("retry_pending_voice"))
+        if should_process:
             message_voice_stt_provider = voice_stt_provider or build_telegram_live_voice_stt_provider(
                 message,
                 voice_bytes_provider=voice_bytes_provider,
@@ -891,6 +928,28 @@ def run_telegram_polling_cycle(
                 image_bytes_provider=image_bytes_provider,
                 worker_client=image_worker_client,
             )
+            if _voice_pipeline is not None:
+                stt_status = str((_voice_pipeline.get("stt") or {}).get("status") or "")
+                stt_reason = str((_voice_pipeline.get("stt") or {}).get("reason") or "")
+                if voice_agent_turn is not None and voice_agent_turn.ready_for_agent:
+                    refreshed = store.update_inbound_status(
+                        stored["message"],
+                        transcript_status="transcribed",
+                        voice_status="transcribed",
+                        intake_status="ready",
+                    )
+                    if refreshed is not None:
+                        stored["message"] = refreshed
+                elif stt_status == "pending_stt" or stt_reason in {"stt_provider_failed", "empty_transcript"}:
+                    pending_retries += 1
+                    hold_offset_for_retry = True
+                    store.append_event(
+                        kind="voice_retry",
+                        status="pending_stt_retry_scheduled",
+                        chat_id=str(message.get("chat_id") or ""),
+                        update_id=message.get("update_id"),
+                        message_id=message.get("message_id"),
+                    )
             bridge = build_agent_bridge_request(
                 stored["message"],
                 raw_chat_id=str(message.get("chat_id") or ""),
@@ -935,7 +994,7 @@ def run_telegram_polling_cycle(
                         )
                         replies += 1
             processed += 1
-    next_offset = last_update_id + 1 if last_update_id else offset
+    next_offset = offset if hold_offset_for_retry else (last_update_id + 1 if last_update_id else offset)
     polling.record(
         status="poll_ok",
         offset=next_offset,
@@ -943,6 +1002,7 @@ def run_telegram_polling_cycle(
         invalid=invalid,
         agent_turns=agent_turns,
         replies=replies,
+        pending_retries=pending_retries,
         last_update_id=last_update_id,
     )
     return {
@@ -952,6 +1012,7 @@ def run_telegram_polling_cycle(
         "invalid": invalid,
         "agent_turns": agent_turns,
         "replies": replies,
+        "pending_retries": pending_retries,
         "offset": next_offset,
     }
 
