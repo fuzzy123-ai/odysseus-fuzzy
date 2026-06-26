@@ -653,6 +653,38 @@ def test_session_bridge_reuses_existing_mapping(tmp_path):
     assert second["mapping"]["session_alias"].startswith("telegram:chat_")
 
 
+def test_session_bridge_rebinds_existing_mapping_for_new_chat(tmp_path):
+    store = TelegramSessionBridgeStore(tmp_path)
+    raw_chat_id = "chat-raw-123"
+    created = []
+
+    def _creator(**kwargs):
+        created.append(kwargs)
+        return {"session_id": f"session-{len(created)}"}
+
+    first = store.bind_chat(
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
+        recommended_session_name="Telegram nina",
+        creator=_creator,
+    )
+    second = store.rebind_chat(
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
+        recommended_session_name="Telegram nina",
+        creator=_creator,
+    )
+
+    assert first["session_id"] == "session-1"
+    assert second["session_id"] == "session-2"
+    assert len(created) == 2
+    persisted = json.loads((tmp_path / "telegram_session_bridge.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert "session-1" not in persisted_text
+    assert "session-2" in persisted_text
+    assert raw_chat_id not in persisted_text
+
+
 def test_polling_cycle_is_gated_and_stores_offset_without_network(tmp_path, monkeypatch):
     monkeypatch.delenv("TELEGRAM_POLLING_ENABLED", raising=False)
 
@@ -661,6 +693,55 @@ def test_polling_cycle_is_gated_and_stores_offset_without_network(tmp_path, monk
     assert result["ok"] is False
     assert result["status"] == "polling_disabled"
     assert TelegramPollingStateStore(tmp_path).get_offset() == 0
+
+
+def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    created = []
+    replies = []
+    turns = []
+    store = TelegramSessionBridgeStore(tmp_path)
+    store.bind_chat(
+        chat_id="123",
+        session_alias="telegram:123",
+        recommended_session_name="Telegram Nina",
+        creator=lambda **_kwargs: {"session_id": "old-session"},
+    )
+
+    def _creator(**kwargs):
+        created.append(kwargs)
+        return {"session_id": "new-session"}
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 8,
+            "message": {
+                "message_id": 80,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/new",
+            },
+        }],
+        session_creator=_creator,
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["processed"] == 1
+    assert result["control_commands"] == 1
+    assert result["agent_turns"] == 0
+    assert result["replies"] == 1
+    assert replies == [("123", "Neuer Chat gestartet.", 80)]
+    assert turns == []
+    assert created[0]["chat_id"] == "123"
+    mapping = TelegramSessionBridgeStore(tmp_path).get("123")
+    assert mapping is not None
+    assert mapping["session_id"] == "new-session"
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "control_command" and item.get("status") == "new_chat_bound" for item in history)
 
 
 def test_polling_cycle_records_blocked_chat_without_session_bridge(tmp_path, monkeypatch):

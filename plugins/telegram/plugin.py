@@ -482,6 +482,43 @@ class TelegramSessionBridgeStore:
         self._write(data)
         return {"session_id": mapping["session_id"], "created": bool(session_id), "mapping": dict(mapping)}
 
+    def rebind_chat(
+        self,
+        *,
+        chat_id: str,
+        session_alias: str,
+        recommended_session_name: str,
+        creator: Callable[..., Any] | None = None,
+    ) -> dict[str, Any]:
+        data = self._read()
+        sessions = data["sessions"]
+        handle = _chat_handle(chat_id)
+        safe_session_alias = f"telegram:{handle}" if handle else session_alias
+        session_id = None
+        if creator is not None:
+            created = creator(
+                chat_id=str(chat_id),
+                session_alias=session_alias,
+                recommended_session_name=recommended_session_name,
+            )
+            if isinstance(created, dict):
+                session_id = created.get("session_id") or created.get("id")
+            else:
+                session_id = created
+        mapping = {
+            "chat_handle": handle,
+            "session_id": str(session_id or ""),
+            "session_alias": safe_session_alias,
+            "recommended_session_name": recommended_session_name,
+            "created_at": int(time.time()),
+            "last_seen_at": int(time.time()),
+            "rebound_at": int(time.time()),
+        }
+        sessions.pop(str(chat_id), None)
+        sessions[handle] = mapping
+        self._write(data)
+        return {"session_id": mapping["session_id"], "created": bool(session_id), "mapping": dict(mapping)}
+
 
 def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
     """Extract a redacted local-history message from a Telegram update."""
@@ -625,6 +662,53 @@ def build_agent_bridge_request(
         "reply_required": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
         "note": note,
         "intake_status": message.get("intake_status") or note,
+    }
+
+
+def _telegram_control_command(message: dict[str, Any]) -> str:
+    if message.get("kind") != "text":
+        return ""
+    text = str(message.get("text") or "").strip()
+    first = text.split(maxsplit=1)[0].lower() if text else ""
+    command = first.split("@", 1)[0]
+    if command == "/new":
+        return "new_chat"
+    return ""
+
+
+def _handle_telegram_control_command(
+    command: str,
+    *,
+    message: dict[str, Any],
+    raw_chat_id: str,
+    sessions: TelegramSessionBridgeStore,
+    session_creator: Callable[..., Any] | None,
+    reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    if command != "new_chat":
+        return None
+    bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+    binding = sessions.rebind_chat(
+        chat_id=bridge["chat_id"],
+        session_alias=bridge["session_alias"],
+        recommended_session_name=bridge["recommended_session_name"],
+        creator=session_creator,
+    )
+    created = bool(binding.get("session_id"))
+    reply_text = "Neuer Chat gestartet." if created else "Neuer Chat konnte nicht gestartet werden."
+    reply_result = None
+    if reply_handler is not None and bridge["chat_id"]:
+        reply_result = reply_handler(
+            bridge["chat_id"],
+            reply_text,
+            bridge.get("source_message_id"),
+        )
+    return {
+        "command": command,
+        "status": "new_chat_bound" if created else "new_chat_pending_bridge",
+        "binding": binding,
+        "reply_text": reply_text,
+        "reply": reply_result,
     }
 
 
@@ -896,6 +980,7 @@ def run_telegram_polling_cycle(
     agent_turns = 0
     replies = 0
     pending_retries = 0
+    control_commands = 0
     hold_offset_for_retry = False
     last_update_id = offset - 1 if offset else 0
     try:
@@ -914,6 +999,27 @@ def run_telegram_polling_cycle(
         stored = store.append_inbound(message)
         should_process = bool(stored["stored"]) or bool(stored.get("retry_pending_voice"))
         if should_process:
+            control_result = _handle_telegram_control_command(
+                _telegram_control_command(stored["message"]),
+                message=stored["message"],
+                raw_chat_id=str(message.get("chat_id") or ""),
+                sessions=sessions,
+                session_creator=session_creator,
+                reply_handler=reply_handler,
+            )
+            if control_result is not None:
+                control_commands += 1
+                if control_result.get("reply") is not None:
+                    replies += 1
+                store.append_event(
+                    kind="control_command",
+                    status=str(control_result.get("status") or "handled"),
+                    chat_id=str(message.get("chat_id") or ""),
+                    session_id=str((control_result.get("binding") or {}).get("session_id") or ""),
+                    command=str(control_result.get("command") or ""),
+                )
+                processed += 1
+                continue
             message_voice_stt_provider = voice_stt_provider or build_telegram_live_voice_stt_provider(
                 message,
                 voice_bytes_provider=voice_bytes_provider,
@@ -1003,6 +1109,7 @@ def run_telegram_polling_cycle(
         agent_turns=agent_turns,
         replies=replies,
         pending_retries=pending_retries,
+        control_commands=control_commands,
         last_update_id=last_update_id,
     )
     return {
@@ -1013,6 +1120,7 @@ def run_telegram_polling_cycle(
         "agent_turns": agent_turns,
         "replies": replies,
         "pending_retries": pending_retries,
+        "control_commands": control_commands,
         "offset": next_offset,
     }
 
@@ -1597,6 +1705,41 @@ def setup(ctx):
         session_binding = None
         agent_turn = None
         reply_result = None
+        control_result = _handle_telegram_control_command(
+            _telegram_control_command(stored["message"]),
+            message=stored["message"],
+            raw_chat_id=str(message.get("chat_id") or ""),
+            sessions=sessions,
+            session_creator=session_creator,
+            reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
+                chat_id,
+                text,
+                source_message_id=source_message_id,
+            ),
+        )
+        if control_result is not None:
+            store.append_event(
+                kind="control_command",
+                status=str(control_result.get("status") or "handled"),
+                chat_id=str(message.get("chat_id") or ""),
+                session_id=str((control_result.get("binding") or {}).get("session_id") or ""),
+                command=str(control_result.get("command") or ""),
+            )
+            return {
+                "stored": stored["stored"],
+                "message": stored["message"],
+                "agent_bridge": bridge,
+                "voice_pipeline": voice_pipeline,
+                "image_action": image_action,
+                "agent_turn": None,
+                "reply": _public_reply_result(control_result.get("reply")),
+                "control_command": {
+                    "command": control_result.get("command"),
+                    "status": control_result.get("status"),
+                    "session_id_present": bool((control_result.get("binding") or {}).get("session_id")),
+                },
+                "token_value_visible": False,
+            }
         if bridge["ready_for_agent"]:
             session_binding = sessions.bind_chat(
                 chat_id=bridge["chat_id"],
