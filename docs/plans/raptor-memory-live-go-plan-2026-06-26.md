@@ -282,6 +282,8 @@ Phase-7-Handoff:
 
 ### Phase 8 - Live-Betriebsregeln
 
+Status: abgeschlossen fuer den lokalen Live-Go-Betriebsrahmen.
+
 Ziel: RAPTOR bleibt kontrollierbar.
 
 Tasks:
@@ -307,6 +309,55 @@ Tasks:
 Exit:
 - Operator weiss, wann Rebuild erlaubt ist.
 - Rollback ist dokumentiert.
+
+Phase-8-Handoff:
+- RAPTOR-Rebuild bleibt operator-gated und wird nicht durch die Memory Automation automatisch ausgefuehrt.
+- Automatisch erlaubte Memory-Aktionen sind begrenzt auf:
+  - `sync_memory_ledger`
+  - `build_derived_index`
+  - `warm_raptor_cache`
+- Lokale Automation-Safety bestaetigt: `source_note_writes=false`, `derived_data_writes_only=true`, `concurrency_limit=1`, `cooldown_seconds=300`, `max_sources_per_pass=500`.
+- Cache-Warming wurde einmal ausgefuehrt: `raptor_status` und `raptor_graph_view` gewaermt, danach `pending_actions=[]`.
+- Live-Monitoring-Kernwerte fuer Betrieb:
+  - `memory_status().readiness_gate.state`
+  - `memory_status().readiness_gate.ready_families`
+  - `memory_status().readiness_gate.blocked_families`
+  - `raptor_status().readiness.state`
+  - `raptor_status().summary.source_count`
+  - `raptor_status().dirty`
+  - `raptor_status().tainted`
+  - `raptor_status().warnings`
+  - `raptor_cache_diagnostics().entry_count`
+  - `raptor_cache_diagnostics().hits`
+  - `raptor_cache_diagnostics().misses`
+  - `raptor_cache_diagnostics().evictions`
+- Manuelle Rebuild-Regel: RAPTOR-Rebuild nur nach bewusstem Operator-Go und nur nach einem dieser Trigger:
+  - grosser Import abgeschlossen
+  - Nextcloud-Ingestion abgeschlossen
+  - Review Queue abgeschlossen
+  - Source-Status-/Freshness-Metadaten geaendert
+  - `raptor_status()` meldet dirty, missing, invalid oder tainted Quellen
+- Vor jedem manuellen Rebuild:
+  - `memory_status()` pruefen
+  - Backup/Snapshot des Vault-Zielkontexts vorhanden
+  - Privacy-Policy bestaetigt
+  - Bounds setzen, z.B. `max_sources=2000`, `max_edges=5000`
+- Nach jedem manuellen Rebuild:
+  - Artifact-Audit aus Phase 5 wiederholen
+  - `raptor_status().readiness.ready=true` pruefen
+  - `memory_status().readiness_gate.state=ready` pruefen
+  - Cache warmen oder erste Status-/Graph-Leseabfrage ausfuehren
+- Rollback:
+  - `ODYSSEUS_OBSIDIAN_RAPTOR_REBUILD_ENABLED=false`
+  - `ODYSSEUS_ORCA_RAPTOR_REBUILD_ENABLED=false`
+  - optional `ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED=false`
+  - optional `ODYSSEUS_ORCA_RAPTOR_ENABLED=false`
+  - Odysseus neu starten, damit Env-Flags sicher geladen sind
+  - RAPTOR-Artefaktordner lokal archivieren oder loeschen, nicht ins Repo kopieren
+- Aktueller lokaler Betriebsstatus: Memory Gate `ready`, 6/6 Families ready, RAPTOR `ready`, `dirty=false`, `tainted=false`, Warnings 0, Cache Entries 2, Pending Actions 0.
+- Keine Live-/Provider-/Netzwerkaktion, keine Repo-Persistenz von Vault-Artefakten, keine Quellinhalte/Snippets/privaten Pfade ausgegeben.
+- Verifikation: lokaler Status-Snapshot plus Cache-Warming-Snapshot ohne Inhalte/Pfade.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_automation_backend.py plugins\\obsidian\\tests\\test_raptor_warming_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py tests\\test_obsidian_memory_mission_contract.py` -> 48 passed.
 
 ## Empfohlene Reihenfolge fuer uns
 
