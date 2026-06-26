@@ -177,6 +177,8 @@ Phase-4-Handoff:
 
 ### Phase 5 - Privacy- und Artifact-Audit
 
+Status: abgeschlossen fuer den lokalen, git-ignorierten Zielkontext `vault/`.
+
 Ziel: Sicherstellen, dass keine privaten Vollinhalte oder Maschinenpfade persistiert wurden.
 
 Tasks:
@@ -193,6 +195,17 @@ Tasks:
 Exit:
 - Artifact-Audit ist sauber.
 - Falls nicht sauber: Flags aus, Artefaktordner archivieren/loeschen, Rebuild-Code/Policy reparieren.
+
+Phase-5-Handoff:
+- Gepruefte Artefakte: `index.json`, `summaries.json`, `rebuild_report.json` unter `vault/.obsidian/odysseus/raptor/`.
+- Alle drei Artefakte sind gueltiges JSON und bleiben durch `vault/` git-ignoriert.
+- Struktur-Audit sauber: 0 verbotene Raw-Content-Schluessel, 0 absolute Host-Pfade, 0 Secret-/Token-Muster, 0 Textfelder ueber 500 Zeichen.
+- Laengstes String-Feld im Audit: 71 Zeichen.
+- Graph ist bounded: gespeicherte Edges 0 von Limit 5000, kein Clipping.
+- Security Claims im Rebuild-Report bestaetigen: derived artifacts only, keine Raw Note Contents, keine absoluten Host-Pfade, kein Provider Output.
+- Keine Artefaktinhalte, Quellnotiznamen, Titel, Tags, Snippets oder privaten Pfade wurden ins Repo geschrieben oder im Chat ausgegeben.
+- Verifikation: `git check-ignore -v vault\\.obsidian\\odysseus\\raptor\\index.json vault\\.obsidian\\odysseus\\raptor\\summaries.json vault\\.obsidian\\odysseus\\raptor\\rebuild_report.json` -> alle drei durch `vault/` ignoriert.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py tests\\test_obsidian_memory_mission_contract.py` -> 13 passed.
 
 ### Phase 6 - Readiness-Gaps nach Rebuild schliessen
 
