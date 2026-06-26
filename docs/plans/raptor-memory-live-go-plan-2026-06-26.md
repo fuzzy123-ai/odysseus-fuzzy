@@ -209,6 +209,8 @@ Phase-5-Handoff:
 
 ### Phase 6 - Readiness-Gaps nach Rebuild schliessen
 
+Status: abgeschlossen fuer RAPTOR im lokalen, git-ignorierten Zielkontext `vault/`.
+
 Ziel: Aus "Artefakte existieren" wird "RAPTOR ist einsatzbereit".
 
 Tasks:
@@ -224,6 +226,20 @@ Tasks:
 
 Exit:
 - `raptor_status().readiness.ready=true` oder klare Entscheidung, welches Gap bewusst blockiert/deferred bleibt.
+
+Phase-6-Handoff:
+- Ausgangsgap: `source_isolated_from_default_retrieval` durch eine Freshness-Quelle in `needs_review`.
+- Ursache: volatile Policy ohne `updated` oder `last_verified_at`.
+- Lokale Zielumgebung aktualisiert: `ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED=true` und `ODYSSEUS_ORCA_HYBRID_RETRIEVAL_ENABLED=true` in der git-ignorierten `.env`.
+- Genau eine Quelle wurde body-preserving nur im Frontmatter aktualisiert: `status=active`, `updated=2026-06-26`, `last_verified_at=2026-06-26`.
+- Vor der lokalen Source-Metadaten-Aenderung wurde ein Backup ausserhalb des Repos angelegt.
+- Danach wurden Memory Ledger, Derived Index und RAPTOR-Artefakte neu aufgebaut.
+- Ergebnis RAPTOR: `configured=true`, `dirty=false`, `tainted=false`, `readiness.ready=true`, `readiness.state=ready`, `readiness.gaps=[]`, `writes_supported=true`.
+- Ergebnis Freshness: `filtering_state=active`, `readiness.ready=true`, 1 aktuelle Quelle, 0 isolierte Quellen, 0 `needs_review`.
+- Gesamt-Memory-Gate bleibt noch blockiert, aber nicht mehr durch RAPTOR oder Freshness: verbleibender Gap ist SOMT `loose_note` / `somt_issues_present`.
+- Erneuter Artifact-Audit sauber: 0 verbotene Raw-Content-Schluessel, 0 absolute Host-Pfade, 0 Secret-/Token-Muster, 0 Textfelder ueber 500 Zeichen.
+- Keine Quellinhalte, Snippets, privaten Pfade oder Artefakte wurden ins Repo geschrieben.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_context_provider_backend.py tests\\test_obsidian_memory_mission_contract.py` -> 53 passed.
 
 ### Phase 7 - Retrieval/Memory Integration verifizieren
 
