@@ -12,8 +12,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/odysseus
-ExecStart=/bin/sh -lc 'if /usr/bin/podman container exists odysseus_odysseus_1; then /usr/bin/podman-compose start; else /usr/bin/podman-compose up -d; fi'
-ExecStop=/usr/bin/podman-compose stop
+ExecStart=/bin/sh -lc 'compose_files="-f docker-compose.yml"; if [ -f docker-compose.nextcloud.yml ]; then compose_files="$compose_files -f docker-compose.nextcloud.yml"; fi; if /usr/bin/podman container exists odysseus_odysseus_1; then /usr/bin/podman-compose $compose_files start; else /usr/bin/podman-compose $compose_files up -d; fi'
+ExecStop=/bin/sh -lc 'compose_files="-f docker-compose.yml"; if [ -f docker-compose.nextcloud.yml ]; then compose_files="$compose_files -f docker-compose.nextcloud.yml"; fi; /usr/bin/podman-compose $compose_files stop'
 RemainAfterExit=yes
 TimeoutStartSec=300
 TimeoutStopSec=120

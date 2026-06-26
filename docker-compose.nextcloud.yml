@@ -1,0 +1,15 @@
+services:
+  odysseus:
+    volumes:
+      - nextcloud-data:/app/nextcloud-data:ro
+    environment:
+      - ODYSSEUS_NEXTCLOUD_PROVIDER_ID=${ODYSSEUS_NEXTCLOUD_PROVIDER_ID:-nextcloud_sync}
+      - ODYSSEUS_NEXTCLOUD_ACTOR=${ODYSSEUS_NEXTCLOUD_ACTOR:-odysseus-intake}
+      - ODYSSEUS_NEXTCLOUD_PERMISSION_SCOPE=${ODYSSEUS_NEXTCLOUD_PERMISSION_SCOPE:-no-delete,copy-only,review-gated}
+      - ODYSSEUS_NEXTCLOUD_ROOT_PATH=${ODYSSEUS_NEXTCLOUD_ROOT_PATH:-/app/nextcloud-data/odysseus-intake/files}
+      - ODYSSEUS_NEXTCLOUD_CONTAINER_DATA_PATH=${ODYSSEUS_NEXTCLOUD_CONTAINER_DATA_PATH:-/app/nextcloud-data}
+
+volumes:
+  nextcloud-data:
+    external: true
+    name: ${NEXTCLOUD_DATA_VOLUME:-nextcloud_nextcloud-data}
