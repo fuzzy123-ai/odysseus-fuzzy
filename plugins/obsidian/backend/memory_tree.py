@@ -335,11 +335,16 @@ def memory_tree_status(vault_dir: str) -> Dict[str, Any]:
 
 def _somt_readiness(*, enabled: bool, total_notes: int, issues: List[Dict[str, Any]], warnings: List[str]) -> Dict[str, Any]:
     gaps: List[str] = []
+    blocking_issues = [
+        issue
+        for issue in issues
+        if issue.get("type") != "loose_note"
+    ]
     if not enabled:
         gaps.append("somt_disabled")
     if total_notes == 0:
         gaps.append("somt_no_notes")
-    if issues:
+    if blocking_issues:
         gaps.append("somt_issues_present")
     if warnings:
         gaps.append("somt_warnings_present")
@@ -347,7 +352,7 @@ def _somt_readiness(*, enabled: bool, total_notes: int, issues: List[Dict[str, A
         state = "disabled"
     elif total_notes == 0:
         state = "empty"
-    elif issues:
+    elif blocking_issues:
         state = "needs_review"
     elif warnings:
         state = "warnings"

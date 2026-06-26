@@ -243,6 +243,8 @@ Phase-6-Handoff:
 
 ### Phase 7 - Retrieval/Memory Integration verifizieren
 
+Status: abgeschlossen fuer den lokalen, git-ignorierten Zielkontext `vault/`.
+
 Ziel: RAPTOR ist nicht nur gebaut, sondern in der Memory-Diagnostik sinnvoll nutzbar.
 
 Tasks:
@@ -262,6 +264,21 @@ Tasks:
 Exit:
 - RAPTOR kann sicher gelesen werden.
 - Bounded Graph View funktioniert.
+
+Phase-7-Handoff:
+- SOMT-Policy minimal korrigiert: `loose_note` bleibt als Info-Issue sichtbar, blockiert aber nicht mehr das Readiness-Gate.
+- Regressionstest ergaenzt: aktive Top-Level-Notiz ohne Graph-Link ist informativ, aber nicht blocking.
+- Gesamt-Memory-Gate ist jetzt `ready`: 6/6 Families ready, 0 blocked Families, 0 Gaps.
+- RAPTOR bleibt `ready`: `configured=true`, `dirty=false`, `tainted=false`, `readiness.gaps=[]`.
+- Bounded Graph View funktioniert: 1 Node, 0 Edges, Limit 25, returned Edges 0, Cursor-Shape vorhanden.
+- ORCA RAPTOR Contract ist `ready`, Graph ist bounded.
+- ORCA/Legacy Routen im Context-Adapter vorhanden:
+  - `/api/plugins/orca/raptor/status`
+  - `/api/plugins/orca/raptor/graph`
+  - `/api/plugins/obsidian/raptor/status`
+  - `/api/plugins/obsidian/raptor/graph`
+- Keine UI-Neugestaltung, keine Repo-Persistenz von Vault-Artefakten, keine Quellinhalte/Snippets/privaten Pfade ausgegeben.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_raptor_warming_backend.py plugins\\obsidian\\tests\\test_context_provider_backend.py tests\\test_obsidian_memory_mission_contract.py tests\\test_orca_compatibility_contract.py` -> 60 passed.
 
 ### Phase 8 - Live-Betriebsregeln
 

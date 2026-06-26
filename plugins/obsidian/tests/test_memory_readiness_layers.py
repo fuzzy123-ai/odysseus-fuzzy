@@ -100,6 +100,33 @@ def test_memory_tree_analyzer_is_read_only_and_reports_candidates():
         assert status["summary"]["readiness_gate"] == report["readiness_gate"]
 
 
+def test_memory_tree_loose_note_is_informational_not_blocking():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "Loose.md"), "w", encoding="utf-8") as f:
+            f.write(
+                "---\n"
+                "status: active\n"
+                "updated: 2026-06-26\n"
+                "---\n"
+                "# Loose\n\n"
+                "Standalone note.\n"
+            )
+
+        report = analyze_memory_tree(tmpdir)
+        status = memory_tree_status(tmpdir)
+
+        assert any(issue["type"] == "loose_note" for issue in report["issues"])
+        assert report["readiness"] == {
+            "ready": True,
+            "state": "ready",
+            "gaps": [],
+            "writes_supported": False,
+        }
+        assert status["issue_counts"] == {"loose_note": 1}
+        assert status["readiness"] == report["readiness"]
+        assert status["readiness_gate"]["state"] == "ready"
+
+
 def test_memory_status_aggregates_read_only_readiness_layers():
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "Active.md"), "w", encoding="utf-8") as f:
