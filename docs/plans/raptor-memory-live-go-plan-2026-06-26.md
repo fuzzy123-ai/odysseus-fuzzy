@@ -142,6 +142,8 @@ Phase-3-Handoff:
 
 ### Phase 4 - Kontrollierter Rebuild
 
+Status: abgeschlossen fuer den lokalen, git-ignorierten Zielkontext `vault/`.
+
 Ziel: RAPTOR-Artefakte einmal bounded und reproduzierbar bauen.
 
 Tasks:
@@ -160,6 +162,18 @@ Tasks:
 Exit:
 - RAPTOR-Artefakte sind gebaut.
 - Rebuild meldet `success=true`.
+
+Phase-4-Handoff:
+- RAPTOR-Rebuild ueber die vorhandene Backend-Rebuild-Funktion ausgefuehrt, nicht durch manuelle JSON-Bearbeitung.
+- Bounds: `max_sources=2000`, `max_edges=5000`.
+- Ergebnis: `success=true`, `blocked=false`, `write_gate.state=ready`, `warnings=0`.
+- Gebaute Artefakte: `index.json`, `summaries.json`, `rebuild_report.json` unter `vault/.obsidian/odysseus/raptor/`; dieser Pfad ist git-ignoriert.
+- Rebuild Summary: 1 Source, 1 active Source, 0 isolated Sources, 0 Graph Edges, 0 clipped Sources, 0 clipped Edges.
+- Status nach Rebuild: `configured=true`, `index_present=true`, `summaries_present=true`, `dirty=false`.
+- RAPTOR-Readiness bleibt noch nicht `ready`: `state=tainted`, Gap `source_isolated_from_default_retrieval`.
+- Ursache liegt nicht mehr am Rebuild oder Write-Gate, sondern an Freshness/SOMT-Isolation und wird in den Folgephasen bearbeitet.
+- Keine Quellnotizen geschrieben, keine Repo-Artefakte erzeugt, keine Inhalte/Snippets/privaten Pfade ausgegeben.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_raptor_warming_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py tests\\test_obsidian_memory_mission_contract.py` -> 47 passed.
 
 ### Phase 5 - Privacy- und Artifact-Audit
 
