@@ -83,12 +83,14 @@ Phase-1-Handoff:
 
 ### Phase 2 - Memory-Grundlagen vor RAPTOR herstellen
 
+Status: abgeschlossen fuer den lokalen, git-ignorierten Zielkontext `vault/`.
+
 Ziel: RAPTOR nicht auf leerem/ungeordnetem Memory-Unterbau starten.
 
 Tasks:
-- Memory Ledger aufbauen, sodass `ledger_empty` verschwindet.
-- Derived Index bauen, sodass `derived_index_missing` verschwindet.
-- Query Layer bauen, sodass `query_index_missing`, `query_index_not_ready` und `query_index_empty` verschwinden.
+- Memory Ledger aufbauen, sodass `ledger_empty` verschwindet. Ergebnis Phase 2: Ledger ist `ready`, 1 Quelle, 10 Chunks, 0 pending/stale/failed.
+- Derived Index bauen, sodass `derived_index_missing` verschwindet. Ergebnis Phase 2: Derived Index ist `ready`, 1 Quelle, 10 Chunks, 1 Graph Node, 0 Edges, 0 Warnings.
+- Query Layer bauen, sodass `query_index_missing`, `query_index_not_ready` und `query_index_empty` verschwinden. Ergebnis Phase 2: Query Layer ist `ready`, 1 Quelle, 10 Chunks, 0 Warnings.
 - SOMT-Issues pruefen und bereinigen oder als bewusst blockierend dokumentieren.
 - Freshness/Review Queue pruefen:
   - `needs_review_items` abbauen.
@@ -97,6 +99,16 @@ Tasks:
 Exit:
 - `memory_status()` zeigt keine leeren Kernindizes mehr.
 - Nicht-RAPTOR-Gaps sind entweder behoben oder bewusst deferred.
+
+Phase-2-Handoff:
+- Ausgefuehrt auf dem lokalen, git-ignorierten `vault/`.
+- Geschriebene Artefakte liegen nur unter `vault/.obsidian/odysseus/memory/` und bleiben ausserhalb Git.
+- Keine Quellnotizen geschrieben.
+- Keine Vault-Inhalte, Snippets, privaten Pfade oder Artefakte im Repo persistiert.
+- Vorher blockierten `ledger`, `derived_index` und `query_layer`; nach Phase 2 sind diese drei Familien `ready`.
+- Gesamt-Memory-Gate bleibt blockiert durch `freshness`, `somt` und `raptor`.
+- Verbleibende Gaps: `somt_issues_present`, `freshness_filtering_not_active`, `needs_review_items`, `raptor_index_missing`.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest plugins\\obsidian\\tests\\test_memory_readiness_layers.py plugins\\obsidian\\tests\\test_derived_index_backend.py plugins\\obsidian\\tests\\test_query_layer_backend.py plugins\\obsidian\\tests\\test_memory_ledger_backend.py tests\\test_obsidian_memory_mission_contract.py` -> 46 passed.
 
 ### Phase 3 - RAPTOR Flags nur in Zielumgebung aktivieren
 
