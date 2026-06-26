@@ -112,6 +112,8 @@ Phase-2-Handoff:
 
 ### Phase 3 - RAPTOR Flags nur in Zielumgebung aktivieren
 
+Status: abgeschlossen fuer die lokale Zielumgebung.
+
 Ziel: Rebuild-Gate gezielt oeffnen, nicht global/versehentlich.
 
 Tasks:
@@ -119,8 +121,8 @@ Tasks:
   - `ODYSSEUS_OBSIDIAN_RAPTOR_ENABLED=true`
   - `ODYSSEUS_OBSIDIAN_RAPTOR_REBUILD_ENABLED=true`
 - Falls ORCA-Aliase verwendet werden, konsistent setzen oder bewusst nicht setzen:
-  - `ODYSSEUS_ORCA_RAPTOR_ENABLED`
-  - `ODYSSEUS_ORCA_RAPTOR_REBUILD_ENABLED`
+  - `ODYSSEUS_ORCA_RAPTOR_ENABLED=true`
+  - `ODYSSEUS_ORCA_RAPTOR_REBUILD_ENABLED=true`
 - Odysseus neu starten, damit Env-Flags sicher geladen sind.
 - Status pruefen:
   - Feature-Gate sollte nicht mehr `raptor_feature_flag_disabled` melden.
@@ -128,6 +130,15 @@ Tasks:
 
 Exit:
 - `write_gate.state=ready` fuer die Schreibberechtigung, aber RAPTOR kann weiterhin `not_configured` sein, bis Artefakte gebaut wurden.
+
+Phase-3-Handoff:
+- Lokale, git-ignorierte `.env` aktualisiert; vorher wurde ein git-ignoriertes `.env.bak.raptor-phase3-*` Backup angelegt.
+- Keine `.env`-Werte, Secrets oder privaten Inhalte wurden ins Repo geschrieben oder ausgegeben.
+- ORCA-Aliase wurden bewusst mitgesetzt, weil sie im Code Vorrang vor den Obsidian-Env-Namen haben koennen.
+- `ODYSSEUS_OBSIDIAN_HYBRID_RETRIEVAL_ENABLED` bleibt in Phase 3 aus; Aktivierung folgt erst nach gebauten RAPTOR-Artefakten.
+- Statuspruefung in frischem Prozess: `obsidian_raptor_enabled=true`, `obsidian_raptor_rebuild_enabled=true`, `write_gate.state=ready`, `write_gate.gaps=[]`.
+- RAPTOR selbst bleibt erwartungsgemaess `configured=false` und `readiness.state=not_configured`, weil `raptor_index_missing` erst in Phase 4 behoben wird.
+- Verifikation: `venv\\Scripts\\python.exe -m pytest tests\\test_orca_compatibility_contract.py plugins\\obsidian\\tests\\test_raptor_rebuild_backend.py plugins\\obsidian\\tests\\test_raptor_cache_backend.py plugins\\obsidian\\tests\\test_memory_readiness_layers.py` -> 48 passed.
 
 ### Phase 4 - Kontrollierter Rebuild
 
