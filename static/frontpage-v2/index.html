@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ABC Frontend V2</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=tree-label-gap-1">
 </head>
 <body>
   <main class="stage" id="stage">
@@ -33,51 +33,72 @@
         <div class="window-body chat-body">
           <main class="messages" aria-label="Chat messages">
             <div class="message user">Check why memory search slows down during long sessions.</div>
-            <div class="message ai">I see three likely causes: a growing candidate pool, duplicate re-ranking paths, and no budget cutoff for older chat context.</div>
-            <div class="message ai">The next step is to trace where old context still enters the search path and cap it before ranking starts.</div>
-            <div class="message ai working">
+            <div class="message ai" data-ai-time="22:24" data-ai-model="deepseek-v4-flash" data-ai-tokens="312 in / 74 out" data-ai-context="18% used" data-ai-latency="1.8s">
+              I see three likely causes: a growing candidate pool, duplicate re-ranking paths, and no budget cutoff for older chat context.
+            </div>
+            <div class="message ai" data-ai-time="22:25" data-ai-model="deepseek-v4-flash" data-ai-tokens="426 in / 48 out" data-ai-context="21% used" data-ai-latency="1.2s">
+              The next step is to trace where old context still enters the search path and cap it before ranking starts.
+            </div>
+            <div class="message ai working" data-ai-time="22:26" data-ai-model="deepseek-v4-flash" data-ai-tokens="live" data-ai-context="23% used" data-ai-latency="running">
               <span class="busy-signal">Tracing memory graph <span class="pixel-wave" data-wave>&#9601;&#9602;&#9603;</span></span>
             </div>
           </main>
 
           <div class="composer-shell">
+            <div class="composer-context-nodges" data-context-nodges aria-label="Active chat context" hidden></div>
             <div class="composer">
               <button class="composer-menu-button" title="Open composer tools" aria-label="Open composer tools" aria-expanded="false" aria-controls="composer-tools-menu">
                 <span class="composer-menu-icon" aria-hidden="true">
                   <span></span><span></span><span></span><span></span>
                 </span>
               </button>
+              <textarea class="prompt-input" rows="3" placeholder="/ ask ABC something"></textarea>
               <div class="mode-switch" role="group" aria-label="Workspace mode">
                 <button class="mode-option" type="button" data-mode-option="plan" aria-pressed="false">Plan</button>
                 <button class="mode-option active" type="button" data-mode-option="agent" aria-pressed="true">Agent</button>
               </div>
-              <textarea class="prompt-input" rows="3" placeholder="/ ask ABC something"></textarea>
+              <button class="voice-btn" type="button" data-voice-toggle aria-label="Switch to voice input mode" aria-pressed="false" title="Voice input">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                  <path d="M8 21h8"></path>
+                </svg>
+              </button>
               <button class="send-btn" title="Send" aria-label="Send">&uarr;</button>
             </div>
             <div class="composer-tools-menu" id="composer-tools-menu" aria-hidden="true">
-              <button class="composer-tool" type="button" data-composer-tool="Deep Research">
+              <button class="composer-tool" type="button" data-composer-tool="Deep Research" data-composer-type="Open">
                 <span class="composer-tool-icon">&#9678;</span>
                 <span>Deep Research</span>
               </button>
-              <button class="composer-tool" type="button" data-composer-tool="Plan">
+              <button class="composer-tool" type="button" data-composer-tool="Plan" data-composer-type="Mode">
                 <span class="composer-tool-icon">&#9671;</span>
                 <span>Plan</span>
               </button>
-              <button class="composer-tool" type="button" data-composer-tool="Attachments">
+              <button class="composer-tool" type="button" data-composer-tool="Attach File" data-composer-type="Attach" data-nodge-kind="File">
                 <span class="composer-tool-icon">&#9639;</span>
-                <span>Attachments</span>
+                <span>Attach File</span>
               </button>
-              <button class="composer-tool" type="button" data-composer-tool="Skills">
+              <button class="composer-tool" type="button" data-composer-tool="Mount Folder" data-composer-type="Attach" data-nodge-kind="Mount">
+                <span class="composer-tool-icon">&#8862;</span>
+                <span>Mount Folder</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Add Source" data-composer-type="Attach" data-nodge-kind="Source">
+                <span class="composer-tool-icon">&#9673;</span>
+                <span>Add Source</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Add Project" data-composer-type="Attach" data-nodge-kind="Project">
+                <span class="composer-tool-icon">&#9635;</span>
+                <span>Add Project</span>
+              </button>
+              <button class="composer-tool" type="button" data-composer-tool="Skills" data-composer-type="Open">
                 <span class="composer-tool-icon">&#10022;</span>
                 <span>Skills</span>
               </button>
-              <button class="composer-tool" type="button" data-composer-tool="Hooks">
+              <button class="composer-tool" type="button" data-composer-tool="Hooks" data-composer-type="Open">
                 <span class="composer-tool-icon">&#8984;</span>
                 <span>Hooks</span>
-              </button>
-              <button class="composer-tool" type="button" data-composer-tool="Project">
-                <span class="composer-tool-icon">&#9635;</span>
-                <span>Project</span>
               </button>
             </div>
           </div>
@@ -103,42 +124,63 @@
           <span>+</span>
         </button>
         <div class="core-new-tree" aria-hidden="true">
-          <button class="core-new-item" type="button" data-action="New Chat">New Chat</button>
-          <button class="core-new-item" type="button" data-action="New Task">New Task</button>
-          <button class="core-new-item" type="button" data-action="New Workspace">New Workspace</button>
+          <button class="core-new-item" type="button" data-action="New Chat" data-action-type="Instant">New Chat</button>
+          <button class="core-new-item" type="button" data-action="New Task" data-action-type="Open">New Task</button>
+          <button class="core-new-item" type="button" data-action="New Workspace" data-action-type="Instant">New Workspace</button>
         </div>
 
-        <button class="wheel-node" style="--x:-220px;--y:-120px;--node-color:var(--red)" data-node="Projects">
+        <div class="wheel-node" role="button" tabindex="0" style="--x:-220px;--y:-120px;--node-color:var(--red)" data-node="Projects">
           <span class="num">1</span><span class="glyph">&#9671;</span><span class="label">Projects</span>
-          <span class="wheel-tree tree-left" aria-hidden="true">
-            <span class="tree-item" data-action="Plan">Plan</span>
-            <span class="tree-item" data-action="Tasks">Tasks</span>
-          </span>
-        </button>
+          <div class="wheel-tree tree-left" aria-label="Projects actions">
+            <div class="tree-branch" data-submenu-side="left">
+              <button class="tree-item has-submenu" type="button" data-action="Open Project" data-action-type="Open" data-has-submenu="true"><span class="tree-action-label">Open Project</span><span class="action-type open">Open</span></button>
+              <div class="action-subtree" aria-label="Available projects">
+                <div class="subtree-heading">Available Projects</div>
+                <button class="subtree-item" type="button" data-action="Project Atlas" data-action-type="Open">Project Atlas</button>
+                <button class="subtree-item" type="button" data-action="Memory Debug" data-action-type="Open">Memory Debug</button>
+                <button class="subtree-item" type="button" data-action="Frontend V2" data-action-type="Open">Frontend V2</button>
+                <button class="subtree-item" type="button" data-action="Local Models" data-action-type="Open">Local Models</button>
+              </div>
+            </div>
+            <button class="tree-item" type="button" data-action="Plan Project" data-action-type="Instant"><span class="tree-action-label">Plan Project</span><span class="action-type instant">Instant</span></button>
+            <button class="tree-item" type="button" data-action="Tasks" data-action-type="Open"><span class="tree-action-label">Tasks</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Timeline" data-action-type="Open"><span class="tree-action-label">Timeline</span><span class="action-type open">Open</span></button>
+            <button class="tree-item more" type="button" data-action="Projects More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
+          </div>
+        </div>
 
-        <button class="wheel-node" style="--x:220px;--y:-120px;--node-color:var(--teal)" data-node="Knowledge">
+        <div class="wheel-node" role="button" tabindex="0" style="--x:220px;--y:-120px;--node-color:var(--teal)" data-node="Knowledge">
           <span class="num">2</span><span class="glyph">&#9678;</span><span class="label">Knowledge</span>
-          <span class="wheel-tree tree-right" aria-hidden="true">
-            <span class="tree-item" data-action="Search">Search</span>
-            <span class="tree-item" data-action="Notes">Notes</span>
-          </span>
-        </button>
+          <div class="wheel-tree tree-right" aria-label="Knowledge actions">
+            <button class="tree-item" type="button" data-action="Search Knowledge" data-action-type="Open"><span class="tree-action-label">Search Knowledge</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Remember Note" data-action-type="Instant"><span class="tree-action-label">Remember Note</span><span class="action-type instant">Instant</span></button>
+            <button class="tree-item" type="button" data-action="Update Knowledge" data-action-type="Instant"><span class="tree-action-label">Update Knowledge</span><span class="action-type instant">Instant</span></button>
+            <button class="tree-item" type="button" data-action="Sources" data-action-type="Open"><span class="tree-action-label">Sources</span><span class="action-type open">Open</span></button>
+            <button class="tree-item more" type="button" data-action="Knowledge More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
+          </div>
+        </div>
 
-        <button class="wheel-node" style="--x:220px;--y:150px;--node-color:var(--blue)" data-node="Tools">
+        <div class="wheel-node" role="button" tabindex="0" style="--x:220px;--y:150px;--node-color:var(--blue)" data-node="Tools">
           <span class="num">3</span><span class="glyph">&#8984;</span><span class="label">Tools</span>
-          <span class="wheel-tree tree-down" aria-hidden="true">
-            <span class="tree-item" data-action="Open Tool">Open Tool</span>
-            <span class="tree-item" data-action="Connect">Connect</span>
-          </span>
-        </button>
+          <div class="wheel-tree tree-down" aria-label="Tools actions">
+            <button class="tree-item" type="button" data-action="Deep Research" data-action-type="Open"><span class="tree-action-label">Deep Research</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Open Terminal" data-action-type="Open"><span class="tree-action-label">Open Terminal</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Skills" data-action-type="Open"><span class="tree-action-label">Skills</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Hooks" data-action-type="Open"><span class="tree-action-label">Hooks</span><span class="action-type open">Open</span></button>
+            <button class="tree-item more" type="button" data-action="Tools More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
+          </div>
+        </div>
 
-        <button class="wheel-node" style="--x:-220px;--y:150px;--node-color:var(--blue)" data-node="Settings">
+        <div class="wheel-node" role="button" tabindex="0" style="--x:-220px;--y:150px;--node-color:var(--blue)" data-node="Settings">
           <span class="num">4</span><span class="glyph">&#9881;</span><span class="label">Settings</span>
-          <span class="wheel-tree tree-down" aria-hidden="true">
-            <span class="tree-item" data-action="Model">Model</span>
-            <span class="tree-item" data-action="View">View</span>
-          </span>
-        </button>
+          <div class="wheel-tree tree-down" aria-label="Settings actions">
+            <button class="tree-item" type="button" data-action="Model" data-action-type="Open"><span class="tree-action-label">Model</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Appearance" data-action-type="Open"><span class="tree-action-label">Appearance</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Shortcuts" data-action-type="Open"><span class="tree-action-label">Shortcuts</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Voice" data-action-type="Open"><span class="tree-action-label">Voice</span><span class="action-type open">Open</span></button>
+            <button class="tree-item more" type="button" data-action="Settings More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
+          </div>
+        </div>
 
         <div class="wheel-readout" id="wheel-readout">Alt+Space or right-click. Use 1-4 to select a section.</div>
         <div class="wheel-footer">
@@ -150,6 +192,6 @@
     </div>
   </main>
 
-  <script src="./app.js"></script>
+  <script src="./app.js?v=tree-label-gap-1"></script>
 </body>
 </html>

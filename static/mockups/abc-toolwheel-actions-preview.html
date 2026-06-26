@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Toolwheel Actions Preview</title>
+  <style>
+    :root {
+      --bg: #02070d;
+      --panel: rgba(3, 12, 22, 0.86);
+      --ink: rgba(225, 248, 255, 0.94);
+      --muted: rgba(144, 188, 205, 0.68);
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #25e7c8;
+      --red: #ff4f7a;
+      --amber: #ffb454;
+      --mono: "Cascadia Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 14% 18%, rgba(75, 140, 255, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 28%, rgba(22, 217, 245, 0.16), transparent 32%),
+        radial-gradient(circle at 50% 80%, rgba(37, 231, 200, 0.09), transparent 34%),
+        #02070d;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      width: 100%;
+      height: 100%;
+      opacity: 0.52;
+      filter: blur(0.6px) saturate(0.92);
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 52%, rgba(2, 8, 15, 0.16), rgba(2, 8, 15, 0.58) 54%, rgba(0, 0, 0, 0.72) 100%),
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.026) 0 1px, transparent 1px 5px);
+    }
+
+    .topline {
+      position: absolute;
+      top: 18px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .brand {
+      color: var(--cyan);
+      font: 700 18px/1 var(--mono);
+      text-shadow: 0 0 14px rgba(22, 217, 245, 0.34);
+    }
+
+    .note {
+      max-width: 360px;
+      color: rgba(180, 226, 238, 0.64);
+      font: 11px/1.45 var(--mono);
+      text-align: right;
+    }
+
+    .wheel {
+      position: relative;
+      width: min(930px, 94vw);
+      height: min(690px, 86dvh);
+    }
+
+    .focus-lens {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(700px, 82vw);
+      height: min(560px, 72dvh);
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, rgba(2, 8, 15, 0.86) 0 30%, rgba(2, 8, 15, 0.58) 58%, transparent 100%),
+        radial-gradient(circle, rgba(22, 217, 245, 0.1), transparent 55%);
+      box-shadow:
+        0 0 70px rgba(0, 0, 0, 0.46),
+        inset 0 0 70px rgba(22, 217, 245, 0.04);
+    }
+
+    .ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      border: 1px solid rgba(22, 217, 245, 0.09);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .ring.one {
+      width: 270px;
+      height: 270px;
+    }
+
+    .ring.two {
+      width: 470px;
+      height: 470px;
+    }
+
+    .ring.three {
+      width: 650px;
+      height: 650px;
+      border-color: rgba(75, 140, 255, 0.08);
+    }
+
+    .core {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 72px;
+      height: 72px;
+      display: grid;
+      place-items: center;
+      transform: translate(-50%, -50%) rotate(45deg);
+      border: 4px solid rgba(22, 217, 245, 0.9);
+      border-radius: 14px;
+      background: rgba(2, 10, 18, 0.82);
+      color: var(--cyan);
+      box-shadow:
+        0 0 32px rgba(22, 217, 245, 0.18),
+        inset 0 0 18px rgba(22, 217, 245, 0.08);
+      z-index: 8;
+    }
+
+    .core span {
+      transform: rotate(-45deg);
+      font: 700 31px/1 var(--mono);
+    }
+
+    .cursor-arrow {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 150px;
+      height: 1px;
+      z-index: 6;
+      transform-origin: 0 50%;
+      transform: rotate(var(--arrow-angle, 0deg));
+      pointer-events: none;
+    }
+
+    .cursor-arrow::before {
+      content: "";
+      position: absolute;
+      left: 62px;
+      right: 10px;
+      top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(22, 217, 245, 0.86));
+      box-shadow: 0 0 16px rgba(22, 217, 245, 0.42);
+    }
+
+    .cursor-arrow::after {
+      content: "";
+      position: absolute;
+      right: 1px;
+      top: -5px;
+      width: 10px;
+      height: 10px;
+      border-top: 1px solid rgba(224, 249, 255, 0.86);
+      border-right: 1px solid rgba(224, 249, 255, 0.86);
+      transform: rotate(45deg);
+      filter: drop-shadow(0 0 8px rgba(22, 217, 245, 0.66));
+    }
+
+    .core-menu {
+      position: absolute;
+      left: calc(50% + 45px);
+      top: calc(50% + 38px);
+      z-index: 9;
+      width: 156px;
+      display: grid;
+      gap: 3px;
+      font: 10px/1.2 var(--mono);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-8px);
+      transition: opacity 140ms ease, transform 180ms ease, visibility 140ms ease;
+    }
+
+    .core:hover + .core-menu,
+    .core:focus-visible + .core-menu,
+    .core-menu:hover {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    body.pristine .core:hover + .core-menu,
+    body.pristine .core:focus-visible + .core-menu {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-8px);
+    }
+
+    .core-menu div {
+      padding: 5px 8px;
+      border-left: 1px solid rgba(22, 217, 245, 0.62);
+      background: linear-gradient(90deg, rgba(22, 217, 245, 0.13), transparent);
+      color: rgba(224, 249, 255, 0.84);
+    }
+
+    .node {
+      position: absolute;
+      width: 132px;
+      height: 92px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid color-mix(in srgb, var(--node-color) 46%, transparent);
+      border-radius: 10px;
+      background: rgba(3, 13, 23, 0.88);
+      color: color-mix(in srgb, var(--node-color) 86%, white);
+      font-family: var(--mono);
+      cursor: pointer;
+      box-shadow: 0 0 24px color-mix(in srgb, var(--node-color) 10%, transparent);
+      transform: translate(-50%, -50%);
+      z-index: 7;
+    }
+
+    .node:hover,
+    .node:focus-visible {
+      outline: none;
+      background: color-mix(in srgb, var(--node-color) 12%, rgba(3, 13, 23, 0.9));
+      border-color: color-mix(in srgb, var(--node-color) 78%, transparent);
+      box-shadow:
+        0 0 28px color-mix(in srgb, var(--node-color) 22%, transparent),
+        inset 0 0 0 1px color-mix(in srgb, var(--node-color) 16%, transparent);
+    }
+
+    .node.projects {
+      --node-color: var(--red);
+      left: calc(50% - 265px);
+      top: calc(50% - 125px);
+    }
+
+    .node.knowledge {
+      --node-color: var(--teal);
+      left: calc(50% + 265px);
+      top: calc(50% - 125px);
+    }
+
+    .node.tools {
+      --node-color: var(--blue);
+      left: calc(50% + 265px);
+      top: calc(50% + 150px);
+    }
+
+    .node.settings {
+      --node-color: var(--blue);
+      left: calc(50% - 265px);
+      top: calc(50% + 150px);
+    }
+
+    .num {
+      color: color-mix(in srgb, var(--node-color) 72%, white);
+      font-size: 10px;
+      opacity: 0.82;
+    }
+
+    .glyph {
+      align-self: center;
+      justify-self: center;
+      font-size: 18px;
+      text-shadow: 0 0 14px color-mix(in srgb, var(--node-color) 68%, transparent);
+    }
+
+    .label {
+      justify-self: center;
+      color: rgba(230, 250, 255, 0.9);
+      font: 700 13px/1 var(--mono);
+    }
+
+    .action-tree {
+      position: absolute;
+      z-index: 10;
+      display: grid;
+      gap: 4px;
+      min-width: 210px;
+      padding: 4px 0;
+      color: var(--ink);
+      font: 10px/1.2 var(--mono);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: opacity 150ms ease, transform 180ms ease, visibility 150ms ease;
+      --tree-color: var(--cyan);
+    }
+
+    .node:hover + .action-tree,
+    .node:focus-visible + .action-tree,
+    .action-tree:hover {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    body.pristine .node:hover + .action-tree,
+    body.pristine .node:focus-visible + .action-tree {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+    }
+
+    .tree-projects {
+      --tree-color: var(--red);
+      right: calc(50% + 330px);
+      top: calc(50% - 170px);
+      text-align: right;
+    }
+
+    .tree-knowledge {
+      --tree-color: var(--teal);
+      left: calc(50% + 330px);
+      top: calc(50% - 170px);
+    }
+
+    .tree-tools {
+      --tree-color: var(--blue);
+      left: calc(50% + 330px);
+      top: calc(50% + 95px);
+    }
+
+    .tree-settings {
+      --tree-color: var(--blue);
+      right: calc(50% + 330px);
+      top: calc(50% + 95px);
+      text-align: right;
+    }
+
+    .action {
+      position: relative;
+      min-height: 24px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 7px;
+      border-left: 1px solid color-mix(in srgb, var(--tree-color) 62%, transparent);
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--tree-color) 13%, transparent), rgba(2, 10, 18, 0.34) 70%, transparent),
+        rgba(2, 10, 18, 0.52);
+      color: rgba(230, 250, 255, 0.9);
+      transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+    }
+
+    .tree-projects .action,
+    .tree-settings .action {
+      grid-template-columns: auto 1fr;
+      border-left: 0;
+      border-right: 1px solid color-mix(in srgb, var(--tree-color) 62%, transparent);
+      background:
+        linear-gradient(270deg, color-mix(in srgb, var(--tree-color) 13%, transparent), rgba(2, 10, 18, 0.34) 70%, transparent),
+        rgba(2, 10, 18, 0.52);
+    }
+
+    .action:hover {
+      color: white;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--tree-color) 22%, transparent), rgba(2, 10, 18, 0.54) 72%, transparent),
+        rgba(2, 10, 18, 0.74);
+      transform: translateX(2px);
+    }
+
+    .tree-projects .action:hover,
+    .tree-settings .action:hover {
+      transform: translateX(-2px);
+    }
+
+    .tag {
+      min-width: 43px;
+      padding: 2px 4px;
+      border: 1px solid rgba(190, 234, 244, 0.16);
+      border-radius: 4px;
+      color: rgba(190, 234, 244, 0.76);
+      font-size: 8px;
+      text-align: center;
+    }
+
+    .tag.attach {
+      color: var(--teal);
+      border-color: rgba(37, 231, 200, 0.3);
+    }
+
+    .tag.open {
+      color: var(--blue);
+      border-color: rgba(75, 140, 255, 0.34);
+    }
+
+    .tag.instant {
+      color: var(--amber);
+      border-color: rgba(255, 180, 84, 0.34);
+    }
+
+    .more {
+      opacity: 0.72;
+      border-style: dashed;
+    }
+
+    .hint {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      color: rgba(188, 225, 236, 0.66);
+      font: 11px var(--mono);
+      text-align: center;
+    }
+
+    .legend {
+      position: absolute;
+      left: 22px;
+      bottom: 22px;
+      display: flex;
+      gap: 8px;
+      color: rgba(188, 225, 236, 0.64);
+      font: 10px var(--mono);
+    }
+
+    .legend span {
+      padding: 4px 6px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 5px;
+      background: rgba(2, 9, 16, 0.58);
+    }
+
+    @media (max-width: 820px) {
+      .wheel {
+        transform: scale(0.78);
+      }
+
+      .note,
+      .legend {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body class="pristine">
+  <main class="stage">
+    <canvas id="network" aria-hidden="true"></canvas>
+    <header class="topline">
+      <div class="brand">ABC</div>
+      <div class="note">Minimal toolwheel preview: categories start actions, context stays in composer, long-running work opens only when needed.</div>
+    </header>
+
+    <section class="wheel" aria-label="ABC toolwheel action preview">
+      <div class="focus-lens" aria-hidden="true"></div>
+      <div class="ring one" aria-hidden="true"></div>
+      <div class="ring two" aria-hidden="true"></div>
+      <div class="ring three" aria-hidden="true"></div>
+
+      <div class="cursor-arrow" aria-hidden="true"></div>
+      <div class="core" aria-label="New"><span>+</span></div>
+      <div class="core-menu" aria-label="New actions">
+        <div>New Chat</div>
+        <div>New Task</div>
+        <div>New Workspace</div>
+      </div>
+
+      <button class="node projects" type="button">
+        <span class="num">1</span>
+        <span class="glyph">&#9671;</span>
+        <span class="label">Projects</span>
+      </button>
+      <div class="action-tree tree-projects">
+        <div class="action"><span class="tag open">Open</span><span>Open Project</span></div>
+        <div class="action"><span class="tag instant">Instant</span><span>Plan Project</span></div>
+        <div class="action"><span class="tag open">Open</span><span>Tasks</span></div>
+        <div class="action"><span class="tag attach">Attach</span><span>Add to Chat</span></div>
+        <div class="action more"><span class="tag">More</span><span>Timeline, Blockers, Export</span></div>
+      </div>
+
+      <button class="node knowledge" type="button">
+        <span class="num">2</span>
+        <span class="glyph">&#9678;</span>
+        <span class="label">Knowledge</span>
+      </button>
+      <div class="action-tree tree-knowledge">
+        <div class="action"><span>Search Knowledge</span><span class="tag open">Open</span></div>
+        <div class="action"><span>Add Source</span><span class="tag attach">Attach</span></div>
+        <div class="action"><span>Remember Note</span><span class="tag instant">Instant</span></div>
+        <div class="action"><span>Update Knowledge</span><span class="tag instant">Instant</span></div>
+        <div class="action more"><span>Memory Graph, Source Audit</span><span class="tag">More</span></div>
+      </div>
+
+      <button class="node tools" type="button">
+        <span class="num">3</span>
+        <span class="glyph">&#8984;</span>
+        <span class="label">Tools</span>
+      </button>
+      <div class="action-tree tree-tools">
+        <div class="action"><span>Deep Research</span><span class="tag open">Open</span></div>
+        <div class="action"><span>Mount Folder</span><span class="tag attach">Attach</span></div>
+        <div class="action"><span>Attach File</span><span class="tag attach">Attach</span></div>
+        <div class="action"><span>Open Terminal</span><span class="tag open">Open</span></div>
+        <div class="action more"><span>Skills, Hooks, Plugins</span><span class="tag">More</span></div>
+      </div>
+
+      <button class="node settings" type="button">
+        <span class="num">4</span>
+        <span class="glyph">&#9881;</span>
+        <span class="label">Settings</span>
+      </button>
+      <div class="action-tree tree-settings">
+        <div class="action"><span class="tag open">Open</span><span>Model</span></div>
+        <div class="action"><span class="tag open">Open</span><span>Appearance</span></div>
+        <div class="action"><span class="tag open">Open</span><span>Shortcuts</span></div>
+        <div class="action"><span class="tag open">Open</span><span>Voice</span></div>
+        <div class="action more"><span class="tag">More</span><span>Customize, Local/API, Privacy</span></div>
+      </div>
+
+      <div class="hint">Hover categories. Visible actions stay short; everything else goes into More or Customize.</div>
+    </section>
+
+    <div class="legend" aria-label="Action type legend">
+      <span>Instant = changes state</span>
+      <span>Attach = adds composer context</span>
+      <span>Open = global window</span>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('network');
+    const ctx = canvas.getContext('2d');
+    const wheel = document.querySelector('.wheel');
+    const cursorArrow = document.querySelector('.cursor-arrow');
+    let nodes = [];
+    let edges = [];
+    let signals = [];
+    let frame = 0;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      setupNetwork();
+    }
+
+    function setupNetwork() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const columns = Math.max(8, Math.ceil(w / 180));
+      const rows = Math.max(6, Math.ceil(h / 165));
+      nodes = [];
+      for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
+          const x = column / Math.max(1, columns - 1) * w + (Math.random() - 0.5) * 90;
+          const y = row / Math.max(1, rows - 1) * h + (Math.random() - 0.5) * 84;
+          nodes.push({ x, y, r: 1.2 + Math.random() * 2.1, phase: Math.random() * Math.PI * 2 });
+        }
+      }
+
+      const edgeMap = new Set();
+      edges = [];
+      nodes.forEach((node, index) => {
+        nodes
+          .map((other, otherIndex) => ({ other, otherIndex, distance: Math.hypot(other.x - node.x, other.y - node.y) }))
+          .filter(item => item.otherIndex !== index)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5)
+          .forEach(item => {
+            if (item.distance > 330) return;
+            const key = [index, item.otherIndex].sort((a, b) => a - b).join(':');
+            if (edgeMap.has(key)) return;
+            edgeMap.add(key);
+            edges.push({ a: node, b: item.other, distance: item.distance });
+          });
+      });
+    }
+
+    function addSignal() {
+      if (!edges.length) return;
+      signals.push({
+        edge: edges[Math.floor(Math.random() * edges.length)],
+        age: 0,
+        life: 1400 + Math.random() * 1100,
+        dir: Math.random() > 0.5 ? 1 : -1
+      });
+    }
+
+    function draw(now) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      edges.forEach(edge => {
+        const alpha = Math.max(0.012, 0.052 - edge.distance / 6000);
+        ctx.strokeStyle = 'rgba(69, 215, 255, ' + alpha + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(edge.a.x, edge.a.y);
+        ctx.lineTo(edge.b.x, edge.b.y);
+        ctx.stroke();
+      });
+
+      nodes.forEach(node => {
+        const pulse = 0.48 + Math.sin(now * 0.001 + node.phase) * 0.24;
+        ctx.fillStyle = 'rgba(130, 232, 255, ' + (0.11 + pulse * 0.12) + ')';
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      if (frame % 18 === 0 || signals.length < 5) addSignal();
+      ctx.globalCompositeOperation = 'lighter';
+      signals = signals.filter(signal => {
+        signal.age += 16;
+        const p = signal.age / signal.life;
+        if (p >= 1) return false;
+        const t = signal.dir > 0 ? p : 1 - p;
+        const x = signal.edge.a.x + (signal.edge.b.x - signal.edge.a.x) * t;
+        const y = signal.edge.a.y + (signal.edge.b.y - signal.edge.a.y) * t;
+        const alpha = Math.min(1, p * 5, (1 - p) * 5) * 0.48;
+        ctx.fillStyle = 'rgba(164, 241, 255, ' + alpha + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, 1.35, 0, Math.PI * 2);
+        ctx.fill();
+        return true;
+      });
+      ctx.globalCompositeOperation = 'source-over';
+
+      frame++;
+      requestAnimationFrame(draw);
+    }
+
+    function updateCursorArrow(event) {
+      const rect = wheel.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const target = event && typeof event.clientX === 'number'
+        ? { x: event.clientX, y: event.clientY }
+        : { x: cx + 150, y: cy };
+      const angle = Math.atan2(target.y - cy, target.x - cx) * 180 / Math.PI;
+      cursorArrow.style.setProperty('--arrow-angle', angle + 'deg');
+    }
+
+    window.addEventListener('mousemove', event => {
+      document.body.classList.remove('pristine');
+      updateCursorArrow(event);
+    });
+
+    window.addEventListener('resize', resize);
+    resize();
+    updateCursorArrow();
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

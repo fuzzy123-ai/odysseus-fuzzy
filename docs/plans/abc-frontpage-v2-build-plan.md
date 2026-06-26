@@ -2,6 +2,12 @@
 
 Status: neuer isolierter Frontend-Aufbau.
 
+Zentrale Feature-Landkarte:
+
+- `docs/plans/abc-ui-feature-inventory.md`
+- `docs/plans/abc-ui-traction-map.md`
+- `docs/plans/abc-toolwheel-actions-matrix.md`
+
 ## Arbeitsweise
 
 - Das alte UI bleibt unangetastet.

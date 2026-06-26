@@ -3,6 +3,9 @@
   const brushCanvas = document.getElementById('grid-brush');
   const brushCtx = brushCanvas.getContext('2d');
   const toolwheel = document.getElementById('toolwheel');
+  const workspace = stage.querySelector('.workspace');
+  const topline = stage.querySelector('.topline');
+  const aurora = stage.querySelector('.aurora');
   const wheelArrow = document.getElementById('wheel-arrow');
   const wheelCore = document.getElementById('wheel-core');
   const coreNewTree = toolwheel.querySelector('.core-new-tree');
@@ -12,10 +15,13 @@
   const chatTitle = coreWindow.querySelector('.chat-title');
   const messages = coreWindow.querySelector('.messages');
   const promptInput = coreWindow.querySelector('.prompt-input');
+  const contextNodges = coreWindow.querySelector('[data-context-nodges]');
   const leftNodge = document.getElementById('chat-nodge-left');
   const rightNodge = document.getElementById('chat-nodge-right');
   const chatCarousel = document.getElementById('chat-carousel');
-  const backgroundMode = new URLSearchParams(window.location.search).get('bg') === 'network' ? 'network' : 'grid';
+  const urlParams = new URLSearchParams(window.location.search);
+  const backgroundMode = urlParams.get('bg') === 'grid' ? 'grid' : 'network';
+  const wheelOverlayMode = urlParams.get('wheel') === 'dim' ? 'dim' : 'depth';
 
   let brushDpr = 1;
   let gridSignals = [];
@@ -24,6 +30,7 @@
   let networkSignals = [];
   let brushFrame = 0;
   let lastWheelPointer = null;
+  let wheelOpenPointer = null;
   let focusedNode = null;
   let coreMenuTimer = null;
   let preparedChats = 0;
@@ -33,7 +40,8 @@
     id: 'chat-1',
     title: chatTitle.textContent.trim(),
     messages: messages.innerHTML,
-    prompt: promptInput.value
+    prompt: promptInput.value,
+    contexts: []
   }];
 
   function resizeBrushCanvas() {
@@ -110,16 +118,61 @@
   function setupNetwork() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const count = Math.max(18, Math.min(42, Math.round((w * h) / 42000)));
+    const detailCount = Math.max(12, Math.min(22, Math.round((w * h) / 78000)));
+    const spreadX = w * 1.48;
+    const spreadY = h * 1.44;
+    const offsetX = (spreadX - w) / 2;
+    const offsetY = (spreadY - h) / 2;
+    const columns = Math.max(7, Math.ceil(spreadX / 210));
+    const rows = Math.max(5, Math.ceil(spreadY / 185));
+    const anchors = [
+      [-0.16, 0.18],
+      [0.16, -0.14],
+      [0.62, -0.18],
+      [1.13, 0.14],
+      [1.18, 0.58],
+      [1.04, 1.12],
+      [0.45, 1.18],
+      [-0.14, 0.84],
+      [-0.2, 0.48]
+    ];
     networkSignals = [];
-    networkNodes = Array.from({ length: count }, (_, index) => ({
+    networkNodes = anchors.map(([x, y], index) => ({
       id: index,
-      x: w * (0.08 + Math.random() * 0.84),
-      y: h * (0.1 + Math.random() * 0.78),
-      r: 1.2 + Math.random() * 1.9,
+      x: w * x,
+      y: h * y,
+      r: 1.8 + Math.random() * 2.2,
       phase: Math.random() * Math.PI * 2,
       drift: 0.18 + Math.random() * 0.34
     }));
+
+    const coverageNodes = [];
+    for (let row = 0; row < rows; row++) {
+      for (let column = 0; column < columns; column++) {
+        const cellX = columns <= 1 ? 0.5 : column / (columns - 1);
+        const cellY = rows <= 1 ? 0.5 : row / (rows - 1);
+        const jitterX = (Math.random() - 0.5) * (spreadX / columns) * 0.68;
+        const jitterY = (Math.random() - 0.5) * (spreadY / rows) * 0.68;
+        coverageNodes.push({
+          id: anchors.length + coverageNodes.length,
+          x: cellX * spreadX - offsetX + jitterX,
+          y: cellY * spreadY - offsetY + jitterY,
+          r: 1.15 + Math.random() * 2.1,
+          phase: Math.random() * Math.PI * 2,
+          drift: 0.18 + Math.random() * 0.34
+        });
+      }
+    }
+
+    const detailNodes = Array.from({ length: detailCount }, (_, index) => ({
+      id: anchors.length + coverageNodes.length + index,
+      x: Math.random() * spreadX - offsetX,
+      y: Math.random() * spreadY - offsetY,
+      r: 1.4 + Math.random() * 2.4,
+      phase: Math.random() * Math.PI * 2,
+      drift: 0.18 + Math.random() * 0.34
+    }));
+    networkNodes.push(...coverageNodes, ...detailNodes);
 
     const edgeMap = new Set();
     networkEdges = [];
@@ -132,10 +185,10 @@
           return { other, distance: Math.hypot(dx, dy) };
         })
         .sort((a, b) => a.distance - b.distance)
-        .slice(0, 3);
+        .slice(0, 8);
 
       nearest.forEach(({ other, distance }) => {
-        if (distance > Math.min(w, h) * 0.34) return;
+        if (distance > Math.min(w, h) * 0.95) return;
         const key = [node.id, other.id].sort((a, b) => a - b).join(':');
         if (edgeMap.has(key)) return;
         edgeMap.add(key);
@@ -159,9 +212,9 @@
   function drawNetwork(now) {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const fade = brushCtx.createRadialGradient(w * 0.5, h * 0.52, 0, w * 0.5, h * 0.52, Math.max(w, h) * 0.62);
+    const fade = brushCtx.createRadialGradient(w * 0.5, h * 0.52, 0, w * 0.5, h * 0.52, Math.max(w, h) * 0.88);
     fade.addColorStop(0, 'rgba(255,255,255,1)');
-    fade.addColorStop(0.72, 'rgba(255,255,255,0.74)');
+    fade.addColorStop(0.78, 'rgba(255,255,255,0.82)');
     fade.addColorStop(1, 'rgba(255,255,255,0)');
 
     brushCtx.save();
@@ -169,7 +222,7 @@
     brushCtx.lineWidth = 1;
 
     networkEdges.forEach(edge => {
-      const alpha = Math.max(0.035, 0.1 - edge.distance / Math.max(w, h) * 0.12);
+      const alpha = Math.max(0.01, 0.038 - edge.distance / Math.max(w, h) * 0.026);
       brushCtx.strokeStyle = `rgba(69, 215, 255, ${alpha})`;
       brushCtx.beginPath();
       brushCtx.moveTo(edge.a.x, edge.a.y);
@@ -190,7 +243,7 @@
       brushCtx.fill();
     });
 
-    if (brushFrame % 18 === 0 || networkSignals.length < 5) addNetworkSignal();
+    if (brushFrame % 14 === 0 || networkSignals.length < 9) addNetworkSignal();
 
     brushCtx.globalCompositeOperation = 'lighter';
     networkSignals = networkSignals.filter(signal => {
@@ -311,17 +364,104 @@
     readout.textContent = node.dataset.node + ' selected. Press Enter to confirm, or use numbers to jump.';
   }
 
+  function clearWheelFocus() {
+    toolwheel.querySelectorAll('.wheel-node').forEach(node => node.classList.remove('focused'));
+    focusedNode = null;
+    readout.textContent = 'Choose a section. Use hover, numbers, or arrow keys.';
+  }
+
   function openToolwheel(sourceEvent) {
+    stage.classList.add('toolwheel-active');
+    setToolwheelDepthActive(true);
     toolwheel.classList.add('open');
+    toolwheel.classList.add('suppress-core-menu');
     toolwheel.setAttribute('aria-hidden', 'false');
-    focusWheelNode(0);
+    wheelOpenPointer = sourceEvent && typeof sourceEvent.clientX === 'number'
+      ? { x: sourceEvent.clientX, y: sourceEvent.clientY }
+      : null;
+    clearWheelFocus();
     requestAnimationFrame(() => updateWheelArrow(sourceEvent));
   }
 
   function closeToolwheel() {
+    stage.classList.remove('toolwheel-active');
+    setToolwheelDepthActive(false);
     toolwheel.classList.remove('open');
     toolwheel.classList.remove('core-new-open');
+    toolwheel.classList.remove('suppress-core-menu');
+    coreNewTree.classList.remove('is-open');
+    wheelOpenPointer = null;
+    clearWheelFocus();
     toolwheel.setAttribute('aria-hidden', 'true');
+  }
+
+  function setToolwheelDepthActive(active) {
+    if (wheelOverlayMode !== 'depth') return;
+    const layers = [
+      {
+        element: workspace,
+        active: {
+          filter: 'blur(1.4px) saturate(0.58) contrast(0.82) brightness(0.58)',
+          opacity: '0.68',
+          transform: 'perspective(1200px) translateY(10px) scale(0.965) rotateX(1.2deg)'
+        },
+        inactive: {
+          filter: 'none',
+          opacity: '',
+          transform: 'none'
+        }
+      },
+      {
+        element: topline,
+        active: {
+          filter: 'blur(1.2px) saturate(0.62)',
+          opacity: '0.34',
+          transform: 'translateY(-3px) scale(0.985)'
+        },
+        inactive: {
+          filter: 'none',
+          opacity: '',
+          transform: 'none'
+        }
+      },
+      {
+        element: brushCanvas,
+        active: {
+          filter: 'blur(2px) saturate(0.88) brightness(0.74)',
+          opacity: '0.46'
+        },
+        inactive: {
+          filter: 'none',
+          opacity: ''
+        }
+      },
+      {
+        element: aurora,
+        active: {
+          filter: 'blur(4px) saturate(0.92)',
+          opacity: '0.48'
+        },
+        inactive: {
+          filter: 'none',
+          opacity: ''
+        }
+      }
+    ];
+
+    layers.forEach(layer => {
+      if (!layer.element) return;
+      const styles = active ? layer.active : layer.inactive;
+      layer.element.style.transition = active ? '' : 'none';
+      Object.keys(styles).forEach(property => {
+        layer.element.style[property] = styles[property];
+      });
+      if (!active) {
+        void layer.element.offsetHeight;
+        requestAnimationFrame(() => {
+          layer.element.style.transition = '';
+        });
+      }
+    });
   }
 
   function announceAction(action) {
@@ -329,12 +469,135 @@
     buildState.textContent = 'V2 - ' + action;
   }
 
+  function serializeContextNodges() {
+    return Array.from(contextNodges.querySelectorAll('.context-nodge')).map(nodge => ({
+      kind: nodge.dataset.contextKind || 'Context',
+      label: nodge.dataset.contextLabel || nodge.textContent.trim()
+    }));
+  }
+
+  function contextKindMeta(kind) {
+    const normalized = String(kind || 'Context').toLowerCase();
+    const map = {
+      file: { icon: '[]', hint: 'File attached to this prompt' },
+      mount: { icon: '#', hint: 'Folder mount available to this chat' },
+      source: { icon: '@', hint: 'Knowledge source added as context' },
+      project: { icon: '<>', hint: 'Project context is active' },
+      chat: { icon: '//', hint: 'Chat context is linked' },
+      memory: { icon: '*', hint: 'Memory context is active' },
+      selection: { icon: '+', hint: 'Selection added as context' }
+    };
+    return {
+      key: map[normalized] ? normalized : 'context',
+      icon: map[normalized]?.icon || '+',
+      hint: map[normalized]?.hint || 'Context attached to this chat'
+    };
+  }
+
+  function renderContextNodges(contexts) {
+    contextNodges.innerHTML = '';
+    (contexts || []).forEach(context => {
+      const meta = contextKindMeta(context.kind);
+      const nodge = document.createElement('span');
+      nodge.className = 'context-nodge';
+      nodge.dataset.contextKind = context.kind;
+      nodge.dataset.contextType = meta.key;
+      nodge.dataset.contextLabel = context.label;
+      nodge.title = context.kind + ': ' + context.label + ' - ' + meta.hint;
+
+      const icon = document.createElement('span');
+      icon.className = 'context-nodge-icon';
+      icon.textContent = meta.icon;
+
+      const kind = document.createElement('span');
+      kind.className = 'context-nodge-kind';
+      kind.textContent = context.kind;
+
+      const label = document.createElement('span');
+      label.className = 'context-nodge-label';
+      label.textContent = context.label;
+
+      const remove = document.createElement('button');
+      remove.className = 'context-nodge-remove';
+      remove.type = 'button';
+      remove.setAttribute('aria-label', 'Remove ' + context.kind + ' context');
+      remove.textContent = 'x';
+
+      const tooltip = document.createElement('span');
+      tooltip.className = 'context-nodge-tooltip';
+      tooltip.textContent = context.kind + ': ' + meta.hint;
+
+      nodge.append(icon, label, remove, tooltip);
+      contextNodges.appendChild(nodge);
+    });
+    contextNodges.hidden = !contextNodges.children.length;
+  }
+
+  function addContextNodge(kind, label) {
+    const contexts = serializeContextNodges();
+    const exists = contexts.some(context => context.kind === kind && context.label === label);
+    if (!exists) contexts.push({ kind, label });
+    renderContextNodges(contexts);
+    const current = chatSpaces[activeChatIndex];
+    if (current) current.contexts = contexts;
+  }
+
+  function currentShortTime(offsetMinutes = 0) {
+    const date = new Date(Date.now() + offsetMinutes * 60000);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function aiMetaRows(message, index) {
+    const defaults = [
+      { label: 'Time', value: message.dataset.aiTime || currentShortTime(index * 2) },
+      { label: 'Model', value: message.dataset.aiModel || 'deepseek-v4-flash' },
+      { label: 'Tokens', value: message.dataset.aiTokens || (260 + index * 84) + ' in / ' + (42 + index * 18) + ' out' },
+      { label: 'Context', value: message.dataset.aiContext || (18 + index * 3) + '% used' },
+      { label: 'Latency', value: message.dataset.aiLatency || (message.classList.contains('working') ? 'running' : (1.1 + index * 0.4).toFixed(1) + 's') }
+    ];
+    return defaults;
+  }
+
+  function ensureAiMetaHotspots() {
+    messages.querySelectorAll('.message.ai').forEach((message, index) => {
+      if (message.querySelector('.ai-meta-hotspot')) return;
+      const rows = aiMetaRows(message, index);
+      const summary = rows.map(row => row.label + ': ' + row.value).join(', ');
+      const hotspot = document.createElement('span');
+      hotspot.className = 'ai-meta-hotspot';
+      hotspot.tabIndex = 0;
+      hotspot.setAttribute('role', 'button');
+      hotspot.setAttribute('aria-label', 'AI response metadata. ' + summary);
+
+      const tooltip = document.createElement('span');
+      tooltip.className = 'ai-meta-tooltip';
+      tooltip.setAttribute('role', 'tooltip');
+      rows.forEach(row => {
+        const item = document.createElement('span');
+        item.className = 'ai-meta-tooltip-row';
+        const label = document.createElement('span');
+        label.className = 'ai-meta-tooltip-label';
+        label.textContent = row.label;
+        const value = document.createElement('span');
+        value.className = 'ai-meta-tooltip-value';
+        value.textContent = row.value;
+        item.append(label, value);
+        tooltip.appendChild(item);
+      });
+
+      message.prepend(tooltip);
+      message.prepend(hotspot);
+    });
+  }
+
   function saveActiveChatSpace() {
     const current = chatSpaces[activeChatIndex];
     if (!current) return;
+    ensureAiMetaHotspots();
     current.title = chatTitle.textContent.trim();
     current.messages = messages.innerHTML;
     current.prompt = promptInput.value;
+    current.contexts = serializeContextNodges();
   }
 
   function updateChatNodges() {
@@ -391,7 +654,9 @@
     activeChatIndex = index;
     chatTitle.textContent = next.title;
     messages.innerHTML = next.messages;
+    ensureAiMetaHotspots();
     promptInput.value = next.prompt;
+    renderContextNodges(next.contexts);
     autosizePrompt(promptInput);
     updateChatNodges();
     updateChatCarousel();
@@ -406,9 +671,10 @@
       title: 'Chat ' + number,
       messages: [
         '<div class="message user">Start a fresh chat space.</div>',
-        '<div class="message ai working"><span class="busy-signal">Ready for a new task <span class="pixel-wave" data-wave">&#9601;&#9602;&#9603;</span></span></div>'
+        '<div class="message ai working" data-ai-time="' + currentShortTime() + '" data-ai-model="deepseek-v4-flash" data-ai-tokens="live" data-ai-context="fresh" data-ai-latency="waiting"><span class="busy-signal">Ready for a new task <span class="pixel-wave" data-wave">&#9601;&#9602;&#9603;</span></span></div>'
       ].join(''),
-      prompt: ''
+      prompt: '',
+      contexts: []
     });
     setWindowMinimized(coreWindow, false);
     renderChatSpace(chatSpaces.length - 1);
@@ -500,6 +766,51 @@
       button.setAttribute('aria-pressed', String(active));
     });
     buildState.textContent = mode === 'plan' ? 'V2 - Planning mode mockup' : 'V2 - Agent mode';
+  }
+
+  function setVoiceInputMode(active) {
+    const composer = coreWindow.querySelector('.composer');
+    const button = coreWindow.querySelector('[data-voice-toggle]');
+    if (!button || !composer) return;
+    composer.classList.toggle('voice-active', active);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-label', active ? 'Leave voice input mode' : 'Switch to voice input mode');
+    buildState.textContent = active ? 'V2 - Voice input mode' : 'V2 - Agent mode';
+  }
+
+  function handleToolwheelAction(item) {
+    const action = item.dataset.action;
+    const type = item.dataset.actionType || 'Instant';
+    if (!action) return;
+
+    if (action === 'New Chat') {
+      preparedChats++;
+      createChatSpace();
+      return;
+    }
+
+    if (type === 'Attach') {
+      const kind = item.dataset.nodgeKind || 'Context';
+      addContextNodge(kind, action);
+      announceAction(kind + ' attached');
+      closeToolwheel();
+      return;
+    }
+
+    if (type === 'Open') {
+      announceAction(action + ' window');
+      closeToolwheel();
+      return;
+    }
+
+    if (type === 'More') {
+      announceAction(action);
+      return;
+    }
+
+    announceAction(action);
+    closeToolwheel();
   }
 
   function installResizeHandles() {
@@ -710,6 +1021,13 @@
         event.preventDefault();
         event.stopPropagation();
         const action = tool.dataset.composerTool || tool.textContent.trim();
+        if (tool.dataset.composerType === 'Attach') {
+          const kind = tool.dataset.nodgeKind || 'Context';
+          addContextNodge(kind, action);
+          announceAction(kind + ' attached');
+          setComposerMenuOpen(tool.closest('.composer-shell'), false);
+          return;
+        }
         announceAction(action);
         setComposerMenuOpen(tool.closest('.composer-shell'), false);
       });
@@ -721,6 +1039,25 @@
         event.stopPropagation();
         setWorkspaceMode(button.dataset.modeOption);
       });
+    });
+
+    document.querySelectorAll('[data-voice-toggle]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        setVoiceInputMode(button.getAttribute('aria-pressed') !== 'true');
+      });
+    });
+
+    contextNodges.addEventListener('click', event => {
+      const remove = event.target.closest('.context-nodge-remove');
+      if (!remove) return;
+      event.preventDefault();
+      const nodge = remove.closest('.context-nodge');
+      nodge?.remove();
+      contextNodges.hidden = !contextNodges.children.length;
+      const current = chatSpaces[activeChatIndex];
+      if (current) current.contexts = serializeContextNodges();
     });
 
     document.addEventListener('click', event => {
@@ -761,28 +1098,41 @@
 
   toolwheel.addEventListener('mousemove', event => {
     if (!toolwheel.classList.contains('open')) return;
+    if (toolwheel.classList.contains('suppress-core-menu')) {
+      if (!wheelOpenPointer) {
+        toolwheel.classList.remove('suppress-core-menu');
+      } else {
+        const distance = Math.hypot(event.clientX - wheelOpenPointer.x, event.clientY - wheelOpenPointer.y);
+        if (distance > 14) toolwheel.classList.remove('suppress-core-menu');
+      }
+    }
     updateWheelArrow(event);
   });
 
   wheelCore.addEventListener('mouseenter', () => {
+    if (toolwheel.classList.contains('suppress-core-menu')) return;
     clearTimeout(coreMenuTimer);
     toolwheel.classList.add('core-new-open');
+    coreNewTree.classList.add('is-open');
   });
 
   wheelCore.addEventListener('mouseleave', () => {
     coreMenuTimer = setTimeout(() => {
       if (!coreNewTree.matches(':hover')) {
         toolwheel.classList.remove('core-new-open');
+        coreNewTree.classList.remove('is-open');
       }
     }, 220);
   });
 
   coreNewTree.addEventListener('mouseenter', () => {
     clearTimeout(coreMenuTimer);
+    coreNewTree.classList.add('is-open');
   });
 
   coreNewTree.addEventListener('mouseleave', () => {
     toolwheel.classList.remove('core-new-open');
+    coreNewTree.classList.remove('is-open');
   });
 
   wheelCore.addEventListener('click', event => {
@@ -793,24 +1143,34 @@
 
   toolwheel.querySelectorAll('.wheel-node').forEach((node, index) => {
     node.addEventListener('mouseenter', () => {
+      toolwheel.classList.remove('suppress-core-menu');
       toolwheel.classList.remove('core-new-open');
+      coreNewTree.classList.remove('is-open');
+      focusWheelNode(index);
+    });
+
+    node.addEventListener('focus', () => {
+      toolwheel.classList.remove('core-new-open');
+      coreNewTree.classList.remove('is-open');
       focusWheelNode(index);
     });
 
     node.addEventListener('click', () => {
       announceAction(node.dataset.node);
     });
+
+    node.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      announceAction(node.dataset.node);
+    });
   });
 
   toolwheel.querySelectorAll('[data-action]').forEach(item => {
     item.addEventListener('click', event => {
+      event.preventDefault();
       event.stopPropagation();
-      if (item.dataset.action === 'New Chat') {
-        preparedChats++;
-        createChatSpace();
-        return;
-      }
-      announceAction(item.dataset.action);
+      handleToolwheelAction(item);
     });
   });
 
@@ -857,8 +1217,10 @@
   });
 
   resizeBrushCanvas();
+  stage.classList.add('wheel-' + wheelOverlayMode + '-mode');
   buildState.textContent = 'V2 - Background: ' + (backgroundMode === 'network' ? 'Network' : 'Grid');
   installWindowInteractions();
+  ensureAiMetaHotspots();
   setWorkspaceMode('agent');
   updateChatNodges();
   updateChatCarousel();
