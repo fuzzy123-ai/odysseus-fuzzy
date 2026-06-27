@@ -1,7 +1,7 @@
 """Consolidated service health / degraded-state reporting.
 
-ROADMAP: "Better degraded-state reporting for ChromaDB, SearXNG, email, ntfy,
-and provider probes." There was no single readout of which subsystems are
+ROADMAP: "Better degraded-state reporting for ChromaDB, privacy runtime,
+SearXNG, email, ntfy, and provider probes." There was no single readout of which subsystems are
 actually working — `/api/health` is only a liveness ping and each subsystem's
 signal lives in a different module. This collects them into one uniform,
 *non-intrusive* report (no test push is sent, no real search is run), so the
@@ -478,8 +478,15 @@ async def collect_service_health(rag_manager: Any = None,
     inputs = _gather_inputs()
     settings = inputs["settings"]
 
-    # ChromaDB is in-process and synchronous (just reads flags).
+    # ChromaDB and privacy runtime are in-process and synchronous.
     chroma = chromadb_health(rag_manager, memory_vector)
+    try:
+        from src.privacy_observability import privacy_runtime_health
+
+        privacy = privacy_runtime_health(settings)
+    except Exception as e:
+        category = _classify_error(e)
+        privacy = _svc("privacy_runtime", DOWN, _detail_for(category), error=category)
 
     names = ["searxng", "ntfy", "email", "providers"]
     coros = [
@@ -496,7 +503,7 @@ async def collect_service_health(rag_manager: Any = None,
         results = [_svc(n, DOWN, _detail_for("timeout"), error="timeout")
                    for n in names]
 
-    services = [chroma, *results]
+    services = [chroma, privacy, *results]
     return {
         "overall": _rollup(services),
         "services": services,

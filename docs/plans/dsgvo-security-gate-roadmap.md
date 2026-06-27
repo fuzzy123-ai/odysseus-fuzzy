@@ -6,6 +6,7 @@ Current evidence:
 - Secure chat state, policy gate, model routing, retrieval guard, provider runtime guard, and channel policy already exist.
 - Session creation already checks secure provider runtime before model probing.
 - Embedding lanes, RAG, memory vectors, document attachments, Vision OCR, web search/fetch, and tool calls still need full runtime wiring.
+- S7 observability is covered by a sanitized `privacy_runtime` diagnostics service that reports data/model/tool/channel gate decisions without content or config values.
 
 Mode: Standard ABC.
 
