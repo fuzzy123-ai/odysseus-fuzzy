@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices plus local workspace/repo provisioning and task runner done; visual Project UI and provider repo creation remain gated**
+Status: **Non-UI backend/API slices plus local workspace/repo provisioning, planner adapter and task runner done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -241,11 +241,16 @@ Current result:
 - `src/server_project_task_runner.py` implements a minimum autonomous project
   task loop: bounded file writes inside `projects/<slug>/repo`, allowed checks,
   stop-on-first-failure and redacted task reports.
+- `src/server_project_task_planner.py` adapts structured AI planner output into
+  executable task-runner inputs with acceptance criteria, safe file writes and
+  default checks per profile.
 - Task execution requires the local Git repository to exist and
   `live_enabled=true` plus `operator_decision=go`.
 - The task command allowlist covers focused `pytest`, `npm test`,
   `npm run test`, `npm run build`, `node --check` and `git status`.
 - The API exposes this as `/api/projects/{project_slug}/task-run`.
+- Planner-to-task execution is exposed as
+  `/api/projects/{project_slug}/planner-task-run`.
 - Deploy execution is blocked unless the deploy handoff is
   `ready_for_operator_go`, live mode is enabled and `operator_decision=go`.
 - Unsupported commands are blocked before a runner is called.

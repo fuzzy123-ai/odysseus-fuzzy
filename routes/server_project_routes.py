@@ -29,6 +29,10 @@ from src.server_project_task_runner import (
     ServerProjectTaskRunnerError,
     run_project_task,
 )
+from src.server_project_task_planner import (
+    ServerProjectTaskPlannerError,
+    run_planner_task,
+)
 
 
 DEFAULT_PROJECT_REGISTRY_PATH = Path(DATA_DIR) / "server_project_registry.json"
@@ -73,6 +77,16 @@ class ProjectTaskRunRequest(BaseModel):
     objective: str = Field(min_length=1, max_length=500)
     file_writes: list[ProjectTaskFileWriteRequest] = Field(default_factory=list)
     checks: list[ProjectTaskCheckRequest] = Field(default_factory=list)
+    live_enabled: bool = False
+    operator_decision: str = "missing"
+
+
+class ProjectPlannerTaskRunRequest(BaseModel):
+    objective: str = Field(min_length=1, max_length=500)
+    file_writes: list[ProjectTaskFileWriteRequest] = Field(default_factory=list)
+    checks: list[ProjectTaskCheckRequest] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    check_profile: str = "auto"
     live_enabled: bool = False
     operator_decision: str = "missing"
 
@@ -195,6 +209,31 @@ def setup_server_project_routes(
         except ServerProjectTaskRunnerError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.executed and report.status == "completed", "task_run": report.to_dict()}
+
+    @router.post("/{project_slug}/planner-task-run")
+    def run_planned_task(project_slug: str, body: ProjectPlannerTaskRunRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = run_planner_task(
+                record=record,
+                projects_root=configured_projects_root,
+                objective=body.objective,
+                file_writes=tuple({"path": item.path, "content": item.content} for item in body.file_writes),
+                checks=tuple(
+                    {"argv": item.argv, "timeout_seconds": item.timeout_seconds}
+                    for item in body.checks
+                ),
+                acceptance_criteria=body.acceptance_criteria,
+                check_profile=body.check_profile,
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (ServerProjectTaskPlannerError, ServerProjectTaskRunnerError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed and report.status == "completed", "planner_task": report.to_dict()}
 
     return router
 

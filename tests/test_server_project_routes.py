@@ -119,6 +119,33 @@ def test_project_routes_task_run_reports_gate_without_live_execution(tmp_path: P
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_planner_task_run_adapts_to_task_plan_without_live_execution(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/planner-task-run",
+        json={
+            "objective": "Add an app entrypoint",
+            "file_writes": [{"path": "src/app.py", "content": "print('hi')\n"}],
+            "acceptance_criteria": ["entrypoint exists"],
+            "check_profile": "auto",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["planner_task"]["executed"] is False
+    planner = body["planner_task"]["planner"]
+    assert planner["ready_for_task_runner"] is True
+    assert planner["task_plan"]["checks"][0]["argv"] == ["python", "-m", "pytest", "tests", "-q"]
+    assert "operator decision is not go" in planner["task_plan"]["blockers"]
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -136,6 +163,10 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert client.post(
         "/api/projects/missing/task-run",
         json={"objective": "x", "file_writes": [], "checks": []},
+    ).status_code == 404
+    assert client.post(
+        "/api/projects/missing/planner-task-run",
+        json={"objective": "x", "file_writes": [], "checks": [], "acceptance_criteria": []},
     ).status_code == 404
 
 
