@@ -1,12 +1,15 @@
 # DSGVO Security Gate Roadmap
 
+Status: Backend/logikseitig abgeschlossen. UI-Platzierung und Live-Channel-Produktentscheidungen sind bewusst ausserhalb dieses Backend-Slices.
+
 Goal: Odysseus can run in a global DSGVO mode where sensitive or unknown-private data stays on local/LAN models, local embeddings, safe local tools, and approved channels unless the operator explicitly reviews or defers a gate.
 
 Current evidence:
 - Secure chat state, policy gate, model routing, retrieval guard, provider runtime guard, and channel policy already exist.
 - Session creation already checks secure provider runtime before model probing.
-- Embedding lanes, RAG, memory vectors, document attachments, Vision OCR, web search/fetch, and tool calls still need full runtime wiring.
+- Embedding lanes, RAG, memory vectors, document attachments, Vision OCR, web search/fetch, tool calls, and Nextcloud ingestion now route through the privacy runtime or source classification gates.
 - S7 observability is covered by a sanitized `privacy_runtime` diagnostics service that reports data/model/tool/channel gate decisions without content or config values.
+- S1-S7 are complete for repo-only backend/logik scope; no known safe backend leak path remains in this roadmap.
 
 Mode: Standard ABC.
 
@@ -36,18 +39,19 @@ Gate queue:
 Gate: G1 UI toggle placement
 Class: needs_design
 Blocks: UI control for global DSGVO mode
+Decision owner: UI Agent, not this backend ABC lane.
 Decision needed: Where in v2 settings/project shell should the global DSGVO toggle live?
-Safe preparation done: Backend key and runtime helpers can be built without UI.
+Safe preparation done: Backend key, runtime helpers, route/tool gates, and diagnostics are ready without UI placement.
 Risk if bypassed: Toggle may be hard to discover or inconsistent with v2 window model.
-Next safe slice: S1
+Next safe slice: none; backend scope is complete.
 
 Gate: G2 Live secure-channel behavior
 Class: needs_live_go
 Blocks: Telegram/API/live provider proof
 Decision needed: Which channels are allowed to return sensitive responses once secure flow exists?
-Safe preparation done: Channel policy exists and can be tested offline.
+Safe preparation done: Channel policy exists, is tested offline, and is visible through sanitized diagnostics.
 Risk if bypassed: Sensitive answers could leave over a channel the operator did not intend.
-Next safe slice: S1
+Next safe slice: none; live proof needs an explicit bounded live Go.
 
 Paths:
 - Runtime core: S1, S2.
@@ -55,13 +59,13 @@ Paths:
 - Outbound effects: S5, S7.
 
 Verification:
-- Run focused tests per slice.
-- Add regression tests for every blocked leak path.
+- Focused tests were added and run per slice.
+- Regression tests cover the blocked leak paths implemented in this roadmap.
 - Keep docs free of private content and private metadata.
 
 Go language:
 - Go: backend gate passes focused tests and does not require live action.
-- Partial: safe backend contract exists, but live/UI proof is still gated.
+- Partial: safe backend contract exists, but live proof is still gated.
 - No-Go: sensitive data can still be sent to external provider/embedding/tool/channel by the tested path.
-- Deferred: UI or live verification explicitly parked.
+- Deferred: UI placement is delegated to the UI Agent, or live verification explicitly waits for bounded live Go.
 - Blocked: unsafe state, secrets, or unclear worktree ownership.
