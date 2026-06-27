@@ -641,6 +641,10 @@ app.include_router(setup_research_routes(research_handler, session_manager=sessi
 from routes.roadmap_routes import setup_roadmap_routes
 app.include_router(setup_roadmap_routes())
 
+# Server Projects
+from routes.server_project_routes import setup_server_project_routes
+app.include_router(setup_server_project_routes())
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))

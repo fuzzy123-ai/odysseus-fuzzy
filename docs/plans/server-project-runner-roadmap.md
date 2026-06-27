@@ -257,6 +257,8 @@ Current result:
 
 ### P8 Project UI And AI Command Surface
 
+Status: **backend API surface done; UI remains gated**
+
 Goal:
 
 - Project UI fuer Planung, Chat, Tasks, Runner-State, Repo, Build/Test,
@@ -268,6 +270,16 @@ Gate:
 
 - Keine automatische Live-Aktion aus Chat-Nachrichten.
 - Jede riskante Aktion braucht eine explizite Freigabe.
+
+Current backend result:
+
+- `routes/server_project_routes.py` exposes backend API routes for listing,
+  creating and reading projects plus binding an existing chat session to a
+  project.
+- `app.py` registers the `/api/projects` router.
+- API persistence uses the safe project registry and does not create repos,
+  deploy services, run tunnels or execute commands.
+- Visual Project UI remains intentionally open.
 
 ## Current Human Decision Needed
 
