@@ -1179,6 +1179,23 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_research",
+            "description": "List, read/open, or delete saved deep-research reports from the user's Library. Reports are owner-scoped; delete requires confirmed=true after explicit user confirmation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "read", "delete"], "description": "list = show reports; read = return report text and sources; delete = remove a saved report after confirmation."},
+                    "id": {"type": "string", "description": "Research report id from action=list, e.g. rp-abc123."},
+                    "search": {"type": "string", "description": "Search query for action=list."},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."},
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "resolve_contact",
             "description": "Look up a contact by name. Searches CardDAV address book and sent email history. Returns email addresses (when available) or phone numbers. Use when the user says 'message [name]', 'email [name]', or asks for someone's contact details.",
             "parameters": {
@@ -1583,7 +1600,8 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
-                        "manage_tokens", "manage_documents", "manage_settings"):
+                        "manage_tokens", "manage_documents", "manage_settings",
+                        "manage_research"):
         content = json.dumps(args)
     elif tool_type == "ask_teacher":
         content = args.get("model", "auto") + "\n" + args.get("problem", "")

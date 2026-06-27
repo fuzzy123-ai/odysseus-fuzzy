@@ -4452,7 +4452,7 @@ async def do_edit_image(content: str, owner: Optional[str] = None) -> Dict:
 
 async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
     """List, read/open, or delete saved deep-research results from the Library.
-    Args (JSON): {"action": "list|read|delete", "id": "<id>", "search": "..."}.
+    Args (JSON): {"action": "list|read|delete", "id": "<id>", "search": "...", "confirmed": true}.
     Research is stored as data/deep_research/<id>.json (query, summary, sources)."""
     import json as _json
     from pathlib import Path as _Path
@@ -4475,11 +4475,27 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
     if rid and not re.fullmatch(r"[A-Za-z0-9_-]+", rid):
         return {"error": "Invalid research id."}
 
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Research {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     def _load(p):
         try:
             return _json.loads(p.read_text(encoding="utf-8"))
         except Exception:
             return None
+
+    def _visible_to_owner(d) -> bool:
+        if owner is None:
+            return True
+        return isinstance(d, dict) and d.get("owner") == owner
 
     if action in ("read", "open", "view", "get"):
         if not rid:
@@ -4488,6 +4504,8 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         if not p.exists():
             return {"error": f"Research '{rid}' not found."}
         d = _load(p) or {}
+        if not _visible_to_owner(d):
+            return {"error": f"Research '{rid}' not found."}
         summary = d.get("result") or d.get("raw_report") or d.get("summary") or d.get("report") or "(no report body)"
         srcs = d.get("sources", []) or []
         out = f"# {d.get('query', '(untitled)')}\n\n{summary}"
@@ -4500,8 +4518,13 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
     if action == "delete":
         if not rid:
             return {"error": "Provide the research id to delete (from action='list')."}
+        if not _confirmed():
+            return _confirmation_required("delete")
         p = data_dir / f"{rid}.json"
         if p.exists():
+            d = _load(p)
+            if not _visible_to_owner(d):
+                return {"error": f"Research '{rid}' not found."}
             try:
                 p.unlink()
             except Exception as e:
@@ -4516,6 +4539,8 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         for p in data_dir.glob("*.json"):
             d = _load(p)
             if not d:
+                continue
+            if not _visible_to_owner(d):
                 continue
             q = d.get("query", "")
             if search and search not in q.lower():
