@@ -149,6 +149,8 @@ Current result:
 
 ### P4 Git And Review Flow
 
+Status: **backend dry-run Git/review plan done; live Git operations remain gated**
+
 Goal:
 
 - Neues Repository aus dem Projekttitel planen oder ein bestehendes Repo
@@ -161,6 +163,17 @@ Gate:
 - Nie auf `origin` pushen.
 - Kein Force-Push, Reset, Checkout-Rewrite oder destruktive Cleanup-Aktion.
 - Keine Repo-Erzeugung ohne eindeutigen Projekttitel und Operator-Go.
+
+Current result:
+
+- `src/server_project_git_review.py` models repo creation/attachment,
+  worker branch review, change-set review, commit message review and push
+  target review as data.
+- Push remote is restricted to `fuzzy`; `origin` is blocked.
+- New repository creation requires `operator_decision=go`.
+- Unsafe branch names, absolute paths, secret-like commit messages and
+  missing changed paths are rejected or held.
+- No Git command is executed by this slice.
 
 ### P5 Deploy Handoff
 
