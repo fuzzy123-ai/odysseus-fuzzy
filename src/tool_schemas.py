@@ -834,7 +834,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_mcp",
-            "description": "Manage MCP (Model Context Protocol) tool servers: list servers and their tools, add new servers, delete, enable/disable, reconnect, or list all available tools.",
+            "description": "Manage MCP (Model Context Protocol) tool servers. list/list_tools are read-only; add/delete/enable/disable/reconnect require confirmed=true. Agent-added stdio servers are additionally restricted to the MCP command allowlist.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -843,7 +843,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "name": {"type": "string", "description": "Server name (for add)"},
                     "command": {"type": "string", "description": "Command to run e.g. npx (for add)"},
                     "args": {"type": "array", "items": {"type": "string"}, "description": "Command arguments (for add)"},
-                    "env": {"type": "object", "description": "Environment variables (for add)"}
+                    "env": {"type": "object", "description": "Environment variables (for add)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for add/delete/enable/disable/reconnect after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

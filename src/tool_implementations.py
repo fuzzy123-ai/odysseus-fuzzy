@@ -918,7 +918,18 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    action = args.get("action", "list")
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"MCP server {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
 
     if action == "list":
         mcp = get_mcp_manager()
@@ -956,6 +967,8 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
         _mcp_err = _validate_mcp_command(command, cmd_args, env)
         if _mcp_err:
             return {"error": f"manage_mcp: refused unsafe server registration: {_mcp_err}", "exit_code": 1}
+        if not _confirmed():
+            return _confirmation_required("add")
         sid = str(_uuid.uuid4())[:8]
         db = SessionLocal()
         try:
@@ -984,6 +997,8 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
         return {"response": f"Added MCP server '{name}' ({tool_count} tools)", "exit_code": 0}
 
     elif action == "delete":
+        if not _confirmed():
+            return _confirmation_required("delete")
         sid = args.get("server_id", "")
         from core.database import SessionLocal, McpServer
         db = SessionLocal()
@@ -1005,6 +1020,8 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
             db.close()
 
     elif action == "reconnect":
+        if not _confirmed():
+            return _confirmation_required("reconnect")
         sid = args.get("server_id", "")
         mcp = get_mcp_manager()
         if not mcp:
@@ -1036,6 +1053,8 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": str(e), "exit_code": 1}
 
     elif action in ("enable", "disable"):
+        if not _confirmed():
+            return _confirmation_required(action)
         sid = args.get("server_id", "")
         from core.database import SessionLocal, McpServer
         db = SessionLocal()

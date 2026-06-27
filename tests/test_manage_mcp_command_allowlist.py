@@ -111,9 +111,11 @@ def test_validator_allows_safe_allowlisted_server():
 
 
 # ── integration: the real do_manage_mcp('add') path ──
-def _add(command, args=None, env=None):
+def _add(command, args=None, env=None, confirmed=False):
     payload = {"action": "add", "name": "x", "command": command,
                "args": args if args is not None else [], "env": env or {}}
+    if confirmed:
+        payload["confirmed"] = True
     return asyncio.run(ti.do_manage_mcp(json.dumps(payload)))
 
 
@@ -157,12 +159,31 @@ def test_add_allows_safe_server_writes_row_and_connects(monkeypatch):
     mcp.get_server_status = MagicMock(return_value={"tool_count": 2})
     monkeypatch.setattr(ti, "get_mcp_manager", lambda: mcp)
 
-    res = _add("mcp-server-demo", ["--port", "3000"])
+    res = _add("mcp-server-demo", ["--port", "3000"], confirmed=True)
     assert res["exit_code"] == 0
     mcp.connect_server.assert_called_once()
 
     db = _TS()
     try:
         assert db.query(McpServer).count() == 1
+    finally:
+        db.close()
+
+
+def test_add_safe_server_requires_confirmation_before_write_or_connect(monkeypatch):
+    mcp = MagicMock()
+    mcp.connect_server = AsyncMock()
+    monkeypatch.setattr(ti, "get_mcp_manager", lambda: mcp)
+
+    res = _add("mcp-server-demo", ["--port", "3000"])
+
+    assert res["exit_code"] == 0
+    assert res["status"] == "confirmation_required"
+    assert res["requires_confirmation"] is True
+    mcp.connect_server.assert_not_called()
+
+    db = _TS()
+    try:
+        assert db.query(McpServer).count() == 0
     finally:
         db.close()
