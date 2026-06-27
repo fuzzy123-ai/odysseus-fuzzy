@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 
 import time
 
+from src.privacy_runtime import EXTERNAL_IO_BLOCK_REASON, EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
 from services.search import get_search_config, comprehensive_web_search, PROVIDER_INFO
 from services.search.core import _call_provider
 from services.search.providers import _get_provider_key, _get_search_instance
@@ -53,6 +54,13 @@ def setup_search_routes(config) -> APIRouter:
         query = str(values.get("query") or values.get("q") or "").strip()
         if not query:
             return {"context": "", "sources": [], "error": "query is required"}
+        if not runtime_allows_external_io():
+            return {
+                "context": "",
+                "sources": [],
+                "error": EXTERNAL_IO_BLOCK_MESSAGE,
+                "blocked_by": EXTERNAL_IO_BLOCK_REASON,
+            }
         time_filter = values.get("time_filter") or values.get("freshness")
         if time_filter is not None:
             time_filter = str(time_filter).strip() or None
@@ -96,6 +104,13 @@ def setup_search_routes(config) -> APIRouter:
             count = 10
         if not query:
             return {"results": [], "provider": provider, "error": "query is required"}
+        if not runtime_allows_external_io():
+            return {
+                "results": [],
+                "provider": provider,
+                "error": EXTERNAL_IO_BLOCK_MESSAGE,
+                "blocked_by": EXTERNAL_IO_BLOCK_REASON,
+            }
         if provider not in PROVIDER_INFO or provider == "disabled":
             return {"results": [], "provider": provider, "error": "Unknown provider"}
         t0 = time.time()

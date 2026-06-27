@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Set
 from urllib.parse import urlparse
 
+from src.privacy_runtime import EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
+
 from .analytics import (
     NetworkError,
     ParseError,
@@ -95,6 +97,9 @@ def update_search_config(api_key: str = None, **kwargs):
 
 def _call_provider(provider_name: str, query: str, count: int, time_filter: str = None) -> List[dict]:
     """Call a search provider by name. Returns list of results or empty list."""
+    if not runtime_allows_external_io():
+        logger.warning("Search provider call blocked by DSGVO runtime policy")
+        return []
     if provider_name == "searxng":
         return searxng_search_api(query, count, time_filter=time_filter)
     elif provider_name == "brave":
@@ -135,6 +140,10 @@ def _build_provider_chain(primary: str) -> List[str]:
 # ----------------------------------------------------------------------
 def searxng_search_results(query: str, count: int = 10, time_filter: str = None) -> list[dict]:
     """Perform a web search using configured provider with caching and retry."""
+    if not runtime_allows_external_io():
+        logger.info("Search results blocked by DSGVO runtime policy")
+        return []
+
     settings = _get_search_settings()
     search_provider = settings.get("search_provider", "searxng")
     result_count = _get_result_count()
@@ -263,6 +272,10 @@ def comprehensive_web_search(
     logger.info(f"Starting comprehensive search for: {query}")
     if time_filter:
         logger.info(f"Applying time filter: {time_filter}")
+
+    if not runtime_allows_external_io():
+        logger.info("Comprehensive web search blocked by DSGVO runtime policy")
+        return (EXTERNAL_IO_BLOCK_MESSAGE, []) if return_sources else EXTERNAL_IO_BLOCK_MESSAGE
 
     settings = _get_search_settings()
     search_provider = settings.get("search_provider", "searxng")

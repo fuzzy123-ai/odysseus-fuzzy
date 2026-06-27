@@ -3,6 +3,7 @@ from src.privacy_runtime import (
     create_runtime_security_state,
     effective_security_mode,
     is_dsgvo_mode_enabled,
+    runtime_allows_external_io,
     runtime_requires_local_only,
     truthy,
 )
@@ -30,6 +31,11 @@ def test_runtime_requires_local_only_for_dsgvo_or_secure_state():
 
     assert runtime_requires_local_only(settings={"dsgvo_mode": True})
     assert runtime_requires_local_only(settings={"dsgvo_mode": False}, security_state=secure)
+
+
+def test_runtime_external_io_gate_tracks_dsgvo_mode():
+    assert runtime_allows_external_io(settings={"dsgvo_mode": False}) is True
+    assert runtime_allows_external_io(settings={"dsgvo_mode": True}) is False
 
 
 def test_runtime_security_state_uses_local_only_scope_in_dsgvo_mode():

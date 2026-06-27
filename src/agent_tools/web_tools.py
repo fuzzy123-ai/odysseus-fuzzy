@@ -6,7 +6,6 @@ from src.constants import MAX_OUTPUT_CHARS
 
 class WebSearchTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.search import comprehensive_web_search
         raw = content.strip()
         query = raw
         time_filter = None
@@ -26,6 +25,14 @@ class WebSearchTool:
                 pass
         if not query:
             query = raw.split("\n")[0].strip()
+        from src.privacy_runtime import EXTERNAL_IO_BLOCK_REASON, EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
+
+        if not runtime_allows_external_io():
+            return {
+                "error": f"web_search: {EXTERNAL_IO_BLOCK_MESSAGE}",
+                "exit_code": 1,
+                "blocked_by": EXTERNAL_IO_BLOCK_REASON,
+            }
         if time_filter is None:
             q_lc = query.lower()
             if any(kw in q_lc for kw in ("today", "latest", "breaking", "this morning", "right now", "currently")):
@@ -36,6 +43,8 @@ class WebSearchTool:
                 time_filter = "month"
             elif " news" in q_lc or q_lc.startswith("news ") or q_lc.endswith(" news"):
                 time_filter = "week"
+        from src.search import comprehensive_web_search
+
         loop = asyncio.get_running_loop()
         text, sources = await asyncio.wait_for(
             loop.run_in_executor(
@@ -56,7 +65,6 @@ class WebSearchTool:
 
 class WebFetchTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.search.content import fetch_webpage_content
         from src.constants import WEB_FETCH_HARD_MAX_BYTES
         raw = content.strip()
         url = ""
@@ -85,6 +93,16 @@ class WebFetchTool:
             return {"error": f"web_fetch: unsupported URL scheme (only http/https): {url[:80]}", "exit_code": 1}
         if not low.startswith(("http://", "https://")):
             url = "https://" + url
+        from src.privacy_runtime import EXTERNAL_IO_BLOCK_REASON, EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
+
+        if not runtime_allows_external_io():
+            return {
+                "error": f"web_fetch: {EXTERNAL_IO_BLOCK_MESSAGE}",
+                "exit_code": 1,
+                "blocked_by": EXTERNAL_IO_BLOCK_REASON,
+            }
+        from src.search.content import fetch_webpage_content
+
         loop = asyncio.get_running_loop()
         try:
             result = await asyncio.wait_for(

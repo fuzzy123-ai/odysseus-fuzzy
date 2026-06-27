@@ -95,6 +95,40 @@ _COMMON_TOOL_NAMES = {
     "obsidian_graph",
 }
 
+_DSGVO_TOOL_SAFETY_CLASSES: Mapping[str, str] = MappingProxyType({
+    "api_call": "unsafe",
+    "app_api": "unsafe",
+    "ask_teacher": "external",
+    "bash": "unsafe",
+    "bulk_email": "external",
+    "chat_with_model": "external",
+    "delegate": "unsafe",
+    "delete_email": "external",
+    "download_model": "external",
+    "edit_file": "unsafe",
+    "edit_image": "external",
+    "generate_image": "external",
+    "manage_endpoints": "unsafe",
+    "manage_mcp": "unsafe",
+    "manage_settings": "unsafe",
+    "manage_tokens": "unsafe",
+    "manage_webhooks": "external",
+    "python": "unsafe",
+    "read_email": "external",
+    "reply_to_email": "external",
+    "search_hf_models": "external",
+    "send_email": "external",
+    "send_to_session": "external",
+    "serve_model": "unsafe",
+    "serve_preset": "unsafe",
+    "spawn_subagent": "unsafe",
+    "stop_served_model": "unsafe",
+    "trigger_research": "external",
+    "web_fetch": "external",
+    "web_search": "external",
+    "write_file": "unsafe",
+})
+
 
 _GUIDE_ONLY_PATTERNS: Tuple[Tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.IGNORECASE), reason)
@@ -240,6 +274,27 @@ def build_effective_tool_policy(
             mode="orchestrator",
             disable_mcp=True,
         )
+
+    try:
+        from src.privacy_runtime import create_runtime_security_state
+        from src.secure_policy_gate import decide_tool_gate
+
+        state = create_runtime_security_state()
+        decisions = {}
+        for tool, safety_class in _DSGVO_TOOL_SAFETY_CLASSES.items():
+            if safety_class not in decisions:
+                decisions[safety_class] = decide_tool_gate(state=state, tool_safety_class=safety_class)
+            decision = decisions[safety_class]
+            if decision.allowed:
+                continue
+            disabled.add(tool)
+            hidden.add(tool)
+            reasons[tool] = (
+                "DSGVO mode requires local-only processing; "
+                f"tool '{tool}' is classified as {safety_class}."
+            )
+    except Exception:
+        pass
 
     return ToolPolicy(
         disabled_tools=frozenset(disabled),

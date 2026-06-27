@@ -16,6 +16,10 @@ from src.chat_security_state import ChatSecurityState, SecurityMode, normalize_s
 DSGVO_MODE_SETTING = "dsgvo_mode"
 GDPR_MODE_SETTING = "gdpr_mode"
 DSGVO_MODE_ENV = "ODYSSEUS_DSGVO_MODE"
+EXTERNAL_IO_BLOCK_REASON = "external_io_blocked_by_dsgvo_mode"
+EXTERNAL_IO_BLOCK_MESSAGE = (
+    "External network access is blocked because DSGVO mode requires local-only processing."
+)
 
 _TRUE_VALUES = {"1", "true", "yes", "on", "enabled", "secure", "dsgvo", "gdpr"}
 
@@ -98,3 +102,22 @@ def create_runtime_security_state(
         created_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         requested_by=str(requested_by or "privacy-runtime"),
     )
+
+
+def decide_runtime_tool_access(
+    tool_safety_class: str,
+    *,
+    settings: Mapping[str, Any] | None = None,
+):
+    """Apply the current runtime privacy state to a tool safety class."""
+
+    from src.secure_policy_gate import decide_tool_gate
+
+    state = create_runtime_security_state(settings=settings)
+    return decide_tool_gate(state=state, tool_safety_class=tool_safety_class)
+
+
+def runtime_allows_external_io(*, settings: Mapping[str, Any] | None = None) -> bool:
+    """Return whether external network/tool I/O may run under current policy."""
+
+    return decide_runtime_tool_access("external", settings=settings).allowed

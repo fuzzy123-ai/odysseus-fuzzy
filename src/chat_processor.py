@@ -19,7 +19,7 @@ from src.prompt_security import UNTRUSTED_CONTEXT_POLICY, untrusted_context_mess
 from src.settings import load_features
 from src.chat_security_state import SecurityMode
 from src.data_classification import DataClassification
-from src.privacy_runtime import create_runtime_security_state
+from src.privacy_runtime import EXTERNAL_IO_BLOCK_MESSAGE, create_runtime_security_state, runtime_allows_external_io
 from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_route
 from src.secure_provider_runtime import provider_scope_for_base_url
 from src.sensitive_retrieval_guard import decide_retrieval_access
@@ -429,15 +429,20 @@ class ChatProcessor:
 
         # Add web search if enabled
         web_sources = []
+        external_io_allowed = runtime_allows_external_io()
         if use_web:
-            try:
-                web_context, web_sources = comprehensive_web_search(
-                    message, time_filter=time_filter, return_sources=True
-                )
-                preface.append(untrusted_context_message("web search results", web_context))
-            except Exception as e:
-                logger.error(f"Web search failed: {e}")
-                preface.append({"role": "system", "content": "Web search encountered an error and could not retrieve results."})
+            if not external_io_allowed:
+                logger.info("Web search skipped by DSGVO runtime policy")
+                preface.append(untrusted_context_message("web access policy", EXTERNAL_IO_BLOCK_MESSAGE))
+            else:
+                try:
+                    web_context, web_sources = comprehensive_web_search(
+                        message, time_filter=time_filter, return_sources=True
+                    )
+                    preface.append(untrusted_context_message("web search results", web_context))
+                except Exception as e:
+                    logger.error(f"Web search failed: {e}")
+                    preface.append({"role": "system", "content": "Web search encountered an error and could not retrieve results."})
 
         # Process non-YouTube URLs in message (YouTube handled by preprocess_message)
         # Skip auto-fetch for long pastes (the user already pasted the content —
@@ -449,14 +454,18 @@ class ChatProcessor:
         non_yt_urls = [u for u in urls if not is_youtube_url(u)]
         skip_url_fetch = len(message) > 2000 or len(non_yt_urls) > 3
         if not skip_url_fetch:
-            for url in non_yt_urls:
-                result = fetch_webpage_content(url)
-                if result.get('success'):
-                    content = result.get('content', '')[:10000]
-                    preface.append(untrusted_context_message(
-                        f"web page: {url}",
-                        f"Content from {url}:\n\n{content}",
-                    ))
+            if non_yt_urls and not external_io_allowed:
+                logger.info("URL auto-fetch skipped by DSGVO runtime policy")
+                preface.append(untrusted_context_message("web page auto-fetch policy", EXTERNAL_IO_BLOCK_MESSAGE))
+            else:
+                for url in non_yt_urls:
+                    result = fetch_webpage_content(url)
+                    if result.get('success'):
+                        content = result.get('content', '')[:10000]
+                        preface.append(untrusted_context_message(
+                            f"web page: {url}",
+                            f"Content from {url}:\n\n{content}",
+                        ))
 
         # Skills index — progressive disclosure. Only injected when the
         # model has the `manage_skills` tool available (agent_mode), and

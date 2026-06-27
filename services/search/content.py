@@ -16,6 +16,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from src.constants import WEB_FETCH_SOFT_MAX_BYTES, WEB_FETCH_HARD_MAX_BYTES, WEB_FETCH_USER_AGENT
+from src.privacy_runtime import EXTERNAL_IO_BLOCK_REASON, EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
 
 from .analytics import RateLimitError, error_logger
 from .cache import (
@@ -343,6 +344,10 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
     carries ``truncated``/``fetched_bytes``/``total_bytes`` so callers can
     tell the model the content is partial (#3812).
     """
+    if not runtime_allows_external_io():
+        logger.info("Web fetch blocked by DSGVO runtime policy")
+        return _empty_result(url, f"{EXTERNAL_IO_BLOCK_REASON}: {EXTERNAL_IO_BLOCK_MESSAGE}")
+
     effective_cap = min(max_bytes or WEB_FETCH_SOFT_MAX_BYTES, WEB_FETCH_HARD_MAX_BYTES)
     # The cap is part of the cache identity: a truncated soft-cap fetch must
     # not be served to a later full-budget request for the same URL.
