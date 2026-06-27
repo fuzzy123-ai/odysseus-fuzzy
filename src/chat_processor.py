@@ -1,4 +1,5 @@
 # src/chat_processor.py
+import hashlib
 import logging
 import math
 import re
@@ -16,6 +17,12 @@ from src.context_orchestrator import (
 )
 from src.prompt_security import UNTRUSTED_CONTEXT_POLICY, untrusted_context_message
 from src.settings import load_features
+from src.chat_security_state import SecurityMode
+from src.data_classification import DataClassification
+from src.privacy_runtime import create_runtime_security_state
+from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_route
+from src.secure_provider_runtime import provider_scope_for_base_url
+from src.sensitive_retrieval_guard import decide_retrieval_access
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +64,95 @@ class ChatProcessor:
 
     # Minimum similarity score for RAG results to be injected
     RAG_SIMILARITY_THRESHOLD = 0.35
+
+    @staticmethod
+    def _retrieval_source_id(surface: str, idx: int, raw_id: Any) -> str:
+        digest = hashlib.sha256(str(raw_id or idx).encode("utf-8", errors="ignore")).hexdigest()[:16]
+        return f"{surface}-{idx}-{digest}"
+
+    @staticmethod
+    def _classification_for_mapping(item: Dict[str, Any]) -> DataClassification:
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        raw = (
+            item.get("classification")
+            or item.get("ai_classification")
+            or metadata.get("classification")
+            or metadata.get("ai_classification")
+        )
+        if str(raw or "").strip().lower() in {"local_sensitive", "sensitive_root_runtime_match"}:
+            return DataClassification.SENSITIVE
+        if metadata.get("local_model_only") is True or item.get("local_model_only") is True:
+            return DataClassification.SENSITIVE
+        if str(raw or "").strip().lower() in {item.value for item in DataClassification}:
+            return DataClassification(str(raw).strip().lower())
+        return DataClassification.PRIVATE
+
+    def _retrieval_security_context(self, session: Any, owner: Optional[str]):
+        state = create_runtime_security_state(
+            chat_id=getattr(session, "id", None) or "pending-chat",
+            thread_id=getattr(session, "id", None) or "pending-chat",
+            security_mode=getattr(session, "security_mode", None),
+            requested_by=owner or "chat-processor",
+        )
+        if state.security_mode != SecurityMode.SECURE:
+            return state, None
+
+        endpoint_url = getattr(session, "endpoint_url", "") if session is not None else ""
+        model_id = getattr(session, "model", "") if session is not None else ""
+        provider_scope = provider_scope_for_base_url(endpoint_url)
+        route = decide_model_route(
+            state=state,
+            primary=ModelCandidate.create(
+                model_id=model_id or "pending-model",
+                provider_id="session-provider",
+                provider_scope=provider_scope,
+                use=ModelUse.CHAT,
+            ),
+        )
+        return state, route
+
+    def _filter_retrieval_context(
+        self,
+        items: List[Dict[str, Any]],
+        *,
+        surface: str,
+        session: Any,
+        owner: Optional[str],
+        id_getter,
+    ) -> List[Dict[str, Any]]:
+        if not items:
+            return []
+
+        state, model_route = self._retrieval_security_context(session, owner)
+        source_refs = []
+        by_ref_id: Dict[str, Dict[str, Any]] = {}
+        for idx, item in enumerate(items):
+            source_id = self._retrieval_source_id(surface, idx, id_getter(item, idx))
+            source_refs.append((source_id, self._classification_for_mapping(item)))
+            by_ref_id[source_id] = item
+
+        try:
+            decision = decide_retrieval_access(
+                state=state,
+                surface=surface,
+                sources=source_refs,
+                model_route=model_route,
+            )
+        except Exception as exc:
+            logger.warning("%s retrieval guard failed closed: %s", surface, exc)
+            return []
+
+        if not decision.allowed:
+            logger.warning(
+                "%s retrieval context blocked: %s next_action=%s",
+                surface,
+                decision.block_reason,
+                decision.next_action,
+            )
+            return []
+
+        allowed_ids = set(decision.context_ref_ids)
+        return [by_ref_id[source_id] for source_id, _classification in source_refs if source_id in allowed_ids]
 
     def _hybrid_retrieve(self, message: str, mem_entries: list, k: int = 5) -> list:
         """Retrieve memories relevant to the message.
@@ -241,6 +337,14 @@ class ChatProcessor:
 
             _used_ids: list = []
             if pinned:
+                pinned = self._filter_retrieval_context(
+                    pinned,
+                    surface="memory",
+                    session=session,
+                    owner=owner,
+                    id_getter=lambda item, _idx: item.get("id") or item.get("text", ""),
+                )
+            if pinned:
                 pinned_text = "\n- ".join([m["text"] for m in pinned])
                 preface.append(untrusted_context_message(
                     "saved memory: pinned user facts",
@@ -253,6 +357,13 @@ class ChatProcessor:
 
             if extended:
                 relevant = self._hybrid_retrieve(message, extended, k=3)
+                relevant = self._filter_retrieval_context(
+                    relevant,
+                    surface="memory",
+                    session=session,
+                    owner=owner,
+                    id_getter=lambda item, _idx: item.get("id") or item.get("text", ""),
+                )
                 if relevant:
                     ext_text = "\n".join([f"- {m['text']}" for m in relevant])
                     preface.append(untrusted_context_message(
@@ -285,6 +396,18 @@ class ChatProcessor:
                     results = rag_manager.search(message, k=5, owner=owner)
                     # Filter by similarity threshold
                     relevant = [r for r in results if r.get("similarity", 0) >= self.RAG_SIMILARITY_THRESHOLD]
+                    relevant = self._filter_retrieval_context(
+                        relevant,
+                        surface="rag",
+                        session=session,
+                        owner=owner,
+                        id_getter=lambda item, idx: (
+                            item.get("id")
+                            or item.get("metadata", {}).get("source")
+                            or item.get("metadata", {}).get("filename")
+                            or idx
+                        ),
+                    )
                     if relevant:
                         logger.info(f"RAG: {len(relevant)}/{len(results)} results above threshold {self.RAG_SIMILARITY_THRESHOLD}")
                         rag_sources = [
