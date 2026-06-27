@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from src.chat_security_state import ChatSecurityState
+from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_only
 from src.secure_channel_policy import ChannelContext, decide_channel_access
 from src.telegram_formatting import chunk_telegram_html, render_telegram_markdown
 from src.telegram_image_actions import run_telegram_image_action, select_telegram_photo_variant
@@ -68,6 +69,62 @@ _THINKING_BLOCK_RE = re.compile(r"<tg-thinking>.*?</tg-thinking>", re.IGNORECASE
 
 def _bool_env(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _load_dsgvo_settings() -> dict[str, Any]:
+    from src.settings import load_settings
+
+    return dict(load_settings() or {})
+
+
+def _save_dsgvo_settings(settings: dict[str, Any]) -> None:
+    from src.settings import save_settings
+
+    save_settings(settings)
+
+
+def _dsgvo_mode_active(settings: dict[str, Any] | None = None) -> bool:
+    return is_dsgvo_mode_enabled(settings=settings if settings is not None else _load_dsgvo_settings())
+
+
+def _set_dsgvo_mode(enabled: bool) -> dict[str, Any]:
+    settings = _load_dsgvo_settings()
+    before = _dsgvo_mode_active(settings)
+    settings["dsgvo_mode"] = bool(enabled)
+    if not enabled:
+        settings["gdpr_mode"] = False
+    _save_dsgvo_settings(settings)
+    after = _dsgvo_mode_active()
+    return {
+        "requested": bool(enabled),
+        "before": before,
+        "after": after,
+        "changed": before != after,
+        "forced_active": bool(not enabled and after),
+    }
+
+
+def _dsgvo_reply_text(command: str, result: dict[str, Any] | None = None) -> str:
+    active = bool((result or {}).get("after") if result is not None else _dsgvo_mode_active())
+    if command == "dsgvo_help":
+        return "Nutze /dsgvo on, /dsgvo off oder /dsgvo status."
+    if command == "dsgvo_enable":
+        return (
+            "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; "
+            "externe Web-, Provider- und Tool-I/O ist gesperrt."
+        )
+    if command == "dsgvo_disable" and (result or {}).get("forced_active"):
+        return (
+            "DSGVO-Modus bleibt aktiv, weil ein Server- oder Kompatibilitaets-Gate "
+            "ihn erzwingt."
+        )
+    if command == "dsgvo_disable":
+        return "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder."
+    return (
+        "DSGVO-Modus ist aktiv. Telegram nutzt local-only Verarbeitung."
+        if active
+        else "DSGVO-Modus ist aus."
+    )
 
 
 def require_admin(request: Request) -> None:
@@ -648,6 +705,7 @@ def build_agent_bridge_request(
         ready_for_agent = False
         note = "unsupported_message"
 
+    dsgvo_mode = _dsgvo_mode_active()
     return {
         "channel": "telegram",
         "session_alias": f"telegram:{chat_handle}",
@@ -662,6 +720,9 @@ def build_agent_bridge_request(
         "reply_required": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
         "note": note,
         "intake_status": message.get("intake_status") or note,
+        "dsgvo_mode": dsgvo_mode,
+        "security_mode": "secure" if dsgvo_mode else "normal",
+        "local_only_required": runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}),
     }
 
 
@@ -669,10 +730,20 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
     if message.get("kind") != "text":
         return ""
     text = str(message.get("text") or "").strip()
-    first = text.split(maxsplit=1)[0].lower() if text else ""
+    parts = text.split(maxsplit=1)
+    first = parts[0].lower() if parts else ""
+    arg = parts[1].split(maxsplit=1)[0].strip().lower() if len(parts) > 1 and parts[1].strip() else ""
     command = first.split("@", 1)[0]
     if command == "/new":
         return "new_chat"
+    if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
+        if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
+            return "dsgvo_enable"
+        if arg in {"off", "aus", "0", "false", "inaktiv", "inactive", "disable", "disabled", "deaktivieren"}:
+            return "dsgvo_disable"
+        if arg in {"", "status", "state", "info", "show"}:
+            return "dsgvo_status"
+        return "dsgvo_help"
     return ""
 
 
@@ -685,6 +756,43 @@ def _handle_telegram_control_command(
     session_creator: Callable[..., Any] | None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
+    if not command:
+        return None
+    if message.get("chat_allowed") is not True:
+        return {
+            "command": command,
+            "status": "control_chat_not_allowed",
+            "binding": {},
+            "reply_text": "",
+            "reply": None,
+        }
+    if command.startswith("dsgvo_"):
+        result = None
+        if command == "dsgvo_enable":
+            result = _set_dsgvo_mode(True)
+            status = "dsgvo_enabled" if result.get("after") else "dsgvo_enable_failed"
+        elif command == "dsgvo_disable":
+            result = _set_dsgvo_mode(False)
+            status = "dsgvo_forced_active" if result.get("forced_active") else "dsgvo_disabled"
+        else:
+            status = "dsgvo_status" if command == "dsgvo_status" else "dsgvo_help"
+        reply_text = _dsgvo_reply_text(command, result)
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": status,
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
+            "dsgvo_mode": bool((result or {}).get("after") if result is not None else _dsgvo_mode_active()),
+        }
     if command != "new_chat":
         return None
     bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
@@ -1349,6 +1457,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
     polling_enabled = _bool_env("TELEGRAM_POLLING_ENABLED")
     rich_messages_enabled = _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED")
     rich_drafts_enabled = _bool_env("TELEGRAM_RICH_DRAFTS_ENABLED")
+    dsgvo_mode = _dsgvo_mode_active()
 
     if token_present and chat_present and agent_chat_enabled and reply_enabled:
         state = "agent_reply_ready"
@@ -1408,6 +1517,14 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
             "pending_image_action_count": int(counts.get("pending_image_action") or 0),
             "image_actions_enabled": _bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
             "raw_image_ids_visible": False,
+        },
+        "privacy_boundary": {
+            "dsgvo_mode": dsgvo_mode,
+            "local_only_required": runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}),
+            "telegram_control_enabled": True,
+            "telegram_commands": ["/dsgvo", "/privacy", "/gdpr"],
+            "settings_values_visible": False,
+            "chat_feedback_modes": ["reply_message", "typing_indicator", "status_endpoint"],
         },
         "next_allowed_action": "Enable TELEGRAM_AGENT_CHAT_ENABLED for intake and TELEGRAM_AGENT_REPLY_ENABLED for bot replies.",
     }

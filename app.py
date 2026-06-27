@@ -870,6 +870,14 @@ def _telegram_session_bridge(**kwargs):
     return {"session_id": result.get("session_id") or ""}
 
 
+def _telegram_dsgvo_model_block_reply(block_reason: str) -> str:
+    return (
+        "DSGVO-Modus ist aktiv. Telegram kann diese Anfrage nur mit einem lokalen "
+        "Modell verarbeiten. Die aktuelle Telegram-Session ist nicht local-only; "
+        "bitte stelle ein lokales Telegram-Modell ein oder starte danach /new."
+    )
+
+
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
@@ -884,6 +892,36 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     if not session:
         return {"status": "failed", "error": "telegram_session_not_found", "reply_text": ""}
     try:
+        owner = _telegram_owner()
+        try:
+            from src.privacy_runtime import is_dsgvo_mode_enabled
+            from src.secure_provider_runtime import (
+                SecureProviderRuntimeError,
+                enforce_session_provider_runtime_gate,
+            )
+
+            if is_dsgvo_mode_enabled():
+                try:
+                    enforce_session_provider_runtime_gate(
+                        security_mode="secure",
+                        session_id=session_id,
+                        owner=owner,
+                        provider_base_url=getattr(session, "endpoint_url", ""),
+                        model_id=getattr(session, "model", ""),
+                    )
+                except SecureProviderRuntimeError as gate_exc:
+                    return {
+                        "status": "blocked",
+                        "error": str(gate_exc),
+                        "reply_text": _telegram_dsgvo_model_block_reply(str(gate_exc)),
+                    }
+        except Exception as privacy_exc:
+            logger.warning("Telegram DSGVO provider gate failed closed: %s", privacy_exc)
+            return {
+                "status": "blocked",
+                "error": "telegram_dsgvo_provider_gate_failed",
+                "reply_text": _telegram_dsgvo_model_block_reply("telegram_dsgvo_provider_gate_failed"),
+            }
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
         messages = list(context)
@@ -897,7 +935,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 messages,
                 headers=headers,
                 session_id=session_id,
-                owner=_telegram_owner(),
+                owner=owner,
             ):
                 if not chunk.startswith("data: ") or chunk.startswith("data: [DONE]"):
                     continue

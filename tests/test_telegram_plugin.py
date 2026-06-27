@@ -14,6 +14,7 @@ from plugins.telegram.plugin import (
     TelegramInboxStore,
     TelegramPollingStateStore,
     TelegramSessionBridgeStore,
+    _telegram_control_command,
     build_agent_bridge_request,
     build_telegram_readiness,
     download_telegram_voice_bytes,
@@ -69,6 +70,8 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
 
     assert "stream_agent_loop" in body
     assert "llm_call(" not in body
+    assert "enforce_session_provider_runtime_gate" in body
+    assert "telegram_dsgvo_provider_gate_failed" in body
 
 
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):
@@ -742,6 +745,116 @@ def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, 
     assert mapping["session_id"] == "new-session"
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "control_command" and item.get("status") == "new_chat_bound" for item in history)
+
+
+def test_telegram_control_command_detects_dsgvo_aliases():
+    assert _telegram_control_command({"kind": "text", "text": "/dsgvo on"}) == "dsgvo_enable"
+    assert _telegram_control_command({"kind": "text", "text": "/privacy aus"}) == "dsgvo_disable"
+    assert _telegram_control_command({"kind": "text", "text": "/gdpr"}) == "dsgvo_status"
+    assert _telegram_control_command({"kind": "text", "text": "/datenschutz maybe"}) == "dsgvo_help"
+
+
+def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
+    settings_state = {"dsgvo_mode": False}
+    replies = []
+    turns = []
+
+    def _load_settings():
+        return dict(settings_state)
+
+    def _save_settings(new_settings):
+        settings_state.clear()
+        settings_state.update(new_settings)
+
+    monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", _load_settings)
+    monkeypatch.setattr("plugins.telegram.plugin._save_dsgvo_settings", _save_settings)
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 81,
+            "message": {
+                "message_id": 90,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/dsgvo on",
+            },
+        }],
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["control_commands"] == 1
+    assert result["agent_turns"] == 0
+    assert settings_state["dsgvo_mode"] is True
+    assert replies == [("123", "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; externe Web-, Provider- und Tool-I/O ist gesperrt.", 90)]
+    assert turns == []
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "control_command" and item.get("status") == "dsgvo_enabled" for item in history)
+    persisted = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "123" not in persisted
+    assert '"chat_id"' not in persisted
+
+
+def test_dsgvo_command_from_blocked_chat_does_not_change_settings(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "allowed-chat")
+    monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
+    settings_state = {"dsgvo_mode": False}
+    replies = []
+    created = []
+
+    monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", lambda: dict(settings_state))
+    monkeypatch.setattr("plugins.telegram.plugin._save_dsgvo_settings", lambda new_settings: settings_state.update(new_settings))
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 82,
+            "message": {
+                "message_id": 91,
+                "chat": {"id": "blocked-chat"},
+                "from": {"id": "blocked-sender"},
+                "text": "/dsgvo on",
+            },
+        }],
+        session_creator=lambda **kwargs: created.append(kwargs) or {"session_id": "should-not-happen"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["control_commands"] == 1
+    assert settings_state["dsgvo_mode"] is False
+    assert replies == []
+    assert created == []
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "control_command" and item.get("status") == "control_chat_not_allowed" for item in history)
+    persisted = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "blocked-chat" not in persisted
+    assert "blocked-sender" not in persisted
+
+
+def test_readiness_reports_dsgvo_boundary_without_settings_values(tmp_path, monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
+    monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", lambda: {
+        "dsgvo_mode": True,
+        "api_key": "sk-leak-sentinel",
+        "telegram_chat_id": "1234567890",
+    })
+
+    readiness = build_telegram_readiness(tmp_path)
+    encoded = json.dumps(readiness, ensure_ascii=False)
+
+    assert readiness["privacy_boundary"]["dsgvo_mode"] is True
+    assert readiness["privacy_boundary"]["local_only_required"] is True
+    assert readiness["privacy_boundary"]["settings_values_visible"] is False
+    assert "/dsgvo" in readiness["privacy_boundary"]["telegram_commands"]
+    assert "sk-leak-sentinel" not in encoded
+    assert "1234567890" not in encoded
 
 
 def test_polling_cycle_records_blocked_chat_without_session_bridge(tmp_path, monkeypatch):
