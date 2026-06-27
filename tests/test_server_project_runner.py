@@ -29,6 +29,9 @@ def test_complete_dry_run_plan_is_plan_ready_but_not_live_execution():
     assert plan.live_execution_allowed is False
     assert plan.blockers == ()
     assert [step["step_id"] for step in plan.planned_steps] == [
+        "project_intake",
+        "project_chat_scope",
+        "repo_creation_plan",
         "workspace_preflight",
         "git_remote_gate",
         "branch_plan",
@@ -36,6 +39,7 @@ def test_complete_dry_run_plan_is_plan_ready_but_not_live_execution():
         "backup_gate",
         "deploy_handoff",
         "smoke_gate",
+        "cloudflare_tunnel_gate",
         "rollback_or_hold",
     ]
 
@@ -64,6 +68,55 @@ def test_origin_remote_is_blocked():
 
     assert plan.decision == "blocked"
     assert "push remote must be fuzzy" in plan.blockers[0]
+
+
+def test_project_title_creates_universal_project_repo_workspace_and_chat_scope():
+    plan = build_server_project_runner_plan(
+        project_title="Kundenportal MVP",
+        project_type="app",
+        backup_evidence_green=True,
+        smoke_target="tests/test_server_project_runner.py",
+        rollback_plan="hold deployment and keep previous release",
+    )
+    spec = plan.project_spec
+
+    assert spec.project_title == "Kundenportal MVP"
+    assert spec.project_slug == "kundenportal-mvp"
+    assert spec.repo_name == "kundenportal-mvp"
+    assert spec.workspace_root == "projects/kundenportal-mvp"
+    assert spec.chat_scope == "project:kundenportal-mvp"
+    assert spec.project_type == "app"
+    assert "repo_creation_plan" in [step["step_id"] for step in plan.planned_steps]
+    assert "project_chat_scope" in [step["step_id"] for step in plan.planned_steps]
+
+
+def test_cloudflare_tunnel_is_a_gate_not_execution():
+    plan = build_server_project_runner_plan(
+        project_title="Public Demo",
+        cloudflare_tunnel_requested=True,
+        backup_evidence_green=True,
+        smoke_target="tests/test_server_project_runner.py",
+        rollback_plan="hold",
+    )
+
+    assert plan.project_spec.cloudflare_tunnel_requested is True
+    assert "Cloudflare Tunnel requested" in plan.project_spec.cloudflare_tunnel_gate
+    tunnel_step = [step for step in plan.planned_steps if step["step_id"] == "cloudflare_tunnel_gate"][0]
+    assert tunnel_step["executes"] is False
+    assert "operator Go" in tunnel_step["summary"]
+
+
+def test_odysseus_repo_name_is_not_the_universal_default():
+    plan = build_server_project_runner_plan(
+        project_title="Some Tool",
+        repo_name="odysseus",
+        backup_evidence_green=True,
+        smoke_target="tests/test_server_project_runner.py",
+        rollback_plan="hold",
+    )
+
+    assert plan.decision == "hold"
+    assert "universal project runner must not default to the Odysseus repository" in plan.blockers
 
 
 def test_ui_scope_is_held_out_of_backend_runner():

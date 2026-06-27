@@ -2,18 +2,32 @@
 
 Stand: 2026-06-27
 
-Status: **Phase 1 repo-only contract implemented; live execution remains operator-gated**
+Status: **Phase 1 repo-only universal project contract implemented; live execution remains operator-gated**
 
 ## Goal
 
-Odysseus soll direkt auf dem Debian-Server Projekte bearbeiten, pruefen und
-bereitstellen koennen, ohne einen zweiten unkontrollierten Deploy-Pfad neben
-dem bestehenden Safe Updater zu bauen.
+Odysseus soll direkt auf dem Debian-Server beliebige Projekte planen,
+bearbeiten, pruefen und bereitstellen koennen. Ein Projekt ist dabei nicht das
+Odysseus-Repo selbst, sondern entsteht aus einem Projekttitel als eigener
+Project Scope mit eigenem Repository, Workspace, Chat-Kontext und spaeterem
+Deployment-/Tunnel-Ziel.
 
 Der Runner ist deshalb kein blindes Shell-Terminal. Er ist eine kontrollierte
 Projekt-Ausfuehrungsschicht mit Workspace-Grenzen, Git-Remote-Regeln,
 Quality-Gates, Backup-Gate, Deploy-Gate, Smoke-Gate, Rollback/Hold und
 audit-sicherem Report.
+
+Die spaetere Project UI soll auf diesem Contract sitzen:
+
+- Projekttitel eingeben oder bestehendes Projekt oeffnen
+- Projektart waehlen
+- mit der KI im Projektkontext chatten wie im normalen Vibecoding-Prozess
+- Planung, Roadmap, Tasks und Aenderungen verfolgen
+- bei Bedarf ein neues Repository aus dem Projekttitel erzeugen
+- Arbeit serverseitig in einem isolierten Workspace durchfuehren
+- Tests/Build/Smoke pruefen
+- Bereitstellung freigeben
+- optional Cloudflare Tunnel mit separatem Exposure-Gate aktivieren
 
 ## ABC Ownership
 
@@ -24,7 +38,7 @@ audit-sicherem Report.
 
 ## Phase Plan
 
-### P1 Contract And Plan Model
+### P1 Universal Project Contract And Plan Model
 
 Status: **done**
 
@@ -37,6 +51,12 @@ Allowed files:
 Result:
 
 - Projekt-Deployments werden als strukturierte Plaene beschrieben.
+- Projekttitel werden zu `project_slug`, `repo_name`, `projects/<slug>`
+  Workspace und `project:<slug>` Chat-Scope normalisiert.
+- Der Runner defaultet nicht auf das Odysseus-Repo.
+- Repo-Erzeugung ist als Gate/Plan-Schritt vorhanden, aber noch keine Live
+  GitHub/Gitea/Filesystem-Aktion.
+- Cloudflare Tunnel ist als separates Exposure-Gate modelliert.
 - Push-Remote ist standardmaessig `fuzzy`.
 - `origin` ist fuer Push/Deploy-Planung blockiert.
 - UI-Arbeit bleibt ausserhalb dieses Backend-Runners.
@@ -45,18 +65,35 @@ Result:
 - Keine Live-Kommandos, kein SSH, kein Podman, keine Provider- oder
   Netzwerkaktion in dieser Phase.
 
-### P2 Active Workspace Preparation
+### P2 Project Registry And Active Workspace Preparation
 
 Goal:
 
-- Server-seitige Projekt-Workspaces definieren: repo-relative Root, erlaubte
-  Pfade, blockierte Pfade, Branch-Namen, Arbeitsmodus.
+- Server-seitige Projekt-Registry definieren: Projekt-ID, Titel, Slug,
+  Repo-Name, Workspace-Root, Chat-Scope, Projektart, Status und Deployment-Ziele.
+- Projekt-Workspaces definieren: repo-relative Root, erlaubte Pfade, blockierte
+  Pfade, Branch-Namen, Arbeitsmodus.
 - Worktree/Branch-Isolation mit der vorhandenen `workspace_policy` koppeln.
 
 Gate:
 
 - Keine Projektarbeit ausserhalb des erlaubten Workspace-Roots.
 - Keine Secrets, privaten Rohdaten, Chat-IDs oder Host-Pfade im Report.
+
+### P2B Project Chat Context
+
+Goal:
+
+- Jeden Projektchat an `project:<slug>` binden.
+- Memory/RAPTOR-Abfragen und Arbeitsnotizen nur mit diesem Project Scope
+  annotieren.
+- Chat-Verlauf, Plan und Runner-State zusammenfuehren, ohne Rohdaten ins Repo
+  zu schreiben.
+
+Gate:
+
+- Kein Projektchat darf stillschweigend in einen anderen Projekt-Scope schreiben.
+- Cross-Project Memory braucht spaeter eine sichtbare UI-Freigabe.
 
 ### P3 Quality Gate Integration
 
@@ -75,14 +112,16 @@ Gate:
 
 Goal:
 
+- Neues Repository aus dem Projekttitel planen oder ein bestehendes Repo
+  anbinden.
 - Branch anlegen, Aenderungen isolieren, Diff zusammenfassen, Commit-Plan
-  erstellen und Push auf `fuzzy/dev` oder projektbezogene `fuzzy/*` Branches
-  vorbereiten.
+  erstellen und Push auf erlaubte Projekt-Remotes vorbereiten.
 
 Gate:
 
 - Nie auf `origin` pushen.
 - Kein Force-Push, Reset, Checkout-Rewrite oder destruktive Cleanup-Aktion.
+- Keine Repo-Erzeugung ohne eindeutigen Projekttitel und Operator-Go.
 
 ### P5 Deploy Handoff
 
@@ -123,10 +162,12 @@ Gate:
 - Keine Secrets ins Repo.
 - Kein Host-Pfad oder privater Output in Persistenzartefakten.
 
-### P8 Telegram/AI Command Surface
+### P8 Project UI And AI Command Surface
 
 Goal:
 
+- Project UI fuer Planung, Chat, Tasks, Runner-State, Repo, Build/Test,
+  Deployment und Cloudflare Tunnel.
 - Odysseus AI kann Projektaufgaben starten, Status melden, Gates erklaeren und
   Human Decisions anfordern.
 
@@ -137,6 +178,7 @@ Gate:
 
 ## Current Human Decision Needed
 
-Als naechstes sollte entschieden werden, ob P2 zuerst nur fuer das Odysseus-Repo
-selbst gilt oder ob direkt ein allgemeines `projects/` Workspace-Schema fuer
-mehrere Projekte auf dem Server angelegt werden soll.
+Als naechstes sollte entschieden werden, ob P2 zuerst eine lokale
+Project-Registry im Odysseus-Backend bekommt oder direkt ein serverseitiges
+`projects/` Workspace-Schema fuer mehrere neue Repositories angelegt werden
+soll.
