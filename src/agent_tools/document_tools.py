@@ -541,8 +541,19 @@ class ManageDocumentTool:
         except ValueError:
             return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-        action = args.get("action", "list")
+        action = str(args.get("action", "list") or "list").strip().lower()
         db = SessionLocal()
+
+        def _confirmed() -> bool:
+            return bool(args.get("confirmed") or args.get("confirm"))
+
+        def _confirmation_required(target: str) -> Dict:
+            return {
+                "response": f"Document {target} requires explicit confirmation.",
+                "status": "confirmation_required",
+                "requires_confirmation": True,
+                "exit_code": 0,
+            }
 
         def _rel(ts):
             if not ts:
@@ -614,6 +625,8 @@ class ManageDocumentTool:
                 }
 
             elif action == "delete":
+                if not _confirmed():
+                    return _confirmation_required("delete")
                 doc_id = args.get("document_id") or args.get("id") or args.get("uid") or _active_document_id
                 doc = None
                 if doc_id:
@@ -631,6 +644,8 @@ class ManageDocumentTool:
                 return {"response": f"Deleted document '{title}'", "exit_code": 0}
 
             elif action == "tidy":
+                if not _confirmed():
+                    return _confirmation_required("tidy")
                 from src.document_actions import run_document_tidy
                 result = await run_document_tidy(owner or "")
                 return {"response": result, "exit_code": 0}

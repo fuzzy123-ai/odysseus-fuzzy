@@ -892,7 +892,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_documents",
-            "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup.",
+            "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup. delete/tidy require confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -900,7 +900,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "document_id": {"type": "string", "description": "Document ID (for delete)"},
                     "search": {"type": "string", "description": "Search query (for list)"},
                     "language": {"type": "string", "description": "Filter by language (for list)"},
-                    "limit": {"type": "integer", "description": "Max results (for list, default 50)"}
+                    "limit": {"type": "integer", "description": "Max results (for list, default 50)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete/tidy after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

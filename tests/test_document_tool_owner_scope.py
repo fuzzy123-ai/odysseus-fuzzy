@@ -118,6 +118,36 @@ def test_manage_documents_read_filters_to_calling_owner(monkeypatch):
     assert ("owner", "eq", "alice") in query.filters
 
 
+def test_manage_documents_delete_requires_confirmation_before_lookup(monkeypatch):
+    query = _Query()
+    _install_database_stub(monkeypatch, "core.database", query)
+
+    result = asyncio.run(
+        TOOL_HANDLERS["manage_documents"](
+            '{"action":"delete","document_id":"doc-alice"}', {"owner": "alice"}
+        )
+    )
+
+    assert result["exit_code"] == 0
+    assert result["status"] == "confirmation_required"
+    assert result["requires_confirmation"] is True
+    assert query.filters == []
+
+
+def test_manage_documents_tidy_requires_confirmation(monkeypatch):
+    query = _Query()
+    _install_database_stub(monkeypatch, "core.database", query)
+
+    result = asyncio.run(
+        TOOL_HANDLERS["manage_documents"]('{"action":"tidy"}', {"owner": "alice"})
+    )
+
+    assert result["exit_code"] == 0
+    assert result["status"] == "confirmation_required"
+    assert result["requires_confirmation"] is True
+    assert query.filters == []
+
+
 def test_update_document_active_id_filters_to_calling_owner(monkeypatch):
     query = _Query()
     _install_database_stub(monkeypatch, "src.database", query)
