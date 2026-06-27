@@ -95,6 +95,8 @@ Current result:
 
 ### P2B Project Chat Context
 
+Status: **backend context model done; route/UI wiring remains gated**
+
 Goal:
 
 - Jeden Projektchat an `project:<slug>` binden.
@@ -107,6 +109,16 @@ Gate:
 
 - Kein Projektchat darf stillschweigend in einen anderen Projekt-Scope schreiben.
 - Cross-Project Memory braucht spaeter eine sichtbare UI-Freigabe.
+
+Current result:
+
+- `src/server_project_chat_context.py` binds sessions to registry projects.
+- Message metadata can be stamped with `schema`, `project_slug`, `chat_scope`,
+  `repo_name`, `workspace_root`, `project_type`, `runner_state` and
+  `session_id`.
+- Existing metadata for another project is rejected instead of overwritten.
+- Context audit summaries omit raw session IDs.
+- Actual chat route integration and UI entrypoints remain future slices.
 
 ### P3 Quality Gate Integration
 
