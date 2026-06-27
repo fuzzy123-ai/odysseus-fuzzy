@@ -177,6 +177,8 @@ Current result:
 
 ### P5 Deploy Handoff
 
+Status: **backend operator-gated deploy handoff done; live deploy remains gated**
+
 Goal:
 
 - Projekt-Deployments an den Safe-Updater-Flow koppeln:
@@ -187,6 +189,17 @@ Gate:
 
 - Live-Ausfuehrung nur mit separatem Operator-Go.
 - Backup- und Restore-Smoke-Evidence muessen gruen sein.
+
+Current result:
+
+- `src/server_project_deploy_handoff.py` combines project quality gates, Git
+  review, backup evidence and the existing updater live-boundary model.
+- Handoff can become `ready_for_operator_go`, but still reports
+  `live_execution_allowed=false`.
+- Missing backup/restore evidence, blocked quality gates, held Git review,
+  secret risk or requested live command execution hold or no-go the handoff.
+- Planned deploy steps cover pre-update snapshot, metadata refresh, Podman
+  handoff, healthcheck, smoke and rollback/hold as non-executing steps.
 
 ### P6 Active Executor
 
