@@ -10,6 +10,7 @@ legacy dispatch_ai_tool elif.
 """
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 
 import src.ai_interaction as ai_interaction
 import src.database as database
@@ -126,6 +127,114 @@ def test_manage_session_fork_reaches_uuid(monkeypatch):
     assert res.get("action") == "fork"
     assert isinstance(res.get("session_id"), str) and res["session_id"]
     assert created.get("name") == "Fork: Orig"  # uuid-minted new session was created
+
+
+def _patch_manage_session_db(monkeypatch, db_row=None):
+    class FakeDbSession:
+        id = "id"
+        owner = "owner"
+
+    class FakeQ:
+        def __init__(self):
+            self.first_called = False
+
+        def filter(self, *a, **k):
+            return self
+
+        def first(self):
+            self.first_called = True
+            return db_row
+
+    query = FakeQ()
+
+    class FakeDB:
+        def query(self, *a, **k):
+            return query
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(database, "Session", FakeDbSession, raising=False)
+    monkeypatch.setattr(database, "SessionLocal", lambda: FakeDB(), raising=False)
+    return query
+
+
+def test_manage_session_delete_requires_confirmation(monkeypatch):
+    calls = []
+    _patch_manage_session_db(monkeypatch, SimpleNamespace(name="Old chat", is_important=False))
+
+    class FakeMgr:
+        def delete_session(self, sid):
+            calls.append(sid)
+            return True
+
+    monkeypatch.setattr(ai_interaction, "_session_manager", FakeMgr())
+    res = asyncio.run(st.ManageSessionTool().execute(
+        '{"action":"delete","session_id":"abc"}',
+        {"owner": "alice", "session_id": "current"},
+    ))
+
+    assert res["status"] == "confirmation_required"
+    assert res["requires_confirmation"] is True
+    assert calls == []
+
+
+def test_manage_session_delete_runs_after_confirmation(monkeypatch):
+    calls = []
+    _patch_manage_session_db(monkeypatch, SimpleNamespace(name="Old chat", is_important=False))
+
+    class FakeMgr:
+        def delete_session(self, sid):
+            calls.append(sid)
+            return True
+
+    monkeypatch.setattr(ai_interaction, "_session_manager", FakeMgr())
+    res = asyncio.run(st.ManageSessionTool().execute(
+        '{"action":"delete","session_id":"abc","confirmed":true}',
+        {"owner": "alice", "session_id": "current"},
+    ))
+
+    assert res["action"] == "delete"
+    assert calls == ["abc"]
+
+
+def test_manage_session_truncate_requires_confirmation(monkeypatch):
+    calls = []
+    _patch_manage_session_db(monkeypatch, SimpleNamespace(name="Old chat"))
+
+    class FakeMgr:
+        def truncate_messages(self, sid, keep_count):
+            calls.append((sid, keep_count))
+            return True
+
+    monkeypatch.setattr(ai_interaction, "_session_manager", FakeMgr())
+    res = asyncio.run(st.ManageSessionTool().execute(
+        '{"action":"truncate","session_id":"abc","value":"2"}',
+        {"owner": "alice", "session_id": "current"},
+    ))
+
+    assert res["status"] == "confirmation_required"
+    assert res["requires_confirmation"] is True
+    assert calls == []
+
+
+def test_manage_session_truncate_runs_after_confirmation(monkeypatch):
+    calls = []
+    _patch_manage_session_db(monkeypatch, SimpleNamespace(name="Old chat"))
+
+    class FakeMgr:
+        def truncate_messages(self, sid, keep_count):
+            calls.append((sid, keep_count))
+            return True
+
+    monkeypatch.setattr(ai_interaction, "_session_manager", FakeMgr())
+    res = asyncio.run(st.ManageSessionTool().execute(
+        '{"action":"truncate","session_id":"abc","value":"2","confirmed":true}',
+        {"owner": "alice", "session_id": "current"},
+    ))
+
+    assert res["action"] == "truncate"
+    assert calls == [("abc", 2)]
 
 
 def test_no_session_manager_is_handled(monkeypatch):

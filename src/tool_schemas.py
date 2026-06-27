@@ -491,14 +491,15 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_session",
-            "description": "Manage a chat: rename, archive, unarchive, delete, mark important, truncate history, or fork it. (The UI calls these 'chats'; 'session' is the internal term.) For destructive actions like delete, call list_sessions first and pass the exact id returned there; never invent ids.",
+            "description": "Manage a chat: rename, archive, unarchive, delete, mark important, truncate history, or fork it. (The UI calls these 'chats'; 'session' is the internal term.) For destructive actions like delete/truncate, call list_sessions first, pass the exact id returned there, and set confirmed=true after explicit user confirmation; never invent ids.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {"type": "string", "enum": ["rename", "archive", "unarchive", "delete", "important", "unimportant", "truncate", "fork"],
                                "description": "The action to perform"},
                     "session_id": {"type": "string", "description": "Exact target chat id from list_sessions, or 'current' for the active chat where supported"},
-                    "value": {"type": "string", "description": "Action parameter: new name (rename), keep_count (truncate/fork)"}
+                    "value": {"type": "string", "description": "Action parameter: new name (rename), keep_count (truncate/fork)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete/truncate after explicit user confirmation."}
                 },
                 "required": ["action", "session_id"]
             }
@@ -1530,6 +1531,9 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
     elif tool_type == "manage_session":
         action = args.get("action", "")
         value = args.get("value", "")
+        if "confirmed" in args or "confirm" in args:
+            content = json.dumps(args)
+            return ToolBlock(tool_type, content)
         # `list` is the only action that takes an OPTIONAL keyword
         # filter — never a session_id. Don't leak the "current" default
         # into the filter slot (was producing "No sessions found

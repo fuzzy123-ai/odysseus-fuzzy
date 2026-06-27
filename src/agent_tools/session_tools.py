@@ -242,6 +242,7 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
     value = None      # the action param: new name (rename) / keep_count (truncate, fork)
     _list_filter = ""
     _parsed = None
+    confirmed = False
     if _raw.startswith("{"):
         try:
             _parsed = json.loads(_raw)
@@ -256,6 +257,7 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
                   or _parsed.get("title") or _parsed.get("keep_count"))
         value = None if _v is None else str(_v).strip()
         _list_filter = str(_parsed.get("filter") or "").strip()
+        confirmed = bool(_parsed.get("confirmed") or _parsed.get("confirm"))
     else:
         lines = _raw.split("\n")
         if not lines or not lines[0].strip():
@@ -264,6 +266,10 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
         target_sid = lines[1].strip() if len(lines) >= 2 else ""
         value = lines[2].strip() if len(lines) >= 3 else None
         _list_filter = "\n".join(lines[1:]).strip()
+        confirmed = any(
+            line.strip().lower() in {"confirmed=true", "confirm=true", "true", "yes"}
+            for line in lines[3:]
+        )
 
     if not action:
         return {"error": "Missing action (rename|archive|delete|important|truncate|fork|list|switch)"}
@@ -279,6 +285,14 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
     # Allow "current" to refer to the active session
     if target_sid.lower() == "current" and session_id:
         target_sid = session_id
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Session {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
 
     # `switch` / `open` / `select` / `view` - the agent reaches for
     # these when the user asks to "open" or "switch to" a session.
@@ -345,6 +359,8 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
         elif action == "delete":
             if target_sid == session_id:
                 return {"error": "Cannot delete the current session while chatting in it. Delete other sessions first."}
+            if not confirmed:
+                return _confirmation_required("delete")
             db_sess = _session_query(db).first()
             if not db_sess:
                 return {"error": f"Session '{target_sid}' not found. Refusing to delete an unknown chat id; use the exact id from list_sessions."}
@@ -374,6 +390,8 @@ async def manage_session(content: str, session_id: Optional[str] = None, owner: 
                     "results": f"Session '{db_sess.name}' {status}"}
 
         elif action == "truncate":
+            if not confirmed:
+                return _confirmation_required("truncate")
             db_sess = _session_query(db).first()
             if not db_sess:
                 return {"error": f"Session '{target_sid}' not found. Use list_sessions and pass the exact id it returned."}
