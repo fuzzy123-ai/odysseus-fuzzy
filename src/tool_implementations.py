@@ -459,7 +459,19 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    action = args.get("action", "list")
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Task {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     db = SessionLocal()
     try:
         if action == "list":
@@ -578,6 +590,8 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             task_id = args.get("task_id")
             if not task_id:
                 return {"error": "task_id is required for delete", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("delete")
             task = db.query(ScheduledTask).filter(ScheduledTask.id == task_id).first()
             if not task:
                 return {"error": f"Task {task_id} not found", "exit_code": 1}
