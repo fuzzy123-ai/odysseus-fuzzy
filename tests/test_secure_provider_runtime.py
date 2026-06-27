@@ -5,6 +5,7 @@ from src.secure_provider_runtime import (
     SecureProviderRuntimeError,
     enforce_session_provider_runtime_gate,
     provider_scope_for_base_url,
+    should_enforce_session_provider_runtime_gate,
 )
 
 
@@ -62,3 +63,36 @@ def test_normal_provider_runtime_allows_external_model():
 
     assert gate.allowed is True
     assert gate.security_mode == SecurityMode.NORMAL
+
+
+def test_global_dsgvo_runtime_blocks_external_model_without_session_flag():
+    with pytest.raises(SecureProviderRuntimeError, match="external_model_in_secure_chat"):
+        enforce_session_provider_runtime_gate(
+            security_mode="",
+            session_id="session-1",
+            owner="alice",
+            provider_base_url="https://api.openai.com/v1",
+            model_id="gpt-4o",
+            settings={"dsgvo_mode": True},
+        )
+
+
+def test_global_dsgvo_runtime_allows_local_model_without_session_flag():
+    gate = enforce_session_provider_runtime_gate(
+        security_mode="",
+        session_id="session-1",
+        owner="alice",
+        provider_base_url="http://localhost:11434/v1",
+        model_id="local-model",
+        settings={"dsgvo_mode": True},
+    )
+
+    assert gate.allowed is True
+    assert gate.security_mode == SecurityMode.SECURE
+    assert gate.provider_scope == ProviderScope.LOCAL_ONLY
+
+
+def test_session_provider_gate_required_for_security_mode_or_global_dsgvo():
+    assert should_enforce_session_provider_runtime_gate("", settings={"dsgvo_mode": False}) is False
+    assert should_enforce_session_provider_runtime_gate("secure", settings={"dsgvo_mode": False}) is True
+    assert should_enforce_session_provider_runtime_gate("", settings={"dsgvo_mode": True}) is True

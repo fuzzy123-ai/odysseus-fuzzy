@@ -528,8 +528,12 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         model_to_use = model
         request_api_key = api_key.strip() if api_key else ""
         effective_api_key = request_api_key or endpoint_api_key
-        if security_mode:
-            from src.secure_provider_runtime import SecureProviderRuntimeError, enforce_session_provider_runtime_gate
+        from src.secure_provider_runtime import (
+            SecureProviderRuntimeError,
+            enforce_session_provider_runtime_gate,
+            should_enforce_session_provider_runtime_gate,
+        )
+        if should_enforce_session_provider_runtime_gate(security_mode):
             try:
                 enforce_session_provider_runtime_gate(
                     security_mode=security_mode,
@@ -684,8 +688,12 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                     endpoint_url = build_chat_url(normalize_base(endpoint_base_url))
                 finally:
                     _db.close()
-            if security_mode:
-                from src.secure_provider_runtime import SecureProviderRuntimeError, enforce_session_provider_runtime_gate
+            from src.secure_provider_runtime import (
+                SecureProviderRuntimeError,
+                enforce_session_provider_runtime_gate,
+                should_enforce_session_provider_runtime_gate,
+            )
+            if should_enforce_session_provider_runtime_gate(security_mode):
                 try:
                     enforce_session_provider_runtime_gate(
                         security_mode=security_mode,

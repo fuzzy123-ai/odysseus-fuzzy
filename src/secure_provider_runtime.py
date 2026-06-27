@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 import ipaddress
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
-from src.chat_security_state import ChatSecurityState, ProviderScope, SecurityMode, normalize_security_mode
+from src.chat_security_state import ProviderScope, SecurityMode
+from src.privacy_runtime import create_runtime_security_state, is_dsgvo_mode_enabled
 from src.secure_model_routing import ModelCandidate, ModelRouteDecision, ModelUse, decide_model_route
 
 
@@ -49,6 +49,16 @@ def provider_scope_for_base_url(base_url: Any) -> ProviderScope:
     return ProviderScope.DEFAULT
 
 
+def should_enforce_session_provider_runtime_gate(
+    security_mode: Any,
+    *,
+    settings: Mapping[str, Any] | None = None,
+) -> bool:
+    """Return whether session provider choice needs runtime policy validation."""
+
+    return bool(str(security_mode or "").strip()) or is_dsgvo_mode_enabled(settings)
+
+
 def enforce_session_provider_runtime_gate(
     *,
     security_mode: Any,
@@ -57,18 +67,18 @@ def enforce_session_provider_runtime_gate(
     provider_base_url: Any,
     model_id: Any,
     provider_id: Any = "session-provider",
+    settings: Mapping[str, Any] | None = None,
 ) -> ProviderRuntimeGate:
     """Block external provider/model choices before a secure session can use them."""
 
-    mode = normalize_security_mode(str(security_mode or "normal"))
     provider_scope = provider_scope_for_base_url(provider_base_url)
     requested_by = str(owner or "runtime").strip() or "runtime"
-    state = ChatSecurityState.create(
+    state = create_runtime_security_state(
         chat_id=str(session_id or "pending-session"),
         thread_id=str(session_id or "pending-session"),
-        security_mode=mode,
-        created_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        security_mode=security_mode,
         requested_by=requested_by,
+        settings=settings,
     )
     route = decide_model_route(
         state=state,
@@ -82,7 +92,7 @@ def enforce_session_provider_runtime_gate(
     if not route.allowed:
         raise SecureProviderRuntimeError(route.block_reason)
     return ProviderRuntimeGate(
-        security_mode=mode,
+        security_mode=state.security_mode,
         provider_scope=provider_scope,
         route_decision=route,
     )
