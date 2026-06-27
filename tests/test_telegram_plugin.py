@@ -13,6 +13,7 @@ from plugins.telegram.plugin import (
     PLUGIN,
     TelegramInboxStore,
     TelegramPollingStateStore,
+    TelegramPrivacyPinStore,
     TelegramSessionBridgeStore,
     _telegram_control_command,
     build_agent_bridge_request,
@@ -760,6 +761,7 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
     monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
     settings_state = {"dsgvo_mode": False}
     replies = []
+    pin_calls = []
     turns = []
 
     def _load_settings():
@@ -771,6 +773,29 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
 
     monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", _load_settings)
     monkeypatch.setattr("plugins.telegram.plugin._save_dsgvo_settings", _save_settings)
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_pin_message",
+        lambda chat_id, message_id: pin_calls.append((chat_id, message_id)) or {
+            "ok": True,
+            "telegram_message_id": message_id,
+            "pin_status": "pinned",
+        },
+    )
+
+    def _reply(chat_id, text, source_message_id=None):
+        replies.append((chat_id, text, source_message_id))
+        return {
+            "exit_code": 0,
+            "output": json.dumps({
+                "sent": {
+                    "ok": True,
+                    "telegram_message_id": 777,
+                    "token_value_visible": False,
+                    "chat_id_value_visible": False,
+                },
+                "message": {"delivery_status": "sent", "chat_id_value_visible": False},
+            }),
+        }
 
     result = run_telegram_polling_cycle(
         data_dir=tmp_path,
@@ -784,7 +809,7 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
             },
         }],
         agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
-        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+        reply_handler=_reply,
     )
 
     assert result["ok"] is True
@@ -792,12 +817,18 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
     assert result["agent_turns"] == 0
     assert settings_state["dsgvo_mode"] is True
     assert replies == [("123", "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; externe Web-, Provider- und Tool-I/O ist gesperrt.", 90)]
+    assert pin_calls == [("123", 777)]
+    assert TelegramPrivacyPinStore(tmp_path).get_pin("123")["message_id"] == 777
     assert turns == []
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "control_command" and item.get("status") == "dsgvo_enabled" for item in history)
+    assert any(item.get("kind") == "privacy_pin" and item.get("status") == "pinned" for item in history)
     persisted = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "123" not in persisted
     assert '"chat_id"' not in persisted
+    pin_state = (tmp_path / "telegram_privacy_pin_state.json").read_text(encoding="utf-8")
+    assert "123" not in pin_state
+    assert '"chat_id"' not in pin_state
 
 
 def test_dsgvo_command_from_blocked_chat_does_not_change_settings(tmp_path, monkeypatch):
@@ -838,6 +869,63 @@ def test_dsgvo_command_from_blocked_chat_does_not_change_settings(tmp_path, monk
     assert "blocked-sender" not in persisted
 
 
+def test_polling_cycle_dsgvo_disable_unpins_privacy_message(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
+    settings_state = {"dsgvo_mode": True}
+    replies = []
+    unpin_calls = []
+    TelegramPrivacyPinStore(tmp_path).set_pin("123", 777)
+
+    monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", lambda: dict(settings_state))
+    monkeypatch.setattr("plugins.telegram.plugin._save_dsgvo_settings", lambda new_settings: settings_state.update(new_settings))
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_unpin_message",
+        lambda chat_id, message_id: unpin_calls.append((chat_id, message_id)) or {
+            "ok": True,
+            "telegram_message_id": message_id,
+            "pin_status": "unpinned",
+        },
+    )
+
+    def _reply(chat_id, text, source_message_id=None):
+        replies.append((chat_id, text, source_message_id))
+        return {
+            "exit_code": 0,
+            "output": json.dumps({
+                "sent": {"ok": True, "telegram_message_id": 778},
+                "message": {"delivery_status": "sent", "chat_id_value_visible": False},
+            }),
+        }
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 83,
+            "message": {
+                "message_id": 92,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/dsgvo off",
+            },
+        }],
+        reply_handler=_reply,
+    )
+
+    assert result["ok"] is True
+    assert result["control_commands"] == 1
+    assert settings_state["dsgvo_mode"] is False
+    assert replies == [("123", "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder.", 92)]
+    assert unpin_calls == [("123", 777)]
+    assert TelegramPrivacyPinStore(tmp_path).get_pin("123") is None
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "privacy_pin" and item.get("status") == "unpinned" for item in history)
+    persisted = (tmp_path / "telegram_privacy_pin_state.json").read_text(encoding="utf-8")
+    assert "123" not in persisted
+    assert '"chat_id"' not in persisted
+
+
 def test_readiness_reports_dsgvo_boundary_without_settings_values(tmp_path, monkeypatch):
     monkeypatch.setenv("ODYSSEUS_DSGVO_MODE", "0")
     monkeypatch.setattr("plugins.telegram.plugin._load_dsgvo_settings", lambda: {
@@ -852,7 +940,11 @@ def test_readiness_reports_dsgvo_boundary_without_settings_values(tmp_path, monk
     assert readiness["privacy_boundary"]["dsgvo_mode"] is True
     assert readiness["privacy_boundary"]["local_only_required"] is True
     assert readiness["privacy_boundary"]["settings_values_visible"] is False
+    assert readiness["privacy_boundary"]["pinned_status_enabled"] is True
+    assert readiness["privacy_boundary"]["active_pinned_status_count"] == 0
+    assert readiness["privacy_boundary"]["pin_message_id_value_visible"] is False
     assert "/dsgvo" in readiness["privacy_boundary"]["telegram_commands"]
+    assert "pinned_status_message" in readiness["privacy_boundary"]["chat_feedback_modes"]
     assert "sk-leak-sentinel" not in encoded
     assert "1234567890" not in encoded
 

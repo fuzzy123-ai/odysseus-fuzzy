@@ -64,6 +64,7 @@ _CHEVRON = (
 _HISTORY_FILE = "telegram_history.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
+_PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
 _THINKING_BLOCK_RE = re.compile(r"<tg-thinking>.*?</tg-thinking>", re.IGNORECASE | re.DOTALL)
 
 
@@ -188,6 +189,10 @@ def _draft_interval_ms() -> int:
     except ValueError:
         value = 750
     return max(250, min(value, 10000))
+
+
+def _privacy_pin_enabled() -> bool:
+    return not _bool_env("TELEGRAM_PRIVACY_PIN_DISABLED")
 
 
 def _strip_draft_thinking(markdown: str) -> str:
@@ -461,6 +466,70 @@ class TelegramPollingStateStore:
         data["history"].append(event)
         self._write(data)
         return event
+
+
+class TelegramPrivacyPinStore:
+    """Persist DSGVO pinned-message state without raw Telegram chat ids."""
+
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.path = self.data_dir / _PINNED_PRIVACY_FILE
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {"pins": {}}
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"pins": {}}
+        if not isinstance(data, dict):
+            return {"pins": {}}
+        pins = data.get("pins")
+        if not isinstance(pins, dict):
+            data["pins"] = {}
+        return data
+
+    def _write(self, data: dict[str, Any]) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def get_pin(self, chat_id: str) -> dict[str, Any] | None:
+        handle = _chat_handle(chat_id)
+        if not handle:
+            return None
+        pin = self._read()["pins"].get(handle)
+        return dict(pin) if isinstance(pin, dict) else None
+
+    def set_pin(self, chat_id: str, message_id: int) -> dict[str, Any]:
+        handle = _chat_handle(chat_id)
+        if not handle:
+            raise ValueError("telegram chat id is missing")
+        if int(message_id or 0) <= 0:
+            raise ValueError("telegram message id is missing")
+        data = self._read()
+        pin = {
+            "chat_handle": handle,
+            "message_id": int(message_id),
+            "pinned_at": int(time.time()),
+            "token_value_visible": False,
+            "chat_id_value_visible": False,
+            "raw_chat_id_value_visible": False,
+        }
+        data["pins"][handle] = pin
+        self._write(data)
+        return dict(pin)
+
+    def clear_pin(self, chat_id: str) -> dict[str, Any] | None:
+        handle = _chat_handle(chat_id)
+        if not handle:
+            return None
+        data = self._read()
+        pin = data["pins"].pop(handle, None)
+        self._write(data)
+        return dict(pin) if isinstance(pin, dict) else None
+
+    def active_count(self) -> int:
+        return len(self._read()["pins"])
 
 
 class TelegramSessionBridgeStore:
@@ -755,6 +824,8 @@ def _handle_telegram_control_command(
     sessions: TelegramSessionBridgeStore,
     session_creator: Callable[..., Any] | None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
+    store: TelegramInboxStore | None = None,
+    pin_store: TelegramPrivacyPinStore | None = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -785,6 +856,14 @@ def _handle_telegram_control_command(
                 reply_text,
                 bridge.get("source_message_id"),
             )
+        pin_result = _sync_dsgvo_pin_state(
+            command=command,
+            chat_id=bridge["chat_id"],
+            result=result,
+            reply_result=reply_result,
+            store=store,
+            pin_store=pin_store,
+        )
         return {
             "command": command,
             "status": status,
@@ -792,6 +871,7 @@ def _handle_telegram_control_command(
             "reply_text": reply_text,
             "reply": reply_result,
             "dsgvo_mode": bool((result or {}).get("after") if result is not None else _dsgvo_mode_active()),
+            "pin_status": pin_result.get("status"),
         }
     if command != "new_chat":
         return None
@@ -1054,6 +1134,91 @@ def _public_reply_result(result: dict[str, Any] | None) -> dict[str, Any] | None
     return result
 
 
+def _reply_result_telegram_message_id(result: dict[str, Any] | None) -> int | None:
+    public = _public_reply_result(result)
+    if not isinstance(public, dict):
+        return None
+    sent = public.get("sent")
+    if not isinstance(sent, dict):
+        sent = public
+    candidate = sent.get("telegram_message_id")
+    if candidate in ("", None):
+        ids = sent.get("telegram_message_ids")
+        if isinstance(ids, list) and ids:
+            candidate = ids[0]
+    try:
+        value = int(candidate)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _sync_dsgvo_pin_state(
+    *,
+    command: str,
+    chat_id: str,
+    result: dict[str, Any] | None,
+    reply_result: dict[str, Any] | None,
+    store: TelegramInboxStore | None,
+    pin_store: TelegramPrivacyPinStore | None,
+) -> dict[str, Any]:
+    if command not in {"dsgvo_enable", "dsgvo_disable", "dsgvo_status"}:
+        return {"status": "not_applicable"}
+    if pin_store is None:
+        return {"status": "pin_store_missing"}
+    if not _privacy_pin_enabled():
+        return {"status": "pin_disabled"}
+
+    active_after = bool((result or {}).get("after") if result is not None else _dsgvo_mode_active())
+    if active_after:
+        if command not in {"dsgvo_enable", "dsgvo_status"}:
+            return {"status": "still_active"}
+        existing = pin_store.get_pin(chat_id)
+        if existing and int(existing.get("message_id") or 0) > 0:
+            return {"status": "already_pinned", "message_id": int(existing["message_id"])}
+        message_id = _reply_result_telegram_message_id(reply_result)
+        if message_id is None:
+            if store is not None:
+                store.append_event(kind="privacy_pin", status="message_id_missing", chat_id=chat_id)
+            return {"status": "message_id_missing"}
+        try:
+            sent = send_telegram_pin_message(chat_id, message_id)
+        except Exception:
+            if store is not None:
+                store.append_event(kind="privacy_pin", status="pin_failed", chat_id=chat_id, message_id=message_id)
+            return {"status": "pin_failed", "message_id": message_id}
+        if not sent.get("ok"):
+            if store is not None:
+                store.append_event(kind="privacy_pin", status="pin_rejected", chat_id=chat_id, message_id=message_id)
+            return {"status": "pin_rejected", "message_id": message_id}
+        pin_store.set_pin(chat_id, message_id)
+        if store is not None:
+            store.append_event(kind="privacy_pin", status="pinned", chat_id=chat_id, message_id=message_id)
+        return {"status": "pinned", "message_id": message_id}
+
+    existing = pin_store.get_pin(chat_id)
+    if not existing:
+        return {"status": "no_pin_state"}
+    message_id = int(existing.get("message_id") or 0)
+    if message_id <= 0:
+        pin_store.clear_pin(chat_id)
+        return {"status": "pin_state_invalid"}
+    try:
+        sent = send_telegram_unpin_message(chat_id, message_id)
+    except Exception:
+        if store is not None:
+            store.append_event(kind="privacy_pin", status="unpin_failed", chat_id=chat_id, message_id=message_id)
+        return {"status": "unpin_failed", "message_id": message_id}
+    if not sent.get("ok"):
+        if store is not None:
+            store.append_event(kind="privacy_pin", status="unpin_rejected", chat_id=chat_id, message_id=message_id)
+        return {"status": "unpin_rejected", "message_id": message_id}
+    pin_store.clear_pin(chat_id)
+    if store is not None:
+        store.append_event(kind="privacy_pin", status="unpinned", chat_id=chat_id, message_id=message_id)
+    return {"status": "unpinned", "message_id": message_id}
+
+
 def _agent_failure_reply(agent_turn: dict[str, Any] | None) -> str:
     if not agent_turn or str(agent_turn.get("status") or "").lower() != "failed":
         return ""
@@ -1078,6 +1243,7 @@ def run_telegram_polling_cycle(
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
     sessions = TelegramSessionBridgeStore(data_dir)
+    privacy_pins = TelegramPrivacyPinStore(data_dir)
     if not _bool_env("TELEGRAM_POLLING_ENABLED"):
         polling.record(status="polling_disabled", offset=polling.get_offset())
         return {"ok": False, "status": "polling_disabled", "processed": 0, "offset": polling.get_offset()}
@@ -1114,6 +1280,8 @@ def run_telegram_polling_cycle(
                 sessions=sessions,
                 session_creator=session_creator,
                 reply_handler=reply_handler,
+                store=store,
+                pin_store=privacy_pins,
             )
             if control_result is not None:
                 control_commands += 1
@@ -1391,6 +1559,70 @@ def send_telegram_text(
     }
 
 
+def send_telegram_pin_message(
+    chat_id: str,
+    message_id: int,
+    *,
+    disable_notification: bool = True,
+    token: str | None = None,
+    http_post: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Pin a Telegram message after callers have enforced chat/reply gates."""
+
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    if int(message_id or 0) <= 0:
+        raise ValueError("telegram message id is missing")
+    url = f"https://api.telegram.org/bot{token}/pinChatMessage"
+    post = http_post or _telegram_http_post
+    result = post(
+        url,
+        {
+            "chat_id": str(chat_id),
+            "message_id": int(message_id),
+            "disable_notification": bool(disable_notification),
+        },
+    )
+    return {
+        "ok": bool(result.get("ok")),
+        "telegram_message_id": int(message_id),
+        "pin_status": "pinned" if result.get("ok") else "rejected",
+        "token_value_visible": False,
+        "chat_id_value_visible": False,
+    }
+
+
+def send_telegram_unpin_message(
+    chat_id: str,
+    message_id: int,
+    *,
+    token: str | None = None,
+    http_post: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Unpin a tracked Telegram message after callers have enforced chat gates."""
+
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    if int(message_id or 0) <= 0:
+        raise ValueError("telegram message id is missing")
+    url = f"https://api.telegram.org/bot{token}/unpinChatMessage"
+    post = http_post or _telegram_http_post
+    result = post(url, {"chat_id": str(chat_id), "message_id": int(message_id)})
+    return {
+        "ok": bool(result.get("ok")),
+        "telegram_message_id": int(message_id),
+        "pin_status": "unpinned" if result.get("ok") else "rejected",
+        "token_value_visible": False,
+        "chat_id_value_visible": False,
+    }
+
+
 def send_telegram_chat_action(
     chat_id: str,
     action: str = "typing",
@@ -1474,8 +1706,10 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
 
     if data_dir is not None:
         inbox_store = TelegramInboxStore(data_dir)
+        pin_store = TelegramPrivacyPinStore(data_dir)
         counts = inbox_store.counts()
         delivery = inbox_store.last_delivery_summary()
+        active_privacy_pins = pin_store.active_count()
     else:
         counts = {"total": 0, "inbound": 0, "outbound": 0, "voice": 0, "image": 0, "pending_stt": 0, "pending_image_action": 0}
         delivery = {
@@ -1484,6 +1718,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
             "formatting_mode": "html",
             "raw_rich_payload_visible": False,
         }
+        active_privacy_pins = 0
     return {
         "plugin": "telegram",
         "state": state,
@@ -1524,7 +1759,10 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
             "telegram_control_enabled": True,
             "telegram_commands": ["/dsgvo", "/privacy", "/gdpr"],
             "settings_values_visible": False,
-            "chat_feedback_modes": ["reply_message", "typing_indicator", "status_endpoint"],
+            "pinned_status_enabled": _privacy_pin_enabled(),
+            "active_pinned_status_count": active_privacy_pins,
+            "pin_message_id_value_visible": False,
+            "chat_feedback_modes": ["reply_message", "typing_indicator", "pinned_status_message", "status_endpoint"],
         },
         "next_allowed_action": "Enable TELEGRAM_AGENT_CHAT_ENABLED for intake and TELEGRAM_AGENT_REPLY_ENABLED for bot replies.",
     }
@@ -1581,6 +1819,7 @@ def setup(ctx):
     router = APIRouter(prefix="/api/plugins/telegram", tags=["plugin:telegram"])
     store = TelegramInboxStore(ctx.data_dir)
     sessions = TelegramSessionBridgeStore(ctx.data_dir)
+    privacy_pins = TelegramPrivacyPinStore(ctx.data_dir)
 
     def _ctx_attr(name: str, default: Any = None) -> Any:
         value = getattr(ctx, name, None)
@@ -1833,6 +2072,8 @@ def setup(ctx):
                 text,
                 source_message_id=source_message_id,
             ),
+            store=store,
+            pin_store=privacy_pins,
         )
         if control_result is not None:
             store.append_event(
@@ -1853,6 +2094,7 @@ def setup(ctx):
                 "control_command": {
                     "command": control_result.get("command"),
                     "status": control_result.get("status"),
+                    "pin_status": control_result.get("pin_status"),
                     "session_id_present": bool((control_result.get("binding") or {}).get("session_id")),
                 },
                 "token_value_visible": False,
