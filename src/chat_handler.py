@@ -15,7 +15,11 @@ from src.constants import (
 )
 from core.models import ChatMessage
 from src.chat_helpers import extract_urls, model_supports_vision
-from src.document_processor import build_user_content, analyze_image_with_vl_result
+from src.document_processor import (
+    attachment_content_allowed_for_model,
+    build_user_content,
+    analyze_image_with_vl_result,
+)
 from src.youtube_handler import (
     is_youtube_url,
     extract_youtube_id,
@@ -172,7 +176,17 @@ class ChatHandler:
         # so guide-only/no-tools turns must not reach it.
         vision_enabled = False
         main_is_vision = False
-        if effective_att_ids:
+        attachment_privacy = attachment_content_allowed_for_model(
+            getattr(sess, "endpoint_url", "") or "",
+            getattr(sess, "model", "") or "",
+        )
+        attachments_allowed_for_model = attachment_privacy.allowed
+        if effective_att_ids and not attachments_allowed_for_model:
+            for meta in attachment_meta:
+                meta["privacy_blocked"] = True
+                meta["privacy_block_reason"] = attachment_privacy.block_reason
+
+        if effective_att_ids and attachments_allowed_for_model:
             from src.settings import get_setting
             vision_enabled = get_setting("vision_enabled", True)
             if vision_enabled:
@@ -182,7 +196,7 @@ class ChatHandler:
                     getattr(sess, "endpoint_url", "") or "",
                 )
 
-        if effective_att_ids and vision_enabled:
+        if effective_att_ids and vision_enabled and attachments_allowed_for_model:
             meta_by_id = {m["id"]: m for m in attachment_meta}
             for att_id in effective_att_ids:
                 file_info = files_by_id.get(att_id)
@@ -254,6 +268,8 @@ class ChatHandler:
             auto_opened_docs=auto_opened_docs,
             owner=owner,
             resolved_uploads=files_by_id,
+            session_endpoint_url=getattr(sess, "endpoint_url", "") or "",
+            session_model=getattr(sess, "model", "") or "",
         )
 
         # Strip image_url entries for text-only models (VL description is already in the text)

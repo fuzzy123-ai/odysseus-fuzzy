@@ -6,14 +6,100 @@ import logging
 import mimetypes
 import base64
 import tempfile
+from dataclasses import dataclass
 from typing import List, Dict, Any
 
 from src.llm_core import llm_call
+from src.chat_security_state import SecurityMode
+from src.privacy_runtime import create_runtime_security_state
+from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_route
+from src.secure_provider_runtime import provider_scope_for_base_url
 
 logger = logging.getLogger(__name__)
 
 MAX_INLINE_ATTACHMENT_CHARS = 24000
 MIN_INLINE_ATTACHMENT_SLICE = 500
+ATTACHMENT_PRIVACY_BLOCKED_MESSAGE = (
+    "\n\n[Attachments omitted by DSGVO/local-only policy. "
+    "Switch this session to a local model to inspect attachments.]"
+)
+VISION_PRIVACY_BLOCKED_TEXT = (
+    "[Vision analysis blocked by DSGVO local-only policy - choose a local vision model]"
+)
+
+
+@dataclass(frozen=True)
+class AttachmentPrivacyDecision:
+    allowed: bool
+    block_reason: str = ""
+    next_action: str = ""
+    local_only_required: bool = False
+
+
+def _model_privacy_decision(
+    endpoint_url: str | None,
+    model_id: str | None,
+    *,
+    provider_id: str,
+    settings: dict | None = None,
+) -> AttachmentPrivacyDecision:
+    state = create_runtime_security_state(
+        chat_id="attachment-runtime",
+        thread_id="attachment-runtime",
+        security_mode=None,
+        requested_by="document-processor",
+        settings=settings,
+    )
+    if state.security_mode != SecurityMode.SECURE:
+        return AttachmentPrivacyDecision(allowed=True)
+
+    route = decide_model_route(
+        state=state,
+        primary=ModelCandidate.create(
+            model_id=model_id or "pending-model",
+            provider_id=provider_id,
+            provider_scope=provider_scope_for_base_url(endpoint_url or ""),
+            use=ModelUse.CHAT,
+        ),
+    )
+    return AttachmentPrivacyDecision(
+        allowed=route.allowed and route.local_only_required is True,
+        block_reason=route.block_reason or "local_only_attachment_runtime_required",
+        next_action=route.next_action or "choose_local_model",
+        local_only_required=True,
+    )
+
+
+def attachment_content_allowed_for_model(
+    endpoint_url: str | None = None,
+    model_id: str | None = None,
+    *,
+    settings: dict | None = None,
+) -> AttachmentPrivacyDecision:
+    """Decide whether raw attachment content may be sent to a chat model."""
+
+    return _model_privacy_decision(
+        endpoint_url,
+        model_id,
+        provider_id="attachment-provider",
+        settings=settings,
+    )
+
+
+def vision_model_allowed_for_policy(
+    endpoint_url: str | None,
+    model_id: str | None,
+    *,
+    settings: dict | None = None,
+) -> AttachmentPrivacyDecision:
+    """Decide whether an image may be sent to a vision model."""
+
+    return _model_privacy_decision(
+        endpoint_url,
+        model_id,
+        provider_id="vision-provider",
+        settings=settings,
+    )
 
 
 def _is_text_file(path: str) -> bool:
@@ -323,7 +409,9 @@ def _resolve_vl_model(configured: str, owner: str | None = None) -> tuple:
     ]
     for candidate in candidates:
         try:
-            return _resolve_model(candidate, owner=owner)
+            resolved = _resolve_model(candidate, owner=owner)
+            if vision_model_allowed_for_policy(resolved[0], resolved[1]).allowed:
+                return resolved
         except (ValueError, Exception):
             continue
 
@@ -344,6 +432,25 @@ def analyze_image_with_vl_result(image_path: str, owner: str | None = None) -> d
         except ValueError:
             return {"text": "[No vision model configured — set one in Settings → Vision]", "model": vl_model or ""}
 
+        # Vision-specific fallback chain (Settings -> Vision -> Fallbacks). A
+        # downed or policy-blocked vision endpoint can fall through to the next
+        # configured model before any image bytes are read or encoded.
+        try:
+            from src.endpoint_resolver import resolve_vision_fallback_candidates
+            _vl_candidates = [(url, model_id, headers)] + resolve_vision_fallback_candidates(owner=owner)
+        except Exception:
+            _vl_candidates = [(url, model_id, headers)]
+
+        allowed_candidates = []
+        for candidate in [c for c in _vl_candidates if c and c[0] and c[1]]:
+            decision = vision_model_allowed_for_policy(candidate[0], candidate[1], settings=settings)
+            if decision.allowed:
+                allowed_candidates.append(candidate)
+            else:
+                logger.warning("Vision candidate %s blocked by privacy runtime: %s", candidate[1], decision.block_reason)
+        if not allowed_candidates:
+            return {"text": VISION_PRIVACY_BLOCKED_TEXT, "model": model_id or "", "blocked_by_policy": True}
+
         with open(image_path, "rb") as f:
             img_data = base64.b64encode(f.read()).decode("utf-8")
 
@@ -360,17 +467,8 @@ def analyze_image_with_vl_result(image_path: str, owner: str | None = None) -> d
                 ],
             }
         ]
-        # Vision-specific fallback chain (Settings → Vision → Fallbacks). A
-        # downed vision endpoint can fall through to the next configured model
-        # — same shape as task/chat but its own list (`vision_model_fallbacks`).
-        try:
-            from src.endpoint_resolver import resolve_vision_fallback_candidates
-            _vl_candidates = [(url, model_id, headers)] + resolve_vision_fallback_candidates(owner=owner)
-        except Exception:
-            _vl_candidates = [(url, model_id, headers)]
-
         last_err = None
-        for i, (_url, _model, _headers) in enumerate([c for c in _vl_candidates if c and c[0] and c[1]]):
+        for i, (_url, _model, _headers) in enumerate(allowed_candidates):
             try:
                 description = llm_call(_url, _model, vl_messages, headers=_headers, timeout=120)
                 logger.info("VL analysis complete with model %s", _model)
@@ -401,6 +499,8 @@ def build_user_content(
     auto_opened_docs: list[Dict[str, Any]] | None = None,
     owner: str | None = None,
     resolved_uploads: dict[str, Dict[str, Any]] | None = None,
+    session_endpoint_url: str | None = None,
+    session_model: str | None = None,
 ) -> str | List[Dict[str, Any]]:
     """Build user content with attachments (text, images, audio, documents).
 
@@ -412,6 +512,11 @@ def build_user_content(
     """
     content = [{"type": "text", "text": text}]
     inline_attachment_remaining = MAX_INLINE_ATTACHMENT_CHARS
+    if attachment_ids:
+        decision = attachment_content_allowed_for_model(session_endpoint_url, session_model)
+        if not decision.allowed:
+            logger.warning("Attachment content blocked by privacy runtime: %s", decision.block_reason)
+            return (text + ATTACHMENT_PRIVACY_BLOCKED_MESSAGE).strip()
 
     for fid in attachment_ids or []:
         upload_info = (resolved_uploads or {}).get(fid)

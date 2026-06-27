@@ -1163,7 +1163,7 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
         import json
         import fitz
         from src.pdf_form_doc import find_source_upload_id
-        from src.document_processor import _resolve_vl_model, _load_vl_settings
+        from src.document_processor import _resolve_vl_model, _load_vl_settings, vision_model_allowed_for_policy
         from src.llm_core import llm_call_async
 
         body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
@@ -1194,6 +1194,9 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
             url, model_id, headers = _resolve_vl_model(vl_model, owner=user)
         except Exception as e:
             raise HTTPException(503, f"No vision model available: {e}")
+        policy = vision_model_allowed_for_policy(url, model_id, settings=settings)
+        if not policy.allowed:
+            raise HTTPException(403, policy.block_reason or "vision_model_blocked_by_privacy_runtime")
 
         system_prompt = (
             "You analyze rendered PDF page images and propose values to fill in. "

@@ -1891,7 +1891,7 @@ def setup_gallery_routes() -> APIRouter:
                     "webp": "image/webp", "gif": "image/gif"}.get(ext, "image/jpeg")
 
             # Resolve vision model via admin Vision setting (same resolver used for docs)
-            from src.document_processor import _load_vl_settings, _resolve_vl_model
+            from src.document_processor import _load_vl_settings, _resolve_vl_model, vision_model_allowed_for_policy
             vl_settings = _load_vl_settings()
             if not vl_settings.get("vision_enabled", True):
                 return {"error": "Vision is disabled — enable it in Settings → Vision"}
@@ -1902,6 +1902,9 @@ def setup_gallery_routes() -> APIRouter:
                 return {"error": "No vision model configured — set one in Settings → Vision"}
             if not chat_url:
                 return {"error": "No vision-capable endpoint configured"}
+            policy = vision_model_allowed_for_policy(chat_url, model_name, settings=vl_settings)
+            if not policy.allowed:
+                return {"error": policy.block_reason or "vision_model_blocked_by_privacy_runtime"}
 
             # Call vision model — format differs between Anthropic and OpenAI
             from src.llm_core import _detect_provider, _restricts_temperature, _uses_max_completion_tokens
