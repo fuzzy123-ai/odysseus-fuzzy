@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Phase 1 repo-only universal project contract implemented; live execution remains operator-gated**
+Status: **Non-UI backend/API slices done; visual Project UI remains gated**
 
 ## Goal
 
@@ -95,7 +95,7 @@ Current result:
 
 ### P2B Project Chat Context
 
-Status: **backend context model done; route/UI wiring remains gated**
+Status: **backend context model and API binding done; visual UI wiring remains gated**
 
 Goal:
 
@@ -118,7 +118,8 @@ Current result:
   `session_id`.
 - Existing metadata for another project is rejected instead of overwritten.
 - Context audit summaries omit raw session IDs.
-- Actual chat route integration and UI entrypoints remain future slices.
+- Backend chat binding is exposed through `/api/projects/{project_slug}/chat-bind`.
+- Visual UI entrypoints remain a future slice.
 
 ### P3 Quality Gate Integration
 
@@ -283,7 +284,6 @@ Current backend result:
 
 ## Current Human Decision Needed
 
-Als naechstes sollte entschieden werden, ob P2 zuerst eine lokale
-Project-Registry im Odysseus-Backend bekommt oder direkt ein serverseitiges
-`projects/` Workspace-Schema fuer mehrere neue Repositories angelegt werden
-soll.
+Als naechstes sollte entschieden werden, wie die visuelle Project UI gestaltet
+wird: Projektliste, Projektchat, Runner-State, Quality Gates, Deploy-Handoff
+und Cloudflare-Exposure als zusammenhaengender Arbeitsbereich.
