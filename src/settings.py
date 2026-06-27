@@ -29,6 +29,10 @@ def _invalidate_caches():
 # ── Default values ──
 
 DEFAULT_SETTINGS = {
+    # Global privacy switch. When enabled, runtime gates must treat all
+    # potentially private context as local-only unless a narrower policy
+    # explicitly blocks or requires review.
+    "dsgvo_mode": False,
     # Agent email safety: when True, the MCP send_email / reply_to_email
     # tools don't SMTP directly. They stage the composed message into the
     # scheduled_emails table with status='agent_draft' and return a

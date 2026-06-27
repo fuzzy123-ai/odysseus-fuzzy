@@ -249,19 +249,39 @@ def _create_lane(chroma_client, base_name: str, lane_name: str, client: Any) -> 
     )
 
 
-def build_embedding_lanes(base_name: str) -> List[EmbeddingLane]:
-    """Return healthy lanes in retrieval preference order: custom, fastembed."""
+def _runtime_requires_local_embedding_lanes(local_only: Optional[bool]) -> bool:
+    if local_only is not None:
+        return bool(local_only)
+    try:
+        from src.privacy_runtime import runtime_requires_local_only
+
+        return runtime_requires_local_only()
+    except Exception:
+        return False
+
+
+def build_embedding_lanes(base_name: str, *, local_only: Optional[bool] = None) -> List[EmbeddingLane]:
+    """Return healthy lanes in retrieval preference order: custom, fastembed.
+
+    When the global privacy runtime requires local-only processing, custom HTTP
+    embeddings are skipped entirely so document chunks and queries cannot leave
+    the local/LAN runtime before higher-level gates run.
+    """
     from src.chroma_client import get_chroma_client
 
     chroma_client = get_chroma_client()
     lanes: List[EmbeddingLane] = []
+    local_only_lanes = _runtime_requires_local_embedding_lanes(local_only)
 
-    try:
-        custom = _build_custom_client()
-        if custom is not None:
-            lanes.append(_create_lane(chroma_client, base_name, LANE_CUSTOM, custom))
-    except Exception as e:
-        logger.warning("Custom embedding lane unavailable for %s: %s", base_name, e)
+    if local_only_lanes:
+        logger.info("Custom embedding lane disabled for %s by local-only privacy runtime", base_name)
+    else:
+        try:
+            custom = _build_custom_client()
+            if custom is not None:
+                lanes.append(_create_lane(chroma_client, base_name, LANE_CUSTOM, custom))
+        except Exception as e:
+            logger.warning("Custom embedding lane unavailable for %s: %s", base_name, e)
 
     try:
         fastembed = _build_fastembed_client()

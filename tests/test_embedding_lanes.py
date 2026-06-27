@@ -360,6 +360,25 @@ def test_build_embedding_lanes_uses_fastembed_when_custom_unavailable(monkeypatc
     assert built[0].collection_name == "odysseus_tool_index_fastembed"
 
 
+def test_build_embedding_lanes_skips_custom_when_local_only(monkeypatch):
+    fake = FakeChroma()
+    _patch_chroma(monkeypatch, fake)
+
+    import src.embedding_lanes as lanes
+
+    def fail_if_called():
+        raise AssertionError("custom embedding client must not be built in local-only mode")
+
+    monkeypatch.setattr(lanes, "_build_custom_client", fail_if_called)
+    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+    built = build_embedding_lanes("odysseus_rag", local_only=True)
+
+    assert [lane.name for lane in built] == [LANE_FASTEMBED]
+    assert "odysseus_rag_custom" not in fake.collections
+    assert fake.collections["odysseus_rag_fastembed"].metadata["embedding_url"] == "local://fastembed"
+
+
 def test_custom_lane_preserves_default_embedding_client_probe(monkeypatch):
     import src.embedding_lanes as lanes
     import src.embeddings as embeddings
