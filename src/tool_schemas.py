@@ -696,7 +696,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_notes",
-            "description": "Manage notes and checklists (Google Keep-style): list, add, update, delete, toggle_item. IMPORTANT: For to-do lists / checklists, set note_type='checklist' and pass the items as the `checklist_items` array — do NOT serialize them into `content` as plain text. For freeform notes, use note_type='note' and put the body in `content`. `due_date` accepts natural language like 'tomorrow at 9am' (parsed in the user's timezone) and fires a notification — do not also create a calendar event for the same reminder.",
+            "description": "Manage notes and checklists (Google Keep-style): list, add, update, delete, toggle_item. Delete requires confirmed=true after explicit user confirmation. IMPORTANT: For to-do lists / checklists, set note_type='checklist' and pass the items as the `checklist_items` array — do NOT serialize them into `content` as plain text. For freeform notes, use note_type='note' and put the body in `content`. `due_date` accepts natural language like 'tomorrow at 9am' (parsed in the user's timezone) and fires a notification — do not also create a calendar event for the same reminder.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -721,7 +721,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "pinned": {"type": "boolean", "description": "Pin the note to the top"},
                     "archived": {"type": "boolean", "description": "For update: archive/unarchive. For list: show archived notes when true."},
                     "due_date": {"type": "string", "description": "Reminder time. Accepts natural language ('tomorrow at 9am', '11pm today') or ISO 8601. Fires a notification at that time."},
-                    "index": {"type": "integer", "description": "Checklist item index (for toggle_item, 0-based)"}
+                    "index": {"type": "integer", "description": "Checklist item index (for toggle_item, 0-based)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

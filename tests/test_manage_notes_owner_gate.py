@@ -87,15 +87,38 @@ def test_update_rejects_legacy_null_owner_for_authenticated_owner(monkeypatch):
     assert db.commits == 0
 
 
-def test_delete_rejects_legacy_empty_owner_for_authenticated_owner(monkeypatch):
-    note = _note(owner="")
+def test_delete_requires_confirmation(monkeypatch):
+    note = _note(owner="alice")
     db = _install_fakes(monkeypatch, note)
 
     result = _run({"action": "delete", "id": "abc12345"})
 
+    assert result["status"] == "confirmation_required"
+    assert result["requires_confirmation"] is True
+    assert db.deleted == []
+    assert db.commits == 0
+
+
+def test_delete_rejects_legacy_empty_owner_for_authenticated_owner(monkeypatch):
+    note = _note(owner="")
+    db = _install_fakes(monkeypatch, note)
+
+    result = _run({"action": "delete", "id": "abc12345", "confirmed": True})
+
     assert result == {"error": "Note not found", "exit_code": 1}
     assert db.deleted == []
     assert db.commits == 0
+
+
+def test_delete_allows_matching_owner_after_confirmation(monkeypatch):
+    note = _note(owner="alice")
+    db = _install_fakes(monkeypatch, note)
+
+    result = _run({"action": "delete", "id": "abc12345", "confirmed": True})
+
+    assert result["exit_code"] == 0
+    assert db.deleted == [note]
+    assert db.commits == 1
 
 
 def test_toggle_rejects_other_owner(monkeypatch):

@@ -2044,6 +2044,18 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
         "remove_item": "toggle_item",
     }
     action = _NOTE_ACTION_ALIASES.get(action, action)
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Note {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     db = SessionLocal()
 
     def _norm_note_title(value: str) -> str:
@@ -2222,6 +2234,10 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
 
         elif action == "delete":
             note_id = args.get("id", "")
+            if not note_id:
+                return {"error": "id is required for delete", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("delete")
             note = _note_by_prefix(note_id)
             if not note:
                 return {"error": f"Note '{note_id}' not found", "exit_code": 1}
