@@ -19,6 +19,10 @@ from src.server_project_provisioner import (
     provision_project_workspace,
 )
 from src.server_project_registry import ServerProjectRegistry, ServerProjectRegistryError
+from src.server_project_repo_provisioner import (
+    ServerProjectRepoProvisioningError,
+    provision_project_local_git_repo,
+)
 
 
 DEFAULT_PROJECT_REGISTRY_PATH = Path(DATA_DIR) / "server_project_registry.json"
@@ -39,6 +43,14 @@ class ProjectChatBindRequest(BaseModel):
 class ProjectProvisionRequest(BaseModel):
     live_enabled: bool = False
     operator_decision: str = "missing"
+
+
+class ProjectRepoProvisionRequest(BaseModel):
+    live_enabled: bool = False
+    operator_decision: str = "missing"
+    remote_provider: str = "none"
+    remote_namespace: str = ""
+    default_branch: str | None = None
 
 
 def setup_server_project_routes(
@@ -113,6 +125,26 @@ def setup_server_project_routes(
         except ServerProjectProvisioningError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.executed, "provisioning": report.to_dict()}
+
+    @router.post("/{project_slug}/repo-provision")
+    def provision_repo(project_slug: str, body: ProjectRepoProvisionRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = provision_project_local_git_repo(
+                record=record,
+                projects_root=configured_projects_root,
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+                remote_provider=body.remote_provider,
+                remote_namespace=body.remote_namespace,
+                default_branch=body.default_branch,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectRepoProvisioningError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed and report.status == "provisioned", "repo_provisioning": report.to_dict()}
 
     return router
 

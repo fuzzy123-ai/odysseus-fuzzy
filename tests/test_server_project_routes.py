@@ -74,6 +74,27 @@ def test_project_routes_provision_workspace_requires_go_then_creates(tmp_path: P
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_repo_provision_reports_gate_without_live_git(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/repo-provision",
+        json={"remote_provider": "github", "remote_namespace": "fuzzy123-ai"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["repo_provisioning"]["executed"] is False
+    assert "operator decision is not go" in body["repo_provisioning"]["blockers"]
+    assert body["repo_provisioning"]["plan"]["remote_provider"] == "github"
+    assert "fuzzy123-ai/kundenportal-mvp" in body["repo_provisioning"]["plan"]["provider_gate"]
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -87,6 +108,7 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert missing.status_code == 404
     assert missing_bind.status_code == 404
     assert client.post("/api/projects/missing/provision", json={"live_enabled": True, "operator_decision": "go"}).status_code == 404
+    assert client.post("/api/projects/missing/repo-provision", json={}).status_code == 404
 
 
 def test_project_routes_reject_secret_like_input(tmp_path: Path):

@@ -8,7 +8,7 @@ from src.server_project_provisioner import (
     build_project_workspace_provisioning_plan,
     provision_project_workspace,
 )
-from src.server_project_registry import ServerProjectRegistry
+from src.server_project_registry import ServerProjectRecord, ServerProjectRegistry
 
 
 def _record(title: str = "Kundenportal MVP") -> ServerProjectRecord:

@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices plus local workspace provisioning done; visual Project UI and provider repo creation remain gated**
+Status: **Non-UI backend/API slices plus local workspace/repo provisioning done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -158,7 +158,7 @@ Current result:
 
 ### P4 Git And Review Flow
 
-Status: **backend dry-run Git/review plan done; live Git operations remain gated**
+Status: **backend Git/review plan and local repo init done; remote/provider Git operations remain gated**
 
 Goal:
 
@@ -178,11 +178,18 @@ Current result:
 - `src/server_project_git_review.py` models repo creation/attachment,
   worker branch review, change-set review, commit message review and push
   target review as data.
+- `src/server_project_repo_provisioner.py` can initialize the local project Git
+  repository inside `projects/<slug>/repo` when workspace provisioning is done
+  and `live_enabled=true` plus `operator_decision=go` are present.
+- The repo provisioner writes a redacted `.odysseus-repo.json` marker and uses
+  a tight `git init -b <branch>` allowlist with `shell=False`.
+- The API exposes this as `/api/projects/{project_slug}/repo-provision`.
 - Push remote is restricted to `fuzzy`; `origin` is blocked.
 - New repository creation requires `operator_decision=go`.
 - Unsafe branch names, absolute paths, secret-like commit messages and
   missing changed paths are rejected or held.
-- No Git command is executed by this slice.
+- Remote provider repository creation, remote attachment and push remain future
+  provider/operator-gated slices.
 
 ### P5 Deploy Handoff
 
