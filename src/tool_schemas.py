@@ -894,13 +894,20 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_settings",
-            "description": "Manage user preferences and settings. Use `disable_tool`/`enable_tool`/`list_tools` to turn individual tools on or off globally (e.g. shell, search, browser, documents, memory, skills, images, tasks, notes, calendar, email). Use list/get/set/delete for free-form preferences.",
+            "description": "Manage registered settings and feature flags through the policy-aware settings service. Use list/get/set/patch/reset/explain for settings, features for feature flags, and disable_tool/enable_tool/list_tools for legacy tool toggles. Secret settings require secure handoff; confirm-protected settings need confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "set", "delete", "disable_tool", "enable_tool", "list_tools"]},
-                    "key": {"type": "string", "description": "Setting key (for get/set/delete)"},
-                    "value": {"description": "Setting value (for set) — can be string, number, boolean, or object"},
+                    "action": {"type": "string", "enum": ["list", "get", "set", "patch", "delete", "reset", "explain", "features", "disable_tool", "enable_tool", "list_tools"]},
+                    "key": {"type": "string", "description": "Setting or feature key (for get/set/patch/reset/explain/features). Common aliases like 'default model' and 'token budget' are accepted for settings."},
+                    "scope": {"type": "string", "enum": ["auto", "user", "global"], "description": "Where to read/write a setting. auto prefers the current user when the setting supports user overrides."},
+                    "store": {"type": "string", "enum": ["setting", "feature"], "description": "Use feature for feature flags; otherwise setting is assumed."},
+                    "patch": {"type": "object", "description": "Structured patch object for list/object settings, e.g. {'op':'append','value':'brave'} or {'op':'set','path':'search','value':'ctrl+j'}."},
+                    "op": {"type": "string", "enum": ["append", "remove", "replace", "clear", "set"], "description": "Patch operation when patch is not supplied."},
+                    "path": {"type": "string", "description": "Object key/path for patch operations."},
+                    "patch_key": {"type": "string", "description": "Alternative object key/path for patch operations."},
+                    "confirmed": {"type": "boolean", "description": "Set true only after explicit user confirmation for confirm-protected settings or feature flags."},
+                    "value": {"description": "Setting value (for set/features) or patch value (for patch); can be string, number, boolean, list, or object"},
                     "tool": {"type": "string", "description": "Tool name to disable/enable (for disable_tool/enable_tool). Accepts aliases: shell, search, browser, documents, memory, skills, images, tasks, notes, calendar, email — or a raw tool name like 'bash' or 'web_search'."}
                 },
                 "required": ["action"]

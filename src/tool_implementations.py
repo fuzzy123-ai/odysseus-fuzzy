@@ -1119,12 +1119,366 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
 # Settings/preferences management tool
 # ---------------------------------------------------------------------------
 
+
+def _manage_settings_v2(args: Dict[str, Any], owner: Optional[str] = None) -> Dict:
+    """Service-backed manage_settings implementation.
+
+    The public tool response stays legacy-friendly (`response`, `value`,
+    `exit_code`) while the new `setting` payload carries machine-readable
+    policy and scope details for agent self-control flows.
+    """
+
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _scope() -> str:
+        return str(args.get("scope") or "auto")
+
+    def _store() -> str:
+        raw = str(args.get("store") or args.get("source") or "").strip().lower()
+        return "feature" if raw in {"feature", "features", "flag", "flags"} else "setting"
+
+    def _display_value(value: Any, visible: bool = True) -> Any:
+        return value if visible else "***** (secure handoff required)"
+
+    def _policy_response(result: Dict[str, Any]) -> Dict:
+        status = str(result.get("status") or "blocked")
+        return {
+            "response": str(result.get("reason") or status),
+            "status": status,
+            "requires_confirmation": bool(result.get("requires_confirmation")),
+            "secret_handoff_required": status == "secret_handoff_required",
+            "setting": result,
+            "exit_code": 0,
+        }
+
+    def _feature_items() -> Dict:
+        from src.settings_service import list_settings
+
+        snapshot = list_settings(scope="global", store="feature", include_secrets=False)
+        features = {item["key"]: item.get("value") for item in snapshot["settings"]}
+        return {
+            "response": f"{len(features)} feature flags",
+            "features": features,
+            "settings": features,
+            "exit_code": 0,
+        }
+
+    def _model_slug(value: str) -> str:
+        import re as _re
+
+        return _re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+
+    def _endpoint_model_from_cache(model_query: str) -> Dict[str, Any] | None:
+        import json as _json
+        import re as _re
+
+        try:
+            from core.database import ModelEndpoint, SessionLocal
+        except Exception:
+            return None
+
+        wanted = (model_query or "").strip()
+        wanted_slug = _model_slug(wanted)
+        wanted_tokens = [_model_slug(t) for t in _re.findall(r"[A-Za-z0-9]+", wanted)]
+        wanted_tokens = [t for t in wanted_tokens if t]
+        if not wanted_slug:
+            return None
+        try:
+            db = SessionLocal()
+        except Exception:
+            return None
+        try:
+            best = None
+            for ep in db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all():
+                try:
+                    raw_models = _json.loads(ep.cached_models or "[]") or []
+                except Exception:
+                    raw_models = []
+                for mid in raw_models:
+                    mid = str(mid)
+                    mid_slug = _model_slug(mid)
+                    if not mid_slug:
+                        continue
+                    exact = mid.lower() == wanted.lower()
+                    compact_match = wanted_slug in mid_slug or mid_slug in wanted_slug
+                    token_match = bool(wanted_tokens) and all(tok in mid_slug for tok in wanted_tokens)
+                    if exact or compact_match or token_match:
+                        score = 3 if exact else (2 if compact_match else 1)
+                        if not best or score > best[0]:
+                            best = (score, ep.id, mid)
+            if best:
+                return {"endpoint_id": best[1], "model": best[2]}
+            return None
+        except Exception:
+            return None
+        finally:
+            db.close()
+
+    try:
+        from src.settings import get_setting as load_setting_value, load_settings, save_settings
+        from src.settings_service import (
+            SettingsServiceError,
+            explain_setting,
+            get_setting as service_get_setting,
+            list_settings,
+            patch_setting,
+            reset_setting,
+            set_setting,
+        )
+        from src.settings_registry import resolve_setting_alias
+
+        if action == "list":
+            store = _store()
+            if store == "feature":
+                return _feature_items()
+            snapshot = list_settings(owner=owner, scope=_scope(), store="setting", include_secrets=False)
+            shown = {
+                item["key"]: _display_value(item.get("value"), bool(item.get("value_visible")))
+                for item in snapshot["settings"]
+                if item.get("value_type") != "object"
+            }
+            return {
+                "response": f"{len(shown)} settings (use get/set/patch/explain with a key)",
+                "settings": shown,
+                "exit_code": 0,
+            }
+
+        if action == "features":
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return _feature_items()
+            if "value" not in args:
+                result = service_get_setting(key, owner=owner, scope="global", store="feature")
+                return {
+                    "response": f"{result['key']} = {result.get('value')}",
+                    "value": result.get("value"),
+                    "setting": result,
+                    "exit_code": 0,
+                }
+            result = set_setting(
+                key,
+                args.get("value"),
+                owner=owner,
+                scope="global",
+                store="feature",
+                actor="agent",
+                confirmed=_confirmed(),
+            )
+            if not result.get("ok"):
+                return _policy_response(result)
+            return {
+                "response": f"Set feature {result['key']} = {result.get('value')}.",
+                "value": result.get("value"),
+                "setting": result,
+                "exit_code": 0,
+            }
+
+        if action == "get":
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return {"error": "key is required", "exit_code": 1}
+            result = service_get_setting(key, owner=owner, scope=_scope(), store=_store(), include_secret=False)
+            value = _display_value(result.get("value"), bool(result.get("value_visible")))
+            return {
+                "response": f"{result['key']} = {value}",
+                "value": value,
+                "setting": result,
+                "exit_code": 0,
+            }
+
+        if action == "set":
+            raw = str(args.get("key") or "").strip()
+            if not raw:
+                return {"error": "key is required", "exit_code": 1}
+            if "value" not in args:
+                return {"error": "value is required", "exit_code": 1}
+            store = _store()
+            key = resolve_setting_alias(raw) if store == "setting" else raw
+            value = args.get("value")
+            endpoint_result = None
+            if store == "setting" and key in {
+                "default_model",
+                "research_model",
+                "utility_model",
+                "task_model",
+                "vision_model",
+                "image_model",
+            }:
+                resolved = _endpoint_model_from_cache(str(value))
+                if resolved:
+                    prefix = key[:-6]
+                    endpoint_result = set_setting(
+                        f"{prefix}_endpoint_id",
+                        resolved["endpoint_id"],
+                        owner=owner,
+                        scope=_scope(),
+                        store="setting",
+                        actor="agent",
+                        confirmed=_confirmed(),
+                    )
+                    value = resolved["model"]
+            result = set_setting(
+                key,
+                value,
+                owner=owner,
+                scope=_scope(),
+                store=store,
+                actor="agent",
+                confirmed=_confirmed(),
+            )
+            if not result.get("ok"):
+                return _policy_response(result)
+            display_value = _display_value(result.get("value"), bool(result.get("value_visible")))
+            response = f"Set {result['key']} = {display_value}."
+            if endpoint_result and endpoint_result.get("ok"):
+                response = f"Set {result['key']} = {display_value} (endpoint {endpoint_result.get('value')})."
+            return {
+                "response": response,
+                "value": display_value,
+                "setting": result,
+                "endpoint_setting": endpoint_result,
+                "exit_code": 0,
+            }
+
+        if action in ("delete", "reset"):
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return {"error": "key is required", "exit_code": 1}
+            result = reset_setting(
+                key,
+                owner=owner,
+                scope=_scope(),
+                store=_store(),
+                actor="agent",
+                confirmed=_confirmed(),
+            )
+            if not result.get("ok"):
+                return _policy_response(result)
+            return {
+                "response": f"Reset {result['key']} to default ({result.get('value')}).",
+                "value": result.get("value"),
+                "setting": result,
+                "exit_code": 0,
+            }
+
+        if action == "patch":
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return {"error": "key is required", "exit_code": 1}
+            patch = args.get("patch")
+            if not isinstance(patch, dict):
+                patch = {
+                    "op": args.get("op"),
+                    "path": args.get("path") or args.get("patch_key"),
+                    "key": args.get("patch_key"),
+                    "value": args.get("value"),
+                }
+            result = patch_setting(
+                key,
+                patch,
+                owner=owner,
+                scope=_scope(),
+                actor="agent",
+                confirmed=_confirmed(),
+            )
+            if not result.get("ok"):
+                return _policy_response(result)
+            return {
+                "response": f"Patched {result['key']}.",
+                "value": result.get("value"),
+                "setting": result,
+                "exit_code": 0,
+            }
+
+        if action == "explain":
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return {"error": "key is required", "exit_code": 1}
+            result = explain_setting(key, owner=owner, scope=_scope(), store=_store())
+            bits = [result["key"], f"scope={result['entry']['scope']}", f"agent_access={result['agent_access']}"]
+            if result.get("requires_confirmation"):
+                bits.append("requires_confirmation")
+            if result.get("secret_handoff_required"):
+                bits.append("secret_handoff_required")
+            return {"response": "; ".join(bits), "setting": result, "exit_code": 0}
+
+        if action in ("disable_tool", "enable_tool", "list_tools"):
+            _ALIASES = {
+                "shell": ["bash"],
+                "terminal": ["bash"],
+                "search": ["web_search"],
+                "web": ["web_search"],
+                "browser": ["builtin_browser"],
+                "documents": ["create_document", "edit_document", "update_document", "suggest_document"],
+                "doc": ["create_document", "edit_document", "update_document", "suggest_document"],
+                "memory": ["manage_memory"],
+                "skills": ["manage_skills"],
+                "images": ["generate_image"],
+                "image": ["generate_image"],
+                "tasks": ["manage_tasks"],
+                "notes": ["manage_notes"],
+                "calendar": ["manage_calendar"],
+                "email": ["mcp__email__list_emails", "mcp__email__read_email", "mcp__email__send_email"],
+                "research": ["web_search"],
+            }
+            if action == "list_tools":
+                current = load_setting_value("disabled_tools", []) or []
+                return {
+                    "response": (
+                        f"Currently disabled: {', '.join(current) if current else '(none)'}.\n"
+                        "Common toggles: shell (bash), search (web_search), browser, documents, "
+                        "memory, skills, images, tasks, notes, calendar, email."
+                    ),
+                    "disabled": list(current),
+                    "exit_code": 0,
+                }
+            tool_name = (args.get("tool") or args.get("name") or "").strip().lower()
+            if not tool_name:
+                return {"error": "tool name required (e.g. 'shell', 'search', 'bash')", "exit_code": 1}
+            targets = _ALIASES.get(tool_name, [tool_name])
+            settings = load_settings()
+            current = list(settings.get("disabled_tools") or [])
+            before = set(current)
+            if action == "disable_tool":
+                for target in targets:
+                    if target not in current:
+                        current.append(target)
+            else:
+                current = [target for target in current if target not in targets]
+            after = set(current)
+            settings["disabled_tools"] = current
+            save_settings(settings)
+            verb = "Disabled" if action == "disable_tool" else "Enabled"
+            changed = sorted(after.symmetric_difference(before))
+            return {
+                "response": (
+                    f"{verb} {tool_name} ({', '.join(targets)}). "
+                    f"Now disabled: {', '.join(current) if current else '(none)'}."
+                ),
+                "changed": changed,
+                "disabled": list(current),
+                "exit_code": 0,
+            }
+
+        return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except SettingsServiceError as exc:
+        return {"error": str(exc), "status": exc.code, "exit_code": 1}
+    except Exception as exc:
+        logger.error("manage_settings v2 error: %s", exc)
+        return {"error": str(exc), "exit_code": 1}
+
+
 async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
     """Manage user settings and preferences."""
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    return _manage_settings_v2(args, owner=owner)
 
     action = args.get("action", "list")
 
