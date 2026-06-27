@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices plus local workspace/repo provisioning, planner adapter, task runner and commit runner done; visual Project UI and provider repo creation remain gated**
+Status: **Non-UI backend/API slices plus local workspace/repo provisioning, planner adapter, task runner, commit runner and push runner done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -158,7 +158,7 @@ Current result:
 
 ### P4 Git And Review Flow
 
-Status: **backend Git/review plan, local repo init and local commit runner done; remote/provider Git operations remain gated**
+Status: **backend Git/review plan, local repo init, local commit and gated push runners done; provider repo operations remain gated**
 
 Goal:
 
@@ -195,7 +195,13 @@ Current result:
   `git add -- <reviewed paths>` and `git commit -m <safe message>` with
   `shell=False`.
 - The API exposes this as `/api/projects/{project_slug}/commit-run`.
-- Remote provider repository creation, remote attachment and push remain future
+- `src/server_project_push_runner.py` can push a confirmed local project commit
+  to the allowlisted `fuzzy` remote and blocks `origin`, force-style requests,
+  unsafe branches and unconfirmed commits.
+- The push runner executes only `git status --short --branch` and
+  `git push fuzzy <branch>` with `shell=False`.
+- The API exposes this as `/api/projects/{project_slug}/push-run`.
+- Remote provider repository creation and remote attachment remain future
   provider/operator-gated slices.
 
 ### P5 Deploy Handoff

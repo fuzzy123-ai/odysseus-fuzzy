@@ -172,6 +172,32 @@ def test_project_routes_commit_run_reports_gate_without_live_commit(tmp_path: Pa
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_push_run_reports_gate_without_live_push(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/push-run",
+        json={
+            "branch": "project/kundenportal-mvp/work",
+            "commit_ref": "abc1234",
+            "commit_confirmed": False,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["push_run"]["executed"] is False
+    plan = body["push_run"]["plan"]
+    assert plan["remote_name"] == "fuzzy"
+    assert plan["branch"] == "project/kundenportal-mvp/work"
+    assert "local commit must be confirmed before push" in plan["blockers"]
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -197,6 +223,10 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert client.post(
         "/api/projects/missing/commit-run",
         json={"objective": "x", "changed_paths": [], "checks_passed": False},
+    ).status_code == 404
+    assert client.post(
+        "/api/projects/missing/push-run",
+        json={"branch": "project/demo/work", "commit_ref": "abc1234", "commit_confirmed": False},
     ).status_code == 404
 
 

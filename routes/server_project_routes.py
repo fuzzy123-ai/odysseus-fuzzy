@@ -22,6 +22,10 @@ from src.server_project_provisioner import (
     ServerProjectProvisioningError,
     provision_project_workspace,
 )
+from src.server_project_push_runner import (
+    ServerProjectPushRunnerError,
+    run_project_push,
+)
 from src.server_project_registry import ServerProjectRegistry, ServerProjectRegistryError
 from src.server_project_repo_provisioner import (
     ServerProjectRepoProvisioningError,
@@ -101,6 +105,15 @@ class ProjectCommitRunRequest(BaseModel):
     checks_passed: bool = False
     commit_message: str | None = None
     push_remote: str = "fuzzy"
+    live_enabled: bool = False
+    operator_decision: str = "missing"
+
+
+class ProjectPushRunRequest(BaseModel):
+    branch: str = Field(min_length=1, max_length=120)
+    commit_ref: str = Field(min_length=7, max_length=40)
+    commit_confirmed: bool = False
+    remote_name: str = "fuzzy"
     live_enabled: bool = False
     operator_decision: str = "missing"
 
@@ -270,6 +283,27 @@ def setup_server_project_routes(
         except ServerProjectCommitRunnerError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.executed and report.status == "committed", "commit_run": report.to_dict()}
+
+    @router.post("/{project_slug}/push-run")
+    def run_push(project_slug: str, body: ProjectPushRunRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = run_project_push(
+                record=record,
+                projects_root=configured_projects_root,
+                branch=body.branch,
+                commit_ref=body.commit_ref,
+                commit_confirmed=body.commit_confirmed,
+                remote_name=body.remote_name,
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectPushRunnerError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed and report.status == "pushed", "push_run": report.to_dict()}
 
     return router
 
