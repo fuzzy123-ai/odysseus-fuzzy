@@ -1211,7 +1211,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_contact",
-            "description": "Create, update, delete, or list the user's CardDAV contacts. Use to save a new contact, update an existing one (email/phone/address), or remove one. For update/delete you need the contact's uid — call action='list' first to find it. Writes go through the same dedupe + validation as the Contacts UI.",
+            "description": "Create, update, delete, or list the user's CardDAV contacts. Use to save a new contact, update an existing one (email/phone/address), or remove one. For update/delete you need the contact's uid — call action='list' first to find it. Delete requires confirmed=true after explicit user confirmation. Writes go through the same dedupe + validation as the Contacts UI.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1223,6 +1223,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "emails": {"type": "array", "items": {"type": "string"}, "description": "Full list of email addresses (for update; first is primary)."},
                     "phones": {"type": "array", "items": {"type": "string"}, "description": "Full list of phone numbers (for update)."},
                     "address": {"type": "string", "description": "Postal/mailing address as a single human-readable string."},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."},
                 },
                 "required": ["action"]
             }

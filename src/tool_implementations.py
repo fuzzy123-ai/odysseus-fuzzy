@@ -4680,6 +4680,18 @@ async def do_manage_contact(content: str, owner: Optional[str] = None) -> Dict:
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
     action = (args.get("action") or "").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Contact {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     try:
         from routes import contacts_routes as cc
     except Exception as e:
@@ -4732,6 +4744,8 @@ async def do_manage_contact(content: str, owner: Optional[str] = None) -> Dict:
             uid = (args.get("uid") or "").strip()
             if not uid:
                 return {"error": "uid is required for delete (use action=list to find it)", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("delete")
             ok = await asyncio.to_thread(cc._delete_contact, uid)
             return {"output": "Contact deleted." if ok else "Delete failed.", "exit_code": 0 if ok else 1}
 
