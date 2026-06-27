@@ -230,6 +230,8 @@ Current result:
 
 ### P7 Server Install And Service Wiring
 
+Status: **backend service wiring templates done; live server install remains gated**
+
 Goal:
 
 - Auf dem Debian-Server systemd/Podman-Integration, Logs und Healthchecks
@@ -239,6 +241,19 @@ Gate:
 
 - Keine Secrets ins Repo.
 - Kein Host-Pfad oder privater Output in Persistenzartefakten.
+
+Current result:
+
+- `src/server_project_service_wiring.py` builds reviewable systemd user-service,
+  healthcheck and log unit templates for a project.
+- Unit templates use placeholders such as `$ODYSSEUS_PROJECTS_ROOT` and
+  `$ODYSSEUS_USER_BIN_DIR` instead of private host paths.
+- Service install is `plan_ready` only with ready deploy handoff and
+  `operator_decision=go`.
+- Cloudflare exposure remains a separate hold gate with route/token/DNS and
+  healthcheck review.
+- No server install, service reload, Podman lifecycle action or tunnel setup is
+  performed by this slice.
 
 ### P8 Project UI And AI Command Surface
 
