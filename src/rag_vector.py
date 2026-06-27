@@ -11,7 +11,7 @@ import hashlib
 import re
 import logging
 import numpy as np
-from typing import List, Dict, Any, Optional, Set
+from typing import Callable, List, Dict, Any, Optional, Set
 
 from src.constants import CHROMA_DIR
 from pathlib import Path
@@ -33,6 +33,8 @@ DEFAULT_FILE_EXTENSIONS: Set[str] = {
     '.txt', '.md', '.py', '.json', '.yaml', '.yml',
     '.csv', '.html', '.css', '.js', '.pdf'
 }
+
+_PROTECTED_INDEX_METADATA_KEYS = {"source", "filename", "directory", "type", "owner", "chunk_id"}
 
 VECTOR_WEIGHT = 0.7
 KEYWORD_WEIGHT = 0.3
@@ -65,6 +67,34 @@ def _rewrite_owner_path(value: str, path_map: Dict[str, str], path_prefixes: Lis
         if abs_value.startswith(old_abs + os.sep):
             return new_abs + abs_value[len(old_abs):]
     return value
+
+
+def _call_index_metadata_provider(
+    metadata_provider: Optional[Callable[..., Dict[str, Any]]],
+    *,
+    fpath: str,
+    relative_path: str,
+    root: str,
+    directory: str,
+) -> Dict[str, Any]:
+    if metadata_provider is None:
+        return {}
+    try:
+        extra = metadata_provider(
+            fpath=fpath,
+            relative_path=relative_path,
+            root=root,
+            directory=directory,
+        )
+    except TypeError:
+        extra = metadata_provider(fpath, relative_path)
+    if not isinstance(extra, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in extra.items()
+        if str(key) not in _PROTECTED_INDEX_METADATA_KEYS
+    }
 
 
 class VectorRAG:
@@ -488,7 +518,11 @@ class VectorRAG:
     # ------------------------------------------------------------------
 
     def index_personal_documents(
-        self, directory: str, file_extensions: Optional[set] = None, owner: Optional[str] = None
+        self,
+        directory: str,
+        file_extensions: Optional[set] = None,
+        owner: Optional[str] = None,
+        metadata_provider: Optional[Callable[..., Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         if file_extensions is None:
             file_extensions = DEFAULT_FILE_EXTENSIONS
@@ -500,6 +534,7 @@ class VectorRAG:
             for root, _, files in os.walk(directory):
                 for fname in files:
                     fpath = os.path.join(root, fname)
+                    relative_path = os.path.relpath(fpath, directory).replace(os.sep, "/")
                     ext = Path(fname).suffix.lower()
                     if ext not in file_extensions:
                         continue
@@ -521,6 +556,13 @@ class VectorRAG:
                             'directory': root,
                             'type': ext,
                         }
+                        meta.update(_call_index_metadata_provider(
+                            metadata_provider,
+                            fpath=fpath,
+                            relative_path=relative_path,
+                            root=root,
+                            directory=directory,
+                        ))
                         if owner:
                             meta['owner'] = owner
 

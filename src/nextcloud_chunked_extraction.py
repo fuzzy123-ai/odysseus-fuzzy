@@ -19,6 +19,7 @@ from src.bigdata_ledger_contract import (
     BigDataLedgerItem,
     BigDataLedgerRecord,
 )
+from src.nextcloud_ingestion_integration import classify_nextcloud_ingestion_path
 
 
 _SAFE_LABEL_RE = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,79}$")
@@ -49,6 +50,7 @@ class RuntimeExtractionDocument:
     extractor: str = "universal_inbox"
     error: str = ""
     warning_codes: tuple[str, ...] = ()
+    privacy_metadata: Mapping[str, Any] | None = None
 
     @classmethod
     def create(
@@ -59,6 +61,7 @@ class RuntimeExtractionDocument:
         extractor: str = "universal_inbox",
         error: str = "",
         warning_codes: Iterable[str] = (),
+        privacy_metadata: Mapping[str, Any] | None = None,
     ) -> "RuntimeExtractionDocument":
         parsed_item = item if isinstance(item, BigDataLedgerItem) else BigDataLedgerItem.from_mapping(item)
         return cls(
@@ -67,6 +70,7 @@ class RuntimeExtractionDocument:
             extractor=_normalize_label(extractor, field="extractor"),
             error=str(error or ""),
             warning_codes=tuple(_normalize_label(code, field="warning_code") for code in warning_codes),
+            privacy_metadata=dict(privacy_metadata or {}),
         )
 
 
@@ -135,6 +139,8 @@ def plan_nextcloud_chunked_extraction(
     max_chunk_chars: int = 4000,
     max_chunks_per_item: int = 256,
     require_transfer_state: bool = True,
+    sensitive_roots: Iterable[str] = (),
+    default_unknown_private: bool = False,
 ) -> ChunkedExtractionLaneResult:
     """Persist offline extraction progress and retry states in the ledger."""
 
@@ -171,6 +177,12 @@ def plan_nextcloud_chunked_extraction(
             skipped_missing_transfer += 1
             continue
 
+        privacy_metadata = _privacy_metadata_for_document(
+            document,
+            latest,
+            sensitive_roots=sensitive_roots,
+            default_unknown_private=default_unknown_private,
+        )
         prior_attempts = existing_extraction.attempt_count if existing_extraction is not None else 0
         record = _build_record(
             document,
@@ -178,6 +190,7 @@ def plan_nextcloud_chunked_extraction(
             prior_attempts=prior_attempts,
             max_chunk_chars=max_chunk_chars,
             max_chunks_per_item=max_chunks_per_item,
+            privacy_metadata=privacy_metadata,
         )
         ledger.append_record(record)
         if record.status == "completed":
@@ -205,6 +218,7 @@ def _build_record(
     prior_attempts: int,
     max_chunk_chars: int,
     max_chunks_per_item: int,
+    privacy_metadata: Mapping[str, Any],
 ) -> BigDataLedgerRecord:
     base_metadata: dict[str, Any] = {
         "lane": "nextcloud_chunked_extraction",
@@ -213,7 +227,18 @@ def _build_record(
         "transfer_status": transfer_status or "unknown",
         "max_chunk_chars": max_chunk_chars,
         "warning_codes": tuple(document.warning_codes),
+        **dict(privacy_metadata or {}),
     }
+    privacy = base_metadata.get("privacy") if isinstance(base_metadata.get("privacy"), Mapping) else {}
+    if privacy and not bool(privacy.get("memory_write_candidate", True)):
+        return BigDataLedgerRecord.create(
+            document.item,
+            stage="extraction",
+            status="needs_review",
+            attempt_count=prior_attempts,
+            metadata={**base_metadata, "reason_code": "privacy_review_required"},
+        )
+
     if document.error:
         return BigDataLedgerRecord.create(
             document.item,
@@ -258,6 +283,44 @@ def _transfer_status(latest: Mapping[tuple[str, str], BigDataLedgerRecord], item
     return record.status if record is not None else ""
 
 
+def _privacy_metadata_for_document(
+    document: RuntimeExtractionDocument,
+    latest: Mapping[tuple[str, str], BigDataLedgerRecord],
+    *,
+    sensitive_roots: Iterable[str],
+    default_unknown_private: bool,
+) -> dict[str, Any]:
+    if isinstance(document.privacy_metadata, Mapping) and document.privacy_metadata:
+        return dict(document.privacy_metadata)
+
+    inventory = latest.get((document.item.item_id, "inventory"))
+    if inventory is not None:
+        privacy = inventory.metadata.get("privacy")
+        if isinstance(privacy, Mapping) and privacy:
+            return {
+                "privacy": dict(privacy),
+                "classification": _classification_for_privacy(privacy),
+                "local_model_only": bool(privacy.get("local_model_only")),
+                "required_model_scope": privacy.get("required_model_scope") or "",
+                "memory_write_candidate": bool(privacy.get("memory_write_candidate", True)),
+                "rag_index_candidate": bool(privacy.get("memory_write_candidate", True)),
+                "privacy_policy": "nextcloud_privacy_partition:v1",
+            }
+
+    return classify_nextcloud_ingestion_path(
+        document.item.relative_path,
+        sensitive_roots=sensitive_roots,
+        default_unknown_private=default_unknown_private,
+    ).for_extraction_metadata()
+
+
+def _classification_for_privacy(privacy: Mapping[str, Any]) -> str:
+    if bool(privacy.get("local_model_only")):
+        return "sensitive"
+    privacy_class = str(privacy.get("privacy_class") or "").strip().lower()
+    return "sensitive" if privacy_class in {"local_sensitive", "unknown_private"} else "private"
+
+
 def _normalize_document(document: RuntimeExtractionDocument | Mapping[str, Any]) -> RuntimeExtractionDocument:
     if isinstance(document, RuntimeExtractionDocument):
         return document
@@ -268,6 +331,7 @@ def _normalize_document(document: RuntimeExtractionDocument | Mapping[str, Any])
         extractor=str(document.get("extractor") or "universal_inbox"),
         error=str(document.get("error") or ""),
         warning_codes=document.get("warning_codes") or (),
+        privacy_metadata=document.get("privacy_metadata") or {},
     )
 
 
