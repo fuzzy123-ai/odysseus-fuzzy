@@ -67,6 +67,8 @@ Result:
 
 ### P2 Project Registry And Active Workspace Preparation
 
+Status: **registry model done; active workspace creation remains gated**
+
 Goal:
 
 - Server-seitige Projekt-Registry definieren: Projekt-ID, Titel, Slug,
@@ -79,6 +81,17 @@ Gate:
 
 - Keine Projektarbeit ausserhalb des erlaubten Workspace-Roots.
 - Keine Secrets, privaten Rohdaten, Chat-IDs oder Host-Pfade im Report.
+
+Current result:
+
+- `src/server_project_registry.py` persists universal project records as atomic
+  JSON.
+- Records bind `project_slug`, `repo_name`, `projects/<slug>` Workspace,
+  `project:<slug>` Chat Scope and optional Cloudflare Tunnel request.
+- Chat sessions can be attached idempotently.
+- Audit summaries report counts and scopes, not raw session contents.
+- Active repo creation, filesystem workspace creation, GitHub/Gitea calls and
+  Cloudflare Tunnel setup remain future operator-gated slices.
 
 ### P2B Project Chat Context
 
