@@ -666,6 +666,53 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 raise HTTPException(400, exc.message) from exc
         return _settings_response_dict(include_secrets=True)
 
+    def _secret_handoff_http_error(exc: Exception) -> HTTPException:
+        code = getattr(exc, "code", "error")
+        if code == "not_found":
+            return HTTPException(404, "Secret handoff not found")
+        if code == "not_pending":
+            return HTTPException(409, "Secret handoff is no longer pending")
+        return HTTPException(400, str(exc))
+
+    @router.get("/settings/secret-handoffs")
+    async def list_settings_secret_handoffs(request: Request):
+        """Admin only: list pending secret handoff requests without values."""
+        user = _get_current_user(request)
+        if not user or not auth_manager.is_admin(user):
+            raise HTTPException(403, "Admin only")
+        from src.secret_handoff import list_secret_handoffs
+
+        query_params = getattr(request, "query_params", {}) or {}
+        status = query_params.get("status", "pending") if hasattr(query_params, "get") else "pending"
+        return list_secret_handoffs(status=status)
+
+    @router.post("/settings/secret-handoffs/{request_id}/complete")
+    async def complete_settings_secret_handoff(request_id: str, request: Request):
+        """Admin only: complete a pending secret handoff without echoing the value."""
+        user = _get_current_user(request)
+        if not user or not auth_manager.is_admin(user):
+            raise HTTPException(403, "Admin only")
+        from src.secret_handoff import SecretHandoffError, complete_secret_handoff
+
+        body = await request.json()
+        try:
+            return complete_secret_handoff(request_id, str(body.get("value") or ""), actor=user)
+        except (SecretHandoffError, SettingsServiceError) as exc:
+            raise _secret_handoff_http_error(exc) from exc
+
+    @router.post("/settings/secret-handoffs/{request_id}/cancel")
+    async def cancel_settings_secret_handoff(request_id: str, request: Request):
+        """Admin only: cancel a pending secret handoff."""
+        user = _get_current_user(request)
+        if not user or not auth_manager.is_admin(user):
+            raise HTTPException(403, "Admin only")
+        from src.secret_handoff import SecretHandoffError, cancel_secret_handoff
+
+        try:
+            return cancel_secret_handoff(request_id, actor=user)
+        except SecretHandoffError as exc:
+            raise _secret_handoff_http_error(exc) from exc
+
     # ---- Integrations CRUD ----
 
     # Run migration on startup

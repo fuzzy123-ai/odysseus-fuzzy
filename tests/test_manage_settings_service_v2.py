@@ -4,6 +4,7 @@ import json
 import pytest
 
 import routes.prefs_routes as prefs_routes
+import src.secret_handoff as secret_handoff
 import src.settings as settings_store
 from src.tool_implementations import do_manage_settings
 
@@ -13,14 +14,17 @@ def isolated_settings_files(tmp_path, monkeypatch):
     settings_file = tmp_path / "settings.json"
     features_file = tmp_path / "features.json"
     prefs_file = tmp_path / "user_prefs.json"
+    handoffs_file = tmp_path / "secret_handoffs.json"
     monkeypatch.setattr(settings_store, "SETTINGS_FILE", str(settings_file))
     monkeypatch.setattr(settings_store, "FEATURES_FILE", str(features_file))
     monkeypatch.setattr(prefs_routes, "PREFS_FILE", str(prefs_file))
+    monkeypatch.setattr(secret_handoff, "SECRET_HANDOFFS_FILE", str(handoffs_file))
     settings_store._invalidate_caches()
     yield {
         "settings": settings_file,
         "features": features_file,
         "prefs": prefs_file,
+        "handoffs": handoffs_file,
     }
     settings_store._invalidate_caches()
 
@@ -83,6 +87,23 @@ def test_secret_setting_returns_handoff_without_persisting(isolated_settings_fil
     assert result["status"] == "secret_handoff_required"
     assert result["secret_handoff_required"] is True
     assert not isolated_settings_files["settings"].exists()
+
+
+def test_request_secret_creates_pending_handoff_without_echoing_value(isolated_settings_files):
+    result = _run_manage({
+        "action": "request_secret",
+        "key": "brave_api_key",
+        "value": "secret-value",
+        "ttl_seconds": 60,
+    })
+    listed = _run_manage({"action": "secret_handoffs"})
+
+    assert result["exit_code"] == 0
+    assert result["secret_handoff"]["status"] == "pending"
+    assert result["secret_handoff"]["key"] == "brave_api_key"
+    assert listed["secret_handoffs"][0]["id"] == result["secret_handoff"]["id"]
+    assert "secret-value" not in json.dumps(result)
+    assert "secret-value" not in isolated_settings_files["handoffs"].read_text(encoding="utf-8")
 
 
 def test_patch_structured_setting_through_tool(isolated_settings_files):

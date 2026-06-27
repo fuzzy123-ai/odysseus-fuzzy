@@ -1,4 +1,5 @@
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -6,6 +7,7 @@ from fastapi import HTTPException
 
 import routes.auth_routes as auth_routes
 import routes.prefs_routes as prefs_routes
+import src.secret_handoff as secret_handoff
 import src.settings as settings_store
 
 
@@ -21,10 +23,11 @@ class _FakeAuthManager:
 
 
 class _FakeRequest:
-    def __init__(self, token="", body=None):
+    def __init__(self, token="", body=None, query_params=None):
         self.cookies = {auth_routes.SESSION_COOKIE: token} if token else {}
         self.client = SimpleNamespace(host="127.0.0.1")
         self._body = body or {}
+        self.query_params = query_params or {}
 
     async def json(self):
         return dict(self._body)
@@ -35,15 +38,18 @@ def isolated_route_settings(tmp_path, monkeypatch):
     settings_file = tmp_path / "settings.json"
     features_file = tmp_path / "features.json"
     prefs_file = tmp_path / "user_prefs.json"
+    handoffs_file = tmp_path / "secret_handoffs.json"
     monkeypatch.setattr(settings_store, "SETTINGS_FILE", str(settings_file))
     monkeypatch.setattr(settings_store, "FEATURES_FILE", str(features_file))
     monkeypatch.setattr(prefs_routes, "PREFS_FILE", str(prefs_file))
+    monkeypatch.setattr(secret_handoff, "SECRET_HANDOFFS_FILE", str(handoffs_file))
     monkeypatch.setattr(auth_routes, "migrate_from_settings", lambda: None)
     settings_store._invalidate_caches()
     yield {
         "settings": settings_file,
         "features": features_file,
         "prefs": prefs_file,
+        "handoffs": handoffs_file,
     }
     settings_store._invalidate_caches()
 
@@ -127,3 +133,37 @@ def test_auth_settings_and_features_mutation_require_admin(isolated_route_settin
 
     assert settings_exc.value.status_code == 403
     assert features_exc.value.status_code == 403
+
+
+def test_auth_secret_handoff_routes_require_admin_and_do_not_echo_secret(isolated_route_settings):
+    pending = secret_handoff.create_secret_handoff("brave_api_key", ttl_seconds=60)
+    list_target = _endpoint("/api/auth/settings/secret-handoffs", "GET")
+    complete_target = _endpoint("/api/auth/settings/secret-handoffs/{request_id}/complete", "POST")
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(list_target(_FakeRequest("user-token")))
+    assert exc.value.status_code == 403
+
+    listed = asyncio.run(list_target(_FakeRequest("admin-token")))
+    completed = asyncio.run(complete_target(
+        pending["id"],
+        _FakeRequest("admin-token", {"value": "secret-value"}),
+    ))
+
+    assert listed["count"] == 1
+    assert listed["requests"][0]["id"] == pending["id"]
+    assert completed["stored"] is True
+    assert completed["setting"]["value_visible"] is False
+    assert "secret-value" not in json.dumps(completed)
+    assert settings_store.load_settings()["brave_api_key"] == "secret-value"
+    assert "secret-value" not in isolated_route_settings["handoffs"].read_text(encoding="utf-8")
+
+
+def test_auth_secret_handoff_cancel_marks_pending(isolated_route_settings):
+    pending = secret_handoff.create_secret_handoff("brave_api_key", ttl_seconds=60)
+    cancel_target = _endpoint("/api/auth/settings/secret-handoffs/{request_id}/cancel", "POST")
+
+    result = asyncio.run(cancel_target(pending["id"], _FakeRequest("admin-token")))
+
+    assert result["status"] == "cancelled"
+    assert secret_handoff.list_secret_handoffs(status="cancelled")["count"] == 1

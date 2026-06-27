@@ -898,8 +898,8 @@ FUNCTION_TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "set", "patch", "delete", "reset", "explain", "features", "disable_tool", "enable_tool", "list_tools"]},
-                    "key": {"type": "string", "description": "Setting or feature key (for get/set/patch/reset/explain/features). Common aliases like 'default model' and 'token budget' are accepted for settings."},
+                    "action": {"type": "string", "enum": ["list", "get", "set", "patch", "delete", "reset", "explain", "features", "request_secret", "secret_handoffs", "disable_tool", "enable_tool", "list_tools"]},
+                    "key": {"type": "string", "description": "Setting or feature key (for get/set/patch/reset/explain/features/request_secret). Common aliases like 'default model' and 'token budget' are accepted for settings."},
                     "scope": {"type": "string", "enum": ["auto", "user", "global"], "description": "Where to read/write a setting. auto prefers the current user when the setting supports user overrides."},
                     "store": {"type": "string", "enum": ["setting", "feature"], "description": "Use feature for feature flags; otherwise setting is assumed."},
                     "patch": {"type": "object", "description": "Structured patch object for list/object settings, e.g. {'op':'append','value':'brave'} or {'op':'set','path':'search','value':'ctrl+j'}."},
@@ -907,6 +907,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "path": {"type": "string", "description": "Object key/path for patch operations."},
                     "patch_key": {"type": "string", "description": "Alternative object key/path for patch operations."},
                     "confirmed": {"type": "boolean", "description": "Set true only after explicit user confirmation for confirm-protected settings or feature flags."},
+                    "ttl_seconds": {"type": "integer", "description": "Optional expiration window for request_secret handoffs; capped server-side."},
+                    "status": {"type": "string", "enum": ["pending", "completed", "cancelled", "expired"], "description": "Filter for secret_handoffs."},
                     "value": {"description": "Setting value (for set/features) or patch value (for patch); can be string, number, boolean, list, or object"},
                     "tool": {"type": "string", "description": "Tool name to disable/enable (for disable_tool/enable_tool). Accepts aliases: shell, search, browser, documents, memory, skills, images, tasks, notes, calendar, email — or a raw tool name like 'bash' or 'web_search'."}
                 },

@@ -1246,6 +1246,47 @@ def _manage_settings_v2(args: Dict[str, Any], owner: Optional[str] = None) -> Di
                 "exit_code": 0,
             }
 
+        if action == "request_secret":
+            key = str(args.get("key") or "").strip()
+            if not key:
+                return {"error": "key is required", "exit_code": 1}
+            try:
+                from src.secret_handoff import create_secret_handoff
+
+                handoff = create_secret_handoff(
+                    key,
+                    owner=owner,
+                    scope=_scope(),
+                    requested_by="agent",
+                    ttl_seconds=int(args.get("ttl_seconds") or 3600),
+                )
+            except SettingsServiceError as exc:
+                return {"error": str(exc), "status": exc.code, "exit_code": 1}
+            return {
+                "response": (
+                    f"Secure input requested for {handoff['key']}. "
+                    "Open the secure settings handoff UI to enter the value."
+                ),
+                "secret_handoff": handoff,
+                "ui_event": {
+                    "type": "odysseus:secret-handoff-requested",
+                    "request_id": handoff["id"],
+                    "key": handoff["key"],
+                },
+                "exit_code": 0,
+            }
+
+        if action == "secret_handoffs":
+            from src.secret_handoff import list_secret_handoffs
+
+            status = str(args.get("status") or "pending").strip().lower()
+            handoffs = list_secret_handoffs(status=status or None)
+            return {
+                "response": f"{handoffs['count']} secret handoff request(s)",
+                "secret_handoffs": handoffs["requests"],
+                "exit_code": 0,
+            }
+
         if action == "features":
             key = str(args.get("key") or "").strip()
             if not key:
