@@ -108,7 +108,7 @@ def _set_dsgvo_mode(enabled: bool) -> dict[str, Any]:
 def _dsgvo_reply_text(command: str, result: dict[str, Any] | None = None) -> str:
     active = bool((result or {}).get("after") if result is not None else _dsgvo_mode_active())
     if command == "dsgvo_help":
-        return "Nutze /dsgvo on, /dsgvo off oder /dsgvo status."
+        return "Nutze /dsgvo zum Umschalten, oder /dsgvo status fuer den aktuellen Zustand."
     if command == "dsgvo_enable":
         return (
             "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; "
@@ -121,6 +121,16 @@ def _dsgvo_reply_text(command: str, result: dict[str, Any] | None = None) -> str
         )
     if command == "dsgvo_disable":
         return "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder."
+    if command == "dsgvo_toggle":
+        if (result or {}).get("forced_active"):
+            return (
+                "DSGVO-Modus bleibt aktiv, weil ein Server- oder Kompatibilitaets-Gate "
+                "ihn erzwingt."
+            )
+        return (
+            "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; "
+            "externe Web-, Provider- und Tool-I/O ist gesperrt."
+        ) if active else "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder."
     return (
         "DSGVO-Modus ist aktiv. Telegram nutzt local-only Verarbeitung."
         if active
@@ -810,7 +820,9 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
             return "dsgvo_enable"
         if arg in {"off", "aus", "0", "false", "inaktiv", "inactive", "disable", "disabled", "deaktivieren"}:
             return "dsgvo_disable"
-        if arg in {"", "status", "state", "info", "show"}:
+        if arg == "":
+            return "dsgvo_toggle"
+        if arg in {"status", "state", "info", "show"}:
             return "dsgvo_status"
         return "dsgvo_help"
     return ""
@@ -845,6 +857,12 @@ def _handle_telegram_control_command(
         elif command == "dsgvo_disable":
             result = _set_dsgvo_mode(False)
             status = "dsgvo_forced_active" if result.get("forced_active") else "dsgvo_disabled"
+        elif command == "dsgvo_toggle":
+            result = _set_dsgvo_mode(not _dsgvo_mode_active())
+            if result.get("forced_active"):
+                status = "dsgvo_forced_active"
+            else:
+                status = "dsgvo_enabled" if result.get("after") else "dsgvo_disabled"
         else:
             status = "dsgvo_status" if command == "dsgvo_status" else "dsgvo_help"
         reply_text = _dsgvo_reply_text(command, result)
@@ -1162,7 +1180,7 @@ def _sync_dsgvo_pin_state(
     store: TelegramInboxStore | None,
     pin_store: TelegramPrivacyPinStore | None,
 ) -> dict[str, Any]:
-    if command not in {"dsgvo_enable", "dsgvo_disable", "dsgvo_status"}:
+    if command not in {"dsgvo_enable", "dsgvo_disable", "dsgvo_status", "dsgvo_toggle"}:
         return {"status": "not_applicable"}
     if pin_store is None:
         return {"status": "pin_store_missing"}
@@ -1171,7 +1189,7 @@ def _sync_dsgvo_pin_state(
 
     active_after = bool((result or {}).get("after") if result is not None else _dsgvo_mode_active())
     if active_after:
-        if command not in {"dsgvo_enable", "dsgvo_status"}:
+        if command not in {"dsgvo_enable", "dsgvo_status", "dsgvo_toggle"}:
             return {"status": "still_active"}
         existing = pin_store.get_pin(chat_id)
         if existing and int(existing.get("message_id") or 0) > 0:

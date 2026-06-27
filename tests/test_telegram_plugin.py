@@ -751,7 +751,8 @@ def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, 
 def test_telegram_control_command_detects_dsgvo_aliases():
     assert _telegram_control_command({"kind": "text", "text": "/dsgvo on"}) == "dsgvo_enable"
     assert _telegram_control_command({"kind": "text", "text": "/privacy aus"}) == "dsgvo_disable"
-    assert _telegram_control_command({"kind": "text", "text": "/gdpr"}) == "dsgvo_status"
+    assert _telegram_control_command({"kind": "text", "text": "/gdpr"}) == "dsgvo_toggle"
+    assert _telegram_control_command({"kind": "text", "text": "/dsgvo status"}) == "dsgvo_status"
     assert _telegram_control_command({"kind": "text", "text": "/datenschutz maybe"}) == "dsgvo_help"
 
 
@@ -805,7 +806,7 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
                 "message_id": 90,
                 "chat": {"id": 123},
                 "from": {"id": 1, "first_name": "Nina"},
-                "text": "/dsgvo on",
+                "text": "/dsgvo",
             },
         }],
         agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
@@ -907,7 +908,7 @@ def test_polling_cycle_dsgvo_disable_unpins_privacy_message(tmp_path, monkeypatc
                 "message_id": 92,
                 "chat": {"id": 123},
                 "from": {"id": 1, "first_name": "Nina"},
-                "text": "/dsgvo off",
+                "text": "/dsgvo",
             },
         }],
         reply_handler=_reply,
