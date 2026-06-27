@@ -18,11 +18,9 @@ from src.rate_limiter import RateLimiter
 from src.settings_scrub import scrub_settings
 from src.settings import (
     load_settings as _load_settings,
-    save_settings as _save_settings,
-    load_features as _load_features,
-    save_features as _save_features,
     DEFAULT_SETTINGS,
 )
+from src.settings_service import SettingsServiceError, list_settings, set_setting
 from src.integrations import (
     load_integrations,
     add_integration,
@@ -90,6 +88,14 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     _login_limiter = RateLimiter(max_requests=15, window_seconds=60)
     _signup_limiter = RateLimiter(max_requests=3, window_seconds=300)
     _setup_limiter = RateLimiter(max_requests=3, window_seconds=300)
+
+    def _settings_response_dict(*, include_secrets: bool = True) -> dict:
+        snapshot = list_settings(scope="global", store="setting", include_secrets=include_secrets)
+        return {item["key"]: item.get("value") for item in snapshot["settings"]}
+
+    def _features_response_dict() -> dict:
+        snapshot = list_settings(scope="global", store="feature", include_secrets=True)
+        return {item["key"]: item.get("value") for item in snapshot["settings"]}
 
     def _get_current_user(request: Request) -> Optional[str]:
         token = request.cookies.get(SESSION_COOKIE)
@@ -613,7 +619,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.get("/features")
     async def get_features():
         """Public: returns which UI features are enabled."""
-        return _load_features()
+        return _features_response_dict()
 
     @router.post("/features")
     async def set_features(request: Request):
@@ -622,12 +628,14 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         if not user or not auth_manager.is_admin(user):
             raise HTTPException(403, "Admin only")
         body = await request.json()
-        current = _load_features()
+        current = _features_response_dict()
         for key in current:
             if key in body and isinstance(body[key], bool):
-                current[key] = body[key]
-        _save_features(current)
-        return current
+                try:
+                    set_setting(key, body[key], store="feature", scope="global", actor="ui", confirmed=True)
+                except SettingsServiceError as exc:
+                    raise HTTPException(400, exc.message) from exc
+        return _features_response_dict()
 
     # ---- App settings (admin-managed) ----
 
@@ -637,7 +645,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         a scrubbed copy with secret keys blanked. The frontend uses this
         for keybinds + TTS prefs, so it stays callable without admin."""
         user = _get_current_user(request)
-        settings = _load_settings()
+        settings = _settings_response_dict(include_secrets=True)
         if user and auth_manager.is_admin(user):
             return settings
         return scrub_settings(settings)
@@ -649,27 +657,14 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         if not user or not auth_manager.is_admin(user):
             raise HTTPException(403, "Admin only")
         body = await request.json()
-        current = _load_settings()
-        # Per-key validation for numeric settings: coerce to int and clamp to a
-        # sane range so a bad value can't disable the agent or let it run away.
-        _INT_RANGES = {
-            "agent_max_rounds": (1, 200),
-            "agent_max_tool_calls": (0, 1000),  # 0 = unlimited
-        }
         for key in DEFAULT_SETTINGS:
             if key not in body:
                 continue
-            val = body[key]
-            if key in _INT_RANGES:
-                lo, hi = _INT_RANGES[key]
-                try:
-                    val = int(val)
-                except (TypeError, ValueError):
-                    raise HTTPException(400, f"{key} must be an integer")
-                val = max(lo, min(val, hi))
-            current[key] = val
-        _save_settings(current)
-        return current
+            try:
+                set_setting(key, body[key], scope="global", store="setting", actor="ui", confirmed=True)
+            except SettingsServiceError as exc:
+                raise HTTPException(400, exc.message) from exc
+        return _settings_response_dict(include_secrets=True)
 
     # ---- Integrations CRUD ----
 
