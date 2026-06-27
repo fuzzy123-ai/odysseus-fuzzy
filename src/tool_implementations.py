@@ -2350,6 +2350,18 @@ async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
         "list": "list_events",
     }
     action = _ACTION_ALIASES.get(action, action)
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Calendar {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     db = SessionLocal()
 
     def _calendar_query():
@@ -2759,6 +2771,8 @@ async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
             uid = args.get("uid")
             if not uid:
                 return {"error": "uid is required", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("delete_event")
             try:
                 base_uid = _resolve_base_uid(uid)
             except ValueError as e:
