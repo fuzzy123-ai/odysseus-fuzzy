@@ -644,64 +644,136 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
 # ---------------------------------------------------------------------------
 
 async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict:
-    """Manage model endpoints: list, add, delete, enable, disable."""
-    from core.database import SessionLocal, ModelEndpoint
+    """Manage model endpoints through the same admin routes as the UI."""
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    action = args.get("action", "list")
-    db = SessionLocal()
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Endpoint route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
     try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
         if action == "list":
-            eps = db.query(ModelEndpoint).all()
-            items = [{"id": e.id, "name": e.name, "base_url": e.base_url,
-                       "is_enabled": e.is_enabled} for e in eps]
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/model-endpoints", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            items = resp.json() or []
             return {"response": f"{len(items)} endpoints", "endpoints": items, "exit_code": 0}
 
         elif action == "add":
-            import uuid as _uuid
             name = args.get("name", "")
             base_url = args.get("base_url", "")
-            api_key = args.get("api_key", "")
             if not base_url:
                 return {"error": "base_url is required", "exit_code": 1}
-            eid = str(_uuid.uuid4())[:8]
-            from datetime import datetime
-            ep = ModelEndpoint(id=eid, name=name or base_url, base_url=base_url,
-                               api_key=api_key, is_enabled=True,
-                               created_at=datetime.utcnow(), updated_at=datetime.utcnow())
-            db.add(ep)
-            db.commit()
-            return {"response": f"Added endpoint '{name or base_url}' (id: {eid})", "exit_code": 0}
+            if args.get("api_key"):
+                return {
+                    "response": "Endpoint API keys must be entered through secure UI handoff, not chat text.",
+                    "status": "secret_handoff_required",
+                    "secret_handoff_required": True,
+                    "exit_code": 0,
+                }
+            pinned_models = args.get("pinned_models", "")
+            if isinstance(pinned_models, (list, dict)):
+                pinned_models = json.dumps(pinned_models)
+            data = {
+                "name": name,
+                "base_url": base_url,
+                "skip_probe": str(args.get("skip_probe", "false")).lower(),
+                "require_models": str(args.get("require_models", "false")).lower(),
+                "model_type": args.get("model_type", "llm"),
+                "endpoint_kind": args.get("endpoint_kind", "auto"),
+                "model_refresh_mode": args.get("model_refresh_mode", ""),
+                "model_refresh_interval": str(args.get("model_refresh_interval", "")),
+                "model_refresh_timeout": str(args.get("model_refresh_timeout", "")),
+                "supports_tools": "" if args.get("supports_tools") is None else str(args.get("supports_tools")).lower(),
+                "pinned_models": pinned_models,
+                "container_local": str(args.get("container_local", "false")).lower(),
+                "shared": str(args.get("shared", "true")).lower(),
+            }
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/model-endpoints", data=data, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            endpoint = resp.json() or {}
+            return {
+                "response": f"Added endpoint '{endpoint.get('name') or name or base_url}' (id: {endpoint.get('id')}).",
+                "endpoint": endpoint,
+                "exit_code": 0,
+            }
 
         elif action == "delete":
             eid = args.get("endpoint_id", "")
-            ep = db.query(ModelEndpoint).filter(ModelEndpoint.id == eid).first()
-            if not ep:
-                return {"error": f"Endpoint {eid} not found", "exit_code": 1}
-            name = ep.name
-            db.delete(ep)
-            db.commit()
-            return {"response": f"Deleted endpoint '{name}'", "exit_code": 0}
+            if not eid:
+                return {"error": "endpoint_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/model-endpoints/{eid}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {"response": f"Deleted endpoint {eid}", "result": result, "exit_code": 0}
 
-        elif action in ("enable", "disable"):
+        elif action in ("enable", "disable", "update"):
             eid = args.get("endpoint_id", "")
-            ep = db.query(ModelEndpoint).filter(ModelEndpoint.id == eid).first()
-            if not ep:
-                return {"error": f"Endpoint {eid} not found", "exit_code": 1}
-            ep.is_enabled = (action == "enable")
-            db.commit()
-            return {"response": f"Endpoint '{ep.name}' {action}d", "exit_code": 0}
+            if not eid:
+                return {"error": "endpoint_id is required", "exit_code": 1}
+            body: Dict[str, Any] = {}
+            if action in ("enable", "disable"):
+                body["is_enabled"] = action == "enable"
+            else:
+                for field in (
+                    "name",
+                    "base_url",
+                    "model_type",
+                    "pinned_models",
+                    "endpoint_kind",
+                    "model_refresh_mode",
+                    "model_refresh_interval",
+                    "model_refresh_timeout",
+                    "supports_tools",
+                ):
+                    if field in args:
+                        body[field] = args[field]
+                if args.get("api_key"):
+                    return {
+                        "response": "Endpoint API keys must be rotated through secure UI handoff, not chat text.",
+                        "status": "secret_handoff_required",
+                        "secret_handoff_required": True,
+                        "exit_code": 0,
+                    }
+                if not body:
+                    return {"error": "No update fields supplied", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.patch(f"{_INTERNAL_BASE}/api/model-endpoints/{eid}", json=body, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            endpoint = resp.json() or {}
+            return {
+                "response": f"Endpoint '{endpoint.get('name') or eid}' updated.",
+                "endpoint": endpoint,
+                "exit_code": 0,
+            }
 
         else:
             return {"error": f"Unknown action: {action}", "exit_code": 1}
     except Exception as e:
         logger.error(f"manage_endpoints error: {e}")
         return {"error": str(e), "exit_code": 1}
-    finally:
-        db.close()
 
 
 # ---------------------------------------------------------------------------

@@ -805,15 +805,26 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_endpoints",
-            "description": "Manage model API endpoints: list configured endpoints, add new ones, delete, enable or disable them.",
+            "description": "Manage model API endpoints through the same admin routes as the UI: list, add, update, delete, enable, or disable. Do not pass raw API keys through chat; provider credentials require secure UI handoff.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "add", "delete", "enable", "disable"]},
-                    "endpoint_id": {"type": "string", "description": "Endpoint ID (for delete/enable/disable)"},
+                    "action": {"type": "string", "enum": ["list", "add", "update", "delete", "enable", "disable"]},
+                    "endpoint_id": {"type": "string", "description": "Endpoint ID (for update/delete/enable/disable)"},
                     "name": {"type": "string", "description": "Display name (for add)"},
                     "base_url": {"type": "string", "description": "API base URL e.g. https://api.openai.com/v1 (for add)"},
-                    "api_key": {"type": "string", "description": "API key (for add)"}
+                    "api_key": {"type": "string", "description": "Deprecated for agent use: raw API keys are blocked and must be entered through secure UI handoff."},
+                    "skip_probe": {"type": "boolean", "description": "Skip initial model-list probe when adding an endpoint."},
+                    "require_models": {"type": "boolean", "description": "Require model discovery to return at least one model when adding."},
+                    "model_type": {"type": "string", "description": "Endpoint model type, e.g. llm or image."},
+                    "endpoint_kind": {"type": "string", "description": "Endpoint kind, e.g. auto, api, proxy, ollama."},
+                    "model_refresh_mode": {"type": "string", "description": "Model cache refresh mode."},
+                    "model_refresh_interval": {"type": "integer", "description": "Model cache refresh interval in seconds."},
+                    "model_refresh_timeout": {"type": "integer", "description": "Model cache refresh timeout in seconds."},
+                    "supports_tools": {"type": "boolean", "description": "Whether the endpoint supports tool calling."},
+                    "pinned_models": {"description": "Pinned model IDs as a list, JSON string, comma/newline string, or route-compatible value."},
+                    "container_local": {"type": "boolean", "description": "Treat loopback URL as local to the Odysseus container when adding."},
+                    "shared": {"type": "boolean", "description": "Whether a new endpoint is shared globally; false scopes it to the current admin owner."}
                 },
                 "required": ["action"]
             }
