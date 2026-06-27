@@ -122,6 +122,8 @@ Current result:
 
 ### P3 Quality Gate Integration
 
+Status: **backend dry-run quality gate bundle done; execution remains gated**
+
 Goal:
 
 - Projekt-spezifische Test- und Build-Gates an den vorhandenen
@@ -132,6 +134,18 @@ Gate:
 
 - Kein Deploy ohne gruenes Test-/Build-Gate.
 - Keine unbounded Test-Suites als Default.
+
+Current result:
+
+- `src/server_project_quality_gate.py` wraps the existing
+  `live_quality_gate_command_runner` for project-specific gates.
+- Default project gates include focused test, build evidence and smoke test
+  plans.
+- Required gates must be `plan_ready` before the project deploy gate can be
+  treated as ready.
+- Network, host, destructive, unbounded and secret/path-bearing gate text is
+  blocked.
+- All gates remain dry-run/operator-review plans and do not execute commands.
 
 ### P4 Git And Review Flow
 
