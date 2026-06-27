@@ -14,10 +14,15 @@ from src.server_project_chat_context import (
     ServerProjectChatContextError,
     bind_project_chat_session,
 )
+from src.server_project_provisioner import (
+    ServerProjectProvisioningError,
+    provision_project_workspace,
+)
 from src.server_project_registry import ServerProjectRegistry, ServerProjectRegistryError
 
 
 DEFAULT_PROJECT_REGISTRY_PATH = Path(DATA_DIR) / "server_project_registry.json"
+DEFAULT_PROJECTS_ROOT = Path(DATA_DIR) / "server_projects"
 
 
 class ProjectCreateRequest(BaseModel):
@@ -31,12 +36,19 @@ class ProjectChatBindRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=160)
 
 
+class ProjectProvisionRequest(BaseModel):
+    live_enabled: bool = False
+    operator_decision: str = "missing"
+
+
 def setup_server_project_routes(
     *,
     registry_path: str | Path = DEFAULT_PROJECT_REGISTRY_PATH,
+    projects_root: str | Path = DEFAULT_PROJECTS_ROOT,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/projects", tags=["server-projects"])
     registry_file = Path(registry_path)
+    configured_projects_root = Path(projects_root)
 
     @router.get("")
     def list_projects() -> dict[str, Any]:
@@ -83,6 +95,24 @@ def setup_server_project_routes(
             raise HTTPException(status_code=status, detail=str(exc)) from exc
         _save_registry(registry_file, registry)
         return {"success": True, "context": context.metadata(), "audit": context.audit_summary()}
+
+    @router.post("/{project_slug}/provision")
+    def provision_workspace(project_slug: str, body: ProjectProvisionRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = provision_project_workspace(
+                record=record,
+                projects_root=configured_projects_root,
+                created_at=_now_iso(),
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectProvisioningError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed, "provisioning": report.to_dict()}
 
     return router
 

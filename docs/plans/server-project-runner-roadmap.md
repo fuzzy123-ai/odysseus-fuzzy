@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices done; visual Project UI remains gated**
+Status: **Non-UI backend/API slices plus local workspace provisioning done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -67,7 +67,7 @@ Result:
 
 ### P2 Project Registry And Active Workspace Preparation
 
-Status: **registry model done; active workspace creation remains gated**
+Status: **registry model and local workspace provisioning done; provider repo creation remains gated**
 
 Goal:
 
@@ -90,8 +90,16 @@ Current result:
   `project:<slug>` Chat Scope and optional Cloudflare Tunnel request.
 - Chat sessions can be attached idempotently.
 - Audit summaries report counts and scopes, not raw session contents.
-- Active repo creation, filesystem workspace creation, GitHub/Gitea calls and
-  Cloudflare Tunnel setup remain future operator-gated slices.
+- `src/server_project_provisioner.py` can provision a local project workspace
+  under a configured server projects root when `live_enabled=true` and
+  `operator_decision=go`.
+- Provisioning creates the project workspace, local repo directory and a small
+  redacted `.odysseus/project.json` marker without persisting the host root.
+- The provisioner emits a `WorkerWorkspaceAssignment` for later autonomous
+  project agents.
+- The API exposes this as `/api/projects/{project_slug}/provision`.
+- GitHub/Gitea repository creation, remote attachment and Cloudflare Tunnel
+  setup remain future operator/provider-gated slices.
 
 ### P2B Project Chat Context
 
@@ -284,6 +292,7 @@ Current backend result:
 
 ## Current Human Decision Needed
 
-Als naechstes sollte entschieden werden, wie die visuelle Project UI gestaltet
-wird: Projektliste, Projektchat, Runner-State, Quality Gates, Deploy-Handoff
-und Cloudflare-Exposure als zusammenhaengender Arbeitsbereich.
+Als naechstes sollte entschieden werden, welcher Provider fuer neue
+Projekt-Repositories benutzt wird: GitHub im `fuzzy123-ai` Namespace, ein
+serverlokales Gitea/Forgejo, oder zunaechst nur lokale Git-Repos ohne Remote.
+Danach kann die visuelle Project UI gestaltet werden.

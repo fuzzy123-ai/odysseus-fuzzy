@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 from routes.server_project_routes import setup_server_project_routes
 
 
-def _client(path: Path) -> TestClient:
+def _client(path: Path, *, projects_root: Path | None = None) -> TestClient:
     app = FastAPI()
-    app.include_router(setup_server_project_routes(registry_path=path))
+    app.include_router(setup_server_project_routes(registry_path=path, projects_root=projects_root or path.parent / "server-projects"))
     return TestClient(app)
 
 
@@ -47,6 +47,33 @@ def test_project_routes_create_list_get_and_bind_chat(tmp_path: Path):
     assert stored["projects"][0]["chat_session_ids"] == ["chat-1"]
 
 
+def test_project_routes_provision_workspace_requires_go_then_creates(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    blocked = client.post("/api/projects/kundenportal-mvp/provision", json={})
+    assert blocked.status_code == 200
+    blocked_body = blocked.json()
+    assert blocked_body["success"] is False
+    assert blocked_body["provisioning"]["executed"] is False
+    assert "operator decision is not go" in blocked_body["provisioning"]["blockers"]
+    assert not (projects_root / "kundenportal-mvp").exists()
+
+    created = client.post(
+        "/api/projects/kundenportal-mvp/provision",
+        json={"live_enabled": True, "operator_decision": "go"},
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["success"] is True
+    assert body["provisioning"]["status"] == "provisioned"
+    assert (projects_root / "kundenportal-mvp" / "repo").is_dir()
+    assert (projects_root / "kundenportal-mvp" / ".odysseus" / "project.json").is_file()
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -59,6 +86,7 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert "project already exists" in duplicate.json()["detail"]
     assert missing.status_code == 404
     assert missing_bind.status_code == 404
+    assert client.post("/api/projects/missing/provision", json={"live_enabled": True, "operator_decision": "go"}).status_code == 404
 
 
 def test_project_routes_reject_secret_like_input(tmp_path: Path):
