@@ -1067,71 +1067,126 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
 # ---------------------------------------------------------------------------
 
 async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
-    """Manage webhooks: list, add, delete, enable, disable, test."""
-    from core.database import SessionLocal
+    """Manage webhooks through admin routes with confirmation for mutations."""
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    action = args.get("action", "list")
-    db = SessionLocal()
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Webhook {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Webhook route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    def _mask_webhook(item: Dict[str, Any]) -> Dict[str, Any]:
+        safe = dict(item)
+        url = str(safe.get("url") or "")
+        if url:
+            try:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(url)
+                safe["url"] = f"{parsed.scheme}://{parsed.netloc}/..." if parsed.scheme and parsed.netloc else "(configured)"
+            except Exception:
+                safe["url"] = "(configured)"
+        safe["has_url"] = bool(url)
+        return safe
+
     try:
-        from core.database import Webhook
+        import httpx
+
+        headers = _internal_headers(owner=owner)
         if action == "list":
-            hooks = db.query(Webhook).all()
-            items = [{"id": h.id, "name": h.name, "url": h.url,
-                       "events": h.events, "is_active": h.is_active} for h in hooks]
-            return {"response": f"{len(items)} webhooks", "webhooks": items, "exit_code": 0}
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/webhooks", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            hooks = [_mask_webhook(item) for item in (resp.json() or [])]
+            return {"response": f"{len(hooks)} webhooks", "webhooks": hooks, "exit_code": 0}
 
         elif action == "add":
-            import uuid as _uuid
-            from datetime import datetime
-            from src.webhook_manager import validate_events, validate_webhook_url
+            if not _confirmed():
+                return _confirmation_required("add")
             name = args.get("name", "")
             url = args.get("url", "")
             events = args.get("events", "chat.completed")
             if not url:
                 return {"error": "url is required", "exit_code": 1}
-            try:
-                url = validate_webhook_url(url)
-                events = validate_events(events)
-            except ValueError as e:
-                return {"error": str(e), "exit_code": 1}
-            wid = str(_uuid.uuid4())[:8]
-            hook = Webhook(id=wid, name=name or url, url=url,
-                           events=events, is_active=True,
-                           created_at=datetime.utcnow(), updated_at=datetime.utcnow())
-            db.add(hook)
-            db.commit()
-            return {"response": f"Added webhook '{name or url}'", "exit_code": 0}
+            data = {"name": name or "Webhook", "url": url, "events": events}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/webhooks", data=data, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            webhook = resp.json() or {}
+            return {
+                "response": f"Added webhook '{webhook.get('name') or name or 'Webhook'}'.",
+                "webhook": webhook,
+                "exit_code": 0,
+            }
 
         elif action == "delete":
+            if not _confirmed():
+                return _confirmation_required("delete")
             wid = args.get("webhook_id", "")
-            hook = db.query(Webhook).filter(Webhook.id == wid).first()
-            if not hook:
-                return {"error": f"Webhook {wid} not found", "exit_code": 1}
-            name = hook.name
-            db.delete(hook)
-            db.commit()
-            return {"response": f"Deleted webhook '{name}'", "exit_code": 0}
+            if not wid:
+                return {"error": "webhook_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/webhooks/{wid}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Deleted webhook {wid}", "result": resp.json() or {}, "exit_code": 0}
 
         elif action in ("enable", "disable"):
+            if not _confirmed():
+                return _confirmation_required(action)
             wid = args.get("webhook_id", "")
-            hook = db.query(Webhook).filter(Webhook.id == wid).first()
-            if not hook:
-                return {"error": f"Webhook {wid} not found", "exit_code": 1}
-            hook.is_active = (action == "enable")
-            db.commit()
-            return {"response": f"Webhook '{hook.name}' {action}d", "exit_code": 0}
+            if not wid:
+                return {"error": "webhook_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                listed = await client.get(f"{_INTERNAL_BASE}/api/webhooks", headers=headers)
+                if listed.status_code >= 400:
+                    return _error_from_response(listed)
+                hooks = listed.json() or []
+                current = next((item for item in hooks if item.get("id") == wid), None)
+                if not current:
+                    return {"error": f"Webhook {wid} not found", "exit_code": 1}
+                desired = action == "enable"
+                if bool(current.get("is_active")) != desired:
+                    resp = await client.patch(f"{_INTERNAL_BASE}/api/webhooks/{wid}", headers=headers)
+                    if resp.status_code >= 400:
+                        return _error_from_response(resp)
+                    current = {**current, **(resp.json() or {})}
+            return {
+                "response": f"Webhook '{current.get('name') or wid}' {'enabled' if desired else 'disabled'}.",
+                "webhook": _mask_webhook(current),
+                "exit_code": 0,
+            }
 
         else:
             return {"error": f"Unknown action: {action}", "exit_code": 1}
     except Exception as e:
         logger.error(f"manage_webhooks error: {e}")
         return {"error": str(e), "exit_code": 1}
-    finally:
-        db.close()
 
 
 # ---------------------------------------------------------------------------
