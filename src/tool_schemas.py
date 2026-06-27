@@ -871,13 +871,16 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_tokens",
-            "description": "Manage API access tokens: list existing tokens, create new ones, or delete them.",
+            "description": "Manage API access tokens through the same admin routes as the UI/API. create/delete require confirmed=true. Newly created token values are shown once.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {"type": "string", "enum": ["list", "create", "delete"]},
                     "token_id": {"type": "string", "description": "Token ID (for delete)"},
-                    "name": {"type": "string", "description": "Token name (for create)"}
+                    "name": {"type": "string", "description": "Token name (for create)"},
+                    "scopes": {"description": "Comma-separated string or list of scopes (for create)"},
+                    "profile": {"type": "string", "description": "Optional token profile (for create)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for create/delete after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

@@ -1139,53 +1139,88 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
 # ---------------------------------------------------------------------------
 
 async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
-    """Manage API tokens: list, create, delete."""
-    from core.database import SessionLocal, ApiToken
+    """Manage API tokens through the same admin routes as the UI/API."""
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    action = args.get("action", "list")
-    db = SessionLocal()
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"API token {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Token route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
     try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
         if action == "list":
-            tokens = db.query(ApiToken).all()
-            items = [{"id": t.id, "name": t.name, "token_prefix": t.token_prefix + "...",
-                       "is_active": t.is_active} for t in tokens]
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/tokens", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            items = resp.json() or []
             return {"response": f"{len(items)} API tokens", "tokens": items, "exit_code": 0}
 
         elif action == "create":
-            import uuid as _uuid, secrets, bcrypt
-            from datetime import datetime
+            if not _confirmed():
+                return _confirmation_required("create")
             name = args.get("name", "API Token")
-            raw_token = secrets.token_urlsafe(32)
-            token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
-            tid = str(_uuid.uuid4())[:8]
-            t = ApiToken(id=tid, name=name, token_hash=token_hash,
-                         token_prefix=raw_token[:8], is_active=True,
-                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
-            db.add(t)
-            db.commit()
-            return {"response": f"Created token '{name}'", "token": raw_token, "exit_code": 0}
+            data = {"name": name}
+            if args.get("scopes") is not None:
+                scopes = args.get("scopes")
+                data["scopes"] = ",".join(scopes) if isinstance(scopes, list) else str(scopes)
+            if args.get("profile") is not None:
+                data["profile"] = str(args.get("profile"))
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/tokens", data=data, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            token = resp.json() or {}
+            return {
+                "response": f"Created token '{token.get('name') or name}'. Store the token now; it will not be shown again.",
+                "token": token.get("token"),
+                "token_meta": {k: v for k, v in token.items() if k != "token"},
+                "exit_code": 0,
+            }
 
         elif action == "delete":
+            if not _confirmed():
+                return _confirmation_required("delete")
             tid = args.get("token_id", "")
-            t = db.query(ApiToken).filter(ApiToken.id == tid).first()
-            if not t:
-                return {"error": f"Token {tid} not found", "exit_code": 1}
-            name = t.name
-            db.delete(t)
-            db.commit()
-            return {"response": f"Deleted token '{name}'", "exit_code": 0}
+            if not tid:
+                return {"error": "token_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/tokens/{tid}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Deleted token {tid}", "result": resp.json() or {}, "exit_code": 0}
 
         else:
             return {"error": f"Unknown action: {action}", "exit_code": 1}
     except Exception as e:
         logger.error(f"manage_tokens error: {e}")
         return {"error": str(e), "exit_code": 1}
-    finally:
-        db.close()
 
 # ---------------------------------------------------------------------------
 # Settings/preferences management tool
