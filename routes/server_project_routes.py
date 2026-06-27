@@ -14,6 +14,10 @@ from src.server_project_chat_context import (
     ServerProjectChatContextError,
     bind_project_chat_session,
 )
+from src.server_project_commit_runner import (
+    ServerProjectCommitRunnerError,
+    run_project_local_commit,
+)
 from src.server_project_provisioner import (
     ServerProjectProvisioningError,
     provision_project_workspace,
@@ -87,6 +91,16 @@ class ProjectPlannerTaskRunRequest(BaseModel):
     checks: list[ProjectTaskCheckRequest] = Field(default_factory=list)
     acceptance_criteria: list[str] = Field(default_factory=list)
     check_profile: str = "auto"
+    live_enabled: bool = False
+    operator_decision: str = "missing"
+
+
+class ProjectCommitRunRequest(BaseModel):
+    objective: str = Field(min_length=1, max_length=500)
+    changed_paths: list[str] = Field(default_factory=list)
+    checks_passed: bool = False
+    commit_message: str | None = None
+    push_remote: str = "fuzzy"
     live_enabled: bool = False
     operator_decision: str = "missing"
 
@@ -234,6 +248,28 @@ def setup_server_project_routes(
         except (ServerProjectTaskPlannerError, ServerProjectTaskRunnerError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.executed and report.status == "completed", "planner_task": report.to_dict()}
+
+    @router.post("/{project_slug}/commit-run")
+    def run_commit(project_slug: str, body: ProjectCommitRunRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = run_project_local_commit(
+                record=record,
+                projects_root=configured_projects_root,
+                objective=body.objective,
+                changed_paths=body.changed_paths,
+                checks_passed=body.checks_passed,
+                commit_message=body.commit_message,
+                push_remote=body.push_remote,
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectCommitRunnerError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed and report.status == "committed", "commit_run": report.to_dict()}
 
     return router
 

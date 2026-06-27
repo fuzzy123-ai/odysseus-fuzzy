@@ -146,6 +146,32 @@ def test_project_routes_planner_task_run_adapts_to_task_plan_without_live_execut
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_commit_run_reports_gate_without_live_commit(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/commit-run",
+        json={
+            "objective": "Add an app entrypoint",
+            "changed_paths": ["src/app.py"],
+            "checks_passed": False,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["commit_run"]["executed"] is False
+    plan = body["commit_run"]["plan"]
+    assert plan["commit_message"] == "feat: add an app entrypoint"
+    assert plan["changed_paths"] == ["src/app.py"]
+    assert "task checks must be green before commit" in plan["blockers"]
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -167,6 +193,10 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert client.post(
         "/api/projects/missing/planner-task-run",
         json={"objective": "x", "file_writes": [], "checks": [], "acceptance_criteria": []},
+    ).status_code == 404
+    assert client.post(
+        "/api/projects/missing/commit-run",
+        json={"objective": "x", "changed_paths": [], "checks_passed": False},
     ).status_code == 404
 
 

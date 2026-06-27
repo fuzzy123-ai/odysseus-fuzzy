@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices plus local workspace/repo provisioning, planner adapter and task runner done; visual Project UI and provider repo creation remain gated**
+Status: **Non-UI backend/API slices plus local workspace/repo provisioning, planner adapter, task runner and commit runner done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -158,7 +158,7 @@ Current result:
 
 ### P4 Git And Review Flow
 
-Status: **backend Git/review plan and local repo init done; remote/provider Git operations remain gated**
+Status: **backend Git/review plan, local repo init and local commit runner done; remote/provider Git operations remain gated**
 
 Goal:
 
@@ -188,6 +188,13 @@ Current result:
 - New repository creation requires `operator_decision=go`.
 - Unsafe branch names, absolute paths, secret-like commit messages and
   missing changed paths are rejected or held.
+- `src/server_project_commit_runner.py` can locally review and commit changed
+  project paths after green task checks when `live_enabled=true` and
+  `operator_decision=go` are present.
+- The commit runner executes only `git status --short --branch`,
+  `git add -- <reviewed paths>` and `git commit -m <safe message>` with
+  `shell=False`.
+- The API exposes this as `/api/projects/{project_slug}/commit-run`.
 - Remote provider repository creation, remote attachment and push remain future
   provider/operator-gated slices.
 
