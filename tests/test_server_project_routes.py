@@ -95,6 +95,30 @@ def test_project_routes_repo_provision_reports_gate_without_live_git(tmp_path: P
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_task_run_reports_gate_without_live_execution(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/task-run",
+        json={
+            "objective": "Add an app entrypoint",
+            "file_writes": [{"path": "src/app.py", "content": "print('hi')\n"}],
+            "checks": [{"argv": ["python", "-m", "pytest", "tests", "-q"]}],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["task_run"]["executed"] is False
+    assert "operator decision is not go" in body["task_run"]["blockers"]
+    assert body["task_run"]["plan"]["repo_directory"] == "projects/kundenportal-mvp/repo"
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     client = _client(tmp_path / "projects.json")
 
@@ -109,6 +133,10 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert missing_bind.status_code == 404
     assert client.post("/api/projects/missing/provision", json={"live_enabled": True, "operator_decision": "go"}).status_code == 404
     assert client.post("/api/projects/missing/repo-provision", json={}).status_code == 404
+    assert client.post(
+        "/api/projects/missing/task-run",
+        json={"objective": "x", "file_writes": [], "checks": []},
+    ).status_code == 404
 
 
 def test_project_routes_reject_secret_like_input(tmp_path: Path):

@@ -23,6 +23,12 @@ from src.server_project_repo_provisioner import (
     ServerProjectRepoProvisioningError,
     provision_project_local_git_repo,
 )
+from src.server_project_task_runner import (
+    ProjectTaskCheck,
+    ProjectTaskFileWrite,
+    ServerProjectTaskRunnerError,
+    run_project_task,
+)
 
 
 DEFAULT_PROJECT_REGISTRY_PATH = Path(DATA_DIR) / "server_project_registry.json"
@@ -51,6 +57,24 @@ class ProjectRepoProvisionRequest(BaseModel):
     remote_provider: str = "none"
     remote_namespace: str = ""
     default_branch: str | None = None
+
+
+class ProjectTaskFileWriteRequest(BaseModel):
+    path: str = Field(min_length=1, max_length=180)
+    content: str = Field(max_length=256000)
+
+
+class ProjectTaskCheckRequest(BaseModel):
+    argv: list[str] = Field(min_length=1, max_length=12)
+    timeout_seconds: int = 300
+
+
+class ProjectTaskRunRequest(BaseModel):
+    objective: str = Field(min_length=1, max_length=500)
+    file_writes: list[ProjectTaskFileWriteRequest] = Field(default_factory=list)
+    checks: list[ProjectTaskCheckRequest] = Field(default_factory=list)
+    live_enabled: bool = False
+    operator_decision: str = "missing"
 
 
 def setup_server_project_routes(
@@ -145,6 +169,32 @@ def setup_server_project_routes(
         except ServerProjectRepoProvisioningError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.executed and report.status == "provisioned", "repo_provisioning": report.to_dict()}
+
+    @router.post("/{project_slug}/task-run")
+    def run_task(project_slug: str, body: ProjectTaskRunRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = run_project_task(
+                record=record,
+                projects_root=configured_projects_root,
+                objective=body.objective,
+                file_writes=tuple(
+                    ProjectTaskFileWrite.create(path=item.path, content=item.content)
+                    for item in body.file_writes
+                ),
+                checks=tuple(
+                    ProjectTaskCheck.create(argv=item.argv, timeout_seconds=item.timeout_seconds)
+                    for item in body.checks
+                ),
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectTaskRunnerError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.executed and report.status == "completed", "task_run": report.to_dict()}
 
     return router
 

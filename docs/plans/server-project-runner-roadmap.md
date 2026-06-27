@@ -2,7 +2,7 @@
 
 Stand: 2026-06-27
 
-Status: **Non-UI backend/API slices plus local workspace/repo provisioning done; visual Project UI and provider repo creation remain gated**
+Status: **Non-UI backend/API slices plus local workspace/repo provisioning and task runner done; visual Project UI and provider repo creation remain gated**
 
 ## Goal
 
@@ -219,7 +219,7 @@ Current result:
 
 ### P6 Active Executor
 
-Status: **active executor implemented; default execution remains blocked**
+Status: **active executor and project task runner implemented; default execution remains blocked**
 
 Goal:
 
@@ -238,8 +238,16 @@ Current result:
 - `src/server_project_executor.py` implements whitelisted active execution
   steps with `subprocess.run(..., shell=False)`, timeout, captured output and
   secret-like output redaction.
-- Execution is blocked unless the deploy handoff is `ready_for_operator_go`,
-  live mode is enabled and `operator_decision=go`.
+- `src/server_project_task_runner.py` implements a minimum autonomous project
+  task loop: bounded file writes inside `projects/<slug>/repo`, allowed checks,
+  stop-on-first-failure and redacted task reports.
+- Task execution requires the local Git repository to exist and
+  `live_enabled=true` plus `operator_decision=go`.
+- The task command allowlist covers focused `pytest`, `npm test`,
+  `npm run test`, `npm run build`, `node --check` and `git status`.
+- The API exposes this as `/api/projects/{project_slug}/task-run`.
+- Deploy execution is blocked unless the deploy handoff is
+  `ready_for_operator_go`, live mode is enabled and `operator_decision=go`.
 - Unsupported commands are blocked before a runner is called.
 - Tests use fake runners for active paths; no live deploy, host, network or
   provider action is performed by verification.
