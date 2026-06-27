@@ -203,6 +203,8 @@ Current result:
 
 ### P6 Active Executor
 
+Status: **active executor implemented; default execution remains blocked**
+
 Goal:
 
 - Einen kleinen aktiven Executor bauen, der nur whitelisted Schritte mit
@@ -214,6 +216,17 @@ Gate:
 - Default bleibt dry-run.
 - Live erfordert `live_enabled=True`, `operator_decision=go`, gruenes Bundle
   und konkrete bounded Inputs.
+
+Current result:
+
+- `src/server_project_executor.py` implements whitelisted active execution
+  steps with `subprocess.run(..., shell=False)`, timeout, captured output and
+  secret-like output redaction.
+- Execution is blocked unless the deploy handoff is `ready_for_operator_go`,
+  live mode is enabled and `operator_decision=go`.
+- Unsupported commands are blocked before a runner is called.
+- Tests use fake runners for active paths; no live deploy, host, network or
+  provider action is performed by verification.
 
 ### P7 Server Install And Service Wiring
 
