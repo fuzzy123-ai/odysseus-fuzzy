@@ -99,6 +99,14 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/chat/stop/s1", "normal chat UI"),
         ("POST", "/api/inject_context/s1", "normal chat UI"),
         ("POST", "/api/rewrite", "normal chat UI"),
+        ("POST", "/api/codex/todos", "native named tools"),
+        ("POST", "/api/codex/emails/send", "native named tools"),
+        ("POST", "/api/codex/memory", "native named tools"),
+        ("POST", "/api/codex/calendar/events", "native named tools"),
+        ("POST", "/api/codex/documents", "native named tools"),
+        ("DELETE", "/api/codex/documents/doc1", "native named tools"),
+        ("POST", "/api/codex/cookbook/serve", "native named tools"),
+        ("POST", "/api/codex/cookbook/preset/foo", "native named tools"),
         ("POST", "/api/embeddings/models/BAAI/bge-small-en-v1.5/download", "Embedding Settings UI"),
         ("DELETE", "/api/embeddings/models/BAAI/bge-small-en-v1.5", "Embedding Settings UI"),
         ("POST", "/api/embeddings/endpoint", "Embedding Settings UI"),
@@ -319,6 +327,34 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/chat/mission/{session_id}": {"get": {"summary": "Chat Mission"}},
                     "/api/inject_context/{session_id}": {"post": {"summary": "Inject Context"}},
                     "/api/rewrite": {"post": {"summary": "Rewrite Message"}},
+                    "/api/codex/todos": {
+                        "get": {"summary": "List Codex Todos"},
+                        "post": {"summary": "Mutate Codex Todos"},
+                    },
+                    "/api/codex/emails": {"get": {"summary": "List Codex Emails"}},
+                    "/api/codex/emails/{uid}": {"get": {"summary": "Read Codex Email"}},
+                    "/api/codex/emails/send": {"post": {"summary": "Send Codex Email"}},
+                    "/api/codex/memory": {
+                        "get": {"summary": "List Codex Memory"},
+                        "post": {"summary": "Add Codex Memory"},
+                    },
+                    "/api/codex/memory/{memory_id}": {"delete": {"summary": "Delete Codex Memory"}},
+                    "/api/codex/calendar/events": {
+                        "get": {"summary": "List Codex Calendar Events"},
+                        "post": {"summary": "Create Codex Calendar Event"},
+                    },
+                    "/api/codex/calendar/events/{uid}": {"delete": {"summary": "Delete Codex Calendar Event"}},
+                    "/api/codex/documents": {
+                        "get": {"summary": "List Codex Documents"},
+                        "post": {"summary": "Create Codex Document"},
+                    },
+                    "/api/codex/documents/{doc_id}": {
+                        "get": {"summary": "Read Codex Document"},
+                        "delete": {"summary": "Delete Codex Document"},
+                    },
+                    "/api/codex/cookbook/tasks": {"get": {"summary": "List Codex Cookbook Tasks"}},
+                    "/api/codex/cookbook/serve": {"post": {"summary": "Serve Codex Cookbook Model"}},
+                    "/api/codex/cookbook/preset/{name}": {"post": {"summary": "Serve Codex Cookbook Preset"}},
                     "/api/embeddings/models": {"get": {"summary": "List Embedding Models"}},
                     "/api/embeddings/models/{model_name}/download": {"post": {"summary": "Download Embedding Model"}},
                     "/api/embeddings/models/{model_name}/status": {"get": {"summary": "Embedding Model Status"}},
@@ -439,6 +475,14 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/chat/stream_status/{session_id}") in paths
     assert ("GET", "/api/chat/run_ledger/{session_id}") in paths
     assert ("GET", "/api/chat/mission/{session_id}") in paths
+    assert ("GET", "/api/codex/todos") in paths
+    assert ("GET", "/api/codex/emails") in paths
+    assert ("GET", "/api/codex/emails/{uid}") in paths
+    assert ("GET", "/api/codex/memory") in paths
+    assert ("GET", "/api/codex/calendar/events") in paths
+    assert ("GET", "/api/codex/documents") in paths
+    assert ("GET", "/api/codex/documents/{doc_id}") in paths
+    assert ("GET", "/api/codex/cookbook/tasks") in paths
     assert ("GET", "/api/embeddings/models") in paths
     assert ("GET", "/api/embeddings/models/{model_name}/status") in paths
     assert ("GET", "/api/embeddings/endpoint") in paths
@@ -528,6 +572,16 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/chat/stop/{session_id}") not in paths
     assert ("POST", "/api/inject_context/{session_id}") not in paths
     assert ("POST", "/api/rewrite") not in paths
+    assert ("POST", "/api/codex/todos") not in paths
+    assert ("POST", "/api/codex/emails/send") not in paths
+    assert ("POST", "/api/codex/memory") not in paths
+    assert ("DELETE", "/api/codex/memory/{memory_id}") not in paths
+    assert ("POST", "/api/codex/calendar/events") not in paths
+    assert ("DELETE", "/api/codex/calendar/events/{uid}") not in paths
+    assert ("POST", "/api/codex/documents") not in paths
+    assert ("DELETE", "/api/codex/documents/{doc_id}") not in paths
+    assert ("POST", "/api/codex/cookbook/serve") not in paths
+    assert ("POST", "/api/codex/cookbook/preset/{name}") not in paths
     assert ("POST", "/api/embeddings/models/{model_name}/download") not in paths
     assert ("DELETE", "/api/embeddings/models/{model_name}") not in paths
     assert ("POST", "/api/embeddings/endpoint") not in paths

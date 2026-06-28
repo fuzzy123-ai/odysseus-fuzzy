@@ -3169,6 +3169,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("POST",   "/api/chat"),
     ("POST",   "/api/inject_context"),
     ("POST",   "/api/rewrite"),
+    # Codex plugin action routes mirror named tools (email, memory, calendar,
+    # documents, cookbook). Keep reads available but force mutations through
+    # the policy-aware native tools.
+    ("POST",   "/api/codex"),
+    ("PUT",    "/api/codex"),
+    ("PATCH",  "/api/codex"),
+    ("DELETE", "/api/codex"),
     # Upload routes expose raw attachment bytes and can trigger vision
     # processing/cache writes. Keep them behind the normal attachment UI.
     ("GET",    "/api/upload"),
@@ -3392,6 +3399,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate personal assistant settings or run check-ins via app_api - use the Assistant UI until a confirmed `manage_assistant` agent tool exists; use `manage_tasks` for ordinary scheduled tasks.", "exit_code": 1}
         if "/api/chat" in path or "/api/inject_context" in path or "/api/rewrite" in path:
             return {"error": "Don't start, stop, rewrite, or inject chat context via app_api - use the normal chat UI or `manage_session` so run state, owner scope, and confirmation are preserved.", "exit_code": 1}
+        if "/api/codex" in path:
+            return {"error": "Don't mutate Codex plugin action routes via app_api - use the native named tools so confirmation, owner scope, and host-control guards are enforced.", "exit_code": 1}
         if "/api/upload" in path:
             return {"error": "Don't read or mutate upload attachment routes via app_api - use the normal attachment UI so owner scope, binary handling, and vision-processing boundaries are preserved.", "exit_code": 1}
         if "/api/signatures" in path:
