@@ -58,6 +58,25 @@ def _write_registry(path: Path) -> None:
     registry.save_json(path)
 
 
+def _write_commit_registry(path: Path) -> None:
+    registry = RepoRegistry()
+    registry.add(
+        RepoRecord.create(
+            repo_id="demo",
+            title="Demo Repo",
+            repo_kind="project",
+            owner="fuzzy123-ai",
+            path_ref="repos/demo",
+            workspace_root="repos",
+            project_root="repos/demo",
+            default_branch="main",
+            allowed_actions=["status", "changed_paths", "commit_plan", "commit"],
+            created_at="2026-06-28T10:00:00Z",
+        )
+    )
+    registry.save_json(path)
+
+
 @pytest.mark.asyncio
 async def test_manage_repos_lists_and_reads_registered_repo(tmp_path: Path, monkeypatch):
     _make_repo(tmp_path)
@@ -243,6 +262,71 @@ async def test_manage_repos_update_policy_requires_confirmation_and_revalidates(
     assert "sensitive repos" in bad["error"]
 
 
+@pytest.mark.asyncio
+async def test_manage_repos_commit_plan_explains_missing_gates(tmp_path: Path, monkeypatch):
+    _make_repo(tmp_path)
+    registry_path = tmp_path / "repo-registry.json"
+    _write_commit_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "commit_plan",
+                "repo_id": "demo",
+                "objective": "Update readme",
+                "changed_paths": ["README.md"],
+                "checks_passed": True,
+                "content_reviewed": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert result["exit_code"] == 1
+    assert result["commit_report"]["plan"]["decision"] == "hold"
+    assert "confirmed=true is required" in result["output"]
+    assert str(tmp_path) not in json.dumps(result)
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_commit_runs_confirmed_exact_path(tmp_path: Path, monkeypatch):
+    repo = _make_repo(tmp_path)
+    (repo / "OTHER.md").write_text("still dirty\n", encoding="utf-8")
+    registry_path = tmp_path / "repo-registry.json"
+    _write_commit_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "commit",
+                "repo_id": "demo",
+                "objective": "Update readme",
+                "changed_paths": ["README.md"],
+                "checks_passed": True,
+                "content_reviewed": True,
+                "confirmed": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert result["exit_code"] == 0
+    assert result["commit_report"]["status"] == "committed"
+    assert result["commit_report"]["committed_paths"] == ["repos/demo/README.md"]
+    assert "OTHER.md" in subprocess.run(
+        ["git", "status", "--short"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert str(tmp_path) not in json.dumps(result)
+
+
 def test_manage_repos_schema_index_and_security_wiring():
     schema_by_name = {(schema.get("function") or {}).get("name"): schema for schema in FUNCTION_TOOL_SCHEMAS}
     schema_names = set(schema_by_name)
@@ -250,7 +334,7 @@ def test_manage_repos_schema_index_and_security_wiring():
     actions = (
         schema_by_name["manage_repos"]["function"]["parameters"]["properties"]["action"]["enum"]
     )
-    assert {"register", "forget", "update_policy"}.issubset(set(actions))
+    assert {"commit_plan", "commit", "register", "forget", "update_policy"}.issubset(set(actions))
 
     from src.agent_tools import TOOL_TAGS
     from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
@@ -262,11 +346,11 @@ def test_manage_repos_schema_index_and_security_wiring():
     assert "manage_repos" not in PLAN_MODE_READONLY_TOOLS
 
 
-def test_source_does_not_add_write_repo_actions_to_manage_repos():
+def test_source_keeps_manage_repos_without_free_git_shell():
     source = Path("src/tool_implementations.py").read_text(encoding="utf-8").lower()
     start = source.index("async def do_manage_repos")
     end = source.index("def _skill_dump", start)
     section = source[start:end]
 
-    for forbidden in ("git push", "git commit", "git reset", "subprocess.run"):
+    for forbidden in ("git push", "git reset", "subprocess.run"):
         assert forbidden not in section

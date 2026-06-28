@@ -494,9 +494,10 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "exit_code": 0,
             }
 
+        workspace_base = _repo_workspace_base(default=BASE_DIR)
         adapter = RepoGitAdapter(
             registry=registry,
-            workspace_base=_repo_workspace_base(default=BASE_DIR),
+            workspace_base=workspace_base,
         )
         if action == "status":
             status = adapter.status(repo_id)
@@ -523,17 +524,69 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
             if not remotes:
                 lines.append("- none")
             return {"output": "\n".join(lines), "remotes": remotes, "exit_code": 0}
+        if action in {"commit_plan", "commit"}:
+            from src.repo_commit_runner import plan_repo_local_commit, run_repo_local_commit
+
+            common = {
+                "registry": registry,
+                "repo_id": repo_id,
+                "workspace_base": workspace_base,
+                "objective": args.get("objective") or args.get("summary") or f"Update {repo_id}",
+                "changed_paths": _repo_changed_path_args(args),
+                "checks_passed": args.get("checks_passed") is True,
+                "content_reviewed": args.get("content_reviewed") is True,
+                "confirmed": args.get("confirmed") is True,
+                "commit_message": args.get("commit_message"),
+            }
+            report = (
+                plan_repo_local_commit(**common)
+                if action == "commit_plan"
+                else run_repo_local_commit(**common)
+            )
+            payload = report.to_dict()
+            return {
+                "output": _repo_commit_output(payload),
+                "commit_report": payload,
+                "exit_code": 0 if report.status in {"plan_ready", "committed"} else 1,
+            }
 
         return {
             "error": (
                 "Use action list, get, status, log, diff_stat, changed_paths, "
-                "remotes, register, forget, or update_policy."
+                "remotes, commit_plan, commit, register, forget, or update_policy."
             ),
             "exit_code": 1,
         }
     except Exception as exc:
         logger.error("manage_repos failed: %s", exc)
         return {"error": str(exc), "exit_code": 1}
+
+
+def _repo_changed_path_args(args: Dict[str, Any]) -> list[str]:
+    values = args.get("changed_paths", args.get("paths", []))
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, list):
+        raise ValueError("changed_paths must be a list of repo-relative paths")
+    return [str(item) for item in values]
+
+
+def _repo_commit_output(report: Dict[str, Any]) -> str:
+    plan = report.get("plan") or {}
+    lines = [
+        f"Repo commit {report.get('status')} for `{plan.get('repo_id')}`.",
+        f"Decision: {plan.get('decision')}.",
+    ]
+    blockers = report.get("blockers") or plan.get("blockers") or []
+    if blockers:
+        lines.append("Warum blockiert:")
+        lines.extend(f"- {item}" for item in blockers)
+    else:
+        lines.append(f"Committed paths: {', '.join(report.get('committed_paths') or plan.get('changed_paths') or [])}")
+    next_decision = plan.get("next_human_decision")
+    if next_decision:
+        lines.append(f"Next: {next_decision}")
+    return "\n".join(lines)
 
 
 def _repo_registry_mutation(

@@ -1070,12 +1070,12 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_repos",
-            "description": "Manage explicitly registered repositories and read Git facts. Read actions list/get/status/log/diff_stat/changed_paths/remotes need no confirmation. Mutations register/forget/update_policy require confirmed=true, never delete repo files, and never stage, commit, push, reset, merge, or mutate Git history.",
+            "description": "Manage explicitly registered repositories, read Git facts, and run gated local commit flows. Read actions list/get/status/log/diff_stat/changed_paths/remotes/commit_plan need no confirmation. Mutations register/forget/update_policy and commit require confirmed=true. commit also requires exact changed_paths, checks_passed=true, and content_reviewed=true. Never push, reset, merge, delete repo files, or mutate Git history outside the commit runner.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; register/forget/update_policy mutate only the registry."},
-                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/forget/update_policy; optional for register when title/path can produce one."},
+                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "commit_plan", "commit", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; commit_plan explains a gated local commit; commit stages exact reviewed paths and commits them when all gates pass; register/forget/update_policy mutate only the registry."},
+                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/commit_plan/commit/forget/update_policy; optional for register when title/path can produce one."},
                     "id": {"type": "string", "description": "Alias for repo_id."},
                     "title": {"type": "string", "description": "Human title for register."},
                     "owner": {"type": "string", "description": "Owner label for register."},
@@ -1092,7 +1092,14 @@ FUNCTION_TOOL_SCHEMAS = [
                     "allowed_actions": {"type": "array", "items": {"type": "string"}, "description": "Per-repo allowed action list for register/update_policy."},
                     "linked_project_slug": {"type": "string", "description": "Optional Project Runner slug for register."},
                     "operator_go": {"type": "boolean", "description": "Required true, in addition to confirmed=true, when registering outside allowed registry roots."},
-                    "confirmed": {"type": "boolean", "description": "Required true for register, forget, and update_policy after explicit user confirmation."},
+                    "confirmed": {"type": "boolean", "description": "Required true for register, forget, update_policy, and commit after explicit user confirmation."},
+                    "changed_paths": {"type": "array", "items": {"type": "string"}, "description": "Exact repo-relative file paths reviewed for commit_plan/commit. Directories, absolute paths, .git, .env, and key files are blocked."},
+                    "paths": {"type": "array", "items": {"type": "string"}, "description": "Alias for changed_paths."},
+                    "objective": {"type": "string", "description": "Short objective used for commit planning and default commit message."},
+                    "summary": {"type": "string", "description": "Alias for objective."},
+                    "commit_message": {"type": "string", "description": "Optional safe commit message for commit_plan/commit; no secrets or multiline payloads."},
+                    "checks_passed": {"type": "boolean", "description": "Required true for commit to confirm focused tests or quality gates passed."},
+                    "content_reviewed": {"type": "boolean", "description": "Required true for commit to confirm no secret, private-content, or DSGVO risk is included."},
                     "limit": {"type": "integer", "description": "Commit count for log, default 10, max 100."}
                 },
                 "required": ["action"]
