@@ -1687,6 +1687,152 @@ async def do_manage_embeddings(content: str, owner: Optional[str] = None) -> Dic
         logger.error(f"manage_embeddings error: {e}")
         return {"error": str(e), "exit_code": 1}
 
+
+# ---------------------------------------------------------------------------
+# Personal assistant management tool
+# ---------------------------------------------------------------------------
+
+async def do_manage_assistant(content: str, owner: Optional[str] = None) -> Dict:
+    """Manage the per-user assistant through the same routes as the UI."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action", "settings") or "settings").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Assistant {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Assistant route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    def _task_id() -> str:
+        return str(args.get("task_id") or args.get("id") or "").strip()
+
+    try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
+
+        if action == "session":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/assistant/session", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            session = resp.json() or {}
+            return {
+                "response": f"Assistant session {session.get('session_id') or '(unknown)'}",
+                "session": session,
+                "exit_code": 0,
+            }
+
+        elif action in ("settings", "get", "list"):
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/assistant/settings", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            settings = resp.json() or {}
+            check_ins = settings.get("check_ins") or []
+            crew = settings.get("crew") or {}
+            return {
+                "response": f"Assistant settings for {crew.get('name') or 'assistant'} with {len(check_ins)} check-in(s)",
+                "assistant": settings,
+                "exit_code": 0,
+            }
+
+        elif action == "timezones":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/assistant/available-timezones", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            zones = resp.json() or {}
+            return {
+                "response": f"{len(zones.get('timezones') or [])} available timezones",
+                "timezones": zones.get("timezones") or [],
+                "exit_code": 0,
+            }
+
+        elif action in ("run_status", "status"):
+            task_id = _task_id()
+            if not task_id:
+                return {"error": "task_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/assistant/run-status/{task_id}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            status = resp.json() or {}
+            return {"response": f"Assistant task {task_id}: {status.get('status')}", "status": status, "exit_code": 0}
+
+        elif action == "update":
+            if not _confirmed():
+                return _confirmation_required("update")
+            if "endpoint_url" in args:
+                return {
+                    "error": (
+                        "endpoint_url stays UI/manage_endpoints-only for now; "
+                        "assistant endpoint changes must use the UI or endpoint management flow."
+                    ),
+                    "exit_code": 1,
+                }
+            allowed = (
+                "name", "avatar", "personality", "model", "enabled_tools",
+                "allow_autonomous_email", "timezone", "check_ins",
+            )
+            body = {key: args[key] for key in allowed if key in args}
+            if "check_ins" in body and not isinstance(body["check_ins"], list):
+                return {"error": "check_ins must be a list", "exit_code": 1}
+            if "enabled_tools" in body and not isinstance(body["enabled_tools"], list):
+                return {"error": "enabled_tools must be a list", "exit_code": 1}
+            if not body:
+                return {"error": "No assistant settings fields supplied", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.patch(
+                    f"{_INTERNAL_BASE}/api/assistant/settings",
+                    json=body,
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            settings = resp.json() or {}
+            return {"response": "Updated assistant settings.", "assistant": settings, "exit_code": 0}
+
+        elif action == "run":
+            if not _confirmed():
+                return _confirmation_required("run")
+            task_id = _task_id()
+            if not task_id:
+                return {"error": "task_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/assistant/run/{task_id}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {"response": f"Assistant check-in {task_id} started={bool(result.get('started'))}.", "result": result, "exit_code": 0}
+
+        else:
+            return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except Exception as e:
+        logger.error(f"manage_assistant error: {e}")
+        return {"error": str(e), "exit_code": 1}
+
 # ---------------------------------------------------------------------------
 # API token management tool
 # ---------------------------------------------------------------------------
@@ -3863,7 +4009,7 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         if "/api/skills" in path:
             return {"error": "Don't mutate skills via app_api - use `manage_skills` for list/view/add/edit/patch/publish/delete/search so SKILL.md validation, owner scope, dedupe, and confirmation are enforced; use the Skills UI for test/audit/import flows.", "exit_code": 1}
         if "/api/assistant" in path:
-            return {"error": "Don't mutate personal assistant settings or run check-ins via app_api - use the Assistant UI until a confirmed `manage_assistant` agent tool exists; use `manage_tasks` for ordinary scheduled tasks.", "exit_code": 1}
+            return {"error": "Don't mutate personal assistant settings or run check-ins via app_api - use `manage_assistant` so confirmation and owner scope are enforced; use `manage_tasks` for ordinary scheduled tasks.", "exit_code": 1}
         if "/api/chat" in path or "/api/inject_context" in path or "/api/rewrite" in path:
             return {"error": "Don't start, stop, rewrite, or inject chat context via app_api - use the normal chat UI or `manage_session` so run state, owner scope, and confirmation are preserved.", "exit_code": 1}
         if "/api/codex" in path:
