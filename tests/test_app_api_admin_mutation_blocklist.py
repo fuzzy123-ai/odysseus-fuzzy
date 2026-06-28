@@ -20,6 +20,9 @@ from src.tool_implementations import do_app_api
         ("PATCH", "/api/mcp/servers/srv1", "manage_mcp"),
         ("DELETE", "/api/mcp/servers/srv1", "manage_mcp"),
         ("DELETE", "/api/gallery/img1", "Gallery UI"),
+        ("POST", "/api/document/doc1/archive", "manage_documents"),
+        ("PUT", "/api/document/doc1", "manage_documents"),
+        ("PATCH", "/api/document/doc1", "manage_documents"),
         ("DELETE", "/api/document/doc1", "manage_documents"),
         ("POST", "/api/documents/tidy", "manage_documents"),
         ("POST", "/api/documents/ai-tidy", "manage_documents"),
@@ -63,8 +66,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     },
                     "/api/document/{doc_id}": {
                         "get": {"summary": "Read Document"},
+                        "put": {"summary": "Update Document"},
+                        "patch": {"summary": "Patch Document"},
                         "delete": {"summary": "Delete Document"},
                     },
+                    "/api/document/{doc_id}/archive": {"post": {"summary": "Archive Document"}},
                     "/api/documents/tidy": {"post": {"summary": "Tidy Documents"}},
                     "/api/research/{session_id}": {"delete": {"summary": "Delete Research"}},
                     "/api/tasks/notifications": {"get": {"summary": "Task Notifications"}},
@@ -100,6 +106,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/document/{doc_id}") in paths
     assert ("GET", "/api/tasks/notifications") in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
+    assert ("POST", "/api/document/{doc_id}/archive") not in paths
+    assert ("PUT", "/api/document/{doc_id}") not in paths
+    assert ("PATCH", "/api/document/{doc_id}") not in paths
     assert ("DELETE", "/api/document/{doc_id}") not in paths
     assert ("POST", "/api/documents/tidy") not in paths
     assert ("DELETE", "/api/research/{session_id}") not in paths

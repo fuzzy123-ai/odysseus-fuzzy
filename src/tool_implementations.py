@@ -3176,6 +3176,9 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     # Data mutation routes with dedicated tools or without a confirmed agent
     # flow must not be reachable through generic app_api.
     ("DELETE", "/api/gallery"),
+    ("POST",   "/api/document/"),
+    ("PUT",    "/api/document/"),
+    ("PATCH",  "/api/document/"),
     ("DELETE", "/api/document"),
     ("POST",   "/api/documents/tidy"),
     ("POST",   "/api/documents/ai-tidy"),

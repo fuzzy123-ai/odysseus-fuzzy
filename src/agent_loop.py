@@ -515,7 +515,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Calendar: `/api/calendar/events`, `/api/calendar/calendars`, `/api/calendar/events/{uid}`
 - Cookbook: `/api/cookbook/gpus`, `/api/cookbook/state`, `/api/cookbook/setup`, `/api/cookbook/packages`, `/api/cookbook/hf-latest`, `/api/model/cached`. Do NOT use `app_api` for package installs, engine rebuilds, or PID signalling.
 - Gallery: read/list routes such as `/api/gallery/library`, `/api/gallery/{id}`, `/api/gallery/albums`; gallery deletes are blocked via app_api.
-- Library / Documents: read/list via `/api/documents/library`, `/api/documents/{session_id}`, `/api/document/{id}` and history via `/api/document/{id}/versions`. Deletes/tidy cleanup are blocked via app_api; use `manage_documents`.
+- Library / Documents: read/list via `/api/documents/library`, `/api/documents/{session_id}`, `/api/document/{id}` and history via `/api/document/{id}/versions`. Document mutations, deletes, and tidy cleanup are blocked via app_api; use document tools / `manage_documents`.
 - Memory: `/api/memory`, `/api/memory/{id}`, `/api/memory/search`
 - Notes: `/api/notes`, `/api/notes/{id}`
 - Tasks: read/notifications only; task mutations are blocked via app_api, use `manage_tasks`.
