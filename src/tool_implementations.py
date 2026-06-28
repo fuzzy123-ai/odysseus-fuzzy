@@ -3161,6 +3161,18 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     # sidebar surfaces the session. Raw start works but the agent
     # fumbles the payload + the session doesn't reliably show up.
     ("POST",   "/api/research/start"),
+    # Use named admin tools so confirmation, secret handoff, masking, owner
+    # headers, and route-parity validation cannot be bypassed via app_api.
+    ("POST",   "/api/model-endpoints"),
+    ("PATCH",  "/api/model-endpoints"),
+    ("DELETE", "/api/model-endpoints"),
+    ("POST",   "/api/webhooks"),
+    ("PATCH",  "/api/webhooks"),
+    ("DELETE", "/api/webhooks"),
+    ("POST",   "/api/mcp"),
+    ("PUT",    "/api/mcp"),
+    ("PATCH",  "/api/mcp"),
+    ("DELETE", "/api/mcp"),
     # Use the named tools — they handle owner attribution, natural-
     # language due_date parsing, timezone, dedup, and tag/category
     # normalization. Hitting the raw endpoint via app_api saves a
@@ -3270,6 +3282,12 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't POST /api/model/serve directly — use the `serve_model` or `serve_preset` tool (handles host resolution, env_prefix, and cookbook tracking).", "exit_code": 1}
         if "/api/research/start" in path:
             return {"error": "Don't POST /api/research/start directly — use the `trigger_research` tool (it surfaces the session in the Deep Research sidebar).", "exit_code": 1}
+        if "/api/model-endpoints" in path:
+            return {"error": "Don't mutate /api/model-endpoints via app_api - use the `manage_endpoints` tool so confirmation, secure credential handoff, and route-parity validation are enforced.", "exit_code": 1}
+        if "/api/webhooks" in path:
+            return {"error": "Don't mutate /api/webhooks via app_api - use the `manage_webhooks` tool so confirmation and URL masking are enforced.", "exit_code": 1}
+        if "/api/mcp" in path:
+            return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
         if "/api/notes" in path:
             return {"error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.", "exit_code": 1}
         if "/api/calendar/events" in path:
