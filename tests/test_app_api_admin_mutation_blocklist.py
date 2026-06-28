@@ -91,6 +91,11 @@ from src.tool_implementations import do_app_api
         ("DELETE", "/api/skills/skill1", "manage_skills"),
         ("PATCH", "/api/assistant/settings", "manage_assistant"),
         ("POST", "/api/assistant/run/task1", "manage_assistant"),
+        ("POST", "/api/chat", "normal chat UI"),
+        ("POST", "/api/chat_stream", "normal chat UI"),
+        ("POST", "/api/chat/stop/s1", "normal chat UI"),
+        ("POST", "/api/inject_context/s1", "normal chat UI"),
+        ("POST", "/api/rewrite", "normal chat UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -277,6 +282,14 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     },
                     "/api/assistant/run/{task_id}": {"post": {"summary": "Run Assistant Task"}},
                     "/api/assistant/run-status/{task_id}": {"get": {"summary": "Assistant Run Status"}},
+                    "/api/chat": {"post": {"summary": "Chat"}},
+                    "/api/chat_stream": {"post": {"summary": "Chat Stream"}},
+                    "/api/chat/stop/{session_id}": {"post": {"summary": "Stop Chat"}},
+                    "/api/chat/stream_status/{session_id}": {"get": {"summary": "Chat Stream Status"}},
+                    "/api/chat/run_ledger/{session_id}": {"get": {"summary": "Chat Run Ledger"}},
+                    "/api/chat/mission/{session_id}": {"get": {"summary": "Chat Mission"}},
+                    "/api/inject_context/{session_id}": {"post": {"summary": "Inject Context"}},
+                    "/api/rewrite": {"post": {"summary": "Rewrite Message"}},
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -349,6 +362,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/assistant/session") in paths
     assert ("GET", "/api/assistant/settings") in paths
     assert ("GET", "/api/assistant/run-status/{task_id}") in paths
+    assert ("GET", "/api/chat/stream_status/{session_id}") in paths
+    assert ("GET", "/api/chat/run_ledger/{session_id}") in paths
+    assert ("GET", "/api/chat/mission/{session_id}") in paths
     assert ("GET", "/api/plugins") in paths
     assert ("GET", "/api/plugins/registry") in paths
     assert ("GET", "/api/plugins/registries") in paths
@@ -422,6 +438,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/skills/{skill_id}") not in paths
     assert ("PATCH", "/api/assistant/settings") not in paths
     assert ("POST", "/api/assistant/run/{task_id}") not in paths
+    assert ("POST", "/api/chat") not in paths
+    assert ("POST", "/api/chat_stream") not in paths
+    assert ("POST", "/api/chat/stop/{session_id}") not in paths
+    assert ("POST", "/api/inject_context/{session_id}") not in paths
+    assert ("POST", "/api/rewrite") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths

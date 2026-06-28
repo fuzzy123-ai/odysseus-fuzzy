@@ -35,9 +35,13 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     ])
 
     assert "assistant settings/run triggers" in combined
+    assert "mutating /api/chat" in combined
+    assert "/api/inject_context" in combined
+    assert "/api/rewrite" in combined
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
     assert "manage_assistant" in combined
+    assert "manage_session" in combined
     assert "mutating /api/personal" in combined
     assert "manage_personal_docs" in combined
     assert "mutating /api/plugins" in combined

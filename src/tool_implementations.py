@@ -3164,6 +3164,11 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/assistant"),
     ("PATCH",  "/api/assistant"),
     ("DELETE", "/api/assistant"),
+    # Do not let the agent recursively start/stop chat runs, rewrite messages,
+    # or inject context through the generic loopback bridge.
+    ("POST",   "/api/chat"),
+    ("POST",   "/api/inject_context"),
+    ("POST",   "/api/rewrite"),
     ("POST",   "/api/cookbook/state"),   # whole-file overwrite — agent must use serve_preset/serve_model instead
     ("DELETE", "/api/cookbook/state"),
     # Host-control routes: package install, engine rebuild, and process
@@ -3348,6 +3353,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate skills via app_api - use `manage_skills` for list/view/add/edit/patch/publish/delete/search so SKILL.md validation, owner scope, dedupe, and confirmation are enforced; use the Skills UI for test/audit/import flows.", "exit_code": 1}
         if "/api/assistant" in path:
             return {"error": "Don't mutate personal assistant settings or run check-ins via app_api - use the Assistant UI until a confirmed `manage_assistant` agent tool exists; use `manage_tasks` for ordinary scheduled tasks.", "exit_code": 1}
+        if "/api/chat" in path or "/api/inject_context" in path or "/api/rewrite" in path:
+            return {"error": "Don't start, stop, rewrite, or inject chat context via app_api - use the normal chat UI or `manage_session` so run state, owner scope, and confirmation are preserved.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:
