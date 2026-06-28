@@ -1412,6 +1412,155 @@ async def do_manage_presets(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": str(e), "exit_code": 1}
 
 # ---------------------------------------------------------------------------
+# Personal document/RAG source management tool
+# ---------------------------------------------------------------------------
+
+async def do_manage_personal_docs(content: str, owner: Optional[str] = None) -> Dict:
+    """Manage personal document/RAG sources through the same routes as the UI."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Personal document {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Personal docs route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    def _directory_arg() -> str:
+        return str(args.get("directory") or args.get("path") or "").strip()
+
+    def _filepath_arg() -> str:
+        return str(args.get("filepath") or args.get("file_path") or args.get("path") or "").strip()
+
+    try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
+        if action == "list":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/personal", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            data = resp.json() or {}
+            files = data.get("files") or []
+            directories = data.get("directories") or []
+            return {
+                "response": f"{len(files)} personal document(s), {len(directories)} indexed source dir(s)",
+                "personal_docs": data,
+                "exit_code": 0,
+            }
+
+        elif action == "reload":
+            if not _confirmed():
+                return _confirmation_required("reload")
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/personal/reload", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {
+                "response": f"Reloaded personal documents ({result.get('count', 0)} indexed item(s)).",
+                "result": result,
+                "exit_code": 0,
+            }
+
+        elif action in ("add_directory", "add"):
+            if not _confirmed():
+                return _confirmation_required("add_directory")
+            directory = _directory_arg()
+            if not directory:
+                return {"error": "directory is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.post(
+                    f"{_INTERNAL_BASE}/api/personal/add_directory",
+                    json={"directory": directory},
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {
+                "response": result.get("message") or f"Added personal directory {directory}.",
+                "result": result,
+                "exit_code": 0,
+            }
+
+        elif action in ("remove_directory", "remove"):
+            if not _confirmed():
+                return _confirmation_required("remove_directory")
+            directory = _directory_arg()
+            if not directory:
+                return {"error": "directory is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.delete(
+                    f"{_INTERNAL_BASE}/api/personal/remove_directory",
+                    params={"directory": directory},
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {
+                "response": result.get("message") or f"Removed personal directory {directory}.",
+                "result": result,
+                "exit_code": 0,
+            }
+
+        elif action in ("delete_file", "delete"):
+            if not _confirmed():
+                return _confirmation_required("delete_file")
+            filepath = _filepath_arg()
+            if not filepath:
+                return {"error": "filepath is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.delete(
+                    f"{_INTERNAL_BASE}/api/personal/file",
+                    params={"filepath": filepath},
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {
+                "response": f"Deleted/excluded personal document {filepath}.",
+                "result": result,
+                "exit_code": 0,
+            }
+
+        elif action == "upload":
+            return {
+                "error": "Uploading files stays UI-only for now; use the Personal Docs UI so multipart bytes and owner scope stay bounded.",
+                "exit_code": 1,
+            }
+
+        else:
+            return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except Exception as e:
+        logger.error(f"manage_personal_docs error: {e}")
+        return {"error": str(e), "exit_code": 1}
+
+# ---------------------------------------------------------------------------
 # API token management tool
 # ---------------------------------------------------------------------------
 
@@ -3629,7 +3778,9 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         if "/api/plugins" in path:
             return {"error": "Don't mutate plugin manager or plugin-provider routes via app_api - use the Plugins UI until a confirmed `manage_plugins` or provider-specific agent tool exists.", "exit_code": 1}
         if "/api/personal" in path:
-            return {"error": "Don't mutate personal document or RAG source routes via app_api - use the Personal Docs UI until a confirmed `manage_personal_docs` agent tool exists.", "exit_code": 1}
+            if path.startswith("/api/personal/upload"):
+                return {"error": "Don't upload personal documents via app_api - use the Personal Docs UI so multipart bytes and owner scope stay bounded.", "exit_code": 1}
+            return {"error": "Don't mutate personal document or RAG source routes via app_api - use `manage_personal_docs` so confirmation and route parity are enforced.", "exit_code": 1}
         if "/api/prefs" in path:
             return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/memory" in path:

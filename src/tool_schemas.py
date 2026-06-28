@@ -924,6 +924,25 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_personal_docs",
+            "description": "Manage Personal Docs / RAG source directories through the same routes as the Personal Docs UI. list is read-only; reload/add_directory/remove_directory/delete_file require confirmed=true. Upload stays UI-only.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "reload", "add_directory", "remove_directory", "delete_file", "upload"]},
+                    "directory": {"type": "string", "description": "Directory path under the configured personal documents root (for add_directory/remove_directory)"},
+                    "path": {"type": "string", "description": "Alias for directory or filepath"},
+                    "filepath": {"type": "string", "description": "File path to delete/exclude from Personal Docs/RAG"},
+                    "file_path": {"type": "string", "description": "Alias for filepath"},
+                    "confirmed": {"type": "boolean", "description": "Required true for reload/add_directory/remove_directory/delete_file after explicit user confirmation."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_documents",
             "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup. delete/tidy require confirmed=true.",
             "parameters": {
@@ -1163,7 +1182,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "app_api",
-            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets when available; use ui_control for themes and UI prefs.",
+            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets, manage_personal_docs when available; use ui_control for themes and UI prefs.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1642,7 +1661,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
-                        "manage_tokens", "manage_presets", "manage_documents", "manage_settings",
+                        "manage_tokens", "manage_presets", "manage_personal_docs", "manage_documents", "manage_settings",
                         "manage_research"):
         content = json.dumps(args)
     elif tool_type == "ask_teacher":

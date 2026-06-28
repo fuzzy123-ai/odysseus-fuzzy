@@ -142,11 +142,11 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/plugins/install", "Plugins UI"),
         ("POST", "/api/plugins/telegram/enable", "Plugins UI"),
         ("DELETE", "/api/plugins/registries", "Plugins UI"),
-        ("POST", "/api/personal/reload", "Personal Docs UI"),
-        ("POST", "/api/personal/add_directory", "Personal Docs UI"),
+        ("POST", "/api/personal/reload", "manage_personal_docs"),
+        ("POST", "/api/personal/add_directory", "manage_personal_docs"),
         ("POST", "/api/personal/upload", "Personal Docs UI"),
-        ("DELETE", "/api/personal/remove_directory", "Personal Docs UI"),
-        ("DELETE", "/api/personal/file", "Personal Docs UI"),
+        ("DELETE", "/api/personal/remove_directory", "manage_personal_docs"),
+        ("DELETE", "/api/personal/file", "manage_personal_docs"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
