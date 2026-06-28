@@ -42,6 +42,8 @@ class _FakeAsyncClient:
 
     async def post(self, url, **kwargs):
         self.calls.append(("POST", url, kwargs))
+        if url.endswith("/test"):
+            return _FakeResponse({"status": "sent"})
         return _FakeResponse({"id": "wh2", "name": kwargs.get("data", {}).get("name")})
 
     async def patch(self, url, **kwargs):
@@ -120,6 +122,28 @@ def test_manage_webhooks_enable_confirmed_toggles_only_when_needed(monkeypatch):
     assert calls[0][0] == "GET"
     assert calls[1][0] == "PATCH"
     assert calls[1][1].endswith("/api/webhooks/wh1")
+
+
+def test_manage_webhooks_test_requires_confirmation_then_uses_route(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
+
+    blocked = asyncio.run(do_manage_webhooks(json.dumps({
+        "action": "test",
+        "webhook_id": "wh1",
+    }), owner="admin"))
+    sent = asyncio.run(do_manage_webhooks(json.dumps({
+        "action": "test",
+        "webhook_id": "wh1",
+        "confirmed": True,
+    }), owner="admin"))
+
+    encoded = json.dumps(sent)
+    assert blocked["status"] == "confirmation_required"
+    assert sent["exit_code"] == 0
+    assert sent["result"] == {"status": "sent"}
+    assert "secret-token" not in encoded
+    assert calls[0][0] == "POST"
+    assert calls[0][1].endswith("/api/webhooks/wh1/test")
 
 
 def test_manage_webhooks_delete_requires_confirmation_then_uses_route(monkeypatch):

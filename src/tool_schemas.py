@@ -862,16 +862,16 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_webhooks",
-            "description": "Manage webhooks through admin routes. Webhook URLs are masked in tool output; add/delete/enable/disable require confirmed=true.",
+            "description": "Manage webhooks through admin routes. Webhook URLs are masked in tool output; add/test/delete/enable/disable require confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "add", "delete", "enable", "disable"]},
-                    "webhook_id": {"type": "string", "description": "Webhook ID (for delete/enable/disable)"},
+                    "action": {"type": "string", "enum": ["list", "add", "test", "delete", "enable", "disable"]},
+                    "webhook_id": {"type": "string", "description": "Webhook ID (for test/delete/enable/disable)"},
                     "name": {"type": "string", "description": "Webhook name (for add)"},
                     "url": {"type": "string", "description": "Webhook URL (for add)"},
                     "events": {"type": "string", "description": "Comma-separated event names (for add)"},
-                    "confirmed": {"type": "boolean", "description": "Required true for add/delete/enable/disable after explicit user confirmation."}
+                    "confirmed": {"type": "boolean", "description": "Required true for add/test/delete/enable/disable after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

@@ -13,6 +13,7 @@ from src.tool_implementations import do_app_api
         ("PATCH", "/api/model-endpoints/ep1", "manage_endpoints"),
         ("DELETE", "/api/model-endpoints/ep1", "manage_endpoints"),
         ("POST", "/api/webhooks", "manage_webhooks"),
+        ("POST", "/api/webhooks/wh1/test", "manage_webhooks"),
         ("PATCH", "/api/webhooks/wh1", "manage_webhooks"),
         ("DELETE", "/api/webhooks/wh1", "manage_webhooks"),
         ("POST", "/api/mcp/servers", "manage_mcp"),

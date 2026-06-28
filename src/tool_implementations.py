@@ -1230,6 +1230,22 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
                 return _error_from_response(resp)
             return {"response": f"Deleted webhook {wid}", "result": resp.json() or {}, "exit_code": 0}
 
+        elif action == "test":
+            if not _confirmed():
+                return _confirmation_required("test")
+            wid = args.get("webhook_id", "")
+            if not wid:
+                return {"error": "webhook_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/webhooks/{wid}/test", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {
+                "response": f"Sent test event for webhook {wid}.",
+                "result": resp.json() or {},
+                "exit_code": 0,
+            }
+
         elif action in ("enable", "disable"):
             if not _confirmed():
                 return _confirmation_required(action)
