@@ -16,7 +16,7 @@ def test_manage_settings_prompt_advertises_secret_handoff():
 
 
 def test_admin_tool_descriptions_advertise_confirmed_flows():
-    for name in ("manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs"):
+    for name in ("manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings"):
         combined = f"{TOOL_SECTIONS[name]}\n{tool_index.BUILTIN_TOOL_DESCRIPTIONS[name]}"
         assert "confirmed=true" in combined
 
@@ -25,6 +25,7 @@ def test_admin_tool_descriptions_advertise_confirmed_flows():
     assert "masked" in TOOL_SECTIONS["manage_webhooks"]
     assert "shown once" in TOOL_SECTIONS["manage_tokens"]
     assert "Upload stays UI-only" in TOOL_SECTIONS["manage_personal_docs"]
+    assert "set_endpoint stays UI/secure-handoff-only" in TOOL_SECTIONS["manage_embeddings"]
 
 
 def test_app_api_prompt_advertises_named_tool_mutation_guardrails():

@@ -1561,6 +1561,133 @@ async def do_manage_personal_docs(content: str, owner: Optional[str] = None) -> 
         return {"error": str(e), "exit_code": 1}
 
 # ---------------------------------------------------------------------------
+# Embedding model/endpoint management tool
+# ---------------------------------------------------------------------------
+
+async def do_manage_embeddings(content: str, owner: Optional[str] = None) -> Dict:
+    """Manage embedding models through admin routes with confirmation for mutations."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Embedding {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Embedding route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    def _model_name() -> str:
+        return str(args.get("model_name") or args.get("model") or "").strip()
+
+    try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
+        if action == "list":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/embeddings/models", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            models = resp.json() or []
+            return {"response": f"{len(models)} embedding model(s)", "models": models, "exit_code": 0}
+
+        elif action == "status":
+            model_name = _model_name()
+            if not model_name:
+                return {"error": "model_name is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{_INTERNAL_BASE}/api/embeddings/models/{model_name}/status",
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            status = resp.json() or {}
+            return {"response": f"Embedding model {model_name}: {status}", "status": status, "exit_code": 0}
+
+        elif action in ("endpoint", "get_endpoint"):
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/embeddings/endpoint", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            endpoint = resp.json() or {}
+            return {"response": f"Embedding endpoint active={bool(endpoint.get('active'))}", "endpoint": endpoint, "exit_code": 0}
+
+        elif action in ("download", "download_model"):
+            if not _confirmed():
+                return _confirmation_required("download")
+            model_name = _model_name()
+            if not model_name:
+                return {"error": "model_name is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=600) as client:
+                resp = await client.post(
+                    f"{_INTERNAL_BASE}/api/embeddings/models/{model_name}/download",
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {"response": f"Embedding model download requested for {model_name}.", "result": result, "exit_code": 0}
+
+        elif action in ("delete", "delete_model"):
+            if not _confirmed():
+                return _confirmation_required("delete")
+            model_name = _model_name()
+            if not model_name:
+                return {"error": "model_name is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.delete(
+                    f"{_INTERNAL_BASE}/api/embeddings/models/{model_name}",
+                    headers=headers,
+                )
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {"response": f"Deleted embedding model cache for {model_name}.", "result": result, "exit_code": 0}
+
+        elif action in ("clear_endpoint", "delete_endpoint"):
+            if not _confirmed():
+                return _confirmation_required("clear_endpoint")
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/embeddings/endpoint", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {"response": "Cleared embedding endpoint; local FastEmbed will be used.", "result": result, "exit_code": 0}
+
+        elif action in ("set_endpoint", "update_endpoint"):
+            return {
+                "error": "Setting embedding endpoints stays UI/secure-handoff-only for now because it performs a live health check and may require an API key.",
+                "exit_code": 1,
+            }
+
+        else:
+            return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except Exception as e:
+        logger.error(f"manage_embeddings error: {e}")
+        return {"error": str(e), "exit_code": 1}
+
+# ---------------------------------------------------------------------------
 # API token management tool
 # ---------------------------------------------------------------------------
 
@@ -3766,7 +3893,9 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         if "/api/model/serve" in path:
             return {"error": "Don't POST /api/model/serve directly — use the `serve_model` or `serve_preset` tool (handles host resolution, env_prefix, and cookbook tracking).", "exit_code": 1}
         if "/api/embeddings" in path:
-            return {"error": "Don't mutate embedding models or embedding endpoint config via app_api - use the Embedding Settings UI until a confirmed `manage_embeddings` agent tool exists.", "exit_code": 1}
+            if method == "POST" and path.startswith("/api/embeddings/endpoint"):
+                return {"error": "Don't set embedding endpoints via app_api - use the Embedding Settings UI or a secure handoff flow because endpoint setup performs a live health check and may require an API key.", "exit_code": 1}
+            return {"error": "Don't mutate embedding models or embedding endpoint config via app_api - use `manage_embeddings` so confirmation and route parity are enforced.", "exit_code": 1}
         if "/api/research/start" in path:
             return {"error": "Don't POST /api/research/start directly — use the `trigger_research` tool (it surfaces the session in the Deep Research sidebar).", "exit_code": 1}
         if "/api/model-endpoints" in path:

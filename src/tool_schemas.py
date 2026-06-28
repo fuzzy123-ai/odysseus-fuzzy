@@ -943,6 +943,23 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_embeddings",
+            "description": "Manage local embedding models and embedding endpoint status through the same routes as the Embedding Settings UI. list/status/endpoint are read-only; download/delete/clear_endpoint require confirmed=true. set_endpoint stays UI/secure-handoff-only.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "status", "endpoint", "download", "delete", "clear_endpoint", "set_endpoint"]},
+                    "model_name": {"type": "string", "description": "Embedding model name, e.g. BAAI/bge-small-en-v1.5"},
+                    "model": {"type": "string", "description": "Alias for model_name"},
+                    "confirmed": {"type": "boolean", "description": "Required true for download/delete/clear_endpoint after explicit user confirmation."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_documents",
             "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup. delete/tidy require confirmed=true.",
             "parameters": {
@@ -1182,7 +1199,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "app_api",
-            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets, manage_personal_docs when available; use ui_control for themes and UI prefs.",
+            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets, manage_personal_docs, manage_embeddings when available; use ui_control for themes and UI prefs.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1661,7 +1678,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
-                        "manage_tokens", "manage_presets", "manage_personal_docs", "manage_documents", "manage_settings",
+                        "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_documents", "manage_settings",
                         "manage_research"):
         content = json.dumps(args)
     elif tool_type == "ask_teacher":

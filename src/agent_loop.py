@@ -295,7 +295,7 @@ _DOMAIN_TOOL_MAP = {
     "ui": {"ui_control"},
     "sessions": {"create_session", "list_sessions", "manage_session", "send_to_session", "search_chats"},
     "files": {"bash", "python", "read_file", "write_file", "edit_file", "grep", "glob", "ls", "get_workspace", "manage_bg_jobs"},
-    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "app_api"},
+    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "app_api"},
     "contacts": {"resolve_contact", "manage_contact"},
     "integrations": {"api_call"},
     "changes": {"recent_changes"},
@@ -436,6 +436,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "manage_tokens": "- ```manage_tokens``` — Generate, rename/update, or revoke API access tokens for external integrations. Args (JSON): {\"action\": \"list|create|update|rename|delete\", \"token_id\":\"...\", \"name\":\"...\", \"scopes\":[\"chat\"], \"confirmed\": true}. create/update/delete require explicit user confirmation and confirmed=true; newly created token values are shown once.",
     "manage_presets": "- ```manage_presets``` — Manage chat/persona presets through the same routes as the Presets UI. Args (JSON): {\"action\":\"list|templates|groups|update_custom|save_template|delete_template|save_groups\", \"confirmed\":true, ...}. Writes/deletes require explicit user confirmation and confirmed=true.",
     "manage_personal_docs": "- ```manage_personal_docs``` — Manage Personal Docs / RAG source directories through the same routes as the Personal Docs UI. Args (JSON): {\"action\":\"list|reload|add_directory|remove_directory|delete_file\", \"directory\":\"...\", \"filepath\":\"...\", \"confirmed\":true}. reload/add/remove/delete require explicit user confirmation and confirmed=true. Upload stays UI-only.",
+    "manage_embeddings": "- ```manage_embeddings``` — Manage local embedding models and embedding endpoint status through the same routes as the Embedding Settings UI. Args (JSON): {\"action\":\"list|status|endpoint|download|delete|clear_endpoint|set_endpoint\", \"model_name\":\"...\", \"confirmed\":true}. download/delete/clear_endpoint require explicit user confirmation and confirmed=true. set_endpoint stays UI/secure-handoff-only.",
     "manage_documents": "- ```manage_documents``` — List, read/open, delete, or tidy documents in the editor panel. Args (JSON): {\"action\": \"list|read|delete|tidy\", ...}. `list` returns rows like `[Title](#document-<id>) — lang, size, updated 5m ago` sorted MOST-RECENT FIRST; the user clicks the anchor to open. `read` (aliases: view/open/get) takes `document_id` and returns the content. When the user asks \"open/show/read my notes\" or \"what documents do I have\", use this — do NOT shell out, do NOT curl.",
     "manage_research": "- ```manage_research``` — List, read/open, or delete saved DEEP RESEARCH results from the owner-scoped Library. Args (JSON): {\"action\": \"list|read|delete\", \"id\": \"<id>\", \"search\": \"...\", \"confirmed\": true}. `list` returns rows like `[query](#research-<id>) — N sources` MOST-RECENT FIRST; the user clicks to open. `read` (aliases: open/view/get) takes `id` and returns the report text + sources. `delete` requires explicit user confirmation and `confirmed=true`. Use when the user says \"open/read/find/delete my research\" or \"that report\". This IS how you read a finished report: when the user refers to a just-completed deep-research job (\"check it out\", \"read that report\", \"summarize the research\") WITHOUT giving an id, call `manage_research` with `action:list` to get the most-recent id, then `action:read` with that id, and answer from the returned text. Do NOT `web_fetch`/`app_api` the `/api/research/report/{id}` URL — that endpoint renders HTML for the browser, not clean text — and do NOT start a fresh `web_search`/`trigger_research` just to read an existing report. To START new research, use trigger_research instead.",
     "manage_settings": "- ```manage_settings``` — View/change the REAL app settings (same ones the Settings panel writes), feature flags, secure secret handoffs, and tool toggles. Args are JSON. Read/list/explain: {\"action\":\"get|list|explain\",\"key\":\"...\"}. Set/reset/patch: {\"action\":\"set|reset|patch\",\"key\":\"...\",\"value\":\"...\",\"scope\":\"auto|user|global\",\"confirmed\":true}. Features: {\"action\":\"features\",\"key\":\"deep_research\",\"value\":true,\"confirmed\":true}. Secret/API-key setup: NEVER pass the secret value; call {\"action\":\"request_secret\",\"key\":\"brave_api_key\"} and then {\"action\":\"secret_handoffs\"} to inspect pending requests. Confirm-protected settings and feature writes require explicit user confirmation plus confirmed=true. Tool toggles: {\"action\":\"disable_tool|enable_tool\",\"tool\":\"shell\"} (aliases: shell/search/browser/documents/memory/skills/images/tasks/notes/calendar/email), list disabled: {\"action\":\"list_tools\"}.",
@@ -521,7 +522,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Codex plugin: read/list routes such as `/api/codex/todos`, `/api/codex/emails`, `/api/codex/memory`, `/api/codex/documents`, `/api/codex/cookbook/tasks`; Codex plugin mutations are blocked via app_api, use the native named tools so confirmation and owner scope are enforced.
 - Contacts: read/list/search/export routes such as `/api/contacts/list`, `/api/contacts/search`, `/api/contacts/export`; contact mutations are blocked via app_api, use `resolve_contact` and `manage_contact`.
 - Cookbook: `/api/cookbook/gpus`, `/api/cookbook/state`, `/api/cookbook/setup`, `/api/cookbook/packages`, `/api/cookbook/hf-latest`, `/api/model/cached`. Do NOT use `app_api` for package installs, engine rebuilds, or PID signalling.
-- Embeddings: read/status routes such as `/api/embeddings/models`, `/api/embeddings/models/{model_name}/status`, `/api/embeddings/endpoint`; embedding downloads, cache deletes, and endpoint writes are blocked via app_api until a confirmed `manage_embeddings` tool exists.
+- Embeddings: read/status routes such as `/api/embeddings/models`, `/api/embeddings/models/{model_name}/status`, `/api/embeddings/endpoint`; embedding downloads, cache deletes, and endpoint clears are blocked via app_api. Use `manage_embeddings` for confirmed embedding model/cache changes; endpoint set stays Embedding Settings UI / secure-handoff-only.
 - Gallery: read/list routes such as `/api/gallery/library`, `/api/gallery/{id}`, `/api/gallery/albums`; gallery mutations are blocked via app_api.
 - Library / Documents: read/list via `/api/documents/library`, `/api/documents/{session_id}`, `/api/document/{id}` and history via `/api/document/{id}/versions`. Document create/import/export/mutations/deletes/tidy cleanup are blocked via app_api; use document tools / `manage_documents`.
 - Memory: read/list routes such as `/api/memory`, `/api/memory/{id}`, `/api/memory/timeline`; memory writes/search/import/audit are blocked via app_api, use `manage_memory` or the Memory UI.
@@ -690,7 +691,7 @@ _MCP_KEYWORDS = frozenset(["mcp", "browse", "browser", "website", "calendar", "e
                            "obsidian", "vault", "note", "notes", "notiz"])
 _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings",
     "create_session", "list_sessions", "send_to_session", "pipeline",
     "ask_teacher", "list_models", "search_chats", "recent_changes",
 ])
@@ -1433,7 +1434,7 @@ def _build_system_prompt(
 
 _ADMIN_TOOLS = {
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
     "recent_changes",
