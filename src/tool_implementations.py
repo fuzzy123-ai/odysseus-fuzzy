@@ -3169,6 +3169,12 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("POST",   "/api/chat"),
     ("POST",   "/api/inject_context"),
     ("POST",   "/api/rewrite"),
+    # Embedding downloads/deletes and endpoint writes touch network, local
+    # model cache, secrets, and RAG singleton state. Keep app_api read-only.
+    ("POST",   "/api/embeddings"),
+    ("PUT",    "/api/embeddings"),
+    ("PATCH",  "/api/embeddings"),
+    ("DELETE", "/api/embeddings"),
     ("POST",   "/api/cookbook/state"),   # whole-file overwrite — agent must use serve_preset/serve_model instead
     ("DELETE", "/api/cookbook/state"),
     # Host-control routes: package install, engine rebuild, and process
@@ -3365,6 +3371,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't POST /api/model/download directly — use the `download_model` tool (it resolves the server name, sets the venv env_prefix, and registers the task so it shows in the UI).", "exit_code": 1}
         if "/api/model/serve" in path:
             return {"error": "Don't POST /api/model/serve directly — use the `serve_model` or `serve_preset` tool (handles host resolution, env_prefix, and cookbook tracking).", "exit_code": 1}
+        if "/api/embeddings" in path:
+            return {"error": "Don't mutate embedding models or embedding endpoint config via app_api - use the Embedding Settings UI until a confirmed `manage_embeddings` agent tool exists.", "exit_code": 1}
         if "/api/research/start" in path:
             return {"error": "Don't POST /api/research/start directly — use the `trigger_research` tool (it surfaces the session in the Deep Research sidebar).", "exit_code": 1}
         if "/api/model-endpoints" in path:

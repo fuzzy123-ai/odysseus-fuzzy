@@ -96,6 +96,10 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/chat/stop/s1", "normal chat UI"),
         ("POST", "/api/inject_context/s1", "normal chat UI"),
         ("POST", "/api/rewrite", "normal chat UI"),
+        ("POST", "/api/embeddings/models/BAAI/bge-small-en-v1.5/download", "Embedding Settings UI"),
+        ("DELETE", "/api/embeddings/models/BAAI/bge-small-en-v1.5", "Embedding Settings UI"),
+        ("POST", "/api/embeddings/endpoint", "Embedding Settings UI"),
+        ("DELETE", "/api/embeddings/endpoint", "Embedding Settings UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -290,6 +294,15 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/chat/mission/{session_id}": {"get": {"summary": "Chat Mission"}},
                     "/api/inject_context/{session_id}": {"post": {"summary": "Inject Context"}},
                     "/api/rewrite": {"post": {"summary": "Rewrite Message"}},
+                    "/api/embeddings/models": {"get": {"summary": "List Embedding Models"}},
+                    "/api/embeddings/models/{model_name}/download": {"post": {"summary": "Download Embedding Model"}},
+                    "/api/embeddings/models/{model_name}/status": {"get": {"summary": "Embedding Model Status"}},
+                    "/api/embeddings/models/{model_name}": {"delete": {"summary": "Delete Embedding Model"}},
+                    "/api/embeddings/endpoint": {
+                        "get": {"summary": "Get Embedding Endpoint"},
+                        "post": {"summary": "Set Embedding Endpoint"},
+                        "delete": {"summary": "Clear Embedding Endpoint"},
+                    },
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -365,6 +378,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/chat/stream_status/{session_id}") in paths
     assert ("GET", "/api/chat/run_ledger/{session_id}") in paths
     assert ("GET", "/api/chat/mission/{session_id}") in paths
+    assert ("GET", "/api/embeddings/models") in paths
+    assert ("GET", "/api/embeddings/models/{model_name}/status") in paths
+    assert ("GET", "/api/embeddings/endpoint") in paths
     assert ("GET", "/api/plugins") in paths
     assert ("GET", "/api/plugins/registry") in paths
     assert ("GET", "/api/plugins/registries") in paths
@@ -443,6 +459,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/chat/stop/{session_id}") not in paths
     assert ("POST", "/api/inject_context/{session_id}") not in paths
     assert ("POST", "/api/rewrite") not in paths
+    assert ("POST", "/api/embeddings/models/{model_name}/download") not in paths
+    assert ("DELETE", "/api/embeddings/models/{model_name}") not in paths
+    assert ("POST", "/api/embeddings/endpoint") not in paths
+    assert ("DELETE", "/api/embeddings/endpoint") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths
