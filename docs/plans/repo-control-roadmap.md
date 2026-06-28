@@ -2,7 +2,7 @@
 
 Stand: 2026-06-28
 
-Status: **new backend feature track; roadmap created after reviewing adjacent project, automation, sandbox and GitHub roadmaps**
+Status: **RC1-RC9 backend slices implemented; RC10 API Surface For Future UI is next**
 
 ## Goal
 
@@ -431,6 +431,7 @@ Initial focused tests:
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_registry.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_git_adapter.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_remote_policy.py
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_recent_memory.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_repos_read_tool.py
 ```
 
@@ -455,8 +456,8 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_*.py t
 
 ## Recommended Next Slice
 
-`RC1 Repo Registry Model` zuerst. Danach `RC2 Git Read Adapter`, dann
-`RC3 manage_repos Read Tool`.
+`RC10 API Surface For Future UI` als naechster Backend-Slice.
 
-Damit bekommt Odysseus zuerst sichere Wahrnehmung ueber Repos, bevor er
-irgendwelche Schreibrechte bekommt.
+Damit bekommt das spaetere Project UI eine schmale API ueber registrierte
+Repos, Policies, Status, Changes, Commit-Plan und Push-Plan, ohne dass in
+diesem Backend-Slice UI-Design entschieden wird.
