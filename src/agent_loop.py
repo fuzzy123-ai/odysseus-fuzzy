@@ -295,7 +295,7 @@ _DOMAIN_TOOL_MAP = {
     "ui": {"ui_control"},
     "sessions": {"create_session", "list_sessions", "manage_session", "send_to_session", "search_chats"},
     "files": {"bash", "python", "read_file", "write_file", "edit_file", "grep", "glob", "ls", "get_workspace", "manage_bg_jobs"},
-    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "app_api"},
+    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "manage_plugins", "app_api"},
     "contacts": {"resolve_contact", "manage_contact"},
     "integrations": {"api_call"},
     "changes": {"recent_changes"},
@@ -438,6 +438,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "manage_personal_docs": "- ```manage_personal_docs``` — Manage Personal Docs / RAG source directories through the same routes as the Personal Docs UI. Args (JSON): {\"action\":\"list|reload|add_directory|remove_directory|delete_file\", \"directory\":\"...\", \"filepath\":\"...\", \"confirmed\":true}. reload/add/remove/delete require explicit user confirmation and confirmed=true. Upload stays UI-only.",
     "manage_embeddings": "- ```manage_embeddings``` — Manage local embedding models and embedding endpoint status through the same routes as the Embedding Settings UI. Args (JSON): {\"action\":\"list|status|endpoint|download|delete|clear_endpoint|set_endpoint\", \"model_name\":\"...\", \"confirmed\":true}. download/delete/clear_endpoint require explicit user confirmation and confirmed=true. set_endpoint stays UI/secure-handoff-only.",
     "manage_assistant": "- ```manage_assistant``` — Manage the per-user personal assistant through the same routes as the Assistant UI. Args (JSON): {\"action\":\"session|settings|timezones|run_status|update|run\", \"task_id\":\"...\", \"confirmed\":true, ...}. session/settings/timezones/run_status are read-only; update/run require explicit user confirmation and confirmed=true. endpoint_url stays UI/manage_endpoints-only.",
+    "manage_plugins": "- ```manage_plugins``` — Manage admin plugin manager routes. Args (JSON): {\"action\":\"list|registry|registries|status|enable|disable|reload|rescan|install|uninstall|add_registry|remove_registry\", \"plugin_id\":\"...\", \"url\":\"...\", \"confirmed\":true}. list/registry/registries/status are read-only; all manager mutations require explicit user confirmation and confirmed=true. install accepts registry plugin ids only; direct ZIP URL installs stay Plugins UI-only. Plugin-specific provider actions stay UI/provider-specific.",
     "manage_documents": "- ```manage_documents``` — List, read/open, delete, or tidy documents in the editor panel. Args (JSON): {\"action\": \"list|read|delete|tidy\", ...}. `list` returns rows like `[Title](#document-<id>) — lang, size, updated 5m ago` sorted MOST-RECENT FIRST; the user clicks the anchor to open. `read` (aliases: view/open/get) takes `document_id` and returns the content. When the user asks \"open/show/read my notes\" or \"what documents do I have\", use this — do NOT shell out, do NOT curl.",
     "manage_research": "- ```manage_research``` — List, read/open, or delete saved DEEP RESEARCH results from the owner-scoped Library. Args (JSON): {\"action\": \"list|read|delete\", \"id\": \"<id>\", \"search\": \"...\", \"confirmed\": true}. `list` returns rows like `[query](#research-<id>) — N sources` MOST-RECENT FIRST; the user clicks to open. `read` (aliases: open/view/get) takes `id` and returns the report text + sources. `delete` requires explicit user confirmation and `confirmed=true`. Use when the user says \"open/read/find/delete my research\" or \"that report\". This IS how you read a finished report: when the user refers to a just-completed deep-research job (\"check it out\", \"read that report\", \"summarize the research\") WITHOUT giving an id, call `manage_research` with `action:list` to get the most-recent id, then `action:read` with that id, and answer from the returned text. Do NOT `web_fetch`/`app_api` the `/api/research/report/{id}` URL — that endpoint renders HTML for the browser, not clean text — and do NOT start a fresh `web_search`/`trigger_research` just to read an existing report. To START new research, use trigger_research instead.",
     "manage_settings": "- ```manage_settings``` — View/change the REAL app settings (same ones the Settings panel writes), feature flags, secure secret handoffs, and tool toggles. Args are JSON. Read/list/explain: {\"action\":\"get|list|explain\",\"key\":\"...\"}. Set/reset/patch: {\"action\":\"set|reset|patch\",\"key\":\"...\",\"value\":\"...\",\"scope\":\"auto|user|global\",\"confirmed\":true}. Features: {\"action\":\"features\",\"key\":\"deep_research\",\"value\":true,\"confirmed\":true}. Secret/API-key setup: NEVER pass the secret value; call {\"action\":\"request_secret\",\"key\":\"brave_api_key\"} and then {\"action\":\"secret_handoffs\"} to inspect pending requests. Confirm-protected settings and feature writes require explicit user confirmation plus confirmed=true. Tool toggles: {\"action\":\"disable_tool|enable_tool\",\"tool\":\"shell\"} (aliases: shell/search/browser/documents/memory/skills/images/tasks/notes/calendar/email), list disabled: {\"action\":\"list_tools\"}.",
@@ -529,7 +530,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Memory: read/list routes such as `/api/memory`, `/api/memory/{id}`, `/api/memory/timeline`; memory writes/search/import/audit are blocked via app_api, use `manage_memory` or the Memory UI.
 - Notes: read/list routes such as `/api/notes`, `/api/notes/{id}`; note mutations are blocked via app_api, use `manage_notes`.
 - Personal docs/RAG sources: read/list via `/api/personal`; reload, directory add/remove, and file delete are blocked via app_api. Use `manage_personal_docs` for confirmed source changes; upload stays Personal Docs UI-only.
-- Plugins: read/status routes such as `/api/plugins`, `/api/plugins/registry`, `/api/plugins/{plugin_id}/status`; plugin manager/provider mutations are blocked via app_api until confirmed `manage_plugins` or provider-specific tools exist.
+- Plugins: read/status routes such as `/api/plugins`, `/api/plugins/registry`, `/api/plugins/{plugin_id}/status`; plugin manager mutations are blocked via app_api. Use `manage_plugins`; plugin-specific provider actions stay UI/provider-specific.
 - Presets: read/list routes such as `/api/presets`, `/api/presets/templates`, `/api/presets/groups`; custom preset, template, and group writes are blocked via app_api. Use `manage_presets` for confirmed preset changes.
 - Tasks: read/notifications only; task mutations are blocked via app_api, use `manage_tasks`.
 - Sessions: read-only helpers only; session/chat mutations are blocked via app_api, use `create_session`, `list_sessions`, or `manage_session`.
@@ -692,7 +693,7 @@ _MCP_KEYWORDS = frozenset(["mcp", "browse", "browser", "website", "calendar", "e
                            "obsidian", "vault", "note", "notes", "notiz"])
 _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "create_session", "list_sessions", "send_to_session", "pipeline",
     "ask_teacher", "list_models", "search_chats", "recent_changes",
 ])
@@ -1435,7 +1436,7 @@ def _build_system_prompt(
 
 _ADMIN_TOOLS = {
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
     "recent_changes",

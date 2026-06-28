@@ -986,6 +986,25 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_plugins",
+            "description": "Manage admin plugin manager routes through the same Plugins UI routes. list/registry/registries/status are read-only; enable/disable/reload/rescan/install/uninstall/add_registry/remove_registry require confirmed=true. install accepts registry plugin ids only; direct ZIP URL installs and plugin-specific provider actions stay UI/provider-specific.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "registry", "registries", "status", "enable", "disable", "reload", "rescan", "install", "uninstall", "add_registry", "remove_registry"]},
+                    "plugin_id": {"type": "string", "description": "Plugin id for status/enable/disable/reload/install/uninstall"},
+                    "id": {"type": "string", "description": "Alias for plugin_id"},
+                    "url": {"type": "string", "description": "Registry URL for add_registry/remove_registry. Direct install URL is blocked."},
+                    "registry_url": {"type": "string", "description": "Alias for url when adding/removing plugin registries"},
+                    "confirmed": {"type": "boolean", "description": "Required true for enable/disable/reload/rescan/install/uninstall/add_registry/remove_registry after explicit user confirmation."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_documents",
             "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup. delete/tidy require confirmed=true.",
             "parameters": {
@@ -1225,7 +1244,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "app_api",
-            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets, manage_personal_docs, manage_embeddings, manage_assistant when available; use ui_control for themes and UI prefs.",
+            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets, manage_personal_docs, manage_embeddings, manage_assistant, manage_plugins when available; use ui_control for themes and UI prefs.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1704,7 +1723,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
-                        "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "manage_documents", "manage_settings",
+                        "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "manage_plugins", "manage_documents", "manage_settings",
                         "manage_research"):
         content = json.dumps(args)
     elif tool_type == "ask_teacher":
