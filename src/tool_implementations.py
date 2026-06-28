@@ -1280,6 +1280,138 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
 
 
 # ---------------------------------------------------------------------------
+# Preset management tool
+# ---------------------------------------------------------------------------
+
+async def do_manage_presets(content: str, owner: Optional[str] = None) -> Dict:
+    """Manage chat/persona presets through the same routes as the UI."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action", "list") or "list").strip().lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Preset {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
+    def _error_from_response(resp) -> Dict:
+        try:
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"Preset route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
+        if action == "list":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/presets", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            presets = resp.json() or {}
+            return {"response": f"{len(presets)} presets", "presets": presets, "exit_code": 0}
+
+        elif action in ("templates", "list_templates"):
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/presets/templates", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            templates = resp.json() or []
+            return {"response": f"{len(templates)} preset templates", "templates": templates, "exit_code": 0}
+
+        elif action in ("groups", "list_groups"):
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/presets/groups", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            groups = resp.json() or {}
+            count = len(groups.get("groups") or []) if isinstance(groups, dict) else 0
+            return {"response": f"{count} preset groups", "groups": groups, "exit_code": 0}
+
+        elif action in ("update_custom", "custom"):
+            if not _confirmed():
+                return _confirmation_required("update_custom")
+            body = {
+                "name": args.get("name", ""),
+                "enabled": bool(args.get("enabled", True)),
+                "temperature": args.get("temperature", 1.0),
+                "max_tokens": args.get("max_tokens", 0),
+                "system_prompt": args.get("system_prompt", ""),
+                "inject_prefix": args.get("inject_prefix", ""),
+                "inject_suffix": args.get("inject_suffix", ""),
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/presets/custom", json=body, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": "Updated custom preset.", "result": resp.json() or {}, "exit_code": 0}
+
+        elif action in ("save_template", "template"):
+            if not _confirmed():
+                return _confirmation_required("save_template")
+            name = str(args.get("name") or "").strip()
+            if not name:
+                return {"error": "name is required", "exit_code": 1}
+            body = {
+                "id": args.get("template_id") or args.get("id") or "",
+                "name": name,
+                "system_prompt": args.get("system_prompt", ""),
+                "temperature": args.get("temperature", 1.0),
+                "max_tokens": args.get("max_tokens", 0),
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/presets/templates", json=body, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Saved preset template '{name}'.", "result": resp.json() or {}, "exit_code": 0}
+
+        elif action == "delete_template":
+            if not _confirmed():
+                return _confirmation_required("delete_template")
+            template_id = str(args.get("template_id") or args.get("id") or "").strip()
+            if not template_id:
+                return {"error": "template_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/presets/templates/{template_id}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Deleted preset template {template_id}.", "result": resp.json() or {}, "exit_code": 0}
+
+        elif action == "save_groups":
+            if not _confirmed():
+                return _confirmation_required("save_groups")
+            groups = args.get("groups")
+            if not isinstance(groups, list):
+                return {"error": "groups must be a list", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/presets/groups", json={"groups": groups}, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Saved {len(groups)} preset group(s).", "result": resp.json() or {}, "exit_code": 0}
+
+        else:
+            return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except Exception as e:
+        logger.error(f"manage_presets error: {e}")
+        return {"error": str(e), "exit_code": 1}
+
+# ---------------------------------------------------------------------------
 # API token management tool
 # ---------------------------------------------------------------------------
 
@@ -3240,7 +3372,7 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PATCH",  "/api/signatures"),
     ("DELETE", "/api/signatures"),
     # Preset writes change model/persona behavior globally. Keep reads via
-    # app_api, but require the Presets UI or a confirmed settings flow to save.
+    # app_api, but require manage_presets or the Presets UI to save.
     ("POST",   "/api/presets/custom"),
     ("POST",   "/api/presets/templates"),
     ("DELETE", "/api/presets/templates"),
@@ -3465,7 +3597,7 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         if "/api/signatures" in path:
             return {"error": "Don't read or mutate saved visual signatures via app_api - use the Signature/Documents UI so personal image data and signing confirmation stay scoped.", "exit_code": 1}
         if "/api/presets" in path:
-            return {"error": "Don't mutate presets or persona templates via app_api - use the Presets UI until a confirmed preset/settings agent tool exists.", "exit_code": 1}
+            return {"error": "Don't mutate presets or persona templates via app_api - use `manage_presets` so confirmation and route parity are enforced.", "exit_code": 1}
         if "/api/editor-drafts" in path:
             return {"error": "Don't read or mutate gallery editor drafts via app_api - use the Gallery Editor UI so layered image payloads and owner scope stay contained.", "exit_code": 1}
         if "/api/cleanup" in path:

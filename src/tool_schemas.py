@@ -899,6 +899,31 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_presets",
+            "description": "Manage chat/persona presets through the same routes as the Presets UI. list/templates/groups are read-only; update_custom/save_template/delete_template/save_groups require confirmed=true.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "templates", "groups", "update_custom", "save_template", "delete_template", "save_groups"]},
+                    "template_id": {"type": "string", "description": "Template ID (for save_template update or delete_template)"},
+                    "id": {"type": "string", "description": "Alias for template_id"},
+                    "name": {"type": "string", "description": "Preset/template display name"},
+                    "enabled": {"type": "boolean", "description": "Whether the custom preset is enabled"},
+                    "temperature": {"type": "number", "description": "Preset temperature, 0.0-2.0"},
+                    "max_tokens": {"type": "integer", "description": "Maximum tokens; 0 means no preset limit"},
+                    "system_prompt": {"type": "string", "description": "System prompt text for custom preset or template"},
+                    "inject_prefix": {"type": "string", "description": "Text prepended to outgoing user messages for custom preset"},
+                    "inject_suffix": {"type": "string", "description": "Text appended to outgoing user messages for custom preset"},
+                    "groups": {"type": "array", "items": {"type": "object"}, "description": "Full group preset list for save_groups"},
+                    "confirmed": {"type": "boolean", "description": "Required true for update_custom/save_template/delete_template/save_groups after explicit user confirmation."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_documents",
             "description": "Manage documents: list all documents (with optional search/language filter), delete documents, or run tidy cleanup. delete/tidy require confirmed=true.",
             "parameters": {
@@ -1138,7 +1163,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "app_api",
-            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp when available; use ui_control for themes and UI prefs.",
+            "description": "Generic loopback to allowed internal Odysseus endpoints. Use this when there's no named tool for what the user wants. Hits safe UI/API routes for assistant reads, chat status reads, cleanup preview, Codex plugin reads, compare history, contacts reads, cookbook read state, document reads, email reads, embedding status reads, gallery/library reads, memory reads, notes/calendar reads, personal document reads, plugin reads, preset reads, prefs reads, search config/provider reads, settings reads, research status, skills reads, etc. action='endpoints' returns the OpenAPI surface (use `filter` to narrow). action='call' (default) takes method+path+body. Sensitive auth/user/admin/shell/upload/signature/editor-draft paths, host-control Cookbook mutation routes, direct task/session/chat/rewrite/context-injection/document/research/assistant/codex/compare/contacts/email/embeddings/gallery/memory/notes/calendar/personal/plugins/presets/prefs/skills mutation routes, cleanup execution, search execution, and admin mutations are blocked for safety. Assistant, Codex plugin, compare, contacts, documents, email, embeddings, gallery, memory, notes, calendar, personal-docs, plugin-manager/provider, presets, prefs, skills, and chat-run routes are read/list/status only through app_api; upload attachment, saved visual signature, and gallery editor draft routes are blocked entirely. Use named tools such as list_email_accounts, list_emails, read_email, send_email, reply_to_email, bulk_email, archive_email, delete_email, mark_email_read, resolve_contact, manage_contact, manage_memory, manage_notes, manage_calendar, manage_tasks, manage_session, manage_documents, manage_research, manage_settings, manage_skills, manage_endpoints, manage_webhooks, manage_mcp, manage_presets when available; use ui_control for themes and UI prefs.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1617,7 +1642,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
-                        "manage_tokens", "manage_documents", "manage_settings",
+                        "manage_tokens", "manage_presets", "manage_documents", "manage_settings",
                         "manage_research"):
         content = json.dumps(args)
     elif tool_type == "ask_teacher":

@@ -16,7 +16,7 @@ def test_manage_settings_prompt_advertises_secret_handoff():
 
 
 def test_admin_tool_descriptions_advertise_confirmed_flows():
-    for name in ("manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens"):
+    for name in ("manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets"):
         combined = f"{TOOL_SECTIONS[name]}\n{tool_index.BUILTIN_TOOL_DESCRIPTIONS[name]}"
         assert "confirmed=true" in combined
 
@@ -51,7 +51,7 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "/api/signatures" in combined
     assert "Signature/Documents UI" in combined
     assert "mutating /api/presets" in combined
-    assert "Presets UI" in combined
+    assert "manage_presets" in combined
     assert "/api/editor-drafts" in combined
     assert "Gallery Editor UI" in combined
     assert "POST /api/cleanup" in combined

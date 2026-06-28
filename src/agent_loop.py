@@ -295,7 +295,7 @@ _DOMAIN_TOOL_MAP = {
     "ui": {"ui_control"},
     "sessions": {"create_session", "list_sessions", "manage_session", "send_to_session", "search_chats"},
     "files": {"bash", "python", "read_file", "write_file", "edit_file", "grep", "glob", "ls", "get_workspace", "manage_bg_jobs"},
-    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "app_api"},
+    "settings": {"manage_settings", "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "app_api"},
     "contacts": {"resolve_contact", "manage_contact"},
     "integrations": {"api_call"},
     "changes": {"recent_changes"},
@@ -434,6 +434,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "manage_mcp": "- ```manage_mcp``` — Manage MCP (Model Context Protocol) tool servers — external tools that extend your capabilities. Args (JSON): {\"action\": \"list|add|delete|enable|disable|reconnect|list_tools\", \"confirmed\": true, ...}. Mutating actions require explicit user confirmation and confirmed=true; stdio add is restricted by the MCP command allowlist.",
     "manage_webhooks": "- ```manage_webhooks``` — Configure outgoing webhooks (HTTP notifications on events like chat completion). Args (JSON): {\"action\": \"list|add|test|delete|enable|disable\", \"webhook_id\":\"...\", \"confirmed\": true, ...}. Mutating/test actions require explicit user confirmation and confirmed=true; webhook URLs are masked in tool output.",
     "manage_tokens": "- ```manage_tokens``` — Generate, rename/update, or revoke API access tokens for external integrations. Args (JSON): {\"action\": \"list|create|update|rename|delete\", \"token_id\":\"...\", \"name\":\"...\", \"scopes\":[\"chat\"], \"confirmed\": true}. create/update/delete require explicit user confirmation and confirmed=true; newly created token values are shown once.",
+    "manage_presets": "- ```manage_presets``` — Manage chat/persona presets through the same routes as the Presets UI. Args (JSON): {\"action\":\"list|templates|groups|update_custom|save_template|delete_template|save_groups\", \"confirmed\":true, ...}. Writes/deletes require explicit user confirmation and confirmed=true.",
     "manage_documents": "- ```manage_documents``` — List, read/open, delete, or tidy documents in the editor panel. Args (JSON): {\"action\": \"list|read|delete|tidy\", ...}. `list` returns rows like `[Title](#document-<id>) — lang, size, updated 5m ago` sorted MOST-RECENT FIRST; the user clicks the anchor to open. `read` (aliases: view/open/get) takes `document_id` and returns the content. When the user asks \"open/show/read my notes\" or \"what documents do I have\", use this — do NOT shell out, do NOT curl.",
     "manage_research": "- ```manage_research``` — List, read/open, or delete saved DEEP RESEARCH results from the owner-scoped Library. Args (JSON): {\"action\": \"list|read|delete\", \"id\": \"<id>\", \"search\": \"...\", \"confirmed\": true}. `list` returns rows like `[query](#research-<id>) — N sources` MOST-RECENT FIRST; the user clicks to open. `read` (aliases: open/view/get) takes `id` and returns the report text + sources. `delete` requires explicit user confirmation and `confirmed=true`. Use when the user says \"open/read/find/delete my research\" or \"that report\". This IS how you read a finished report: when the user refers to a just-completed deep-research job (\"check it out\", \"read that report\", \"summarize the research\") WITHOUT giving an id, call `manage_research` with `action:list` to get the most-recent id, then `action:read` with that id, and answer from the returned text. Do NOT `web_fetch`/`app_api` the `/api/research/report/{id}` URL — that endpoint renders HTML for the browser, not clean text — and do NOT start a fresh `web_search`/`trigger_research` just to read an existing report. To START new research, use trigger_research instead.",
     "manage_settings": "- ```manage_settings``` — View/change the REAL app settings (same ones the Settings panel writes), feature flags, secure secret handoffs, and tool toggles. Args are JSON. Read/list/explain: {\"action\":\"get|list|explain\",\"key\":\"...\"}. Set/reset/patch: {\"action\":\"set|reset|patch\",\"key\":\"...\",\"value\":\"...\",\"scope\":\"auto|user|global\",\"confirmed\":true}. Features: {\"action\":\"features\",\"key\":\"deep_research\",\"value\":true,\"confirmed\":true}. Secret/API-key setup: NEVER pass the secret value; call {\"action\":\"request_secret\",\"key\":\"brave_api_key\"} and then {\"action\":\"secret_handoffs\"} to inspect pending requests. Confirm-protected settings and feature writes require explicit user confirmation plus confirmed=true. Tool toggles: {\"action\":\"disable_tool|enable_tool\",\"tool\":\"shell\"} (aliases: shell/search/browser/documents/memory/skills/images/tasks/notes/calendar/email), list disabled: {\"action\":\"list_tools\"}.",
@@ -526,7 +527,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Notes: read/list routes such as `/api/notes`, `/api/notes/{id}`; note mutations are blocked via app_api, use `manage_notes`.
 - Personal docs/RAG sources: read/list via `/api/personal`; reload, directory add/remove, upload, and file delete are blocked via app_api until a confirmed `manage_personal_docs` tool exists.
 - Plugins: read/status routes such as `/api/plugins`, `/api/plugins/registry`, `/api/plugins/{plugin_id}/status`; plugin manager/provider mutations are blocked via app_api until confirmed `manage_plugins` or provider-specific tools exist.
-- Presets: read/list routes such as `/api/presets`, `/api/presets/templates`, `/api/presets/groups`; custom preset, template, and group writes are blocked via app_api until confirmed preset tooling exists.
+- Presets: read/list routes such as `/api/presets`, `/api/presets/templates`, `/api/presets/groups`; custom preset, template, and group writes are blocked via app_api. Use `manage_presets` for confirmed preset changes.
 - Tasks: read/notifications only; task mutations are blocked via app_api, use `manage_tasks`.
 - Sessions: read-only helpers only; session/chat mutations are blocked via app_api, use `create_session`, `list_sessions`, or `manage_session`.
 - Signatures: `/api/signatures` contains saved visual signature image data and is blocked entirely via app_api; use the Signature/Documents UI.
@@ -688,7 +689,7 @@ _MCP_KEYWORDS = frozenset(["mcp", "browse", "browser", "website", "calendar", "e
                            "obsidian", "vault", "note", "notes", "notiz"])
 _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets",
     "create_session", "list_sessions", "send_to_session", "pipeline",
     "ask_teacher", "list_models", "search_chats", "recent_changes",
 ])
@@ -1431,7 +1432,7 @@ def _build_system_prompt(
 
 _ADMIN_TOOLS = {
     "manage_session", "manage_skills", "manage_tasks",
-    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens",
+    "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
     "recent_changes",

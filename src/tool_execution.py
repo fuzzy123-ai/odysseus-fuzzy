@@ -326,6 +326,7 @@ _ADMIN_TOOLS = {
     "manage_mcp",
     "manage_webhooks",
     "manage_tokens",
+    "manage_presets",
     "manage_settings",
     "recent_changes",
     "download_model",
@@ -668,7 +669,7 @@ async def _execute_tool_block_impl(
         do_search_chats, do_manage_tasks,
         do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
         do_manage_mcp, do_manage_webhooks, do_manage_tokens,
-        do_manage_settings, do_manage_notes,
+        do_manage_presets, do_manage_settings, do_manage_notes,
         do_manage_calendar,
         do_download_model, do_serve_model, do_list_served_models, do_stop_served_model,
         do_tail_serve_output,
@@ -973,6 +974,9 @@ async def _execute_tool_block_impl(
     elif tool == "manage_tokens":
         desc = "manage_tokens"
         result = await do_manage_tokens(content, owner=owner)
+    elif tool == "manage_presets":
+        desc = "manage_presets"
+        result = await do_manage_presets(content, owner=owner)
     elif tool == "manage_settings":
         desc = "manage_settings"
         result = await do_manage_settings(content, owner=owner)
