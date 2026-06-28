@@ -450,6 +450,11 @@ def _parse_manage_memory(content: str) -> Dict:
         args["text"] = lines[2].strip() if len(lines) > 2 else ""
     elif action == "delete":
         args["memory_id"] = lines[1].strip() if len(lines) > 1 else ""
+        if len(lines) > 2:
+            args["confirmed"] = any(
+                line.strip().lower() in {"confirmed=true", "confirm=true", "true", "yes"}
+                for line in lines[2:]
+            )
     elif action == "search":
         args["text"] = lines[1].strip() if len(lines) > 1 else ""
     elif action == "list":

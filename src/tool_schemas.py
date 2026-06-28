@@ -509,7 +509,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_memory",
-            "description": "Manage the user's memory system: list, add, edit, delete, or search memories. Memories persist across sessions.",
+            "description": "Manage the user's memory system: list, add, edit, delete, or search memories. Memories persist across sessions. Delete requires confirmed=true after explicit user confirmation.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -518,7 +518,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "text": {"type": "string", "description": "Memory text (for add/edit) or search query (for search)"},
                     "memory_id": {"type": "string", "description": "Memory ID (for edit/delete)"},
                     "category": {"type": "string", "enum": ["fact", "event", "contact", "preference"],
-                                 "description": "Memory category (for add/list filter)"}
+                                 "description": "Memory category (for add/list filter)"},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]
             }
@@ -1555,7 +1556,10 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         elif action == "edit":
             content = "edit\n" + args.get("memory_id", "") + "\n" + args.get("text", "")
         elif action == "delete":
-            content = "delete\n" + args.get("memory_id", "")
+            if "confirmed" in args or "confirm" in args:
+                content = json.dumps(args)
+            else:
+                content = "delete\n" + args.get("memory_id", "")
         elif action == "search":
             content = "search\n" + args.get("text", "")
         elif action == "list":

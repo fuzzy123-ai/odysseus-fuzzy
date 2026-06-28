@@ -99,7 +99,7 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="manage_memory",
-            description="Manage the user's memory system: list, add, edit, delete, or search memories.",
+            description="Manage the user's memory system: list, add, edit, delete, or search memories. Delete requires confirmed=true after explicit user confirmation.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -114,6 +114,10 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "enum": ["fact", "event", "contact", "preference"],
                         "description": "Memory category (add/list filter)",
+                    },
+                    "confirmed": {
+                        "type": "boolean",
+                        "description": "Required true for delete after explicit user confirmation.",
                     },
                 },
                 "required": ["action"],
@@ -210,6 +214,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         _owner, memories, visible, scope_error = _scope_entries()
         if scope_error:
             return _text_result(scope_error)
+        if not (arguments.get("confirmed") or arguments.get("confirm")):
+            return _text_result("Error: Memory delete requires explicit confirmation.")
         full_id = None
         deleted_text = ""
         deleted_category = ""

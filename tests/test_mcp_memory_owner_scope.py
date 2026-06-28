@@ -90,7 +90,7 @@ def test_mcp_memory_uses_configured_owner_for_all_operations(monkeypatch, tmp_pa
     )
     assert bob_after_edit["text"] == "Bob likes espresso"
 
-    delete_text = _tool_text({"action": "delete", "memory_id": bob["id"][:8]})
+    delete_text = _tool_text({"action": "delete", "memory_id": bob["id"][:8], "confirmed": True})
     assert delete_text == "Error: Memory 'bbbbbbbb' not found"
     assert any(entry["id"] == bob["id"] for entry in manager.load_all())
 
@@ -145,6 +145,26 @@ def test_mcp_memory_preserves_ownerless_local_behavior(monkeypatch, tmp_path):
     }) == "Memory updated: Updated local memory"
     assert any(entry["text"] == "Updated local memory" for entry in manager.load_all())
 
-    delete_text = _tool_text({"action": "delete", "memory_id": legacy["id"][:8]})
+    delete_text = _tool_text({"action": "delete", "memory_id": legacy["id"][:8], "confirmed": True})
     assert delete_text.startswith("Memory deleted:")
     assert all(entry["id"] != legacy["id"] for entry in manager.load_all())
+
+
+def test_mcp_memory_delete_requires_confirmation(monkeypatch, tmp_path):
+    manager = MemoryManager(str(tmp_path))
+    vector = FakeVector()
+    alice = _entry(
+        manager,
+        "Alice private memory",
+        owner="alice",
+        memory_id="aaaaaaaa-0000-0000-0000-000000000000",
+    )
+    manager.save([alice])
+    _configure_server(monkeypatch, manager, vector)
+    monkeypatch.setenv("ODYSSEUS_MCP_MEMORY_OWNER", "alice")
+
+    delete_text = _tool_text({"action": "delete", "memory_id": alice["id"][:8]})
+
+    assert delete_text == "Error: Memory delete requires explicit confirmation."
+    assert any(entry["id"] == alice["id"] for entry in manager.load_all())
+    assert vector.removed == []

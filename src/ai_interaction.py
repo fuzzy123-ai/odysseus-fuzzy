@@ -308,11 +308,50 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
     if not _memory_manager:
         return {"error": "Memory manager not available"}
 
-    lines = content.strip().split("\n")
+    raw_content = content.strip()
+    parsed_args = None
+    if raw_content.startswith("{"):
+        try:
+            parsed_args = json.loads(raw_content)
+        except Exception:
+            parsed_args = None
+    if isinstance(parsed_args, dict):
+        _action = str(parsed_args.get("action") or "").strip().lower()
+        if _action == "add":
+            lines = ["add", str(parsed_args.get("text") or "")]
+            if parsed_args.get("category"):
+                lines.append(str(parsed_args["category"]))
+        elif _action == "edit":
+            lines = ["edit", str(parsed_args.get("memory_id") or ""), str(parsed_args.get("text") or "")]
+        elif _action == "delete":
+            lines = ["delete", str(parsed_args.get("memory_id") or "")]
+        elif _action == "search":
+            lines = ["search", str(parsed_args.get("text") or "")]
+        elif _action == "list":
+            lines = ["list"]
+            if parsed_args.get("category"):
+                lines.append(str(parsed_args["category"]))
+        else:
+            lines = [_action]
+        confirmed = bool(parsed_args.get("confirmed") or parsed_args.get("confirm"))
+    else:
+        lines = raw_content.split("\n")
+        confirmed = any(
+            line.strip().lower() in {"confirmed=true", "confirm=true", "true", "yes"}
+            for line in lines[2:]
+        )
     if not lines:
         return {"error": "Need at least 1 line: action"}
 
     action = lines[0].strip().lower()
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Memory {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
 
     if action == "list":
         category_filter = lines[1].strip().lower() if len(lines) > 1 and lines[1].strip() else None
@@ -398,6 +437,10 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         if len(lines) < 2:
             return {"error": "Delete needs line 2: memory_id"}
         memory_id = lines[1].strip()
+        if not memory_id:
+            return {"error": "Delete needs line 2: memory_id"}
+        if not confirmed:
+            return _confirmation_required("delete")
 
         memories = _memory_manager.load_all()
         original_len = len(memories)
