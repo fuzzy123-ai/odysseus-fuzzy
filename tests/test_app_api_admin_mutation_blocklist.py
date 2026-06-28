@@ -118,6 +118,7 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/editor-drafts", "Gallery Editor UI"),
         ("PUT", "/api/editor-drafts/d1", "Gallery Editor UI"),
         ("DELETE", "/api/editor-drafts/d1", "Gallery Editor UI"),
+        ("POST", "/api/cleanup", "manage_session"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -355,6 +356,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "put": {"summary": "Update Editor Draft"},
                         "delete": {"summary": "Delete Editor Draft"},
                     },
+                    "/api/cleanup/preview": {"get": {"summary": "Cleanup Preview"}},
+                    "/api/cleanup": {"post": {"summary": "Run Cleanup"}},
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -441,6 +444,7 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/presets/templates") in paths
     assert ("POST", "/api/presets/expand") in paths
     assert ("GET", "/api/presets/groups") in paths
+    assert ("GET", "/api/cleanup/preview") in paths
     assert ("GET", "/api/personal") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
@@ -537,6 +541,7 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/editor-drafts") not in paths
     assert ("PUT", "/api/editor-drafts/{draft_id}") not in paths
     assert ("DELETE", "/api/editor-drafts/{draft_id}") not in paths
+    assert ("POST", "/api/cleanup") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths

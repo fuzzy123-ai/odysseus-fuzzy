@@ -3196,6 +3196,8 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/editor-drafts"),
     ("PATCH",  "/api/editor-drafts"),
     ("DELETE", "/api/editor-drafts"),
+    # Cleanup preview is safe, but executing cleanup archives/deletes sessions.
+    ("POST",   "/api/cleanup"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3396,6 +3398,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate presets or persona templates via app_api - use the Presets UI until a confirmed preset/settings agent tool exists.", "exit_code": 1}
         if "/api/editor-drafts" in path:
             return {"error": "Don't read or mutate gallery editor drafts via app_api - use the Gallery Editor UI so layered image payloads and owner scope stay contained.", "exit_code": 1}
+        if "/api/cleanup" in path:
+            return {"error": "Don't run cleanup via app_api - use `manage_session` or the Cleanup UI so archive/delete effects are explicit and confirmed.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:
