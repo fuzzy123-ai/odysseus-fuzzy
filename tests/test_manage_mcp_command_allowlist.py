@@ -16,6 +16,7 @@ rejected too.
 import asyncio
 import json
 
+import httpx
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
@@ -119,6 +120,46 @@ def _add(command, args=None, env=None, confirmed=False):
     return asyncio.run(ti.do_manage_mcp(json.dumps(payload)))
 
 
+class _FakeResponse:
+    status_code = 200
+    text = "{}"
+
+    def __init__(self, data):
+        self._data = data
+        self.text = json.dumps(data)
+
+    def json(self):
+        return self._data
+
+
+class _FakeAsyncClient:
+    calls = []
+
+    def __init__(self, *args, **kwargs):
+        self.timeout = kwargs.get("timeout")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def post(self, url, **kwargs):
+        self.calls.append(("POST", url, kwargs))
+        return _FakeResponse({
+            "id": "srv-route",
+            "name": kwargs.get("data", {}).get("name"),
+            "status": "connected",
+            "tool_count": 2,
+        })
+
+
+def _install_fake_client(monkeypatch):
+    _FakeAsyncClient.calls = []
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+    return _FakeAsyncClient.calls
+
+
 def test_add_rejects_rce_with_no_db_write_and_no_connect(monkeypatch):
     mcp = MagicMock()
     mcp.connect_server = AsyncMock()
@@ -153,34 +194,33 @@ def test_add_rejects_versioned_runtime_alias_no_row_no_connect(monkeypatch):
         db.close()
 
 
-def test_add_allows_safe_server_writes_row_and_connects(monkeypatch):
-    mcp = MagicMock()
-    mcp.connect_server = AsyncMock()
-    mcp.get_server_status = MagicMock(return_value={"tool_count": 2})
-    monkeypatch.setattr(ti, "get_mcp_manager", lambda: mcp)
+def test_add_allows_safe_server_after_validation_and_uses_route(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
 
     res = _add("mcp-server-demo", ["--port", "3000"], confirmed=True)
     assert res["exit_code"] == 0
-    mcp.connect_server.assert_called_once()
+    assert res["server"]["id"] == "srv-route"
+    assert calls[0][0] == "POST"
+    assert calls[0][1].endswith("/api/mcp/servers")
+    assert calls[0][2]["data"]["command"] == "mcp-server-demo"
+    assert calls[0][2]["data"]["args"] == '["--port", "3000"]'
 
     db = _TS()
     try:
-        assert db.query(McpServer).count() == 1
+        assert db.query(McpServer).count() == 0, "agent path must delegate persistence to the MCP route"
     finally:
         db.close()
 
 
 def test_add_safe_server_requires_confirmation_before_write_or_connect(monkeypatch):
-    mcp = MagicMock()
-    mcp.connect_server = AsyncMock()
-    monkeypatch.setattr(ti, "get_mcp_manager", lambda: mcp)
+    calls = _install_fake_client(monkeypatch)
 
     res = _add("mcp-server-demo", ["--port", "3000"])
 
     assert res["exit_code"] == 0
     assert res["status"] == "confirmation_required"
     assert res["requires_confirmation"] is True
-    mcp.connect_server.assert_not_called()
+    assert calls == []
 
     db = _TS()
     try:

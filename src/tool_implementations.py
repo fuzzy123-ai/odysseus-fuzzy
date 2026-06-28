@@ -977,154 +977,163 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
             "exit_code": 0,
         }
 
-    if action == "list":
-        mcp = get_mcp_manager()
-        if not mcp:
-            return {"response": "No MCP manager available", "servers": [], "exit_code": 0}
-        from core.database import SessionLocal, McpServer
-        db = SessionLocal()
-        try:
-            servers = db.query(McpServer).all()
-            items = []
-            for s in servers:
-                st = mcp.get_server_status(s.id)
-                status = st.get("status", "disconnected")
-                tool_count = st.get("tool_count", 0)
-                items.append({"id": s.id, "name": s.name, "transport": s.transport,
-                              "is_enabled": s.is_enabled, "status": status,
-                              "tool_count": tool_count})
-            return {"response": f"{len(items)} MCP servers", "servers": items, "exit_code": 0}
-        finally:
-            db.close()
+    def _json_text(value: Any, fallback: str) -> str:
+        if value in (None, ""):
+            return fallback
+        if isinstance(value, str):
+            return value
+        return json.dumps(value)
 
-    elif action == "add":
-        from core.database import SessionLocal, McpServer
-        import uuid as _uuid
-        from datetime import datetime
-        name = args.get("name", "")
-        command = args.get("command", "")
-        cmd_args = args.get("args", [])
-        env = args.get("env", {})
-        if not name or not command:
-            return {"error": "name and command are required", "exit_code": 1}
-        # Validate BEFORE any DB write or spawn: a rejected registration must
-        # leave no enabled row (which would otherwise auto-reconnect on restart)
-        # and must not attempt a connection.
-        _mcp_err = _validate_mcp_command(command, cmd_args, env)
-        if _mcp_err:
-            return {"error": f"manage_mcp: refused unsafe server registration: {_mcp_err}", "exit_code": 1}
-        if not _confirmed():
-            return _confirmation_required("add")
-        sid = str(_uuid.uuid4())[:8]
-        db = SessionLocal()
+    def _error_from_response(resp) -> Dict:
         try:
-            srv = McpServer(id=sid, name=name, transport="stdio", command=command,
-                            args=json.dumps(cmd_args) if isinstance(cmd_args, list) else cmd_args,
-                            env=json.dumps(env) if isinstance(env, dict) else env,
-                            is_enabled=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
-            db.add(srv)
-            db.commit()
-        finally:
-            db.close()
-        # Try to connect
-        mcp = get_mcp_manager()
-        tool_count = 0
-        if mcp:
-            try:
-                await mcp.connect_server(
-                    sid, name, "stdio", command=command,
-                    args=cmd_args if isinstance(cmd_args, list) else json.loads(cmd_args),
-                    env=env if isinstance(env, dict) else json.loads(env),
+            data = resp.json()
+        except Exception:
+            data = {}
+        detail = data.get("detail") if isinstance(data, dict) else None
+        return {
+            "error": detail or getattr(resp, "text", "") or f"MCP route returned HTTP {resp.status_code}",
+            "status_code": resp.status_code,
+            "exit_code": 1,
+        }
+
+    def _safe_server_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "transport": item.get("transport"),
+            "is_enabled": item.get("is_enabled"),
+            "status": item.get("status"),
+            "tool_count": item.get("tool_count", 0),
+            "disabled_tool_count": item.get("disabled_tool_count", 0),
+            "enabled_tool_count": item.get("enabled_tool_count"),
+            "needs_oauth": bool(item.get("needs_oauth")),
+            "needs_auth": bool(item.get("needs_auth")),
+            "has_oauth": bool(item.get("has_oauth")),
+            "error": item.get("error"),
+        }
+
+    try:
+        import httpx
+
+        headers = _internal_headers(owner=owner)
+        if action == "list":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/mcp/servers", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            servers = [_safe_server_item(item) for item in (resp.json() or [])]
+            return {"response": f"{len(servers)} MCP servers", "servers": servers, "exit_code": 0}
+
+        if action == "add":
+            name = str(args.get("name") or "").strip()
+            transport = str(args.get("transport") or "stdio").strip().lower()
+            command = str(args.get("command") or "").strip()
+            cmd_args = args.get("args", [])
+            env = args.get("env", {})
+            url = str(args.get("url") or "").strip()
+            if not name:
+                return {"error": "name is required", "exit_code": 1}
+            if transport == "stdio":
+                if not command:
+                    return {"error": "command is required for stdio transport", "exit_code": 1}
+                # Validate BEFORE route call: the trusted admin route may allow
+                # host executables, but the agent path must keep its allowlist.
+                _mcp_err = _validate_mcp_command(command, cmd_args, env)
+                if _mcp_err:
+                    return {"error": f"manage_mcp: refused unsafe server registration: {_mcp_err}", "exit_code": 1}
+            elif transport in {"sse", "http"}:
+                if not url:
+                    return {"error": "url is required for sse/http transport", "exit_code": 1}
+            else:
+                return {"error": "transport must be stdio, sse, or http", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("add")
+            data = {
+                "name": name,
+                "transport": transport,
+                "command": command,
+                "args": _json_text(cmd_args, "[]"),
+                "env": _json_text(env, "{}"),
+                "url": url,
+            }
+            if "oauth_config" in args:
+                data["oauth_config"] = _json_text(args.get("oauth_config"), "")
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/mcp/servers", data=data, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            server = resp.json() or {}
+            return {
+                "response": f"Added MCP server '{server.get('name') or name}' ({server.get('tool_count', 0)} tools)",
+                "server": server,
+                "exit_code": 0,
+            }
+
+        if action == "delete":
+            if not _confirmed():
+                return _confirmation_required("delete")
+            sid = args.get("server_id", "")
+            if not sid:
+                return {"error": "server_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{_INTERNAL_BASE}/api/mcp/servers/{sid}", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"Deleted MCP server {sid}", "result": resp.json() or {}, "exit_code": 0}
+
+        if action == "reconnect":
+            if not _confirmed():
+                return _confirmation_required("reconnect")
+            sid = args.get("server_id", "")
+            if not sid:
+                return {"error": "server_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(f"{_INTERNAL_BASE}/api/mcp/servers/{sid}/reconnect", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            result = resp.json() or {}
+            return {
+                "response": f"Reconnected MCP server {sid} ({result.get('tool_count', 0)} tools)",
+                "result": result,
+                "exit_code": 0,
+            }
+
+        if action in ("enable", "disable"):
+            if not _confirmed():
+                return _confirmation_required(action)
+            sid = args.get("server_id", "")
+            if not sid:
+                return {"error": "server_id is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.patch(
+                    f"{_INTERNAL_BASE}/api/mcp/servers/{sid}",
+                    data={"is_enabled": "true" if action == "enable" else "false"},
+                    headers=headers,
                 )
-                st = mcp.get_server_status(sid)
-                tool_count = st.get("tool_count", 0)
-            except Exception as e:
-                logger.warning(f"MCP connect failed for {name}: {e}")
-        return {"response": f"Added MCP server '{name}' ({tool_count} tools)", "exit_code": 0}
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            return {"response": f"MCP server {sid} {action}d", "server": resp.json() or {}, "exit_code": 0}
 
-    elif action == "delete":
-        if not _confirmed():
-            return _confirmation_required("delete")
-        sid = args.get("server_id", "")
-        from core.database import SessionLocal, McpServer
-        db = SessionLocal()
-        try:
-            srv = db.query(McpServer).filter(McpServer.id == sid).first()
-            if not srv:
-                return {"error": f"Server {sid} not found", "exit_code": 1}
-            name = srv.name
-            mcp = get_mcp_manager()
-            if mcp:
-                try:
-                    await mcp.disconnect_server(sid)
-                except Exception:
-                    pass
-            db.delete(srv)
-            db.commit()
-            return {"response": f"Deleted MCP server '{name}'", "exit_code": 0}
-        finally:
-            db.close()
+        if action == "list_tools":
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_INTERNAL_BASE}/api/mcp/tools", headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            tools = resp.json() or []
+            items = [
+                {
+                    "name": t.get("name"),
+                    "server": t.get("server_name") or t.get("server"),
+                    "description": str(t.get("description") or "")[:100],
+                }
+                for t in tools
+            ]
+            return {"response": f"{len(items)} MCP tools available", "tools": items, "exit_code": 0}
 
-    elif action == "reconnect":
-        if not _confirmed():
-            return _confirmation_required("reconnect")
-        sid = args.get("server_id", "")
-        mcp = get_mcp_manager()
-        if not mcp:
-            return {"error": "MCP manager not available", "exit_code": 1}
-        try:
-            await mcp.disconnect_server(sid)
-            from core.database import SessionLocal, McpServer
-            db2 = SessionLocal()
-            try:
-                srv = db2.query(McpServer).filter(McpServer.id == sid).first()
-                if srv:
-                    _args = json.loads(srv.args) if srv.args else []
-                    _env = json.loads(srv.env) if srv.env else {}
-                    await mcp.connect_server(
-                        server_id=sid,
-                        name=srv.name,
-                        transport=srv.transport,
-                        command=srv.command,
-                        args=_args,
-                        env=_env,
-                        url=srv.url,
-                    )
-                    st = mcp.get_server_status(sid)
-                    return {"response": f"Reconnected '{srv.name}' ({st.get('tool_count', 0)} tools)", "exit_code": 0}
-                return {"error": f"Server {sid} not found", "exit_code": 1}
-            finally:
-                db2.close()
-        except Exception as e:
-            return {"error": str(e), "exit_code": 1}
-
-    elif action in ("enable", "disable"):
-        if not _confirmed():
-            return _confirmation_required(action)
-        sid = args.get("server_id", "")
-        from core.database import SessionLocal, McpServer
-        db = SessionLocal()
-        try:
-            srv = db.query(McpServer).filter(McpServer.id == sid).first()
-            if not srv:
-                return {"error": f"Server {sid} not found", "exit_code": 1}
-            srv.is_enabled = (action == "enable")
-            db.commit()
-            return {"response": f"MCP server '{srv.name}' {action}d", "exit_code": 0}
-        finally:
-            db.close()
-
-    elif action == "list_tools":
-        mcp = get_mcp_manager()
-        if not mcp:
-            return {"response": "No MCP manager", "tools": [], "exit_code": 0}
-        tools = mcp.get_all_tools()
-        items = [{"name": t["name"], "server": t["server_name"],
-                  "description": t.get("description", "")[:100]} for t in tools]
-        return {"response": f"{len(items)} MCP tools available", "tools": items, "exit_code": 0}
-
-    else:
         return {"error": f"Unknown action: {action}", "exit_code": 1}
+    except Exception as e:
+        logger.error(f"manage_mcp error: {e}")
+        return {"error": str(e), "exit_code": 1}
 
 
 # ---------------------------------------------------------------------------
