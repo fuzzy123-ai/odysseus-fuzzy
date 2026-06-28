@@ -1319,7 +1319,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "bulk_email",
-            "description": "Perform one action on many emails at once. Use this for 'delete all those', 'archive these', 'mark all read', or any bulk operation after list_emails. Always pass account when the listed emails came from a named account such as Gmail.",
+            "description": "Perform one action on many emails at once. Use this for 'delete all those', 'archive these', 'mark all read', or any bulk operation after list_emails. Always pass account when the listed emails came from a named account such as Gmail. action=delete requires explicit user confirmation and confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1328,6 +1328,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "all_unread": {"type": "boolean", "description": "Operate on all unread messages in folder instead of explicit UIDs"},
                     "folder": {"type": "string", "description": "IMAP folder (default: INBOX)"},
                     "permanent": {"type": "boolean", "description": "For delete: hard-delete instead of moving to Trash"},
+                    "confirmed": {"type": "boolean", "description": "Required for action=delete after explicit user confirmation"},
                     "account": {"type": "string", "description": "Account name/email/id from list_email_accounts, e.g. Gmail or user@example.com"},
                 },
                 "required": ["action"]
@@ -1338,13 +1339,14 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "delete_email",
-            "description": "Delete one email by UID. For multiple messages, use bulk_email instead. Always pass account when the email came from a named account such as Gmail.",
+            "description": "Delete one email by UID. For multiple messages, use bulk_email instead. Always pass account when the email came from a named account such as Gmail. permanent=true requires explicit user confirmation and confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "uid": {"type": "string", "description": "Email UID from list_emails/read_email"},
                     "folder": {"type": "string", "description": "IMAP folder (default: INBOX)"},
                     "permanent": {"type": "boolean", "description": "Hard-delete instead of moving to Trash"},
+                    "confirmed": {"type": "boolean", "description": "Required only for permanent=true after explicit user confirmation"},
                     "account": {"type": "string", "description": "Account name/email/id from list_email_accounts"},
                 },
                 "required": ["uid"]

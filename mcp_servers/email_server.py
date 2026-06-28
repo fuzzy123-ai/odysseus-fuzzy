@@ -60,6 +60,29 @@ _MCP_OWNER_ARG = "_odysseus_owner"
 _CURRENT_OWNER: ContextVar[str | None] = ContextVar("email_mcp_owner", default=None)
 
 
+def _confirmed(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value == 1
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "y", "on", "confirmed"}
+    return False
+
+
+def _email_delete_confirmation_required(reason: str, *, uid: str | None = None, count: int | None = None) -> TextContent:
+    target = f" UID {uid}" if uid else ""
+    if count is not None:
+        target = f" {count} email(s)"
+    return TextContent(
+        type="text",
+        text=(
+            f"Confirmation required: {reason}{target}. "
+            "Repeat the tool call with confirmed=true after explicit user confirmation."
+        ),
+    )
+
+
 def _clean_header_value(value) -> str:
     """EmailMessage rejects CR/LF in assigned header values; unfold safely."""
     if value is None:
@@ -1853,13 +1876,18 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="delete_email",
-            description="Delete an email. By default moves it to the Trash folder; pass permanent=true to expunge immediately.",
+            description=(
+                "Delete an email. By default moves it to the Trash folder; pass "
+                "permanent=true to expunge immediately. permanent=true requires "
+                "explicit user confirmation and confirmed=true."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "uid": {"type": "string", "description": "Email UID from list_emails"},
                     "folder": {"type": "string", "description": "Source folder (default: INBOX)", "default": "INBOX"},
                     "permanent": {"type": "boolean", "description": "Hard-delete instead of move to Trash", "default": False},
+                    "confirmed": {"type": "boolean", "description": "Required only for permanent=true after explicit user confirmation", "default": False},
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -1908,6 +1936,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
                     "permanent": {"type": "boolean", "description": "For delete: expunge instead of moving to Trash.", "default": False},
+                    "confirmed": {"type": "boolean", "description": "Required for action=delete after explicit user confirmation.", "default": False},
                     **ACCOUNT_PROP,
                 },
                 "required": ["action"],
@@ -2291,10 +2320,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             uid = arguments.get("uid")
             if not uid:
                 return [TextContent(type="text", text="Error: uid is required")]
+            permanent = bool(arguments.get("permanent", False))
+            if permanent and not _confirmed(arguments.get("confirmed", False)):
+                return [_email_delete_confirmation_required(
+                    "permanent email deletion requires explicit confirmation",
+                    uid=str(uid),
+                )]
             ok = _delete_email(
                 uid,
                 arguments.get("folder", "INBOX"),
-                permanent=bool(arguments.get("permanent", False)),
+                permanent=permanent,
                 account=acct,
             )
             return [TextContent(type="text", text=f"{'Deleted' if ok else 'Failed to delete'} UID {uid}")]
@@ -2313,6 +2348,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             folder = arguments.get("folder", "INBOX")
             all_unread = bool(arguments.get("all_unread", False))
             uids = arguments.get("uids") or []
+            if action == "delete" and (uids or all_unread) and not _confirmed(arguments.get("confirmed", False)):
+                return [_email_delete_confirmation_required(
+                    "bulk email deletion requires explicit confirmation",
+                    count=(len(uids) if not all_unread else None),
+                )]
             if all_unread:
                 uids = _search_uids(folder, "UNSEEN", account=acct)
             if not uids:
