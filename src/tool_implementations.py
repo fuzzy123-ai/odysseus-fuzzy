@@ -3173,6 +3173,12 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/mcp"),
     ("PATCH",  "/api/mcp"),
     ("DELETE", "/api/mcp"),
+    # Preference writes bypass manage_settings validation and ui_control's
+    # event contract. Keep app_api read-only for prefs.
+    ("POST",   "/api/prefs"),
+    ("PUT",    "/api/prefs"),
+    ("PATCH",  "/api/prefs"),
+    ("DELETE", "/api/prefs"),
     # Data mutation routes with dedicated tools or without a confirmed agent
     # flow must not be reachable through generic app_api.
     ("POST",   "/api/gallery"),
@@ -3310,6 +3316,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate /api/webhooks via app_api - use the `manage_webhooks` tool so confirmation and URL masking are enforced.", "exit_code": 1}
         if "/api/mcp" in path:
             return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
+        if "/api/prefs" in path:
+            return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/gallery" in path:
             return {"error": "Don't mutate gallery items via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
         if "/api/document" in path or "/api/documents/tidy" in path:

@@ -53,6 +53,10 @@ from src.tool_implementations import do_app_api
         ("DELETE", "/api/calendar/events/evt1", "manage_calendar"),
         ("POST", "/api/calendar/config/accounts", "Calendar UI"),
         ("PUT", "/api/calendar/calendars/cal1", "Calendar UI"),
+        ("PUT", "/api/prefs/theme", "manage_settings"),
+        ("POST", "/api/prefs/custom-themes", "manage_settings"),
+        ("PATCH", "/api/prefs/custom-themes", "manage_settings"),
+        ("DELETE", "/api/prefs/custom-themes", "manage_settings"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -144,6 +148,19 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "get": {"summary": "List Calendar Accounts"},
                         "post": {"summary": "Add Calendar Account"},
                     },
+                    "/api/prefs": {
+                        "get": {"summary": "List Preferences"},
+                    },
+                    "/api/prefs/{key}": {
+                        "get": {"summary": "Read Preference"},
+                        "put": {"summary": "Set Preference"},
+                    },
+                    "/api/prefs/custom-themes": {
+                        "get": {"summary": "Read Custom Themes"},
+                        "post": {"summary": "Create Custom Theme"},
+                        "patch": {"summary": "Patch Custom Themes"},
+                        "delete": {"summary": "Delete Custom Themes"},
+                    },
                 }
             }
 
@@ -178,6 +195,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/calendar/events/{uid}") in paths
     assert ("GET", "/api/calendar/calendars") in paths
     assert ("GET", "/api/calendar/config/accounts") in paths
+    assert ("GET", "/api/prefs") in paths
+    assert ("GET", "/api/prefs/{key}") in paths
+    assert ("GET", "/api/prefs/custom-themes") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -207,3 +227,7 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/calendar/events/{uid}") not in paths
     assert ("POST", "/api/calendar/calendars") not in paths
     assert ("POST", "/api/calendar/config/accounts") not in paths
+    assert ("PUT", "/api/prefs/{key}") not in paths
+    assert ("POST", "/api/prefs/custom-themes") not in paths
+    assert ("PATCH", "/api/prefs/custom-themes") not in paths
+    assert ("DELETE", "/api/prefs/custom-themes") not in paths

@@ -34,7 +34,10 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
         schema["function"]["description"],
     ])
 
-    assert "gallery, notes, and calendar" in combined
+    assert "gallery" in combined
     assert "notes/calendar mutations" in combined
+    assert "prefs writes" in combined
     assert "manage_notes" in combined
     assert "manage_calendar" in combined
+    assert "manage_settings" in combined
+    assert "ui_control" in combined
