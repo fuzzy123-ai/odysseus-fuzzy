@@ -22,7 +22,7 @@ _PRIVACY_CLASSES = ("public", "private", "sensitive")
 _PROVIDER_SCOPES = ("default", "local_only", "external_allowed")
 _REMOTE_PURPOSES = ("origin", "fork", "mirror", "deploy", "backup", "other")
 _PUSH_POLICIES = ("read_only", "push_allowed", "blocked")
-_DEFAULT_ALLOWED_ACTIONS = ("status", "log", "diff_stat", "changed_paths", "remotes")
+_DEFAULT_ALLOWED_ACTIONS = ("status", "log", "diff_stat", "changed_paths", "remotes", "changes", "change_history")
 _ALLOWED_ACTIONS = _DEFAULT_ALLOWED_ACTIONS + (
     "register",
     "forget",

@@ -30,7 +30,15 @@ def test_private_repo_defaults_to_local_only_and_read_actions():
     assert record.repo_id == "kundenportal-repo"
     assert record.privacy_class == "private"
     assert record.provider_scope == "local_only"
-    assert record.allowed_actions == ("status", "log", "diff_stat", "changed_paths", "remotes")
+    assert record.allowed_actions == (
+        "status",
+        "log",
+        "diff_stat",
+        "changed_paths",
+        "remotes",
+        "changes",
+        "change_history",
+    )
 
 
 def test_public_repo_defaults_to_default_provider_scope():

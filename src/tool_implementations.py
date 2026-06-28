@@ -598,11 +598,49 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "forge_report": payload,
                 "exit_code": 0 if report.status in {"plan_ready", "fetched"} else 1,
             }
+        if action in {"changes", "change_history"}:
+            from src.repo_recent_memory import collect_repo_change_capsule, list_repo_change_history
+
+            history_dir = os.environ.get("ODYSSEUS_REPO_CHANGES_HISTORY_DIR")
+            if action == "change_history":
+                rows = list_repo_change_history(
+                    repo_id=repo_id,
+                    history_dir=history_dir,
+                    limit=int(args.get("limit") or 20),
+                )
+                lines = [f"Repo change history for `{repo_id}`:"]
+                if rows:
+                    lines.extend(
+                        "- `{id}` {generated_at}: {counts}".format(
+                            id=item.get("id"),
+                            generated_at=item.get("generated_at"),
+                            counts=item.get("counts") or {},
+                        )
+                        for item in rows
+                    )
+                else:
+                    lines.append("- none")
+                return {"output": "\n".join(lines), "history": rows, "exit_code": 0}
+            report = collect_repo_change_capsule(
+                registry=registry,
+                repo_id=repo_id,
+                workspace_base=workspace_base,
+                hours=int(args.get("hours") or 12),
+                history_dir=history_dir,
+                persist=args.get("persist", True) is not False,
+                force=args.get("force") is True,
+            )
+            payload = report.to_dict()
+            return {
+                "output": _repo_changes_output(payload),
+                "repo_changes": payload,
+                "exit_code": 0,
+            }
 
         return {
             "error": (
                 "Use action list, get, status, log, diff_stat, changed_paths, "
-                "remotes, commit_plan, commit, push_plan, push, forge_plan, forge_metadata, "
+                "remotes, commit_plan, commit, push_plan, push, forge_plan, forge_metadata, changes, change_history, "
                 "register, forget, or update_policy."
             ),
             "exit_code": 1,
@@ -685,6 +723,23 @@ def _repo_forge_output(report: Dict[str, Any]) -> str:
     next_decision = plan.get("next_human_decision")
     if next_decision:
         lines.append(f"Next: {next_decision}")
+    return "\n".join(lines)
+
+
+def _repo_changes_output(report: Dict[str, Any]) -> str:
+    snapshot = report.get("snapshot") or {}
+    context = report.get("project_context") or {}
+    lines = [
+        f"Repo changes collected for `{snapshot.get('repo_id')}`.",
+        f"Snapshot: `{snapshot.get('id')}`.",
+        f"Persisted: {bool(report.get('persisted'))}.",
+    ]
+    duplicate_of = report.get("duplicate_of")
+    if duplicate_of:
+        lines.append(f"Duplicate of: `{duplicate_of}`.")
+    for item in context.get("context_lines") or []:
+        lines.append(f"- {item}")
+    lines.append("Memory/RaptorGraph: prepared redacted project-context event; raw diffs are not included.")
     return "\n".join(lines)
 
 

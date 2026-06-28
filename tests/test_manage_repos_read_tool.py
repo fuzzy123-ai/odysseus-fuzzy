@@ -155,6 +155,26 @@ def _write_forge_registry(path: Path) -> None:
     registry.save_json(path)
 
 
+def _write_changes_registry(path: Path, *, privacy_class: str = "private") -> None:
+    registry = RepoRegistry()
+    registry.add(
+        RepoRecord.create(
+            repo_id="demo",
+            title="Demo Repo",
+            repo_kind="project",
+            owner="fuzzy123-ai",
+            path_ref="repos/demo",
+            workspace_root="repos",
+            project_root="repos/demo",
+            default_branch="main",
+            privacy_class=privacy_class,
+            allowed_actions=["status", "changes", "change_history"],
+            created_at="2026-06-28T10:00:00Z",
+        )
+    )
+    registry.save_json(path)
+
+
 @pytest.mark.asyncio
 async def test_manage_repos_lists_and_reads_registered_repo(tmp_path: Path, monkeypatch):
     _make_repo(tmp_path)
@@ -527,6 +547,45 @@ async def test_manage_repos_forge_metadata_blocks_without_provider_client(tmp_pa
     assert result["forge_report"]["plan"]["api_base_url_redacted"] == "https://gitea.example.test/api/v1"
 
 
+@pytest.mark.asyncio
+async def test_manage_repos_changes_collects_repo_scoped_memory_capsule(tmp_path: Path, monkeypatch):
+    _make_repo(tmp_path)
+    registry_path = tmp_path / "repo-registry.json"
+    history_dir = tmp_path / "repo-change-history"
+    _write_changes_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_CHANGES_HISTORY_DIR", str(history_dir))
+
+    first = await do_manage_repos(
+        json.dumps({"action": "changes", "repo_id": "demo", "hours": 24}),
+        owner="admin",
+    )
+    second = await do_manage_repos(
+        json.dumps({"action": "changes", "repo_id": "demo", "hours": 24}),
+        owner="admin",
+    )
+    history = await do_manage_repos(
+        json.dumps({"action": "change_history", "repo_id": "demo", "limit": 5}),
+        owner="admin",
+    )
+
+    assert first["exit_code"] == 0
+    assert first["repo_changes"]["snapshot"]["repo_id"] == "demo"
+    assert first["repo_changes"]["snapshot"]["privacy_class"] == "private"
+    assert first["repo_changes"]["snapshot"]["external_summary_allowed"] is False
+    assert first["repo_changes"]["memory_records"][0]["source"] == "repo_recent_changes"
+    assert first["repo_changes"]["raptorgraph_event"]["event"] == "repo_recent_changes_snapshot"
+    assert second["repo_changes"]["persisted"] is False
+    assert second["repo_changes"]["duplicate_of"] == first["repo_changes"]["snapshot"]["id"]
+    assert history["history"][0]["id"] == first["repo_changes"]["snapshot"]["id"]
+    dumped = json.dumps({"first": first, "second": second, "history": history}, ensure_ascii=True)
+    assert "repo_root" not in dumped
+    assert "numstat" not in dumped
+    assert "secret-value" not in dumped
+    assert str(tmp_path) not in dumped
+
+
 def test_manage_repos_schema_index_and_security_wiring():
     schema_by_name = {(schema.get("function") or {}).get("name"): schema for schema in FUNCTION_TOOL_SCHEMAS}
     schema_names = set(schema_by_name)
@@ -541,10 +600,14 @@ def test_manage_repos_schema_index_and_security_wiring():
         "push",
         "forge_plan",
         "forge_metadata",
+        "changes",
+        "change_history",
         "register",
         "forget",
         "update_policy",
     }.issubset(set(actions))
+    params = schema_by_name["manage_repos"]["function"]["parameters"]["properties"]
+    assert {"hours", "persist", "force"}.issubset(set(params))
 
     from src.agent_tools import TOOL_TAGS
     from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
