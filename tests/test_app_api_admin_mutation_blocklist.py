@@ -89,6 +89,8 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/skills/skill1/markdown", "manage_skills"),
         ("PUT", "/api/skills/skill1", "manage_skills"),
         ("DELETE", "/api/skills/skill1", "manage_skills"),
+        ("PATCH", "/api/assistant/settings", "manage_assistant"),
+        ("POST", "/api/assistant/run/task1", "manage_assistant"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -258,6 +260,13 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/skills/search": {"post": {"summary": "Search Skills"}},
                     "/api/skills/{skill_id}/test": {"post": {"summary": "Test Skill"}},
                     "/api/skills/audit-all": {"post": {"summary": "Audit All Skills"}},
+                    "/api/assistant/session": {"get": {"summary": "Assistant Session"}},
+                    "/api/assistant/settings": {
+                        "get": {"summary": "Read Assistant Settings"},
+                        "patch": {"summary": "Update Assistant Settings"},
+                    },
+                    "/api/assistant/run/{task_id}": {"post": {"summary": "Run Assistant Task"}},
+                    "/api/assistant/run-status/{task_id}": {"get": {"summary": "Assistant Run Status"}},
                 }
             }
 
@@ -309,6 +318,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/skills/index") in paths
     assert ("GET", "/api/skills/{skill_id}") in paths
     assert ("GET", "/api/skills/{skill_id}/markdown") in paths
+    assert ("GET", "/api/assistant/session") in paths
+    assert ("GET", "/api/assistant/settings") in paths
+    assert ("GET", "/api/assistant/run-status/{task_id}") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -375,3 +387,5 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/skills/{skill_id}/markdown") not in paths
     assert ("PUT", "/api/skills/{skill_id}") not in paths
     assert ("DELETE", "/api/skills/{skill_id}") not in paths
+    assert ("PATCH", "/api/assistant/settings") not in paths
+    assert ("POST", "/api/assistant/run/{task_id}") not in paths

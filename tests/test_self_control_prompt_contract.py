@@ -34,8 +34,10 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
         schema["function"]["description"],
     ])
 
+    assert "assistant settings/run triggers" in combined
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
+    assert "manage_assistant" in combined
     assert "mutating /api/email" in combined
     assert "memory writes/search/import/audit" in combined
     assert "notes/calendar mutations" in combined
