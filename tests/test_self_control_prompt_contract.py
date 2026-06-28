@@ -46,6 +46,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "Signature/Documents UI" in combined
     assert "mutating /api/presets" in combined
     assert "Presets UI" in combined
+    assert "/api/editor-drafts" in combined
+    assert "Gallery Editor UI" in combined
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
     assert "manage_assistant" in combined

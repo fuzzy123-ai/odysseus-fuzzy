@@ -113,6 +113,11 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/presets/templates", "Presets UI"),
         ("DELETE", "/api/presets/templates/t1", "Presets UI"),
         ("POST", "/api/presets/groups", "Presets UI"),
+        ("GET", "/api/editor-drafts", "Gallery Editor UI"),
+        ("GET", "/api/editor-drafts/d1", "Gallery Editor UI"),
+        ("POST", "/api/editor-drafts", "Gallery Editor UI"),
+        ("PUT", "/api/editor-drafts/d1", "Gallery Editor UI"),
+        ("DELETE", "/api/editor-drafts/d1", "Gallery Editor UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -341,6 +346,15 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "get": {"summary": "List Preset Groups"},
                         "post": {"summary": "Save Preset Groups"},
                     },
+                    "/api/editor-drafts": {
+                        "get": {"summary": "List Editor Drafts"},
+                        "post": {"summary": "Create Editor Draft"},
+                    },
+                    "/api/editor-drafts/{draft_id}": {
+                        "get": {"summary": "Get Editor Draft"},
+                        "put": {"summary": "Update Editor Draft"},
+                        "delete": {"summary": "Delete Editor Draft"},
+                    },
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -518,6 +532,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/presets/templates") not in paths
     assert ("DELETE", "/api/presets/templates/{template_id}") not in paths
     assert ("POST", "/api/presets/groups") not in paths
+    assert ("GET", "/api/editor-drafts") not in paths
+    assert ("GET", "/api/editor-drafts/{draft_id}") not in paths
+    assert ("POST", "/api/editor-drafts") not in paths
+    assert ("PUT", "/api/editor-drafts/{draft_id}") not in paths
+    assert ("DELETE", "/api/editor-drafts/{draft_id}") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths

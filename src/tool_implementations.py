@@ -3189,6 +3189,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("POST",   "/api/presets/templates"),
     ("DELETE", "/api/presets/templates"),
     ("POST",   "/api/presets/groups"),
+    # Gallery editor drafts can contain full layer payloads and thumbnail data
+    # URLs. Keep them inside the editor UI.
+    ("GET",    "/api/editor-drafts"),
+    ("POST",   "/api/editor-drafts"),
+    ("PUT",    "/api/editor-drafts"),
+    ("PATCH",  "/api/editor-drafts"),
+    ("DELETE", "/api/editor-drafts"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3387,6 +3394,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't read or mutate saved visual signatures via app_api - use the Signature/Documents UI so personal image data and signing confirmation stay scoped.", "exit_code": 1}
         if "/api/presets" in path:
             return {"error": "Don't mutate presets or persona templates via app_api - use the Presets UI until a confirmed preset/settings agent tool exists.", "exit_code": 1}
+        if "/api/editor-drafts" in path:
+            return {"error": "Don't read or mutate gallery editor drafts via app_api - use the Gallery Editor UI so layered image payloads and owner scope stay contained.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:
