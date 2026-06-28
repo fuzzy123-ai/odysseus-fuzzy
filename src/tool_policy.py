@@ -223,6 +223,7 @@ def build_effective_tool_policy(
     disabled_tools: Optional[Iterable[str]] = None,
     last_user_message: object = "",
     orchestrator_mode: bool = False,
+    settings: Optional[Mapping[str, object]] = None,
 ) -> ToolPolicy:
     """Compose the effective policy for one agent turn.
 
@@ -279,7 +280,7 @@ def build_effective_tool_policy(
         from src.privacy_runtime import create_runtime_security_state
         from src.secure_policy_gate import decide_tool_gate
 
-        state = create_runtime_security_state()
+        state = create_runtime_security_state(settings=settings)
         decisions = {}
         for tool, safety_class in _DSGVO_TOOL_SAFETY_CLASSES.items():
             if safety_class not in decisions:

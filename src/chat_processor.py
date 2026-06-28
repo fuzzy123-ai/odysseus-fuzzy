@@ -23,6 +23,7 @@ from src.privacy_runtime import EXTERNAL_IO_BLOCK_MESSAGE, create_runtime_securi
 from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_route
 from src.secure_provider_runtime import provider_scope_for_base_url
 from src.sensitive_retrieval_guard import decide_retrieval_access
+from src.self_control_runtime import build_self_control_context_message
 
 logger = logging.getLogger(__name__)
 
@@ -309,6 +310,14 @@ class ChatProcessor:
             "role": "system",
             "content": UNTRUSTED_CONTEXT_POLICY,
         })
+        try:
+            preface.append(build_self_control_context_message(
+                session=session,
+                owner=owner,
+                message=message,
+            ))
+        except Exception:
+            logger.debug("Failed to add self-control runtime context", exc_info=True)
         if use_context_providers and not incognito and load_features().get("context_provider_preload", True):
             try:
                 budget = split_context_budget(context_budget_tokens or 4000)
