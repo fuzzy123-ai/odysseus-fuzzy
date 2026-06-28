@@ -3173,6 +3173,17 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/mcp"),
     ("PATCH",  "/api/mcp"),
     ("DELETE", "/api/mcp"),
+    # Data mutation routes with dedicated tools or without a confirmed agent
+    # flow must not be reachable through generic app_api.
+    ("DELETE", "/api/gallery"),
+    ("DELETE", "/api/document"),
+    ("POST",   "/api/documents/tidy"),
+    ("POST",   "/api/documents/ai-tidy"),
+    ("DELETE", "/api/research"),
+    ("POST",   "/api/tasks"),
+    ("PUT",    "/api/tasks"),
+    ("PATCH",  "/api/tasks"),
+    ("DELETE", "/api/tasks"),
     # Use the named tools — they handle owner attribution, natural-
     # language due_date parsing, timezone, dedup, and tag/category
     # normalization. Hitting the raw endpoint via app_api saves a
@@ -3288,6 +3299,14 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate /api/webhooks via app_api - use the `manage_webhooks` tool so confirmation and URL masking are enforced.", "exit_code": 1}
         if "/api/mcp" in path:
             return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
+        if "/api/gallery" in path:
+            return {"error": "Don't delete gallery images via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
+        if "/api/document" in path or "/api/documents/tidy" in path:
+            return {"error": "Don't delete or tidy documents via app_api - use the `manage_documents` tool so confirmation and owner scope are enforced.", "exit_code": 1}
+        if "/api/research" in path:
+            return {"error": "Don't delete research reports via app_api - use the `manage_research` tool so confirmation and owner scope are enforced.", "exit_code": 1}
+        if "/api/tasks" in path:
+            return {"error": "Don't mutate scheduled tasks via app_api - use the `manage_tasks` tool so scheduling semantics and confirmation are enforced.", "exit_code": 1}
         if "/api/notes" in path:
             return {"error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.", "exit_code": 1}
         if "/api/calendar/events" in path:

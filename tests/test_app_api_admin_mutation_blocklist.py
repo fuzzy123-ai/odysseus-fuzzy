@@ -19,6 +19,15 @@ from src.tool_implementations import do_app_api
         ("PUT", "/api/mcp/servers/srv1", "manage_mcp"),
         ("PATCH", "/api/mcp/servers/srv1", "manage_mcp"),
         ("DELETE", "/api/mcp/servers/srv1", "manage_mcp"),
+        ("DELETE", "/api/gallery/img1", "Gallery UI"),
+        ("DELETE", "/api/document/doc1", "manage_documents"),
+        ("POST", "/api/documents/tidy", "manage_documents"),
+        ("POST", "/api/documents/ai-tidy", "manage_documents"),
+        ("DELETE", "/api/research/report1", "manage_research"),
+        ("POST", "/api/tasks", "manage_tasks"),
+        ("PUT", "/api/tasks/task1", "manage_tasks"),
+        ("PATCH", "/api/tasks/task1", "manage_tasks"),
+        ("DELETE", "/api/tasks/task1", "manage_tasks"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -37,3 +46,63 @@ async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool
 
     assert result["exit_code"] == 1
     assert tool_name in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
+    import httpx
+
+    class FakeResponse:
+        def json(self):
+            return {
+                "paths": {
+                    "/api/gallery/library": {"get": {"summary": "Gallery Library"}},
+                    "/api/gallery/{image_id}": {
+                        "get": {"summary": "Read Image"},
+                        "delete": {"summary": "Delete Image"},
+                    },
+                    "/api/document/{doc_id}": {
+                        "get": {"summary": "Read Document"},
+                        "delete": {"summary": "Delete Document"},
+                    },
+                    "/api/documents/tidy": {"post": {"summary": "Tidy Documents"}},
+                    "/api/research/{session_id}": {"delete": {"summary": "Delete Research"}},
+                    "/api/tasks/notifications": {"get": {"summary": "Task Notifications"}},
+                    "/api/tasks": {"post": {"summary": "Create Task"}},
+                    "/api/tasks/{task_id}": {
+                        "put": {"summary": "Update Task"},
+                        "delete": {"summary": "Delete Task"},
+                    },
+                }
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    result = await do_app_api(json.dumps({"action": "endpoints"}), owner="admin")
+
+    assert result["exit_code"] == 0
+    paths = {(endpoint["method"], endpoint["path"]) for endpoint in result["endpoints"]}
+    assert ("GET", "/api/gallery/library") in paths
+    assert ("GET", "/api/gallery/{image_id}") in paths
+    assert ("GET", "/api/document/{doc_id}") in paths
+    assert ("GET", "/api/tasks/notifications") in paths
+    assert ("DELETE", "/api/gallery/{image_id}") not in paths
+    assert ("DELETE", "/api/document/{doc_id}") not in paths
+    assert ("POST", "/api/documents/tidy") not in paths
+    assert ("DELETE", "/api/research/{session_id}") not in paths
+    assert ("POST", "/api/tasks") not in paths
+    assert ("PUT", "/api/tasks/{task_id}") not in paths
+    assert ("DELETE", "/api/tasks/{task_id}") not in paths
