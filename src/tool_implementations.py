@@ -3144,6 +3144,13 @@ _APP_API_BLOCKLIST_PREFIXES = (
 # Use dedicated tools or UI flows instead.
 _APP_API_BLOCKLIST_METHOD_PATH = (
     ("GET",    "/api/email/accounts"),  # owner-filtered in tool context; use list_email_accounts MCP tool
+    # Email writes/sends/config changes must use the named email tools or UI
+    # flows so account selection, confirmations, staged-send, and owner scope
+    # are handled consistently.
+    ("POST",   "/api/email"),
+    ("PUT",    "/api/email"),
+    ("PATCH",  "/api/email"),
+    ("DELETE", "/api/email"),
     ("POST",   "/api/cookbook/state"),   # whole-file overwrite — agent must use serve_preset/serve_model instead
     ("DELETE", "/api/cookbook/state"),
     # Host-control routes: package install, engine rebuild, and process
@@ -3304,8 +3311,12 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
     if method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
         return {"error": f"Unsupported method: {method}", "exit_code": 1}
     if any(method == m and path.startswith(p) for m, p in _APP_API_BLOCKLIST_METHOD_PATH):
-        if "/api/email/accounts" in path:
+        if "/api/email/accounts" in path and method == "GET":
             return {"error": "Don't use /api/email/accounts via app_api — it is owner-filtered in tool context and may return empty. Use the `list_email_accounts` email tool, then pass `account` to list_emails/read_email.", "exit_code": 1}
+        if "/api/email/accounts" in path:
+            return {"error": "Don't mutate email accounts via app_api - use the Email Settings UI or dedicated secure account setup flow so credentials and owner scope are protected.", "exit_code": 1}
+        if "/api/email" in path:
+            return {"error": "Don't mutate email via app_api - use the named email tools (`send_email`, `reply_to_email`, `bulk_email`, `archive_email`, `delete_email`, `mark_email_read`) or `ui_control` for draft windows so confirmation, account selection, and staged-send rules are enforced.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

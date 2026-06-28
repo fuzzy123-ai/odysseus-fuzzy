@@ -69,6 +69,18 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/contacts/import", "Contacts UI"),
         ("PUT", "/api/contacts/config", "Contacts UI"),
         ("DELETE", "/api/contacts/clear", "Contacts UI"),
+        ("POST", "/api/email/send", "send_email"),
+        ("POST", "/api/email/ai-reply", "reply_to_email"),
+        ("POST", "/api/email/archive/123", "archive_email"),
+        ("POST", "/api/email/mark-read/123", "mark_email_read"),
+        ("DELETE", "/api/email/delete/123", "delete_email"),
+        ("POST", "/api/email/schedule", "named email tools"),
+        ("DELETE", "/api/email/scheduled/s1", "named email tools"),
+        ("POST", "/api/email/pending/s1/approve", "staged-send"),
+        ("PUT", "/api/email/config", "named email tools"),
+        ("POST", "/api/email/accounts", "Email Settings UI"),
+        ("PUT", "/api/email/accounts/acct1", "Email Settings UI"),
+        ("DELETE", "/api/email/accounts/acct1", "Email Settings UI"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -199,6 +211,29 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "delete": {"summary": "Delete Contact"},
                     },
                     "/api/contacts/clear": {"delete": {"summary": "Clear Contacts"}},
+                    "/api/email/list": {"get": {"summary": "List Email"}},
+                    "/api/email/read/{uid}": {"get": {"summary": "Read Email"}},
+                    "/api/email/attachments/{uid}": {"get": {"summary": "List Attachments"}},
+                    "/api/email/accounts": {
+                        "get": {"summary": "List Email Accounts"},
+                        "post": {"summary": "Add Email Account"},
+                    },
+                    "/api/email/accounts/{account_id}": {
+                        "put": {"summary": "Update Email Account"},
+                        "delete": {"summary": "Delete Email Account"},
+                    },
+                    "/api/email/send": {"post": {"summary": "Send Email"}},
+                    "/api/email/ai-reply": {"post": {"summary": "AI Reply"}},
+                    "/api/email/archive/{uid}": {"post": {"summary": "Archive Email"}},
+                    "/api/email/mark-read/{uid}": {"post": {"summary": "Mark Read"}},
+                    "/api/email/delete/{uid}": {"delete": {"summary": "Delete Email"}},
+                    "/api/email/schedule": {"post": {"summary": "Schedule Email"}},
+                    "/api/email/scheduled/{sid}": {"delete": {"summary": "Cancel Scheduled Email"}},
+                    "/api/email/pending/{sid}/approve": {"post": {"summary": "Approve Pending Email"}},
+                    "/api/email/config": {
+                        "get": {"summary": "Read Email Config"},
+                        "put": {"summary": "Update Email Config"},
+                    },
                 }
             }
 
@@ -242,6 +277,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/contacts/search") in paths
     assert ("GET", "/api/contacts/export") in paths
     assert ("GET", "/api/contacts/config") in paths
+    assert ("GET", "/api/email/list") in paths
+    assert ("GET", "/api/email/read/{uid}") in paths
+    assert ("GET", "/api/email/attachments/{uid}") in paths
+    assert ("GET", "/api/email/config") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -287,3 +326,16 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("PUT", "/api/contacts/{uid}") not in paths
     assert ("DELETE", "/api/contacts/{uid}") not in paths
     assert ("DELETE", "/api/contacts/clear") not in paths
+    assert ("GET", "/api/email/accounts") not in paths
+    assert ("POST", "/api/email/accounts") not in paths
+    assert ("PUT", "/api/email/accounts/{account_id}") not in paths
+    assert ("DELETE", "/api/email/accounts/{account_id}") not in paths
+    assert ("POST", "/api/email/send") not in paths
+    assert ("POST", "/api/email/ai-reply") not in paths
+    assert ("POST", "/api/email/archive/{uid}") not in paths
+    assert ("POST", "/api/email/mark-read/{uid}") not in paths
+    assert ("DELETE", "/api/email/delete/{uid}") not in paths
+    assert ("POST", "/api/email/schedule") not in paths
+    assert ("DELETE", "/api/email/scheduled/{sid}") not in paths
+    assert ("POST", "/api/email/pending/{sid}/approve") not in paths
+    assert ("PUT", "/api/email/config") not in paths

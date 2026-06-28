@@ -36,9 +36,12 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
 
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
+    assert "mutating /api/email" in combined
     assert "memory writes/search/import/audit" in combined
     assert "notes/calendar mutations" in combined
     assert "prefs writes" in combined
+    assert "send_email" in combined
+    assert "bulk_email" in combined
     assert "manage_contact" in combined
     assert "resolve_contact" in combined
     assert "manage_memory" in combined
