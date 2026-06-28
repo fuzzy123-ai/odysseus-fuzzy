@@ -329,3 +329,17 @@ Als naechstes sollte entschieden werden, welcher Provider fuer neue
 Projekt-Repositories benutzt wird: GitHub im `fuzzy123-ai` Namespace, ein
 serverlokales Gitea/Forgejo, oder zunaechst nur lokale Git-Repos ohne Remote.
 Danach kann die visuelle Project UI gestaltet werden.
+
+## Related Repo-Control Track
+
+Der P4 Git/Review-Flow in dieser Roadmap gilt fuer Project-Runner-Repos. Die
+breitere Frage "Odysseus kennt und verwaltet alle explizit freigegebenen Repos"
+ist als eigener Backend-Track erfasst:
+
+- `docs/plans/repo-control-roadmap.md`
+
+Dieser Track soll eine generische Repo-Registry, read-only Git-Intelligence,
+Remote-Policy, bestaetigte Commit-/Push-Flows, DSGVO-/Local-only-Gates und
+spaetere Project-UI-Anbindung liefern. Der Project Runner soll diesen
+generischen Repo-Control-Layer spaeter wiederverwenden, statt eine zweite
+Git-Welt aufzubauen.
