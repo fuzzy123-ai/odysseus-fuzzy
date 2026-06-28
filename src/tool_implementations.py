@@ -3205,6 +3205,12 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("DELETE", "/api/editor-drafts"),
     # Cleanup preview is safe, but executing cleanup archives/deletes sessions.
     ("POST",   "/api/cleanup"),
+    # Compare reads/history are safe; starting/voting/record/delete creates
+    # sessions, spends model calls, or mutates comparison history.
+    ("POST",   "/api/compare"),
+    ("PUT",    "/api/compare"),
+    ("PATCH",  "/api/compare"),
+    ("DELETE", "/api/compare"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3411,6 +3417,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't read or mutate gallery editor drafts via app_api - use the Gallery Editor UI so layered image payloads and owner scope stay contained.", "exit_code": 1}
         if "/api/cleanup" in path:
             return {"error": "Don't run cleanup via app_api - use `manage_session` or the Cleanup UI so archive/delete effects are explicit and confirmed.", "exit_code": 1}
+        if "/api/compare" in path:
+            return {"error": "Don't start, vote, record, or delete model comparisons via app_api - use the Compare UI or `chat_with_model` so model-call cost, owner scope, and vote/delete intent stay explicit.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

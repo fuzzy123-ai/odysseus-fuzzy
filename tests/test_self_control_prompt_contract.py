@@ -40,6 +40,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "/api/rewrite" in combined
     assert "mutating /api/codex" in combined
     assert "native named tools" in combined
+    assert "mutating /api/compare" in combined
+    assert "chat_with_model" in combined
     assert "mutating /api/embeddings" in combined
     assert "manage_embeddings" in combined
     assert "/api/upload" in combined

@@ -107,6 +107,10 @@ from src.tool_implementations import do_app_api
         ("DELETE", "/api/codex/documents/doc1", "native named tools"),
         ("POST", "/api/codex/cookbook/serve", "native named tools"),
         ("POST", "/api/codex/cookbook/preset/foo", "native named tools"),
+        ("POST", "/api/compare/start", "Compare UI"),
+        ("POST", "/api/compare/comp1/vote", "Compare UI"),
+        ("POST", "/api/compare/record", "Compare UI"),
+        ("DELETE", "/api/compare/comp1", "Compare UI"),
         ("POST", "/api/embeddings/models/BAAI/bge-small-en-v1.5/download", "Embedding Settings UI"),
         ("DELETE", "/api/embeddings/models/BAAI/bge-small-en-v1.5", "Embedding Settings UI"),
         ("POST", "/api/embeddings/endpoint", "Embedding Settings UI"),
@@ -355,6 +359,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/codex/cookbook/tasks": {"get": {"summary": "List Codex Cookbook Tasks"}},
                     "/api/codex/cookbook/serve": {"post": {"summary": "Serve Codex Cookbook Model"}},
                     "/api/codex/cookbook/preset/{name}": {"post": {"summary": "Serve Codex Cookbook Preset"}},
+                    "/api/compare/history": {"get": {"summary": "List Comparisons"}},
+                    "/api/compare/start": {"post": {"summary": "Start Comparison"}},
+                    "/api/compare/{comp_id}/vote": {"post": {"summary": "Vote Comparison"}},
+                    "/api/compare/record": {"post": {"summary": "Record Comparison"}},
+                    "/api/compare/{comp_id}": {"delete": {"summary": "Delete Comparison"}},
                     "/api/embeddings/models": {"get": {"summary": "List Embedding Models"}},
                     "/api/embeddings/models/{model_name}/download": {"post": {"summary": "Download Embedding Model"}},
                     "/api/embeddings/models/{model_name}/status": {"get": {"summary": "Embedding Model Status"}},
@@ -483,6 +492,7 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/codex/documents") in paths
     assert ("GET", "/api/codex/documents/{doc_id}") in paths
     assert ("GET", "/api/codex/cookbook/tasks") in paths
+    assert ("GET", "/api/compare/history") in paths
     assert ("GET", "/api/embeddings/models") in paths
     assert ("GET", "/api/embeddings/models/{model_name}/status") in paths
     assert ("GET", "/api/embeddings/endpoint") in paths
@@ -582,6 +592,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/codex/documents/{doc_id}") not in paths
     assert ("POST", "/api/codex/cookbook/serve") not in paths
     assert ("POST", "/api/codex/cookbook/preset/{name}") not in paths
+    assert ("POST", "/api/compare/start") not in paths
+    assert ("POST", "/api/compare/{comp_id}/vote") not in paths
+    assert ("POST", "/api/compare/record") not in paths
+    assert ("DELETE", "/api/compare/{comp_id}") not in paths
     assert ("POST", "/api/embeddings/models/{model_name}/download") not in paths
     assert ("DELETE", "/api/embeddings/models/{model_name}") not in paths
     assert ("POST", "/api/embeddings/endpoint") not in paths
