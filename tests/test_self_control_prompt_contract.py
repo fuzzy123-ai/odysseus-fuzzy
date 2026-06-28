@@ -35,8 +35,10 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     ])
 
     assert "gallery" in combined
+    assert "memory writes/search/import/audit" in combined
     assert "notes/calendar mutations" in combined
     assert "prefs writes" in combined
+    assert "manage_memory" in combined
     assert "manage_notes" in combined
     assert "manage_calendar" in combined
     assert "manage_settings" in combined

@@ -57,6 +57,12 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/prefs/custom-themes", "manage_settings"),
         ("PATCH", "/api/prefs/custom-themes", "manage_settings"),
         ("DELETE", "/api/prefs/custom-themes", "manage_settings"),
+        ("POST", "/api/memory/add", "manage_memory"),
+        ("POST", "/api/memory/search", "manage_memory"),
+        ("POST", "/api/memory/import", "Memory UI"),
+        ("POST", "/api/memory/mem1/pin", "Memory UI"),
+        ("PUT", "/api/memory/mem1", "manage_memory"),
+        ("DELETE", "/api/memory/mem1", "manage_memory"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -161,6 +167,18 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "patch": {"summary": "Patch Custom Themes"},
                         "delete": {"summary": "Delete Custom Themes"},
                     },
+                    "/api/memory": {
+                        "get": {"summary": "List Memories"},
+                    },
+                    "/api/memory/add": {"post": {"summary": "Add Memory"}},
+                    "/api/memory/search": {"post": {"summary": "Search Memories"}},
+                    "/api/memory/import": {"post": {"summary": "Import Memories"}},
+                    "/api/memory/{memory_id}": {
+                        "get": {"summary": "Read Memory"},
+                        "put": {"summary": "Update Memory"},
+                        "delete": {"summary": "Delete Memory"},
+                    },
+                    "/api/memory/{memory_id}/pin": {"post": {"summary": "Pin Memory"}},
                 }
             }
 
@@ -198,6 +216,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/prefs") in paths
     assert ("GET", "/api/prefs/{key}") in paths
     assert ("GET", "/api/prefs/custom-themes") in paths
+    assert ("GET", "/api/memory") in paths
+    assert ("GET", "/api/memory/{memory_id}") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -231,3 +251,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/prefs/custom-themes") not in paths
     assert ("PATCH", "/api/prefs/custom-themes") not in paths
     assert ("DELETE", "/api/prefs/custom-themes") not in paths
+    assert ("POST", "/api/memory/add") not in paths
+    assert ("POST", "/api/memory/search") not in paths
+    assert ("POST", "/api/memory/import") not in paths
+    assert ("PUT", "/api/memory/{memory_id}") not in paths
+    assert ("DELETE", "/api/memory/{memory_id}") not in paths
+    assert ("POST", "/api/memory/{memory_id}/pin") not in paths
