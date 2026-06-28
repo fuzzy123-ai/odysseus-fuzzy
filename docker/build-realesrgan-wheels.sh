@@ -16,6 +16,10 @@ cd "$work"
 
 SPECS="basicsr==1.4.2 gfpgan==1.3.8 facexlib==0.3.0"
 
+# These projects only need their patched setup.py files to build wheels. Build
+# isolation would install heavyweight optional build requirements such as torch.
+python -m pip install --no-cache-dir --upgrade setuptools wheel
+
 for spec in $SPECS; do
   name="${spec%%==*}"
   ver="${spec##*==}"
@@ -60,5 +64,5 @@ assert patched == 3, f"expected to patch 3 setup.py files, patched {patched}"
 PY
 
 echo ">> building wheels into ${OUT}"
-pip wheel --no-deps -w "$OUT" ./basicsr-* ./gfpgan-* ./facexlib-*
+pip wheel --no-deps --no-build-isolation -w "$OUT" ./basicsr-* ./gfpgan-* ./facexlib-*
 ls -l "$OUT"
