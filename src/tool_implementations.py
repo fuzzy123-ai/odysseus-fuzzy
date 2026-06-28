@@ -3151,6 +3151,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/email"),
     ("PATCH",  "/api/email"),
     ("DELETE", "/api/email"),
+    # Skill writes and audits should use manage_skills or the Skills UI so
+    # SKILL.md parsing, owner scope, confirmation, and dedupe semantics stay
+    # centralized.
+    ("POST",   "/api/skills"),
+    ("PUT",    "/api/skills"),
+    ("PATCH",  "/api/skills"),
+    ("DELETE", "/api/skills"),
     ("POST",   "/api/cookbook/state"),   # whole-file overwrite — agent must use serve_preset/serve_model instead
     ("DELETE", "/api/cookbook/state"),
     # Host-control routes: package install, engine rebuild, and process
@@ -3317,6 +3324,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate email accounts via app_api - use the Email Settings UI or dedicated secure account setup flow so credentials and owner scope are protected.", "exit_code": 1}
         if "/api/email" in path:
             return {"error": "Don't mutate email via app_api - use the named email tools (`send_email`, `reply_to_email`, `bulk_email`, `archive_email`, `delete_email`, `mark_email_read`) or `ui_control` for draft windows so confirmation, account selection, and staged-send rules are enforced.", "exit_code": 1}
+        if "/api/skills" in path:
+            return {"error": "Don't mutate skills via app_api - use `manage_skills` for list/view/add/edit/patch/publish/delete/search so SKILL.md validation, owner scope, dedupe, and confirmation are enforced; use the Skills UI for test/audit/import flows.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

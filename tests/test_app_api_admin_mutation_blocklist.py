@@ -81,6 +81,14 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/email/accounts", "Email Settings UI"),
         ("PUT", "/api/email/accounts/acct1", "Email Settings UI"),
         ("DELETE", "/api/email/accounts/acct1", "Email Settings UI"),
+        ("POST", "/api/skills/add", "manage_skills"),
+        ("POST", "/api/skills/import-from-url", "manage_skills"),
+        ("POST", "/api/skills/search", "manage_skills"),
+        ("POST", "/api/skills/skill1/test", "Skills UI"),
+        ("POST", "/api/skills/audit-all", "Skills UI"),
+        ("POST", "/api/skills/skill1/markdown", "manage_skills"),
+        ("PUT", "/api/skills/skill1", "manage_skills"),
+        ("DELETE", "/api/skills/skill1", "manage_skills"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -234,6 +242,22 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "get": {"summary": "Read Email Config"},
                         "put": {"summary": "Update Email Config"},
                     },
+                    "/api/skills": {"get": {"summary": "List Skills"}},
+                    "/api/skills/index": {"get": {"summary": "Skills Index"}},
+                    "/api/skills/{skill_id}": {
+                        "get": {"summary": "Read Skill"},
+                        "put": {"summary": "Update Skill"},
+                        "delete": {"summary": "Delete Skill"},
+                    },
+                    "/api/skills/{skill_id}/markdown": {
+                        "get": {"summary": "Read Skill Markdown"},
+                        "post": {"summary": "Save Skill Markdown"},
+                    },
+                    "/api/skills/add": {"post": {"summary": "Add Skill"}},
+                    "/api/skills/import-from-url": {"post": {"summary": "Import Skill"}},
+                    "/api/skills/search": {"post": {"summary": "Search Skills"}},
+                    "/api/skills/{skill_id}/test": {"post": {"summary": "Test Skill"}},
+                    "/api/skills/audit-all": {"post": {"summary": "Audit All Skills"}},
                 }
             }
 
@@ -281,6 +305,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/email/read/{uid}") in paths
     assert ("GET", "/api/email/attachments/{uid}") in paths
     assert ("GET", "/api/email/config") in paths
+    assert ("GET", "/api/skills") in paths
+    assert ("GET", "/api/skills/index") in paths
+    assert ("GET", "/api/skills/{skill_id}") in paths
+    assert ("GET", "/api/skills/{skill_id}/markdown") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -339,3 +367,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/email/scheduled/{sid}") not in paths
     assert ("POST", "/api/email/pending/{sid}/approve") not in paths
     assert ("PUT", "/api/email/config") not in paths
+    assert ("POST", "/api/skills/add") not in paths
+    assert ("POST", "/api/skills/import-from-url") not in paths
+    assert ("POST", "/api/skills/search") not in paths
+    assert ("POST", "/api/skills/{skill_id}/test") not in paths
+    assert ("POST", "/api/skills/audit-all") not in paths
+    assert ("POST", "/api/skills/{skill_id}/markdown") not in paths
+    assert ("PUT", "/api/skills/{skill_id}") not in paths
+    assert ("DELETE", "/api/skills/{skill_id}") not in paths
