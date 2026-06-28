@@ -3183,6 +3183,12 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/signatures"),
     ("PATCH",  "/api/signatures"),
     ("DELETE", "/api/signatures"),
+    # Preset writes change model/persona behavior globally. Keep reads via
+    # app_api, but require the Presets UI or a confirmed settings flow to save.
+    ("POST",   "/api/presets/custom"),
+    ("POST",   "/api/presets/templates"),
+    ("DELETE", "/api/presets/templates"),
+    ("POST",   "/api/presets/groups"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3379,6 +3385,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't read or mutate upload attachment routes via app_api - use the normal attachment UI so owner scope, binary handling, and vision-processing boundaries are preserved.", "exit_code": 1}
         if "/api/signatures" in path:
             return {"error": "Don't read or mutate saved visual signatures via app_api - use the Signature/Documents UI so personal image data and signing confirmation stay scoped.", "exit_code": 1}
+        if "/api/presets" in path:
+            return {"error": "Don't mutate presets or persona templates via app_api - use the Presets UI until a confirmed preset/settings agent tool exists.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

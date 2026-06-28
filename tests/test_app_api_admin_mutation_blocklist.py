@@ -109,6 +109,10 @@ from src.tool_implementations import do_app_api
         ("GET", "/api/signatures", "Signature/Documents UI"),
         ("POST", "/api/signatures", "Signature/Documents UI"),
         ("DELETE", "/api/signatures/sig1", "Signature/Documents UI"),
+        ("POST", "/api/presets/custom", "Presets UI"),
+        ("POST", "/api/presets/templates", "Presets UI"),
+        ("DELETE", "/api/presets/templates/t1", "Presets UI"),
+        ("POST", "/api/presets/groups", "Presets UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -325,6 +329,18 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "post": {"summary": "Create Signature"},
                     },
                     "/api/signatures/{sig_id}": {"delete": {"summary": "Delete Signature"}},
+                    "/api/presets": {"get": {"summary": "List Presets"}},
+                    "/api/presets/custom": {"post": {"summary": "Update Custom Preset"}},
+                    "/api/presets/templates": {
+                        "get": {"summary": "List Preset Templates"},
+                        "post": {"summary": "Save Preset Template"},
+                    },
+                    "/api/presets/templates/{template_id}": {"delete": {"summary": "Delete Preset Template"}},
+                    "/api/presets/expand": {"post": {"summary": "Expand Preset Prompt"}},
+                    "/api/presets/groups": {
+                        "get": {"summary": "List Preset Groups"},
+                        "post": {"summary": "Save Preset Groups"},
+                    },
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -407,6 +423,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/plugins/registry") in paths
     assert ("GET", "/api/plugins/registries") in paths
     assert ("GET", "/api/plugins/{plugin_id}/status") in paths
+    assert ("GET", "/api/presets") in paths
+    assert ("GET", "/api/presets/templates") in paths
+    assert ("POST", "/api/presets/expand") in paths
+    assert ("GET", "/api/presets/groups") in paths
     assert ("GET", "/api/personal") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
@@ -494,6 +514,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/signatures") not in paths
     assert ("POST", "/api/signatures") not in paths
     assert ("DELETE", "/api/signatures/{sig_id}") not in paths
+    assert ("POST", "/api/presets/custom") not in paths
+    assert ("POST", "/api/presets/templates") not in paths
+    assert ("DELETE", "/api/presets/templates/{template_id}") not in paths
+    assert ("POST", "/api/presets/groups") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths
