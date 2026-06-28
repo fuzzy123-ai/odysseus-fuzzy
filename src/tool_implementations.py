@@ -3185,6 +3185,10 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/memory"),
     ("PATCH",  "/api/memory"),
     ("DELETE", "/api/memory"),
+    ("POST",   "/api/contacts"),
+    ("PUT",    "/api/contacts"),
+    ("PATCH",  "/api/contacts"),
+    ("DELETE", "/api/contacts"),
     ("POST",   "/api/gallery"),
     ("PUT",    "/api/gallery"),
     ("PATCH",  "/api/gallery"),
@@ -3324,6 +3328,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/memory" in path:
             return {"error": "Don't write or search memory via app_api - use `manage_memory` for list/add/edit/delete/search so owner scope, confirmation, and vector sync are enforced; use the Memory UI for import/audit/pin flows.", "exit_code": 1}
+        if "/api/contacts" in path:
+            return {"error": "Don't mutate contacts via app_api - use `manage_contact` for add/update/delete with confirmation and validation; use the Contacts UI for import/config/clear flows.", "exit_code": 1}
         if "/api/gallery" in path:
             return {"error": "Don't mutate gallery items via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
         if "/api/document" in path or "/api/documents/tidy" in path:

@@ -63,6 +63,12 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/memory/mem1/pin", "Memory UI"),
         ("PUT", "/api/memory/mem1", "manage_memory"),
         ("DELETE", "/api/memory/mem1", "manage_memory"),
+        ("POST", "/api/contacts/add", "manage_contact"),
+        ("PUT", "/api/contacts/contact1", "manage_contact"),
+        ("DELETE", "/api/contacts/contact1", "manage_contact"),
+        ("POST", "/api/contacts/import", "Contacts UI"),
+        ("PUT", "/api/contacts/config", "Contacts UI"),
+        ("DELETE", "/api/contacts/clear", "Contacts UI"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -179,6 +185,20 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "delete": {"summary": "Delete Memory"},
                     },
                     "/api/memory/{memory_id}/pin": {"post": {"summary": "Pin Memory"}},
+                    "/api/contacts/list": {"get": {"summary": "List Contacts"}},
+                    "/api/contacts/search": {"get": {"summary": "Search Contacts"}},
+                    "/api/contacts/export": {"get": {"summary": "Export Contacts"}},
+                    "/api/contacts/add": {"post": {"summary": "Add Contact"}},
+                    "/api/contacts/import": {"post": {"summary": "Import Contacts"}},
+                    "/api/contacts/config": {
+                        "get": {"summary": "Get Contacts Config"},
+                        "put": {"summary": "Update Contacts Config"},
+                    },
+                    "/api/contacts/{uid}": {
+                        "put": {"summary": "Update Contact"},
+                        "delete": {"summary": "Delete Contact"},
+                    },
+                    "/api/contacts/clear": {"delete": {"summary": "Clear Contacts"}},
                 }
             }
 
@@ -218,6 +238,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/prefs/custom-themes") in paths
     assert ("GET", "/api/memory") in paths
     assert ("GET", "/api/memory/{memory_id}") in paths
+    assert ("GET", "/api/contacts/list") in paths
+    assert ("GET", "/api/contacts/search") in paths
+    assert ("GET", "/api/contacts/export") in paths
+    assert ("GET", "/api/contacts/config") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -257,3 +281,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("PUT", "/api/memory/{memory_id}") not in paths
     assert ("DELETE", "/api/memory/{memory_id}") not in paths
     assert ("POST", "/api/memory/{memory_id}/pin") not in paths
+    assert ("POST", "/api/contacts/add") not in paths
+    assert ("POST", "/api/contacts/import") not in paths
+    assert ("PUT", "/api/contacts/config") not in paths
+    assert ("PUT", "/api/contacts/{uid}") not in paths
+    assert ("DELETE", "/api/contacts/{uid}") not in paths
+    assert ("DELETE", "/api/contacts/clear") not in paths
