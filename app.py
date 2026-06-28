@@ -645,6 +645,10 @@ app.include_router(setup_roadmap_routes())
 from routes.server_project_routes import setup_server_project_routes
 app.include_router(setup_server_project_routes())
 
+# Registered repos
+from routes.repo_routes import setup_repo_routes
+app.include_router(setup_repo_routes())
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))

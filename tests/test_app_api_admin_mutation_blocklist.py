@@ -147,6 +147,10 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/personal/upload", "Personal Docs UI"),
         ("DELETE", "/api/personal/remove_directory", "manage_personal_docs"),
         ("DELETE", "/api/personal/file", "manage_personal_docs"),
+        ("POST", "/api/repos/register", "manage_repos"),
+        ("PATCH", "/api/repos/demo/policy", "manage_repos"),
+        ("POST", "/api/repos/demo/commit-plan", "manage_repos"),
+        ("POST", "/api/repos/demo/push-plan", "manage_repos"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):

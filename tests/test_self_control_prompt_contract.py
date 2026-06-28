@@ -68,6 +68,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "manage_session" in combined
     assert "mutating /api/personal" in combined
     assert "manage_personal_docs" in combined
+    assert "repo register/policy/commit-plan/push-plan" in combined
+    assert "manage_repos" in combined
     assert "mutating /api/plugins" in combined
     assert "manage_plugins" in combined
     assert "mutating /api/email" in combined

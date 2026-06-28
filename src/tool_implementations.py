@@ -4547,6 +4547,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/personal"),
     ("PATCH",  "/api/personal"),
     ("DELETE", "/api/personal"),
+    # Repo mutations and plan requests have a dedicated manage_repos surface
+    # so confirmation, remote policy, branch gates, and path boundaries stay
+    # centralized. GET routes may remain visible to UI/app_api as read/status.
+    ("POST",   "/api/repos"),
+    ("PUT",    "/api/repos"),
+    ("PATCH",  "/api/repos"),
+    ("DELETE", "/api/repos"),
     # Preference writes bypass manage_settings validation and ui_control's
     # event contract. Keep app_api read-only for prefs.
     ("POST",   "/api/prefs"),
@@ -4736,6 +4743,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             if path.startswith("/api/personal/upload"):
                 return {"error": "Don't upload personal documents via app_api - use the Personal Docs UI so multipart bytes and owner scope stay bounded.", "exit_code": 1}
             return {"error": "Don't mutate personal document or RAG source routes via app_api - use `manage_personal_docs` so confirmation and route parity are enforced.", "exit_code": 1}
+        if "/api/repos" in path:
+            return {"error": "Don't mutate repo registry, repo policy, commit-plan, or push-plan routes via app_api - use `manage_repos` or the Repo/Project UI so confirmation, remote policy, branch gates, and path boundaries are enforced.", "exit_code": 1}
         if "/api/prefs" in path:
             return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/memory" in path:

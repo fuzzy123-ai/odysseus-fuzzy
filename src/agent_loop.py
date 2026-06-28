@@ -539,6 +539,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Personal docs/RAG sources: read/list via `/api/personal`; reload, directory add/remove, and file delete are blocked via app_api. Use `manage_personal_docs` for confirmed source changes; upload stays Personal Docs UI-only.
 - Plugins: read/status routes such as `/api/plugins`, `/api/plugins/registry`, `/api/plugins/{plugin_id}/status`; plugin manager mutations are blocked via app_api. Use `manage_plugins`; plugin-specific provider actions stay UI/provider-specific.
 - Presets: read/list routes such as `/api/presets`, `/api/presets/templates`, `/api/presets/groups`; custom preset, template, and group writes are blocked via app_api. Use `manage_presets` for confirmed preset changes.
+- Repos: read/status routes such as `/api/repos`, `/api/repos/{repo_id}`, `/api/repos/{repo_id}/status`, `/api/repos/{repo_id}/changes`; repo register/policy/commit-plan/push-plan routes are blocked via app_api. Use `manage_repos` or the Repo/Project UI so confirmation and remote-policy gates are enforced.
 - Tasks: read/notifications only; task mutations are blocked via app_api, use `manage_tasks`.
 - Sessions: read-only helpers only; session/chat mutations are blocked via app_api, use `create_session`, `list_sessions`, or `manage_session`.
 - Signatures: `/api/signatures` contains saved visual signature image data and is blocked entirely via app_api; use the Signature/Documents UI.

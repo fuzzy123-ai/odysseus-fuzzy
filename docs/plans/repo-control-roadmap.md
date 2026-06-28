@@ -2,7 +2,7 @@
 
 Stand: 2026-06-28
 
-Status: **RC1-RC9 backend slices implemented; RC10 API Surface For Future UI is next**
+Status: **RC1-RC10 backend slices implemented; Repo Control backend track complete**
 
 ## Goal
 
@@ -368,6 +368,13 @@ Done when:
 - UI kann Repos anzeigen, Policies erklaeren und Human Decisions anfordern.
 - Keine UI-Implementierung ist Teil dieses Slices.
 
+Implemented:
+
+- `routes/repo_routes.py` exposes the proposed API surface.
+- `app.py` includes the repo router.
+- `app_api` keeps repo register/policy/commit-plan/push-plan mutations behind
+  `manage_repos` or the Repo/Project UI.
+
 ## Gate Queue
 
 ### Gate RC-G1 Provider Choice
@@ -432,13 +439,14 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_regist
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_git_adapter.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_remote_policy.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_recent_memory.py
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_routes.py
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_repos_read_tool.py
 ```
 
 Final backend bundle:
 
 ```powershell
-C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_*.py tests\test_manage_repos_read_tool.py
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_*.py tests\test_manage_repos_read_tool.py tests\test_app_api_admin_mutation_blocklist.py tests\test_self_control_prompt_contract.py
 ```
 
 ## Go / Partial / No-Go
@@ -456,8 +464,9 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_repo_*.py t
 
 ## Recommended Next Slice
 
-`RC10 API Surface For Future UI` als naechster Backend-Slice.
+Backend-Slices sind abgeschlossen. Naechster Track ist UI-Integration:
+Project/Repo-Fenster, Runner-State-Fenster und Settings-Policy Controls an die
+bereitgestellten `/api/repos`-Routen anschliessen.
 
-Damit bekommt das spaetere Project UI eine schmale API ueber registrierte
-Repos, Policies, Status, Changes, Commit-Plan und Push-Plan, ohne dass in
-diesem Backend-Slice UI-Design entschieden wird.
+Provider-Repo-Erstellung, private Repo API-KI-Freigaben und Live-Push bleiben
+separate Gates.
