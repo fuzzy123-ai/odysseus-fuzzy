@@ -64,8 +64,8 @@ def test_base_compose_provisions_internal_ollama_service():
     assert "LLM_HOST=${LLM_HOST:-ollama}" in odysseus["environment"]
     assert "LLM_HOSTS=${LLM_HOSTS:-ollama}" in odysseus["environment"]
     assert "OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}" in odysseus["environment"]
-    assert "/var/run/docker.sock:/var/run/docker.sock" in odysseus["volumes"]
-    assert odysseus["group_add"] == ["${DOCKER_GID:-963}"]
+    assert "/var/run/docker.sock:/var/run/docker.sock" not in odysseus["volumes"]
+    assert "group_add" not in odysseus
 
     ollama = services["ollama"]
     assert ollama["image"] == "docker.io/ollama/ollama:latest"

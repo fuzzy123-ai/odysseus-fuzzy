@@ -13,9 +13,7 @@ services:
     - ${APP_DATA_DIR:-./data}/ssh:/app/.ssh:z
     - ${APP_DATA_DIR:-./data}/huggingface:/app/.cache/huggingface:z
     - ${APP_DATA_DIR:-./data}/local:/app/.local:z
-    - /var/run/docker.sock:/var/run/docker.sock
     group_add:
-    - ${DOCKER_GID:-963}
     - video
     - ${RENDER_GID:-render}
     extra_hosts:

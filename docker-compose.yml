@@ -20,12 +20,6 @@ services:
       # land under /app/.local for the odysseus user. Persist them so a
       # container recreate does not silently remove installed serve engines.
       - ${APP_DATA_DIR:-./data}/local:/app/.local:z
-      # Lets Cookbook reach sibling containers through the host Docker daemon.
-      # This is powerful: only enable on trusted hosts, and set DOCKER_GID to
-      # the numeric GID owning /var/run/docker.sock if the default differs.
-      - /var/run/docker.sock:/var/run/docker.sock
-    group_add:
-      - "${DOCKER_GID:-963}"
     extra_hosts:
       # Lets the container reach local services on the Docker host, including
       # Ollama at http://host.docker.internal:11434.
