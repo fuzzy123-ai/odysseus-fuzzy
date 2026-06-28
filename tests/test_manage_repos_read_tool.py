@@ -33,6 +33,37 @@ def _make_repo(base: Path) -> Path:
     return repo
 
 
+def _make_push_repo(base: Path) -> tuple[Path, Path, str, str]:
+    repo = base / "repos" / "demo"
+    repo.mkdir(parents=True)
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    _git(repo, "checkout", "-b", "codex/demo/work")
+    (repo / "README.md").write_text("ready\n", encoding="utf-8")
+    _git(repo, "add", "README.md")
+    _git(repo, "commit", "-m", "initial commit")
+    bare = base / "remotes" / "demo.git"
+    bare.parent.mkdir(parents=True)
+    subprocess.run(["git", "init", "--bare", str(bare)], capture_output=True, text=True, check=True)
+    _git(repo, "remote", "add", "fuzzy", str(bare))
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    return repo, bare, branch, head
+
+
 def _write_registry(path: Path) -> None:
     registry = RepoRegistry()
     registry.add(
@@ -71,6 +102,33 @@ def _write_commit_registry(path: Path) -> None:
             project_root="repos/demo",
             default_branch="main",
             allowed_actions=["status", "changed_paths", "commit_plan", "commit"],
+            created_at="2026-06-28T10:00:00Z",
+        )
+    )
+    registry.save_json(path)
+
+
+def _write_push_registry(path: Path) -> None:
+    registry = RepoRegistry()
+    registry.add(
+        RepoRecord.create(
+            repo_id="demo",
+            title="Demo Repo",
+            repo_kind="project",
+            owner="fuzzy123-ai",
+            path_ref="repos/demo",
+            workspace_root="repos",
+            project_root="repos/demo",
+            default_branch="main",
+            remotes=[
+                RepoRemote.create(
+                    name="fuzzy",
+                    url="https://github.com/fuzzy123-ai/demo.git",
+                    purpose="fork",
+                    push_policy="push_allowed",
+                )
+            ],
+            allowed_actions=["status", "push_plan", "push"],
             created_at="2026-06-28T10:00:00Z",
         )
     )
@@ -327,6 +385,69 @@ async def test_manage_repos_commit_runs_confirmed_exact_path(tmp_path: Path, mon
     assert str(tmp_path) not in json.dumps(result)
 
 
+@pytest.mark.asyncio
+async def test_manage_repos_push_plan_explains_missing_live_gates(tmp_path: Path, monkeypatch):
+    _repo, _bare, branch, head = _make_push_repo(tmp_path)
+    registry_path = tmp_path / "repo-registry.json"
+    _write_push_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "push_plan",
+                "repo_id": "demo",
+                "remote_name": "fuzzy",
+                "branch_name": branch,
+                "commit_sha": head,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert result["exit_code"] == 1
+    assert result["push_report"]["plan"]["decision"] == "hold"
+    assert "operator_go=true" in result["output"]
+    assert str(tmp_path) not in json.dumps(result)
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_push_runs_confirmed_policy_allowed_branch(tmp_path: Path, monkeypatch):
+    _repo, bare, branch, head = _make_push_repo(tmp_path)
+    registry_path = tmp_path / "repo-registry.json"
+    _write_push_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "push",
+                "repo_id": "demo",
+                "remote_name": "fuzzy",
+                "branch_name": branch,
+                "commit_sha": head,
+                "confirmed": True,
+                "operator_go": True,
+                "live_enabled": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    pushed = subprocess.run(
+        ["git", "--git-dir", str(bare), "rev-parse", f"refs/heads/{branch}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert result["exit_code"] == 0
+    assert result["push_report"]["status"] == "pushed"
+    assert pushed == head
+    assert str(tmp_path) not in json.dumps(result)
+
+
 def test_manage_repos_schema_index_and_security_wiring():
     schema_by_name = {(schema.get("function") or {}).get("name"): schema for schema in FUNCTION_TOOL_SCHEMAS}
     schema_names = set(schema_by_name)
@@ -334,7 +455,9 @@ def test_manage_repos_schema_index_and_security_wiring():
     actions = (
         schema_by_name["manage_repos"]["function"]["parameters"]["properties"]["action"]["enum"]
     )
-    assert {"commit_plan", "commit", "register", "forget", "update_policy"}.issubset(set(actions))
+    assert {"commit_plan", "commit", "push_plan", "push", "register", "forget", "update_policy"}.issubset(
+        set(actions)
+    )
 
     from src.agent_tools import TOOL_TAGS
     from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
@@ -352,5 +475,5 @@ def test_source_keeps_manage_repos_without_free_git_shell():
     end = source.index("def _skill_dump", start)
     section = source[start:end]
 
-    for forbidden in ("git push", "git reset", "subprocess.run"):
+    for forbidden in ("git reset", "subprocess.run"):
         assert forbidden not in section

@@ -549,11 +549,32 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "commit_report": payload,
                 "exit_code": 0 if report.status in {"plan_ready", "committed"} else 1,
             }
+        if action in {"push_plan", "push"}:
+            from src.repo_push_runner import plan_repo_push, run_repo_push
+
+            common = {
+                "registry": registry,
+                "repo_id": repo_id,
+                "workspace_base": workspace_base,
+                "remote_name": args.get("remote_name") or args.get("remote") or "fuzzy",
+                "branch_name": args.get("branch_name") or args.get("branch"),
+                "commit_sha": args.get("commit_sha") or args.get("commit_ref"),
+                "confirmed": args.get("confirmed") is True,
+                "operator_go": args.get("operator_go") is True,
+                "live_enabled": _repo_optional_bool(args, "live_enabled"),
+            }
+            report = plan_repo_push(**common) if action == "push_plan" else run_repo_push(**common)
+            payload = report.to_dict()
+            return {
+                "output": _repo_push_output(payload),
+                "push_report": payload,
+                "exit_code": 0 if report.status in {"plan_ready", "pushed"} else 1,
+            }
 
         return {
             "error": (
                 "Use action list, get, status, log, diff_stat, changed_paths, "
-                "remotes, commit_plan, commit, register, forget, or update_policy."
+                "remotes, commit_plan, commit, push_plan, push, register, forget, or update_policy."
             ),
             "exit_code": 1,
         }
@@ -587,6 +608,31 @@ def _repo_commit_output(report: Dict[str, Any]) -> str:
     if next_decision:
         lines.append(f"Next: {next_decision}")
     return "\n".join(lines)
+
+
+def _repo_push_output(report: Dict[str, Any]) -> str:
+    plan = report.get("plan") or {}
+    lines = [
+        f"Repo push {report.get('status')} for `{plan.get('repo_id')}`.",
+        f"Decision: {plan.get('decision')}.",
+        f"Target: {plan.get('remote_name')}/{plan.get('branch_name')} @ {plan.get('commit_sha')}.",
+    ]
+    blockers = report.get("blockers") or plan.get("blockers") or []
+    if blockers:
+        lines.append("Warum blockiert:")
+        lines.extend(f"- {item}" for item in blockers)
+    else:
+        lines.append(f"Pushed ref: {report.get('pushed_ref') or 'not executed'}")
+    next_decision = plan.get("next_human_decision")
+    if next_decision:
+        lines.append(f"Next: {next_decision}")
+    return "\n".join(lines)
+
+
+def _repo_optional_bool(args: Dict[str, Any], key: str) -> Optional[bool]:
+    if key not in args:
+        return None
+    return args.get(key) is True
 
 
 def _repo_registry_mutation(

@@ -1070,12 +1070,12 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_repos",
-            "description": "Manage explicitly registered repositories, read Git facts, and run gated local commit flows. Read actions list/get/status/log/diff_stat/changed_paths/remotes/commit_plan need no confirmation. Mutations register/forget/update_policy and commit require confirmed=true. commit also requires exact changed_paths, checks_passed=true, and content_reviewed=true. Never push, reset, merge, delete repo files, or mutate Git history outside the commit runner.",
+            "description": "Manage explicitly registered repositories, read Git facts, and run gated local commit/push flows. Read actions list/get/status/log/diff_stat/changed_paths/remotes/commit_plan/push_plan need no confirmation. Mutations register/forget/update_policy, commit, and push require confirmed=true. commit also requires exact changed_paths, checks_passed=true, and content_reviewed=true. push also requires remote policy approval, operator_go=true, live_enabled=true, matching branch_name, and matching commit_sha. Never reset, merge, delete repo files, or mutate Git history outside the gated runners.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "commit_plan", "commit", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; commit_plan explains a gated local commit; commit stages exact reviewed paths and commits them when all gates pass; register/forget/update_policy mutate only the registry."},
-                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/commit_plan/commit/forget/update_policy; optional for register when title/path can produce one."},
+                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "commit_plan", "commit", "push_plan", "push", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; commit_plan explains a gated local commit; commit stages exact reviewed paths and commits them when all gates pass; push_plan explains a gated push; push runs only through remote policy and live gates; register/forget/update_policy mutate only the registry."},
+                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/commit_plan/commit/push_plan/push/forget/update_policy; optional for register when title/path can produce one."},
                     "id": {"type": "string", "description": "Alias for repo_id."},
                     "title": {"type": "string", "description": "Human title for register."},
                     "owner": {"type": "string", "description": "Owner label for register."},
@@ -1091,7 +1091,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "provider_scope": {"type": "string", "enum": ["default", "local_only", "external_allowed"], "description": "Provider scope for register/update_policy."},
                     "allowed_actions": {"type": "array", "items": {"type": "string"}, "description": "Per-repo allowed action list for register/update_policy."},
                     "linked_project_slug": {"type": "string", "description": "Optional Project Runner slug for register."},
-                    "operator_go": {"type": "boolean", "description": "Required true, in addition to confirmed=true, when registering outside allowed registry roots."},
+                    "operator_go": {"type": "boolean", "description": "Required true, in addition to confirmed=true, when registering outside allowed registry roots or executing a live push."},
                     "confirmed": {"type": "boolean", "description": "Required true for register, forget, update_policy, and commit after explicit user confirmation."},
                     "changed_paths": {"type": "array", "items": {"type": "string"}, "description": "Exact repo-relative file paths reviewed for commit_plan/commit. Directories, absolute paths, .git, .env, and key files are blocked."},
                     "paths": {"type": "array", "items": {"type": "string"}, "description": "Alias for changed_paths."},
@@ -1100,6 +1100,13 @@ FUNCTION_TOOL_SCHEMAS = [
                     "commit_message": {"type": "string", "description": "Optional safe commit message for commit_plan/commit; no secrets or multiline payloads."},
                     "checks_passed": {"type": "boolean", "description": "Required true for commit to confirm focused tests or quality gates passed."},
                     "content_reviewed": {"type": "boolean", "description": "Required true for commit to confirm no secret, private-content, or DSGVO risk is included."},
+                    "remote_name": {"type": "string", "description": "Remote name for push_plan/push, e.g. fuzzy. The registry remote policy must allow push."},
+                    "remote": {"type": "string", "description": "Alias for remote_name."},
+                    "branch_name": {"type": "string", "description": "Branch name for push_plan/push. Must match the current branch and pass remote policy."},
+                    "branch": {"type": "string", "description": "Alias for branch_name."},
+                    "commit_sha": {"type": "string", "description": "Expected current HEAD SHA for push_plan/push; must match the local repo HEAD."},
+                    "commit_ref": {"type": "string", "description": "Alias for commit_sha."},
+                    "live_enabled": {"type": "boolean", "description": "Required true for live push unless ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED is enabled server-side."},
                     "limit": {"type": "integer", "description": "Commit count for log, default 10, max 100."}
                 },
                 "required": ["action"]
