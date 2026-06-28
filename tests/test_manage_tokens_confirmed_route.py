@@ -44,6 +44,16 @@ class _FakeAsyncClient:
             "scopes": ["chat"],
         })
 
+    async def patch(self, url, **kwargs):
+        self.calls.append(("PATCH", url, kwargs))
+        body = kwargs.get("json", {})
+        return _FakeResponse({
+            "id": url.rsplit("/", 1)[-1],
+            "name": body.get("name", "n8n"),
+            "token_prefix": "ody_1234",
+            "scopes": body.get("scopes", ["chat"]),
+        })
+
     async def delete(self, url, **kwargs):
         self.calls.append(("DELETE", url, kwargs))
         return _FakeResponse({"status": "deleted"})
@@ -98,6 +108,46 @@ def test_manage_tokens_create_confirmed_uses_route(monkeypatch):
     assert calls[0][0] == "POST"
     assert calls[0][1].endswith("/api/tokens")
     assert calls[0][2]["data"]["scopes"] == "chat"
+
+
+def test_manage_tokens_update_requires_confirmation_then_uses_route(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
+
+    blocked = asyncio.run(do_manage_tokens(json.dumps({
+        "action": "update",
+        "token_id": "tok1",
+        "name": "mobile",
+        "scopes": ["chat", "models:read"],
+    }), owner="admin"))
+    updated = asyncio.run(do_manage_tokens(json.dumps({
+        "action": "update",
+        "token_id": "tok1",
+        "name": "mobile",
+        "scopes": ["chat", "models:read"],
+        "confirmed": True,
+    }), owner="admin"))
+
+    assert blocked["status"] == "confirmation_required"
+    assert updated["exit_code"] == 0
+    assert updated["token_meta"]["id"] == "tok1"
+    assert "token" not in updated["token_meta"]
+    assert calls[0][0] == "PATCH"
+    assert calls[0][1].endswith("/api/tokens/tok1")
+    assert calls[0][2]["json"] == {"name": "mobile", "scopes": ["chat", "models:read"]}
+
+
+def test_manage_tokens_rename_alias_requires_update_fields(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
+
+    result = asyncio.run(do_manage_tokens(json.dumps({
+        "action": "rename",
+        "token_id": "tok1",
+        "confirmed": True,
+    }), owner="admin"))
+
+    assert result["exit_code"] == 1
+    assert "name or scopes" in result["error"]
+    assert calls == []
 
 
 def test_manage_tokens_delete_requires_confirmation_then_uses_route(monkeypatch):

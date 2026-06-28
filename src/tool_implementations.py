@@ -1333,6 +1333,30 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
                 "exit_code": 0,
             }
 
+        elif action in ("update", "rename"):
+            if not _confirmed():
+                return _confirmation_required(action)
+            tid = args.get("token_id", "")
+            if not tid:
+                return {"error": "token_id is required", "exit_code": 1}
+            body: Dict[str, Any] = {}
+            if "name" in args:
+                body["name"] = args.get("name")
+            if args.get("scopes") is not None:
+                body["scopes"] = args.get("scopes")
+            if not body:
+                return {"error": "name or scopes is required", "exit_code": 1}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.patch(f"{_INTERNAL_BASE}/api/tokens/{tid}", json=body, headers=headers)
+            if resp.status_code >= 400:
+                return _error_from_response(resp)
+            token = resp.json() or {}
+            return {
+                "response": f"Updated token '{token.get('name') or tid}'.",
+                "token_meta": token,
+                "exit_code": 0,
+            }
+
         elif action == "delete":
             if not _confirmed():
                 return _confirmation_required("delete")

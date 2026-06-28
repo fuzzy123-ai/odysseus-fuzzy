@@ -881,16 +881,16 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_tokens",
-            "description": "Manage API access tokens through the same admin routes as the UI/API. create/delete require confirmed=true. Newly created token values are shown once.",
+            "description": "Manage API access tokens through the same admin routes as the UI/API. create/update/delete require confirmed=true. Newly created token values are shown once.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "create", "delete"]},
-                    "token_id": {"type": "string", "description": "Token ID (for delete)"},
-                    "name": {"type": "string", "description": "Token name (for create)"},
-                    "scopes": {"description": "Comma-separated string or list of scopes (for create)"},
+                    "action": {"type": "string", "enum": ["list", "create", "update", "rename", "delete"]},
+                    "token_id": {"type": "string", "description": "Token ID (for update/rename/delete)"},
+                    "name": {"type": "string", "description": "Token name (for create/update/rename)"},
+                    "scopes": {"description": "Comma-separated string or list of scopes (for create/update)"},
                     "profile": {"type": "string", "description": "Optional token profile (for create)"},
-                    "confirmed": {"type": "boolean", "description": "Required true for create/delete after explicit user confirmation."}
+                    "confirmed": {"type": "boolean", "description": "Required true for create/update/delete after explicit user confirmation."}
                 },
                 "required": ["action"]
             }
