@@ -91,6 +91,11 @@ from src.tool_implementations import do_app_api
         ("DELETE", "/api/skills/skill1", "manage_skills"),
         ("PATCH", "/api/assistant/settings", "manage_assistant"),
         ("POST", "/api/assistant/run/task1", "manage_assistant"),
+        ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
+        ("POST", "/api/plugins/rescan", "Plugins UI"),
+        ("POST", "/api/plugins/install", "Plugins UI"),
+        ("POST", "/api/plugins/telegram/enable", "Plugins UI"),
+        ("DELETE", "/api/plugins/registries", "Plugins UI"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -267,6 +272,18 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     },
                     "/api/assistant/run/{task_id}": {"post": {"summary": "Run Assistant Task"}},
                     "/api/assistant/run-status/{task_id}": {"get": {"summary": "Assistant Run Status"}},
+                    "/api/plugins": {"get": {"summary": "List Plugins"}},
+                    "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
+                    "/api/plugins/registries": {
+                        "get": {"summary": "List Plugin Registries"},
+                        "post": {"summary": "Add Plugin Registry"},
+                        "delete": {"summary": "Delete Plugin Registry"},
+                    },
+                    "/api/plugins/rescan": {"post": {"summary": "Rescan Plugins"}},
+                    "/api/plugins/install": {"post": {"summary": "Install Plugin"}},
+                    "/api/plugins/{plugin_id}/enable": {"post": {"summary": "Enable Plugin"}},
+                    "/api/plugins/{plugin_id}/status": {"get": {"summary": "Plugin Status"}},
+                    "/api/plugins/{plugin_id}/reply": {"post": {"summary": "Plugin Reply"}},
                 }
             }
 
@@ -321,6 +338,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/assistant/session") in paths
     assert ("GET", "/api/assistant/settings") in paths
     assert ("GET", "/api/assistant/run-status/{task_id}") in paths
+    assert ("GET", "/api/plugins") in paths
+    assert ("GET", "/api/plugins/registry") in paths
+    assert ("GET", "/api/plugins/registries") in paths
+    assert ("GET", "/api/plugins/{plugin_id}/status") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -389,3 +410,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/skills/{skill_id}") not in paths
     assert ("PATCH", "/api/assistant/settings") not in paths
     assert ("POST", "/api/assistant/run/{task_id}") not in paths
+    assert ("POST", "/api/plugins/registries") not in paths
+    assert ("DELETE", "/api/plugins/registries") not in paths
+    assert ("POST", "/api/plugins/rescan") not in paths
+    assert ("POST", "/api/plugins/install") not in paths
+    assert ("POST", "/api/plugins/{plugin_id}/enable") not in paths
+    assert ("POST", "/api/plugins/{plugin_id}/reply") not in paths

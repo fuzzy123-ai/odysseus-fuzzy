@@ -3193,6 +3193,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/mcp"),
     ("PATCH",  "/api/mcp"),
     ("DELETE", "/api/mcp"),
+    # Plugin-manager and plugin-provider mutations can enable code, install
+    # bundles, reload runtime modules, or hit live provider actions. Keep
+    # app_api read-only for plugin surfaces until confirmed plugin tools exist.
+    ("POST",   "/api/plugins"),
+    ("PUT",    "/api/plugins"),
+    ("PATCH",  "/api/plugins"),
+    ("DELETE", "/api/plugins"),
     # Preference writes bypass manage_settings validation and ui_control's
     # event contract. Keep app_api read-only for prefs.
     ("POST",   "/api/prefs"),
@@ -3352,6 +3359,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate /api/webhooks via app_api - use the `manage_webhooks` tool so confirmation and URL masking are enforced.", "exit_code": 1}
         if "/api/mcp" in path:
             return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
+        if "/api/plugins" in path:
+            return {"error": "Don't mutate plugin manager or plugin-provider routes via app_api - use the Plugins UI until a confirmed `manage_plugins` or provider-specific agent tool exists.", "exit_code": 1}
         if "/api/prefs" in path:
             return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/memory" in path:
