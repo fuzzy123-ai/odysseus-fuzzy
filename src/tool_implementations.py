@@ -450,6 +450,15 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
         registry_path = os.environ.get("ODYSSEUS_REPO_REGISTRY_FILE") or REPO_REGISTRY_FILE
         registry = RepoRegistry.load_or_empty(registry_path)
 
+        if action in {"register", "forget", "update_policy"}:
+            return _repo_registry_mutation(
+                action=action,
+                args=args,
+                owner=owner,
+                registry=registry,
+                registry_path=registry_path,
+            )
+
         if action == "list":
             summary = registry.audit_summary()
             rows = summary.get("repos") or []
@@ -515,10 +524,169 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 lines.append("- none")
             return {"output": "\n".join(lines), "remotes": remotes, "exit_code": 0}
 
-        return {"error": "Use action list, get, status, log, diff_stat, changed_paths, or remotes.", "exit_code": 1}
+        return {
+            "error": (
+                "Use action list, get, status, log, diff_stat, changed_paths, "
+                "remotes, register, forget, or update_policy."
+            ),
+            "exit_code": 1,
+        }
     except Exception as exc:
         logger.error("manage_repos failed: %s", exc)
         return {"error": str(exc), "exit_code": 1}
+
+
+def _repo_registry_mutation(
+    *,
+    action: str,
+    args: Dict[str, Any],
+    owner: Optional[str],
+    registry,
+    registry_path: str,
+) -> Dict:
+    if args.get("confirmed") is not True:
+        return {"error": f"{action} requires confirmed=true after explicit user confirmation.", "exit_code": 1}
+
+    from src.repo_registry import RepoRecord
+
+    now = _repo_now_iso()
+    if action == "register":
+        path_ref = str(args.get("path_ref") or args.get("project_root") or "").strip()
+        project_root = str(args.get("project_root") or path_ref).strip()
+        workspace_root = str(args.get("workspace_root") or _repo_default_workspace_root(project_root)).strip()
+        outside_allowed = not _repo_path_is_in_allowed_roots(project_root or path_ref)
+        if outside_allowed and args.get("operator_go") is not True:
+            return {
+                "error": (
+                    "register outside allowed roots requires operator_go=true. "
+                    f"Allowed roots: {', '.join(_repo_allowed_roots())}."
+                ),
+                "exit_code": 1,
+            }
+        record = RepoRecord.create(
+            repo_id=args.get("repo_id") or args.get("id"),
+            title=args.get("title") or args.get("repo_id") or args.get("id") or path_ref,
+            repo_kind=args.get("repo_kind", "project"),
+            owner=args.get("owner") or owner or "default",
+            path_ref=path_ref,
+            workspace_root=workspace_root,
+            project_root=project_root,
+            system_root=args.get("system_root", ""),
+            default_branch=args.get("default_branch", "main"),
+            current_branch=args.get("current_branch", ""),
+            remotes=_repo_remote_records(args.get("remotes") or []),
+            privacy_class=args.get("privacy_class", "private"),
+            provider_scope=args.get("provider_scope"),
+            allowed_actions=args.get("allowed_actions"),
+            linked_project_slug=args.get("linked_project_slug", ""),
+            created_at=args.get("created_at") or now,
+            updated_at=now,
+        )
+        registry.add(record)
+        registry.save_json(registry_path)
+        return {
+            "output": f"Registered repo `{record.repo_id}`. No files were touched.",
+            "repo": record.to_dict(),
+            "mutation": {
+                "action": "register",
+                "repo_id": record.repo_id,
+                "outside_allowed_roots": outside_allowed,
+                "files_touched": False,
+            },
+            "exit_code": 0,
+        }
+
+    repo_id = str(args.get("repo_id") or args.get("id") or "").strip()
+    if not repo_id:
+        return {"error": "repo_id is required for this action", "exit_code": 1}
+
+    if action == "forget":
+        removed = registry.forget(repo_id)
+        registry.save_json(registry_path)
+        if not removed:
+            return {"error": f"unknown repo: {repo_id}", "exit_code": 1}
+        return {
+            "output": f"Forgot repo `{repo_id}` from the registry. No repo files were deleted.",
+            "mutation": {"action": "forget", "repo_id": repo_id, "files_deleted": False},
+            "exit_code": 0,
+        }
+
+    if action == "update_policy":
+        record = registry.get(repo_id)
+        remotes = _repo_remote_records(args["remotes"]) if "remotes" in args else None
+        updated = record.with_policy(
+            privacy_class=args.get("privacy_class"),
+            provider_scope=args.get("provider_scope"),
+            allowed_actions=args.get("allowed_actions"),
+            remotes=remotes,
+            updated_at=now,
+        )
+        registry.put(updated)
+        registry.save_json(registry_path)
+        return {
+            "output": f"Updated repo policy for `{updated.repo_id}`.",
+            "repo": updated.to_dict(),
+            "mutation": {
+                "action": "update_policy",
+                "repo_id": updated.repo_id,
+                "files_touched": False,
+            },
+            "exit_code": 0,
+        }
+
+    return {"error": f"Unsupported repo mutation action: {action}", "exit_code": 1}
+
+
+def _repo_remote_records(values: Any) -> tuple:
+    from src.repo_registry import RepoRemote
+
+    if not isinstance(values, list):
+        raise ValueError("remotes must be a list")
+    records = []
+    for item in values:
+        if not isinstance(item, dict):
+            raise ValueError("remote entries must be objects")
+        records.append(
+            RepoRemote.create(
+                name=item.get("name"),
+                url=item.get("url"),
+                url_redacted=item.get("url_redacted"),
+                purpose=item.get("purpose", "other"),
+                push_policy=item.get("push_policy", "read_only"),
+            )
+        )
+    return tuple(records)
+
+
+def _repo_now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _repo_default_workspace_root(project_root: str) -> str:
+    normalized = str(project_root or "").strip().replace("\\", "/").strip("/")
+    parts = [part for part in normalized.split("/") if part]
+    if len(parts) >= 2 and parts[0] == "projects":
+        return "/".join(parts[:2])
+    return parts[0] if parts else "repos"
+
+
+def _repo_allowed_roots() -> tuple[str, ...]:
+    raw = os.environ.get("ODYSSEUS_REPO_ALLOWED_ROOTS") or "repos,projects"
+    roots = []
+    for item in raw.split(","):
+        root = item.strip().replace("\\", "/").strip("/")
+        if root and root not in roots:
+            roots.append(root)
+    return tuple(roots or ["repos", "projects"])
+
+
+def _repo_path_is_in_allowed_roots(path_ref: str) -> bool:
+    normalized = str(path_ref or "").strip().replace("\\", "/").strip("/")
+    if not normalized:
+        return False
+    return any(normalized == root or normalized.startswith(f"{root}/") for root in _repo_allowed_roots())
 
 
 def _repo_workspace_base(*, default: str) -> str:

@@ -1070,13 +1070,29 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_repos",
-            "description": "Read registered repository metadata and read-only Git facts. Works only on repos explicitly present in the repo registry; does not stage, commit, push, reset, merge, or mutate files. Use for repo overview, status, recent commits, diff stat, changed paths, and redacted remotes.",
+            "description": "Manage explicitly registered repositories and read Git facts. Read actions list/get/status/log/diff_stat/changed_paths/remotes need no confirmation. Mutations register/forget/update_policy require confirmed=true, never delete repo files, and never stage, commit, push, reset, merge, or mutate Git history.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes"], "description": "list shows registered repos; get shows one registry record; the other actions read Git facts for repo_id."},
-                    "repo_id": {"type": "string", "description": "Registered repo id for get/status/log/diff_stat/changed_paths/remotes."},
+                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; register/forget/update_policy mutate only the registry."},
+                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/forget/update_policy; optional for register when title/path can produce one."},
                     "id": {"type": "string", "description": "Alias for repo_id."},
+                    "title": {"type": "string", "description": "Human title for register."},
+                    "owner": {"type": "string", "description": "Owner label for register."},
+                    "repo_kind": {"type": "string", "enum": ["odysseus", "project", "user", "external"], "description": "Repo kind for register."},
+                    "path_ref": {"type": "string", "description": "Registry path reference, relative to the repo workspace base; no host-local absolute paths."},
+                    "workspace_root": {"type": "string", "description": "Relative workspace root for register, e.g. projects/my-app."},
+                    "project_root": {"type": "string", "description": "Relative repo root for register, e.g. projects/my-app/repo or repos/demo."},
+                    "system_root": {"type": "string", "description": "Optional relative system root; no host-local absolute paths."},
+                    "default_branch": {"type": "string", "description": "Default branch for register."},
+                    "current_branch": {"type": "string", "description": "Optional current branch marker for register."},
+                    "remotes": {"type": "array", "items": {"type": "object"}, "description": "Remote policy objects with name, url or url_redacted, purpose, push_policy."},
+                    "privacy_class": {"type": "string", "enum": ["public", "private", "sensitive"], "description": "Privacy class for register/update_policy. Private/sensitive default local-only."},
+                    "provider_scope": {"type": "string", "enum": ["default", "local_only", "external_allowed"], "description": "Provider scope for register/update_policy."},
+                    "allowed_actions": {"type": "array", "items": {"type": "string"}, "description": "Per-repo allowed action list for register/update_policy."},
+                    "linked_project_slug": {"type": "string", "description": "Optional Project Runner slug for register."},
+                    "operator_go": {"type": "boolean", "description": "Required true, in addition to confirmed=true, when registering outside allowed registry roots."},
+                    "confirmed": {"type": "boolean", "description": "Required true for register, forget, and update_policy after explicit user confirmation."},
                     "limit": {"type": "integer", "description": "Commit count for log, default 10, max 100."}
                 },
                 "required": ["action"]

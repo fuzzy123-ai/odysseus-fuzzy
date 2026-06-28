@@ -113,9 +113,144 @@ async def test_manage_repos_blocks_unknown_repo(tmp_path: Path, monkeypatch):
     assert "unknown repo" in result["error"]
 
 
+@pytest.mark.asyncio
+async def test_manage_repos_register_requires_confirmation_and_persists_redacted_registry(tmp_path: Path, monkeypatch):
+    registry_path = tmp_path / "repo-registry.json"
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    payload = {
+        "action": "register",
+        "repo_id": "new-demo",
+        "title": "New Demo",
+        "owner": "fuzzy123-ai",
+        "path_ref": "projects/new-demo/repo",
+        "workspace_root": "projects/new-demo",
+        "project_root": "projects/new-demo/repo",
+        "remotes": [
+            {
+                "name": "fuzzy",
+                "url": "https://x-access-token:secret-value@github.com/fuzzy123-ai/new-demo.git?token=abc",
+                "purpose": "fork",
+                "push_policy": "push_allowed",
+            }
+        ],
+        "allowed_actions": ["status", "push"],
+    }
+
+    blocked = await do_manage_repos(json.dumps(payload), owner="admin")
+    payload["confirmed"] = True
+    registered = await do_manage_repos(json.dumps(payload), owner="admin")
+
+    assert blocked["exit_code"] == 1
+    assert "confirmed=true" in blocked["error"]
+    assert registered["exit_code"] == 0
+    assert registered["repo"]["repo_id"] == "new-demo"
+    assert registered["repo"]["remotes"][0]["url_redacted"] == "https://github.com/fuzzy123-ai/new-demo.git"
+    stored = json.loads(registry_path.read_text(encoding="utf-8"))
+    dumped = json.dumps({"response": registered, "stored": stored})
+    assert "secret-value" not in dumped
+    assert "x-access-token" not in dumped
+    assert str(tmp_path) not in dumped
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_register_outside_allowed_roots_requires_operator_go(tmp_path: Path, monkeypatch):
+    registry_path = tmp_path / "repo-registry.json"
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    payload = {
+        "action": "register",
+        "repo_id": "external-demo",
+        "title": "External Demo",
+        "owner": "fuzzy123-ai",
+        "path_ref": "external/demo/repo",
+        "workspace_root": "external/demo",
+        "project_root": "external/demo/repo",
+        "confirmed": True,
+    }
+
+    blocked = await do_manage_repos(json.dumps(payload), owner="admin")
+    payload["operator_go"] = True
+    registered = await do_manage_repos(json.dumps(payload), owner="admin")
+
+    assert blocked["exit_code"] == 1
+    assert "operator_go=true" in blocked["error"]
+    assert registered["exit_code"] == 0
+    assert registered["mutation"]["outside_allowed_roots"] is True
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_forget_removes_registry_entry_without_deleting_repo(tmp_path: Path, monkeypatch):
+    repo = _make_repo(tmp_path)
+    registry_path = tmp_path / "repo-registry.json"
+    _write_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+
+    blocked = await do_manage_repos(json.dumps({"action": "forget", "repo_id": "demo"}), owner="admin")
+    forgotten = await do_manage_repos(
+        json.dumps({"action": "forget", "repo_id": "demo", "confirmed": True}),
+        owner="admin",
+    )
+    listed = await do_manage_repos(json.dumps({"action": "list"}), owner="admin")
+
+    assert blocked["exit_code"] == 1
+    assert forgotten["exit_code"] == 0
+    assert forgotten["mutation"]["files_deleted"] is False
+    assert repo.exists()
+    assert listed["repos"] == []
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_update_policy_requires_confirmation_and_revalidates(tmp_path: Path, monkeypatch):
+    registry_path = tmp_path / "repo-registry.json"
+    _write_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+    payload = {
+        "action": "update_policy",
+        "repo_id": "demo",
+        "privacy_class": "private",
+        "provider_scope": "local_only",
+        "allowed_actions": ["status", "push"],
+        "remotes": [
+            {
+                "name": "fuzzy",
+                "url": "https://github.com/fuzzy123-ai/demo.git",
+                "purpose": "fork",
+                "push_policy": "push_allowed",
+            }
+        ],
+    }
+
+    blocked = await do_manage_repos(json.dumps(payload), owner="admin")
+    payload["confirmed"] = True
+    updated = await do_manage_repos(json.dumps(payload), owner="admin")
+    bad = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "update_policy",
+                "repo_id": "demo",
+                "privacy_class": "sensitive",
+                "provider_scope": "external_allowed",
+                "confirmed": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert blocked["exit_code"] == 1
+    assert updated["exit_code"] == 0
+    assert updated["repo"]["allowed_actions"] == ["status", "push"]
+    assert updated["repo"]["remotes"][0]["push_policy"] == "push_allowed"
+    assert bad["exit_code"] == 1
+    assert "sensitive repos" in bad["error"]
+
+
 def test_manage_repos_schema_index_and_security_wiring():
-    schema_names = {(schema.get("function") or {}).get("name") for schema in FUNCTION_TOOL_SCHEMAS}
+    schema_by_name = {(schema.get("function") or {}).get("name"): schema for schema in FUNCTION_TOOL_SCHEMAS}
+    schema_names = set(schema_by_name)
     assert "manage_repos" in schema_names
+    actions = (
+        schema_by_name["manage_repos"]["function"]["parameters"]["properties"]["action"]["enum"]
+    )
+    assert {"register", "forget", "update_policy"}.issubset(set(actions))
 
     from src.agent_tools import TOOL_TAGS
     from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
@@ -133,12 +268,5 @@ def test_source_does_not_add_write_repo_actions_to_manage_repos():
     end = source.index("def _skill_dump", start)
     section = source[start:end]
 
-    for forbidden in (
-        'action == "register"',
-        'action == "forget"',
-        'action == "update_policy"',
-        "git push",
-        "git commit",
-        "git reset",
-    ):
+    for forbidden in ("git push", "git commit", "git reset", "subprocess.run"):
         assert forbidden not in section

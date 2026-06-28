@@ -315,6 +315,35 @@ class RepoRecord:
             "updated_at": self.updated_at,
         }
 
+    def with_policy(
+        self,
+        *,
+        privacy_class: Any | None = None,
+        provider_scope: Any | None = None,
+        allowed_actions: Iterable[Any] | None = None,
+        remotes: Iterable[RepoRemote] | None = None,
+        updated_at: Any,
+    ) -> "RepoRecord":
+        return RepoRecord.create(
+            repo_id=self.repo_id,
+            title=self.title,
+            repo_kind=self.repo_kind,
+            owner=self.owner,
+            path_ref=self.path_ref,
+            workspace_root=self.workspace_root,
+            project_root=self.project_root,
+            system_root=self.system_root,
+            default_branch=self.default_branch,
+            current_branch=self.current_branch,
+            remotes=self.remotes if remotes is None else remotes,
+            privacy_class=self.privacy_class if privacy_class is None else privacy_class,
+            provider_scope=self.provider_scope if provider_scope is None else provider_scope,
+            allowed_actions=self.allowed_actions if allowed_actions is None else allowed_actions,
+            linked_project_slug=self.linked_project_slug,
+            created_at=self.created_at,
+            updated_at=updated_at,
+        )
+
 
 @dataclass(slots=True)
 class RepoRegistry:
