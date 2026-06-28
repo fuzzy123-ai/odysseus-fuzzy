@@ -50,6 +50,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "Gallery Editor UI" in combined
     assert "POST /api/cleanup" in combined
     assert "Cleanup UI" in combined
+    assert "document create/import/export/mutations/tidy" in combined
+    assert "manage_documents" in combined
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
     assert "manage_assistant" in combined

@@ -3267,10 +3267,12 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/gallery"),
     ("PATCH",  "/api/gallery"),
     ("DELETE", "/api/gallery"),
+    ("POST",   "/api/document"),
     ("POST",   "/api/document/"),
     ("PUT",    "/api/document/"),
     ("PATCH",  "/api/document/"),
     ("DELETE", "/api/document"),
+    ("POST",   "/api/documents"),
     ("POST",   "/api/documents/tidy"),
     ("POST",   "/api/documents/ai-tidy"),
     ("DELETE", "/api/research"),
@@ -3432,8 +3434,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate contacts via app_api - use `manage_contact` for add/update/delete with confirmation and validation; use the Contacts UI for import/config/clear flows.", "exit_code": 1}
         if "/api/gallery" in path:
             return {"error": "Don't mutate gallery items via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
-        if "/api/document" in path or "/api/documents/tidy" in path:
-            return {"error": "Don't delete or tidy documents via app_api - use the `manage_documents` tool so confirmation and owner scope are enforced.", "exit_code": 1}
+        if "/api/document" in path or "/api/documents" in path:
+            return {"error": "Don't create, import, export, mutate, delete, or tidy documents via app_api - use document tools or `manage_documents` so owner scope, binary handling, and confirmation are enforced.", "exit_code": 1}
         if "/api/research" in path:
             return {"error": "Don't delete research reports via app_api - use the `manage_research` tool so confirmation and owner scope are enforced.", "exit_code": 1}
         if "/api/tasks" in path:

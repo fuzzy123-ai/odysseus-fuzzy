@@ -25,10 +25,13 @@ from src.tool_implementations import do_app_api
         ("PATCH", "/api/gallery/img1", "Gallery UI"),
         ("PUT", "/api/gallery/albums/album1", "Gallery UI"),
         ("DELETE", "/api/gallery/img1", "Gallery UI"),
+        ("POST", "/api/document", "manage_documents"),
         ("POST", "/api/document/doc1/archive", "manage_documents"),
         ("PUT", "/api/document/doc1", "manage_documents"),
         ("PATCH", "/api/document/doc1", "manage_documents"),
         ("DELETE", "/api/document/doc1", "manage_documents"),
+        ("POST", "/api/documents/import-pdf", "manage_documents"),
+        ("POST", "/api/documents/export-zip", "manage_documents"),
         ("POST", "/api/documents/tidy", "manage_documents"),
         ("POST", "/api/documents/ai-tidy", "manage_documents"),
         ("DELETE", "/api/research/report1", "manage_research"),
@@ -172,7 +175,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "patch": {"summary": "Patch Document"},
                         "delete": {"summary": "Delete Document"},
                     },
+                    "/api/document": {"post": {"summary": "Create Document"}},
                     "/api/document/{doc_id}/archive": {"post": {"summary": "Archive Document"}},
+                    "/api/documents/import-pdf": {"post": {"summary": "Import PDF"}},
+                    "/api/documents/export-zip": {"post": {"summary": "Export Zip"}},
                     "/api/documents/tidy": {"post": {"summary": "Tidy Documents"}},
                     "/api/research/{session_id}": {"delete": {"summary": "Delete Research"}},
                     "/api/tasks/notifications": {"get": {"summary": "Task Notifications"}},
@@ -451,10 +457,13 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
     assert ("POST", "/api/gallery/{image_id}/replace") not in paths
     assert ("PUT", "/api/gallery/albums/{album_id}") not in paths
+    assert ("POST", "/api/document") not in paths
     assert ("POST", "/api/document/{doc_id}/archive") not in paths
     assert ("PUT", "/api/document/{doc_id}") not in paths
     assert ("PATCH", "/api/document/{doc_id}") not in paths
     assert ("DELETE", "/api/document/{doc_id}") not in paths
+    assert ("POST", "/api/documents/import-pdf") not in paths
+    assert ("POST", "/api/documents/export-zip") not in paths
     assert ("POST", "/api/documents/tidy") not in paths
     assert ("DELETE", "/api/research/{session_id}") not in paths
     assert ("POST", "/api/tasks") not in paths
