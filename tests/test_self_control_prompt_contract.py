@@ -1,5 +1,6 @@
 from src import tool_index
 from src.agent_loop import TOOL_SECTIONS
+from src.tool_schemas import FUNCTION_TOOL_SCHEMAS
 
 
 def test_manage_settings_prompt_advertises_secret_handoff():
@@ -23,3 +24,17 @@ def test_admin_tool_descriptions_advertise_confirmed_flows():
     assert "MCP command allowlist" in TOOL_SECTIONS["manage_mcp"]
     assert "masked" in TOOL_SECTIONS["manage_webhooks"]
     assert "shown once" in TOOL_SECTIONS["manage_tokens"]
+
+
+def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
+    schema = next(s for s in FUNCTION_TOOL_SCHEMAS if s["function"]["name"] == "app_api")
+    combined = "\n".join([
+        TOOL_SECTIONS["app_api"],
+        tool_index.BUILTIN_TOOL_DESCRIPTIONS["app_api"],
+        schema["function"]["description"],
+    ])
+
+    assert "gallery, notes, and calendar" in combined
+    assert "notes/calendar mutations" in combined
+    assert "manage_notes" in combined
+    assert "manage_calendar" in combined

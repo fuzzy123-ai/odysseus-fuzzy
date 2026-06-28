@@ -3194,16 +3194,17 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/session"),
     ("PATCH",  "/api/session"),
     ("DELETE", "/api/session"),
-    # Use the named tools — they handle owner attribution, natural-
-    # language due_date parsing, timezone, dedup, and tag/category
-    # normalization. Hitting the raw endpoint via app_api saves a
-    # note/event with the wrong fields, no reminder, or the wrong tz.
+    # Use the named tools for notes/events — they handle owner attribution,
+    # natural-language due_date parsing, timezone, dedup, and tag/category
+    # normalization. Calendar configuration/account mutations stay UI-only
+    # until a confirmed calendar admin agent flow exists.
     ("POST",   "/api/notes"),
     ("PUT",    "/api/notes"),
     ("DELETE", "/api/notes"),
-    ("POST",   "/api/calendar/events"),
-    ("PUT",    "/api/calendar/events"),
-    ("DELETE", "/api/calendar/events"),
+    ("POST",   "/api/calendar"),
+    ("PUT",    "/api/calendar"),
+    ("PATCH",  "/api/calendar"),
+    ("DELETE", "/api/calendar"),
 )
 
 
@@ -3323,6 +3324,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.", "exit_code": 1}
         if "/api/calendar/events" in path:
             return {"error": "Don't hit /api/calendar/events via app_api — use the `manage_calendar` tool. It handles tz-aware natural-language datetimes and reminder_minutes correctly. If the user wants a note + reminder, prefer `manage_notes` with due_date — it bundles both.", "exit_code": 1}
+        if "/api/calendar" in path:
+            return {"error": "Don't mutate calendar configuration via app_api - use the Calendar UI until a confirmed calendar admin agent flow exists.", "exit_code": 1}
         return {"error": f"{method} {path} is blocked — it overwrites the whole cookbook state file. Use list_serve_presets / serve_preset / serve_model instead.", "exit_code": 1}
 
     body = args.get("body")

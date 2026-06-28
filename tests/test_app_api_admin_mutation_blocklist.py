@@ -44,6 +44,15 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/sessions/bulk-delete", "manage_session"),
         ("DELETE", "/api/sessions/all", "manage_session"),
         ("POST", "/api/sessions/auto-sort", "manage_session"),
+        ("POST", "/api/notes", "manage_notes"),
+        ("PUT", "/api/notes/note1", "manage_notes"),
+        ("DELETE", "/api/notes/note1", "manage_notes"),
+        ("POST", "/api/notes/note1/pin", "manage_notes"),
+        ("POST", "/api/calendar/events", "manage_calendar"),
+        ("PUT", "/api/calendar/events/evt1", "manage_calendar"),
+        ("DELETE", "/api/calendar/events/evt1", "manage_calendar"),
+        ("POST", "/api/calendar/config/accounts", "Calendar UI"),
+        ("PUT", "/api/calendar/calendars/cal1", "Calendar UI"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -108,6 +117,33 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/session/{sid}/compact": {"post": {"summary": "Compact Session"}},
                     "/api/sessions/bulk-delete": {"post": {"summary": "Bulk Delete Sessions"}},
                     "/api/sessions/all": {"delete": {"summary": "Delete All Sessions"}},
+                    "/api/notes": {
+                        "get": {"summary": "List Notes"},
+                        "post": {"summary": "Create Note"},
+                    },
+                    "/api/notes/{note_id}": {
+                        "get": {"summary": "Read Note"},
+                        "put": {"summary": "Update Note"},
+                        "delete": {"summary": "Delete Note"},
+                    },
+                    "/api/notes/{note_id}/pin": {"post": {"summary": "Pin Note"}},
+                    "/api/calendar/events": {
+                        "get": {"summary": "List Events"},
+                        "post": {"summary": "Create Event"},
+                    },
+                    "/api/calendar/events/{uid}": {
+                        "get": {"summary": "Read Event"},
+                        "put": {"summary": "Update Event"},
+                        "delete": {"summary": "Delete Event"},
+                    },
+                    "/api/calendar/calendars": {
+                        "get": {"summary": "List Calendars"},
+                        "post": {"summary": "Create Calendar"},
+                    },
+                    "/api/calendar/config/accounts": {
+                        "get": {"summary": "List Calendar Accounts"},
+                        "post": {"summary": "Add Calendar Account"},
+                    },
                 }
             }
 
@@ -136,6 +172,12 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/tasks/notifications") in paths
     assert ("GET", "/api/sessions") in paths
     assert ("GET", "/api/session/{sid}") in paths
+    assert ("GET", "/api/notes") in paths
+    assert ("GET", "/api/notes/{note_id}") in paths
+    assert ("GET", "/api/calendar/events") in paths
+    assert ("GET", "/api/calendar/events/{uid}") in paths
+    assert ("GET", "/api/calendar/calendars") in paths
+    assert ("GET", "/api/calendar/config/accounts") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -156,3 +198,12 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/session/{sid}/compact") not in paths
     assert ("POST", "/api/sessions/bulk-delete") not in paths
     assert ("DELETE", "/api/sessions/all") not in paths
+    assert ("POST", "/api/notes") not in paths
+    assert ("PUT", "/api/notes/{note_id}") not in paths
+    assert ("DELETE", "/api/notes/{note_id}") not in paths
+    assert ("POST", "/api/notes/{note_id}/pin") not in paths
+    assert ("POST", "/api/calendar/events") not in paths
+    assert ("PUT", "/api/calendar/events/{uid}") not in paths
+    assert ("DELETE", "/api/calendar/events/{uid}") not in paths
+    assert ("POST", "/api/calendar/calendars") not in paths
+    assert ("POST", "/api/calendar/config/accounts") not in paths
