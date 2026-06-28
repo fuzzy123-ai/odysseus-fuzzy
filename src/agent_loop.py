@@ -526,6 +526,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 - Plugins: read/status routes such as `/api/plugins`, `/api/plugins/registry`, `/api/plugins/{plugin_id}/status`; plugin manager/provider mutations are blocked via app_api until confirmed `manage_plugins` or provider-specific tools exist.
 - Tasks: read/notifications only; task mutations are blocked via app_api, use `manage_tasks`.
 - Sessions: read-only helpers only; session/chat mutations are blocked via app_api, use `create_session`, `list_sessions`, or `manage_session`.
+- Signatures: `/api/signatures` contains saved visual signature image data and is blocked entirely via app_api; use the Signature/Documents UI.
 - Themes / UI prefs: read-only via `/api/prefs/{key}`; theme and UI preference mutations are blocked via app_api, use `ui_control`.
 - Uploads: `/api/upload` attachment bytes, upload stats, cleanup, and vision-cache routes are blocked entirely via app_api; use the normal attachment UI.
 - Settings: use `manage_settings` for registered settings and feature flags; prefs writes are blocked via app_api.
@@ -540,7 +541,7 @@ Body for POST/PUT/PATCH goes in `body` (object). Query params in `query` (object
 
 **When to prefer named tools over app_api:** if a named wrapper exists (list_email_accounts, list_emails, read_email, manage_calendar, manage_notes, list_served_models, etc.) USE IT — it has nicer output formatting and clearer schema. Reach for `app_api` only when there's no wrapper for what you need.
 
-Blocked paths/routes (refused for safety): /api/auth/, /api/users/, /api/tokens/, /api/admin/, /api/shell/, /api/upload, /api/backup/restore, assistant settings/run triggers, /api/email/accounts, mutating /api/chat, /api/inject_context, /api/rewrite, mutating /api/email, mutating /api/embeddings, mutating /api/model-endpoints, mutating /api/webhooks, mutating /api/mcp, mutating /api/personal, mutating /api/plugins, contact mutations/import/config/clear, prefs writes, gallery mutations, memory writes/search/import/audit, notes/calendar mutations, skill mutations/test/audit/import, document mutations/tidy, research deletes, task mutations, session/chat mutations, POST /api/cookbook/packages/install, POST /api/cookbook/rebuild-engine, POST /api/cookbook/kill-pid.""",
+Blocked paths/routes (refused for safety): /api/auth/, /api/users/, /api/tokens/, /api/admin/, /api/shell/, /api/upload, /api/signatures, /api/backup/restore, assistant settings/run triggers, /api/email/accounts, mutating /api/chat, /api/inject_context, /api/rewrite, mutating /api/email, mutating /api/embeddings, mutating /api/model-endpoints, mutating /api/webhooks, mutating /api/mcp, mutating /api/personal, mutating /api/plugins, contact mutations/import/config/clear, prefs writes, gallery mutations, memory writes/search/import/audit, notes/calendar mutations, skill mutations/test/audit/import, document mutations/tidy, research deletes, task mutations, session/chat mutations, POST /api/cookbook/packages/install, POST /api/cookbook/rebuild-engine, POST /api/cookbook/kill-pid.""",
 }
 
 def get_builtin_overrides() -> dict:

@@ -106,6 +106,9 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/upload", "attachment UI"),
         ("POST", "/api/upload/cleanup", "attachment UI"),
         ("PUT", "/api/upload/file1/vision", "attachment UI"),
+        ("GET", "/api/signatures", "Signature/Documents UI"),
+        ("POST", "/api/signatures", "Signature/Documents UI"),
+        ("DELETE", "/api/signatures/sig1", "Signature/Documents UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -317,6 +320,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "get": {"summary": "Get Vision Text"},
                         "put": {"summary": "Set Vision Text"},
                     },
+                    "/api/signatures": {
+                        "get": {"summary": "List Signatures"},
+                        "post": {"summary": "Create Signature"},
+                    },
+                    "/api/signatures/{sig_id}": {"delete": {"summary": "Delete Signature"}},
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -483,6 +491,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/upload/{file_id}") not in paths
     assert ("GET", "/api/upload/{file_id}/vision") not in paths
     assert ("PUT", "/api/upload/{file_id}/vision") not in paths
+    assert ("GET", "/api/signatures") not in paths
+    assert ("POST", "/api/signatures") not in paths
+    assert ("DELETE", "/api/signatures/{sig_id}") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths
