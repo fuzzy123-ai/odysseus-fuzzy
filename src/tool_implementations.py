@@ -175,6 +175,18 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
     action = (args.get("action") or "").lower()
+
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Skill {target} requires explicit confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "exit_code": 0,
+        }
+
     from services.memory.skills import SkillsManager
     from services.memory.skill_format import Skill, slugify
     from src.constants import DATA_DIR
@@ -342,6 +354,8 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
     if action == "delete":
         if not name:
             return {"error": "name is required for delete", "exit_code": 1}
+        if not _confirmed():
+            return _confirmation_required("delete")
         ok = sm.delete_skill(name, owner=owner)
         return {"results": f"Deleted skill `{name}`."} if ok else {"error": f"Skill {name!r} not found", "exit_code": 1}
 

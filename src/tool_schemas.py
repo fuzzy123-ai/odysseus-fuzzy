@@ -774,7 +774,8 @@ FUNCTION_TOOL_SCHEMAS = [
                 "Use progressive disclosure: 'list' to see what exists, 'view' to "
                 "load full content for a single skill, 'view_ref' for sub-files. "
                 "Use 'patch' for surgical text edits and 'edit' for full rewrites. "
-                "'publish' once you've verified the procedure works. For add, "
+                "'publish' once you've verified the procedure works. Delete requires "
+                "confirmed=true after explicit user confirmation. For add, "
                 "always provide an explicit name slug and only tell the user the "
                 "exact name returned by the tool."
             ),
@@ -800,7 +801,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "content": {"type": "string", "description": "Full SKILL.md text (for edit)."},
                     "old_string": {"type": "string", "description": "Exact substring to replace (for patch). Must appear exactly once."},
                     "new_string": {"type": "string", "description": "Replacement text (for patch)."},
-                    "query": {"type": "string", "description": "Search query (for search)."}
+                    "query": {"type": "string", "description": "Search query (for search)."},
+                    "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]
             }
