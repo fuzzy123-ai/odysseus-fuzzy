@@ -3169,6 +3169,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("POST",   "/api/chat"),
     ("POST",   "/api/inject_context"),
     ("POST",   "/api/rewrite"),
+    # Upload routes expose raw attachment bytes and can trigger vision
+    # processing/cache writes. Keep them behind the normal attachment UI.
+    ("GET",    "/api/upload"),
+    ("POST",   "/api/upload"),
+    ("PUT",    "/api/upload"),
+    ("PATCH",  "/api/upload"),
+    ("DELETE", "/api/upload"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3361,6 +3368,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate personal assistant settings or run check-ins via app_api - use the Assistant UI until a confirmed `manage_assistant` agent tool exists; use `manage_tasks` for ordinary scheduled tasks.", "exit_code": 1}
         if "/api/chat" in path or "/api/inject_context" in path or "/api/rewrite" in path:
             return {"error": "Don't start, stop, rewrite, or inject chat context via app_api - use the normal chat UI or `manage_session` so run state, owner scope, and confirmation are preserved.", "exit_code": 1}
+        if "/api/upload" in path:
+            return {"error": "Don't read or mutate upload attachment routes via app_api - use the normal attachment UI so owner scope, binary handling, and vision-processing boundaries are preserved.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

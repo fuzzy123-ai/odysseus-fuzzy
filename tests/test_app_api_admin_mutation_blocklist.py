@@ -100,6 +100,12 @@ from src.tool_implementations import do_app_api
         ("DELETE", "/api/embeddings/models/BAAI/bge-small-en-v1.5", "Embedding Settings UI"),
         ("POST", "/api/embeddings/endpoint", "Embedding Settings UI"),
         ("DELETE", "/api/embeddings/endpoint", "Embedding Settings UI"),
+        ("GET", "/api/upload/stats", "attachment UI"),
+        ("GET", "/api/upload/file1", "attachment UI"),
+        ("GET", "/api/upload/file1/vision", "attachment UI"),
+        ("POST", "/api/upload", "attachment UI"),
+        ("POST", "/api/upload/cleanup", "attachment UI"),
+        ("PUT", "/api/upload/file1/vision", "attachment UI"),
         ("POST", "/api/plugins/telegram/reply", "Plugins UI"),
         ("POST", "/api/plugins/rescan", "Plugins UI"),
         ("POST", "/api/plugins/install", "Plugins UI"),
@@ -303,6 +309,14 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "post": {"summary": "Set Embedding Endpoint"},
                         "delete": {"summary": "Clear Embedding Endpoint"},
                     },
+                    "/api/upload": {"post": {"summary": "Upload Attachment"}},
+                    "/api/upload/cleanup": {"post": {"summary": "Cleanup Uploads"}},
+                    "/api/upload/stats": {"get": {"summary": "Upload Stats"}},
+                    "/api/upload/{file_id}": {"get": {"summary": "Download Upload"}},
+                    "/api/upload/{file_id}/vision": {
+                        "get": {"summary": "Get Vision Text"},
+                        "put": {"summary": "Set Vision Text"},
+                    },
                     "/api/plugins": {"get": {"summary": "List Plugins"}},
                     "/api/plugins/registry": {"get": {"summary": "Plugin Registry"}},
                     "/api/plugins/registries": {
@@ -463,6 +477,12 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("DELETE", "/api/embeddings/models/{model_name}") not in paths
     assert ("POST", "/api/embeddings/endpoint") not in paths
     assert ("DELETE", "/api/embeddings/endpoint") not in paths
+    assert ("POST", "/api/upload") not in paths
+    assert ("POST", "/api/upload/cleanup") not in paths
+    assert ("GET", "/api/upload/stats") not in paths
+    assert ("GET", "/api/upload/{file_id}") not in paths
+    assert ("GET", "/api/upload/{file_id}/vision") not in paths
+    assert ("PUT", "/api/upload/{file_id}/vision") not in paths
     assert ("POST", "/api/plugins/registries") not in paths
     assert ("DELETE", "/api/plugins/registries") not in paths
     assert ("POST", "/api/plugins/rescan") not in paths

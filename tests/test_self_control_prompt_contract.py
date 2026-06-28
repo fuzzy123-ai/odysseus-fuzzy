@@ -40,6 +40,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "/api/rewrite" in combined
     assert "mutating /api/embeddings" in combined
     assert "manage_embeddings" in combined
+    assert "/api/upload" in combined
+    assert "attachment UI" in combined
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
     assert "manage_assistant" in combined
