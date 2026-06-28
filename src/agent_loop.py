@@ -284,6 +284,10 @@ _DOMAIN_RULES = {
 ## Recent-change rules
 - For local Odysseus patch notes, Neuerungen, or "what changed in the last N hours/today/yesterday", use `recent_changes`.
 - Do not use web search for local project changes. Git commits alone are insufficient because active work may be dirty or untracked.""",
+    "repos": """\
+## Repo rules
+- Use `manage_repos` for registered repository status, logs, diff stats, changed paths, and remotes.
+- Do not use shell for repo intelligence when `manage_repos` can answer it. `manage_repos` is read-only and works only on explicitly registered repos.""",
 }
 
 _DOMAIN_TOOL_MAP = {
@@ -299,6 +303,7 @@ _DOMAIN_TOOL_MAP = {
     "contacts": {"resolve_contact", "manage_contact"},
     "integrations": {"api_call"},
     "changes": {"recent_changes"},
+    "repos": {"manage_repos"},
 }
 
 def _domain_rules_for_tools(tool_names: set) -> list[str]:
@@ -695,7 +700,7 @@ _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "create_session", "list_sessions", "send_to_session", "pipeline",
-    "ask_teacher", "list_models", "search_chats", "recent_changes",
+    "ask_teacher", "list_models", "search_chats", "recent_changes", "manage_repos",
 ])
 _TOOL_SELECTION_TIMEOUT_SECONDS = 1.5
 
@@ -1439,7 +1444,7 @@ _ADMIN_TOOLS = {
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
-    "recent_changes",
+    "recent_changes", "manage_repos",
 }
 
 def _build_base_prompt(

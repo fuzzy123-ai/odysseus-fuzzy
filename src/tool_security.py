@@ -35,6 +35,7 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "manage_webhooks",
     "manage_tokens",
     "manage_documents",
+    "manage_repos",
     "manage_settings",
     "api_call",
     "app_api",

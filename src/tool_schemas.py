@@ -1069,6 +1069,23 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_repos",
+            "description": "Read registered repository metadata and read-only Git facts. Works only on repos explicitly present in the repo registry; does not stage, commit, push, reset, merge, or mutate files. Use for repo overview, status, recent commits, diff stat, changed paths, and redacted remotes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes"], "description": "list shows registered repos; get shows one registry record; the other actions read Git facts for repo_id."},
+                    "repo_id": {"type": "string", "description": "Registered repo id for get/status/log/diff_stat/changed_paths/remotes."},
+                    "id": {"type": "string", "description": "Alias for repo_id."},
+                    "limit": {"type": "integer", "description": "Commit count for log, default 10, max 100."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "download_model",
             "description": "Download a HuggingFace model to a server. If `host` is omitted, defaults to the cookbook's currently-selected server (NOT localhost) — call list_cookbook_servers first if you're unsure where it should go.",
             "parameters": {
@@ -1721,7 +1738,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
                     content += f" {ak}={colors[ak]}"
         else:
             content = action
-    elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes",
+    elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes", "manage_repos",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
                         "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "manage_plugins", "manage_documents", "manage_settings",
                         "manage_research"):

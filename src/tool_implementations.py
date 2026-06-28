@@ -434,6 +434,113 @@ async def do_recent_changes(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": str(exc), "exit_code": 1}
 
 
+async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
+    """Read registered repo metadata and read-only Git facts."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    action = str(args.get("action") or "list").strip().lower()
+    try:
+        from src.constants import BASE_DIR
+        from src.repo_git_adapter import RepoGitAdapter
+        from src.repo_registry import REPO_REGISTRY_FILE, RepoRegistry
+
+        registry_path = os.environ.get("ODYSSEUS_REPO_REGISTRY_FILE") or REPO_REGISTRY_FILE
+        registry = RepoRegistry.load_or_empty(registry_path)
+
+        if action == "list":
+            summary = registry.audit_summary()
+            rows = summary.get("repos") or []
+            if not rows:
+                return {"output": "No repos registered yet.", "repos": [], "exit_code": 0}
+            lines = ["Registered repos:"]
+            for item in rows:
+                lines.append(
+                    "- `{repo_id}` {title} ({repo_kind}, {privacy}/{scope}; remotes={remotes}, push={push})".format(
+                        repo_id=item.get("repo_id"),
+                        title=item.get("title"),
+                        repo_kind=item.get("repo_kind"),
+                        privacy=item.get("privacy_class"),
+                        scope=item.get("provider_scope"),
+                        remotes=item.get("remote_count"),
+                        push=item.get("push_remote_count"),
+                    )
+                )
+            return {"output": "\n".join(lines), "repos": rows, "exit_code": 0}
+
+        repo_id = str(args.get("repo_id") or args.get("id") or "").strip()
+        if not repo_id:
+            return {"error": "repo_id is required for this action", "exit_code": 1}
+
+        if action == "get":
+            record = registry.get(repo_id)
+            return {
+                "output": (
+                    f"Repo `{record.repo_id}`: {record.title} "
+                    f"({record.repo_kind}, {record.privacy_class}/{record.provider_scope})."
+                ),
+                "repo": record.to_dict(),
+                "exit_code": 0,
+            }
+
+        adapter = RepoGitAdapter(
+            registry=registry,
+            workspace_base=_repo_workspace_base(default=BASE_DIR),
+        )
+        if action == "status":
+            status = adapter.status(repo_id)
+            return {"output": _repo_status_output(status.to_dict()), "status": status.to_dict(), "exit_code": 0}
+        if action == "log":
+            commits = [commit.to_dict() for commit in adapter.log(repo_id, limit=int(args.get("limit") or 10))]
+            lines = [f"Recent commits for `{repo_id}`:"]
+            lines.extend(f"- `{item['commit'][:8]}` {item['subject']} ({item['authored_at']})" for item in commits)
+            return {"output": "\n".join(lines), "commits": commits, "exit_code": 0}
+        if action == "diff_stat":
+            diff_stat = adapter.diff_stat(repo_id)
+            return {"output": diff_stat or f"No diff stat for `{repo_id}`.", "diff_stat": diff_stat, "exit_code": 0}
+        if action == "changed_paths":
+            paths = [item.to_dict() for item in adapter.changed_paths(repo_id)]
+            lines = [f"Changed paths for `{repo_id}`:"]
+            lines.extend(f"- {item['status']} {item['path']}" for item in paths)
+            if not paths:
+                lines.append("- none")
+            return {"output": "\n".join(lines), "changed_paths": paths, "exit_code": 0}
+        if action == "remotes":
+            remotes = [remote.to_dict() for remote in adapter.remotes(repo_id)]
+            lines = [f"Remotes for `{repo_id}`:"]
+            lines.extend(f"- {item['name']} {item['url_redacted']} ({item['direction']})" for item in remotes)
+            if not remotes:
+                lines.append("- none")
+            return {"output": "\n".join(lines), "remotes": remotes, "exit_code": 0}
+
+        return {"error": "Use action list, get, status, log, diff_stat, changed_paths, or remotes.", "exit_code": 1}
+    except Exception as exc:
+        logger.error("manage_repos failed: %s", exc)
+        return {"error": str(exc), "exit_code": 1}
+
+
+def _repo_workspace_base(*, default: str) -> str:
+    try:
+        from src.tool_execution import get_active_workspace
+
+        active = get_active_workspace()
+    except Exception:
+        active = None
+    return str(active or os.environ.get("ODYSSEUS_REPO_WORKSPACE_BASE") or default)
+
+
+def _repo_status_output(status: Dict[str, Any]) -> str:
+    lines = [f"Status for `{status.get('repo_id')}`:", status.get("branch_line") or "branch unknown"]
+    entries = status.get("entries") or []
+    if entries:
+        lines.extend(f"- {entry}" for entry in entries)
+    else:
+        lines.append("- clean")
+    return "\n".join(lines)
+
+
 def _skill_dump(sk) -> Dict:
     """Translate a parsed Skill back into the kwargs `update_skill` expects."""
     return {
