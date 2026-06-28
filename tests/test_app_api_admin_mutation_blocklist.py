@@ -19,6 +19,11 @@ from src.tool_implementations import do_app_api
         ("PUT", "/api/mcp/servers/srv1", "manage_mcp"),
         ("PATCH", "/api/mcp/servers/srv1", "manage_mcp"),
         ("DELETE", "/api/mcp/servers/srv1", "manage_mcp"),
+        ("POST", "/api/gallery/upload", "Gallery UI"),
+        ("POST", "/api/gallery/img1/replace", "Gallery UI"),
+        ("POST", "/api/gallery/img1/rename", "Gallery UI"),
+        ("PATCH", "/api/gallery/img1", "Gallery UI"),
+        ("PUT", "/api/gallery/albums/album1", "Gallery UI"),
         ("DELETE", "/api/gallery/img1", "Gallery UI"),
         ("POST", "/api/document/doc1/archive", "manage_documents"),
         ("PUT", "/api/document/doc1", "manage_documents"),
@@ -68,10 +73,14 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
             return {
                 "paths": {
                     "/api/gallery/library": {"get": {"summary": "Gallery Library"}},
+                    "/api/gallery/upload": {"post": {"summary": "Upload Image"}},
                     "/api/gallery/{image_id}": {
                         "get": {"summary": "Read Image"},
+                        "patch": {"summary": "Patch Image"},
                         "delete": {"summary": "Delete Image"},
                     },
+                    "/api/gallery/{image_id}/replace": {"post": {"summary": "Replace Image"}},
+                    "/api/gallery/albums/{album_id}": {"put": {"summary": "Update Album"}},
                     "/api/document/{doc_id}": {
                         "get": {"summary": "Read Document"},
                         "put": {"summary": "Update Document"},
@@ -127,7 +136,11 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/tasks/notifications") in paths
     assert ("GET", "/api/sessions") in paths
     assert ("GET", "/api/session/{sid}") in paths
+    assert ("POST", "/api/gallery/upload") not in paths
+    assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
+    assert ("POST", "/api/gallery/{image_id}/replace") not in paths
+    assert ("PUT", "/api/gallery/albums/{album_id}") not in paths
     assert ("POST", "/api/document/{doc_id}/archive") not in paths
     assert ("PUT", "/api/document/{doc_id}") not in paths
     assert ("PATCH", "/api/document/{doc_id}") not in paths

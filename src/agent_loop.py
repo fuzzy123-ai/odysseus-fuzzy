@@ -514,7 +514,7 @@ GENERIC LOOPBACK to allowed Odysseus internal endpoints. Use this whenever the u
 **Common surfaces (use `endpoints` with filter to discover the full set per domain):**
 - Calendar: `/api/calendar/events`, `/api/calendar/calendars`, `/api/calendar/events/{uid}`
 - Cookbook: `/api/cookbook/gpus`, `/api/cookbook/state`, `/api/cookbook/setup`, `/api/cookbook/packages`, `/api/cookbook/hf-latest`, `/api/model/cached`. Do NOT use `app_api` for package installs, engine rebuilds, or PID signalling.
-- Gallery: read/list routes such as `/api/gallery/library`, `/api/gallery/{id}`, `/api/gallery/albums`; gallery deletes are blocked via app_api.
+- Gallery: read/list routes such as `/api/gallery/library`, `/api/gallery/{id}`, `/api/gallery/albums`; gallery mutations are blocked via app_api.
 - Library / Documents: read/list via `/api/documents/library`, `/api/documents/{session_id}`, `/api/document/{id}` and history via `/api/document/{id}/versions`. Document mutations, deletes, and tidy cleanup are blocked via app_api; use document tools / `manage_documents`.
 - Memory: `/api/memory`, `/api/memory/{id}`, `/api/memory/search`
 - Notes: `/api/notes`, `/api/notes/{id}`
@@ -532,7 +532,7 @@ Body for POST/PUT/PATCH goes in `body` (object). Query params in `query` (object
 
 **When to prefer named tools over app_api:** if a named wrapper exists (list_email_accounts, list_emails, read_email, manage_calendar, manage_notes, list_served_models, etc.) USE IT — it has nicer output formatting and clearer schema. Reach for `app_api` only when there's no wrapper for what you need.
 
-Blocked paths/routes (refused for safety): /api/auth/, /api/users/, /api/tokens/, /api/admin/, /api/shell/, /api/backup/restore, /api/email/accounts, mutating /api/model-endpoints, mutating /api/webhooks, mutating /api/mcp, gallery deletes, document mutations/tidy, research deletes, task mutations, session/chat mutations, POST /api/cookbook/packages/install, POST /api/cookbook/rebuild-engine, POST /api/cookbook/kill-pid.""",
+Blocked paths/routes (refused for safety): /api/auth/, /api/users/, /api/tokens/, /api/admin/, /api/shell/, /api/backup/restore, /api/email/accounts, mutating /api/model-endpoints, mutating /api/webhooks, mutating /api/mcp, gallery mutations, document mutations/tidy, research deletes, task mutations, session/chat mutations, POST /api/cookbook/packages/install, POST /api/cookbook/rebuild-engine, POST /api/cookbook/kill-pid.""",
 }
 
 def get_builtin_overrides() -> dict:

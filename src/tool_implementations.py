@@ -3175,6 +3175,9 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("DELETE", "/api/mcp"),
     # Data mutation routes with dedicated tools or without a confirmed agent
     # flow must not be reachable through generic app_api.
+    ("POST",   "/api/gallery"),
+    ("PUT",    "/api/gallery"),
+    ("PATCH",  "/api/gallery"),
     ("DELETE", "/api/gallery"),
     ("POST",   "/api/document/"),
     ("PUT",    "/api/document/"),
@@ -3307,7 +3310,7 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         if "/api/mcp" in path:
             return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
         if "/api/gallery" in path:
-            return {"error": "Don't delete gallery images via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
+            return {"error": "Don't mutate gallery items via app_api - use the Gallery UI until a confirmed gallery agent tool exists.", "exit_code": 1}
         if "/api/document" in path or "/api/documents/tidy" in path:
             return {"error": "Don't delete or tidy documents via app_api - use the `manage_documents` tool so confirmation and owner scope are enforced.", "exit_code": 1}
         if "/api/research" in path:
