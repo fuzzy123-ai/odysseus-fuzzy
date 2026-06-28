@@ -135,6 +135,26 @@ def _write_push_registry(path: Path) -> None:
     registry.save_json(path)
 
 
+def _write_forge_registry(path: Path) -> None:
+    registry = RepoRegistry()
+    registry.add(
+        RepoRecord.create(
+            repo_id="demo",
+            title="Demo Repo",
+            repo_kind="project",
+            owner="fuzzy123-ai",
+            path_ref="repos/demo",
+            workspace_root="repos",
+            project_root="repos/demo",
+            default_branch="main",
+            privacy_class="private",
+            provider_scope="external_allowed",
+            created_at="2026-06-28T10:00:00Z",
+        )
+    )
+    registry.save_json(path)
+
+
 @pytest.mark.asyncio
 async def test_manage_repos_lists_and_reads_registered_repo(tmp_path: Path, monkeypatch):
     _make_repo(tmp_path)
@@ -448,6 +468,65 @@ async def test_manage_repos_push_runs_confirmed_policy_allowed_branch(tmp_path: 
     assert str(tmp_path) not in json.dumps(result)
 
 
+@pytest.mark.asyncio
+async def test_manage_repos_forge_plan_explains_auth_gate(tmp_path: Path, monkeypatch):
+    registry_path = tmp_path / "repo-registry.json"
+    _write_forge_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "forge_plan",
+                "repo_id": "demo",
+                "provider": "github",
+                "namespace": "fuzzy123-ai",
+                "repo_name": "demo",
+                "create_repo_requested": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert result["exit_code"] == 1
+    assert result["forge_report"]["plan"]["decision"] == "hold"
+    assert "auth_ready=true" in result["output"]
+    assert "separate explicit provider-create Go" in result["forge_report"]["plan"]["next_human_decision"]
+    dumped = json.dumps(result)
+    assert "token" not in dumped.lower()
+    assert str(tmp_path) not in dumped
+
+
+@pytest.mark.asyncio
+async def test_manage_repos_forge_metadata_blocks_without_provider_client(tmp_path: Path, monkeypatch):
+    registry_path = tmp_path / "repo-registry.json"
+    _write_forge_registry(registry_path)
+    monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
+
+    result = await do_manage_repos(
+        json.dumps(
+            {
+                "action": "forge_metadata",
+                "repo_id": "demo",
+                "provider": "gitea",
+                "namespace": "fuzzy123-ai",
+                "repo_name": "demo",
+                "api_base_url": "https://gitea.example.test/api/v1",
+                "auth_ready": True,
+                "confirmed": True,
+                "operator_go": True,
+                "live_enabled": True,
+            }
+        ),
+        owner="admin",
+    )
+
+    assert result["exit_code"] == 1
+    assert result["forge_report"]["status"] == "blocked"
+    assert "provider client is not configured" in result["output"]
+    assert result["forge_report"]["plan"]["api_base_url_redacted"] == "https://gitea.example.test/api/v1"
+
+
 def test_manage_repos_schema_index_and_security_wiring():
     schema_by_name = {(schema.get("function") or {}).get("name"): schema for schema in FUNCTION_TOOL_SCHEMAS}
     schema_names = set(schema_by_name)
@@ -455,9 +534,17 @@ def test_manage_repos_schema_index_and_security_wiring():
     actions = (
         schema_by_name["manage_repos"]["function"]["parameters"]["properties"]["action"]["enum"]
     )
-    assert {"commit_plan", "commit", "push_plan", "push", "register", "forget", "update_policy"}.issubset(
-        set(actions)
-    )
+    assert {
+        "commit_plan",
+        "commit",
+        "push_plan",
+        "push",
+        "forge_plan",
+        "forge_metadata",
+        "register",
+        "forget",
+        "update_policy",
+    }.issubset(set(actions))
 
     from src.agent_tools import TOOL_TAGS
     from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS

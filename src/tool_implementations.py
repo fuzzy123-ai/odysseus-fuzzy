@@ -570,11 +570,40 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "push_report": payload,
                 "exit_code": 0 if report.status in {"plan_ready", "pushed"} else 1,
             }
+        if action in {"forge_plan", "forge_metadata"}:
+            from src.repo_forge_provider import plan_repo_forge_metadata, run_repo_forge_metadata
+
+            common = {
+                "registry": registry,
+                "repo_id": repo_id,
+                "provider": args.get("provider") or args.get("remote_provider") or "github",
+                "namespace": args.get("namespace") or args.get("remote_namespace"),
+                "repo_name": args.get("repo_name"),
+                "api_base_url": args.get("api_base_url") or "",
+                "integration_id": args.get("integration_id") or "",
+                "auth_ready": args.get("auth_ready") is True,
+                "confirmed": args.get("confirmed") is True,
+                "operator_go": args.get("operator_go") is True,
+                "live_enabled": args.get("live_enabled") is True,
+                "create_repo_requested": args.get("create_repo_requested") is True,
+            }
+            report = (
+                plan_repo_forge_metadata(**common)
+                if action == "forge_plan"
+                else run_repo_forge_metadata(**common)
+            )
+            payload = report.to_dict()
+            return {
+                "output": _repo_forge_output(payload),
+                "forge_report": payload,
+                "exit_code": 0 if report.status in {"plan_ready", "fetched"} else 1,
+            }
 
         return {
             "error": (
                 "Use action list, get, status, log, diff_stat, changed_paths, "
-                "remotes, commit_plan, commit, push_plan, push, register, forget, or update_policy."
+                "remotes, commit_plan, commit, push_plan, push, forge_plan, forge_metadata, "
+                "register, forget, or update_policy."
             ),
             "exit_code": 1,
         }
@@ -623,6 +652,36 @@ def _repo_push_output(report: Dict[str, Any]) -> str:
         lines.extend(f"- {item}" for item in blockers)
     else:
         lines.append(f"Pushed ref: {report.get('pushed_ref') or 'not executed'}")
+    next_decision = plan.get("next_human_decision")
+    if next_decision:
+        lines.append(f"Next: {next_decision}")
+    return "\n".join(lines)
+
+
+def _repo_forge_output(report: Dict[str, Any]) -> str:
+    plan = report.get("plan") or {}
+    lines = [
+        f"Repo forge {report.get('status')} for `{plan.get('repo_id')}`.",
+        f"Decision: {plan.get('decision')}.",
+        f"Provider: {plan.get('provider')}/{plan.get('namespace')}/{plan.get('repo_name')}.",
+    ]
+    blockers = report.get("blockers") or plan.get("blockers") or []
+    if blockers:
+        lines.append("Warum blockiert:")
+        lines.extend(f"- {item}" for item in blockers)
+    else:
+        metadata = report.get("metadata") or {}
+        if metadata:
+            lines.append(
+                "Metadata: default_branch={branch}, issues={issues}, prs={prs}, permissions={permissions}".format(
+                    branch=metadata.get("default_branch"),
+                    issues=metadata.get("issue_count"),
+                    prs=metadata.get("pull_request_count"),
+                    permissions=", ".join(metadata.get("permissions") or []),
+                )
+            )
+        else:
+            lines.append("Metadata fetch is planned but not executed.")
     next_decision = plan.get("next_human_decision")
     if next_decision:
         lines.append(f"Next: {next_decision}")
