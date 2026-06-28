@@ -31,6 +31,14 @@ from src.tool_implementations import do_app_api
         ("PUT", "/api/tasks/task1", "manage_tasks"),
         ("PATCH", "/api/tasks/task1", "manage_tasks"),
         ("DELETE", "/api/tasks/task1", "manage_tasks"),
+        ("POST", "/api/session", "manage_session"),
+        ("PATCH", "/api/session/s1", "manage_session"),
+        ("DELETE", "/api/session/s1", "manage_session"),
+        ("POST", "/api/session/s1/archive", "manage_session"),
+        ("POST", "/api/session/s1/compact", "manage_session"),
+        ("POST", "/api/sessions/bulk-delete", "manage_session"),
+        ("DELETE", "/api/sessions/all", "manage_session"),
+        ("POST", "/api/sessions/auto-sort", "manage_session"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -79,6 +87,18 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                         "put": {"summary": "Update Task"},
                         "delete": {"summary": "Delete Task"},
                     },
+                    "/api/sessions": {
+                        "get": {"summary": "List Sessions"},
+                    },
+                    "/api/session/{sid}": {
+                        "get": {"summary": "Read Session"},
+                        "patch": {"summary": "Patch Session"},
+                        "delete": {"summary": "Delete Session"},
+                    },
+                    "/api/session/{sid}/archive": {"post": {"summary": "Archive Session"}},
+                    "/api/session/{sid}/compact": {"post": {"summary": "Compact Session"}},
+                    "/api/sessions/bulk-delete": {"post": {"summary": "Bulk Delete Sessions"}},
+                    "/api/sessions/all": {"delete": {"summary": "Delete All Sessions"}},
                 }
             }
 
@@ -105,6 +125,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/gallery/{image_id}") in paths
     assert ("GET", "/api/document/{doc_id}") in paths
     assert ("GET", "/api/tasks/notifications") in paths
+    assert ("GET", "/api/sessions") in paths
+    assert ("GET", "/api/session/{sid}") in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
     assert ("POST", "/api/document/{doc_id}/archive") not in paths
     assert ("PUT", "/api/document/{doc_id}") not in paths
@@ -115,3 +137,9 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/tasks") not in paths
     assert ("PUT", "/api/tasks/{task_id}") not in paths
     assert ("DELETE", "/api/tasks/{task_id}") not in paths
+    assert ("PATCH", "/api/session/{sid}") not in paths
+    assert ("DELETE", "/api/session/{sid}") not in paths
+    assert ("POST", "/api/session/{sid}/archive") not in paths
+    assert ("POST", "/api/session/{sid}/compact") not in paths
+    assert ("POST", "/api/sessions/bulk-delete") not in paths
+    assert ("DELETE", "/api/sessions/all") not in paths

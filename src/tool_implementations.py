@@ -3187,6 +3187,10 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/tasks"),
     ("PATCH",  "/api/tasks"),
     ("DELETE", "/api/tasks"),
+    ("POST",   "/api/session"),
+    ("PUT",    "/api/session"),
+    ("PATCH",  "/api/session"),
+    ("DELETE", "/api/session"),
     # Use the named tools — they handle owner attribution, natural-
     # language due_date parsing, timezone, dedup, and tag/category
     # normalization. Hitting the raw endpoint via app_api saves a
@@ -3310,6 +3314,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't delete research reports via app_api - use the `manage_research` tool so confirmation and owner scope are enforced.", "exit_code": 1}
         if "/api/tasks" in path:
             return {"error": "Don't mutate scheduled tasks via app_api - use the `manage_tasks` tool so scheduling semantics and confirmation are enforced.", "exit_code": 1}
+        if "/api/session" in path:
+            return {"error": "Don't mutate chats/sessions via app_api - use `create_session`, `list_sessions`, or `manage_session` so exact ids, owner scope, and confirmation are enforced.", "exit_code": 1}
         if "/api/notes" in path:
             return {"error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.", "exit_code": 1}
         if "/api/calendar/events" in path:
