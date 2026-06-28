@@ -3211,6 +3211,10 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/compare"),
     ("PATCH",  "/api/compare"),
     ("DELETE", "/api/compare"),
+    # Web search execution must go through web_search/web_fetch so tool
+    # toggles, DSGVO/external-IO policy, freshness handling, and attribution
+    # stay centralized. Config/provider reads can remain discoverable.
+    ("POST",   "/api/search"),
     # Embedding downloads/deletes and endpoint writes touch network, local
     # model cache, secrets, and RAG singleton state. Keep app_api read-only.
     ("POST",   "/api/embeddings"),
@@ -3419,6 +3423,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't run cleanup via app_api - use `manage_session` or the Cleanup UI so archive/delete effects are explicit and confirmed.", "exit_code": 1}
         if "/api/compare" in path:
             return {"error": "Don't start, vote, record, or delete model comparisons via app_api - use the Compare UI or `chat_with_model` so model-call cost, owner scope, and vote/delete intent stay explicit.", "exit_code": 1}
+        if "/api/search" in path:
+            return {"error": "Don't run web search via app_api - use `web_search`, `web_fetch`, or `trigger_research` so external-IO policy, tool toggles, freshness, and attribution are enforced.", "exit_code": 1}
         if "/api/cookbook/packages/install" in path:
             return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
         if "/api/cookbook/rebuild-engine" in path:

@@ -111,6 +111,8 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/compare/comp1/vote", "Compare UI"),
         ("POST", "/api/compare/record", "Compare UI"),
         ("DELETE", "/api/compare/comp1", "Compare UI"),
+        ("POST", "/api/search", "web_search"),
+        ("POST", "/api/search/query", "web_search"),
         ("POST", "/api/embeddings/models/BAAI/bge-small-en-v1.5/download", "Embedding Settings UI"),
         ("DELETE", "/api/embeddings/models/BAAI/bge-small-en-v1.5", "Embedding Settings UI"),
         ("POST", "/api/embeddings/endpoint", "Embedding Settings UI"),
@@ -364,6 +366,10 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/compare/{comp_id}/vote": {"post": {"summary": "Vote Comparison"}},
                     "/api/compare/record": {"post": {"summary": "Record Comparison"}},
                     "/api/compare/{comp_id}": {"delete": {"summary": "Delete Comparison"}},
+                    "/api/search/config": {"get": {"summary": "Search Config"}},
+                    "/api/search/providers": {"get": {"summary": "Search Providers"}},
+                    "/api/search": {"post": {"summary": "Run Web Search"}},
+                    "/api/search/query": {"post": {"summary": "Run Provider Search"}},
                     "/api/embeddings/models": {"get": {"summary": "List Embedding Models"}},
                     "/api/embeddings/models/{model_name}/download": {"post": {"summary": "Download Embedding Model"}},
                     "/api/embeddings/models/{model_name}/status": {"get": {"summary": "Embedding Model Status"}},
@@ -493,6 +499,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/codex/documents/{doc_id}") in paths
     assert ("GET", "/api/codex/cookbook/tasks") in paths
     assert ("GET", "/api/compare/history") in paths
+    assert ("GET", "/api/search/config") in paths
+    assert ("GET", "/api/search/providers") in paths
     assert ("GET", "/api/embeddings/models") in paths
     assert ("GET", "/api/embeddings/models/{model_name}/status") in paths
     assert ("GET", "/api/embeddings/endpoint") in paths
@@ -596,6 +604,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/compare/{comp_id}/vote") not in paths
     assert ("POST", "/api/compare/record") not in paths
     assert ("DELETE", "/api/compare/{comp_id}") not in paths
+    assert ("POST", "/api/search") not in paths
+    assert ("POST", "/api/search/query") not in paths
     assert ("POST", "/api/embeddings/models/{model_name}/download") not in paths
     assert ("DELETE", "/api/embeddings/models/{model_name}") not in paths
     assert ("POST", "/api/embeddings/endpoint") not in paths
