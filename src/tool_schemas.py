@@ -812,7 +812,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_endpoints",
-            "description": "Manage model API endpoints through the same admin routes as the UI: list, add, update, delete, enable, or disable. Do not pass raw API keys through chat; provider credentials require secure UI handoff.",
+            "description": "Manage model API endpoints through the same admin routes as the UI: list, add, update, delete, enable, or disable. Mutating actions require confirmed=true after explicit user confirmation. Do not pass raw API keys through chat; provider credentials require secure UI handoff.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -831,7 +831,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "supports_tools": {"type": "boolean", "description": "Whether the endpoint supports tool calling."},
                     "pinned_models": {"description": "Pinned model IDs as a list, JSON string, comma/newline string, or route-compatible value."},
                     "container_local": {"type": "boolean", "description": "Treat loopback URL as local to the Odysseus container when adding."},
-                    "shared": {"type": "boolean", "description": "Whether a new endpoint is shared globally; false scopes it to the current admin owner."}
+                    "shared": {"type": "boolean", "description": "Whether a new endpoint is shared globally; false scopes it to the current admin owner."},
+                    "confirmed": {"type": "boolean", "description": "Required true for add/update/delete/enable/disable after explicit user confirmation."}
                 },
                 "required": ["action"]
             }

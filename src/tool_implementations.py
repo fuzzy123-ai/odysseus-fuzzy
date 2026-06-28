@@ -680,6 +680,18 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
 
     action = str(args.get("action", "list") or "list").strip().lower()
 
+    def _confirmed() -> bool:
+        return bool(args.get("confirmed") or args.get("confirm"))
+
+    def _confirmation_required(target: str) -> Dict:
+        return {
+            "response": f"Confirmation required before endpoint {target}. Repeat with confirmed=true after explicit user confirmation.",
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "action": action,
+            "exit_code": 0,
+        }
+
     def _error_from_response(resp) -> Dict:
         try:
             data = resp.json()
@@ -716,6 +728,8 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
                     "secret_handoff_required": True,
                     "exit_code": 0,
                 }
+            if not _confirmed():
+                return _confirmation_required("add")
             pinned_models = args.get("pinned_models", "")
             if isinstance(pinned_models, (list, dict)):
                 pinned_models = json.dumps(pinned_models)
@@ -749,6 +763,8 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
             eid = args.get("endpoint_id", "")
             if not eid:
                 return {"error": "endpoint_id is required", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required("delete")
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.delete(f"{_INTERNAL_BASE}/api/model-endpoints/{eid}", headers=headers)
             if resp.status_code >= 400:
@@ -786,6 +802,8 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
                     }
                 if not body:
                     return {"error": "No update fields supplied", "exit_code": 1}
+            if not _confirmed():
+                return _confirmation_required(action)
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.patch(f"{_INTERNAL_BASE}/api/model-endpoints/{eid}", json=body, headers=headers)
             if resp.status_code >= 400:

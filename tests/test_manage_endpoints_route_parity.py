@@ -90,6 +90,7 @@ def test_manage_endpoints_adds_via_internal_route_without_secret(monkeypatch):
         "skip_probe": True,
         "pinned_models": ["qwen"],
         "shared": False,
+        "confirmed": True,
     }), owner="admin"))
 
     assert result["exit_code"] == 0
@@ -99,6 +100,20 @@ def test_manage_endpoints_adds_via_internal_route_without_secret(monkeypatch):
     assert calls[0][2]["data"]["base_url"] == "http://127.0.0.1:11434/v1"
     assert calls[0][2]["data"]["pinned_models"] == '["qwen"]'
     assert "api_key" not in calls[0][2]["data"]
+
+
+def test_manage_endpoints_add_requires_confirmation(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
+
+    result = asyncio.run(do_manage_endpoints(json.dumps({
+        "action": "add",
+        "name": "Local",
+        "base_url": "http://127.0.0.1:11434/v1",
+    }), owner="admin"))
+
+    assert result["status"] == "confirmation_required"
+    assert result["requires_confirmation"] is True
+    assert calls == []
 
 
 def test_manage_endpoints_blocks_raw_api_keys_without_route_call(monkeypatch):
@@ -120,15 +135,23 @@ def test_manage_endpoints_blocks_raw_api_keys_without_route_call(monkeypatch):
 def test_manage_endpoints_delete_and_enable_use_route_cleanup_paths(monkeypatch):
     calls = _install_fake_client(monkeypatch)
 
+    blocked = asyncio.run(do_manage_endpoints(json.dumps({
+        "action": "delete",
+        "endpoint_id": "ep1",
+    }), owner="admin"))
     deleted = asyncio.run(do_manage_endpoints(json.dumps({
         "action": "delete",
         "endpoint_id": "ep1",
+        "confirmed": True,
     }), owner="admin"))
     enabled = asyncio.run(do_manage_endpoints(json.dumps({
         "action": "enable",
         "endpoint_id": "ep1",
+        "confirmed": True,
     }), owner="admin"))
 
+    assert blocked["status"] == "confirmation_required"
+    assert blocked["requires_confirmation"] is True
     assert deleted["exit_code"] == 0
     assert enabled["exit_code"] == 0
     assert calls[0][0] == "DELETE"
@@ -136,3 +159,27 @@ def test_manage_endpoints_delete_and_enable_use_route_cleanup_paths(monkeypatch)
     assert calls[1][0] == "PATCH"
     assert calls[1][1].endswith("/api/model-endpoints/ep1")
     assert calls[1][2]["json"] == {"is_enabled": True}
+
+
+def test_manage_endpoints_update_requires_confirmation_then_uses_route(monkeypatch):
+    calls = _install_fake_client(monkeypatch)
+
+    blocked = asyncio.run(do_manage_endpoints(json.dumps({
+        "action": "update",
+        "endpoint_id": "ep1",
+        "name": "Updated",
+    }), owner="admin"))
+    updated = asyncio.run(do_manage_endpoints(json.dumps({
+        "action": "update",
+        "endpoint_id": "ep1",
+        "name": "Updated",
+        "confirmed": True,
+    }), owner="admin"))
+
+    assert blocked["status"] == "confirmation_required"
+    assert blocked["requires_confirmation"] is True
+    assert updated["exit_code"] == 0
+    assert len(calls) == 1
+    assert calls[0][0] == "PATCH"
+    assert calls[0][1].endswith("/api/model-endpoints/ep1")
+    assert calls[0][2]["json"] == {"name": "Updated"}
