@@ -38,6 +38,8 @@ def test_app_api_prompt_advertises_named_tool_mutation_guardrails():
     assert "gallery" in combined
     assert "contact mutations/import/config/clear" in combined
     assert "manage_assistant" in combined
+    assert "mutating /api/personal" in combined
+    assert "manage_personal_docs" in combined
     assert "mutating /api/plugins" in combined
     assert "manage_plugins" in combined
     assert "mutating /api/email" in combined

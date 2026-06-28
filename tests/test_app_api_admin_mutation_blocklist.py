@@ -96,6 +96,11 @@ from src.tool_implementations import do_app_api
         ("POST", "/api/plugins/install", "Plugins UI"),
         ("POST", "/api/plugins/telegram/enable", "Plugins UI"),
         ("DELETE", "/api/plugins/registries", "Plugins UI"),
+        ("POST", "/api/personal/reload", "Personal Docs UI"),
+        ("POST", "/api/personal/add_directory", "Personal Docs UI"),
+        ("POST", "/api/personal/upload", "Personal Docs UI"),
+        ("DELETE", "/api/personal/remove_directory", "Personal Docs UI"),
+        ("DELETE", "/api/personal/file", "Personal Docs UI"),
     ],
 )
 async def test_app_api_blocks_admin_mutations_before_loopback(method, path, tool_name, monkeypatch):
@@ -284,6 +289,12 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
                     "/api/plugins/{plugin_id}/enable": {"post": {"summary": "Enable Plugin"}},
                     "/api/plugins/{plugin_id}/status": {"get": {"summary": "Plugin Status"}},
                     "/api/plugins/{plugin_id}/reply": {"post": {"summary": "Plugin Reply"}},
+                    "/api/personal": {"get": {"summary": "List Personal Documents"}},
+                    "/api/personal/reload": {"post": {"summary": "Reload Personal Documents"}},
+                    "/api/personal/add_directory": {"post": {"summary": "Add Personal Directory"}},
+                    "/api/personal/upload": {"post": {"summary": "Upload Personal Document"}},
+                    "/api/personal/remove_directory": {"delete": {"summary": "Remove Personal Directory"}},
+                    "/api/personal/file": {"delete": {"summary": "Delete Personal File"}},
                 }
             }
 
@@ -342,6 +353,7 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("GET", "/api/plugins/registry") in paths
     assert ("GET", "/api/plugins/registries") in paths
     assert ("GET", "/api/plugins/{plugin_id}/status") in paths
+    assert ("GET", "/api/personal") in paths
     assert ("POST", "/api/gallery/upload") not in paths
     assert ("PATCH", "/api/gallery/{image_id}") not in paths
     assert ("DELETE", "/api/gallery/{image_id}") not in paths
@@ -416,3 +428,8 @@ async def test_app_api_discovery_hides_destructive_data_mutations(monkeypatch):
     assert ("POST", "/api/plugins/install") not in paths
     assert ("POST", "/api/plugins/{plugin_id}/enable") not in paths
     assert ("POST", "/api/plugins/{plugin_id}/reply") not in paths
+    assert ("POST", "/api/personal/reload") not in paths
+    assert ("POST", "/api/personal/add_directory") not in paths
+    assert ("POST", "/api/personal/upload") not in paths
+    assert ("DELETE", "/api/personal/remove_directory") not in paths
+    assert ("DELETE", "/api/personal/file") not in paths

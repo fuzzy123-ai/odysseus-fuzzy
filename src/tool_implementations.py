@@ -3200,6 +3200,13 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
     ("PUT",    "/api/plugins"),
     ("PATCH",  "/api/plugins"),
     ("DELETE", "/api/plugins"),
+    # Personal document/RAG source mutations can scan local folders, upload
+    # private files, and remove indexed sources. Keep the generic bridge
+    # read-only until a confirmed personal-docs tool handles scope.
+    ("POST",   "/api/personal"),
+    ("PUT",    "/api/personal"),
+    ("PATCH",  "/api/personal"),
+    ("DELETE", "/api/personal"),
     # Preference writes bypass manage_settings validation and ui_control's
     # event contract. Keep app_api read-only for prefs.
     ("POST",   "/api/prefs"),
@@ -3361,6 +3368,8 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "Don't mutate /api/mcp via app_api - use the `manage_mcp` tool so confirmation and MCP command safety checks are enforced.", "exit_code": 1}
         if "/api/plugins" in path:
             return {"error": "Don't mutate plugin manager or plugin-provider routes via app_api - use the Plugins UI until a confirmed `manage_plugins` or provider-specific agent tool exists.", "exit_code": 1}
+        if "/api/personal" in path:
+            return {"error": "Don't mutate personal document or RAG source routes via app_api - use the Personal Docs UI until a confirmed `manage_personal_docs` agent tool exists.", "exit_code": 1}
         if "/api/prefs" in path:
             return {"error": "Don't mutate preferences via app_api - use `manage_settings` for registered settings or `ui_control` for themes and UI state.", "exit_code": 1}
         if "/api/memory" in path:
