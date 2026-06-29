@@ -1247,7 +1247,15 @@ def test_image_identifiers_are_redacted_and_actions_are_default_off(tmp_path, mo
 
 
 def test_document_attachment_is_redacted_and_processed_by_universal_inbox(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: sent.append((chat_id, text)) or {
+        "ok": True,
+        "telegram_message_id": 901,
+        "token_value_visible": False,
+    })
     app = FastAPI()
     ctx = _PluginContext(app=app, data_dir=tmp_path)
     ctx.telegram_attachment_bytes_provider = lambda _message, max_bytes=None: b"Rechnung Test\nBetrag 12 Euro\n"
@@ -1278,6 +1286,8 @@ def test_document_attachment_is_redacted_and_processed_by_universal_inbox(tmp_pa
     assert payload["universal_inbox_attachment"]["status"] == "processed"
     assert payload["universal_inbox_attachment"]["processable_count"] == 1
     assert payload["agent_bridge"]["ready_for_agent"] is False
+    assert sent
+    assert "Anhang" in sent[0][1]
     assert "file_id" not in payload["message"]["media"]
     assert "file_unique_id" not in payload["message"]["media"]
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
@@ -1292,6 +1302,7 @@ def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_tur
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     turns = []
+    replies = []
 
     result = run_telegram_polling_cycle(
         data_dir=tmp_path,
@@ -1311,12 +1322,15 @@ def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_tur
         }],
         attachment_bytes_provider=lambda _message, max_bytes=None: b"Nur Datei\n",
         agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
     )
 
     assert result["status"] == "poll_ok"
     assert result["processed"] == 1
     assert result["agent_turns"] == 0
+    assert result["replies"] == 1
     assert turns == []
+    assert replies and "Anhang" in replies[0][1]
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(
         item.get("kind") == "universal_inbox_attachment"
@@ -1328,6 +1342,55 @@ def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_tur
     assert "poll-document-file-id" not in persisted_text
     assert "rechnung-ohne-prompt" not in persisted_text
     assert "Nur Datei" not in persisted_text
+
+
+def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    replies = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 40,
+            "message": {
+                "message_id": 44,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "partial-document-file-id",
+                    "file_unique_id": "partial-document-unique",
+                    "file_name": "scan.pdf",
+                    "mime_type": "application/pdf",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"%PDF-1.4 no text",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+    assert first["processed"] == 1
+    assert any("Review nötig" in reply[1] for reply in replies)
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 41,
+            "message": {
+                "message_id": 45,
+                "chat": {"id": "document-chat-999"},
+                "text": "/review ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["control_commands"] == 1
+    assert any("Review bestätigt" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    assert any(item.get("kind") == "universal_inbox_review" and item.get("status") == "confirmed" for item in history)
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "partial-document-file-id" not in persisted_text
+    assert "scan.pdf" not in persisted_text
 
 
 def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):

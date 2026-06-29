@@ -66,16 +66,30 @@ def test_docx_best_effort_extracts_document_xml_text(tmp_path):
     assert "First paragraph" not in json.dumps(packet.to_dict(), sort_keys=True)
 
 
-def test_pdf_is_metadata_only_with_structured_warning(tmp_path):
+def test_pdf_extracts_runtime_text_with_pypdf_adapter(tmp_path, monkeypatch):
     source = tmp_path / "file.pdf"
     source.write_bytes(b"%PDF-1.4\nprivate bytes")
+    monkeypatch.setattr("src.personal_docs.extract_pdf_text", lambda _path: "Invoice text from PDF")
 
     packet = extract_universal_inbox_content(source, relative_path="file.pdf")
 
-    assert packet.status == "metadata_only"
+    assert packet.status == "completed"
+    assert packet.raw_text == "Invoice text from PDF"
+    assert packet.warnings == ()
+    assert packet.to_dict()["metadata"]["extractor"] == "pypdf"
+    assert "Invoice text from PDF" not in json.dumps(packet.to_dict(), sort_keys=True)
+
+
+def test_pdf_without_extractable_text_needs_review(tmp_path, monkeypatch):
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"%PDF-1.4\nprivate bytes")
+    monkeypatch.setattr("src.personal_docs.extract_pdf_text", lambda _path: "")
+
+    packet = extract_universal_inbox_content(source, relative_path="scan.pdf")
+
+    assert packet.status == "partial"
     assert packet.raw_text == ""
-    assert packet.warnings[0].code == "pdf_metadata_only"
-    assert packet.to_dict()["metadata"]["extractor"] == "pdf_metadata_only"
+    assert packet.warnings[0].code == "pdf_text_empty"
 
 
 def test_size_limit_returns_metadata_only_without_raw_text(tmp_path):

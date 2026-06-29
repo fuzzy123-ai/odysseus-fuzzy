@@ -467,6 +467,19 @@ class TelegramInboxStore:
             "raw_rich_payload_visible": False,
         }
 
+    def latest_universal_inbox_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
+        chat_handle = _chat_handle(chat_id) if chat_id else ""
+        for message in reversed(self._read()["messages"]):
+            if message.get("kind") != "universal_inbox_attachment":
+                continue
+            if chat_handle and message.get("chat_handle") != chat_handle:
+                continue
+            status = str(message.get("status") or "")
+            inbox_status = str(message.get("universal_inbox_status") or "")
+            if status in {"processed", "blocked", "failed"} and inbox_status != "go":
+                return dict(message)
+        return None
+
 
 class TelegramPollingStateStore:
     """Small JSON store for polling offsets and dry-run state."""
@@ -874,6 +887,10 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
         return "new_chat"
     if command in {"/inbox", "/universal_inbox", "/universalinbox"}:
         return "universal_inbox_status"
+    if command in {"/review", "/inboxreview", "/inbox_review"}:
+        if arg in {"ok", "yes", "ja", "confirm", "bestätigen", "bestaetigen", "approve", "freigeben"}:
+            return "universal_inbox_review_confirm"
+        return "universal_inbox_review_status"
     if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
         if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
             return "dsgvo_enable"
@@ -969,6 +986,43 @@ def _handle_telegram_control_command(
             "reply": reply_result,
             "universal_inbox": snapshot,
         }
+    if command in {"universal_inbox_review_status", "universal_inbox_review_confirm"}:
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        review = store.latest_universal_inbox_review(chat_id=bridge["chat_id"]) if store is not None else None
+        if review is None:
+            reply_text = "Keine offene Universal-Inbox-Review gefunden."
+            status = "universal_inbox_review_missing"
+        elif command == "universal_inbox_review_confirm":
+            if store is not None:
+                store.append_event(
+                    kind="universal_inbox_review",
+                    status="confirmed",
+                    chat_id=bridge["chat_id"],
+                    source_message_id=review.get("message_id"),
+                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
+            reply_text = "Review bestätigt. Der Anhang bleibt in der Universal-Inbox-Review Queue vorgemerkt."
+            status = "universal_inbox_review_confirmed"
+        else:
+            reply_text = _format_universal_inbox_review_status(review)
+            status = "universal_inbox_review_status"
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": status,
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
+        }
     if command != "new_chat":
         return None
     bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
@@ -1018,6 +1072,37 @@ def _telegram_attachment_max_bytes() -> int:
     except ValueError:
         value = 25_000_000
     return max(1, min(value, 100_000_000))
+
+
+def _format_universal_inbox_review_status(review: dict[str, Any]) -> str:
+    status = str(review.get("universal_inbox_status") or review.get("status") or "unknown")
+    processable = int(review.get("processable_count") or 0)
+    if status == "go":
+        return f"Universal Inbox: verarbeitet. Items: {processable}. Keine Review nötig."
+    return (
+        "Universal Inbox: Review nötig.\n"
+        f"Status: {status}\n"
+        f"Items: {processable}\n"
+        "Zum Bestätigen antworte mit /review ok."
+    )
+
+
+def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
+    status = str(result.get("status") or "failed")
+    inbox_status = str(result.get("universal_inbox_status") or "")
+    processable = int(result.get("processable_count") or 0)
+    if status == "processed" and inbox_status == "go":
+        return f"Anhang verarbeitet. Items: {processable}. Keine Review nötig."
+    if status == "processed":
+        return (
+            "Anhang empfangen und geprüft. Review nötig.\n"
+            f"Universal-Inbox-Status: {inbox_status or 'partial'}\n"
+            f"Items: {processable}\n"
+            "Zum Bestätigen antworte mit /review ok."
+        )
+    if status == "blocked":
+        return f"Anhang empfangen, aber blockiert: {result.get('reason') or 'policy_gate'}."
+    return f"Anhang empfangen, aber Verarbeitung fehlgeschlagen: {result.get('reason') or 'unknown'}."
 
 
 def run_telegram_voice_pipeline(
@@ -1585,6 +1670,13 @@ def run_telegram_polling_cycle(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
+                if reply_handler is not None:
+                    reply_handler(
+                        str(message.get("chat_id") or ""),
+                        format_telegram_attachment_inbox_reply(inbox_attachment),
+                        message.get("message_id"),
+                    )
+                    replies += 1
             if _voice_pipeline is not None:
                 stt_status = str((_voice_pipeline.get("stt") or {}).get("status") or "")
                 stt_reason = str((_voice_pipeline.get("stt") or {}).get("reason") or "")
@@ -2357,6 +2449,11 @@ def setup(ctx):
                 raw_content_visible=False,
                 raw_identifiers_visible=False,
                 filename_visible=False,
+            )
+            _reply_with_gate(
+                str(message.get("chat_id") or ""),
+                format_telegram_attachment_inbox_reply(inbox_attachment),
+                source_message_id=message.get("message_id"),
             )
         bridge = build_agent_bridge_request(
             stored["message"],

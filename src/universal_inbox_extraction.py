@@ -124,16 +124,7 @@ def extract_universal_inbox_content(
     elif suffix == DOCX_SUFFIX:
         raw_text, warning = _read_docx(path, normalized_relative_path)
     elif suffix == PDF_SUFFIX:
-        warnings.append(
-            UniversalInboxExtractionWarning("pdf_metadata_only", normalized_relative_path)
-        )
-        return UniversalInboxExtractionPacket(
-            relative_path=normalized_relative_path,
-            suffix=suffix,
-            status="metadata_only",
-            metadata=base_metadata,
-            warnings=tuple(warnings),
-        )
+        raw_text, warning = _read_pdf(path, normalized_relative_path)
     else:
         warnings.append(
             UniversalInboxExtractionWarning("unsupported_type", normalized_relative_path)
@@ -303,6 +294,20 @@ def _read_docx(
     return "\n".join(paragraphs), None
 
 
+def _read_pdf(
+    path: Path,
+    relative_path: str,
+) -> tuple[str, UniversalInboxExtractionWarning | None]:
+    try:
+        from src.personal_docs import extract_pdf_text
+    except Exception:
+        return "", UniversalInboxExtractionWarning("pdf_extractor_unavailable", relative_path)
+    raw_text = extract_pdf_text(str(path)).strip()
+    if not raw_text:
+        return "", UniversalInboxExtractionWarning("pdf_text_empty", relative_path)
+    return raw_text, None
+
+
 def _normalize_relative_path(value: Any) -> str:
     raw = str(value or "").strip().replace("\\", "/")
     if not raw:
@@ -323,7 +328,7 @@ def _extractor_name(suffix: str) -> str:
     if suffix == DOCX_SUFFIX:
         return "docx_zip_xml"
     if suffix == PDF_SUFFIX:
-        return "pdf_metadata_only"
+        return "pypdf"
     return "unsupported"
 
 
