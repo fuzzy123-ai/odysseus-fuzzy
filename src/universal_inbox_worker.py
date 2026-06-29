@@ -18,6 +18,7 @@ from src.universal_inbox_extraction import (
     UniversalInboxExtractionPacket as LocalExtractionPacket,
     extract_universal_inbox_content,
 )
+from src.universal_inbox_analysis import build_universal_inbox_file_analysis_packet
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
 from src.universal_inbox_pipeline import build_universal_inbox_pipeline_run
 from src.universal_inbox_placement import build_universal_inbox_placement_plan
@@ -38,6 +39,7 @@ _PROJECT_HINTS = ("project", "projekt", "spec", "planung")
 class UniversalInboxWorkerConfig:
     domain: str = "private"
     default_document_type: str = "reference"
+    default_classification: str = "private"
     default_confidence: float = 0.86
     review_confidence: float = 0.62
     incoming_prefix: str = "AI Inbox/Incoming"
@@ -124,13 +126,25 @@ def run_universal_inbox_dry_run(
             root=inbox_path,
             max_extract_bytes=worker_config.max_extract_bytes,
         )
+        analysis_packet = build_universal_inbox_file_analysis_packet(
+            {
+                **item.to_dict(),
+                "source_channel": "universal_inbox",
+                "classification": worker_config.default_classification,
+                "document_type": _infer_document_type(item.filename, worker_config.default_document_type),
+                "extraction_status": extraction.status,
+                "extractor": extraction.metadata.get("extractor", ""),
+            },
+            text_sample=extraction.raw_text,
+        )
+        analysis_report = analysis_packet.to_dict()
         routing_decision = plan_universal_inbox_route(
             _routing_item(item.to_dict(), extraction, worker_config),
             rules=routing_rules,
         )
         memory = UniversalInboxMemoryAbstraction.from_routing_decision(
             routing_decision,
-            abstract=_safe_abstract(item.to_dict(), extraction),
+            abstract=_safe_abstract(item.to_dict(), extraction, analysis_report=analysis_report),
             tags=_safe_tags(routing_decision.domain, routing_decision.document_type),
         )
         placement = build_universal_inbox_placement_plan(routing_decision)
@@ -140,10 +154,21 @@ def run_universal_inbox_dry_run(
             ledger={"status": "pending", "metadata": {"provider": "nextcloud_inbox"}},
             extraction_packet={
                 "status": extraction.status,
-                "abstract": _safe_abstract(item.to_dict(), extraction),
+                "abstract": _safe_abstract(item.to_dict(), extraction, analysis_report=analysis_report),
                 "raw_packet": extraction.to_dict(),
             },
-            analysis={"status": "completed", "metadata": {"mode": "deterministic_stub"}},
+            analysis={
+                "status": analysis_report["status"],
+                "reasons": analysis_report["policy"]["review_reasons"] or analysis_report["policy"]["no_go_reasons"],
+                "metadata": {
+                    "mode": "deterministic_policy",
+                    "classification": analysis_report["policy"]["classification"],
+                    "local_only_required": analysis_report["policy"]["local_only_required"],
+                    "api_model_allowed": analysis_report["policy"]["api_model_allowed"],
+                    "memory_write_allowed": analysis_report["policy"]["memory_write_allowed"],
+                    "raptor_write_allowed": analysis_report["policy"]["raptor_write_allowed"],
+                },
+            },
             routing_decision=routing_decision,
             memory_abstraction=memory,
         )
@@ -226,7 +251,12 @@ def _infer_document_type(filename: str, fallback: str) -> str:
 def _safe_abstract(
     item: Mapping[str, Any],
     extraction: LocalExtractionPacket,
+    *,
+    analysis_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    analysis_abstract = {}
+    if isinstance(analysis_report, Mapping) and isinstance(analysis_report.get("abstract"), Mapping):
+        analysis_abstract = dict(analysis_report["abstract"])
     return {
         "summary": _summary_for_status(extraction.status),
         "source_suffix": item.get("suffix") or extraction.suffix,
@@ -234,6 +264,7 @@ def _safe_abstract(
         "line_count": extraction.metadata.get("line_count", 0),
         "extractor": extraction.metadata.get("extractor", ""),
         "warnings": tuple(warning.code for warning in extraction.warnings),
+        **analysis_abstract,
     }
 
 

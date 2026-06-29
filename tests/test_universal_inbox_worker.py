@@ -54,6 +54,11 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert payload["items"][0]["placement_plan"]["operation"] == "copy"
     assert payload["items"][0]["placement_plan"]["delete_original"] is False
     assert payload["items"][0]["placement_plan"]["overwrite_existing"] is False
+    memory_event = payload["items"][0]["pipeline_report"]["memory_abstraction_event"]
+    assert memory_event["abstract"]["classification"] == "private"
+    assert memory_event["abstract"]["memory_mode"] == "abstract_only"
+    assert memory_event["abstract"]["source_material_stored"] is False
+    assert payload["items"][0]["pipeline_report"]["stages"]["analysis"]["metadata"]["api_model_allowed"] is True
     assert "This raw text must not persist" not in encoded
     assert str(tmp_path) not in encoded
 
