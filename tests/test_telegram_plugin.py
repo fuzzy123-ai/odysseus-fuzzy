@@ -1344,6 +1344,56 @@ def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_tur
     assert "Nur Datei" not in persisted_text
 
 
+def test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemerally(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [
+            {
+                "update_id": 50,
+                "message": {
+                    "message_id": 60,
+                    "chat": {"id": "document-chat-999"},
+                    "document": {
+                        "file_id": "context-document-file-id",
+                        "file_unique_id": "context-document-unique",
+                        "file_name": "notiz.txt",
+                        "mime_type": "text/plain",
+                        "file_size": 24,
+                    },
+                },
+            },
+            {
+                "update_id": 51,
+                "message": {
+                    "message_id": 61,
+                    "chat": {"id": "document-chat-999"},
+                    "text": "Worum geht es in der Datei?",
+                },
+            },
+        ],
+        session_creator=lambda **_kwargs: {"session_id": "sess-attachment-context"},
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"Projekt Alpha braucht Review.",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["processed"] == 2
+    assert result["agent_turns"] == 1
+    assert turns[0]["recent_attachment_context"]["present"] is True
+    assert turns[0]["recent_attachment_context"]["raw_content_visible"] is True
+    assert "Projekt Alpha braucht Review." in turns[0]["prompt"]
+    assert "Worum geht es in der Datei?" in turns[0]["prompt"]
+    assert turns[0]["persisted_prompt"] == "Worum geht es in der Datei?"
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "Projekt Alpha braucht Review." not in persisted_text
+    assert "context-document-file-id" not in persisted_text
+    assert "notiz.txt" not in persisted_text
+
+
 def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")

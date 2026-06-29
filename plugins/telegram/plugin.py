@@ -480,6 +480,20 @@ class TelegramInboxStore:
                 return dict(message)
         return None
 
+    def latest_universal_inbox_attachment(self, *, chat_id: str | None = None, max_age_seconds: int | None = None) -> dict[str, Any] | None:
+        chat_handle = _chat_handle(chat_id) if chat_id else ""
+        now = int(time.time())
+        max_age = int(max_age_seconds or 0)
+        for message in reversed(self._read()["messages"]):
+            if message.get("kind") != "universal_inbox_attachment":
+                continue
+            if chat_handle and message.get("chat_handle") != chat_handle:
+                continue
+            if max_age > 0 and now - int(message.get("stored_at") or 0) > max_age:
+                continue
+            return dict(message)
+        return None
+
 
 class TelegramPollingStateStore:
     """Small JSON store for polling offsets and dry-run state."""
@@ -805,6 +819,7 @@ def build_agent_bridge_request(
     session_binding: dict[str, Any] | None = None,
     raw_chat_id: str | None = None,
     voice_agent_turn: VoiceAgentTurn | None = None,
+    recent_attachment_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the internal agent-turn envelope for a stored Telegram message."""
 
@@ -814,13 +829,20 @@ def build_agent_bridge_request(
     display_name = sender.get("username") or sender.get("first_name") or chat_handle
     kind = message.get("kind")
     if kind == "text":
-        prompt = str(message.get("text") or "")
+        persisted_prompt = str(message.get("text") or "")
+        attachment_text = str((recent_attachment_context or {}).get("context") or "").strip()
+        prompt = (
+            f"{attachment_text}\n\nAktuelle Telegram-Nachricht:\n{persisted_prompt}"
+            if attachment_text
+            else persisted_prompt
+        )
         ready_for_agent = bool(prompt.strip())
         note = "text_ready"
     elif kind == "voice":
         media = message.get("media") or {}
         if voice_agent_turn is not None and voice_agent_turn.ready_for_agent:
             prompt = voice_agent_turn.prompt
+            persisted_prompt = "[Telegram voice message transcribed for this turn.]"
             ready_for_agent = True
             note = "voice_transcribed"
         else:
@@ -829,6 +851,7 @@ def build_agent_bridge_request(
                 f"file_handle={media.get('file_handle', '')}; duration={media.get('duration', 'unknown')}; "
                 "transcription pending.]"
             )
+            persisted_prompt = prompt
             ready_for_agent = False
             note = "voice_needs_transcription"
     elif kind == "image":
@@ -838,6 +861,7 @@ def build_agent_bridge_request(
             f"file_handle={media.get('file_handle', '')}; size={media.get('file_size', 'unknown')}; "
             "image action pending.]"
         )
+        persisted_prompt = prompt
         ready_for_agent = False
         note = "image_action_pending"
     elif kind == "document":
@@ -847,10 +871,12 @@ def build_agent_bridge_request(
             f"file_handle={media.get('file_handle', '')}; size={media.get('file_size', 'unknown')}; "
             "universal inbox processing pending.]"
         )
+        persisted_prompt = prompt
         ready_for_agent = False
         note = "universal_inbox_pending"
     else:
         prompt = "[Unsupported Telegram message received.]"
+        persisted_prompt = prompt
         ready_for_agent = False
         note = "unsupported_message"
 
@@ -865,9 +891,16 @@ def build_agent_bridge_request(
         "source_message_id": message.get("message_id"),
         "kind": kind,
         "prompt": prompt,
+        "persisted_prompt": persisted_prompt,
         "ready_for_agent": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
         "reply_required": ready_for_agent and _bridge_intake_ready(message, kind=kind, note=note),
         "note": note,
+        "recent_attachment_context": {
+            "present": bool((recent_attachment_context or {}).get("context")),
+            "status": str((recent_attachment_context or {}).get("status") or ""),
+            "raw_content_visible": bool((recent_attachment_context or {}).get("raw_content_visible")),
+            "host_paths_visible": False,
+        },
         "intake_status": message.get("intake_status") or note,
         "dsgvo_mode": dsgvo_mode,
         "security_mode": "secure" if dsgvo_mode else "normal",
@@ -1236,6 +1269,116 @@ def _telegram_attachment_spool_dir(data_dir: str | Path, message: dict[str, Any]
     message_id = str(message.get("message_id") or int(time.time() * 1000))
     digest = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
     return Path(data_dir) / "universal_inbox_telegram" / digest
+
+
+def _telegram_attachment_context_ttl_seconds() -> int:
+    raw = os.getenv("TELEGRAM_ATTACHMENT_CONTEXT_TTL_SECONDS") or "21600"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 21600
+    return max(60, min(value, 86400))
+
+
+def _telegram_attachment_context_max_chars() -> int:
+    raw = os.getenv("TELEGRAM_ATTACHMENT_CONTEXT_MAX_CHARS") or "12000"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 12000
+    return max(512, min(value, 50000))
+
+
+def _telegram_attachment_spool_key(message: dict[str, Any]) -> str:
+    chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")) or "chat")
+    message_id = str(message.get("message_id") or "")
+    if not message_id:
+        return ""
+    return hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+
+
+def build_recent_telegram_attachment_context(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+) -> dict[str, Any] | None:
+    event = store.latest_universal_inbox_attachment(
+        chat_id=chat_id,
+        max_age_seconds=_telegram_attachment_context_ttl_seconds(),
+    )
+    if not event:
+        return None
+    spool_key = str(event.get("spool_key") or "").strip()
+    if not spool_key:
+        chat_handle = str(event.get("chat_handle") or _chat_handle(chat_id) or "chat")
+        message_id = str(event.get("message_id") or "")
+        if message_id:
+            spool_key = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    if not spool_key:
+        return None
+    spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    if not spool_dir.exists() or not spool_dir.is_dir():
+        return {
+            "status": "missing_spool",
+            "context": (
+                "[Letzter Telegram-Anhang: verarbeitet, aber die lokale Datei ist "
+                "nicht mehr im Attachment-Spool verfuegbar.]"
+            ),
+            "raw_content_visible": False,
+            "host_paths_visible": False,
+        }
+    try:
+        files = [path for path in spool_dir.iterdir() if path.is_file() and not path.is_symlink()]
+    except OSError:
+        files = []
+    if not files:
+        return {
+            "status": "missing_spool_file",
+            "context": "[Letzter Telegram-Anhang: verarbeitet, aber keine lokale Spool-Datei gefunden.]",
+            "raw_content_visible": False,
+            "host_paths_visible": False,
+        }
+
+    try:
+        from src.universal_inbox_extraction import extract_universal_inbox_content
+
+        packet = extract_universal_inbox_content(
+            files[0],
+            root=spool_dir,
+            max_extract_bytes=_telegram_attachment_context_max_chars() * 4,
+        )
+    except Exception as exc:
+        return {
+            "status": "context_extract_failed",
+            "context": f"[Letzter Telegram-Anhang: Kontext-Extraktion fehlgeschlagen: {str(exc)[:120]}]",
+            "raw_content_visible": False,
+            "host_paths_visible": False,
+        }
+
+    warnings = ", ".join(warning.code for warning in packet.warnings) or "none"
+    header = (
+        "[Letzter Telegram-Anhang fuer diese Unterhaltung]\n"
+        f"- Status: {packet.status}\n"
+        f"- Typ: {packet.suffix or 'unknown'}\n"
+        f"- Extractor: {packet.metadata.get('extractor') or 'unknown'}\n"
+        f"- Warnungen: {warnings}\n"
+    )
+    if packet.raw_text:
+        text = packet.raw_text[: _telegram_attachment_context_max_chars()]
+        truncated = "\n[... gekuerzt ...]" if len(packet.raw_text) > len(text) else ""
+        context = f"{header}\nInhalt, nur fuer diesen Modellaufruf:\n{text}{truncated}"
+        raw_visible = True
+    else:
+        context = f"{header}\nEs ist kein extrahierbarer Text verfuegbar; nutze die Metadaten und Review-Hinweise."
+        raw_visible = False
+    return {
+        "status": "ready",
+        "context": context,
+        "raw_content_visible": raw_visible,
+        "host_paths_visible": False,
+        "source_message_id": event.get("message_id"),
+    }
 
 
 def _call_file_bytes_provider(
@@ -1648,6 +1791,7 @@ def run_telegram_polling_cycle(
                 file_bytes_provider=attachment_bytes_provider,
             )
             if inbox_attachment is not None:
+                spool_key = _telegram_attachment_spool_key(stored["message"])
                 refreshed = store.update_inbound_status(
                     stored["message"],
                     universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
@@ -1666,6 +1810,7 @@ def run_telegram_polling_cycle(
                     universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
                     discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                     processable_count=int(inbox_attachment.get("processable_count") or 0),
+                    spool_key=spool_key,
                     raw_content_visible=False,
                     raw_identifiers_visible=False,
                     filename_visible=False,
@@ -1699,10 +1844,16 @@ def run_telegram_polling_cycle(
                         update_id=message.get("update_id"),
                         message_id=message.get("message_id"),
                     )
+            recent_attachment_context = build_recent_telegram_attachment_context(
+                data_dir=data_dir,
+                store=store,
+                chat_id=str(message.get("chat_id") or ""),
+            ) if stored["message"].get("kind") == "text" else None
             bridge = build_agent_bridge_request(
                 stored["message"],
                 raw_chat_id=str(message.get("chat_id") or ""),
                 voice_agent_turn=voice_agent_turn,
+                recent_attachment_context=recent_attachment_context,
             )
             if bridge["ready_for_agent"]:
                 binding = sessions.bind_chat(
@@ -1716,6 +1867,7 @@ def run_telegram_polling_cycle(
                     session_binding=binding,
                     raw_chat_id=str(message.get("chat_id") or ""),
                     voice_agent_turn=voice_agent_turn,
+                    recent_attachment_context=recent_attachment_context,
                 )
                 store.append_event(
                     kind="session_bridge",
@@ -2428,6 +2580,7 @@ def setup(ctx):
             file_bytes_provider=attachment_bytes_provider,
         )
         if inbox_attachment is not None:
+            spool_key = _telegram_attachment_spool_key(stored["message"])
             refreshed = store.update_inbound_status(
                 stored["message"],
                 universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
@@ -2446,6 +2599,7 @@ def setup(ctx):
                 universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
                 discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                 processable_count=int(inbox_attachment.get("processable_count") or 0),
+                spool_key=spool_key,
                 raw_content_visible=False,
                 raw_identifiers_visible=False,
                 filename_visible=False,
@@ -2455,10 +2609,16 @@ def setup(ctx):
                 format_telegram_attachment_inbox_reply(inbox_attachment),
                 source_message_id=message.get("message_id"),
             )
+        recent_attachment_context = build_recent_telegram_attachment_context(
+            data_dir=ctx.data_dir,
+            store=store,
+            chat_id=str(message.get("chat_id") or ""),
+        ) if stored["message"].get("kind") == "text" else None
         bridge = build_agent_bridge_request(
             stored["message"],
             raw_chat_id=str(message.get("chat_id") or ""),
             voice_agent_turn=voice_agent_turn,
+            recent_attachment_context=recent_attachment_context,
         )
         session_binding = None
         agent_turn = None
@@ -2514,6 +2674,7 @@ def setup(ctx):
             session_binding=session_binding,
             raw_chat_id=str(message.get("chat_id") or ""),
             voice_agent_turn=voice_agent_turn,
+            recent_attachment_context=recent_attachment_context,
         )
         if bridge["ready_for_agent"]:
             send_telegram_typing_indicator(bridge["chat_id"], store=store)

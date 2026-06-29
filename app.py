@@ -888,6 +888,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
+    persisted_prompt = str(bridge.get("persisted_prompt") or prompt).strip()
     if not session_id:
         return {"status": "failed", "error": "telegram_session_missing"}
     if not prompt:
@@ -954,7 +955,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         response = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
-        session.add_message(ChatMessage("user", prompt, {"source": "telegram"}))
+        session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
         return {"status": "accepted", "reply_text": str(response or "")}
     except Exception as exc:
