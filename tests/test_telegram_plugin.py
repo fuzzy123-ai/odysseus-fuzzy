@@ -1519,6 +1519,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
         reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
         memory_manager=memory_manager,
         memory_vector=memory_vector,
+        memory_owner="homebase",
     )
 
     assert second["control_commands"] == 1
@@ -1541,7 +1542,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     saved = memory_manager.saved[0]
     assert saved["source"] == "universal_inbox"
     assert saved["category"] == "document"
-    assert saved["owner"] == "telegram"
+    assert saved["owner"] == "homebase"
     assert saved["metadata"]["classification"] == "private"
     assert saved["metadata"]["raw_content_stored"] is False
     assert "Universal Inbox memory:" in saved["text"]

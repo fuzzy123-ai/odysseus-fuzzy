@@ -968,6 +968,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 
 app.state.telegram_session_bridge = _telegram_session_bridge
 app.state.telegram_agent_turn_handler = _telegram_agent_turn_handler
+app.state.telegram_owner = _telegram_owner()
 logger.info("Telegram AI bridge initialized")
 
 # Webhooks

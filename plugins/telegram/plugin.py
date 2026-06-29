@@ -966,6 +966,7 @@ def _handle_telegram_control_command(
     pin_store: TelegramPrivacyPinStore | None = None,
     memory_manager: Any = None,
     memory_vector: Any = None,
+    memory_owner: str | None = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -1101,6 +1102,7 @@ def _handle_telegram_control_command(
                     chat_id=bridge["chat_id"],
                     memory_manager=memory_manager,
                     memory_vector=memory_vector,
+                    memory_owner=memory_owner,
                     dry_run=False,
                 )
                 if store is not None
@@ -1684,6 +1686,7 @@ def _execute_telegram_memory_review_write(
     chat_id: str,
     memory_manager: Any = None,
     memory_vector: Any = None,
+    memory_owner: str | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     try:
@@ -1693,7 +1696,7 @@ def _execute_telegram_memory_review_write(
     intent = build_recent_telegram_memory_write_intent(data_dir=data_dir, store=store, chat_id=chat_id)
     if not intent:
         return {"status": "blocked", "reason": "memory_write_intent_missing"}
-    writer = _build_native_memory_writer(memory_manager, memory_vector, owner="telegram")
+    writer = _build_native_memory_writer(memory_manager, memory_vector, owner=memory_owner or "telegram")
     try:
         report = execute_universal_inbox_memory_write_intent(
             intent,
@@ -1919,6 +1922,7 @@ def run_telegram_polling_cycle(
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
     memory_manager: Any | None = None,
     memory_vector: Any | None = None,
+    memory_owner: str | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -1964,6 +1968,7 @@ def run_telegram_polling_cycle(
                 pin_store=privacy_pins,
                 memory_manager=memory_manager,
                 memory_vector=memory_vector,
+                memory_owner=memory_owner,
             )
             if control_result is not None:
                 control_commands += 1
@@ -2564,6 +2569,7 @@ def setup(ctx):
     image_worker_client = _ctx_attr("telegram_image_worker_client")
     memory_manager = _ctx_attr("memory_manager")
     memory_vector = _ctx_attr("memory_vector")
+    memory_owner = str(_ctx_attr("telegram_owner") or "telegram").strip() or "telegram"
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
@@ -2757,6 +2763,7 @@ def setup(ctx):
             ),
             memory_manager=memory_manager,
             memory_vector=memory_vector,
+            memory_owner=memory_owner,
         )
         if not result["ok"]:
             raise HTTPException(403, result["status"])
@@ -2851,6 +2858,7 @@ def setup(ctx):
             pin_store=privacy_pins,
             memory_manager=memory_manager,
             memory_vector=memory_vector,
+            memory_owner=memory_owner,
         )
         if control_result is not None:
             store.append_event(
