@@ -20,6 +20,7 @@ from src.universal_inbox_extraction import (
 )
 from src.universal_inbox_analysis import build_universal_inbox_file_analysis_packet
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
+from src.universal_inbox_memory_write_intent import build_universal_inbox_memory_write_intent
 from src.universal_inbox_pipeline import build_universal_inbox_pipeline_run
 from src.universal_inbox_placement import build_universal_inbox_placement_plan
 from src.universal_inbox_routing import (
@@ -172,9 +173,14 @@ def run_universal_inbox_dry_run(
             routing_decision=routing_decision,
             memory_abstraction=memory,
         )
+        memory_write_intent = build_universal_inbox_memory_write_intent(
+            memory=memory,
+            analysis=analysis_report,
+        )
 
         placement_report = placement.to_dict()
         pipeline_report = pipeline.to_dict()
+        pipeline_report["memory_write_intent"] = memory_write_intent.to_dict()
         review_reasons.extend(placement.review_reasons)
         review_reasons.extend(pipeline_report.get("review_reasons", ()))
         no_go_reasons.extend(placement.no_go_reasons)

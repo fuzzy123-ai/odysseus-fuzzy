@@ -59,6 +59,11 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert memory_event["abstract"]["memory_mode"] == "abstract_only"
     assert memory_event["abstract"]["source_material_stored"] is False
     assert payload["items"][0]["pipeline_report"]["stages"]["analysis"]["metadata"]["api_model_allowed"] is True
+    write_intent = payload["items"][0]["pipeline_report"]["memory_write_intent"]
+    assert write_intent["status"] == "ready"
+    assert write_intent["ready_to_write"] is True
+    assert write_intent["writes_performed"] is False
+    assert write_intent["memory_records"][0]["metadata"]["classification"] == "private"
     assert "This raw text must not persist" not in encoded
     assert str(tmp_path) not in encoded
 
