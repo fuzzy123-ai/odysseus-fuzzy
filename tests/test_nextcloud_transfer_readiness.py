@@ -28,6 +28,7 @@ def _ready_config(**overrides):
         "available_bytes": 200 * 1024**3,
         "reserve_bytes": 30 * 1024**3,
         "transfer_tool": "rclone_webdav",
+        "runtime_backend": "podman_pod",
         "dry_run_command": "rclone copy remote:Private /srv/odysseus/private-nextcloud-mirror --dry-run --checksum",
         "dry_run_reviewed": True,
         "operator_live_go": False,
@@ -42,6 +43,7 @@ def test_transfer_readiness_is_operator_input_until_live_go():
     assert plan.status == "needs_operator_input"
     assert plan.provider_id == "nextcloud_webdav"
     assert plan.transfer_tool == "rclone_webdav"
+    assert plan.runtime_backend == "podman_pod"
     assert plan.source_confirmed is True
     assert plan.target_confirmed is True
     assert plan.disk_budget_verified is True
@@ -49,8 +51,10 @@ def test_transfer_readiness_is_operator_input_until_live_go():
     assert plan.operator_live_go is False
     assert plan.errors == ()
     assert "operator_live_go_missing" in plan.reasons
+    assert "podman_runtime_confirmed" in plan.reasons
     assert "Ask the operator" in plan.next_actions[-1]
     assert "network_sync" in plan.blocked_live_actions
+    assert "docker_runtime" in plan.blocked_live_actions
 
 
 def test_transfer_readiness_reaches_live_go_only_with_explicit_operator_go():
@@ -65,6 +69,28 @@ def test_transfer_readiness_blocks_destructive_or_unreviewed_dry_run():
     plan = build_nextcloud_transfer_readiness_plan(
         _ready_config(
             dry_run_command="rclone sync remote:Private /srv/odysseus/private-nextcloud-mirror --dry-run --delete",
+            dry_run_reviewed=True,
+        )
+    )
+
+    assert plan.status == "blocked"
+    assert plan.dry_run_no_delete is False
+    assert "dry_run_contains_destructive_token" in plan.errors
+
+
+def test_transfer_readiness_blocks_docker_runtime_backend():
+    plan = build_nextcloud_transfer_readiness_plan(_ready_config(runtime_backend="docker"))
+
+    assert plan.status == "blocked"
+    assert plan.runtime_backend is None
+    assert "runtime_backend_unsupported" in plan.errors
+    assert "Podman/pod runtime" in plan.next_actions[0]
+
+
+def test_transfer_readiness_blocks_docker_commands_in_dry_run():
+    plan = build_nextcloud_transfer_readiness_plan(
+        _ready_config(
+            dry_run_command="docker compose exec nextcloud occ files:scan --dry-run",
             dry_run_reviewed=True,
         )
     )

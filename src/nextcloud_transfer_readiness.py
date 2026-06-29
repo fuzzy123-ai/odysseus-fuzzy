@@ -19,6 +19,10 @@ ALLOWED_TRANSFER_TOOLS = (
     "rsync_ssh",
     "server_side_copy",
 )
+ALLOWED_RUNTIME_BACKENDS = (
+    "podman_pod",
+    "rootless_podman",
+)
 READINESS_STATUSES = ("ready_for_live_go", "needs_operator_input", "blocked", "deferred")
 _FORBIDDEN_DRY_RUN_TOKENS = (
     "--delete",
@@ -29,6 +33,8 @@ _FORBIDDEN_DRY_RUN_TOKENS = (
     "--inplace",
     "--force",
     "--chmod",
+    " docker ",
+    " docker-compose ",
     " rm ",
     " mv ",
 )
@@ -40,6 +46,7 @@ class NextcloudTransferReadinessPlan:
     status: str
     provider_id: str
     transfer_tool: str | None
+    runtime_backend: str | None
     source_confirmed: bool
     target_confirmed: bool
     disk_budget_verified: bool
@@ -56,6 +63,7 @@ class NextcloudTransferReadinessPlan:
             "status": self.status,
             "provider_id": self.provider_id,
             "transfer_tool": self.transfer_tool,
+            "runtime_backend": self.runtime_backend,
             "source_confirmed": self.source_confirmed,
             "target_confirmed": self.target_confirmed,
             "disk_budget_verified": self.disk_budget_verified,
@@ -84,6 +92,7 @@ def build_nextcloud_transfer_readiness_plan(
     next_actions: list[str] = []
 
     transfer_tool = _normalize_transfer_tool(config.get("transfer_tool"), errors)
+    runtime_backend = _normalize_runtime_backend(config.get("runtime_backend"), errors)
     source_confirmed = _validate_source_confirmation(config, source, errors)
     target_confirmed = _validate_target(config.get("target_path"), errors)
     disk_budget_verified = _validate_disk_budget(config, errors, warnings)
@@ -101,6 +110,8 @@ def build_nextcloud_transfer_readiness_plan(
 
     if transfer_tool:
         reasons.append("transfer_tool_chosen")
+    if runtime_backend:
+        reasons.append("podman_runtime_confirmed")
     if source_confirmed and target_confirmed:
         reasons.append("source_and_target_paths_confirmed")
     if disk_budget_verified:
@@ -114,6 +125,7 @@ def build_nextcloud_transfer_readiness_plan(
         source_status=source.status,
         errors=errors,
         transfer_tool=transfer_tool,
+        runtime_backend=runtime_backend,
         source_confirmed=source_confirmed,
         target_confirmed=target_confirmed,
         disk_budget_verified=disk_budget_verified,
@@ -124,6 +136,7 @@ def build_nextcloud_transfer_readiness_plan(
         _next_actions(
             status=status,
             transfer_tool=transfer_tool,
+            runtime_backend=runtime_backend,
             source_confirmed=source_confirmed,
             target_confirmed=target_confirmed,
             disk_budget_verified=disk_budget_verified,
@@ -136,6 +149,7 @@ def build_nextcloud_transfer_readiness_plan(
         status=status,
         provider_id=source.provider_id,
         transfer_tool=transfer_tool,
+        runtime_backend=runtime_backend,
         source_confirmed=source_confirmed,
         target_confirmed=target_confirmed,
         disk_budget_verified=disk_budget_verified,
@@ -151,6 +165,7 @@ def build_nextcloud_transfer_readiness_plan(
             "credential_capture",
             "network_sync",
             "memory_or_graph_write",
+            "docker_runtime",
         ),
     )
 
@@ -170,6 +185,16 @@ def _normalize_transfer_tool(value: Any, errors: list[str]) -> str | None:
         errors.append("transfer_tool_unsupported")
         return None
     return tool
+
+
+def _normalize_runtime_backend(value: Any, errors: list[str]) -> str | None:
+    backend = str(value or "podman_pod").strip().lower()
+    if backend in {"podman", "pods"}:
+        backend = "podman_pod"
+    if backend not in ALLOWED_RUNTIME_BACKENDS:
+        errors.append("runtime_backend_unsupported")
+        return None
+    return backend
 
 
 def _validate_source_confirmation(
@@ -247,6 +272,7 @@ def _derive_status(
     source_status: str,
     errors: list[str],
     transfer_tool: str | None,
+    runtime_backend: str | None,
     source_confirmed: bool,
     target_confirmed: bool,
     disk_budget_verified: bool,
@@ -261,6 +287,7 @@ def _derive_status(
         (
             source_status in {"ready", "partial"},
             transfer_tool,
+            runtime_backend,
             source_confirmed,
             target_confirmed,
             disk_budget_verified,
@@ -278,6 +305,7 @@ def _next_actions(
     *,
     status: str,
     transfer_tool: str | None,
+    runtime_backend: str | None,
     source_confirmed: bool,
     target_confirmed: bool,
     disk_budget_verified: bool,
@@ -287,6 +315,8 @@ def _next_actions(
     actions: list[str] = []
     if not transfer_tool:
         actions.append("Choose a copy-only transfer tool before writing a live runbook.")
+    if not runtime_backend:
+        actions.append("Use the Podman/pod runtime path; Docker-based Nextcloud control is out of scope.")
     if not source_confirmed:
         actions.append("Confirm the redacted source label and source path out of band.")
     if not target_confirmed:

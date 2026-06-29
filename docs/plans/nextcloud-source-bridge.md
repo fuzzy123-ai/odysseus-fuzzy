@@ -27,7 +27,7 @@ Der Kern bleibt: Nextcloud ist **Source Provider**, nicht automatisch Canonical 
 Aktueller Stand:
 
 - Nextcloud laeuft auf dem Homeserver.
-- Runtime ist Podman, nicht Docker.
+- Runtime ist Podman/Pods, nicht Docker. Docker-Begriffe duerfen nur dort auftauchen, wo Dateinamen oder Formate historisch so heissen (`Dockerfile`, `docker-compose.yml`), nicht als Live-Betriebsannahme.
 - Nextcloud Deck ist installiert, aber nicht Kern der Intake-Automation.
 - Der Odysseus-Zugriff soll ueber einen designierten Nextcloud-User erfolgen.
 - Dieser User darf initial keine Loeschrechte haben.

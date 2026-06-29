@@ -17,6 +17,7 @@ Keine Aktion in diesem Runbook erlaubt echte Datei-Mutation, echte Nextcloud-Web
 Die erste sichere Variante nutzt einen lokal synchronisierten Nextcloud-Ordner:
 
 - Nextcloud bleibt Quelle und Rechteebene.
+- Live-Runtime ist Podman/Pods. Docker-basierte Runbook-Kommandos sind fuer Odysseus-Nextcloud-Control nicht zulaessig.
 - Der lokale Sync-Client stellt Dateien read-only fuer Discovery und Extraction bereit.
 - Der Worker liest nur aus dem freigegebenen Inbox-Unterordner.
 - Der serialisierte Report enthaelt nur relative Pfade innerhalb des Mount-/Sync-Roots.
