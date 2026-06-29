@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Knowledge Search Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --panel: rgba(2, 9, 16, 0.9);
+      --panel-2: rgba(5, 17, 28, 0.94);
+      --line: rgba(22, 217, 245, 0.2);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 54% 78%, rgba(10, 164, 214, 0.14), transparent 28%),
+        radial-gradient(circle at 15% 18%, rgba(30, 92, 182, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 20%, rgba(34, 211, 182, 0.09), transparent 34%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.034) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      opacity: 0.62;
+    }
+
+    .network line {
+      stroke: rgba(22, 217, 245, 0.12);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.17);
+      stroke: rgba(22, 217, 245, 0.32);
+      stroke-width: 1;
+    }
+
+    .network .hot {
+      fill: rgba(34, 211, 182, 0.38);
+      filter: drop-shadow(0 0 10px rgba(34, 211, 182, 0.46));
+    }
+
+    .brand {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      z-index: 2;
+      color: var(--cyan);
+      font: 600 18px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(22, 217, 245, 0.38);
+    }
+
+    .knowledge-trigger {
+      position: absolute;
+      left: 50%;
+      top: 64px;
+      z-index: 3;
+      display: inline-grid;
+      grid-template-columns: 24px auto;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(34, 211, 182, 0.46);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.72);
+      color: var(--teal);
+      padding: 9px 14px;
+      font: 600 12px/1 var(--mono);
+      box-shadow: 0 0 22px rgba(34, 211, 182, 0.12);
+      transform: translateX(-50%);
+    }
+
+    .knowledge-trigger::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      justify-self: center;
+      border: 2px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 14px rgba(34, 211, 182, 0.7);
+    }
+
+    .mock-shell {
+      position: absolute;
+      left: 50%;
+      top: 53%;
+      z-index: 3;
+      width: min(1100px, calc(100vw - 84px));
+      height: min(720px, calc(100dvh - 128px));
+      min-width: 820px;
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(34, 211, 182, 0.42);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        #07111d;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.46),
+        0 0 0 1px rgba(34, 211, 182, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font-family: var(--mono);
+    }
+
+    .window-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .window-title::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(34, 211, 182, 0.58);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--cyan);
+      transform: translateY(-50%);
+    }
+
+    .window-actions button {
+      width: 16px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font: 15px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .search-head {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+      background:
+        radial-gradient(circle at 20% 24%, rgba(34, 211, 182, 0.08), transparent 46%),
+        rgba(2, 10, 18, 0.42);
+    }
+
+    .search-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-box {
+      position: relative;
+      min-width: 0;
+    }
+
+    .search-box::before {
+      content: "/";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      color: var(--teal);
+      font: 600 15px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .search-box input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid rgba(34, 211, 182, 0.32);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.78);
+      color: var(--ink);
+      padding: 0 14px 0 36px;
+      font: 13px/1 var(--mono);
+      outline: none;
+    }
+
+    .search-box input:focus {
+      border-color: rgba(34, 211, 182, 0.64);
+      box-shadow: 0 0 18px rgba(34, 211, 182, 0.12);
+    }
+
+    .scope-button {
+      height: 42px;
+      border: 1px solid rgba(22, 217, 245, 0.28);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.7);
+      color: rgba(215, 247, 255, 0.78);
+      padding: 0 12px;
+      font: 11px/1 var(--mono);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .scope-button.active {
+      border-color: rgba(34, 211, 182, 0.52);
+      color: var(--teal);
+      background: rgba(34, 211, 182, 0.08);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      min-height: 25px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.5);
+      color: rgba(215, 247, 255, 0.64);
+      padding: 0 9px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .chip.active,
+    .chip:hover,
+    .chip:focus-visible {
+      outline: none;
+      border-color: rgba(34, 211, 182, 0.52);
+      background: rgba(34, 211, 182, 0.1);
+      color: var(--teal);
+    }
+
+    .chip span:last-child {
+      color: rgba(215, 247, 255, 0.42);
+    }
+
+    .window-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 196px minmax(360px, 1fr) minmax(300px, 0.74fr);
+    }
+
+    .facet-rail {
+      min-width: 0;
+      border-right: 1px solid rgba(22, 217, 245, 0.14);
+      background: rgba(2, 8, 14, 0.36);
+      padding: 16px 12px;
+      overflow: hidden;
+    }
+
+    .facet-section {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .facet-title {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1 var(--mono);
+      margin-bottom: 3px;
+    }
+
+    .facet {
+      --facet: var(--cyan);
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.68);
+      padding: 8px 7px 8px 2px;
+      text-align: left;
+      cursor: pointer;
+      font: 10px/1 var(--mono);
+    }
+
+    .facet:hover,
+    .facet.active {
+      border-color: color-mix(in srgb, var(--facet) 40%, transparent);
+      background: color-mix(in srgb, var(--facet) 9%, transparent);
+      color: var(--ink);
+    }
+
+    .facet::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--facet);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--facet) 48%, transparent);
+    }
+
+    .facet strong {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .facet span {
+      color: rgba(120, 154, 170, 0.82);
+    }
+
+    .results {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-right: 1px solid rgba(22, 217, 245, 0.14);
+    }
+
+    .results-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      height: 42px;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.1);
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .result-list {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 14px 16px 18px;
+      overflow: auto;
+    }
+
+    .result-list::before {
+      content: "";
+      position: absolute;
+      left: 29px;
+      top: 24px;
+      bottom: 24px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(34, 211, 182, 0.34), rgba(22, 217, 245, 0.22), transparent);
+    }
+
+    .result {
+      --result: var(--teal);
+      position: relative;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid rgba(22, 217, 245, 0.1);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.48);
+      color: rgba(215, 247, 255, 0.8);
+      padding: 11px 12px 11px 0;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .result:hover,
+    .result.active {
+      border-color: color-mix(in srgb, var(--result) 46%, transparent);
+      background: color-mix(in srgb, var(--result) 9%, rgba(2, 10, 17, 0.68));
+      outline: none;
+    }
+
+    .result-dot {
+      position: relative;
+      z-index: 1;
+      width: 9px;
+      height: 9px;
+      justify-self: center;
+      margin-top: 5px;
+      border: 1px solid var(--result);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--result) 54%, transparent);
+    }
+
+    .result-copy {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .result-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .result-title-line strong {
+      overflow: hidden;
+      color: rgba(226, 249, 255, 0.92);
+      font: 600 12px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-title-line span {
+      flex: 0 0 auto;
+      min-height: 18px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--result) 34%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--result) 80%, white 8%);
+      padding: 0 6px;
+      font: 9px/1 var(--mono);
+    }
+
+    .snippet {
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .result-meta {
+      display: flex;
+      min-width: 0;
+      gap: 10px;
+      color: rgba(120, 154, 170, 0.82);
+      font: 10px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .result-meta span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .score {
+      align-self: center;
+      justify-self: end;
+      color: rgba(215, 247, 255, 0.54);
+      font: 10px/1 var(--mono);
+      text-align: right;
+    }
+
+    .detail {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background:
+        radial-gradient(circle at 70% 26%, rgba(34, 211, 182, 0.07), transparent 42%),
+        rgba(2, 9, 16, 0.48);
+    }
+
+    .detail-head {
+      display: grid;
+      gap: 10px;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+    }
+
+    .detail-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .detail-kicker span:last-child {
+      color: var(--teal);
+    }
+
+    .detail h1 {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 18px/1.25 var(--mono);
+      text-wrap: balance;
+    }
+
+    .detail-summary {
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .detail-body {
+      min-height: 0;
+      overflow: hidden;
+      padding: 15px 18px;
+    }
+
+    .answer-box {
+      border: 1px solid rgba(34, 211, 182, 0.16);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.5);
+      color: rgba(215, 247, 255, 0.76);
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .source-trail {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .section-label {
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .source-item {
+      display: grid;
+      grid-template-columns: 13px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      color: rgba(215, 247, 255, 0.72);
+      font: 10px/1.25 var(--mono);
+    }
+
+    .source-item::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 9px rgba(34, 211, 182, 0.44);
+    }
+
+    .source-item strong {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .source-item span {
+      color: rgba(120, 154, 170, 0.8);
+    }
+
+    .detail-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 13px 18px 16px;
+      border-top: 1px solid rgba(22, 217, 245, 0.12);
+    }
+
+    .detail-actions button {
+      min-height: 30px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .detail-actions .primary {
+      border-color: rgba(34, 211, 182, 0.52);
+      color: var(--teal);
+      background: rgba(34, 211, 182, 0.1);
+    }
+
+    .empty {
+      border: 1px dashed rgba(22, 217, 245, 0.18);
+      border-radius: 7px;
+      color: rgba(215, 247, 255, 0.54);
+      padding: 12px;
+      font: 11px/1.35 var(--mono);
+    }
+
+    .caption {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      z-index: 2;
+      color: rgba(215, 247, 255, 0.48);
+      font: 11px/1 var(--mono);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    @media (max-width: 920px) {
+      .mock-shell {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 72px);
+        min-width: 0;
+      }
+
+      .window-body {
+        grid-template-columns: 1fr;
+      }
+
+      .facet-rail,
+      .detail {
+        display: none;
+      }
+
+      .search-main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="brand">ABC</div>
+    <div class="knowledge-trigger">Knowledge selected</div>
+
+    <svg class="network" viewBox="0 0 1200 820" aria-hidden="true">
+      <g>
+        <line x1="42" y1="130" x2="190" y2="80"></line>
+        <line x1="190" y1="80" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="512" y2="110"></line>
+        <line x1="512" y1="110" x2="700" y2="180"></line>
+        <line x1="700" y1="180" x2="920" y2="100"></line>
+        <line x1="920" y1="100" x2="1120" y2="190"></line>
+        <line x1="120" y1="340" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="430" y2="390"></line>
+        <line x1="430" y1="390" x2="640" y2="330"></line>
+        <line x1="640" y1="330" x2="830" y2="420"></line>
+        <line x1="830" y1="420" x2="1060" y2="330"></line>
+        <line x1="80" y1="600" x2="260" y2="510"></line>
+        <line x1="260" y1="510" x2="430" y2="390"></line>
+        <line x1="430" y1="390" x2="510" y2="650"></line>
+        <line x1="510" y1="650" x2="760" y2="585"></line>
+        <line x1="760" y1="585" x2="1010" y2="640"></line>
+      </g>
+      <g>
+        <circle cx="42" cy="130" r="4"></circle>
+        <circle cx="190" cy="80" r="4" class="hot"></circle>
+        <circle cx="320" cy="166" r="5"></circle>
+        <circle cx="512" cy="110" r="4"></circle>
+        <circle cx="700" cy="180" r="5" class="hot"></circle>
+        <circle cx="920" cy="100" r="4"></circle>
+        <circle cx="1120" cy="190" r="5"></circle>
+        <circle cx="120" cy="340" r="4"></circle>
+        <circle cx="430" cy="390" r="5" class="hot"></circle>
+        <circle cx="640" cy="330" r="4"></circle>
+        <circle cx="830" cy="420" r="5"></circle>
+        <circle cx="1060" cy="330" r="4"></circle>
+        <circle cx="80" cy="600" r="5" class="hot"></circle>
+        <circle cx="260" cy="510" r="4"></circle>
+        <circle cx="510" cy="650" r="5"></circle>
+        <circle cx="760" cy="585" r="4" class="hot"></circle>
+        <circle cx="1010" cy="640" r="5"></circle>
+      </g>
+    </svg>
+
+    <section class="mock-shell" aria-label="Knowledge search mockup">
+      <header class="window-head">
+        <div class="window-title">Knowledge Search</div>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">[]</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="search-head">
+        <div class="search-main">
+          <label class="search-box">
+            <input id="query" type="search" value="memory search slows down" placeholder="search across chats, files, projects, notes, code, web">
+          </label>
+          <button class="scope-button active" type="button" id="answer-mode">Collect answer</button>
+        </div>
+        <div class="chips" id="quick-chips"></div>
+      </div>
+
+      <div class="window-body">
+        <aside class="facet-rail">
+          <section class="facet-section">
+            <div class="facet-title"><span>Sources</span><span id="source-count">all</span></div>
+            <div id="source-facets"></div>
+          </section>
+          <section class="facet-section">
+            <div class="facet-title"><span>Types</span><span id="type-count">all</span></div>
+            <div id="type-facets"></div>
+          </section>
+        </aside>
+
+        <section class="results">
+          <div class="results-meta">
+            <span id="result-count">0 results</span>
+            <span>ranked by relevance + trust</span>
+          </div>
+          <div class="result-list" id="results"></div>
+        </section>
+
+        <aside class="detail" id="detail"></aside>
+      </div>
+    </section>
+
+    <div class="caption">Mockup only. Later: Knowledge node click opens this search window in V2.</div>
+  </main>
+
+  <script>
+    const sources = [
+      ['Chats', 'var(--cyan)'],
+      ['Projects', 'var(--blue)'],
+      ['Local Files', 'var(--teal)'],
+      ['Memory', 'var(--green)'],
+      ['Code', 'var(--amber)'],
+      ['Web', 'var(--red)']
+    ];
+    const types = [
+      ['Answer', 'var(--teal)'],
+      ['Decision', 'var(--amber)'],
+      ['Task', 'var(--blue)'],
+      ['Doc', 'var(--cyan)'],
+      ['Run Log', 'var(--green)'],
+      ['Code', 'var(--red)']
+    ];
+    const results = [
+      {
+        title: 'Candidate pool grows during long memory sessions',
+        source: 'Chats',
+        type: 'Answer',
+        location: 'Vector Debug / 22:24',
+        score: '94%',
+        color: 'var(--teal)',
+        snippet: 'Likely causes: growing candidate pool, duplicate re-ranking paths, and no budget cutoff for older chat context.',
+        summary: 'The strongest answer says the slowdown is not one single query, but accumulated candidates from old context. It recommends tracing where old context enters the search path and adding a cutoff before ranking starts.',
+        trail: [['Chat answer', '22:24'], ['ORCA_MEMORY_STATUS', 'done'], ['Memory graph', 'linked']]
+      },
+      {
+        title: 'Roadmap note: cap memory retrieval before rerank',
+        source: 'Projects',
+        type: 'Decision',
+        location: 'Memory Debug / Roadmap',
+        score: '88%',
+        color: 'var(--amber)',
+        snippet: 'Decision pending: retrieval should apply a session age budget before semantic reranking.',
+        summary: 'Project planning already contains a decision point about a retrieval budget. This should be shown as a pending decision before implementation.',
+        trail: [['Project', 'Memory Debug'], ['Decision', 'waiting'], ['Priority', 'P1']]
+      },
+      {
+        title: 'memory_search.py rerank path reads full candidate list',
+        source: 'Code',
+        type: 'Code',
+        location: 'src/memory_search.py',
+        score: '81%',
+        color: 'var(--red)',
+        snippet: 'Function collects all session candidates before applying the newer top-k threshold.',
+        summary: 'Code result suggests that the top-k threshold is applied too late. The detail panel would eventually expose file path, symbol, and safe open action.',
+        trail: [['File', 'src/memory_search.py'], ['Symbol', 'rerank_candidates'], ['Risk', 'medium']]
+      },
+      {
+        title: 'User todo: confirm old-context cutoff',
+        source: 'Projects',
+        type: 'Task',
+        location: 'Todos / Memory Debug',
+        score: '76%',
+        color: 'var(--blue)',
+        snippet: 'AI traced the likely slowdown point; user should approve the cap.',
+        summary: 'A related project todo exists and can be opened from here. Search should collect both facts and pending work.',
+        trail: [['Todo', 'open'], ['Project', 'Memory Debug'], ['Source', 'AI trace']]
+      },
+      {
+        title: 'Local note: vector DB maintenance during load',
+        source: 'Memory',
+        type: 'Doc',
+        location: 'Local Memory / models',
+        score: '68%',
+        color: 'var(--green)',
+        snippet: 'Gemma can be busy maintaining the database, reducing available memory and slowing downstream actions.',
+        summary: 'This is adjacent context rather than the main cause. It helps explain yellow model availability states during long local sessions.',
+        trail: [['Memory', 'models'], ['Status', 'related'], ['Confidence', 'medium']]
+      },
+      {
+        title: 'External reference: retrieval budget patterns',
+        source: 'Web',
+        type: 'Doc',
+        location: 'Saved web clip',
+        score: '61%',
+        color: 'var(--red)',
+        snippet: 'Use layered retrieval budgets: source cap, age cap, semantic cap, and rerank cap.',
+        summary: 'A saved reference suggests splitting retrieval budgets by source. Since it is external, it should rank below local project evidence unless explicitly requested.',
+        trail: [['Web clip', 'saved'], ['Trust', 'external'], ['Use', 'reference']]
+      }
+    ];
+    const state = {
+      source: 'All',
+      type: 'All',
+      quick: 'All',
+      selected: 0,
+      query: 'memory search slows down'
+    };
+    const sourceFacets = document.getElementById('source-facets');
+    const typeFacets = document.getElementById('type-facets');
+    const quickChips = document.getElementById('quick-chips');
+    const resultList = document.getElementById('results');
+    const resultCount = document.getElementById('result-count');
+    const detail = document.getElementById('detail');
+    const query = document.getElementById('query');
+
+    function countFor(key, value) {
+      if (value === 'All') return results.length;
+      return results.filter(item => item[key] === value).length;
+    }
+
+    function renderFacetList(node, entries, stateKey, countKey) {
+      node.innerHTML = [['All', 'var(--cyan)'], ...entries].map(([label, color]) => `
+        <button class="facet${state[stateKey] === label ? ' active' : ''}" style="--facet:${color}" type="button" data-${stateKey}="${label}">
+          <strong>${label}</strong><span>${countFor(countKey, label)}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderQuickChips() {
+      const chips = ['All', 'Recent', 'Trusted', 'Open Tasks', 'Local Only', 'Needs Decision'];
+      quickChips.innerHTML = chips.map(chip => `
+        <button class="chip${state.quick === chip ? ' active' : ''}" type="button" data-quick="${chip}">
+          <span>${chip}</span><span>${chip === 'All' ? results.length : Math.max(1, Math.floor(results.length / 2))}</span>
+        </button>
+      `).join('');
+    }
+
+    function visibleResults() {
+      const text = state.query.toLowerCase();
+      const tokens = text
+        .split(/\s+/)
+        .map(token => token.replace(/s$/, ""))
+        .filter(token => token.length > 2);
+      return results.filter(item => {
+        const sourceOk = state.source === 'All' || item.source === state.source;
+        const typeOk = state.type === 'All' || item.type === state.type;
+        const haystack = [item.title, item.snippet, item.source, item.type, item.location, item.summary].join(' ').toLowerCase();
+        const textOk = !tokens.length || tokens.some(token => haystack.includes(token));
+        return sourceOk && typeOk && textOk;
+      });
+    }
+
+    function renderResults() {
+      const items = visibleResults();
+      if (!items[state.selected]) state.selected = 0;
+      resultCount.textContent = items.length + (items.length === 1 ? ' result' : ' results');
+      if (!items.length) {
+        resultList.innerHTML = '<div class="empty">No matching knowledge found. Remove a filter or broaden the query.</div>';
+        detail.innerHTML = '<div class="detail-body"><div class="empty">No selected result.</div></div>';
+        return;
+      }
+      resultList.innerHTML = items.map((item, index) => `
+        <button class="result${index === state.selected ? ' active' : ''}" style="--result:${item.color}" type="button" data-result-index="${index}">
+          <span class="result-dot"></span>
+          <span class="result-copy">
+            <span class="result-title-line"><strong>${item.title}</strong><span>${item.type}</span></span>
+            <span class="snippet">${item.snippet}</span>
+            <span class="result-meta"><span>${item.source}</span><span>${item.location}</span></span>
+          </span>
+          <span class="score">${item.score}</span>
+        </button>
+      `).join('');
+      renderDetail(items[state.selected]);
+    }
+
+    function renderDetail(item) {
+      detail.innerHTML = `
+        <div class="detail-head">
+          <div class="detail-kicker"><span>${item.source}</span><span>${item.score}</span></div>
+          <h1>${item.title}</h1>
+          <div class="detail-summary">${item.snippet}</div>
+        </div>
+        <div class="detail-body">
+          <div class="answer-box">${item.summary}</div>
+          <div class="source-trail">
+            <div class="section-label">Source Trail</div>
+            ${item.trail.map(([label, value]) => `<div class="source-item"><strong>${label}</strong><span>${value}</span></div>`).join('')}
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button type="button">Open Source</button>
+          <button type="button">Attach to Chat</button>
+          <button class="primary" type="button">Use Answer</button>
+        </div>
+      `;
+    }
+
+    function render() {
+      renderFacetList(sourceFacets, sources, 'source', 'source');
+      renderFacetList(typeFacets, types, 'type', 'type');
+      renderQuickChips();
+      renderResults();
+      document.getElementById('source-count').textContent = state.source === 'All' ? 'all' : state.source;
+      document.getElementById('type-count').textContent = state.type === 'All' ? 'all' : state.type;
+    }
+
+    sourceFacets.addEventListener('click', event => {
+      const button = event.target.closest('[data-source]');
+      if (!button) return;
+      state.source = button.dataset.source;
+      state.selected = 0;
+      render();
+    });
+
+    typeFacets.addEventListener('click', event => {
+      const button = event.target.closest('[data-type]');
+      if (!button) return;
+      state.type = button.dataset.type;
+      state.selected = 0;
+      render();
+    });
+
+    quickChips.addEventListener('click', event => {
+      const button = event.target.closest('[data-quick]');
+      if (!button) return;
+      state.quick = button.dataset.quick;
+      render();
+    });
+
+    resultList.addEventListener('click', event => {
+      const row = event.target.closest('[data-result-index]');
+      if (!row) return;
+      state.selected = Number(row.dataset.resultIndex);
+      renderResults();
+    });
+
+    query.addEventListener('input', () => {
+      state.query = query.value.trim();
+      state.selected = 0;
+      renderResults();
+    });
+
+    render();
+  </script>
+</body>
+</html>

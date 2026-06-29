@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Odysseus Coding Agent Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #282c34;
+      --panel: #111111;
+      --ink: #9cdef2;
+      --line: #355a66;
+      --red: #e06c75;
+      --blue: #00aaff;
+      --green: #4caf50;
+      --amber: #f0ad4e;
+      --light-bg: #f5f5f5;
+      --light-fg: #2b2b2b;
+      --surface: color-mix(in srgb, var(--panel) 76%, var(--bg));
+      --surface-2: color-mix(in srgb, var(--bg) 56%, var(--panel));
+      --surface-3: color-mix(in srgb, var(--panel) 88%, var(--bg));
+      --muted: color-mix(in srgb, var(--ink) 60%, var(--bg));
+      --line-soft: color-mix(in srgb, var(--line) 58%, var(--panel));
+      --focus: color-mix(in srgb, var(--ink) 18%, transparent);
+      --font: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    button,
+    textarea,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      height: 100dvh;
+      display: grid;
+      grid-template-columns: 260px minmax(420px, 1fr) 360px;
+      grid-template-rows: 46px minmax(0, 1fr) 190px;
+      background: var(--bg);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) auto;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .brand {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-right: 1px solid var(--line-soft);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .mark {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      color: var(--ink);
+      font-size: 10px;
+    }
+
+    .crumbs {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      overflow: hidden;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 24px;
+      max-width: 100%;
+      border: 1px solid var(--line-soft);
+      border-radius: 5px;
+      background: var(--surface-2);
+      color: var(--muted);
+      padding: 0 8px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .pill strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .pill.green { color: var(--green); border-color: color-mix(in srgb, var(--green) 36%, transparent); }
+    .pill.amber { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 36%, transparent); }
+    .pill.red { color: var(--red); border-color: color-mix(in srgb, var(--red) 36%, transparent); }
+    .pill.blue { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 36%, transparent); }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .switch input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--ink);
+    }
+
+    .sidebar {
+      grid-row: 2 / 4;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .repo-card {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .input,
+    .prompt,
+    .editor-textarea {
+      width: 100%;
+      border: 1px solid var(--line-soft);
+      border-radius: 5px;
+      background: var(--panel);
+      color: var(--ink);
+      outline: none;
+    }
+
+    .input {
+      height: 30px;
+      padding: 0 8px;
+      font-size: 14px;
+    }
+
+    .prompt {
+      min-height: 90px;
+      resize: vertical;
+      padding: 8px;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .input:focus,
+    .prompt:focus,
+    .editor-textarea:focus {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 2px var(--focus);
+    }
+
+    .file-pane {
+      min-height: 0;
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .pane-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .file {
+      min-height: 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      padding: 0 8px;
+      color: var(--muted);
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .file:hover,
+    .file.active {
+      border-color: var(--line);
+      background: var(--surface-2);
+      color: var(--ink);
+    }
+
+    .file.dirty::after {
+      content: "edited";
+      color: var(--amber);
+      font-size: 10px;
+    }
+
+    .scope-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .scope-row {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--line-soft);
+      border-radius: 5px;
+      background: var(--panel);
+      padding: 0 8px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .sidebar-footer {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .button {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface-2);
+      color: var(--ink);
+      padding: 0 10px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      border-color: var(--ink);
+      outline: none;
+    }
+
+    .button.primary {
+      border-color: color-mix(in srgb, var(--red) 52%, transparent);
+      background: color-mix(in srgb, var(--red) 18%, var(--panel));
+      color: var(--red);
+    }
+
+    .button.green {
+      border-color: color-mix(in srgb, var(--green) 44%, transparent);
+      color: var(--green);
+    }
+
+    .button.blue {
+      border-color: color-mix(in srgb, var(--blue) 44%, transparent);
+      color: var(--blue);
+    }
+
+    .editor-shell {
+      grid-column: 2;
+      grid-row: 2;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 38px minmax(0, 1fr);
+      border-right: 1px solid var(--line);
+    }
+
+    .tabs {
+      min-width: 0;
+      display: flex;
+      align-items: end;
+      gap: 4px;
+      overflow: auto hidden;
+      padding: 6px 8px 0;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--surface-3);
+    }
+
+    .tab {
+      min-width: 86px;
+      max-width: 220px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--line-soft);
+      border-bottom-color: transparent;
+      border-radius: 7px 7px 0 0;
+      background: var(--surface);
+      color: var(--muted);
+      padding: 0 9px;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .tab.active {
+      background: var(--bg);
+      color: var(--ink);
+      border-color: var(--line);
+      border-bottom-color: var(--bg);
+    }
+
+    .tab span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .editor-main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 32px minmax(0, 1fr);
+      background: var(--bg);
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid var(--line-soft);
+      padding: 0 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .editor-area {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .gutter {
+      overflow: hidden;
+      border-right: 1px solid var(--line-soft);
+      background: var(--panel);
+      color: color-mix(in srgb, var(--muted) 74%, var(--panel));
+      padding: 10px 8px;
+      text-align: right;
+      font: 14px/1.55 var(--mono);
+      user-select: none;
+      white-space: pre;
+    }
+
+    .editor-textarea {
+      min-width: 0;
+      height: 100%;
+      resize: none;
+      border: 0;
+      border-radius: 0;
+      background: var(--bg);
+      color: var(--ink);
+      padding: 10px 12px;
+      font: 14px/1.55 var(--mono);
+      tab-size: 4;
+      white-space: pre;
+    }
+
+    .agent-panel {
+      grid-column: 3;
+      grid-row: 2 / 4;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: var(--surface);
+    }
+
+    .agent-head {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .agent-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .agent-feed {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      padding: 12px;
+    }
+
+    .message {
+      display: grid;
+      gap: 6px;
+      border: 1px solid var(--line-soft);
+      border-radius: 7px;
+      background: var(--panel);
+      padding: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .message strong {
+      color: var(--ink);
+    }
+
+    .message.agent {
+      border-color: var(--line);
+      background: var(--surface-3);
+    }
+
+    .steps {
+      display: grid;
+      gap: 6px;
+    }
+
+    .step {
+      min-height: 28px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line-soft);
+      border-radius: 5px;
+      background: var(--panel);
+      padding: 4px 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--amber) 36%, transparent);
+    }
+
+    .dot.green {
+      background: var(--green);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--green) 36%, transparent);
+    }
+
+    .dot.blue {
+      background: var(--blue);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--blue) 36%, transparent);
+    }
+
+    .agent-compose {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid var(--line-soft);
+      background: var(--surface-3);
+    }
+
+    .bottom {
+      grid-column: 2 / 3;
+      grid-row: 3;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 34px minmax(0, 1fr);
+      border-right: 1px solid var(--line);
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .bottom-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .bottom-tab {
+      height: 25px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      padding: 0 8px;
+      font-size: 14px;
+    }
+
+    .bottom-tab.active {
+      color: var(--ink);
+      border-color: var(--line);
+      background: var(--surface-2);
+    }
+
+    .console {
+      min-height: 0;
+      overflow: auto;
+      margin: 0;
+      padding: 10px 12px;
+      color: var(--ink);
+      font: 14px/1.5 var(--mono);
+      white-space: pre-wrap;
+    }
+
+    .diff-add { color: var(--green); }
+    .diff-del { color: var(--red); }
+    .diff-head { color: var(--blue); }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: 240px minmax(0, 1fr);
+        grid-template-rows: 46px minmax(0, 1fr) 260px;
+      }
+
+      .agent-panel {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        border-top: 1px solid var(--line);
+      }
+
+      .bottom {
+        display: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+        min-height: 100dvh;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 70dvh auto;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .brand,
+      .crumbs,
+      .top-actions {
+        border-right: 0;
+        padding: 8px 12px;
+      }
+
+      .crumbs,
+      .top-actions {
+        flex-wrap: wrap;
+      }
+
+      .sidebar,
+      .editor-shell,
+      .agent-panel {
+        grid-column: 1;
+        grid-row: auto;
+        border-right: 0;
+      }
+
+      .bottom {
+        display: grid;
+        grid-column: 1;
+        grid-row: auto;
+        border-right: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><span class="mark">CA</span><span>Odysseus Coding Agent</span></div>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="top-actions">
+        <label class="switch"><input id="apiMode" type="checkbox"> Backend API</label>
+        <span class="pill green" id="gatePill">Gates aktiv</span>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <section class="repo-card">
+        <label class="label">Repo
+          <input class="input" id="repoId" value="odysseus">
+        </label>
+        <label class="label">Branch
+          <input class="input" id="branchId" value="codex/coding-agent-ui">
+        </label>
+        <label class="label">Auftrag
+          <textarea class="prompt" id="taskPrompt">Baue eine Route, die eine Änderung zusammenfasst, und sichere sie mit Tests ab.</textarea>
+        </label>
+      </section>
+
+      <section class="file-pane">
+        <div class="pane-title"><span>Dateien</span><span id="dirtyCount">0 edited</span></div>
+        <div class="file-list" id="fileList"></div>
+
+        <div class="pane-title"><span>Scope</span><span>Agent darf schreiben</span></div>
+        <div class="scope-list">
+          <div class="scope-row"><span>src/</span><span class="pill green">allow</span></div>
+          <div class="scope-row"><span>routes/</span><span class="pill green">allow</span></div>
+          <div class="scope-row"><span>tests/</span><span class="pill green">allow</span></div>
+          <div class="scope-row"><span>.env, .git</span><span class="pill red">block</span></div>
+        </div>
+      </section>
+
+      <footer class="sidebar-footer">
+        <button class="button primary" id="runAgent">Agent starten</button>
+        <button class="button" id="runTests">Tests laufen lassen</button>
+        <button class="button green" id="acceptPatch">Diff übernehmen</button>
+      </footer>
+    </aside>
+
+    <section class="editor-shell">
+      <nav class="tabs" id="tabs" aria-label="Offene Dateien"></nav>
+      <section class="editor-main">
+        <div class="editor-toolbar">
+          <span id="activePath">src/coding_agent_backend.py</span>
+          <span id="editorMeta">Python · editable</span>
+        </div>
+        <div class="editor-area">
+          <pre class="gutter" id="gutter"></pre>
+          <textarea class="editor-textarea" id="editor" spellcheck="false"></textarea>
+        </div>
+      </section>
+    </section>
+
+    <aside class="agent-panel">
+      <section class="agent-head">
+        <div class="agent-title"><span>Agent</span><span class="pill blue" id="agentState">bereit</span></div>
+        <div class="steps" id="steps"></div>
+      </section>
+      <section class="agent-feed" id="feed"></section>
+      <section class="agent-compose">
+        <label class="label">Nachricht an den Agenten
+          <textarea class="prompt" id="chatInput">Mach die Änderung klein, zeig mir den Diff und führe nur die fokussierten Tests aus.</textarea>
+        </label>
+        <button class="button blue" id="sendChat">Senden</button>
+      </section>
+    </aside>
+
+    <section class="bottom">
+      <nav class="bottom-tabs">
+        <button class="bottom-tab active" data-bottom="terminal">Terminal</button>
+        <button class="bottom-tab" data-bottom="diff">Diff</button>
+        <button class="bottom-tab" data-bottom="review">Review</button>
+      </nav>
+      <pre class="console" id="console"></pre>
+    </section>
+  </main>
+
+  <script>
+    const initialFiles = {
+      'src/coding_agent_backend.py': `from dataclasses import dataclass
+
+
+@dataclass
+class CodingTaskPlan:
+    repo_id: str
+    task_id: str
+    objective: str
+    allowed_paths: list[str]
+    checks: list[list[str]]
+
+
+def build_task_plan(repo_id: str, task_id: str, objective: str) -> CodingTaskPlan:
+    return CodingTaskPlan(
+        repo_id=repo_id,
+        task_id=task_id,
+        objective=objective,
+        allowed_paths=["src", "routes", "tests"],
+        checks=[["python", "-m", "pytest", "tests/test_coding_agent_backend.py", "-q"]],
+    )
+`,
+      'routes/coding_agent_routes.py': `from flask import Blueprint, jsonify, request
+
+from src.coding_agent_backend import build_task_plan
+
+bp = Blueprint("coding_agent", __name__, url_prefix="/api/coding-agent")
+
+
+@bp.post("/repos/<repo_id>/task-plan")
+def create_task_plan(repo_id: str):
+    data = request.get_json(silent=True) or {}
+    plan = build_task_plan(
+        repo_id=repo_id,
+        task_id=data.get("task_id", "manual-task"),
+        objective=data.get("objective", ""),
+    )
+    return jsonify({"success": True, "task_plan": plan.__dict__})
+`,
+      'tests/test_coding_agent_backend.py': `from src.coding_agent_backend import build_task_plan
+
+
+def test_build_task_plan_has_safe_defaults():
+    plan = build_task_plan("demo", "task-1", "add route")
+
+    assert plan.repo_id == "demo"
+    assert plan.task_id == "task-1"
+    assert "src" in plan.allowed_paths
+    assert plan.checks
+`,
+      'app.py': `from flask import Flask
+
+from routes.coding_agent_routes import bp as coding_agent_bp
+
+
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(coding_agent_bp)
+    return app
+`
+    };
+
+    const proposedFiles = {
+      'src/coding_agent_backend.py': `from dataclasses import dataclass
+
+
+@dataclass
+class CodingTaskPlan:
+    repo_id: str
+    task_id: str
+    objective: str
+    allowed_paths: list[str]
+    checks: list[list[str]]
+
+
+def build_task_plan(repo_id: str, task_id: str, objective: str) -> CodingTaskPlan:
+    return CodingTaskPlan(
+        repo_id=repo_id,
+        task_id=task_id,
+        objective=objective,
+        allowed_paths=["src", "routes", "tests"],
+        checks=[["python", "-m", "pytest", "tests/test_coding_agent_backend.py", "-q"]],
+    )
+
+
+def summarize_change(path: str, status: str) -> dict[str, str]:
+    if not path.strip():
+        raise ValueError("path is required")
+    return {"path": path, "status": status or "changed"}
+`,
+      'routes/coding_agent_routes.py': `from flask import Blueprint, jsonify, request
+
+from src.coding_agent_backend import build_task_plan, summarize_change
+
+bp = Blueprint("coding_agent", __name__, url_prefix="/api/coding-agent")
+
+
+@bp.post("/repos/<repo_id>/task-plan")
+def create_task_plan(repo_id: str):
+    data = request.get_json(silent=True) or {}
+    plan = build_task_plan(
+        repo_id=repo_id,
+        task_id=data.get("task_id", "manual-task"),
+        objective=data.get("objective", ""),
+    )
+    return jsonify({"success": True, "task_plan": plan.__dict__})
+
+
+@bp.post("/repos/<repo_id>/change-summary")
+def create_change_summary(repo_id: str):
+    data = request.get_json(silent=True) or {}
+    summary = summarize_change(data.get("path", ""), data.get("status", "changed"))
+    return jsonify({"success": True, "repo_id": repo_id, "summary": summary})
+`,
+      'tests/test_coding_agent_backend.py': `from src.coding_agent_backend import build_task_plan, summarize_change
+
+
+def test_build_task_plan_has_safe_defaults():
+    plan = build_task_plan("demo", "task-1", "add route")
+
+    assert plan.repo_id == "demo"
+    assert plan.task_id == "task-1"
+    assert "src" in plan.allowed_paths
+    assert plan.checks
+
+
+def test_summarize_change_requires_path():
+    try:
+        summarize_change("", "changed")
+    except ValueError as exc:
+        assert "path is required" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_summarize_change_uses_changed_default():
+    assert summarize_change("src/foo.py", "") == {"path": "src/foo.py", "status": "changed"}
+`,
+      'app.py': initialFiles['app.py']
+    };
+
+    const phaseLabels = [
+      ['plan', 'Plan'],
+      ['worktree', 'Worktree'],
+      ['patch', 'Patch'],
+      ['tests', 'Tests'],
+      ['review', 'Review'],
+      ['publish', 'Commit-Plan']
+    ];
+
+    const state = {
+      files: structuredClone(initialFiles),
+      accepted: structuredClone(initialFiles),
+      activeFile: 'src/coding_agent_backend.py',
+      openFiles: ['src/coding_agent_backend.py', 'routes/coding_agent_routes.py', 'tests/test_coding_agent_backend.py'],
+      dirty: new Set(),
+      phase: 'idle',
+      bottom: 'terminal',
+      feed: [
+        { who: 'agent', text: 'Bereit. Gib mir einen Auftrag, ich plane die Änderung, arbeite nur im erlaubten Scope und zeige dir den Diff vor dem Übernehmen.' }
+      ],
+      log: '$ coding-agent ready\\n',
+      review: 'Noch kein Review. Starte den Agenten, dann erscheinen Diff, Teststatus und Commit-Plan.',
+      diff: ''
+    };
+
+    const $ = selector => document.querySelector(selector);
+    const $$ = selector => Array.from(document.querySelectorAll(selector));
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function basename(path) {
+      return path.split('/').pop();
+    }
+
+    function currentTaskId() {
+      return $('#taskPrompt').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'manual-task';
+    }
+
+    function render() {
+      renderCrumbs();
+      renderFiles();
+      renderTabs();
+      renderEditor();
+      renderSteps();
+      renderFeed();
+      renderConsole();
+    }
+
+    function renderCrumbs() {
+      $('#crumbs').innerHTML = [
+        `<span class="pill blue">repo <strong>${escapeHtml($('#repoId').value)}</strong></span>`,
+        `<span class="pill">branch <strong>${escapeHtml($('#branchId').value)}</strong></span>`,
+        `<span class="pill ${state.dirty.size ? 'amber' : 'green'}">files <strong>${state.dirty.size} edited</strong></span>`,
+        `<span class="pill ${state.phase === 'done' ? 'green' : state.phase === 'running' ? 'blue' : 'amber'}">agent <strong>${state.phase}</strong></span>`
+      ].join('');
+      $('#dirtyCount').textContent = `${state.dirty.size} edited`;
+      $('#agentState').textContent = state.phase === 'idle' ? 'bereit' : state.phase === 'running' ? 'arbeitet' : 'review bereit';
+      $('#agentState').className = `pill ${state.phase === 'done' ? 'green' : state.phase === 'running' ? 'blue' : 'amber'}`;
+    }
+
+    function renderFiles() {
+      $('#fileList').innerHTML = Object.keys(state.files).map(path => `
+        <button class="file ${path === state.activeFile ? 'active' : ''} ${state.dirty.has(path) ? 'dirty' : ''}" data-file="${escapeHtml(path)}">
+          <span>${escapeHtml(path)}</span>
+        </button>
+      `).join('');
+      $$('.file').forEach(button => {
+        button.addEventListener('click', () => openFile(button.dataset.file));
+      });
+    }
+
+    function renderTabs() {
+      $('#tabs').innerHTML = state.openFiles.map(path => `
+        <button class="tab ${path === state.activeFile ? 'active' : ''}" data-tab="${escapeHtml(path)}">
+          <span>${escapeHtml(basename(path))}</span>
+          <span>${state.dirty.has(path) ? '*' : ''}</span>
+        </button>
+      `).join('');
+      $$('.tab').forEach(tab => tab.addEventListener('click', () => openFile(tab.dataset.tab)));
+    }
+
+    function renderEditor() {
+      $('#activePath').textContent = state.activeFile;
+      $('#editorMeta').textContent = state.dirty.has(state.activeFile) ? 'Python · changed' : 'Python · editable';
+      if ($('#editor').value !== state.files[state.activeFile]) {
+        $('#editor').value = state.files[state.activeFile];
+      }
+      syncGutter();
+    }
+
+    function syncGutter() {
+      const lines = ($('#editor').value.match(/\n/g) || []).length + 1;
+      $('#gutter').textContent = Array.from({ length: lines }, (_, index) => String(index + 1)).join('\n');
+    }
+
+    function renderSteps() {
+      $('#steps').innerHTML = phaseLabels.map(([id, label]) => {
+        const done = completedPhase(id);
+        const active = state.phase === 'running' && id === state.activePhase;
+        return `<div class="step"><span class="dot ${done ? 'green' : active ? 'blue' : ''}"></span><span>${label}</span><span>${done ? 'ok' : active ? 'run' : 'wait'}</span></div>`;
+      }).join('');
+    }
+
+    function completedPhase(id) {
+      const order = phaseLabels.map(item => item[0]);
+      if (state.phase === 'done') return true;
+      if (!state.activePhase) return false;
+      return order.indexOf(id) < order.indexOf(state.activePhase);
+    }
+
+    function renderFeed() {
+      $('#feed').innerHTML = state.feed.map(message => `
+        <article class="message ${message.who === 'agent' ? 'agent' : ''}">
+          <strong>${message.who === 'agent' ? 'Odysseus' : 'Du'}</strong>
+          <span>${escapeHtml(message.text)}</span>
+        </article>
+      `).join('');
+      $('#feed').scrollTop = $('#feed').scrollHeight;
+    }
+
+    function renderConsole() {
+      if (state.bottom === 'terminal') $('#console').textContent = state.log;
+      if (state.bottom === 'review') $('#console').textContent = state.review;
+      if (state.bottom === 'diff') $('#console').innerHTML = formatDiff(state.diff || 'Noch kein Diff.');
+      $$('.bottom-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.bottom === state.bottom));
+    }
+
+    function formatDiff(value) {
+      return escapeHtml(value)
+        .replace(/^(\+[^+].*)$/gm, '<span class="diff-add">$1</span>')
+        .replace(/^(-[^-].*)$/gm, '<span class="diff-del">$1</span>')
+        .replace(/^(@@.*|---.*|\+\+\+.*)$/gm, '<span class="diff-head">$1</span>');
+    }
+
+    function openFile(path) {
+      state.activeFile = path;
+      if (!state.openFiles.includes(path)) state.openFiles.push(path);
+      render();
+    }
+
+    function setFile(path, content) {
+      state.files[path] = content;
+      if (content === state.accepted[path]) state.dirty.delete(path);
+      else state.dirty.add(path);
+    }
+
+    function appendLog(line) {
+      state.log += `${line}\n`;
+    }
+
+    function addMessage(who, text) {
+      state.feed.push({ who, text });
+    }
+
+    function buildDiff() {
+      const chunks = [];
+      Object.keys(state.files).forEach(path => {
+        if (state.files[path] === state.accepted[path]) return;
+        chunks.push(`--- a/${path}`);
+        chunks.push(`+++ b/${path}`);
+        chunks.push('@@');
+        const before = state.accepted[path].split('\n');
+        const after = state.files[path].split('\n');
+        before.slice(0, 18).forEach(line => chunks.push(`- ${line}`));
+        after.slice(0, 28).forEach(line => chunks.push(`+ ${line}`));
+      });
+      return chunks.join('\n');
+    }
+
+    async function runAgent() {
+      state.phase = 'running';
+      state.log = '$ coding-agent run --repo odysseus --gated\n';
+      addMessage('user', $('#taskPrompt').value.trim());
+      const phases = [
+        ['plan', 'Plan erstellt: kleine Backend-Route, fokussierter Test, Scope src/routes/tests.'],
+        ['worktree', 'Worktree vorbereitet: isolierte Arbeitskopie, kein Commit/Push.'],
+        ['patch', 'Patch erzeugt: Funktion, Route und Tests geändert.'],
+        ['tests', 'Checks ausgeführt: 3 passed.'],
+        ['review', 'Review-Gate bestanden: Diff ist klein und im erlaubten Scope.'],
+        ['publish', 'Commit-Plan bereit: feat: add coding change summary route.']
+      ];
+
+      for (const [id, text] of phases) {
+        state.activePhase = id;
+        appendLog(`> ${id}: ${text}`);
+        if (id === 'patch') applyProposal();
+        if (id === 'tests') state.bottom = 'terminal';
+        render();
+        await new Promise(resolve => setTimeout(resolve, 180));
+      }
+
+      state.phase = 'done';
+      state.activePhase = 'publish';
+      state.diff = buildDiff();
+      state.review = [
+        'Review: approved',
+        '',
+        'Geändert:',
+        '- src/coding_agent_backend.py: summarize_change(path, status)',
+        '- routes/coding_agent_routes.py: POST /change-summary',
+        '- tests/test_coding_agent_backend.py: Pfadvalidierung und Default-Status',
+        '',
+        'Tests:',
+        'python -m pytest tests/test_coding_agent_backend.py -q',
+        '3 passed',
+        '',
+        'Commit-Vorschlag:',
+        'feat: add coding change summary route'
+      ].join('\n');
+      addMessage('agent', 'Ich habe den Patch vorbereitet, Tests simuliert und den Review abgeschlossen. Prüfe den Diff unten und übernimm ihn erst, wenn er passt.');
+      state.bottom = 'diff';
+      render();
+    }
+
+    function applyProposal() {
+      Object.entries(proposedFiles).forEach(([path, content]) => setFile(path, content));
+      state.diff = buildDiff();
+      openFile('routes/coding_agent_routes.py');
+    }
+
+    function runTests() {
+      state.bottom = 'terminal';
+      appendLog('$ python -m pytest tests/test_coding_agent_backend.py -q');
+      appendLog('3 passed in 0.81s');
+      addMessage('agent', 'Die fokussierten Tests sind grün. Der Done-Gate-Status kann jetzt in Review gehen.');
+      render();
+    }
+
+    function acceptPatch() {
+      Object.keys(state.files).forEach(path => {
+        state.accepted[path] = state.files[path];
+      });
+      state.dirty.clear();
+      state.diff = 'Alle vorgeschlagenen Änderungen wurden in den Editor übernommen. Kein offener Diff.';
+      appendLog('$ git status --short');
+      appendLog('working tree clean for accepted mock state');
+      addMessage('agent', 'Diff übernommen. Nächster sinnvoller Schritt wäre Commit/Push durch den Operator, nicht automatisch durch den Agenten.');
+      state.bottom = 'review';
+      render();
+    }
+
+    function sendChat() {
+      const text = $('#chatInput').value.trim();
+      if (!text) return;
+      addMessage('user', text);
+      addMessage('agent', 'Verstanden. Ich halte die Änderung klein, bleibe im Scope und zeige den Diff vor dem Übernehmen.');
+      $('#chatInput').value = '';
+      render();
+    }
+
+    $('#editor').addEventListener('input', event => {
+      setFile(state.activeFile, event.target.value);
+      syncGutter();
+      renderCrumbs();
+      renderFiles();
+      renderTabs();
+    });
+
+    $('#editor').addEventListener('scroll', () => {
+      $('#gutter').scrollTop = $('#editor').scrollTop;
+    });
+
+    $('#runAgent').addEventListener('click', runAgent);
+    $('#runTests').addEventListener('click', runTests);
+    $('#acceptPatch').addEventListener('click', acceptPatch);
+    $('#sendChat').addEventListener('click', sendChat);
+    ['repoId', 'branchId', 'taskPrompt'].forEach(id => $('#' + id).addEventListener('input', renderCrumbs));
+    $$('.bottom-tab').forEach(tab => tab.addEventListener('click', () => {
+      state.bottom = tab.dataset.bottom;
+      renderConsole();
+    }));
+
+    render();
+  </script>
+</body>
+</html>

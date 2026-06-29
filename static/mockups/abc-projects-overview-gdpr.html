@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Projects Overview + GDPR Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --privacy: #9df7d5;
+      --panel: rgba(2, 9, 16, 0.88);
+      --panel-raised: rgba(4, 15, 25, 0.94);
+      --line: rgba(22, 217, 245, 0.22);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    textarea {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 55% 74%, rgba(22, 217, 245, 0.13), transparent 28%),
+        radial-gradient(circle at 15% 15%, rgba(75, 140, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 88% 20%, rgba(34, 211, 182, 0.08), transparent 30%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.026) 0 1px, transparent 1px 5px);
+      opacity: 0.16;
+      mix-blend-mode: screen;
+    }
+
+    .network-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      opacity: 0.9;
+      transition: opacity 220ms ease, filter 220ms ease;
+    }
+
+    .stage.privacy-on .network-canvas {
+      opacity: 0.52;
+      filter: saturate(0.7) hue-rotate(18deg);
+    }
+
+    .privacy-halo {
+      position: absolute;
+      inset: 74px 82px 54px;
+      z-index: 1;
+      pointer-events: none;
+      border: 1px solid rgba(157, 247, 213, 0);
+      border-radius: 18px;
+      opacity: 0;
+      transition: opacity 220ms ease, border-color 220ms ease;
+    }
+
+    .stage.privacy-on .privacy-halo {
+      opacity: 1;
+      border-color: rgba(157, 247, 213, 0.16);
+      box-shadow:
+        inset 0 0 42px rgba(157, 247, 213, 0.035),
+        0 0 42px rgba(157, 247, 213, 0.035);
+    }
+
+    .topline {
+      position: fixed;
+      top: 13px;
+      left: 18px;
+      right: 18px;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: 210px minmax(220px, 1fr) 270px;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .brand-mark,
+    .build-state,
+    .header-title,
+    .privacy-label,
+    .window-title,
+    .metric-value,
+    .project-title {
+      font-family: var(--mono);
+      text-shadow: 0 0 14px rgba(22, 217, 245, 0.45);
+    }
+
+    .brand-mark {
+      width: max-content;
+      color: var(--cyan);
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      pointer-events: auto;
+    }
+
+    .header-center {
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .header-title {
+      color: rgba(215, 247, 255, 0.86);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .model-chip {
+      position: relative;
+      border: 1px solid rgba(22, 217, 245, 0.2);
+      border-radius: 7px;
+      background: rgba(4, 18, 28, 0.82);
+      color: rgba(215, 247, 255, 0.7);
+      padding: 5px 8px;
+      font: 11px/1 var(--mono);
+    }
+
+    .header-right {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .build-state {
+      color: rgba(215, 247, 255, 0.52);
+      font-size: 11px;
+    }
+
+    .privacy-switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .privacy-switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .privacy-track {
+      position: relative;
+      width: 46px;
+      height: 22px;
+      border: 1px solid rgba(22, 217, 245, 0.28);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.88);
+      pointer-events: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .privacy-track::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 5px;
+      width: 12px;
+      height: 12px;
+      border: 1px solid rgba(215, 247, 255, 0.6);
+      border-radius: 50%;
+      background: rgba(22, 217, 245, 0.22);
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .privacy-switch input:checked + .privacy-track {
+      border-color: rgba(157, 247, 213, 0.75);
+      background: rgba(8, 34, 29, 0.9);
+      box-shadow: 0 0 16px rgba(157, 247, 213, 0.14);
+    }
+
+    .privacy-switch input:checked + .privacy-track::before {
+      transform: translateX(23px);
+      border-color: rgba(157, 247, 213, 0.88);
+      background: rgba(157, 247, 213, 0.42);
+    }
+
+    .privacy-label {
+      color: rgba(215, 247, 255, 0.68);
+      font-size: 11px;
+    }
+
+    .stage.privacy-on .privacy-label {
+      color: var(--privacy);
+    }
+
+    .workspace {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      padding: 62px 40px 38px;
+    }
+
+    .floating-window {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      min-width: 280px;
+      min-height: 260px;
+      overflow: hidden;
+      border: 1px solid rgba(22, 217, 245, 0.25);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(22, 217, 245, 0.05), transparent 118px),
+        var(--panel);
+      box-shadow: 0 0 0 1px rgba(22, 217, 245, 0.05);
+    }
+
+    .floating-window.active {
+      border-color: rgba(22, 217, 245, 0.62);
+      box-shadow:
+        0 0 0 1px rgba(22, 217, 245, 0.1),
+        0 0 28px rgba(22, 217, 245, 0.06);
+    }
+
+    .stage.privacy-on .floating-window {
+      border-color: rgba(157, 247, 213, 0.28);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.14);
+      background: rgba(2, 8, 14, 0.64);
+    }
+
+    .window-title {
+      color: rgba(215, 247, 255, 0.9);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .window-subtitle {
+      position: absolute;
+      left: 12px;
+      color: rgba(120, 154, 170, 0.78);
+      font: 10px/1 var(--mono);
+    }
+
+    .window-actions {
+      position: absolute;
+      top: 10px;
+      right: 9px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .window-control {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: rgba(22, 217, 245, 0.76);
+      padding: 0;
+      font: 13px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .window-body {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .core-window {
+      left: clamp(26px, 4vw, 66px);
+      top: 92px;
+      width: min(520px, 38vw);
+      height: calc(100dvh - 148px);
+      z-index: 5;
+    }
+
+    .projects-overview-window {
+      left: min(47vw, 660px);
+      top: 86px;
+      width: min(680px, calc(100vw - 700px));
+      min-width: 540px;
+      height: calc(100dvh - 132px);
+      z-index: 8;
+    }
+
+    .chat-body {
+      display: flex;
+      flex-direction: column;
+      padding: 28px 26px 22px 40px;
+    }
+
+    .messages {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      padding-left: 24px;
+      overflow: hidden;
+    }
+
+    .messages::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 16px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(75, 140, 255, 0.38), rgba(255, 92, 115, 0.24), transparent);
+    }
+
+    .message {
+      position: relative;
+      padding: 14px 14px;
+      border: 1px solid rgba(22, 217, 245, 0.08);
+      border-radius: 8px;
+      background: rgba(3, 13, 22, 0.62);
+      color: rgba(215, 247, 255, 0.78);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message::before {
+      content: "";
+      position: absolute;
+      left: -29px;
+      top: 20px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 12px rgba(75, 140, 255, 0.7);
+    }
+
+    .message::after {
+      content: "";
+      position: absolute;
+      left: -23px;
+      top: 23px;
+      width: 22px;
+      height: 1px;
+      background: rgba(75, 140, 255, 0.42);
+    }
+
+    .message.user {
+      color: rgba(215, 247, 255, 0.66);
+      font: 13px/1.5 var(--mono);
+    }
+
+    .message.user::before {
+      background: var(--red);
+      box-shadow: 0 0 12px rgba(255, 92, 115, 0.58);
+    }
+
+    .message.user::after {
+      background: rgba(255, 92, 115, 0.35);
+    }
+
+    .composer-shell {
+      position: relative;
+      margin-top: 18px;
+    }
+
+    .context-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 8px;
+    }
+
+    .context-chip,
+    .repo-chip,
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 999px;
+      background: rgba(4, 18, 28, 0.72);
+      color: rgba(215, 247, 255, 0.7);
+      padding: 5px 8px;
+      font: 10px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .stage.privacy-on .context-chip,
+    .stage.privacy-on .repo-chip {
+      border-color: rgba(157, 247, 213, 0.45);
+      color: rgba(157, 247, 213, 0.9);
+      background: rgba(8, 34, 29, 0.5);
+    }
+
+    .composer {
+      min-height: 94px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto auto auto;
+      align-items: end;
+      gap: 8px;
+      border: 1px solid rgba(22, 217, 245, 0.28);
+      border-radius: 9px;
+      background: rgba(2, 10, 17, 0.82);
+      padding: 10px 14px 14px 10px;
+    }
+
+    .prompt-input {
+      width: 100%;
+      min-height: 68px;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.78);
+      font: 14px/1.45 var(--mono);
+      padding: 7px 4px;
+    }
+
+    .tool-btn,
+    .mode-pill,
+    .voice-btn,
+    .send-btn {
+      display: grid;
+      place-items: center;
+      height: 32px;
+      border: 1px solid rgba(22, 217, 245, 0.2);
+      border-radius: 7px;
+      background: rgba(7, 24, 36, 0.76);
+      color: rgba(22, 217, 245, 0.88);
+      cursor: pointer;
+    }
+
+    .tool-btn,
+    .voice-btn,
+    .send-btn { width: 32px; }
+
+    .mode-pill {
+      grid-template-columns: 1fr 1fr;
+      width: 84px;
+      padding: 0 3px;
+      font: 10px/1 var(--mono);
+    }
+
+    .mode-pill span {
+      display: grid;
+      place-items: center;
+      height: 24px;
+      border-radius: 5px;
+      color: rgba(215, 247, 255, 0.42);
+    }
+
+    .mode-pill .active {
+      background: rgba(22, 217, 245, 0.12);
+      color: var(--cyan);
+    }
+
+    .projects-layout {
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr);
+      height: 100%;
+      min-height: 0;
+    }
+
+    .project-rail {
+      position: relative;
+      border-right: 1px solid rgba(22, 217, 245, 0.16);
+      background: rgba(2, 8, 14, 0.34);
+      padding: 18px 12px;
+      overflow: hidden;
+    }
+
+    .rail-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1 var(--mono);
+    }
+
+    .rail-count {
+      color: rgba(22, 217, 245, 0.8);
+    }
+
+    .project-list {
+      position: relative;
+      display: grid;
+      gap: 8px;
+    }
+
+    .project-list::before {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(255, 92, 115, 0.42), rgba(22, 217, 245, 0.24), transparent);
+    }
+
+    .project-row {
+      --status: var(--blue);
+      position: relative;
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 9px 8px 9px 2px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .project-row:hover,
+    .project-row.active {
+      border-color: color-mix(in srgb, var(--status) 42%, transparent);
+      background: color-mix(in srgb, var(--status) 10%, transparent);
+    }
+
+    .project-dot {
+      position: relative;
+      z-index: 1;
+      width: 8px;
+      height: 8px;
+      justify-self: center;
+      border: 1px solid var(--status);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.92);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--status) 55%, transparent);
+    }
+
+    .project-name {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .project-name strong {
+      overflow: hidden;
+      color: rgba(215, 247, 255, 0.9);
+      font: 600 12px/1.1 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-name span {
+      overflow: hidden;
+      color: rgba(120, 154, 170, 0.82);
+      font: 10px/1 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .progress-mini {
+      color: color-mix(in srgb, var(--status) 74%, white 10%);
+      font: 10px/1 var(--mono);
+    }
+
+    .overview {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      padding: 16px;
+      gap: 12px;
+    }
+
+    .overview-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .project-title {
+      margin: 0 0 8px;
+      color: rgba(215, 247, 255, 0.95);
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .project-sub {
+      max-width: 52ch;
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .status-stack {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .status-chip.ready { border-color: rgba(74, 222, 128, 0.42); color: var(--green); }
+    .status-chip.waiting { border-color: rgba(247, 185, 85, 0.42); color: var(--amber); }
+    .status-chip.blocked { border-color: rgba(255, 92, 115, 0.42); color: var(--red); }
+    .status-chip.privacy { border-color: rgba(157, 247, 213, 0.42); color: var(--privacy); display: none; }
+    .stage.privacy-on .status-chip.privacy { display: inline-flex; }
+
+    .metric-strip {
+      display: grid;
+      gap: 0;
+      margin-top: 16px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(22, 217, 245, 0.12);
+    }
+
+    .metric {
+      min-width: 0;
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0 2px 0 14px;
+      position: relative;
+    }
+
+    .metric::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.92);
+      box-shadow: 0 0 8px rgba(22, 217, 245, 0.34);
+      transform: translateY(-50%);
+    }
+
+    .metric-label {
+      display: inline;
+      margin: 0;
+      color: rgba(120, 154, 170, 0.78);
+      font: 9px/1 var(--mono);
+    }
+
+    .metric-label::after {
+      content: "";
+    }
+
+    .metric-value {
+      display: inline-block;
+      max-width: 76px;
+      overflow: hidden;
+      color: rgba(215, 247, 255, 0.88);
+      font-size: 10.5px;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview-main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(190px, 0.74fr);
+      gap: 12px;
+    }
+
+    .graph-panel,
+    .decision-panel {
+      min-height: 0;
+      border: 1px solid rgba(22, 217, 245, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.48);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.1);
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1 var(--mono);
+    }
+
+    .view-tabs {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .view-tabs button {
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.48);
+      padding: 4px 7px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .view-tabs button.active {
+      background: rgba(22, 217, 245, 0.12);
+      color: var(--cyan);
+    }
+
+    .roadmap-graph {
+      position: relative;
+      height: calc(100% - 36px);
+      min-height: 330px;
+      background:
+        radial-gradient(circle at 52% 46%, rgba(22, 217, 245, 0.07), transparent 48%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    }
+
+    .graph-line {
+      position: absolute;
+      height: 1px;
+      transform-origin: left center;
+      background: linear-gradient(90deg, rgba(22, 217, 245, 0.1), rgba(22, 217, 245, 0.42), rgba(22, 217, 245, 0.1));
+    }
+
+    .graph-node {
+      --node: var(--blue);
+      position: absolute;
+      width: 94px;
+      min-height: 54px;
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      border: 1px solid color-mix(in srgb, var(--node) 44%, transparent);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--node) 9%, rgba(2, 10, 17, 0.9));
+      padding: 10px;
+    }
+
+    .graph-node::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--node);
+      border-radius: 50%;
+      box-shadow: 0 0 12px color-mix(in srgb, var(--node) 62%, transparent);
+    }
+
+    .graph-node strong {
+      color: rgba(215, 247, 255, 0.86);
+      font: 600 10px/1.2 var(--mono);
+    }
+
+    .graph-node span {
+      color: color-mix(in srgb, var(--node) 76%, white 6%);
+      font: 10px/1 var(--mono);
+    }
+
+    .decision-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .decision-list {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .decision-row {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr);
+      gap: 9px;
+      align-items: start;
+      border: 1px solid rgba(22, 217, 245, 0.1);
+      border-radius: 7px;
+      background: rgba(2, 10, 17, 0.5);
+      padding: 9px;
+    }
+
+    .decision-row::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-top: 5px;
+      border: 1px solid var(--amber);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(247, 185, 85, 0.54);
+    }
+
+    .decision-row strong {
+      display: block;
+      margin-bottom: 4px;
+      color: rgba(215, 247, 255, 0.86);
+      font: 600 12px/1.25 var(--mono);
+    }
+
+    .decision-row span {
+      color: rgba(215, 247, 255, 0.58);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .privacy-note {
+      position: absolute;
+      right: 24px;
+      bottom: 18px;
+      z-index: 4;
+      max-width: 330px;
+      opacity: 0;
+      transform: translateY(8px);
+      border: 1px solid rgba(157, 247, 213, 0.22);
+      border-radius: 8px;
+      background: rgba(3, 20, 18, 0.86);
+      color: rgba(215, 247, 255, 0.74);
+      padding: 10px 12px;
+      font: 11px/1.45 var(--mono);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .stage.privacy-on .privacy-note {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1120px) {
+      .topline {
+        grid-template-columns: 90px 1fr 220px;
+      }
+
+      .workspace {
+        overflow: auto;
+      }
+
+      .core-window,
+      .projects-overview-window {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        min-width: 0;
+        height: 620px;
+        margin-bottom: 18px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <canvas class="network-canvas" id="network-canvas" aria-hidden="true"></canvas>
+    <div class="privacy-halo" aria-hidden="true"></div>
+
+    <header class="topline" aria-label="ABC project overview mockup">
+      <div class="brand-mark">ABC</div>
+      <div class="header-center">
+        <div class="header-title">Vector Debug</div>
+        <button class="model-chip" type="button">deepseek-v4-flash</button>
+      </div>
+      <div class="header-right">
+        <label class="privacy-switch">
+          <input id="privacy-toggle" type="checkbox" aria-label="Toggle GDPR mode">
+          <span class="privacy-track" aria-hidden="true"></span>
+          <span class="privacy-label">GDPR</span>
+        </label>
+        <div class="build-state" id="build-state">Projects / Overview mockup</div>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="ABC workspace">
+      <article class="floating-window core-window" aria-label="Project chat">
+        <header class="window-head">
+          <div class="window-subtitle">chat</div>
+          <div class="window-title">Project Chat</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" type="button" aria-label="Minimize">-</button>
+            <button class="window-control" type="button" aria-label="Maximize">□</button>
+            <button class="window-control" type="button" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-body chat-body">
+          <main class="messages" aria-label="Chat messages">
+            <div class="message user">Show me what still blocks the project and what should happen next.</div>
+            <div class="message">The active project is ready for the next roadmap step. One decision is waiting before push, but local work can continue safely.</div>
+            <div class="message">I will keep this chat bound to the selected project context, including repo, branch, open roadmap and current changes.</div>
+          </main>
+          <footer class="composer-shell">
+            <div class="context-row" aria-label="Active context">
+              <span class="context-chip">Project: Frontend V2</span>
+              <span class="repo-chip">dev +84</span>
+            </div>
+            <div class="composer">
+              <button class="tool-btn" type="button" aria-label="Open composer tools">◇</button>
+              <textarea class="prompt-input" rows="3" placeholder="/ ask ABC something">Plan the next clean slice.</textarea>
+              <button class="mode-pill" type="button" aria-label="Plan or Agent mode"><span>Plan</span><span class="active">Agent</span></button>
+              <button class="voice-btn" type="button" aria-label="Voice input">⌕</button>
+              <button class="send-btn" type="button" aria-label="Send">↑</button>
+            </div>
+          </footer>
+        </div>
+      </article>
+
+      <article class="floating-window projects-overview-window active" aria-label="Projects and overview">
+        <header class="window-head">
+          <div class="window-subtitle">projects</div>
+          <div class="window-title">Projects / Overview</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" type="button" aria-label="Minimize">-</button>
+            <button class="window-control" type="button" aria-label="Maximize">□</button>
+            <button class="window-control" type="button" aria-label="Close">x</button>
+          </div>
+        </header>
+
+        <div class="window-body projects-layout">
+          <aside class="project-rail" aria-label="Project list">
+            <div class="rail-title">
+              <span>Projects</span>
+              <span class="rail-count">4</span>
+            </div>
+            <div class="project-list">
+              <button class="project-row active" style="--status: var(--blue)" type="button">
+                <span class="project-dot"></span>
+                <span class="project-name"><strong>Frontend V2</strong><span>active · needs review</span></span>
+                <span class="progress-mini">8/14</span>
+              </button>
+              <button class="project-row" style="--status: var(--green)" type="button">
+                <span class="project-dot"></span>
+                <span class="project-name"><strong>Memory Debug</strong><span>ready · checks green</span></span>
+                <span class="progress-mini">5/5</span>
+              </button>
+              <button class="project-row" style="--status: var(--amber)" type="button">
+                <span class="project-dot"></span>
+                <span class="project-name"><strong>Local Models</strong><span>waiting · choose setup</span></span>
+                <span class="progress-mini">2/7</span>
+              </button>
+              <button class="project-row" style="--status: var(--red)" type="button">
+                <span class="project-dot"></span>
+                <span class="project-name"><strong>Project Atlas</strong><span>blocked · repo missing</span></span>
+                <span class="progress-mini">1/9</span>
+              </button>
+            </div>
+            <div class="metric-strip" aria-label="Project metrics">
+              <div class="metric"><span class="metric-label">Progress</span><span class="metric-value">8 / 14</span></div>
+              <div class="metric"><span class="metric-label">Next</span><span class="metric-value">Overview</span></div>
+              <div class="metric"><span class="metric-label">Branch</span><span class="metric-value">dev +84</span></div>
+              <div class="metric"><span class="metric-label">Decision</span><span class="metric-value">1 waiting</span></div>
+            </div>
+          </aside>
+
+          <section class="overview" aria-label="Selected project overview">
+            <div class="overview-head">
+              <div>
+                <h1 class="project-title">Frontend V2</h1>
+                <div class="project-sub">A zero-sidebar interface with project context, floating windows, roadmap visibility and a minimal command surface.</div>
+              </div>
+              <div class="status-stack">
+                <span class="status-chip ready">repo ready</span>
+                <span class="status-chip waiting">push held</span>
+                <span class="status-chip privacy">privacy mode</span>
+              </div>
+            </div>
+
+            <div class="overview-main">
+              <section class="graph-panel" aria-label="Roadmap graph">
+                <div class="panel-head">
+                  <span>Roadmap</span>
+                  <div class="view-tabs" aria-label="Overview views">
+                    <button class="active" type="button">Graph</button>
+                    <button type="button">List</button>
+                    <button type="button">Changes</button>
+                  </div>
+                </div>
+                <div class="roadmap-graph">
+                  <span class="graph-line" style="left: 90px; top: 90px; width: 76px; rotate: 28deg;"></span>
+                  <span class="graph-line" style="left: 132px; top: 154px; width: 78px; rotate: 134deg;"></span>
+                  <span class="graph-line" style="left: 88px; top: 214px; width: 76px; rotate: 24deg;"></span>
+                  <span class="graph-line" style="left: 136px; top: 254px; width: 62px; rotate: 130deg;"></span>
+                  <div class="graph-node" style="--node: var(--green); left: 30px; top: 54px;"><strong>Shell</strong><span>done</span></div>
+                  <div class="graph-node" style="--node: var(--blue); left: 132px; top: 112px;"><strong>Projects</strong><span>active</span></div>
+                  <div class="graph-node" style="--node: var(--amber); left: 34px; top: 182px;"><strong>Decisions</strong><span>waiting</span></div>
+                  <div class="graph-node" style="--node: var(--cyan); left: 132px; top: 238px;"><strong>Composer</strong><span>ready</span></div>
+                  <div class="graph-node" style="--node: var(--red); left: 34px; top: 292px;"><strong>Deploy</strong><span>held</span></div>
+                </div>
+              </section>
+
+              <section class="decision-panel" aria-label="Next decisions">
+                <div class="panel-head">
+                  <span>Next Steps</span>
+                  <span>human-readable</span>
+                </div>
+                <div class="decision-list">
+                  <div class="decision-row">
+                    <div><strong>Choose Overview layout</strong><span>Keep combined project list and overview in one window.</span></div>
+                  </div>
+                  <div class="decision-row">
+                    <div><strong>Keep push held</strong><span>Local commit can be prepared, but remote push waits for approval.</span></div>
+                  </div>
+                  <div class="decision-row">
+                    <div><strong>Attach to chat</strong><span>The selected project context stays visible as composer nodges.</span></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </article>
+    </section>
+
+    <div class="privacy-note" id="privacy-note">
+      GDPR mode active: background data flow is reduced, project/repo context is marked as protected, and sensitive actions should require explicit confirmation.
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const stage = document.getElementById('stage');
+      const toggle = document.getElementById('privacy-toggle');
+      const buildState = document.getElementById('build-state');
+      const canvas = document.getElementById('network-canvas');
+      const ctx = canvas.getContext('2d');
+      let dpr = 1;
+      let nodes = [];
+      let edges = [];
+      let signals = [];
+      let frame = 0;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        setupNetwork();
+      }
+
+      function setupNetwork() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const spreadX = w * 1.35;
+        const spreadY = h * 1.28;
+        const offsetX = (spreadX - w) / 2;
+        const offsetY = (spreadY - h) / 2;
+        const cols = Math.max(8, Math.ceil(spreadX / 185));
+        const rows = Math.max(6, Math.ceil(spreadY / 155));
+        nodes = [];
+        edges = [];
+        signals = [];
+
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            nodes.push({
+              id: nodes.length,
+              x: x / Math.max(1, cols - 1) * spreadX - offsetX + (Math.random() - 0.5) * 82,
+              y: y / Math.max(1, rows - 1) * spreadY - offsetY + (Math.random() - 0.5) * 68,
+              r: 1.1 + Math.random() * 2.1,
+              phase: Math.random() * Math.PI * 2
+            });
+          }
+        }
+
+        const seen = new Set();
+        nodes.forEach(node => {
+          nodes
+            .filter(other => other !== node)
+            .map(other => ({ other, distance: Math.hypot(other.x - node.x, other.y - node.y) }))
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 5)
+            .forEach(({ other, distance }) => {
+              const key = [node.id, other.id].sort((a, b) => a - b).join(':');
+              if (seen.has(key) || distance > 300) return;
+              seen.add(key);
+              edges.push({ a: node, b: other, distance });
+            });
+        });
+      }
+
+      function addSignal() {
+        if (!edges.length) return;
+        const edge = edges[Math.floor(Math.random() * edges.length)];
+        signals.push({
+          edge,
+          age: 0,
+          life: stage.classList.contains('privacy-on') ? 2400 + Math.random() * 1800 : 1300 + Math.random() * 1200,
+          dir: Math.random() > 0.5 ? 1 : -1,
+          privacy: stage.classList.contains('privacy-on')
+        });
+      }
+
+      function draw(now) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const privacy = stage.classList.contains('privacy-on');
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.lineWidth = 1;
+
+        edges.forEach(edge => {
+          const alpha = privacy ? 0.026 : Math.max(0.018, 0.052 - edge.distance / 900);
+          ctx.strokeStyle = privacy ? `rgba(157, 247, 213, ${alpha})` : `rgba(69, 215, 255, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(edge.a.x, edge.a.y);
+          ctx.lineTo(edge.b.x, edge.b.y);
+          ctx.stroke();
+        });
+
+        nodes.forEach(node => {
+          const pulse = 0.55 + Math.sin(now * 0.0012 + node.phase) * 0.25;
+          ctx.fillStyle = privacy ? `rgba(157, 247, 213, ${0.1 + pulse * 0.08})` : `rgba(130, 232, 255, ${0.16 + pulse * 0.12})`;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        if (frame % (privacy ? 28 : 12) === 0 || signals.length < (privacy ? 3 : 9)) addSignal();
+        ctx.globalCompositeOperation = 'lighter';
+        signals = signals.filter(signal => {
+          signal.age += 16;
+          const p = signal.age / signal.life;
+          if (p >= 1) return false;
+          const t = signal.dir > 0 ? p : 1 - p;
+          const x = signal.edge.a.x + (signal.edge.b.x - signal.edge.a.x) * t;
+          const y = signal.edge.a.y + (signal.edge.b.y - signal.edge.a.y) * t;
+          const alpha = Math.min(1, p * 5, (1 - p) * 5) * (signal.privacy ? 0.22 : 0.42);
+          ctx.fillStyle = signal.privacy ? `rgba(157, 247, 213, ${alpha})` : `rgba(22, 217, 245, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(x, y, signal.privacy ? 1.5 : 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          return true;
+        });
+
+        ctx.restore();
+        frame++;
+        requestAnimationFrame(draw);
+      }
+
+      toggle.addEventListener('change', () => {
+        stage.classList.toggle('privacy-on', toggle.checked);
+        buildState.textContent = toggle.checked ? 'GDPR mode active' : 'Projects / Overview mockup';
+        signals = [];
+      });
+
+      window.addEventListener('resize', resize);
+      resize();
+      requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>

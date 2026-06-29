@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Universal Inbox Min Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 52% 76%, rgba(10, 164, 214, 0.13), transparent 28%),
+        radial-gradient(circle at 14% 18%, rgba(30, 92, 182, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(34, 211, 182, 0.08), transparent 34%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.034) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      opacity: 0.62;
+    }
+
+    .network line {
+      stroke: rgba(22, 217, 245, 0.12);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.17);
+      stroke: rgba(22, 217, 245, 0.32);
+      stroke-width: 1;
+    }
+
+    .network .hot {
+      fill: rgba(34, 211, 182, 0.36);
+      filter: drop-shadow(0 0 10px rgba(34, 211, 182, 0.44));
+    }
+
+    .brand {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      z-index: 2;
+      color: var(--cyan);
+      font: 600 18px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(22, 217, 245, 0.38);
+    }
+
+    .inbox-shell {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      z-index: 3;
+      width: min(440px, calc(100vw - 48px));
+      height: auto;
+      border: 1px solid rgba(34, 211, 182, 0.42);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        #07111d;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.44),
+        0 0 0 1px rgba(34, 211, 182, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+      transition:
+        width 180ms ease,
+        height 180ms ease,
+        top 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease;
+    }
+
+    .inbox-shell.expanded {
+      top: 52%;
+      width: min(760px, calc(100vw - 64px));
+      height: min(520px, calc(100dvh - 96px));
+      border-color: rgba(34, 211, 182, 0.56);
+      box-shadow:
+        0 28px 68px rgba(0, 0, 0, 0.48),
+        0 0 0 1px rgba(34, 211, 182, 0.12);
+    }
+
+    .inbox-head {
+      position: relative;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font-family: var(--mono);
+    }
+
+    .inbox-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font: 600 13px/1 var(--mono);
+    }
+
+    .inbox-title::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(34, 211, 182, 0.58);
+    }
+
+    .inbox-actions {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      display: inline-flex;
+      gap: 16px;
+      color: var(--cyan);
+      transform: translateY(-50%);
+    }
+
+    .inbox-actions button {
+      width: 16px;
+      height: 20px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: 14px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .drop-zone {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .inbox-shell.expanded .drop-zone {
+      grid-template-rows: auto auto 1fr;
+      height: calc(100% - 44px);
+    }
+
+    .inbox-shell.minimized .drop-zone {
+      padding: 16px;
+    }
+
+    .drop-field {
+      position: relative;
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed rgba(34, 211, 182, 0.34);
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(34, 211, 182, 0.08), transparent 60%),
+        rgba(2, 9, 16, 0.56);
+      overflow: hidden;
+    }
+
+    .drop-field::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(180deg, transparent, rgba(34, 211, 182, 0.42), transparent);
+      opacity: 0.82;
+    }
+
+    .drop-field::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 58px;
+      height: 58px;
+      border: 1px solid rgba(34, 211, 182, 0.28);
+      border-radius: 12px;
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    .drop-copy {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+      text-align: center;
+      font-family: var(--mono);
+    }
+
+    .drop-copy strong {
+      color: rgba(226, 249, 255, 0.92);
+      font-size: 13px;
+    }
+
+    .drop-copy span {
+      color: rgba(120, 154, 170, 0.86);
+      font-size: 10px;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      justify-content: center;
+    }
+
+    .inbox-shell.minimized .status-row {
+      display: none;
+    }
+
+    .status {
+      min-height: 23px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.5);
+      color: rgba(215, 247, 255, 0.64);
+      padding: 0 8px;
+      font: 10px/1 var(--mono);
+    }
+
+    .status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(22, 217, 245, 0.4);
+    }
+
+    .status.cloud::before {
+      border-color: var(--teal);
+      box-shadow: 0 0 8px rgba(34, 211, 182, 0.42);
+    }
+
+    .status.safe::before {
+      border-color: var(--green);
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.42);
+    }
+
+    .status.warn::before {
+      border-color: var(--amber);
+      box-shadow: 0 0 8px rgba(247, 185, 85, 0.42);
+    }
+
+    .expanded-placeholder {
+      display: none;
+      min-height: 0;
+      border: 1px solid rgba(22, 217, 245, 0.12);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 22% 24%, rgba(34, 211, 182, 0.07), transparent 46%),
+        rgba(2, 10, 17, 0.46);
+      padding: 14px;
+    }
+
+    .inbox-shell.expanded .expanded-placeholder {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .expanded-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1 var(--mono);
+    }
+
+    .expanded-title span:last-child {
+      color: var(--teal);
+    }
+
+    .expanded-list {
+      position: relative;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .expanded-list::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(34, 211, 182, 0.34), rgba(22, 217, 245, 0.22), transparent);
+    }
+
+    .expanded-row {
+      --row: var(--teal);
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 58px;
+      border: 1px solid rgba(22, 217, 245, 0.11);
+      border-radius: 7px;
+      background: rgba(2, 10, 17, 0.48);
+      padding: 10px 12px 10px 0;
+      font-family: var(--mono);
+    }
+
+    .expanded-row:hover {
+      border-color: color-mix(in srgb, var(--row) 42%, transparent);
+      background: color-mix(in srgb, var(--row) 8%, rgba(2, 10, 17, 0.62));
+    }
+
+    .expanded-row::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      justify-self: center;
+      border: 1px solid var(--row);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 11px color-mix(in srgb, var(--row) 54%, transparent);
+    }
+
+    .expanded-row-copy {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .expanded-row strong {
+      color: rgba(226, 249, 255, 0.88);
+      font-size: 11px;
+    }
+
+    .expanded-row-copy span {
+      color: rgba(120, 154, 170, 0.82);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .expanded-row-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+
+    .expanded-row-action {
+      min-height: 26px;
+      border: 1px solid rgba(22, 217, 245, 0.18);
+      border-radius: 6px;
+      background: rgba(2, 9, 16, 0.68);
+      color: rgba(215, 247, 255, 0.7);
+      padding: 0 8px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .expanded-row-action.primary {
+      border-color: color-mix(in srgb, var(--row) 54%, transparent);
+      color: color-mix(in srgb, var(--row) 82%, white);
+      background: color-mix(in srgb, var(--row) 10%, rgba(2, 9, 16, 0.68));
+    }
+
+    .expanded-row-action:hover,
+    .expanded-row-action:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--row) 68%, transparent);
+      color: var(--ink);
+    }
+
+    .caption {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      z-index: 2;
+      color: rgba(215, 247, 255, 0.48);
+      font: 11px/1 var(--mono);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="brand">ABC</div>
+    <svg class="network" viewBox="0 0 1200 820" aria-hidden="true">
+      <g>
+        <line x1="42" y1="130" x2="190" y2="80"></line>
+        <line x1="190" y1="80" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="512" y2="110"></line>
+        <line x1="512" y1="110" x2="700" y2="180"></line>
+        <line x1="700" y1="180" x2="920" y2="100"></line>
+        <line x1="920" y1="100" x2="1120" y2="190"></line>
+        <line x1="120" y1="340" x2="320" y2="166"></line>
+        <line x1="430" y1="390" x2="640" y2="330"></line>
+        <line x1="830" y1="420" x2="1060" y2="330"></line>
+        <line x1="80" y1="600" x2="260" y2="510"></line>
+        <line x1="260" y1="510" x2="430" y2="390"></line>
+        <line x1="510" y1="650" x2="760" y2="585"></line>
+      </g>
+      <g>
+        <circle cx="42" cy="130" r="4"></circle>
+        <circle cx="190" cy="80" r="4" class="hot"></circle>
+        <circle cx="320" cy="166" r="5"></circle>
+        <circle cx="512" cy="110" r="4"></circle>
+        <circle cx="700" cy="180" r="5" class="hot"></circle>
+        <circle cx="920" cy="100" r="4"></circle>
+        <circle cx="1120" cy="190" r="5"></circle>
+        <circle cx="120" cy="340" r="4"></circle>
+        <circle cx="430" cy="390" r="5" class="hot"></circle>
+        <circle cx="640" cy="330" r="4"></circle>
+        <circle cx="830" cy="420" r="5"></circle>
+        <circle cx="1060" cy="330" r="4"></circle>
+        <circle cx="80" cy="600" r="5" class="hot"></circle>
+        <circle cx="260" cy="510" r="4"></circle>
+        <circle cx="510" cy="650" r="5"></circle>
+        <circle cx="760" cy="585" r="4" class="hot"></circle>
+      </g>
+    </svg>
+
+    <section class="inbox-shell minimized" id="inbox-shell" aria-label="Universal Inbox mockup">
+      <header class="inbox-head">
+        <div class="inbox-title">Universal Inbox</div>
+        <div class="inbox-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" id="expand-button" aria-label="Expand" aria-pressed="false">[]</button>
+        </div>
+      </header>
+      <div class="drop-zone">
+        <div class="drop-field" aria-label="Drop files, links, text, screenshots, or cloud items here">
+          <div class="drop-copy">
+            <strong>Drop anything here</strong>
+            <span>files, links, text, screenshots, cloud items</span>
+          </div>
+        </div>
+        <div class="status-row">
+          <span class="status cloud">Cloud ready</span>
+          <span class="status safe">Local first</span>
+          <span class="status warn">Attach asks first</span>
+        </div>
+        <div class="expanded-placeholder" aria-hidden="true">
+          <div class="expanded-title"><span>Expanded inbox placeholder</span><span>tomorrow</span></div>
+          <div class="expanded-list">
+            <div class="expanded-row" style="--row:var(--teal)">
+              <div class="expanded-row-copy"><strong>Incoming</strong><span>Info: files, links, text and cloud items land here first.</span></div>
+              <div class="expanded-row-actions"><button class="expanded-row-action primary" type="button">Collect</button></div>
+            </div>
+            <div class="expanded-row" style="--row:var(--amber)">
+              <div class="expanded-row-copy"><strong>Review</strong><span>Info: decide what becomes chat context, project material or a note.</span></div>
+              <div class="expanded-row-actions"><button class="expanded-row-action primary" type="button">Triage</button></div>
+            </div>
+            <div class="expanded-row" style="--row:var(--cyan)">
+              <div class="expanded-row-copy"><strong>Actions</strong><span>Info: direct operations are explicit buttons and never hidden in text.</span></div>
+              <div class="expanded-row-actions">
+                <button class="expanded-row-action" type="button">Open</button>
+                <button class="expanded-row-action primary" type="button">Attach</button>
+                <button class="expanded-row-action" type="button">Ask</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="caption">Minimized Universal Inbox mockup. Expanded triage view comes later.</div>
+  </main>
+  <script>
+    const shell = document.getElementById('inbox-shell');
+    const expandButton = document.getElementById('expand-button');
+    const placeholder = shell.querySelector('.expanded-placeholder');
+
+    expandButton.addEventListener('click', () => {
+      const expanded = shell.classList.toggle('expanded');
+      shell.classList.toggle('minimized', !expanded);
+      expandButton.textContent = expanded ? '[ ]' : '[]';
+      expandButton.setAttribute('aria-label', expanded ? 'Return to minimized inbox' : 'Expand');
+      expandButton.setAttribute('aria-pressed', String(expanded));
+      placeholder.setAttribute('aria-hidden', String(!expanded));
+    });
+  </script>
+</body>
+</html>

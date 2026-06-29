@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Document Code Workbench V2 Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --panel: color-mix(in srgb, var(--bg) 82%, transparent);
+      --panel-strong: color-mix(in srgb, var(--bg) 94%, var(--cyan) 6%);
+      --line: color-mix(in srgb, var(--cyan) 16%, transparent);
+      --line-strong: color-mix(in srgb, var(--cyan) 42%, transparent);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 14% 16%, color-mix(in srgb, var(--blue) 18%, transparent), transparent 29%),
+        radial-gradient(circle at 82% 72%, color-mix(in srgb, var(--cyan) 13%, transparent), transparent 31%),
+        var(--bg);
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(118deg, transparent 0 18%, color-mix(in srgb, var(--cyan) 5%, transparent) 29%, transparent 40%),
+        linear-gradient(72deg, transparent 0 53%, color-mix(in srgb, var(--blue) 8%, transparent) 64%, transparent 74%);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 0 1px, transparent 1px 5px);
+      opacity: 0.15;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 8% 34%, color-mix(in srgb, var(--cyan) 28%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 20% 82%, color-mix(in srgb, var(--cyan) 22%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 42% 16%, color-mix(in srgb, var(--cyan) 20%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 58% 70%, color-mix(in srgb, var(--blue) 25%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 82% 28%, color-mix(in srgb, var(--teal) 24%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 94% 76%, color-mix(in srgb, var(--cyan) 18%, transparent) 0 2px, transparent 3px),
+        linear-gradient(28deg, transparent 0 28%, color-mix(in srgb, var(--cyan) 10%, transparent) 28% 28.2%, transparent 28.4% 100%),
+        linear-gradient(151deg, transparent 0 37%, color-mix(in srgb, var(--blue) 9%, transparent) 37% 37.2%, transparent 37.4% 100%),
+        linear-gradient(7deg, transparent 0 62%, color-mix(in srgb, var(--teal) 8%, transparent) 62% 62.2%, transparent 62.4% 100%);
+      opacity: 0.58;
+    }
+
+    .topline {
+      position: fixed;
+      top: 16px;
+      left: 18px;
+      right: 18px;
+      z-index: 4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .brand {
+      color: var(--cyan);
+      font: 600 18px var(--mono);
+      text-shadow: 0 0 20px color-mix(in srgb, var(--cyan) 45%, transparent);
+    }
+
+    .mode-note {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 11px var(--mono);
+    }
+
+    .window {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(1220px, calc(100vw - 58px));
+      height: min(760px, calc(100dvh - 86px));
+      transform: translate(-50%, -50%);
+      border: 1px solid color-mix(in srgb, var(--cyan) 44%, transparent);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--bg) 97%, var(--cyan) 3%), color-mix(in srgb, var(--bg) 96%, transparent)),
+        var(--panel);
+      box-shadow:
+        0 24px 80px color-mix(in srgb, var(--bg) 72%, transparent),
+        0 0 46px color-mix(in srgb, var(--cyan) 11%, transparent);
+      overflow: hidden;
+    }
+
+    .window-head {
+      height: 50px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      padding: 0 16px;
+    }
+
+    .head-left,
+    .head-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .head-right { justify-content: flex-end; }
+
+    .title {
+      text-align: center;
+      font: 600 13px var(--mono);
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 24px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 8%, var(--bg) 56%);
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      padding: 0 8px;
+      font: 10px var(--mono);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--green) 64%, transparent);
+    }
+
+    .dot.warn {
+      background: var(--amber);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--amber) 64%, transparent);
+    }
+
+    .icon-control {
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      font: 17px var(--mono);
+      cursor: pointer;
+      opacity: 0.82;
+    }
+
+    .body {
+      height: calc(100% - 50px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: auto minmax(250px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 76%, transparent);
+    }
+
+    .tabs {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .tab,
+    .mode-button,
+    .tool-button {
+      min-height: 30px;
+      border: 0;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 13%, transparent);
+      background: color-mix(in srgb, var(--cyan) 5%, var(--bg) 64%);
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      padding: 0 10px;
+      font: 10px var(--mono);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .tab:last-child { border-right: 0; }
+
+    .tab.active,
+    .mode-button.active,
+    .tool-button.primary {
+      color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 11%, transparent);
+    }
+
+    .file-search {
+      position: relative;
+      min-width: 0;
+    }
+
+    .file-search::before {
+      content: "/";
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      color: var(--teal);
+      font: 600 14px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .file-search input {
+      width: 100%;
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 20%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg) 76%, transparent);
+      color: var(--ink);
+      padding: 0 12px 0 31px;
+      font: 11px var(--mono);
+      outline: none;
+    }
+
+    .toolbar-actions {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .tool-button {
+      border: 1px solid color-mix(in srgb, var(--cyan) 20%, transparent);
+      border-radius: 5px;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 250px minmax(430px, 1fr) 286px;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .rail,
+    .inspector {
+      min-width: 0;
+      background: color-mix(in srgb, var(--bg) 67%, transparent);
+      overflow: hidden;
+    }
+
+    .rail {
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .rail-head,
+    .inspector-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .file-list {
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .file-row {
+      --file-color: var(--cyan);
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+      min-height: 58px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 4%, transparent);
+      padding: 9px 8px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .file-row.active,
+    .file-row:hover,
+    .file-row:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--file-color) 44%, transparent);
+      background: color-mix(in srgb, var(--file-color) 8%, transparent);
+    }
+
+    .file-dot {
+      width: 7px;
+      height: 7px;
+      margin-top: 5px;
+      border: 1px solid var(--file-color);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--file-color) 55%, transparent);
+    }
+
+    .file-copy {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .file-copy strong {
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+      font: 600 11px/1.2 var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-copy span {
+      color: color-mix(in srgb, var(--muted) 82%, transparent);
+      font: 10px/1.25 var(--font);
+    }
+
+    .file-pill,
+    .meta-pill {
+      border: 1px solid color-mix(in srgb, var(--cyan) 15%, transparent);
+      border-radius: 5px;
+      color: color-mix(in srgb, var(--muted) 88%, transparent);
+      padding: 3px 6px;
+      font: 9px var(--mono);
+      white-space: nowrap;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) minmax(154px, 0.35fr);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+    }
+
+    .doc-tabs {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 40px;
+      padding: 0 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      overflow: auto hidden;
+    }
+
+    .doc-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 25px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 15%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 5%, transparent);
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      padding: 0 8px;
+      font: 10px var(--mono);
+      white-space: nowrap;
+    }
+
+    .doc-tab.active {
+      color: var(--cyan);
+      border-color: color-mix(in srgb, var(--cyan) 38%, transparent);
+      background: color-mix(in srgb, var(--cyan) 10%, transparent);
+    }
+
+    .intelligence {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 48px;
+      padding: 8px 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      background: color-mix(in srgb, var(--cyan) 4%, transparent);
+    }
+
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .meta-pill strong {
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
+      font-weight: 600;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .mode-button:last-child { border-right: 0; }
+
+    .editor-shell {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+    }
+
+    .editor-head {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 9%, transparent);
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .editor-title strong {
+      color: color-mix(in srgb, var(--ink) 92%, transparent);
+      font-weight: 600;
+    }
+
+    .editor-actions {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .editor-button {
+      min-height: 24px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 6%, var(--bg) 64%);
+      color: color-mix(in srgb, var(--cyan) 90%, transparent);
+      padding: 0 8px;
+      font: 9px var(--mono);
+      cursor: pointer;
+    }
+
+    .editor-button.run {
+      border-color: color-mix(in srgb, var(--green) 33%, transparent);
+      color: var(--green);
+    }
+
+    .editor {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      overflow: hidden;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+    }
+
+    .lines {
+      padding: 13px 10px;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 9%, transparent);
+      color: color-mix(in srgb, var(--muted) 62%, transparent);
+      font: 11px/1.65 var(--mono);
+      text-align: right;
+      user-select: none;
+      background: color-mix(in srgb, var(--bg) 91%, transparent);
+    }
+
+    .code,
+    .document-preview {
+      margin: 0;
+      overflow: auto;
+      padding: 13px 16px;
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
+      font: 12px/1.65 var(--mono);
+      white-space: pre;
+    }
+
+    .document-preview {
+      white-space: normal;
+      font-family: var(--font);
+      line-height: 1.55;
+    }
+
+    .document-preview h1,
+    .document-preview h2 {
+      margin: 0 0 10px;
+      font: 600 18px/1.2 var(--mono);
+      color: var(--ink);
+    }
+
+    .document-preview p {
+      max-width: 72ch;
+      margin: 0 0 10px;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font-size: 13px;
+    }
+
+    .token-key { color: var(--blue); }
+    .token-fn { color: var(--teal); }
+    .token-str { color: var(--green); }
+    .token-warn { color: var(--amber); }
+    .token-err { color: var(--red); }
+    .token-comment { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+
+    .bottom-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+    }
+
+    .bottom-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 0 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 11%, transparent);
+    }
+
+    .bottom-tab {
+      border: 0;
+      background: transparent;
+      color: color-mix(in srgb, var(--muted) 82%, transparent);
+      font: 10px var(--mono);
+      cursor: pointer;
+      padding: 5px 7px;
+    }
+
+    .bottom-tab.active {
+      color: var(--cyan);
+    }
+
+    .bottom-content {
+      min-height: 0;
+      overflow: auto;
+      padding: 10px 12px;
+      font: 11px/1.55 var(--mono);
+    }
+
+    .problem-row,
+    .output-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      min-height: 28px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 7%, transparent);
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+    }
+
+    .problem-row span:first-child { color: var(--amber); }
+    .problem-row.error span:first-child { color: var(--red); }
+    .output-row span:first-child { color: var(--green); }
+
+    .inspector {
+      border-left: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .inspector-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+    }
+
+    .panel {
+      display: grid;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 5%, var(--bg) 38%);
+      padding: 11px;
+    }
+
+    .panel h3 {
+      margin: 0;
+      color: color-mix(in srgb, var(--muted) 88%, transparent);
+      font: 600 10px/1.1 var(--mono);
+      text-transform: uppercase;
+    }
+
+    .panel p {
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 12px/1.45 var(--font);
+    }
+
+    .relation-list,
+    .action-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .relation,
+    .agent-action {
+      display: grid;
+      grid-template-columns: 9px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg) 64%, transparent);
+      padding: 7px;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 11px/1.35 var(--font);
+      text-align: left;
+    }
+
+    .relation::before,
+    .agent-action::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-top: 4px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 9px color-mix(in srgb, var(--teal) 45%, transparent);
+    }
+
+    .agent-action {
+      border-color: color-mix(in srgb, var(--blue) 14%, transparent);
+      cursor: pointer;
+    }
+
+    .agent-action.primary {
+      border-color: color-mix(in srgb, var(--green) 28%, transparent);
+      color: var(--green);
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 11px var(--mono);
+    }
+
+    .status-line span:first-child {
+      color: color-mix(in srgb, var(--muted) 84%, transparent);
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1040px) {
+      body { overflow: auto; }
+      .stage { min-height: 100dvh; height: auto; overflow: visible; }
+      .window {
+        position: relative;
+        left: auto;
+        top: auto;
+        transform: none;
+        width: calc(100vw - 24px);
+        height: auto;
+        min-height: calc(100dvh - 72px);
+        margin: 58px 12px 14px;
+      }
+      .toolbar,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .workspace {
+        grid-template-rows: auto minmax(500px, 1fr) auto;
+      }
+      .rail,
+      .inspector {
+        border: 0;
+      }
+      .file-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .main {
+        min-height: 620px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="network" aria-hidden="true"></div>
+    <header class="topline">
+      <div class="brand">ABC</div>
+      <div class="mode-note">UI mockup &middot; document and code workbench</div>
+    </header>
+
+    <section class="window" aria-label="Document Code Workbench">
+      <header class="window-head">
+        <div class="head-left">
+          <span class="chip"><span class="dot"></span>repo linked</span>
+          <span class="chip"><span class="dot warn"></span>2 issues</span>
+        </div>
+        <div class="title">Documents / Code</div>
+        <div class="head-right">
+          <button class="icon-control" aria-label="Minimize">-</button>
+          <button class="icon-control" aria-label="Maximize">&#9633;</button>
+          <button class="icon-control" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="body">
+        <section class="toolbar" aria-label="Document toolbar">
+          <nav class="tabs" aria-label="Document scopes">
+            <button class="tab active" type="button" data-scope="workspace">Workspace</button>
+            <button class="tab" type="button" data-scope="docs">Docs</button>
+            <button class="tab" type="button" data-scope="code">Code</button>
+            <button class="tab" type="button" data-scope="review">Review</button>
+          </nav>
+          <label class="file-search">
+            <input type="search" placeholder="Find files, symbols, document text, tasks">
+          </label>
+          <div class="toolbar-actions">
+            <button class="tool-button" type="button">Open folder</button>
+            <button class="tool-button primary" type="button">Ask ABC</button>
+          </div>
+        </section>
+
+        <section class="workspace">
+          <aside class="rail" aria-label="Open documents">
+            <div class="rail-head">
+              <span>Open</span>
+              <span>5</span>
+            </div>
+            <div class="file-list">
+              <button class="file-row active" style="--file-color:var(--blue)" type="button" data-doc="python">
+                <span class="file-dot"></span>
+                <span class="file-copy"><strong>search_memory.py</strong><span>src/services &middot; modified</span></span>
+                <span class="file-pill">py</span>
+              </button>
+              <button class="file-row" style="--file-color:var(--cyan)" type="button" data-doc="markdown">
+                <span class="file-dot"></span>
+                <span class="file-copy"><strong>coding-lane-plan.md</strong><span>docs/plans &middot; draft</span></span>
+                <span class="file-pill">md</span>
+              </button>
+              <button class="file-row" style="--file-color:var(--teal)" type="button" data-doc="html">
+                <span class="file-dot"></span>
+                <span class="file-copy"><strong>project-cockpit.html</strong><span>static/mockups &middot; preview</span></span>
+                <span class="file-pill">html</span>
+              </button>
+              <button class="file-row" style="--file-color:var(--amber)" type="button" data-doc="json">
+                <span class="file-dot"></span>
+                <span class="file-copy"><strong>skill-review.json</strong><span>data/skills &middot; needs review</span></span>
+                <span class="file-pill">json</span>
+              </button>
+              <button class="file-row" style="--file-color:var(--green)" type="button" data-doc="pdf">
+                <span class="file-dot"></span>
+                <span class="file-copy"><strong>release-notes.pdf</strong><span>Nextcloud &middot; read only</span></span>
+                <span class="file-pill">pdf</span>
+              </button>
+            </div>
+          </aside>
+
+          <main class="main">
+            <div class="doc-tabs" aria-label="Open tabs">
+              <span class="doc-tab active" data-tab-label>search_memory.py</span>
+              <span class="doc-tab">coding-lane-plan.md</span>
+              <span class="doc-tab">project-cockpit.html</span>
+            </div>
+
+            <section class="intelligence" aria-label="Document intelligence">
+              <div class="meta-strip" data-meta-strip>
+                <span class="meta-pill">Type <strong>Code</strong></span>
+                <span class="meta-pill">Project <strong>Memory Debug</strong></span>
+                <span class="meta-pill">Status <strong>Modified</strong></span>
+                <span class="meta-pill">Branch <strong>dev +84</strong></span>
+                <span class="meta-pill">Memory <strong>Needs review</strong></span>
+              </div>
+              <div class="mode-switch" aria-label="Workbench modes">
+                <button class="mode-button active" type="button" data-mode="edit">Edit</button>
+                <button class="mode-button" type="button" data-mode="run">Run</button>
+                <button class="mode-button" type="button" data-mode="preview">Preview</button>
+                <button class="mode-button" type="button" data-mode="review">Review</button>
+              </div>
+            </section>
+
+            <section class="editor-shell">
+              <div class="editor-head">
+                <div class="editor-title"><span data-path>src/services/search_memory.py</span> <strong data-lang>Python</strong></div>
+                <div class="editor-actions">
+                  <button class="editor-button" type="button">Format</button>
+                  <button class="editor-button run" type="button">Run check</button>
+                  <button class="editor-button" type="button">Diff</button>
+                </div>
+              </div>
+              <div class="editor" data-editor>
+                <pre class="lines">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre>
+                <pre class="code" data-code><span class="token-key">def</span> <span class="token-fn">search_memory</span>(query, session):
+    <span class="token-comment"># cap older context before ranking starts</span>
+    candidates = collect_candidates(query, session)
+    recent = filter_recent(candidates, max_age_days=21)
+
+    <span class="token-key">if</span> len(recent) &gt; 240:
+        recent = recent[:240]
+
+    ranked = rerank(query, recent)
+    <span class="token-key">return</span> ranked[:24]</pre>
+              </div>
+            </section>
+
+            <section class="bottom-panel" aria-label="Workbench output">
+              <div class="bottom-tabs">
+                <button class="bottom-tab active" type="button" data-bottom="problems">Problems</button>
+                <button class="bottom-tab" type="button" data-bottom="output">Output</button>
+                <button class="bottom-tab" type="button" data-bottom="terminal">Terminal</button>
+                <button class="bottom-tab" type="button" data-bottom="diff">Diff</button>
+              </div>
+              <div class="bottom-content" data-bottom-content>
+                <div class="problem-row error"><span>Error</span><strong>Line 6: old context cap is not tested</strong><span>pytest</span></div>
+                <div class="problem-row"><span>Warn</span><strong>Line 2: ranking budget should be configurable</strong><span>ABC</span></div>
+                <div class="output-row"><span>Check</span><strong>2 files changed, 1 test suggested</strong><span>dev</span></div>
+              </div>
+            </section>
+          </main>
+
+          <aside class="inspector" aria-label="Document inspector">
+            <div class="inspector-head">
+              <span>Inspector</span>
+              <span data-inspector-state>code lane</span>
+            </div>
+            <div class="inspector-body">
+              <section class="panel">
+                <h3>Context</h3>
+                <div class="status-line"><span>Repo</span><strong>nkatz/odysseus</strong></div>
+                <div class="status-line"><span>Branch</span><strong>dev</strong></div>
+                <div class="status-line"><span>Since commit</span><strong>+84 lines</strong></div>
+                <div class="status-line"><span>Mode</span><strong>Agent</strong></div>
+              </section>
+
+              <section class="panel">
+                <h3>AI suggestions</h3>
+                <div class="action-list">
+                  <button class="agent-action primary" type="button">Add focused test for long-session search budget.</button>
+                  <button class="agent-action" type="button">Extract the candidate cap into settings.</button>
+                  <button class="agent-action" type="button">Explain this file in the chat context.</button>
+                </div>
+              </section>
+
+              <section class="panel">
+                <h3>Relations</h3>
+                <div class="relation-list">
+                  <div class="relation">Roadmap: Memory search slowdown</div>
+                  <div class="relation">Todo: Confirm old-context cutoff</div>
+                  <div class="relation">Skill: Code Reviewer</div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <h3>Document state</h3>
+                <p data-doc-state>Modified code file. Safe to inspect, not yet ready to commit.</p>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const docs = {
+      python: {
+        tab: 'search_memory.py',
+        path: 'src/services/search_memory.py',
+        lang: 'Python',
+        meta: ['Type|Code', 'Project|Memory Debug', 'Status|Modified', 'Branch|dev +84', 'Memory|Needs review'],
+        state: 'Modified code file. Safe to inspect, not yet ready to commit.',
+        inspector: 'code lane',
+        lines: 12,
+        code: '<span class="token-key">def</span> <span class="token-fn">search_memory</span>(query, session):\\n    <span class="token-comment"># cap older context before ranking starts</span>\\n    candidates = collect_candidates(query, session)\\n    recent = filter_recent(candidates, max_age_days=21)\\n\\n    <span class="token-key">if</span> len(recent) &gt; 240:\\n        recent = recent[:240]\\n\\n    ranked = rerank(query, recent)\\n    <span class="token-key">return</span> ranked[:24]',
+        bottom: '<div class="problem-row error"><span>Error</span><strong>Line 6: old context cap is not tested</strong><span>pytest</span></div><div class="problem-row"><span>Warn</span><strong>Line 2: ranking budget should be configurable</strong><span>ABC</span></div><div class="output-row"><span>Check</span><strong>2 files changed, 1 test suggested</strong><span>dev</span></div>'
+      },
+      markdown: {
+        tab: 'coding-lane-plan.md',
+        path: 'docs/plans/coding-lane-plan.md',
+        lang: 'Markdown',
+        meta: ['Type|Plan', 'Project|Frontend V2', 'Status|Draft', 'Tags|coding lane', 'Memory|Fresh'],
+        state: 'Planning document. Ready for review notes and roadmap links.',
+        inspector: 'document',
+        lines: 9,
+        preview: '<h1>Coding Lane</h1><p>The document workbench should show all documents, but code files need a stronger execution path.</p><p>Primary flow: open file, understand context, edit, run checks, review diff, prepare commit.</p><p>Status remains draft until the first v2 window is approved.</p>'
+      },
+      html: {
+        tab: 'project-cockpit.html',
+        path: 'static/mockups/project-cockpit.html',
+        lang: 'HTML',
+        meta: ['Type|Preview', 'Project|Project Runner', 'Status|Runnable', 'Branch|dev', 'Memory|Linked'],
+        state: 'Runnable mockup. Preview can open in sandbox.',
+        inspector: 'preview',
+        lines: 11,
+        code: '<span class="token-key">&lt;section</span> class=<span class="token-str">"project-cockpit"</span><span class="token-key">&gt;</span>\\n  <span class="token-key">&lt;header&gt;</span>\\n    <span class="token-key">&lt;h1&gt;</span>Project Runner<span class="token-key">&lt;/h1&gt;</span>\\n  <span class="token-key">&lt;/header&gt;</span>\\n  <span class="token-key">&lt;main&gt;</span>\\n    <span class="token-key">&lt;canvas</span> id=<span class="token-str">"roadmap"</span><span class="token-key">&gt;&lt;/canvas&gt;</span>\\n  <span class="token-key">&lt;/main&gt;</span>\\n<span class="token-key">&lt;/section&gt;</span>'
+      },
+      json: {
+        tab: 'skill-review.json',
+        path: 'data/skills/skill-review.json',
+        lang: 'JSON',
+        meta: ['Type|Skill data', 'Project|Automation', 'Status|Needs review', 'Risk|Medium', 'Memory|Unknown'],
+        state: 'Structured data. Review before publishing skill changes.',
+        inspector: 'structured',
+        lines: 10,
+        code: '{\\n  <span class="token-key">"skill"</span>: <span class="token-str">"Code Reviewer"</span>,\\n  <span class="token-key">"trust"</span>: <span class="token-str">"medium"</span>,\\n  <span class="token-key">"checks"</span>: [\\n    <span class="token-str">"tests"</span>,\\n    <span class="token-str">"diff"</span>,\\n    <span class="token-str">"scope"</span>\\n  ]\\n}'
+      },
+      pdf: {
+        tab: 'release-notes.pdf',
+        path: 'Nextcloud / Releases / release-notes.pdf',
+        lang: 'PDF',
+        meta: ['Type|PDF', 'Project|Release', 'Status|Read only', 'Source|Nextcloud', 'Memory|Empty'],
+        state: 'Read-only document. Can summarize or attach as context.',
+        inspector: 'reader',
+        lines: 1,
+        preview: '<h2>Release Notes</h2><p>Binary document preview placeholder. The real v2 viewer should route PDFs, images, office documents, markdown, and code through the same window shell with type-specific tools.</p><p>For code files, the center area becomes the coding lane. For documents, it stays a reader/editor with suggestions.</p>'
+      }
+    };
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+    function lineNumbers(count) {
+      return Array.from({ length: count }, (_, index) => index + 1).join('\n');
+    }
+
+    function setDoc(id) {
+      const doc = docs[id] || docs.python;
+      $$('.file-row').forEach(row => row.classList.toggle('active', row.dataset.doc === id));
+      $('[data-tab-label]').textContent = doc.tab;
+      $('[data-path]').textContent = doc.path;
+      $('[data-lang]').textContent = doc.lang;
+      $('[data-inspector-state]').textContent = doc.inspector;
+      $('[data-doc-state]').textContent = doc.state;
+      $('[data-meta-strip]').innerHTML = doc.meta.map(item => {
+        const parts = item.split('|');
+        return '<span class="meta-pill">' + parts[0] + ' <strong>' + parts[1] + '</strong></span>';
+      }).join('');
+      $('.lines').textContent = lineNumbers(doc.lines);
+      const editor = $('[data-editor]');
+      if (doc.preview) {
+        editor.innerHTML = '<pre class="lines">' + lineNumbers(doc.lines) + '</pre><div class="document-preview">' + doc.preview + '</div>';
+      } else {
+        editor.innerHTML = '<pre class="lines">' + lineNumbers(doc.lines) + '</pre><pre class="code" data-code>' + doc.code.replace(/\\n/g, '\n') + '</pre>';
+      }
+      $('[data-bottom-content]').innerHTML = doc.bottom || '<div class="output-row"><span>Ready</span><strong>No problems for this view.</strong><span>' + doc.lang + '</span></div>';
+    }
+
+    $$('.file-row').forEach(row => {
+      row.addEventListener('click', () => setDoc(row.dataset.doc));
+    });
+
+    $$('.mode-button').forEach(button => {
+      button.addEventListener('click', () => {
+        $$('.mode-button').forEach(item => item.classList.toggle('active', item === button));
+        const mode = button.dataset.mode;
+        const content = $('[data-bottom-content]');
+        if (mode === 'run') {
+          content.innerHTML = '<div class="output-row"><span>Run</span><strong>python -m pytest tests/test_memory_search.py</strong><span>queued</span></div><div class="output-row"><span>Output</span><strong>1 focused test suggested before execution.</strong><span>ABC</span></div>';
+        } else if (mode === 'preview') {
+          content.innerHTML = '<div class="output-row"><span>Preview</span><strong>Sandbox preview ready for renderable documents.</strong><span>iframe</span></div>';
+        } else if (mode === 'review') {
+          content.innerHTML = '<div class="problem-row"><span>Review</span><strong>Diff, problems, and AI suggestions should be checked before commit.</strong><span>human</span></div>';
+        }
+      });
+    });
+
+    $$('.bottom-tab').forEach(button => {
+      button.addEventListener('click', () => {
+        $$('.bottom-tab').forEach(item => item.classList.toggle('active', item === button));
+      });
+    });
+  </script>
+</body>
+</html>

@@ -196,6 +196,28 @@ Die Nutzerflaeche soll stattdessen zeigen:
 - eine klare Folgeaktion
 - niemals einen Full Dump
 
+### Graph-Viewer UX
+
+Ein spaeterer Knowledge- oder RaptorGraph-Viewer muss die Progressive-Graph-Regeln sichtbar machen, nicht umgehen.
+
+Der Viewer soll:
+
+- mit Canvas oder WebGL statt einer grossen DOM-/SVG-Knotenmenge geplant werden
+- Labels progressiv zeigen: Fokus, Cluster und wichtige Treffer zuerst
+- entfernte Bereiche ueber Level-of-Detail, Cluster oder Supernodes verdichten
+- nur sichtbare oder unmittelbar relevante Knoten und Kanten rendern
+- Filter fuer Quelle, Typ, Projekt, Alter, Confidence, Trust und Relationstiefe anbieten
+- Darstellungsmodi fuer semantische Struktur, Quellen, Projekte und Zeit vorbereiten
+- Minimap, Fokuspfad, Node-Inspector und Source-Trail als Orientierungshilfen vorsehen
+- Clipping, Cursor und Aggregation als normales Produktverhalten erklaeren
+
+Der Viewer darf nicht:
+
+- einen grossen Graphen vollstaendig in den Browser laden
+- alle Labels gleichzeitig anzeigen
+- Canvas/WebGL als Ausrede fuer unbudgetierte API-Payloads benutzen
+- leere Bereiche als scheinbare Vollstaendigkeit darstellen, wenn Daten nur geclippt oder aggregiert sind
+
 ### Nutzer-Grundsaetze
 
 - kleine Ausschnitte sind Produktverhalten, kein Defekt
@@ -313,6 +335,8 @@ Das bedeutet:
 - Node- und Edge-Counts muessen budgetierbar bleiben
 - Clipping muss mit Diagnostics sichtbar werden
 - Graph-Payloads muessen als eigene Budgetlage lesbar sein
+- UI-Renderzeiten, Label-Dichte und Viewport-Culling muessen messbar bleiben
+- Viewer-Filter muessen in Diagnostics als aktive Budget- und Scope-Grenzen auftauchen koennen
 - `evidence_ref` soll auf Graph-, Query- oder Snapshot-Belege zeigen koennen
 
 ## Nicht-Ziele
@@ -324,6 +348,7 @@ Das bedeutet:
 - keine Datenbank- oder Postgres-Integration
 - keine Kuzu-, Qdrant-, UMAP- oder GMM-Arbeit
 - keinen Graph-Layout-Algorithmus
+- keinen produktiven Canvas-/WebGL-Renderer
 - keine Traversal-Runtime
 
 Der Slice friert nur die sichtbare Produkt- und Budgetsprache fuer spaetere Graph-Ausschnitte ein.
@@ -363,6 +388,7 @@ Minimum-Regeln fuer Bobs Modell:
 - `node_count` und `edge_count` duerfen nicht still Full-Dump-Groessen verschleiern
 - `reason` und `next_action` muessen Folgearbeit steuerbar machen
 - das Modell darf keinen stillen `load_all`- oder Full-Dump-Default erlauben
+- Viewer-nahe Antworten muessen Filter-, Viewport- oder Aggregationskontext ausdruecken koennen, statt nur rohe Node-Listen zu liefern
 
 Sinnvolle, aber fuer den kleinsten Start optionale Zusatzfelder:
 
@@ -372,6 +398,10 @@ Sinnvolle, aber fuer den kleinsten Start optionale Zusatzfelder:
 - `returned_nodes`
 - `returned_edges`
 - `can_continue`
+- `active_filters`
+- `viewport_bounds`
+- `layout_mode`
+- `label_budget`
 
 ## Akzeptanz fuer diesen Vertrag
 

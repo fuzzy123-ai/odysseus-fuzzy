@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Settings Full Scope Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --panel: rgba(3, 13, 22, 0.95);
+      --panel-soft: rgba(5, 20, 32, 0.72);
+      --line: rgba(22, 217, 245, 0.18);
+      --line-strong: rgba(22, 217, 245, 0.48);
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --teal: #22d3b6;
+      --blue: #4b8cff;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --violet: #9b7bff;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input,
+    select {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 16% 18%, rgba(28, 86, 190, 0.18), transparent 31%),
+        radial-gradient(circle at 78% 82%, rgba(22, 217, 245, 0.12), transparent 34%),
+        #02060d;
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(105deg, transparent 0 18%, rgba(22, 217, 245, 0.04) 31%, transparent 43%),
+        linear-gradient(76deg, transparent 0 56%, rgba(75, 140, 255, 0.07) 68%, transparent 78%);
+      animation: aurora 12s ease-in-out infinite alternate;
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 5px);
+      opacity: 0.16;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8% -6%;
+      width: 112%;
+      height: 116%;
+      opacity: 0.68;
+      pointer-events: none;
+    }
+
+    .network line {
+      stroke: rgba(65, 205, 239, 0.1);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.26);
+      filter: drop-shadow(0 0 8px rgba(22, 217, 245, 0.34));
+    }
+
+    .network .signal {
+      fill: rgba(215, 247, 255, 0.95);
+      animation: signal 5.2s linear infinite;
+      offset-path: path("M 64 652 L 236 480 L 392 540 L 552 382 L 742 426 L 910 250 L 1142 330 L 1372 164");
+    }
+
+    .brand {
+      position: fixed;
+      left: 18px;
+      top: 16px;
+      z-index: 4;
+      color: var(--cyan);
+      font: 700 21px/1 var(--mono);
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 14px rgba(22, 217, 245, 0.55);
+    }
+
+    .source-note {
+      position: fixed;
+      right: 22px;
+      top: 18px;
+      z-index: 4;
+      color: rgba(215, 247, 255, 0.58);
+      font: 10px/1.5 var(--mono);
+      text-align: right;
+    }
+
+    .settings-window {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(1280px, calc(100vw - 72px));
+      height: min(800px, calc(100dvh - 86px));
+      min-width: 900px;
+      min-height: 590px;
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(6, 20, 32, 0.97), rgba(2, 8, 15, 0.985)),
+        var(--panel);
+      box-shadow:
+        0 22px 58px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(22, 217, 245, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+
+    .window-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font: 600 14px/1 var(--font);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .window-actions button {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      padding: 0;
+      font: 16px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .settings-rail {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      border-right: 1px solid var(--line);
+      background: rgba(2, 8, 14, 0.44);
+      overflow: hidden;
+    }
+
+    .search-wrap { padding: 15px 14px 10px; }
+
+    .settings-search {
+      position: relative;
+      display: block;
+    }
+
+    .settings-search::before {
+      content: "/";
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      color: var(--cyan);
+      font: 600 14px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .settings-search input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 26%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.78);
+      color: var(--ink);
+      padding: 0 12px 0 34px;
+      outline: none;
+      font: 12px/1 var(--mono);
+    }
+
+    .settings-search input:focus {
+      border-color: color-mix(in srgb, var(--cyan) 62%, transparent);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 14%, transparent);
+    }
+
+    .quick-status {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 0 14px 12px;
+    }
+
+    .status-tile {
+      border: 1px solid color-mix(in srgb, var(--tile) 28%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--tile) 7%, rgba(2, 10, 18, 0.68));
+      padding: 8px 7px;
+      font: 10px/1.15 var(--mono);
+      color: rgba(215, 247, 255, 0.62);
+    }
+
+    .status-tile strong {
+      display: block;
+      color: color-mix(in srgb, var(--tile) 78%, white 8%);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .result-list {
+      display: grid;
+      align-content: start;
+      gap: 5px;
+      overflow: auto;
+      padding: 0 10px 14px;
+    }
+
+    .result-group {
+      margin: 11px 7px 4px;
+      color: rgba(126, 164, 181, 0.86);
+      font: 600 10px/1 var(--mono);
+    }
+
+    .result-item {
+      --item: var(--cyan);
+      width: 100%;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 35px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 7px 0 2px;
+      text-align: left;
+      cursor: pointer;
+      font: 10px/1 var(--mono);
+    }
+
+    .result-item::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--item);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.96);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--item) 44%, transparent);
+    }
+
+    .result-item strong,
+    .result-item span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-item strong {
+      color: rgba(226, 249, 255, 0.88);
+      font-weight: 600;
+    }
+
+    .result-item span { color: rgba(126, 164, 181, 0.76); }
+
+    .result-item:hover,
+    .result-item:focus-visible,
+    .result-item.active {
+      outline: none;
+      border-color: color-mix(in srgb, var(--item) 42%, transparent);
+      background: color-mix(in srgb, var(--item) 8%, rgba(2, 10, 18, 0.5));
+    }
+
+    .rail-footer {
+      border-top: 1px solid var(--line);
+      padding: 11px 14px;
+      color: rgba(126, 164, 181, 0.78);
+      font: 10px/1.4 var(--mono);
+    }
+
+    .settings-content {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .content-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 22% 14%, color-mix(in srgb, var(--cyan) 8%, transparent), transparent 44%),
+        rgba(2, 10, 18, 0.36);
+      padding: 17px 20px 15px;
+    }
+
+    .content-title {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .content-title h1 {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.95);
+      font: 600 19px/1.2 var(--mono);
+    }
+
+    .content-title p {
+      max-width: 78ch;
+      margin: 0;
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .settings-mode {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      width: 188px;
+      height: 31px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 24%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.74);
+      overflow: hidden;
+    }
+
+    .settings-mode button {
+      border: 0;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.58);
+      padding: 0;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .settings-mode button.active {
+      color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 20%, transparent);
+    }
+
+    .settings-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 20px 24px;
+      scroll-behavior: smooth;
+    }
+
+    .settings-section {
+      --section: var(--cyan);
+      display: grid;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .section-head {
+      position: sticky;
+      top: -18px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 34px;
+      background: linear-gradient(180deg, rgba(4, 14, 23, 0.98), rgba(4, 14, 23, 0.86));
+      border-bottom: 1px solid color-mix(in srgb, var(--section) 18%, transparent);
+      padding: 7px 0;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      color: color-mix(in srgb, var(--section) 80%, white 8%);
+      font: 600 13px/1 var(--mono);
+    }
+
+    .section-head span {
+      color: rgba(126, 164, 181, 0.78);
+      font: 10px/1 var(--mono);
+    }
+
+    .setting-row {
+      --row: var(--section);
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(270px, 0.82fr) minmax(290px, 1fr);
+      gap: 18px;
+      align-items: center;
+      min-height: 82px;
+      border: 1px solid color-mix(in srgb, var(--row) 12%, transparent);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.44);
+      padding: 13px 14px;
+    }
+
+    .setting-row[data-level="advanced"] {
+      border-style: dashed;
+    }
+
+    .setting-row.highlight {
+      border-color: color-mix(in srgb, var(--row) 66%, transparent);
+      background: color-mix(in srgb, var(--row) 9%, rgba(2, 10, 17, 0.54));
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--row) 12%, transparent),
+        0 0 18px color-mix(in srgb, var(--row) 12%, transparent);
+    }
+
+    .setting-copy {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .setting-copy strong {
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 12px/1.2 var(--mono);
+    }
+
+    .setting-copy p {
+      margin: 0;
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .setting-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      color: rgba(126, 164, 181, 0.76);
+      font: 9px/1 var(--mono);
+    }
+
+    .setting-tags span {
+      border: 1px solid color-mix(in srgb, var(--row) 20%, transparent);
+      border-radius: 999px;
+      padding: 3px 6px;
+      background: rgba(2, 9, 16, 0.48);
+    }
+
+    .setting-tags .risk {
+      color: var(--amber);
+      border-color: color-mix(in srgb, var(--amber) 34%, transparent);
+    }
+
+    .setting-tags .secret {
+      color: var(--red);
+      border-color: color-mix(in srgb, var(--red) 34%, transparent);
+    }
+
+    .setting-control {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .select-shell,
+    .input-shell {
+      min-width: 210px;
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--row) 26%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.78);
+      color: rgba(226, 249, 255, 0.86);
+      padding: 0 10px;
+      font: 11px/1 var(--mono);
+      outline: none;
+    }
+
+    .input-shell {
+      width: min(380px, 100%);
+    }
+
+    .tiny-button {
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--row) 28%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: color-mix(in srgb, var(--row) 82%, white 6%);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 24px;
+      border: 1px solid color-mix(in srgb, var(--row) 32%, transparent);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.86);
+      cursor: pointer;
+    }
+
+    .switch::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      border: 1px solid rgba(215, 247, 255, 0.58);
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--row) 18%, transparent);
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .switch.on::before {
+      transform: translateX(21px);
+      border-color: var(--row);
+      background: color-mix(in srgb, var(--row) 48%, transparent);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--row) 40%, transparent);
+    }
+
+    .status-stack {
+      width: min(460px, 100%);
+      display: grid;
+      gap: 7px;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: 9px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      min-height: 30px;
+      border: 1px solid color-mix(in srgb, var(--state) 18%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--state) 6%, rgba(2, 9, 16, 0.62));
+      padding: 0 9px;
+      color: rgba(215, 247, 255, 0.74);
+      font: 10px/1 var(--mono);
+    }
+
+    .status-row::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--state);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.96);
+      box-shadow: 0 0 9px color-mix(in srgb, var(--state) 48%, transparent);
+    }
+
+    .status-row strong {
+      min-width: 0;
+      overflow: hidden;
+      color: rgba(226, 249, 255, 0.9);
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status-row span {
+      color: rgba(126, 164, 181, 0.86);
+      white-space: nowrap;
+    }
+
+    .empty {
+      display: none;
+      border: 1px dashed rgba(22, 217, 245, 0.22);
+      border-radius: 8px;
+      color: rgba(215, 247, 255, 0.58);
+      padding: 16px;
+      font: 12px/1.4 var(--mono);
+    }
+
+    .settings-scroll.no-results .empty { display: block; }
+
+    .settings-section[hidden],
+    .setting-row[hidden] {
+      display: none !important;
+    }
+
+    @keyframes aurora {
+      from { opacity: 0.7; transform: translate3d(-1%, -0.8%, 0); }
+      to { opacity: 1; transform: translate3d(1.2%, 1%, 0); }
+    }
+
+    @keyframes signal {
+      from { offset-distance: 0%; opacity: 0; }
+      8% { opacity: 1; }
+      86% { opacity: 1; }
+      to { offset-distance: 100%; opacity: 0; }
+    }
+
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+
+      .stage {
+        min-height: 100dvh;
+        height: auto;
+        overflow: auto;
+        padding: 70px 14px 18px;
+      }
+
+      .source-note { display: none; }
+
+      .settings-window {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        min-width: 0;
+        height: calc(100dvh - 96px);
+        transform: none;
+      }
+
+      .settings-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .settings-rail {
+        grid-template-rows: auto auto auto;
+        max-height: 250px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .result-list {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(190px, 1fr);
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .result-group { display: none; }
+
+      .setting-row { grid-template-columns: 1fr; }
+
+      .setting-control { justify-content: flex-start; }
+
+      .content-head { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <svg class="network" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="64" y1="652" x2="236" y2="480"></line>
+      <line x1="236" y1="480" x2="392" y2="540"></line>
+      <line x1="392" y1="540" x2="552" y2="382"></line>
+      <line x1="552" y1="382" x2="742" y2="426"></line>
+      <line x1="742" y1="426" x2="910" y2="250"></line>
+      <line x1="910" y1="250" x2="1142" y2="330"></line>
+      <line x1="1142" y1="330" x2="1372" y2="164"></line>
+      <line x1="236" y1="480" x2="204" y2="196"></line>
+      <line x1="392" y1="540" x2="302" y2="734"></line>
+      <line x1="552" y1="382" x2="466" y2="152"></line>
+      <line x1="742" y1="426" x2="780" y2="724"></line>
+      <line x1="910" y1="250" x2="1038" y2="608"></line>
+      <line x1="1142" y1="330" x2="1288" y2="620"></line>
+      <line x1="204" y1="196" x2="466" y2="152"></line>
+      <line x1="780" y1="724" x2="1038" y2="608"></line>
+      <circle cx="64" cy="652" r="4"></circle>
+      <circle cx="236" cy="480" r="3"></circle>
+      <circle cx="392" cy="540" r="4"></circle>
+      <circle cx="552" cy="382" r="3"></circle>
+      <circle cx="742" cy="426" r="5"></circle>
+      <circle cx="910" cy="250" r="4"></circle>
+      <circle cx="1142" cy="330" r="4"></circle>
+      <circle cx="1372" cy="164" r="5"></circle>
+      <circle cx="204" cy="196" r="3"></circle>
+      <circle cx="466" cy="152" r="4"></circle>
+      <circle cx="780" cy="724" r="4"></circle>
+      <circle cx="1038" cy="608" r="3"></circle>
+      <circle cx="1288" cy="620" r="4"></circle>
+      <circle class="signal" r="2.5"></circle>
+    </svg>
+
+    <div class="brand">ABC</div>
+    <div class="source-note">Full scope pass<br>legacy settings + V2 additions</div>
+
+    <section class="settings-window" aria-label="Settings full scope mockup">
+      <header class="window-head">
+        <span>Settings</span>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">&#9633;</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="settings-layout">
+        <aside class="settings-rail" aria-label="Settings search and results">
+          <div class="search-wrap">
+            <label class="settings-search">
+              <input id="settings-search" type="search" placeholder="Search settings, e.g. model, mount, voice, backup" autocomplete="off">
+            </label>
+          </div>
+
+          <div class="quick-status" aria-label="System status">
+            <div class="status-tile" style="--tile:var(--green)"><strong>Local</strong>ready</div>
+            <div class="status-tile" style="--tile:var(--amber)"><strong>GPU</strong>busy</div>
+            <div class="status-tile" style="--tile:var(--teal)"><strong>API</strong>online</div>
+          </div>
+
+          <div class="result-list" id="result-list" aria-label="Search results"></div>
+
+          <div class="rail-footer">
+            Normal shows user-facing settings. Advanced reveals admin, secret handoff, host, and developer controls.
+          </div>
+        </aside>
+
+        <section class="settings-content">
+          <header class="content-head">
+            <div class="content-title">
+              <h1 id="content-title">All settings</h1>
+              <p id="content-subtitle">A complete searchable map of the legacy settings menu plus the new V2 shell: model routing, search, voice, inbox, memory, toolwheel, projects, accounts, mounts, plugins, users, backups, updates, logs, and privacy.</p>
+            </div>
+            <div class="settings-mode" aria-label="Settings detail mode">
+              <button class="active" id="normal-mode" type="button">Normal</button>
+              <button id="advanced-mode" type="button">Advanced</button>
+            </div>
+          </header>
+
+          <div class="settings-scroll" id="settings-scroll">
+            <div class="empty">No matching setting. Try "model", "endpoint", "email", "mount", "MCP", "shortcut", "backup", or "privacy".</div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const catalog = [
+      {
+        name: 'Models and providers',
+        color: 'var(--cyan)',
+        legacy: 'Add Models, Added Models, AI Defaults',
+        rows: [
+          ['Add local model source', 'Connect local Ollama or OpenAI-compatible endpoints, test them, and register them for model selection.', ['local', 'endpoint', 'ollama', 'test'], 'normal', 'button', 'Add source'],
+          ['Add API model source', 'Connect cloud/API providers with secure key handoff, provider auth, and status tests.', ['API', 'provider', 'key', 'secret'], 'normal', 'secret', 'Secure setup'],
+          ['Connected model sources', 'Review endpoints, online/offline state, enabled state, model list, probe all, clear offline, delete, and copy URLs.', ['added models', 'probe', 'online', 'offline'], 'normal', 'stack', 'Ollama local|ready|green;OpenAI-compatible|online|teal;Old LM Studio|offline|red'],
+          ['Visible models per source', 'Hide, pin, or refresh individual models exposed by each endpoint so normal users see a clean list.', ['hidden models', 'pinned', 'refresh'], 'advanced', 'button', 'Manage models'],
+          ['Default chat model', 'Choose the model used for new chats and define fallback models if the primary fails.', ['default model', 'chat', 'fallback'], 'normal', 'select', 'deepseek-v4-flash'],
+          ['Utility model', 'Pick the small/background model for cleanup, compaction, auto naming, memory retrieval, and low-stakes jobs.', ['utility', 'background', 'compaction'], 'normal', 'select', 'gemma-local'],
+          ['Research model', 'Set the model used for long research runs, independent from the normal chat model.', ['research model', 'deep research'], 'normal', 'select', 'same as chat'],
+          ['Vision model', 'Enable image understanding, choose a vision-capable model, and set a fallback chain.', ['vision', 'screenshots', 'images'], 'normal', 'switch', 'on'],
+          ['Image generation', 'Enable image creation, choose the model, and pick quality presets.', ['image generation', 'quality'], 'normal', 'select', 'medium'],
+          ['Speech input', 'Configure speech-to-text for the composer microphone mode, including local/API routing.', ['STT', 'voice input', 'microphone'], 'normal', 'select', 'local first'],
+          ['Speech output', 'Configure text-to-speech provider, model, voice, speed, and preview. Kept advanced because read-aloud is not core right now.', ['TTS', 'read aloud', 'voice'], 'advanced', 'button', 'Preview voice'],
+          ['Model source ownership', 'Control whether model settings are user-specific, global defaults, inherited from env, or overridden by runtime policy.', ['user scope', 'global', 'env'], 'advanced', 'button', 'Explain source']
+        ]
+      },
+      {
+        name: 'Knowledge and search',
+        color: 'var(--teal)',
+        legacy: 'Search, Deep Research, Memory, Documents',
+        rows: [
+          ['Web search provider', 'Choose SearXNG, DuckDuckGo, Brave, Google PSE, Tavily, Serper, or disabled.', ['web search', 'provider', 'searxng', 'brave'], 'normal', 'select', 'SearXNG'],
+          ['Search provider credentials', 'Store provider URL, API key, Google CX ID, and run a test query without exposing secrets.', ['search key', 'CX', 'URL', 'secret'], 'advanced', 'secret', 'Secure field'],
+          ['Search result count', 'Set how many web results are fetched per query, including a custom count.', ['search results', 'count'], 'normal', 'select', '5 results'],
+          ['Search fallback chain', 'Try backup providers in order when the primary search provider fails or rate limits.', ['fallback', 'rate limit'], 'advanced', 'button', 'Edit chain'],
+          ['Deep research behavior', 'Control source use, token budget, extraction timeout, parallel extraction, and global timeout.', ['deep research', 'tokens', 'timeout'], 'normal', 'button', 'Research rules'],
+          ['Knowledge sources', 'Choose where ABC may look: chats, memory, files, mounted folders, documents, Nextcloud, web, notes, and projects.', ['sources', 'documents', 'nextcloud'], 'normal', 'stack', 'Chats and memory|enabled|green;Mounted folders|2 active|teal;Web search|ask first|amber'],
+          ['Memory learning', 'Set when ABC learns automatically, asks for review, or keeps information temporary.', ['memory', 'learning', 'review'], 'normal', 'switch', 'on'],
+          ['Memory review exceptions', 'Only show conflicts, review items, and uncertain memories when the responsible AI is unsure.', ['memory review', 'conflicts', 'uncertainty'], 'normal', 'button', 'Review rules'],
+          ['Raptor memory', 'Control RAPTOR cache, summaries, graph writes, stale-source checks, and large-session retrieval budgets.', ['raptor', 'cache', 'large sessions'], 'advanced', 'button', 'Raptor status'],
+          ['Knowledge graph viewer', 'Configure filters, source types, layout density, LOD, minimap, and inspector defaults for large graphs.', ['graph', 'nodes', 'filters'], 'normal', 'button', 'Open graph'],
+          ['Universal inbox routing', 'Define how dropped files are extracted, classified, routed, placed, and written into memory/graph state.', ['inbox', 'routing', 'drop files'], 'normal', 'button', 'Inbox rules'],
+          ['Knowledge rebuild', 'Rebuild or refresh indexes and derived graph state. Advanced because it can be expensive.', ['rebuild', 'index', 'maintenance'], 'advanced', 'button', 'Start rebuild']
+        ]
+      },
+      {
+        name: 'Interface and workflow',
+        color: 'var(--blue)',
+        legacy: 'Appearance, Shortcuts, theme customizer',
+        rows: [
+          ['Appearance', 'Choose network or grid background, accent colors, density, opacity preview, and motion level.', ['theme', 'background', 'network', 'grid'], 'normal', 'select', 'Network'],
+          ['Theme library', 'Use default themes, personal themes, save/share theme exports, and color harmony helpers.', ['themes', 'save', 'share', 'harmony'], 'normal', 'button', 'Theme library'],
+          ['Font and layout', 'Set readable chat typography, terminal/working typography, spacing, chat width, and responsive density.', ['font', 'layout', 'chat width'], 'normal', 'button', 'Typography'],
+          ['Toolwheel customization', 'Move, hide, restore, and later add commands back into the wheel without crowding the default UI.', ['toolwheel', 'customize', 'commands'], 'normal', 'button', 'Customize wheel'],
+          ['Toolwheel keyboard control', 'Review Alt+Space, number selection, Enter confirm, Esc close, and future arrow navigation.', ['alt space', 'keyboard', 'numbers'], 'normal', 'button', 'Shortcuts'],
+          ['Keyboard shortcuts', 'Edit chat switching, Ctrl+Tab, Ctrl+1..9, composer, windows, and accessibility shortcuts.', ['shortcuts', 'ctrl tab', 'ctrl numbers'], 'normal', 'button', 'Edit shortcuts'],
+          ['Window behavior', 'Set defaults for floating windows, resize handles, minimize bubbles, focus behavior, and future snap assist.', ['windows', 'snap', 'minimize'], 'normal', 'button', 'Window rules'],
+          ['Chat history and title', 'Configure title rename behavior, header history button, recency labels, unread states, and history sidebar defaults.', ['history', 'title', 'rename'], 'normal', 'button', 'History rules'],
+          ['Model chip tooltip', 'Choose what the header model tooltip shows: tokens, context size, available context, local/API, load, and cost hints.', ['model chip', 'tooltip', 'tokens'], 'normal', 'button', 'Tooltip fields'],
+          ['Reduced motion', 'Turn off nonessential animation and replace motion with quieter state changes.', ['motion', 'accessibility'], 'normal', 'switch', 'off'],
+          ['Legacy visibility controls', 'Map old sidebar, chat area, and chat bar visibility controls into the new zero-sidebar shell.', ['sidebar', 'chat area', 'chat bar'], 'advanced', 'button', 'Migration map']
+        ]
+      },
+      {
+        name: 'Communication and apps',
+        color: 'var(--green)',
+        legacy: 'Integrations, Email, Reminders',
+        rows: [
+          ['Connected apps', 'Manage external service connections in one place: mail, calendar, contacts, vaults, webhooks, tokens, MCP, and plugins.', ['integrations', 'apps', 'accounts'], 'normal', 'button', 'Add app'],
+          ['Email accounts', 'Add, edit, test, OAuth-connect, set default, or remove mail accounts.', ['email', 'accounts', 'OAuth'], 'normal', 'button', 'Email accounts'],
+          ['Email safety', 'Require AI-written email to be staged as drafts for approval instead of sending immediately.', ['email safety', 'drafts', 'send'], 'normal', 'switch', 'on'],
+          ['Email tasks', 'Choose how pending mail tasks, scheduled sends, urgent messages, and inbox follow-ups appear.', ['email tasks', 'scheduled', 'urgent'], 'normal', 'button', 'Mail rules'],
+          ['Writing style', 'Extract, edit, and reuse personal writing style for suggested replies.', ['writing style', 'reply'], 'normal', 'button', 'Writing style'],
+          ['Reminder delivery', 'Choose reminder channel: in-app, email, ntfy, webhook, or integration-backed delivery.', ['reminders', 'notifications', 'ntfy'], 'normal', 'select', 'In app'],
+          ['Reminder message AI', 'Let the utility model write reminder messages and choose an optional persona.', ['reminder synthesis', 'persona'], 'normal', 'switch', 'off'],
+          ['Public app URL', 'Set the externally reachable app URL used by reminders, callbacks, and links.', ['public URL', 'callbacks'], 'advanced', 'input', 'https://abc.local'],
+          ['Calendar accounts', 'Connect CalDAV calendars, test accounts, and choose which calendars ABC may read or write.', ['calendar', 'caldav'], 'normal', 'button', 'Calendar setup'],
+          ['Contacts', 'Connect CardDAV, import/export contacts, add contacts, and use contacts for email compose.', ['contacts', 'carddav'], 'normal', 'button', 'Contacts'],
+          ['Telegram intake', 'Configure Telegram plugin intake, voice transcription, image intake, gated replies, dry-run, and local-only behavior.', ['telegram', 'voice', 'plugin'], 'advanced', 'button', 'Telegram']
+        ]
+      },
+      {
+        name: 'Tools and automation',
+        color: 'var(--violet)',
+        legacy: 'Agent Tools, Mounts, Plugins, MCP, Tokens, Webhooks',
+        rows: [
+          ['Agent limits', 'Set tool call limit, max steps per message, stream timeout, and input token budget.', ['agent', 'tool limit', 'steps'], 'normal', 'input', '20 steps'],
+          ['Built-in tools', 'Enable or disable tools available to Agent mode, with plain-language descriptions.', ['tools', 'enable', 'disable'], 'normal', 'button', 'Tool access'],
+          ['MCP servers', 'Add MCP servers, choose transport, reconnect, authorize OAuth, and toggle individual MCP tools.', ['MCP', 'servers', 'OAuth'], 'advanced', 'button', 'MCP servers'],
+          ['Folder mounts', 'Manage permanent mounts: virtual path, host path, owner, allowed tools, read-only, write rules, validate, reload.', ['mounts', 'folders', 'read write'], 'normal', 'button', 'Mounts'],
+          ['Temporary chat mount defaults', 'Set defaults for composer-created Mount Folder context nodges.', ['temporary mount', 'composer'], 'normal', 'button', 'Mount defaults'],
+          ['Skills and hooks', 'Manage reusable skills, hooks, action recipes, and which are visible in composer/tool menus.', ['skills', 'hooks'], 'normal', 'button', 'Skills'],
+          ['Plugins', 'Enable, disable, reload, uninstall, open plugin UI, rescan local plugins, and inspect load errors.', ['plugins', 'extensions'], 'advanced', 'button', 'Installed plugins'],
+          ['Plugin depot', 'Install curated plugins from registries with digest verification.', ['plugin depot', 'registry'], 'advanced', 'button', 'Depot'],
+          ['API tokens', 'Create, rename, scope, copy once, disable, or revoke tokens for external clients.', ['tokens', 'scopes', 'secret'], 'advanced', 'secret', 'Token vault'],
+          ['Webhooks', 'Add, test, enable, disable, or delete webhook targets and event subscriptions.', ['webhooks', 'events'], 'advanced', 'button', 'Webhooks'],
+          ['ABC self-control', 'Registry-backed settings that ABC may change itself, including scope, confirmation, secret handoff, and human-only rules.', ['self control', 'settings registry'], 'advanced', 'button', 'Policy registry']
+        ]
+      },
+      {
+        name: 'Account and access',
+        color: 'var(--amber)',
+        legacy: 'Account, Users',
+        rows: [
+          ['Account', 'Show current account, login state, logout, and personal account details.', ['account', 'login'], 'normal', 'button', 'Account'],
+          ['Change password', 'Change the current password with policy-aware validation.', ['password', 'security'], 'normal', 'secret', 'Change password'],
+          ['Two-factor authentication', 'Set up, confirm, or disable 2FA.', ['2FA', 'security'], 'normal', 'button', '2FA'],
+          ['Registration', 'Allow or block new account signups.', ['registration', 'signup'], 'advanced', 'switch', 'off'],
+          ['Users', 'Create, rename, remove, promote, or demote users.', ['users', 'admin'], 'advanced', 'button', 'Manage users'],
+          ['User privileges', 'Control who may use Agent mode, browser, shell/files, documents, research, image generation, memory, and daily limits.', ['privileges', 'limits'], 'advanced', 'button', 'Privileges'],
+          ['Allowed models per user', 'Restrict individual users to all models, no models, or selected models only.', ['allowed models', 'users'], 'advanced', 'button', 'Model access']
+        ]
+      },
+      {
+        name: 'Privacy and data',
+        color: 'var(--red)',
+        legacy: 'Account safety, Backup, Danger Zone plus V2 GDPR',
+        rows: [
+          ['Global privacy mode', 'Toggle GDPR/local-first behavior, API restrictions, and visual privacy feedback.', ['GDPR', 'privacy', 'local only'], 'normal', 'switch', 'off'],
+          ['Data classification', 'Define sensitive data categories, source rules, and which content must stay local.', ['classification', 'sensitive'], 'advanced', 'button', 'Rules'],
+          ['Secret handoff', 'Open secure UI fields for API keys and passwords so secrets never pass through chat or tool output.', ['secrets', 'handoff', 'API keys'], 'normal', 'secret', 'Secure input'],
+          ['Memory privacy', 'Decide what can become durable memory, what stays temporary, and when ABC must ask first.', ['memory privacy', 'durable'], 'normal', 'button', 'Memory rules'],
+          ['Import/export data', 'Export or import user data: memories, presets, settings, skills, preferences, and relevant state.', ['backup', 'export', 'import'], 'normal', 'button', 'Export data'],
+          ['Backup policy', 'Configure snapshot behavior, include/exclude research runs and attachments, and backup visibility.', ['backup', 'snapshots'], 'advanced', 'button', 'Backup policy'],
+          ['Audit and logs privacy', 'Choose what settings, tool output, provider payloads, and diagnostics may appear in logs.', ['audit', 'logs', 'redaction'], 'advanced', 'button', 'Log policy'],
+          ['Danger zone', 'Delete chats, memory, documents, notes, tasks, settings, or other categories with explicit confirmation.', ['wipe', 'delete', 'danger'], 'advanced', 'button', 'Open danger zone']
+        ]
+      },
+      {
+        name: 'System and diagnostics',
+        color: 'var(--cyan)',
+        legacy: 'System, feature flags, diagnostics',
+        rows: [
+          ['Updates and backups', 'Show version, latest commit, scheduled updater, host service state, backup snapshots, and recent changes.', ['updates', 'version', 'snapshots'], 'normal', 'stack', 'Version|current|green;Schedule|active|green;Backups|snapshots visible|teal'],
+          ['Run system actions', 'Trigger update check, backup now, or update now when host gates allow it.', ['update now', 'backup now'], 'advanced', 'button', 'System actions'],
+          ['Terminal logs', 'View live diagnostic logs with search, level filter, line limit, refresh, and auto-poll.', ['logs', 'terminal', 'diagnostics'], 'normal', 'button', 'Open logs'],
+          ['Feature flags', 'Turn major app features on or off from a safe admin surface.', ['features', 'flags'], 'advanced', 'button', 'Feature flags'],
+          ['System health', 'View local health checks, collectors, alerts, runtime status, Docker/Podman/restic availability, and blockers.', ['system health', 'runtime'], 'normal', 'button', 'Health'],
+          ['Runtime readiness', 'Inspect API readiness, model source readiness, memory/index readiness, and background worker state.', ['runtime', 'ready'], 'advanced', 'button', 'Readiness'],
+          ['Developer diagnostics', 'Advanced troubleshooting for route parity, settings registry coverage, provider tests, and UI/backend mismatch.', ['developer', 'diagnostics'], 'advanced', 'button', 'Diagnostics']
+        ]
+      }
+    ];
+
+    const colors = Object.fromEntries(catalog.map(section => [section.name, section.color]));
+    const search = document.getElementById('settings-search');
+    const list = document.getElementById('result-list');
+    const scroll = document.getElementById('settings-scroll');
+    const contentTitle = document.getElementById('content-title');
+    const contentSubtitle = document.getElementById('content-subtitle');
+    const normalMode = document.getElementById('normal-mode');
+    const advancedMode = document.getElementById('advanced-mode');
+    let advanced = false;
+
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
+    }
+
+    function slug(value) {
+      return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+
+    function controlMarkup(row, sectionColor) {
+      const [title, , , level, type, value] = row;
+      if (type === 'switch') {
+        return `<button class="switch ${value === 'on' ? 'on' : ''}" type="button" aria-label="${esc(title)} toggle"></button>`;
+      }
+      if (type === 'select') {
+        return `<select class="select-shell" aria-label="${esc(title)}"><option>${esc(value)}</option><option>Use recommended</option><option>Ask first</option></select>`;
+      }
+      if (type === 'input') {
+        return `<input class="input-shell" value="${esc(value)}" aria-label="${esc(title)}">`;
+      }
+      if (type === 'secret') {
+        return `<button class="tiny-button" type="button">${esc(value)}</button><span class="setting-tags"><span class="secret">secret-safe</span></span>`;
+      }
+      if (type === 'stack') {
+        return `<div class="status-stack">${String(value).split(';').map(item => {
+          const [name, status, tone] = item.split('|');
+          const color = tone === 'green' ? 'var(--green)' : tone === 'red' ? 'var(--red)' : tone === 'amber' ? 'var(--amber)' : 'var(--teal)';
+          return `<div class="status-row" style="--state:${color}"><strong>${esc(name)}</strong><span>${esc(status)}</span></div>`;
+        }).join('')}</div>`;
+      }
+      return `<button class="tiny-button" type="button">${esc(value || 'Open')}</button>${level === 'advanced' ? '<button class="tiny-button" type="button">Explain</button>' : ''}`;
+    }
+
+    function renderSections() {
+      const existingEmpty = scroll.querySelector('.empty');
+      scroll.innerHTML = '';
+      scroll.appendChild(existingEmpty);
+      catalog.forEach(section => {
+        const sectionEl = document.createElement('section');
+        sectionEl.className = 'settings-section';
+        sectionEl.style.setProperty('--section', section.color);
+        sectionEl.dataset.section = section.name;
+        sectionEl.innerHTML = `
+          <header class="section-head">
+            <h2>${esc(section.name)}</h2>
+            <span>legacy: ${esc(section.legacy)}</span>
+          </header>
+          ${section.rows.map(row => {
+            const [title, desc, tags, level] = row;
+            const id = `setting-${slug(section.name)}-${slug(title)}`;
+            const allTags = [...tags, section.name, section.legacy, level].join(' ');
+            return `
+              <article class="setting-row" id="${id}" data-title="${esc(title)}" data-group="${esc(section.name)}" data-tags="${esc(allTags)}" data-level="${esc(level)}">
+                <div class="setting-copy">
+                  <strong>${esc(title)}</strong>
+                  <p>${esc(desc)}</p>
+                  <div class="setting-tags">
+                    ${tags.slice(0, 4).map(tag => `<span>${esc(tag)}</span>`).join('')}
+                    ${level === 'advanced' ? '<span class="risk">advanced</span>' : ''}
+                  </div>
+                </div>
+                <div class="setting-control">${controlMarkup(row, section.color)}</div>
+              </article>
+            `;
+          }).join('')}
+        `;
+        scroll.appendChild(sectionEl);
+      });
+    }
+
+    function allRows() {
+      return Array.from(document.querySelectorAll('.setting-row'));
+    }
+
+    function textOf(row) {
+      return [row.dataset.title, row.dataset.group, row.dataset.tags, row.textContent].join(' ').toLowerCase();
+    }
+
+    function visibleRows() {
+      const query = search.value.trim().toLowerCase();
+      return allRows().filter(row => {
+        const levelOk = advanced || row.dataset.level !== 'advanced';
+        const queryOk = !query || textOf(row).includes(query);
+        return levelOk && queryOk;
+      });
+    }
+
+    function focusRow(row) {
+      allRows().forEach(item => item.classList.remove('highlight'));
+      row.hidden = false;
+      row.closest('.settings-section').hidden = false;
+      row.classList.add('highlight');
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      contentTitle.textContent = row.dataset.title;
+      contentSubtitle.textContent = row.querySelector('p')?.textContent || 'Selected setting';
+      setTimeout(() => row.classList.remove('highlight'), 1400);
+    }
+
+    function renderResults() {
+      const query = search.value.trim().toLowerCase();
+      const found = visibleRows();
+      const rows = allRows();
+      const grouped = found.reduce((acc, row) => {
+        const group = row.dataset.group || 'Settings';
+        acc[group] = acc[group] || [];
+        acc[group].push(row);
+        return acc;
+      }, {});
+
+      rows.forEach(row => {
+        row.hidden = !found.includes(row);
+      });
+
+      document.querySelectorAll('.settings-section').forEach(section => {
+        const hasVisible = Array.from(section.querySelectorAll('.setting-row')).some(row => !row.hidden);
+        section.hidden = !hasVisible;
+      });
+
+      scroll.classList.toggle('no-results', found.length === 0);
+      contentTitle.textContent = query ? `Search: ${search.value.trim()}` : (advanced ? 'All settings, advanced' : 'All settings');
+      contentSubtitle.textContent = query
+        ? `${found.length} matching settings. Search includes legacy names, new V2 names, hidden admin areas, and plain-language aliases.`
+        : (advanced
+          ? 'Advanced mode includes admin, host, secret handoff, plugins, tokens, MCP, feature flags, logs, and destructive actions.'
+          : 'Normal mode keeps user-facing controls visible and hides admin-grade controls until needed.');
+
+      list.innerHTML = Object.keys(grouped).map(group => {
+        const items = grouped[group].map(row => `
+          <button class="result-item" style="--item:${colors[group] || 'var(--cyan)'}" type="button" data-target="${row.id}">
+            <strong>${esc(row.dataset.title)}</strong>
+            <span>${esc(row.dataset.level)} · ${esc(row.dataset.tags.split(' ').slice(0, 2).join(' '))}</span>
+          </button>
+        `).join('');
+        return `<div class="result-group">${esc(group)}</div>${items}`;
+      }).join('');
+    }
+
+    function setMode(nextAdvanced) {
+      advanced = nextAdvanced;
+      normalMode.classList.toggle('active', !advanced);
+      advancedMode.classList.toggle('active', advanced);
+      renderResults();
+    }
+
+    renderSections();
+    renderResults();
+
+    search.addEventListener('input', renderResults);
+    normalMode.addEventListener('click', () => setMode(false));
+    advancedMode.addEventListener('click', () => setMode(true));
+    list.addEventListener('click', event => {
+      const button = event.target.closest('[data-target]');
+      if (!button) return;
+      const row = document.getElementById(button.dataset.target);
+      if (row) focusRow(row);
+    });
+    document.addEventListener('click', event => {
+      const button = event.target.closest('.switch');
+      if (button) button.classList.toggle('on');
+    });
+  </script>
+</body>
+</html>

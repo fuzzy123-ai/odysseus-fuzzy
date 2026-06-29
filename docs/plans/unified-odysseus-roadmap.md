@@ -121,7 +121,7 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P1 | `0.13.x` | Diagnostics Layer | Skalierung ohne Messdaten ist Blindflug. | M-L | L | Health-/Lens-Texte | Metrics, timings, counts | Gate-Definition | ja |
 | P1 | `0.13.x` | Query Budgets & Performance Gates | Keine unbounded Graph-/Memory-/Query-Pfade. | M | M | UI fuer clipped/partial results | Limits, cursors, perf tests | Regression-Budget | ja |
 | P2 | `0.13.x` | Postgres + pgvector Design | Zentrale Wahrheit fuer Memory/Graph/Jobs, pgvector als integrierte Semantik. | L | L | Migrations-/Ops-Runbook | Schema, Import/Export Proof | Architekturentscheidung | bedingt |
-| P2 | `0.13.x` | Progressive Graph API | UI darf nie 100k/1M Nodes laden, sondern Ausschnitte und Aggregate. | M-L | L | Graph-Lens/Clipping UX | serverseitige Graph Budgets | Browser-/Payload-Smokes | ja |
+| P2 | `0.13.x` | Progressive Graph API | UI darf nie 100k/1M Nodes laden, sondern Ausschnitte, Aggregate und budgetierte Viewer-States. | M-L | L | Graph-Lens/Clipping UX, Filter, LOD, Inspector | serverseitige Graph Budgets, Cursor, Filter-/Viewport-Kontext | Browser-/Payload-/Render-Smokes | ja |
 | P2 | `0.14.x` | Lightweight Memory Maintenance | Kleine Maintenance-Modelle duerfen RAPTOR/GraphRAG pflegen, aber nie globale Wahrheit entscheiden. | L | L | Review-/Evidence-Sprache | bounded Jobs, K-Means Proof, Summary Worker | Drift-/Fallback-Gates | ja |
 | P1 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Die Memory-Foundation braucht eine klare Nutzeroberflaeche: Lesen/Pflegen trennen, Review/Insights/Diagnostics ordnen, Shell stabilisieren. | L | L | UX-Vertraege, Navigation, Zustaende, Texte | fokussierte UI-/Static-Implementierung nach Handoff | Hotfile-Sperren, Browser-/Static-Smokes | bedingt |
 | P1 | `0.16.x` | Isolated Image Tools Worker | `rembg` passt nicht sauber in die Python-3.14-Core-venv; Background Removal braucht einen isolierten Worker, bevor Telegram/Image-Actions stabil werden. | M | M | Worker-Contract, UI/Cookbook-Setup-Texte | Worker Client, Route-Adapter, isolierter Worker-MVP | Roadmap, Hotfile-Gates, finaler Remove-BG-Smoke | bedingt |
@@ -473,7 +473,7 @@ Diese Version sorgt dafuer, dass grosse Datenmengen fluessig bleiben.
 | `MS3-query-budgets` | Partial-/Clipped-UX | Limits, cursors, timeout behavior | Regression-Gates | ja |
 | `MS4-postgres-pgvector-schema` | Backup/Migration-Erklaerung | Schema und Migration Draft | Architekturentscheidung | bedingt |
 | `MS5-import-export-migration-proof` | Nutzer-/Ops-Runbook | Export/Import Vergleich | Go/No-Go fuer Runtime Switch | nein |
-| `MS6-progressive-graph-api` | Graph-Lens fuer Ausschnitte | Graph endpoints mit Budgets | Payload-/Browser-Smokes | ja |
+| `MS6-progressive-graph-api` | Graph-Lens fuer Ausschnitte, Filter, LOD, Minimap und Inspector-Sprache | Graph endpoints mit Budgets, Cursor, Filter- und Viewport-Kontext | Payload-/Browser-/Render-Smokes | ja |
 | `MS7-ops-homeserver-runbook` | Homeserver-Doku | Docker/Postgres/Backup Tests | Risiko-/Restore-Pruefung | ja |
 
 ### Definition of Done `0.13.x`
@@ -482,6 +482,7 @@ Diese Version sorgt dafuer, dass grosse Datenmengen fluessig bleiben.
 - Jede teure Query meldet Timing, Counts und Clipping.
 - Postgres ist als Wahrheit entworfen; Accelerators bleiben optional.
 - Migration ist export/import-basiert, nicht dauerhaft Dual-Write.
+- Graph-Viewer-Arbeit ist an Progressive Graph gebunden: Canvas/WebGL, Viewport-Culling, progressive Labels, Cluster/LOD und starke Filter statt Browser-Full-Dump.
 - MiniPC/Homeserver-Betrieb hat klare Grenzen und Backups.
 
 ## Version `0.14.x`: Lightweight Memory Maintenance

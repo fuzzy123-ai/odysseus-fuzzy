@@ -29,9 +29,39 @@ Lesen beantwortet Fragen. Pflegen entscheidet ueber Vorschlaege.
 Das bedeutet:
 
 - `Gedaechtnis Lesen` ist fuer Query, Quellen, Confidence und Verstehen da.
-- `Gedaechtnis Pflegen` ist fuer Review, Korrektur, Uebernahme und Kuration da.
+- `Gedaechtnis Pflegen` ist fuer Autopilot-Kontrolle, seltene `Needs attention`-Faelle, Korrektur, Uebernahme und Kuration da.
 - Query und Review duerfen nicht als Mischzustand in einem einzigen Tab erscheinen.
 - Graph bleibt Hilfssicht oder Sprungziel, nicht dritter Memory-Haupttab.
+
+## Memory-Autopilot Und Lernsignale
+
+Der Memory-Bereich darf Nutzer nicht dauerhaft zur manuellen Kuration erziehen. Der Normalfall ist Autopilot:
+
+- sichere Memories werden automatisch gespeichert, aktualisiert, zusammengefuehrt, scoped oder verworfen
+- unsichere Kandidaten bleiben temporaer oder werden als `Needs attention` markiert
+- alte `Review Queue`-Sprache wird nicht als dauerhafte Pflichtliste verkauft
+- leere Pflegeflaechen sind ein gutes Zeichen: ABC hat gerade nichts Unsicheres, das menschliche Entscheidung braucht
+
+`Needs attention` erscheint nur, wenn die zustaendige KI selbst nicht sicher genug entscheiden kann:
+
+- niedrige Confidence oder fehlende Evidence
+- unklarer Scope zwischen global, Projekt, Chat, Quelle oder privat
+- sensibler oder privater Inhalt
+- echter Konflikt mit bestehendem Memory
+- moegliche Verwechslung von Mock-/Brainstorming-Inhalt mit realer Wahrheit
+- langfristige Intention unklar, zum Beispiel "immer so machen"
+
+Jede manuelle Pflegeaktion muss als Lernsignal modelliert werden:
+
+- `Bestaetigen`: aehnliche Kandidaten duerfen kuenftig eher automatisch gespeichert werden
+- `Verwerfen` oder `Vergessen`: aehnliche Kandidaten bleiben kuenftig eher temporaer oder werden ignoriert
+- `Bearbeiten`: ABC lernt bevorzugte Formulierung, Granularitaet und Ton
+- `Scope aendern`: ABC lernt, ob aehnliche Inhalte global, projektbezogen, chatbezogen, quellenbezogen oder privat sind
+- `Pinnen`: ABC lernt langfristige Prioritaet
+- `Privat markieren`: ABC lernt strengere Policy fuer aehnliche Inhalte
+- `Konflikt aufloesen`: ABC lernt, welche Aussage in aehnlichen Widerspruechen gewinnen soll
+
+Die UI soll bei einer manuellen Aktion knapp anzeigen, was ABC daraus lernt. Ziel ist, dass Nachfragen mit der Zeit seltener werden, weil die KI die Intention des Nutzers besser kennt.
 
 ## Tab- und Panel-State-Verhalten
 
@@ -77,7 +107,7 @@ Beim Tab-Wechsel gilt:
 
 ### `Review Queue`
 
-`Review Queue` gehoert in `Gedaechtnis Pflegen`.
+`Review Queue` gehoert in `Gedaechtnis Pflegen`, wird aber in der Nutzeroberflaeche als `Needs attention` oder aehnlich menschlich lesbare Ausnahmeflaeche behandelt. Sie darf nicht als dauerhafte Aufgabenliste wirken.
 
 ### `Knowledge Audit`
 
@@ -124,24 +154,29 @@ Nicht zulaessig in diesem Tab:
 
 `Gedaechtnis Pflegen` zeigt nur review- und kurationsbezogene Inhalte:
 
-- Capture Review
+- Autopilot-Status
+- `Needs attention`-Faelle
+- Capture Review nur als Ausnahme
 - Tag-Vorschlaege
 - Kantenkandidaten
 - Summaries oder Pflegevorschlaege
 - unsichere Aenderungen
 - Dedupe- oder Normalize-Faelle
+- Lernhinweis, was ABC aus einer manuellen Entscheidung fuer kuenftige automatische Entscheidungen ableitet
 
 Optional zulaessig:
 
 - Queue-Fokus
 - Vorschlagskarten
 - Vergleich vor Uebernahme
+- Verlauf kuerzlich gelernter Regeln
 
 Nicht zulaessig in diesem Tab:
 
 - primaerer Freitext-Query-Flow
 - Diagnostics als Hauptinhalt
 - Activity als Hauptinhalt
+- dauerhafte manuelle Review-Pflicht als Normalzustand
 
 ## Empty-, Loading- und Error-States
 
@@ -177,12 +212,13 @@ Empfohlene Sprache:
 
 `empty`:
 
-- keine offenen Review-Faelle
-- keine Vorschlaege offen
+- Autopilot ist aktiv
+- keine `Needs attention`-Faelle
+- keine unsicheren Vorschlaege offen
 
 Empfohlene Sprache:
 
-- "Aktuell gibt es nichts zu pflegen."
+- "Memory handles itself. Nothing needs your attention."
 
 `loading`:
 
@@ -221,11 +257,11 @@ Sekundaeraktionen:
 
 Primaeraktion:
 
-- `Aenderung uebernehmen`
+- `Bestaetigen & lernen`
 
 Alternative Formulierung, falls die Queue staerker im Vordergrund steht:
 
-- `Ausgewaehlten Vorschlag uebernehmen`
+- `Auswahl bestaetigen`
 
 Sekundaeraktionen:
 
@@ -233,6 +269,8 @@ Sekundaeraktionen:
 - vertagen
 - Quelle pruefen
 - Dublette vergleichen
+- Scope aendern
+- vergessen und daraus lernen
 
 ## Konsistente UI-Labels und Begriffe
 
@@ -253,6 +291,7 @@ Diese alten Begriffe sollen nicht mehr als konkurrierende Hauptlabels auftauchen
 
 - `Memory Query`
 - `Review Queue` als eigener Hauptbereich
+- `Review` als dauerhafte Nutzerpflicht, wenn eigentlich nur seltene Unsicherheit gemeint ist
 - `Knowledge Audit` als Memory-Tab
 - `Spark` als eigener Tool-Begriff in der Memory-Hauptnavigation
 
@@ -278,7 +317,9 @@ Mindestens klar sein muss:
 - es gibt genau zwei Memory-Tabs
 - Query und Review sind getrennt
 - `Memory Query` sitzt in `Gedaechtnis Lesen`
-- `Review Queue` sitzt in `Gedaechtnis Pflegen`
+- alte `Review Queue`-Zugaenge sitzen in `Gedaechtnis Pflegen`, erscheinen nutzerseitig aber als seltene `Needs attention`-Faelle
+- Memory-Autopilot ist der Default; manuelle Pflege ist Ausnahme, nicht Daueraufgabe
+- manuelle Klicks erzeugen explizite Lernsignale fuer kuenftige automatische Memory-Entscheidungen
 - `Knowledge Audit` bleibt in `Diagnostics`
 - `Spark` gehoert in `Insights`
 - `Graph Jump` bleibt Sekundaeraktion oder Hilfssprung

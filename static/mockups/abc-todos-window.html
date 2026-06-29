@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Todos Window Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --panel: rgba(2, 9, 16, 0.9);
+      --panel-2: rgba(5, 17, 28, 0.94);
+      --line: rgba(22, 217, 245, 0.2);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 52% 78%, rgba(10, 164, 214, 0.15), transparent 28%),
+        radial-gradient(circle at 14% 18%, rgba(30, 92, 182, 0.2), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(21, 214, 245, 0.11), transparent 34%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      opacity: 0.62;
+      filter: saturate(0.9);
+    }
+
+    .network line {
+      stroke: rgba(22, 217, 245, 0.12);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.18);
+      stroke: rgba(22, 217, 245, 0.34);
+      stroke-width: 1;
+    }
+
+    .network .hot {
+      fill: rgba(22, 217, 245, 0.38);
+      filter: drop-shadow(0 0 9px rgba(22, 217, 245, 0.45));
+    }
+
+    .brand {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      z-index: 2;
+      color: var(--cyan);
+      font: 600 18px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(22, 217, 245, 0.38);
+    }
+
+    .mock-shell {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      z-index: 3;
+      width: min(980px, calc(100vw - 92px));
+      height: min(680px, calc(100dvh - 92px));
+      min-width: 760px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(22, 217, 245, 0.42);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        #07111d;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.44),
+        0 0 0 1px rgba(22, 217, 245, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font-family: var(--mono);
+    }
+
+    .window-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .window-title::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(22, 217, 245, 0.58);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--cyan);
+      transform: translateY(-50%);
+    }
+
+    .window-actions button {
+      width: 16px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font: 15px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .window-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(390px, 1fr) minmax(260px, 0.58fr);
+    }
+
+    .todo-main {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-right: 1px solid rgba(22, 217, 245, 0.15);
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+      background:
+        radial-gradient(circle at 18% 20%, rgba(22, 217, 245, 0.07), transparent 42%),
+        rgba(2, 10, 18, 0.4);
+    }
+
+    .toolbar-top {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search {
+      position: relative;
+    }
+
+    .search input {
+      width: 100%;
+      height: 34px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.76);
+      color: var(--ink);
+      padding: 0 12px 0 32px;
+      font: 12px/1 var(--mono);
+      outline: none;
+    }
+
+    .search::before {
+      content: "/";
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      color: var(--cyan);
+      font: 600 14px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .select-like,
+    .new-todo {
+      height: 34px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.74);
+      color: rgba(215, 247, 255, 0.82);
+      padding: 0 10px;
+      font: 11px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .new-todo {
+      border-color: rgba(22, 217, 245, 0.44);
+      color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .filter {
+      min-height: 25px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.5);
+      color: rgba(215, 247, 255, 0.64);
+      padding: 0 9px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .filter.active {
+      border-color: rgba(22, 217, 245, 0.52);
+      background: rgba(22, 217, 245, 0.11);
+      color: var(--cyan);
+      box-shadow: 0 0 12px rgba(22, 217, 245, 0.09);
+    }
+
+    .filter .count {
+      color: rgba(215, 247, 255, 0.44);
+    }
+
+    .todo-list {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .todo-list::before {
+      content: "";
+      position: absolute;
+      left: 29px;
+      top: 24px;
+      bottom: 24px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(75, 140, 255, 0.38), rgba(22, 217, 245, 0.24), transparent);
+    }
+
+    .todo-stack {
+      display: grid;
+      gap: 9px;
+    }
+
+    .todo-row {
+      --state: var(--blue);
+      position: relative;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 10px;
+      border: 1px solid rgba(22, 217, 245, 0.1);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.46);
+      color: rgba(215, 247, 255, 0.8);
+      padding: 11px 12px 11px 0;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .todo-row:hover,
+    .todo-row.active {
+      border-color: color-mix(in srgb, var(--state) 46%, transparent);
+      background: color-mix(in srgb, var(--state) 9%, rgba(2, 10, 17, 0.7));
+      outline: none;
+    }
+
+    .todo-dot {
+      position: relative;
+      z-index: 1;
+      width: 9px;
+      height: 9px;
+      justify-self: center;
+      margin-top: 5px;
+      border: 1px solid var(--state);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--state) 54%, transparent);
+    }
+
+    .todo-copy {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .todo-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .todo-title {
+      overflow: hidden;
+      color: rgba(226, 249, 255, 0.92);
+      font: 600 13px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .todo-chip {
+      flex: 0 0 auto;
+      min-height: 18px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--state) 34%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--state) 80%, white 8%);
+      padding: 0 6px;
+      font: 9px/1 var(--mono);
+    }
+
+    .todo-meta {
+      display: flex;
+      min-width: 0;
+      gap: 10px;
+      color: rgba(120, 154, 170, 0.82);
+      font: 10px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .todo-meta span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .priority {
+      align-self: center;
+      justify-self: end;
+      min-width: 34px;
+      color: rgba(215, 247, 255, 0.54);
+      font: 10px/1 var(--mono);
+      text-align: right;
+    }
+
+    .detail {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background:
+        radial-gradient(circle at 70% 26%, rgba(22, 217, 245, 0.07), transparent 42%),
+        rgba(2, 9, 16, 0.48);
+    }
+
+    .detail-head {
+      display: grid;
+      gap: 10px;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+    }
+
+    .detail-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .detail-state {
+      color: var(--cyan);
+    }
+
+    .detail-title {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 18px/1.25 var(--mono);
+      text-wrap: balance;
+    }
+
+    .detail-sub {
+      max-width: 38ch;
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .detail-body {
+      min-height: 0;
+      overflow: hidden;
+      padding: 15px 18px;
+    }
+
+    .detail-section {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .section-label {
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .property-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .property {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 24px;
+      align-items: center;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.08);
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1.25 var(--mono);
+    }
+
+    .property span:first-child {
+      color: rgba(120, 154, 170, 0.76);
+    }
+
+    .subtasks {
+      display: grid;
+      gap: 7px;
+    }
+
+    .subtask {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1.25 var(--mono);
+    }
+
+    .subtask::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid rgba(22, 217, 245, 0.5);
+      border-radius: 2px;
+      background: rgba(2, 9, 16, 0.9);
+    }
+
+    .subtask.done {
+      color: rgba(120, 154, 170, 0.72);
+    }
+
+    .subtask.done::before {
+      border-color: var(--green);
+      background: rgba(74, 222, 128, 0.14);
+      box-shadow: 0 0 10px rgba(74, 222, 128, 0.22);
+    }
+
+    .detail-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 13px 18px 16px;
+      border-top: 1px solid rgba(22, 217, 245, 0.12);
+    }
+
+    .detail-actions button {
+      min-height: 30px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .detail-actions .primary {
+      border-color: rgba(22, 217, 245, 0.52);
+      color: var(--cyan);
+      background: rgba(22, 217, 245, 0.1);
+    }
+
+    .caption {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      z-index: 2;
+      color: rgba(215, 247, 255, 0.48);
+      font: 11px/1 var(--mono);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    @media (max-width: 860px) {
+      .mock-shell {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 58px);
+        min-width: 0;
+      }
+
+      .window-body {
+        grid-template-columns: 1fr;
+      }
+
+      .detail {
+        display: none;
+      }
+
+      .toolbar-top {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="brand">ABC</div>
+    <svg class="network" viewBox="0 0 1200 820" aria-hidden="true">
+      <g>
+        <line x1="42" y1="130" x2="190" y2="80"></line>
+        <line x1="190" y1="80" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="512" y2="110"></line>
+        <line x1="512" y1="110" x2="700" y2="180"></line>
+        <line x1="700" y1="180" x2="920" y2="100"></line>
+        <line x1="920" y1="100" x2="1120" y2="190"></line>
+        <line x1="120" y1="340" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="430" y2="390"></line>
+        <line x1="430" y1="390" x2="640" y2="330"></line>
+        <line x1="640" y1="330" x2="830" y2="420"></line>
+        <line x1="830" y1="420" x2="1060" y2="330"></line>
+        <line x1="80" y1="600" x2="260" y2="510"></line>
+        <line x1="260" y1="510" x2="430" y2="390"></line>
+        <line x1="430" y1="390" x2="510" y2="650"></line>
+        <line x1="510" y1="650" x2="760" y2="585"></line>
+        <line x1="760" y1="585" x2="1010" y2="640"></line>
+      </g>
+      <g>
+        <circle cx="42" cy="130" r="4"></circle>
+        <circle cx="190" cy="80" r="4" class="hot"></circle>
+        <circle cx="320" cy="166" r="5"></circle>
+        <circle cx="512" cy="110" r="4"></circle>
+        <circle cx="700" cy="180" r="5" class="hot"></circle>
+        <circle cx="920" cy="100" r="4"></circle>
+        <circle cx="1120" cy="190" r="5"></circle>
+        <circle cx="120" cy="340" r="4"></circle>
+        <circle cx="430" cy="390" r="5" class="hot"></circle>
+        <circle cx="640" cy="330" r="4"></circle>
+        <circle cx="830" cy="420" r="5"></circle>
+        <circle cx="1060" cy="330" r="4"></circle>
+        <circle cx="80" cy="600" r="5" class="hot"></circle>
+        <circle cx="260" cy="510" r="4"></circle>
+        <circle cx="510" cy="650" r="5"></circle>
+        <circle cx="760" cy="585" r="4" class="hot"></circle>
+        <circle cx="1010" cy="640" r="5"></circle>
+      </g>
+    </svg>
+
+    <section class="mock-shell" aria-label="Todos window mockup">
+      <header class="window-head">
+        <div class="window-title">Todos</div>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">□</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="window-body">
+        <section class="todo-main">
+          <div class="toolbar">
+            <div class="toolbar-top">
+              <label class="search">
+                <input id="search" type="search" placeholder="find todos, projects, blockers">
+              </label>
+              <button class="select-like" id="sort-button" type="button">Sort: Priority</button>
+              <button class="new-todo" type="button">New Todo</button>
+            </div>
+            <div class="filter-row" id="filters"></div>
+          </div>
+          <div class="todo-list">
+            <div class="todo-stack" id="todo-stack"></div>
+          </div>
+        </section>
+
+        <aside class="detail" id="detail"></aside>
+      </div>
+    </section>
+
+    <div class="caption">Global todo data. Project Overview shows the same source filtered to the active project.</div>
+  </main>
+
+  <script>
+    const todos = [
+      {
+        title: 'Decide project overview density',
+        state: 'Waiting',
+        color: 'var(--amber)',
+        project: 'Frontend V2',
+        source: 'Project',
+        priority: 'P1',
+        updated: '12m',
+        due: 'today',
+        summary: 'Choose whether stats stay in the left rail or become collapsible before implementing the real project window.',
+        subtasks: ['Review compact stats rail', 'Compare beside-chat width', 'Lock first implementation shape'],
+        done: [true, false, false]
+      },
+      {
+        title: 'Wire Todos window into Toolwheel',
+        state: 'Active',
+        color: 'var(--blue)',
+        project: 'Frontend V2',
+        source: 'Toolwheel',
+        priority: 'P1',
+        updated: '28m',
+        due: 'next',
+        summary: 'Add Todos under Tools with a direct action that opens the global floating window.',
+        subtasks: ['Create placeholder window', 'Add toolwheel action', 'Keep Project task list filtered'],
+        done: [false, false, true]
+      },
+      {
+        title: 'Confirm secret handoff UI',
+        state: 'Blocked',
+        color: 'var(--red)',
+        project: 'Self Control',
+        source: 'Agent',
+        priority: 'P0',
+        updated: '1h',
+        due: 'blocked',
+        summary: 'Backend has pending secret handoff support. UI needs a human-only confirmation window before secrets can be completed.',
+        subtasks: ['Read backend contract', 'Design confirm dialog', 'Prevent secret echo in chat'],
+        done: [true, false, false]
+      },
+      {
+        title: 'Add Mount Folder composer tile',
+        state: 'Done',
+        color: 'var(--green)',
+        project: 'Composer',
+        source: 'Chat',
+        priority: 'P2',
+        updated: '3h',
+        due: 'done',
+        summary: 'Composer dropdown should expose temporary folder mounts as square tiles beside other context actions.',
+        subtasks: ['Resize tiles', 'Add Mount Folder', 'Check hover tooltip'],
+        done: [true, true, true]
+      },
+      {
+        title: 'Review MCP parity plan',
+        state: 'Question',
+        color: 'var(--teal)',
+        project: 'Self Control',
+        source: 'Roadmap',
+        priority: 'P2',
+        updated: '1d',
+        due: 'this week',
+        summary: 'The next backend phase needs a smaller MVP boundary before route parity work becomes too broad.',
+        subtasks: ['Find MCP tools', 'Pick smallest safety slice', 'Write handoff note'],
+        done: [false, false, false]
+      },
+      {
+        title: 'Snap group movement polish',
+        state: 'Active',
+        color: 'var(--blue)',
+        project: 'Frontend V2',
+        source: 'Manual',
+        priority: 'P3',
+        updated: 'now',
+        due: 'later',
+        summary: 'Shift-selected windows move together. Decide later whether grouped snapping should exist or stay manual.',
+        subtasks: ['Test selection visuals', 'Document group snapping policy', 'Keep single snap aggressive'],
+        done: [true, false, true]
+      }
+    ];
+
+    const filters = ['All', 'Active', 'Waiting', 'Blocked', 'Question', 'Done'];
+    const state = { filter: 'All', selected: 0, sort: 'Priority', query: '' };
+    const stack = document.getElementById('todo-stack');
+    const detail = document.getElementById('detail');
+    const filtersNode = document.getElementById('filters');
+    const search = document.getElementById('search');
+    const sortButton = document.getElementById('sort-button');
+
+    function countFor(filter) {
+      if (filter === 'All') return todos.length;
+      return todos.filter(todo => todo.state === filter).length;
+    }
+
+    function visibleTodos() {
+      let items = todos.filter(todo => state.filter === 'All' || todo.state === state.filter);
+      if (state.query) {
+        const query = state.query.toLowerCase();
+        items = items.filter(todo => [todo.title, todo.project, todo.source, todo.state].join(' ').toLowerCase().includes(query));
+      }
+      return [...items].sort((a, b) => {
+        if (state.sort === 'Updated') return a.updated.localeCompare(b.updated);
+        if (state.sort === 'Project') return a.project.localeCompare(b.project);
+        return a.priority.localeCompare(b.priority);
+      });
+    }
+
+    function renderFilters() {
+      filtersNode.innerHTML = filters.map(filter => `
+        <button class="filter${state.filter === filter ? ' active' : ''}" type="button" data-filter="${filter}">
+          <span>${filter}</span><span class="count">${countFor(filter)}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderList() {
+      const items = visibleTodos();
+      if (!items.length) {
+        stack.innerHTML = '<div class="todo-row" style="--state:var(--cyan)"><span class="todo-dot"></span><div class="todo-copy"><div class="todo-title">No matching todos</div><div class="todo-meta"><span>Adjust filters or search</span></div></div></div>';
+        return;
+      }
+      if (!items[state.selected]) state.selected = 0;
+      stack.innerHTML = items.map((todo, index) => `
+        <button class="todo-row${index === state.selected ? ' active' : ''}" style="--state:${todo.color}" type="button" data-index="${index}">
+          <span class="todo-dot"></span>
+          <span class="todo-copy">
+            <span class="todo-title-line">
+              <span class="todo-title">${todo.title}</span>
+              <span class="todo-chip">${todo.state}</span>
+            </span>
+            <span class="todo-meta">
+              <span>${todo.project}</span>
+              <span>${todo.source}</span>
+              <span>updated ${todo.updated}</span>
+            </span>
+          </span>
+          <span class="priority">${todo.priority}</span>
+        </button>
+      `).join('');
+      renderDetail(items[state.selected]);
+    }
+
+    function renderDetail(todo) {
+      if (!todo) return;
+      detail.innerHTML = `
+        <div class="detail-head">
+          <div class="detail-kicker"><span>${todo.project}</span><span class="detail-state">${todo.state}</span></div>
+          <h1 class="detail-title">${todo.title}</h1>
+          <div class="detail-sub">${todo.summary}</div>
+        </div>
+        <div class="detail-body">
+          <section class="detail-section">
+            <div class="section-label">Properties</div>
+            <div class="property-grid">
+              <div class="property"><span>Priority</span><span>${todo.priority}</span></div>
+              <div class="property"><span>Source</span><span>${todo.source}</span></div>
+              <div class="property"><span>Due</span><span>${todo.due}</span></div>
+              <div class="property"><span>Updated</span><span>${todo.updated}</span></div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="section-label">Checklist</div>
+            <div class="subtasks">
+              ${todo.subtasks.map((subtask, index) => `<div class="subtask${todo.done[index] ? ' done' : ''}">${subtask}</div>`).join('')}
+            </div>
+          </section>
+        </div>
+        <div class="detail-actions">
+          <button type="button">Open Source</button>
+          <button class="primary" type="button">Focus Todo</button>
+        </div>
+      `;
+    }
+
+    function render() {
+      renderFilters();
+      renderList();
+      sortButton.textContent = 'Sort: ' + state.sort;
+    }
+
+    filtersNode.addEventListener('click', event => {
+      const button = event.target.closest('[data-filter]');
+      if (!button) return;
+      state.filter = button.dataset.filter;
+      state.selected = 0;
+      render();
+    });
+
+    stack.addEventListener('click', event => {
+      const row = event.target.closest('[data-index]');
+      if (!row) return;
+      state.selected = Number(row.dataset.index);
+      renderList();
+    });
+
+    search.addEventListener('input', () => {
+      state.query = search.value.trim();
+      state.selected = 0;
+      renderList();
+    });
+
+    sortButton.addEventListener('click', () => {
+      state.sort = state.sort === 'Priority' ? 'Updated' : state.sort === 'Updated' ? 'Project' : 'Priority';
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

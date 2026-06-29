@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Settings Search Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --panel: rgba(3, 13, 22, 0.94);
+      --panel-soft: rgba(5, 20, 32, 0.72);
+      --line: rgba(22, 217, 245, 0.18);
+      --line-strong: rgba(22, 217, 245, 0.48);
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --teal: #22d3b6;
+      --blue: #4b8cff;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input,
+    select {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(31, 86, 178, 0.22), transparent 30%),
+        radial-gradient(circle at 74% 80%, rgba(22, 217, 245, 0.14), transparent 32%),
+        #02060d;
+      isolation: isolate;
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(105deg, transparent 0 18%, rgba(22, 217, 245, 0.04) 30%, transparent 43%),
+        linear-gradient(76deg, transparent 0 56%, rgba(75, 140, 255, 0.07) 68%, transparent 78%);
+      animation: aurora 12s ease-in-out infinite alternate;
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 5px);
+      opacity: 0.16;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: 0;
+      opacity: 0.72;
+      pointer-events: none;
+    }
+
+    .network line {
+      stroke: rgba(65, 205, 239, 0.12);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.28);
+      filter: drop-shadow(0 0 8px rgba(22, 217, 245, 0.35));
+    }
+
+    .network .signal {
+      fill: rgba(215, 247, 255, 0.95);
+      animation: signal 4.8s linear infinite;
+      offset-path: path("M 104 612 L 236 480 L 392 540 L 552 382 L 742 426 L 910 250 L 1142 330 L 1320 194");
+    }
+
+    .brand {
+      position: fixed;
+      left: 18px;
+      top: 16px;
+      z-index: 4;
+      color: var(--cyan);
+      font: 700 21px/1 var(--mono);
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 14px rgba(22, 217, 245, 0.55);
+    }
+
+    .settings-window {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(1160px, calc(100vw - 72px));
+      height: min(760px, calc(100dvh - 86px));
+      min-width: 860px;
+      min-height: 560px;
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(6, 20, 32, 0.97), rgba(2, 8, 15, 0.98)),
+        var(--panel);
+      box-shadow:
+        0 22px 58px rgba(0, 0, 0, 0.48),
+        0 0 0 1px rgba(22, 217, 245, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+
+    .window-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font: 600 14px/1 var(--font);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .window-actions button {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      padding: 0;
+      font: 16px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .settings-rail {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      border-right: 1px solid var(--line);
+      background: rgba(2, 8, 14, 0.42);
+      overflow: hidden;
+    }
+
+    .search-wrap {
+      padding: 15px 14px 10px;
+    }
+
+    .settings-search {
+      position: relative;
+    }
+
+    .settings-search::before {
+      content: "/";
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      color: var(--cyan);
+      font: 600 14px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .settings-search input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 26%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.78);
+      color: var(--ink);
+      padding: 0 12px 0 34px;
+      outline: none;
+      font: 12px/1 var(--mono);
+    }
+
+    .settings-search input:focus {
+      border-color: color-mix(in srgb, var(--cyan) 62%, transparent);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 14%, transparent);
+    }
+
+    .quick-status {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 0 14px 12px;
+    }
+
+    .status-tile {
+      border: 1px solid color-mix(in srgb, var(--tile) 28%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--tile) 7%, rgba(2, 10, 18, 0.68));
+      padding: 8px 7px;
+      font: 10px/1.15 var(--mono);
+      color: rgba(215, 247, 255, 0.62);
+    }
+
+    .status-tile strong {
+      display: block;
+      color: color-mix(in srgb, var(--tile) 78%, white 8%);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .result-list {
+      position: relative;
+      display: grid;
+      align-content: start;
+      gap: 5px;
+      overflow: auto;
+      padding: 0 10px 14px;
+    }
+
+    .result-group {
+      margin: 11px 7px 4px;
+      color: rgba(126, 164, 181, 0.86);
+      font: 600 10px/1 var(--mono);
+    }
+
+    .result-item {
+      --item: var(--cyan);
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 33px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 7px 0 2px;
+      text-align: left;
+      cursor: pointer;
+      font: 10px/1 var(--mono);
+    }
+
+    .result-item::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--item);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.96);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--item) 44%, transparent);
+    }
+
+    .result-item strong,
+    .result-item span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-item strong {
+      font-weight: 600;
+      color: rgba(226, 249, 255, 0.88);
+    }
+
+    .result-item span {
+      color: rgba(126, 164, 181, 0.76);
+    }
+
+    .result-item:hover,
+    .result-item:focus-visible,
+    .result-item.active {
+      outline: none;
+      border-color: color-mix(in srgb, var(--item) 42%, transparent);
+      background: color-mix(in srgb, var(--item) 8%, rgba(2, 10, 18, 0.5));
+    }
+
+    .rail-footer {
+      border-top: 1px solid var(--line);
+      padding: 11px 14px;
+      color: rgba(126, 164, 181, 0.78);
+      font: 10px/1.4 var(--mono);
+    }
+
+    .settings-content {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .content-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 22% 14%, color-mix(in srgb, var(--cyan) 8%, transparent), transparent 44%),
+        rgba(2, 10, 18, 0.36);
+      padding: 17px 20px 15px;
+    }
+
+    .content-title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .content-title h1 {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.95);
+      font: 600 19px/1.2 var(--mono);
+    }
+
+    .content-title p {
+      max-width: 74ch;
+      margin: 0;
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .settings-mode {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      width: 172px;
+      height: 31px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 24%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.74);
+      overflow: hidden;
+    }
+
+    .settings-mode button {
+      border: 0;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.58);
+      padding: 0;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .settings-mode button.active {
+      color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 20%, transparent);
+    }
+
+    .settings-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 20px 24px;
+      scroll-behavior: smooth;
+    }
+
+    .settings-section {
+      --section: var(--cyan);
+      display: grid;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .section-head {
+      position: sticky;
+      top: -18px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 32px;
+      background:
+        linear-gradient(180deg, rgba(4, 14, 23, 0.98), rgba(4, 14, 23, 0.86));
+      border-bottom: 1px solid color-mix(in srgb, var(--section) 18%, transparent);
+      padding: 7px 0;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      color: color-mix(in srgb, var(--section) 80%, white 8%);
+      font: 600 13px/1 var(--mono);
+    }
+
+    .section-head span {
+      color: rgba(126, 164, 181, 0.78);
+      font: 10px/1 var(--mono);
+    }
+
+    .setting-row {
+      --row: var(--section);
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.78fr) minmax(260px, 1fr);
+      gap: 18px;
+      align-items: center;
+      min-height: 74px;
+      border: 1px solid color-mix(in srgb, var(--row) 12%, transparent);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.44);
+      padding: 13px 14px;
+    }
+
+    .setting-row.highlight {
+      border-color: color-mix(in srgb, var(--row) 66%, transparent);
+      background: color-mix(in srgb, var(--row) 9%, rgba(2, 10, 17, 0.54));
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--row) 12%, transparent),
+        0 0 18px color-mix(in srgb, var(--row) 12%, transparent);
+    }
+
+    .setting-copy {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .setting-copy strong {
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 12px/1.2 var(--mono);
+    }
+
+    .setting-copy p {
+      margin: 0;
+      color: rgba(215, 247, 255, 0.6);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .setting-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      color: rgba(126, 164, 181, 0.76);
+      font: 9px/1 var(--mono);
+    }
+
+    .setting-tags span {
+      border: 1px solid color-mix(in srgb, var(--row) 20%, transparent);
+      border-radius: 999px;
+      padding: 3px 6px;
+      background: rgba(2, 9, 16, 0.48);
+    }
+
+    .setting-control {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .select-shell,
+    .input-shell {
+      min-width: 210px;
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--row) 26%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.78);
+      color: rgba(226, 249, 255, 0.86);
+      padding: 0 10px;
+      font: 11px/1 var(--mono);
+      outline: none;
+    }
+
+    .input-shell {
+      width: min(360px, 100%);
+    }
+
+    .tiny-button {
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--row) 28%, transparent);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: color-mix(in srgb, var(--row) 82%, white 6%);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 24px;
+      border: 1px solid color-mix(in srgb, var(--row) 32%, transparent);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.86);
+      cursor: pointer;
+    }
+
+    .switch::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      border: 1px solid rgba(215, 247, 255, 0.58);
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--row) 18%, transparent);
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .switch.on::before {
+      transform: translateX(21px);
+      border-color: var(--row);
+      background: color-mix(in srgb, var(--row) 48%, transparent);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--row) 40%, transparent);
+    }
+
+    .model-stack,
+    .status-stack {
+      width: min(440px, 100%);
+      display: grid;
+      gap: 7px;
+    }
+
+    .model-row,
+    .status-row {
+      display: grid;
+      grid-template-columns: 9px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      min-height: 30px;
+      border: 1px solid color-mix(in srgb, var(--state) 18%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--state) 6%, rgba(2, 9, 16, 0.62));
+      padding: 0 9px;
+      color: rgba(215, 247, 255, 0.74);
+      font: 10px/1 var(--mono);
+    }
+
+    .model-row::before,
+    .status-row::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--state);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.96);
+      box-shadow: 0 0 9px color-mix(in srgb, var(--state) 48%, transparent);
+    }
+
+    .model-row strong,
+    .status-row strong {
+      min-width: 0;
+      overflow: hidden;
+      color: rgba(226, 249, 255, 0.9);
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .model-row span,
+    .status-row span {
+      color: rgba(126, 164, 181, 0.86);
+      white-space: nowrap;
+    }
+
+    .palette {
+      display: flex;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 32px;
+      height: 32px;
+      border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+      border-radius: 7px;
+      background: var(--c);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--c) 22%, transparent);
+    }
+
+    .empty {
+      display: none;
+      border: 1px dashed rgba(22, 217, 245, 0.22);
+      border-radius: 8px;
+      color: rgba(215, 247, 255, 0.58);
+      padding: 16px;
+      font: 12px/1.4 var(--mono);
+    }
+
+    .settings-scroll.no-results .settings-section,
+    .settings-scroll.no-results .setting-row {
+      display: none;
+    }
+
+    .settings-scroll.no-results .empty {
+      display: block;
+    }
+
+    .settings-section[hidden],
+    .setting-row[hidden] {
+      display: none !important;
+    }
+
+    @keyframes aurora {
+      from { opacity: 0.7; transform: translate3d(-1%, -0.8%, 0); }
+      to { opacity: 1; transform: translate3d(1.2%, 1%, 0); }
+    }
+
+    @keyframes signal {
+      from { offset-distance: 0%; opacity: 0; }
+      8% { opacity: 1; }
+      86% { opacity: 1; }
+      to { offset-distance: 100%; opacity: 0; }
+    }
+
+    @media (max-width: 920px) {
+      body {
+        overflow: auto;
+      }
+
+      .stage {
+        min-height: 100dvh;
+        height: auto;
+        overflow: auto;
+        padding: 70px 14px 18px;
+      }
+
+      .settings-window {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        min-width: 0;
+        height: calc(100dvh - 96px);
+        transform: none;
+      }
+
+      .settings-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .settings-rail {
+        grid-template-rows: auto auto auto;
+        max-height: 238px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .result-list {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(180px, 1fr);
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .result-group {
+        display: none;
+      }
+
+      .setting-row {
+        grid-template-columns: 1fr;
+      }
+
+      .setting-control {
+        justify-content: flex-start;
+      }
+
+      .content-head {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <svg class="network" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="104" y1="612" x2="236" y2="480"></line>
+      <line x1="236" y1="480" x2="392" y2="540"></line>
+      <line x1="392" y1="540" x2="552" y2="382"></line>
+      <line x1="552" y1="382" x2="742" y2="426"></line>
+      <line x1="742" y1="426" x2="910" y2="250"></line>
+      <line x1="910" y1="250" x2="1142" y2="330"></line>
+      <line x1="1142" y1="330" x2="1320" y2="194"></line>
+      <line x1="236" y1="480" x2="204" y2="196"></line>
+      <line x1="552" y1="382" x2="466" y2="152"></line>
+      <line x1="742" y1="426" x2="780" y2="724"></line>
+      <line x1="910" y1="250" x2="1038" y2="608"></line>
+      <line x1="1142" y1="330" x2="1288" y2="620"></line>
+      <circle cx="104" cy="612" r="4"></circle>
+      <circle cx="236" cy="480" r="3"></circle>
+      <circle cx="392" cy="540" r="4"></circle>
+      <circle cx="552" cy="382" r="3"></circle>
+      <circle cx="742" cy="426" r="5"></circle>
+      <circle cx="910" cy="250" r="4"></circle>
+      <circle cx="1142" cy="330" r="4"></circle>
+      <circle cx="1320" cy="194" r="5"></circle>
+      <circle class="signal" r="2.5"></circle>
+    </svg>
+    <div class="brand">ABC</div>
+
+    <section class="settings-window" aria-label="Settings mockup">
+      <header class="window-head">
+        <span>Settings</span>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">&#9633;</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="settings-layout">
+        <aside class="settings-rail" aria-label="Settings search and results">
+          <div class="search-wrap">
+            <label class="settings-search">
+              <input id="settings-search" type="search" placeholder="Search settings, models, privacy, shortcuts" autocomplete="off">
+            </label>
+          </div>
+
+          <div class="quick-status" aria-label="System status">
+            <div class="status-tile" style="--tile:var(--green)"><strong>Local</strong>ready</div>
+            <div class="status-tile" style="--tile:var(--amber)"><strong>GPU</strong>busy</div>
+            <div class="status-tile" style="--tile:var(--teal)"><strong>API</strong>online</div>
+          </div>
+
+          <div class="result-list" id="result-list" aria-label="Search results"></div>
+
+          <div class="rail-footer">
+            Settings are searchable first. Categories are landmarks, not another sidebar to memorize.
+          </div>
+        </aside>
+
+        <section class="settings-content">
+          <header class="content-head">
+            <div class="content-title">
+              <h1 id="content-title">All settings</h1>
+              <p id="content-subtitle">A VS Code-style settings surface for ABC: search everything, keep common choices readable, hide admin-grade controls behind clear labels.</p>
+            </div>
+            <div class="settings-mode" aria-label="Settings detail mode">
+              <button class="active" type="button">Normal</button>
+              <button type="button">Advanced</button>
+            </div>
+          </header>
+
+          <div class="settings-scroll" id="settings-scroll">
+            <div class="empty">No matching setting. Try "model", "privacy", "search", "mail", "plugin", or "shortcut".</div>
+
+            <section class="settings-section" style="--section:var(--cyan)" data-section="Models" data-section-tags="models local api default fallback vision image speech provider endpoint">
+              <header class="section-head"><h2>Models</h2><span>old tabs: Add Models, Added Models, AI Defaults</span></header>
+
+              <article class="setting-row" id="setting-default-model" data-title="Default chat model" data-group="Models" data-tags="model default chat local api fallback deepseek gemma">
+                <div class="setting-copy">
+                  <strong>Default chat model</strong>
+                  <p>Choose the model new chats start with. Empty chats can still switch before the first message.</p>
+                  <div class="setting-tags"><span>models</span><span>chat</span><span>fallback</span></div>
+                </div>
+                <div class="setting-control">
+                  <select class="select-shell"><option>deepseek-v4-flash</option><option>gemma-local</option><option>gpt-4.1-mini</option></select>
+                  <button class="tiny-button" type="button">Edit fallback</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-model-sources" data-title="Model sources" data-group="Models" data-tags="providers endpoints ollama openai anthropic local api status">
+                <div class="setting-copy">
+                  <strong>Model sources</strong>
+                  <p>Add local or API model sources. Status dots explain what is ready, busy, or offline.</p>
+                  <div class="setting-tags"><span>local</span><span>API</span><span>status</span></div>
+                </div>
+                <div class="setting-control">
+                  <div class="model-stack">
+                    <div class="model-row" style="--state:var(--green)"><strong>Ollama local</strong><span>ready</span></div>
+                    <div class="model-row" style="--state:var(--amber)"><strong>Gemma maintenance</strong><span>busy</span></div>
+                    <div class="model-row" style="--state:var(--teal)"><strong>OpenAI-compatible API</strong><span>online</span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-media-models" data-title="Media models" data-group="Models" data-tags="image vision speech tts stt voice transcription">
+                <div class="setting-copy">
+                  <strong>Image, vision and speech</strong>
+                  <p>Pick models for screenshots, image creation, speech input, and voice output.</p>
+                  <div class="setting-tags"><span>vision</span><span>voice</span><span>images</span></div>
+                </div>
+                <div class="setting-control">
+                  <select class="select-shell"><option>Use recommended</option><option>Local only</option><option>API when needed</option></select>
+                </div>
+              </article>
+            </section>
+
+            <section class="settings-section" style="--section:var(--teal)" data-section="Knowledge" data-section-tags="search knowledge memory documents research raptor graph sources">
+              <header class="section-head"><h2>Knowledge and search</h2><span>old tabs: Search, Deep Research, Documents</span></header>
+
+              <article class="setting-row" id="setting-knowledge-sources" data-title="Knowledge sources" data-group="Knowledge" data-tags="search sources documents web memory chats nextcloud">
+                <div class="setting-copy">
+                  <strong>Knowledge sources</strong>
+                  <p>Choose where ABC may look: chats, files, mounted folders, web search, memory, and cloud sources.</p>
+                  <div class="setting-tags"><span>sources</span><span>search</span><span>memory</span></div>
+                </div>
+                <div class="setting-control">
+                  <div class="status-stack">
+                    <div class="status-row" style="--state:var(--green)"><strong>Chats and memory</strong><span>enabled</span></div>
+                    <div class="status-row" style="--state:var(--teal)"><strong>Mounted folders</strong><span>2 active</span></div>
+                    <div class="status-row" style="--state:var(--amber)"><strong>Web search</strong><span>ask first</span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-research" data-title="Deep research" data-group="Knowledge" data-tags="deep research web search provider budget citations">
+                <div class="setting-copy">
+                  <strong>Deep research</strong>
+                  <p>Control research depth, source limits, citation behavior, and which model handles longer investigations.</p>
+                  <div class="setting-tags"><span>research</span><span>sources</span><span>budget</span></div>
+                </div>
+                <div class="setting-control">
+                  <select class="select-shell"><option>Balanced</option><option>Fast</option><option>Exhaustive</option></select>
+                  <button class="tiny-button" type="button">Source rules</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-memory" data-title="Memory behavior" data-group="Knowledge" data-tags="memory autopilot reviews learning confidence forget local">
+                <div class="setting-copy">
+                  <strong>Memory behavior</strong>
+                  <p>Set how much ABC saves automatically and when it should ask before learning.</p>
+                  <div class="setting-tags"><span>autopilot</span><span>learning</span><span>privacy</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="switch on" type="button" aria-label="Memory autopilot on"></button>
+                  <button class="tiny-button" type="button">Open Memory</button>
+                </div>
+              </article>
+            </section>
+
+            <section class="settings-section" style="--section:var(--blue)" data-section="Interface" data-section-tags="appearance background network theme motion toolwheel shortcuts windows layout">
+              <header class="section-head"><h2>Interface</h2><span>old tabs: Appearance, Shortcuts</span></header>
+
+              <article class="setting-row" id="setting-appearance" data-title="Appearance" data-group="Interface" data-tags="theme network grid background color density motion reduced">
+                <div class="setting-copy">
+                  <strong>Appearance</strong>
+                  <p>Choose background style, UI density, color accents, and motion level.</p>
+                  <div class="setting-tags"><span>theme</span><span>background</span><span>motion</span></div>
+                </div>
+                <div class="setting-control">
+                  <div class="palette">
+                    <span class="swatch" style="--c:var(--cyan)"></span>
+                    <span class="swatch" style="--c:var(--teal)"></span>
+                    <span class="swatch" style="--c:var(--blue)"></span>
+                    <span class="swatch" style="--c:var(--red)"></span>
+                  </div>
+                  <select class="select-shell"><option>Network</option><option>Grid</option><option>Quiet</option></select>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-toolwheel" data-title="Toolwheel customization" data-group="Interface" data-tags="toolwheel customize commands hide show reorder shortcuts">
+                <div class="setting-copy">
+                  <strong>Toolwheel customization</strong>
+                  <p>Move, hide, restore, and pin commands without making the normal wheel crowded.</p>
+                  <div class="setting-tags"><span>toolwheel</span><span>commands</span><span>layout</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="tiny-button" type="button">Customize wheel</button>
+                  <button class="tiny-button" type="button">Reset</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-shortcuts" data-title="Keyboard shortcuts" data-group="Interface" data-tags="shortcuts keyboard alt space ctrl tab numbers toolwheel chats">
+                <div class="setting-copy">
+                  <strong>Keyboard shortcuts</strong>
+                  <p>Review and change shortcuts for toolwheel, chat switching, composer, and windows.</p>
+                  <div class="setting-tags"><span>Alt+Space</span><span>Ctrl+Tab</span><span>1-4</span></div>
+                </div>
+                <div class="setting-control">
+                  <input class="input-shell" value="Alt+Space opens toolwheel" aria-label="Shortcut preview">
+                </div>
+              </article>
+            </section>
+
+            <section class="settings-section" style="--section:var(--green)" data-section="Connected apps" data-section-tags="integrations email calendar reminders plugins hooks apps accounts">
+              <header class="section-head"><h2>Connected apps</h2><span>old tabs: Integrations, Email, Reminders, Plugins</span></header>
+
+              <article class="setting-row" id="setting-integrations" data-title="Connected apps" data-group="Connected apps" data-tags="integrations calendar email telegram todoist github linear google nextcloud">
+                <div class="setting-copy">
+                  <strong>Connected apps</strong>
+                  <p>Manage external accounts and services ABC may use when you ask.</p>
+                  <div class="setting-tags"><span>accounts</span><span>apps</span><span>permissions</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="tiny-button" type="button">Add app</button>
+                  <button class="tiny-button" type="button">Review access</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-mail" data-title="Mail and reminders" data-group="Connected apps" data-tags="email mail calendar reminders urgent notifications ntfy">
+                <div class="setting-copy">
+                  <strong>Mail and reminders</strong>
+                  <p>Choose accounts, reminder behavior, urgent mail rules, and notification channels.</p>
+                  <div class="setting-tags"><span>mail</span><span>calendar</span><span>notifications</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="switch on" type="button" aria-label="Reminders on"></button>
+                  <select class="select-shell"><option>Ask before sending</option><option>Draft only</option><option>Send with approval</option></select>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-plugins" data-title="Plugins" data-group="Connected apps" data-tags="plugins skills hooks extensions install registry advanced">
+                <div class="setting-copy">
+                  <strong>Extensions</strong>
+                  <p>Install, enable, reload, or remove extra capabilities. Advanced labels stay here, not in primary UI.</p>
+                  <div class="setting-tags"><span>plugins</span><span>skills</span><span>hooks</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="tiny-button" type="button">Browse</button>
+                  <button class="tiny-button" type="button">Installed 4</button>
+                </div>
+              </article>
+            </section>
+
+            <section class="settings-section" style="--section:var(--red)" data-section="Privacy and admin" data-section-tags="privacy security account users admin system backups updates mounts folders permissions">
+              <header class="section-head"><h2>Privacy and admin</h2><span>old tabs: Account, Tools, Mounts, Users, System</span></header>
+
+              <article class="setting-row" id="setting-privacy" data-title="Privacy mode" data-group="Privacy and admin" data-tags="privacy gdpr local only data classification sensitive security">
+                <div class="setting-copy">
+                  <strong>Privacy mode</strong>
+                  <p>Set default rules for sensitive data, local-only routing, exports, logs, and API use.</p>
+                  <div class="setting-tags"><span>GDPR</span><span>local only</span><span>sensitive data</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="switch" type="button" aria-label="Privacy mode off"></button>
+                  <button class="tiny-button" type="button">Rules</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-mounts" data-title="Folders and mounts" data-group="Privacy and admin" data-tags="mounts folders workspace files read write temporary permanent">
+                <div class="setting-copy">
+                  <strong>Folders and mounts</strong>
+                  <p>Manage folders ABC can read or write, including chat-temporary mounts and permanent workspace mounts.</p>
+                  <div class="setting-tags"><span>folders</span><span>read/write</span><span>workspace</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="tiny-button" type="button">Mount folder</button>
+                  <button class="tiny-button" type="button">Validate</button>
+                </div>
+              </article>
+
+              <article class="setting-row" id="setting-system" data-title="System" data-group="Privacy and admin" data-tags="system users admin backups updates tokens webhooks tools permissions">
+                <div class="setting-copy">
+                  <strong>System</strong>
+                  <p>Admin-only settings for users, tool permissions, backups, updates, webhooks, and tokens.</p>
+                  <div class="setting-tags"><span>admin</span><span>users</span><span>backups</span></div>
+                </div>
+                <div class="setting-control">
+                  <button class="tiny-button" type="button">Users</button>
+                  <button class="tiny-button" type="button">Backups</button>
+                  <button class="tiny-button" type="button">Updates</button>
+                </div>
+              </article>
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const search = document.getElementById('settings-search');
+    const list = document.getElementById('result-list');
+    const scroll = document.getElementById('settings-scroll');
+    const contentTitle = document.getElementById('content-title');
+    const contentSubtitle = document.getElementById('content-subtitle');
+    const rows = Array.from(document.querySelectorAll('.setting-row'));
+
+    const colors = {
+      Models: 'var(--cyan)',
+      Knowledge: 'var(--teal)',
+      Interface: 'var(--blue)',
+      'Connected apps': 'var(--green)',
+      'Privacy and admin': 'var(--red)'
+    };
+
+    function textOf(row) {
+      return [
+        row.dataset.title,
+        row.dataset.group,
+        row.dataset.tags,
+        row.textContent
+      ].join(' ').toLowerCase();
+    }
+
+    function visibleRows() {
+      const query = search.value.trim().toLowerCase();
+      return rows.filter(row => !query || textOf(row).includes(query));
+    }
+
+    function focusRow(row) {
+      rows.forEach(item => item.classList.remove('highlight'));
+      row.classList.add('highlight');
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      contentTitle.textContent = row.dataset.title;
+      contentSubtitle.textContent = row.querySelector('p')?.textContent || 'Selected setting';
+      setTimeout(() => row.classList.remove('highlight'), 1300);
+    }
+
+    function renderResults() {
+      const query = search.value.trim().toLowerCase();
+      const found = visibleRows();
+      const grouped = found.reduce((acc, row) => {
+        const group = row.dataset.group || 'Settings';
+        acc[group] = acc[group] || [];
+        acc[group].push(row);
+        return acc;
+      }, {});
+
+      rows.forEach(row => {
+        row.hidden = query && !found.includes(row);
+      });
+
+      document.querySelectorAll('.settings-section').forEach(section => {
+        const hasVisible = Array.from(section.querySelectorAll('.setting-row')).some(row => !row.hidden);
+        section.hidden = !hasVisible && !!query;
+      });
+
+      scroll.classList.toggle('no-results', found.length === 0);
+      contentTitle.textContent = query ? `Search: ${search.value.trim()}` : 'All settings';
+      contentSubtitle.textContent = query
+        ? `${found.length} matching settings. Results update as you type.`
+        : 'A VS Code-style settings surface for ABC: search everything, keep common choices readable, hide admin-grade controls behind clear labels.';
+
+      list.innerHTML = Object.keys(grouped).map(group => {
+        const items = grouped[group].map(row => `
+          <button class="result-item" style="--item:${colors[group] || 'var(--cyan)'}" type="button" data-target="${row.id}">
+            <strong>${row.dataset.title}</strong>
+            <span>${row.dataset.tags.split(' ').slice(0, 3).join(' ')}</span>
+          </button>
+        `).join('');
+        return `<div class="result-group">${group}</div>${items}`;
+      }).join('');
+    }
+
+    search.addEventListener('input', renderResults);
+    list.addEventListener('click', event => {
+      const button = event.target.closest('[data-target]');
+      if (!button) return;
+      const row = document.getElementById(button.dataset.target);
+      if (row) focusRow(row);
+    });
+
+    document.querySelectorAll('.switch').forEach(button => {
+      button.addEventListener('click', () => button.classList.toggle('on'));
+    });
+
+    renderResults();
+  </script>
+</body>
+</html>

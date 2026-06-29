@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Minimal Document Viewer V2</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--blue) 16%, transparent), transparent 30%),
+        radial-gradient(circle at 84% 78%, color-mix(in srgb, var(--cyan) 11%, transparent), transparent 32%),
+        var(--bg);
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(118deg, transparent 0 19%, color-mix(in srgb, var(--cyan) 5%, transparent) 29%, transparent 41%),
+        linear-gradient(72deg, transparent 0 53%, color-mix(in srgb, var(--blue) 8%, transparent) 64%, transparent 74%);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 0 1px, transparent 1px 5px);
+      opacity: 0.12;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 8% 34%, color-mix(in srgb, var(--cyan) 24%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 20% 82%, color-mix(in srgb, var(--cyan) 18%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 42% 16%, color-mix(in srgb, var(--cyan) 17%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 58% 70%, color-mix(in srgb, var(--blue) 22%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 82% 28%, color-mix(in srgb, var(--teal) 20%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 94% 76%, color-mix(in srgb, var(--cyan) 15%, transparent) 0 2px, transparent 3px),
+        linear-gradient(28deg, transparent 0 28%, color-mix(in srgb, var(--cyan) 8%, transparent) 28% 28.2%, transparent 28.4% 100%),
+        linear-gradient(151deg, transparent 0 37%, color-mix(in srgb, var(--blue) 8%, transparent) 37% 37.2%, transparent 37.4% 100%);
+      opacity: 0.46;
+    }
+
+    .document-viewer {
+      width: min(1080px, calc(100vw - 64px));
+      height: min(780px, calc(100dvh - 64px));
+      border: 1px solid color-mix(in srgb, var(--cyan) 38%, transparent);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--bg) 97%, var(--cyan) 3%), color-mix(in srgb, var(--bg) 95%, transparent)),
+        color-mix(in srgb, var(--bg) 86%, transparent);
+      box-shadow:
+        0 24px 80px color-mix(in srgb, var(--bg) 76%, transparent),
+        0 0 40px color-mix(in srgb, var(--cyan) 10%, transparent);
+      overflow: auto;
+    }
+
+    .document {
+      min-height: 100%;
+      padding: 56px 68px 72px;
+    }
+
+    .document h1 {
+      margin: 0 0 22px;
+      color: color-mix(in srgb, var(--ink) 96%, transparent);
+      font: 600 24px/1.18 var(--mono);
+    }
+
+    .document h2 {
+      margin: 30px 0 10px;
+      color: color-mix(in srgb, var(--cyan) 90%, transparent);
+      font: 600 15px/1.25 var(--mono);
+    }
+
+    .document p,
+    .document li {
+      max-width: 76ch;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 14px/1.68 var(--font);
+    }
+
+    .document p {
+      margin: 0 0 14px;
+    }
+
+    .document ul {
+      margin: 0 0 16px;
+      padding-left: 22px;
+    }
+
+    .document li + li {
+      margin-top: 6px;
+    }
+
+    .document code {
+      color: var(--teal);
+      font-family: var(--mono);
+      font-size: 0.92em;
+    }
+
+    .code-block {
+      width: 100%;
+      max-width: 82ch;
+      margin: 18px 0 22px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 15%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+      overflow: auto;
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: 16px 18px;
+      color: color-mix(in srgb, var(--ink) 86%, transparent);
+      font: 12px/1.6 var(--mono);
+      white-space: pre;
+    }
+
+    .token-key { color: var(--blue); }
+    .token-fn { color: var(--teal); }
+    .token-str { color: var(--green); }
+    .token-comment { color: color-mix(in srgb, var(--muted) 72%, transparent); }
+
+    @media (max-width: 760px) {
+      .stage {
+        padding: 14px;
+      }
+
+      .document-viewer {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 28px);
+      }
+
+      .document {
+        padding: 34px 24px 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="network" aria-hidden="true"></div>
+    <article class="document-viewer" aria-label="Document viewer">
+      <section class="document">
+        <h1>Coding Lane Notes</h1>
+        <p>
+          The document viewer should stay quiet. Its first job is to show the current
+          document with enough space, contrast, and stability that reading and editing
+          do not feel like working inside a dashboard.
+        </p>
+        <p>
+          All surrounding workflows can live elsewhere later: file selection, code tools,
+          AI actions, review states, and inspector panels. This surface is only the
+          document itself.
+        </p>
+
+        <h2>Viewer Principle</h2>
+        <ul>
+          <li>No visible file browser.</li>
+          <li>No toolbar, search, inspector, metadata rail, or window header.</li>
+          <li>The document should fill most of the available screen.</li>
+          <li>Content may be text, markdown, code, PDF, image, or another supported document type.</li>
+        </ul>
+
+        <h2>Code Inside A Document</h2>
+        <p>
+          Code is still document content here. Execution, diagnostics, and commits can be
+          layered in later, but the first visual pass should not imply a full IDE.
+        </p>
+        <div class="code-block">
+          <pre><span class="token-key">def</span> <span class="token-fn">render_document</span>(document):
+    <span class="token-comment"># viewer only displays the current document</span>
+    content = document.content
+    <span class="token-key">return</span> display(content, mode=document.type)</pre>
+        </div>
+
+        <h2>Next Layer Later</h2>
+        <p>
+          Once the viewer feels right, the surrounding coding lane can decide how to
+          open files, run checks, show diffs, and ask ABC for changes without crowding
+          the document surface.
+        </p>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

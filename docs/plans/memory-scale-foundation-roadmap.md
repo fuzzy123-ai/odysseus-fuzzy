@@ -307,11 +307,23 @@ API-Pattern:
 - `graph/community?topic=...&limit=...`
 - `graph/query-subgraph?query_id=...&max_nodes=...`
 
+UI-/Viewer-Anforderungen:
+
+- der Graph-Viewer rendert grosse Graphen nicht als DOM-/SVG-Knotenmenge, sondern spaeter ueber Canvas oder WebGL
+- Labels werden progressiv eingeblendet: zuerst Fokus, Cluster und wichtige Knoten, nicht jedes Detail gleichzeitig
+- entfernte oder wenig relevante Bereiche werden ueber Level-of-Detail, Cluster oder Supernodes verdichtet
+- Viewport-Culling ist Pflicht: sichtbar oder unmittelbar relevant wird gerendert, der Rest bleibt Datenmodell
+- Filter muessen stark genug sein fuer Quelle, Typ, Projekt, Alter, Confidence, Trust und Relationstiefe
+- Darstellungsmodi muessen mindestens semantisch, nach Quelle, nach Projekt und zeitlich denkbar bleiben
+- Minimap, Fokuspfad, Node-Inspector und Source-Trail gehoeren zum spaeteren Viewer-Konzept
+- grosse Leerrraeume und unerklaerliche Blankspots sollen durch Aggregation, Dichte-Regler oder Cluster-Hints vermeidbar sein
+
 Done:
 
 - keine Graph API gibt alle Nodes/Edges zurueck
 - Frontend rendert Subgraphs und Aggregate
 - leere/gekappte Ergebnisse sind user-facing erklaert
+- Viewer bleibt auch bei vielen tausend Knoten bedienbar, weil Rendering, Labels und Expansion budgetiert bleiben
 
 ### MS7: Operations und Homeserver-Fitness
 

@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Memory Control Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --panel: rgba(2, 9, 16, 0.9);
+      --panel-2: rgba(5, 17, 28, 0.94);
+      --line: rgba(22, 217, 245, 0.18);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 52% 76%, rgba(10, 164, 214, 0.15), transparent 29%),
+        radial-gradient(circle at 14% 18%, rgba(30, 92, 182, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(34, 211, 182, 0.09), transparent 34%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.034) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      opacity: 0.62;
+    }
+
+    .network line {
+      stroke: rgba(22, 217, 245, 0.11);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(22, 217, 245, 0.16);
+      stroke: rgba(22, 217, 245, 0.3);
+      stroke-width: 1;
+    }
+
+    .brand {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      z-index: 2;
+      color: var(--cyan);
+      font: 600 18px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(22, 217, 245, 0.38);
+    }
+
+    .mock-shell {
+      position: absolute;
+      left: 50%;
+      top: 53%;
+      z-index: 3;
+      width: min(1180px, calc(100vw - 72px));
+      height: min(760px, calc(100dvh - 96px));
+      min-width: 880px;
+      min-height: 610px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(34, 211, 182, 0.42);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        #07111d;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.46),
+        0 0 0 1px rgba(34, 211, 182, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font-family: var(--mono);
+    }
+
+    .window-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font: 600 13px/1 var(--mono);
+    }
+
+    .window-title::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(34, 211, 182, 0.58);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--cyan);
+      transform: translateY(-50%);
+    }
+
+    .window-actions button {
+      width: 16px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: 15px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .memory-toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+      background:
+        radial-gradient(circle at 18% 18%, rgba(34, 211, 182, 0.08), transparent 42%),
+        rgba(2, 10, 18, 0.42);
+    }
+
+    .search {
+      position: relative;
+      min-width: 0;
+    }
+
+    .search::before {
+      content: "/";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      color: var(--teal);
+      font: 600 15px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .search input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid rgba(34, 211, 182, 0.32);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.78);
+      color: var(--ink);
+      padding: 0 14px 0 36px;
+      font: 12px/1 var(--mono);
+      outline: none;
+    }
+
+    .search input:focus {
+      border-color: rgba(34, 211, 182, 0.54);
+      box-shadow: 0 0 14px rgba(34, 211, 182, 0.12);
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      gap: 5px;
+    }
+
+    .mode-tab {
+      min-height: 32px;
+      border: 1px solid rgba(22, 217, 245, 0.18);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.64);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .mode-tab:hover,
+    .mode-tab.active {
+      border-color: rgba(34, 211, 182, 0.48);
+      background: rgba(34, 211, 182, 0.08);
+      color: var(--teal);
+    }
+
+    .memory-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 216px minmax(390px, 1fr) 306px;
+    }
+
+    .memory-rail {
+      min-width: 0;
+      border-right: 1px solid rgba(22, 217, 245, 0.14);
+      background: rgba(2, 8, 14, 0.36);
+      padding: 15px 12px;
+      overflow: hidden;
+    }
+
+    .health-panel {
+      display: grid;
+      gap: 9px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(22, 217, 245, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.45);
+      padding: 11px;
+    }
+
+    .health-title,
+    .filter-title {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(215, 247, 255, 0.72);
+      font: 10px/1 var(--mono);
+    }
+
+    .health-row {
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      color: rgba(215, 247, 255, 0.68);
+      font: 10px/1 var(--mono);
+    }
+
+    .health-dot {
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--dot);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--dot) 48%, transparent);
+    }
+
+    .filter-section {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .facet-stack {
+      position: relative;
+      display: grid;
+      gap: 6px;
+    }
+
+    .facet-stack::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(34, 211, 182, 0.38), rgba(75, 140, 255, 0.24), transparent);
+    }
+
+    .facet {
+      --facet: var(--cyan);
+      position: relative;
+      min-height: 28px;
+      display: grid;
+      grid-template-columns: 15px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.68);
+      padding: 0 7px 0 0;
+      text-align: left;
+      cursor: pointer;
+      font: 10px/1 var(--mono);
+    }
+
+    .facet::before {
+      content: "";
+      position: relative;
+      z-index: 1;
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--facet);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--facet) 48%, transparent);
+    }
+
+    .facet strong,
+    .facet span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .facet strong {
+      color: rgba(215, 247, 255, 0.82);
+      font-weight: 600;
+    }
+
+    .facet span {
+      color: rgba(120, 154, 170, 0.82);
+    }
+
+    .facet:hover,
+    .facet.active {
+      border-color: color-mix(in srgb, var(--facet) 40%, transparent);
+      background: color-mix(in srgb, var(--facet) 8%, transparent);
+    }
+
+    .memory-list-panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-right: 1px solid rgba(22, 217, 245, 0.14);
+    }
+
+    .list-head {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 15px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+      background: rgba(2, 9, 16, 0.32);
+      font-family: var(--mono);
+    }
+
+    .list-head strong {
+      color: rgba(226, 249, 255, 0.9);
+      font-size: 12px;
+    }
+
+    .list-head span {
+      color: rgba(120, 154, 170, 0.8);
+      font-size: 10px;
+    }
+
+    .sort-button {
+      height: 28px;
+      border: 1px solid rgba(22, 217, 245, 0.18);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.62);
+      color: rgba(215, 247, 255, 0.68);
+      padding: 0 9px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .memory-list {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 14px 16px 18px;
+      overflow: auto;
+    }
+
+    .memory-list::before {
+      content: "";
+      position: absolute;
+      left: 29px;
+      top: 24px;
+      bottom: 24px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(75, 140, 255, 0.34), rgba(22, 217, 245, 0.24), transparent);
+    }
+
+    .memory-row {
+      --state: var(--cyan);
+      position: relative;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border: 1px solid rgba(22, 217, 245, 0.1);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.48);
+      color: rgba(215, 247, 255, 0.8);
+      padding: 11px 12px 11px 0;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .memory-row:hover,
+    .memory-row.active {
+      border-color: color-mix(in srgb, var(--state) 46%, transparent);
+      background: color-mix(in srgb, var(--state) 8%, rgba(2, 10, 17, 0.68));
+    }
+
+    .memory-dot {
+      position: relative;
+      z-index: 1;
+      width: 9px;
+      height: 9px;
+      justify-self: center;
+      margin-top: 5px;
+      border: 1px solid var(--state);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--state) 54%, transparent);
+    }
+
+    .memory-copy {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .memory-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .memory-title-line strong {
+      overflow: hidden;
+      color: rgba(226, 249, 255, 0.92);
+      font: 600 12px/1.25 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .memory-title-line span {
+      flex: 0 0 auto;
+      min-height: 18px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--state) 34%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--state) 80%, white 8%);
+      padding: 0 6px;
+      font: 9px/1 var(--mono);
+    }
+
+    .memory-text {
+      color: rgba(215, 247, 255, 0.68);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .memory-meta {
+      display: flex;
+      min-width: 0;
+      gap: 10px;
+      color: rgba(120, 154, 170, 0.82);
+      font: 10px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .memory-meta span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .memory-detail {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background:
+        radial-gradient(circle at 70% 26%, rgba(34, 211, 182, 0.07), transparent 42%),
+        rgba(2, 9, 16, 0.48);
+    }
+
+    .detail-head {
+      display: grid;
+      gap: 10px;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+    }
+
+    .detail-kicker {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .detail-kicker span:last-child {
+      color: var(--teal);
+    }
+
+    .detail-head h1 {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 18px/1.25 var(--mono);
+      text-wrap: balance;
+    }
+
+    .detail-summary {
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .detail-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 15px 18px;
+    }
+
+    .prop-grid {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .prop-grid div {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 25px;
+      align-items: center;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.08);
+      color: rgba(215, 247, 255, 0.74);
+      font: 11px/1.25 var(--mono);
+    }
+
+    .prop-grid span {
+      color: rgba(120, 154, 170, 0.76);
+    }
+
+    .prop-grid strong {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .evidence-box,
+    .learning-box {
+      display: grid;
+      gap: 9px;
+      border: 1px solid rgba(22, 217, 245, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.45);
+      padding: 11px;
+    }
+
+    .learning-box {
+      margin-top: 10px;
+      border-color: rgba(34, 211, 182, 0.2);
+      background: rgba(34, 211, 182, 0.055);
+    }
+
+    .evidence-title {
+      color: rgba(215, 247, 255, 0.72);
+      font: 10px/1 var(--mono);
+    }
+
+    .evidence-row {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr);
+      gap: 8px;
+      color: rgba(215, 247, 255, 0.64);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .evidence-row::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-top: 5px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(34, 211, 182, 0.38);
+    }
+
+    .detail-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 13px 18px 16px;
+      border-top: 1px solid rgba(22, 217, 245, 0.12);
+    }
+
+    .detail-actions button {
+      min-height: 30px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .detail-actions .primary {
+      border-color: rgba(34, 211, 182, 0.52);
+      color: var(--teal);
+      background: rgba(34, 211, 182, 0.1);
+    }
+
+    .detail-actions .danger {
+      border-color: rgba(255, 92, 115, 0.46);
+      color: var(--red);
+      background: rgba(255, 92, 115, 0.08);
+    }
+
+    .empty {
+      border: 1px dashed rgba(22, 217, 245, 0.18);
+      border-radius: 8px;
+      color: rgba(215, 247, 255, 0.56);
+      padding: 14px;
+      font: 11px/1.4 var(--mono);
+    }
+
+    .caption {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      z-index: 2;
+      color: rgba(215, 247, 255, 0.46);
+      font: 11px/1 var(--mono);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    @media (max-width: 960px) {
+      .mock-shell {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 72px);
+        min-width: 0;
+      }
+
+      .memory-toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .mode-tabs {
+        overflow-x: auto;
+      }
+
+      .memory-body {
+        grid-template-columns: 1fr;
+      }
+
+      .memory-rail,
+      .memory-detail {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="brand">ABC</div>
+    <svg class="network" viewBox="0 0 1200 820" aria-hidden="true">
+      <g>
+        <line x1="42" y1="130" x2="190" y2="80"></line>
+        <line x1="190" y1="80" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="512" y2="110"></line>
+        <line x1="512" y1="110" x2="700" y2="180"></line>
+        <line x1="700" y1="180" x2="920" y2="100"></line>
+        <line x1="120" y1="340" x2="320" y2="166"></line>
+        <line x1="430" y1="390" x2="640" y2="330"></line>
+        <line x1="830" y1="420" x2="1060" y2="330"></line>
+        <line x1="80" y1="600" x2="260" y2="510"></line>
+        <line x1="510" y1="650" x2="760" y2="585"></line>
+        <line x1="260" y1="510" x2="430" y2="390"></line>
+        <line x1="760" y1="585" x2="1060" y2="330"></line>
+      </g>
+      <g>
+        <circle cx="190" cy="80" r="4"></circle>
+        <circle cx="320" cy="166" r="5"></circle>
+        <circle cx="700" cy="180" r="5"></circle>
+        <circle cx="430" cy="390" r="5"></circle>
+        <circle cx="80" cy="600" r="5"></circle>
+        <circle cx="760" cy="585" r="4"></circle>
+        <circle cx="1060" cy="330" r="5"></circle>
+      </g>
+    </svg>
+
+    <section class="mock-shell" aria-label="Memory Control mockup">
+      <header class="window-head">
+        <div class="window-title">Memory Control</div>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">[]</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="memory-toolbar">
+        <label class="search">
+          <input id="search" type="search" placeholder="find remembered facts, preferences, projects, sources">
+        </label>
+        <div class="mode-tabs" id="tabs" aria-label="Memory views"></div>
+      </div>
+
+      <div class="memory-body">
+        <aside class="memory-rail">
+          <section class="health-panel">
+            <div class="health-title"><span>Memory autopilot</span><span>local</span></div>
+            <div class="health-row" style="--dot:var(--green)"><i class="health-dot"></i><span>Handling itself</span><strong id="autopilot-count">0</strong></div>
+            <div class="health-row" style="--dot:var(--teal)"><i class="health-dot"></i><span>Learned rules</span><strong id="learned-count">0</strong></div>
+            <div class="health-row" style="--dot:var(--amber)"><i class="health-dot"></i><span>Needs attention</span><strong id="attention-count">0</strong></div>
+            <div class="health-row" style="--dot:var(--cyan)"><i class="health-dot"></i><span>Last checked</span><strong>2m</strong></div>
+          </section>
+
+          <section class="filter-section">
+            <div class="filter-title"><span>Type</span><span id="type-label">All</span></div>
+            <div class="facet-stack" id="type-facets"></div>
+          </section>
+
+          <section class="filter-section">
+            <div class="filter-title"><span>Source</span><span id="source-label">All</span></div>
+            <div class="facet-stack" id="source-facets"></div>
+          </section>
+        </aside>
+
+        <section class="memory-list-panel">
+          <div class="list-head">
+            <div>
+              <strong id="list-title">All memories</strong>
+              <span id="list-subtitle">confirmed, proposed and risky memories</span>
+            </div>
+            <button class="sort-button" type="button" id="sort-button">Sort: attention first</button>
+          </div>
+          <div class="memory-list" id="memory-list"></div>
+        </section>
+
+        <aside class="memory-detail" id="memory-detail"></aside>
+      </div>
+    </section>
+
+    <div class="caption">Mockup only. Memory Control is mostly autopilot: manual actions are rare and become learning signals.</div>
+  </main>
+
+  <script>
+    const colors = {
+      confirmed: 'var(--green)',
+      attention: 'var(--amber)',
+      pinned: 'var(--blue)',
+      forgotten: 'var(--muted)',
+      private: 'var(--teal)',
+      learned: 'var(--teal)'
+    };
+
+    const tabs = [
+      { id: 'All', title: 'All', subtitle: 'autopilot memories and rare exceptions' },
+      { id: 'Attention', title: 'Needs attention', subtitle: 'only items ABC is not confident enough to handle' },
+      { id: 'Pinned', title: 'Pinned', subtitle: 'important memories kept visible' },
+      { id: 'Learned', title: 'Learned rules', subtitle: 'what ABC learned from your choices' },
+      { id: 'History', title: 'History', subtitle: 'recently changed, muted or forgotten memories' }
+    ];
+
+    const memories = [
+      {
+        id: 'm1',
+        title: 'User prefers minimal UI labels',
+        text: 'Use precise, human labels and avoid developer-heavy wording in primary UI.',
+        type: 'Preference',
+        source: 'Chat',
+        project: 'Frontend V2',
+        status: 'confirmed',
+        confidence: 96,
+        lastUsed: '2m',
+        evidence: ['User asked for user-first wording.', 'Repeated request to remove technical clutter.'],
+        why: 'ABC is confident and handles similar wording preferences automatically.',
+        ask: 'No action needed.',
+        learn: 'If you edit or forget this, ABC will adjust how strongly it applies wording preferences.'
+      },
+      {
+        id: 'm2',
+        title: 'Toolwheel should stay minimal',
+        text: 'Primary toolwheel categories stay short; deeper actions appear only on hover or More.',
+        type: 'Workflow',
+        source: 'UI Session',
+        project: 'Frontend V2',
+        status: 'pinned',
+        confidence: 92,
+        lastUsed: '5m',
+        evidence: ['Toolwheel reduced to four visible actions plus More.', 'Customize will later hide or restore commands.'],
+        why: 'Pinned because it protects the main UI direction.',
+        ask: 'No action needed.',
+        learn: 'If you unpin this, ABC will treat toolwheel minimalism as a normal preference, not a hard design rule.'
+      },
+      {
+        id: 'm3',
+        title: 'Memory search may slow in long sessions',
+        text: 'Long sessions can grow candidate pools and duplicate ranking paths unless old context is capped.',
+        type: 'Fact',
+        source: 'AI Trace',
+        project: 'Memory Debug',
+        status: 'attention',
+        confidence: 74,
+        lastUsed: '18m',
+        evidence: ['AI response identified growing candidate pool.', 'No source trace has been confirmed yet.'],
+        why: 'ABC is asking because the claim came from reasoning, not verified trace evidence.',
+        ask: 'Should this become durable memory, or stay temporary until a source trace confirms it?',
+        learn: 'Confirm teaches ABC that similar diagnostic hypotheses may be saved when confidence is high. Forget teaches ABC to keep unverified traces temporary.'
+      },
+      {
+        id: 'm4',
+        title: 'Use Network background by default',
+        text: 'The network background feels better than the grid and should remain the active V2 default.',
+        type: 'Preference',
+        source: 'Design Review',
+        project: 'Frontend V2',
+        status: 'confirmed',
+        confidence: 88,
+        lastUsed: '1h',
+        evidence: ['User preferred network variant.', 'Requested denser network with fewer blank spots.'],
+        why: 'ABC has enough repeated signal to apply this automatically.',
+        ask: 'No action needed.',
+        learn: 'If you change this, ABC will update how it distinguishes stable design preference from temporary taste.'
+      },
+      {
+        id: 'm5',
+        title: 'Project Atlas repo may be missing',
+        text: 'Project Atlas looked blocked in mock data, but ABC is not sure this reflects real project state.',
+        type: 'Project',
+        source: 'Project Setup',
+        project: 'Project Atlas',
+        status: 'attention',
+        confidence: 66,
+        lastUsed: '1d',
+        evidence: ['Project overview mock data marks it blocked.', 'No live repo link exists in this mockup.'],
+        why: 'ABC is asking because mock data should not silently become real project memory.',
+        ask: 'Keep this as mock-only, move it to Project Atlas, or forget it?',
+        learn: 'Your choice teaches ABC how to treat demo and placeholder facts in the future.'
+      },
+      {
+        id: 'm6',
+        title: 'Sensitive sources should stay local',
+        text: 'Private source workflows should default to local-only handling unless explicitly approved.',
+        type: 'Privacy',
+        source: 'Policy',
+        project: 'Global',
+        status: 'private',
+        confidence: 91,
+        lastUsed: '3h',
+        evidence: ['Secure Data Mode planning.', 'GDPR toggle added to V2 header.'],
+        why: 'ABC can enforce this automatically, but sensitive policies stay visible.',
+        ask: 'No action needed.',
+        learn: 'If marked stricter, ABC will route similar private-source memories into local-only handling sooner.'
+      },
+      {
+        id: 'm7',
+        title: 'Old sidebar commands are no longer visible',
+        text: 'Former sidebar items should move into header, footer, chat, or toolwheel surfaces.',
+        type: 'Decision',
+        source: 'UI Session',
+        project: 'Frontend V2',
+        status: 'forgotten',
+        confidence: 81,
+        lastUsed: '2d',
+        evidence: ['Zero-sidebar design direction.', 'The memory is kept only for undo/history context.'],
+        why: 'Recently muted; kept only so accidental forgetting can be undone.',
+        ask: 'No action needed.',
+        learn: 'Restoring this teaches ABC that removed UI-direction memories should remain recoverable longer.'
+      },
+      {
+        id: 'm8',
+        title: 'Temporary brainstorming should not become global memory',
+        text: 'When the user explores visual variants, ABC should keep weak preferences local until repeated or confirmed.',
+        type: 'Workflow',
+        source: 'User Choices',
+        project: 'Global',
+        status: 'learned',
+        confidence: 89,
+        lastUsed: 'now',
+        evidence: ['User wants fewer manual checks.', 'Manual memory clicks should teach future behavior.'],
+        why: 'This is a behavioral rule learned from memory-control decisions.',
+        ask: 'No action needed.',
+        learn: 'ABC uses this rule to avoid asking about every small design experiment.'
+      }
+    ];
+
+    const state = {
+      tab: 'All',
+      type: 'All',
+      source: 'All',
+      query: '',
+      selectedId: 'm1',
+      sortReviewFirst: true
+    };
+
+    const typeColors = {
+      Preference: 'var(--green)',
+      Workflow: 'var(--blue)',
+      Fact: 'var(--cyan)',
+      Project: 'var(--amber)',
+      Privacy: 'var(--teal)',
+      Decision: 'var(--red)'
+    };
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function matchesTab(memory) {
+      if (state.tab === 'All') return true;
+      if (state.tab === 'Attention') return memory.status === 'attention';
+      if (state.tab === 'Pinned') return memory.status === 'pinned';
+      if (state.tab === 'Learned') return memory.status === 'learned';
+      if (state.tab === 'History') return memory.status === 'forgotten';
+      return true;
+    }
+
+    function filteredMemories() {
+      const query = state.query.toLowerCase();
+      const filtered = memories.filter(memory => {
+        const typeOk = state.type === 'All' || memory.type === state.type;
+        const sourceOk = state.source === 'All' || memory.source === state.source;
+        const tabOk = matchesTab(memory);
+        const queryOk = !query || [memory.title, memory.text, memory.type, memory.source, memory.project].join(' ').toLowerCase().includes(query);
+        return typeOk && sourceOk && tabOk && queryOk;
+      });
+      return filtered.sort((a, b) => {
+        if (!state.sortReviewFirst) return b.confidence - a.confidence;
+        const weight = { attention: 0, private: 1, learned: 2, pinned: 3, confirmed: 4, forgotten: 5 };
+        return (weight[a.status] ?? 9) - (weight[b.status] ?? 9);
+      });
+    }
+
+    function renderTabs() {
+      document.getElementById('tabs').innerHTML = tabs.map(tab => `
+        <button class="mode-tab${state.tab === tab.id ? ' active' : ''}" type="button" data-tab="${tab.id}">${tab.title}</button>
+      `).join('');
+      const active = tabs.find(tab => tab.id === state.tab) || tabs[0];
+      document.getElementById('list-title').textContent = active.title + ' memories';
+      document.getElementById('list-subtitle').textContent = active.subtitle;
+    }
+
+    function facetTemplate(items, active, key, colorMap = {}) {
+      return [['All', 'var(--cyan)'], ...items.map(item => [item, colorMap[item] || 'var(--teal)'])].map(([label, color]) => `
+        <button class="facet${active === label ? ' active' : ''}" style="--facet:${color}" type="button" data-${key}="${esc(label)}">
+          <strong>${esc(label)}</strong><span>${label === 'All' ? memories.length : memories.filter(memory => memory[key] === label).length}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderFacets() {
+      const types = [...new Set(memories.map(memory => memory.type))];
+      const sources = [...new Set(memories.map(memory => memory.source))];
+      document.getElementById('type-facets').innerHTML = facetTemplate(types, state.type, 'type', typeColors);
+      document.getElementById('source-facets').innerHTML = facetTemplate(sources, state.source, 'source');
+      document.getElementById('type-label').textContent = state.type;
+      document.getElementById('source-label').textContent = state.source;
+      document.getElementById('autopilot-count').textContent = memories.filter(memory => ['confirmed', 'pinned', 'private'].includes(memory.status)).length;
+      document.getElementById('learned-count').textContent = memories.filter(memory => memory.status === 'learned').length;
+      document.getElementById('attention-count').textContent = memories.filter(memory => memory.status === 'attention').length;
+    }
+
+    function stateColor(memory) {
+      return colors[memory.status] || 'var(--cyan)';
+    }
+
+    function renderList() {
+      const list = filteredMemories();
+      const target = document.getElementById('memory-list');
+      if (!list.length) {
+        target.innerHTML = '<div class="empty">No memories match this view. Try a wider filter or check Forgotten.</div>';
+        renderDetail(null);
+        return;
+      }
+      if (!list.some(memory => memory.id === state.selectedId)) state.selectedId = list[0].id;
+      target.innerHTML = list.map(memory => `
+        <button class="memory-row${memory.id === state.selectedId ? ' active' : ''}" style="--state:${stateColor(memory)}" type="button" data-memory="${memory.id}">
+          <span class="memory-dot"></span>
+          <span class="memory-copy">
+            <span class="memory-title-line"><strong>${esc(memory.title)}</strong><span>${esc(memory.status)}</span></span>
+            <span class="memory-text">${esc(memory.text)}</span>
+            <span class="memory-meta"><span>${esc(memory.type)}</span><span>${esc(memory.project)}</span><span>${memory.confidence}%</span><span>${esc(memory.lastUsed)}</span></span>
+          </span>
+        </button>
+      `).join('');
+      renderDetail(memories.find(memory => memory.id === state.selectedId));
+    }
+
+    function renderDetail(memory) {
+      const target = document.getElementById('memory-detail');
+      if (!memory) {
+        target.innerHTML = '<div class="detail-body"><div class="empty">Select a memory to inspect its source, confidence and available actions.</div></div>';
+        return;
+      }
+      target.innerHTML = `
+        <div class="detail-head">
+          <div class="detail-kicker"><span>${esc(memory.type)}</span><span>${memory.confidence}% confidence</span></div>
+          <h1>${esc(memory.title)}</h1>
+          <div class="detail-summary">${esc(memory.text)}</div>
+        </div>
+        <div class="detail-body">
+          <div class="prop-grid">
+            <div><span>Status</span><strong>${esc(memory.status)}</strong></div>
+            <div><span>Project</span><strong>${esc(memory.project)}</strong></div>
+            <div><span>Source</span><strong>${esc(memory.source)}</strong></div>
+            <div><span>Last used</span><strong>${esc(memory.lastUsed)}</strong></div>
+            <div><span>Why</span><strong>${esc(memory.why)}</strong></div>
+          </div>
+          <div class="evidence-box">
+            <div class="evidence-title">${memory.status === 'attention' ? 'Why ABC is asking' : 'Why ABC believes this'}</div>
+            <div class="evidence-row">${esc(memory.ask)}</div>
+            ${memory.evidence.map(item => `<div class="evidence-row">${esc(item)}</div>`).join('')}
+          </div>
+          <div class="learning-box">
+            <div class="evidence-title">What ABC learns from your choice</div>
+            <div class="evidence-row">${esc(memory.learn)}</div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button type="button">Open source</button>
+          <button type="button">Edit</button>
+          <button type="button">Scope to project</button>
+          <button type="button">Pin</button>
+          <button class="primary" type="button">Confirm & teach</button>
+          <button class="danger" type="button">Forget & learn</button>
+        </div>
+      `;
+    }
+
+    function render() {
+      renderTabs();
+      renderFacets();
+      renderList();
+      document.getElementById('sort-button').textContent = state.sortReviewFirst ? 'Sort: attention first' : 'Sort: confidence';
+    }
+
+    document.getElementById('tabs').addEventListener('click', event => {
+      const button = event.target.closest('[data-tab]');
+      if (!button) return;
+      state.tab = button.dataset.tab;
+      render();
+    });
+
+    document.getElementById('type-facets').addEventListener('click', event => {
+      const button = event.target.closest('[data-type]');
+      if (!button) return;
+      state.type = button.dataset.type;
+      render();
+    });
+
+    document.getElementById('source-facets').addEventListener('click', event => {
+      const button = event.target.closest('[data-source]');
+      if (!button) return;
+      state.source = button.dataset.source;
+      render();
+    });
+
+    document.getElementById('memory-list').addEventListener('click', event => {
+      const button = event.target.closest('[data-memory]');
+      if (!button) return;
+      state.selectedId = button.dataset.memory;
+      renderList();
+    });
+
+    document.getElementById('search').addEventListener('input', event => {
+      state.query = event.target.value.trim();
+      renderList();
+    });
+
+    document.getElementById('sort-button').addEventListener('click', () => {
+      state.sortReviewFirst = !state.sortReviewFirst;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

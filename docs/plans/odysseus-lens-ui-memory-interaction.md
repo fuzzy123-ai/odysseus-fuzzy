@@ -32,7 +32,33 @@ Odysseus Lens wird als Arbeitsoberflaeche ueber Memory verstanden:
 - Diagnostics: Knowledge Audit, Qualitaet, fehlende Quellen, kaputte Links, veraltete Knoten.
 - Activity: laufende Jobs, letzte Automationen, Fehler.
 
-Buttons verschwinden nicht komplett, werden aber umgedeutet. Nutzer bedienen nicht einzelne Tools, sondern wechseln zwischen klaren Zustaenden: Lesen, Pflegen, Insights, Diagnostics und Activity. Automatisierung erledigt den Normalfall im Hintergrund; UI zeigt Review, Vertrauen, Kontrolle und Ausnahmefaelle.
+Buttons verschwinden nicht komplett, werden aber umgedeutet. Nutzer bedienen nicht einzelne Tools, sondern wechseln zwischen klaren Zustaenden: Lesen, Pflegen, Insights, Diagnostics und Activity. Automatisierung erledigt den Normalfall im Hintergrund; UI zeigt Vertrauen, Kontrolle und Ausnahmefaelle.
+
+## Memory-Autopilot
+
+Memory-Pflege ist kein dauerhafter manueller Review-Posteingang. Der Normalfall ist, dass die zustaendige KI Memories selbst speichert, aktualisiert, scoped, zusammenfuehrt, verwirft oder temporar haelt, solange Confidence, Quelle, Scope und Policy ausreichend klar sind.
+
+Die UI zeigt `Needs attention` nur, wenn die KI selbst unsicher ist oder ein echtes Risiko erkennt:
+
+- unklar, ob eine Aussage dauerhaft gespeichert werden soll
+- unklarer Scope: global, Projekt, Chat, Quelle oder privat
+- echter Konflikt mit bestehendem Memory
+- sensible oder private Daten
+- niedrige Confidence oder fehlende Evidence
+- Platzhalter-, Mock- oder Brainstorming-Inhalt koennte faelschlich als reale Wahrheit landen
+- eine Entscheidung haette langfristige Verhaltensfolgen wie "immer so machen"
+
+Jede manuelle Nutzeraktion in Memory ist ein Lernsignal, nicht nur eine lokale Korrektur:
+
+- Bestaetigen lehrt, welche aehnlichen Memories kuenftig automatisch gespeichert werden duerfen.
+- Vergessen lehrt, welche Signale temporaer, unwichtig oder zu aggressiv gespeichert waren.
+- Bearbeiten lehrt Formulierung, Granularitaet und Scope.
+- Pinnen lehrt langfristige Prioritaet.
+- Scope-Wechsel lehrt, ob aehnliche Inhalte global, projektbezogen, chatbezogen oder privat bleiben sollen.
+- Privat markieren lehrt vorsichtigere Policy fuer aehnliche Inhalte.
+- Konfliktaufloesung lehrt, welche Aussage in aehnlichen Widerspruechen typischerweise gewinnt.
+
+Zielbild: Mit der Zeit fragt die Memory-UI seltener nach, weil ABC die Intention des Nutzers besser modelliert. Mehr Vertrauen entsteht nicht durch mehr manuelle Kontrolle, sondern durch weniger unnoetige Nachfragen plus klare Ausnahmefaelle.
 
 ## UI-Regeln
 
@@ -66,7 +92,7 @@ Diese Dateien werden nicht parallel bearbeitet.
 | --- | --- | --- | --- | --- | --- |
 | `LENS0-ux-contract` | Zielbild festziehen: Lens, Lesen/Pflegen, Insights, Diagnostics, Graph-Modus | UX-Contract schreiben: Navigation, Farben, Button-Hierarchie, 8px-Raster, Zustaende | keine Codearbeit | Worktree pruefen, Hotfiles sperren, Akzeptanzkriterien finalisieren | ja, Alice/Charlie |
 | `LENS1-shell-stability` | UI-Grundlage stabilisieren | Erwartetes Verhalten fuer Fullscreen, Minimize, New Chat, Overlay beschreiben | Z-Index-Fix, Fullscreen-Toggle zwischen `-` und `x`, New Chat minimiert Lens, Audit-Close reflowt Graph | Static/UI-Tests pruefen, Regression gegen bestehende Obsidian-Tests | nein |
-| `LENS2-memory-read-write-tabs` | Gedaechtnis in zwei klare Bereiche teilen | Texte und Flow fuer `Gedaechtnis Lesen` und `Gedaechtnis Pflegen` | Tabs/Panel-State einbauen, alte Review/Audit/Spark-Zugaenge sauber einsortieren | Pruefen, dass bestehende Routen/Tools nicht brechen | bedingt |
+| `LENS2-memory-read-write-tabs` | Gedaechtnis in zwei klare Bereiche teilen | Texte und Flow fuer `Gedaechtnis Lesen`, Memory-Autopilot und `Needs attention` | Tabs/Panel-State einbauen, alte Review/Audit/Spark-Zugaenge sauber einsortieren, manuelle Aktionen als Lernsignale modellieren | Pruefen, dass bestehende Routen/Tools nicht brechen | bedingt |
 | `LENS3-tag-chip-system` | Tags ueberall gleich nutzbar machen | Chip-Verhalten definieren: Vorschlaege, Enter, Backspace, Duplikate, Normalisierung | Autocomplete aus bestehenden Tags, Chips in Memory/Spark/Header wiederverwenden | Tests fuer Tag-UI-Vertraege ergaenzen/pruefen | nein |
 | `LENS4-document-intelligence-bar` | Dokumentheader kompakt und memory-tauglich machen | Metadatenmodell: Typ, Projekt, Status, Datum, Tags, Beziehungen, Memory-State | kompakte Header-Bar rendern, vorhandene Frontmatter/Statusdaten anbinden | Pruefen, ob RAPTOR-/GraphRAG-Signale nur angezeigt, nicht erfunden werden | bedingt |
 | `LENS5-review-audit-spark-redesign` | Alte Tools neu ordnen | Review Queue, Insights und Diagnostics sprachlich/visuell definieren | Memory Review -> Pflegen, Spark -> Insights, Knowledge Audit -> Diagnostics | Backward Compatibility und alte Buttons/Routen pruefen | nein |
@@ -89,6 +115,8 @@ Ohne stabile Shell lohnt sich kein groesseres Redesign, weil Fullscreen, Overlay
 - Graph/Lens ist als View-Mode/Schieberegler erhalten und kein weiterer Hauptbutton.
 - Memory Lesen und Memory Pflegen sind visuell, sprachlich und zustandslogisch getrennt.
 - Review, Spark und Audit sind in Pflegen, Insights und Diagnostics einsortiert.
+- Memory-Pflegen wirkt als Autopilot-Kontrollflaeche: `Needs attention` erscheint nur fuer echte Unsicherheit, Risiko oder Policy-Gates.
+- Manuelle Memory-Aktionen erzeugen Lernsignale fuer kuenftige automatische Speicher-, Scope-, Merge-, Forget- und Konfliktentscheidungen.
 - Pro Ansicht gibt es genau einen Primaerbutton.
 - Keine unklaren Tool-Button-Gruppen ohne Nutzerziel.
 - Bestehende Backend-Routen und Tool-Endpunkte bleiben kompatibel.

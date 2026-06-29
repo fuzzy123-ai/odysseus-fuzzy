@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Cloud Control Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --panel: color-mix(in srgb, var(--bg) 94%, transparent);
+      --panel-soft: color-mix(in srgb, var(--cyan) 10%, var(--bg) 72%);
+      --line: color-mix(in srgb, var(--cyan) 18%, transparent);
+      --line-strong: color-mix(in srgb, var(--cyan) 48%, transparent);
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --teal: #22d3b6;
+      --blue: #4b8cff;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 16% 18%, color-mix(in srgb, var(--blue) 20%, transparent), transparent 28%),
+        radial-gradient(circle at 82% 78%, color-mix(in srgb, var(--cyan) 13%, transparent), transparent 30%),
+        var(--bg);
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(115deg, transparent 0 18%, color-mix(in srgb, var(--cyan) 5%, transparent) 28%, transparent 38%),
+        linear-gradient(70deg, transparent 0 52%, color-mix(in srgb, var(--blue) 8%, transparent) 64%, transparent 73%);
+      filter: blur(1px);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 0 1px, transparent 1px 5px);
+      opacity: 0.16;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      pointer-events: none;
+      opacity: 0.62;
+      background:
+        radial-gradient(circle at 12% 24%, color-mix(in srgb, var(--cyan) 28%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 24% 78%, color-mix(in srgb, var(--cyan) 24%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 45% 20%, color-mix(in srgb, var(--blue) 25%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 68% 68%, color-mix(in srgb, var(--cyan) 22%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 86% 28%, color-mix(in srgb, var(--blue) 20%, transparent) 0 2px, transparent 3px),
+        linear-gradient(29deg, transparent 9%, color-mix(in srgb, var(--cyan) 9%, transparent) 9.2%, transparent 9.6%),
+        linear-gradient(148deg, transparent 28%, color-mix(in srgb, var(--cyan) 8%, transparent) 28.2%, transparent 28.6%),
+        linear-gradient(71deg, transparent 49%, color-mix(in srgb, var(--blue) 7%, transparent) 49.2%, transparent 49.6%),
+        linear-gradient(121deg, transparent 63%, color-mix(in srgb, var(--cyan) 8%, transparent) 63.2%, transparent 63.6%);
+      transform: scale(1.18);
+    }
+
+    .topline {
+      position: fixed;
+      top: 16px;
+      left: 18px;
+      right: 18px;
+      z-index: 4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .brand {
+      color: var(--cyan);
+      font: 600 18px var(--mono);
+      text-shadow: 0 0 20px color-mix(in srgb, var(--cyan) 45%, transparent);
+    }
+
+    .mode-note {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 11px var(--mono);
+    }
+
+    .window {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(1120px, calc(100vw - 56px));
+      height: min(706px, calc(100dvh - 86px));
+      transform: translate(-50%, -50%);
+      border: 1px solid color-mix(in srgb, var(--cyan) 44%, transparent);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--bg) 97%, var(--cyan) 3%), color-mix(in srgb, var(--bg) 95%, transparent)),
+        var(--panel);
+      box-shadow:
+        0 24px 80px color-mix(in srgb, var(--bg) 72%, transparent),
+        0 0 46px color-mix(in srgb, var(--cyan) 11%, transparent);
+      overflow: hidden;
+    }
+
+    .window-head {
+      height: 50px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      padding: 0 16px;
+    }
+
+    .head-left,
+    .head-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .head-right { justify-content: flex-end; }
+
+    .title {
+      text-align: center;
+      font: 600 13px var(--mono);
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 24px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 8%, var(--bg) 56%);
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      padding: 0 8px;
+      font: 10px var(--mono);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--green) 64%, transparent);
+    }
+
+    .dot.blue {
+      background: var(--blue);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 64%, transparent);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--amber) 58%, transparent);
+    }
+
+    .icon-control {
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      font: 17px var(--mono);
+      cursor: pointer;
+      opacity: 0.82;
+    }
+
+    .body {
+      height: calc(100% - 50px);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      padding: 14px 16px 16px;
+    }
+
+    .health {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      width: max-content;
+      max-width: 100%;
+      min-height: 28px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 5%, var(--bg) 64%);
+      padding: 5px 8px;
+    }
+
+    .health-card {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      min-height: 0;
+      color: color-mix(in srgb, var(--muted) 84%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .health-card + .health-card::before {
+      content: "";
+      width: 3px;
+      height: 3px;
+      margin-right: 2px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--cyan) 52%, transparent);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 36%, transparent);
+    }
+
+    .health-card span {
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+    }
+
+    .health-card strong {
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+      font-weight: 600;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: auto minmax(180px, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      border: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+      border-radius: 5px;
+      overflow: hidden;
+      width: max-content;
+    }
+
+    .tab {
+      border: 0;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 13%, transparent);
+      background: color-mix(in srgb, var(--cyan) 6%, var(--bg) 62%);
+      color: color-mix(in srgb, var(--muted) 84%, transparent);
+      padding: 8px 13px;
+      font: 11px var(--mono);
+      cursor: pointer;
+    }
+
+    .tab:last-child { border-right: 0; }
+
+    .tab.active {
+      background: color-mix(in srgb, var(--cyan) 11%, transparent);
+      color: var(--cyan);
+    }
+
+    .search {
+      width: 100%;
+      border: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg) 75%, transparent);
+      padding: 8px 10px;
+      color: color-mix(in srgb, var(--ink) 90%, transparent);
+      font: 11px var(--mono);
+    }
+
+    .search::placeholder { color: color-mix(in srgb, var(--muted) 72%, transparent); }
+
+    .risk-filter {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      color: color-mix(in srgb, var(--muted) 72%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .content {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(430px, 1fr) 350px;
+      gap: 12px;
+    }
+
+    .pane {
+      min-height: 0;
+      border: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--bg) 68%, transparent);
+      overflow: hidden;
+    }
+
+    .activity-list,
+    .detail {
+      height: 100%;
+      overflow: auto;
+    }
+
+    .activity-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      border: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 8%, transparent);
+      background: transparent;
+      padding: 13px 14px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .activity-row:hover,
+    .activity-row.active {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--cyan) 8%, transparent), color-mix(in srgb, var(--cyan) 2%, transparent), transparent);
+    }
+
+    .activity-row.attention:hover,
+    .activity-row.attention.active {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--amber) 10%, transparent), color-mix(in srgb, var(--amber) 2.5%, transparent), transparent);
+    }
+
+    .run-dot {
+      position: relative;
+      width: 9px;
+      height: 9px;
+      margin-top: 5px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--cyan) 5%, var(--bg) 95%);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 45%, transparent);
+    }
+
+    .activity-row.attention .run-dot {
+      border-color: var(--amber);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 50%, transparent);
+    }
+
+    .activity-main {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .activity-title {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      min-width: 0;
+    }
+
+    .activity-title strong {
+      min-width: 0;
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+      font: 600 12px var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .activity-title span {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 10px var(--mono);
+      white-space: nowrap;
+    }
+
+    .activity-desc {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 11px/1.35 var(--font);
+    }
+
+    .activity-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .tag {
+      border: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      border-radius: 5px;
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      padding: 2px 7px;
+      font: 9px var(--mono);
+    }
+
+    .tag.undo { color: var(--green); border-color: color-mix(in srgb, var(--green) 25%, transparent); }
+    .tag.warn { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 28%, transparent); }
+
+    .activity-count {
+      color: color-mix(in srgb, var(--ink) 72%, transparent);
+      font: 600 12px var(--mono);
+    }
+
+    .detail {
+      padding: 14px;
+    }
+
+    .detail-head {
+      display: grid;
+      gap: 6px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+    }
+
+    .detail-head span {
+      color: var(--cyan);
+      font: 10px var(--mono);
+    }
+
+    .detail-head strong {
+      color: color-mix(in srgb, var(--ink) 96%, transparent);
+      font: 600 15px var(--mono);
+    }
+
+    .detail-section {
+      display: grid;
+      gap: 8px;
+      padding: 13px 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 9%, transparent);
+    }
+
+    .detail-section h3 {
+      margin: 0;
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 600 10px var(--mono);
+      text-transform: uppercase;
+    }
+
+    .detail-section p {
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 12px/1.45 var(--font);
+    }
+
+    .file-row,
+    .rule-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 26px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 6%, var(--bg) 38%);
+      padding: 5px 7px;
+      color: color-mix(in srgb, var(--ink) 80%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .file-row span:first-child,
+    .rule-row span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .applied-rules {
+      display: grid;
+      gap: 7px;
+    }
+
+    .rule-link {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--green) 22%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--green) 5%, var(--bg) 42%);
+      color: color-mix(in srgb, var(--ink) 86%, transparent);
+      padding: 7px 8px;
+      text-align: left;
+      cursor: pointer;
+      font: 10px var(--mono);
+    }
+
+    .rule-link:hover,
+    .rule-link:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--green) 42%, transparent);
+      background: color-mix(in srgb, var(--green) 8%, var(--bg) 48%);
+    }
+
+    .rule-link strong,
+    .rule-link small {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rule-link strong {
+      color: var(--green);
+      font-size: 10px;
+    }
+
+    .rule-link small {
+      margin-top: 2px;
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font-size: 9px;
+    }
+
+    .rule-link-arrow {
+      color: var(--cyan);
+    }
+
+    .skill-link {
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      padding: 0;
+      text-align: right;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .skill-link:hover,
+    .skill-link:focus-visible {
+      outline: none;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .status-text { color: var(--green); }
+    .danger-text { color: var(--red); }
+    .warn-text { color: var(--amber); }
+
+    .actions {
+      position: sticky;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px 8px;
+      margin-top: 10px;
+      padding: 9px 0 0;
+      border-top: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      background: color-mix(in srgb, var(--bg) 97%, transparent);
+    }
+
+    .action-copy {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 78%, transparent);
+      font: 11px/1.35 var(--font);
+    }
+
+    .action-btn {
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 8%, var(--bg) 64%);
+      color: var(--cyan);
+      padding: 8px 9px;
+      font: 10px var(--mono);
+      cursor: pointer;
+    }
+
+    .action-btn.primary {
+      border-color: color-mix(in srgb, var(--green) 32%, transparent);
+      color: var(--green);
+    }
+
+    .tab-panel { display: none; height: 100%; }
+    .tab-panel.active { display: contents; }
+
+    .rules-grid,
+    .skills-grid,
+    .folders-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      overflow: auto;
+      height: 100%;
+    }
+
+    .control-card {
+      min-height: 154px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--cyan) 7%, var(--bg) 46%);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .control-card.rule-focus {
+      border-color: color-mix(in srgb, var(--green) 52%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--green) 18%, transparent), 0 0 24px color-mix(in srgb, var(--green) 12%, transparent);
+    }
+
+    .rule-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control-card h2 {
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 94%, transparent);
+      font: 600 13px var(--mono);
+    }
+
+    .control-card p {
+      margin: 0;
+      color: color-mix(in srgb, var(--muted) 76%, transparent);
+      font: 12px/1.45 var(--font);
+    }
+
+    .rule-text {
+      border: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 5%, var(--bg) 38%);
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      padding: 8px;
+      font: 11px/1.4 var(--font);
+    }
+
+    .edit-rule-btn {
+      width: 26px;
+      height: 24px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--cyan) 20%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 6%, var(--bg) 44%);
+      color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .edit-rule-btn:hover,
+    .edit-rule-btn:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--cyan) 48%, transparent);
+      background: color-mix(in srgb, var(--cyan) 10%, var(--bg) 50%);
+    }
+
+    .edit-rule-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .permission-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .permission {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 8px;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .permission span:first-child {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+    }
+
+    .level-auto { color: var(--green); }
+    .level-log { color: var(--cyan); }
+    .level-ask { color: var(--amber); }
+    .level-never { color: var(--red); }
+
+    .skill-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .skill-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .mini-ledger {
+      display: grid;
+      gap: 6px;
+    }
+
+    .skill-facts {
+      display: grid;
+      gap: 8px;
+    }
+
+    .skill-fact {
+      display: grid;
+      gap: 3px;
+    }
+
+    .skill-fact span {
+      color: color-mix(in srgb, var(--muted) 78%, transparent);
+      font: 600 9px var(--mono);
+      text-transform: uppercase;
+    }
+
+    .skill-fact p {
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 82%, transparent);
+      font: 11px/1.4 var(--font);
+    }
+
+    @media (max-width: 920px) {
+      body { overflow: auto; }
+      .stage { min-height: 100dvh; height: auto; overflow: visible; }
+      .window {
+        position: relative;
+        left: auto;
+        top: auto;
+        transform: none;
+        width: calc(100vw - 24px);
+        height: auto;
+        min-height: calc(100dvh - 72px);
+        margin: 58px 12px 14px;
+      }
+
+      .body,
+      .content,
+      .toolbar,
+      .health {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .content { grid-template-columns: 1fr; }
+      .rules-grid,
+      .skills-grid,
+      .folders-grid { grid-template-columns: 1fr; }
+      .detail { min-height: 420px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="network" aria-hidden="true"></div>
+    <header class="topline">
+      <div class="brand">ABC</div>
+      <div class="mode-note">UI mockup · Nextcloud audit-first control</div>
+    </header>
+
+    <section class="window" aria-label="Cloud Control">
+      <header class="window-head">
+        <div class="head-left">
+          <span class="chip"><span class="dot"></span>Nextcloud connected</span>
+          <span class="chip"><span class="dot blue"></span>Local index</span>
+        </div>
+        <div class="title">Cloud Control</div>
+        <div class="head-right">
+          <button class="icon-control" aria-label="Minimize">-</button>
+          <button class="icon-control" aria-label="Maximize">□</button>
+          <button class="icon-control" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="body">
+        <section class="health" aria-label="Cloud health">
+          <div class="health-card"><span>Connection</span><strong>Healthy</strong></div>
+          <div class="health-card"><span>Index</span><strong>Updated 4 min ago</strong></div>
+          <div class="health-card"><span>Active skills</span><strong>3 running rules</strong></div>
+          <div class="health-card"><span>Today</span><strong>128 logged actions</strong></div>
+        </section>
+
+        <section class="toolbar" aria-label="Cloud control navigation">
+          <nav class="tabs" aria-label="Cloud Control tabs">
+            <button class="tab active" data-tab="activity">Activity</button>
+            <button class="tab" data-tab="rules">Rules</button>
+            <button class="tab" data-tab="skills">Skills</button>
+            <button class="tab" data-tab="folders">Folders</button>
+          </nav>
+          <input class="search" placeholder="Search activity, folders, skills, filenames">
+          <div class="risk-filter"><span class="dot amber"></span> Attention only</div>
+        </section>
+
+        <section class="content">
+          <div class="tab-panel active" data-panel="activity">
+            <section class="pane activity-list" aria-label="AI activity ledger">
+              <button class="activity-row active" data-detail="atlas">
+                <span class="run-dot" aria-hidden="true"></span>
+                <span class="activity-main">
+                  <span class="activity-title"><strong>Project Archivist organized Project Atlas</strong><span>12 min ago</span></span>
+                  <span class="activity-desc">Moved notes, attached summaries, and linked meeting files to the project folder.</span>
+                  <span class="activity-tags"><span class="tag undo">Undo available</span><span class="tag">Rule: Organize</span><span class="tag">42 actions</span></span>
+                </span>
+                <span class="activity-count">42</span>
+              </button>
+
+              <button class="activity-row" data-detail="invoice">
+                <span class="run-dot" aria-hidden="true"></span>
+                <span class="activity-main">
+                  <span class="activity-title"><strong>Invoice Sorter tagged finance PDFs</strong><span>31 min ago</span></span>
+                  <span class="activity-desc">Detected invoice dates and vendors, then added tags without moving files.</span>
+                  <span class="activity-tags"><span class="tag undo">Undo available</span><span class="tag">Rule: Tag</span><span class="tag">18 actions</span></span>
+                </span>
+                <span class="activity-count">18</span>
+              </button>
+
+              <button class="activity-row attention" data-detail="duplicates">
+                <span class="run-dot" aria-hidden="true"></span>
+                <span class="activity-main">
+                  <span class="activity-title"><strong>Duplicate Cleaner quarantined likely duplicates</strong><span>1h ago</span></span>
+                  <span class="activity-desc">Moved suspected duplicate exports into a reversible quarantine folder.</span>
+                  <span class="activity-tags"><span class="tag warn">Review suggested</span><span class="tag undo">Restore available</span><span class="tag">6 actions</span></span>
+                </span>
+                <span class="activity-count">6</span>
+              </button>
+
+              <button class="activity-row" data-detail="meeting">
+                <span class="run-dot" aria-hidden="true"></span>
+                <span class="activity-main">
+                  <span class="activity-title"><strong>Meeting Notes Assistant created summaries</strong><span>2h ago</span></span>
+                  <span class="activity-desc">Created short summaries next to raw notes. Original files were unchanged.</span>
+                  <span class="activity-tags"><span class="tag undo">Delete summaries</span><span class="tag">Rule: Create</span><span class="tag">9 actions</span></span>
+                </span>
+                <span class="activity-count">9</span>
+              </button>
+            </section>
+
+            <aside class="pane detail" aria-label="Selected activity details">
+              <div class="detail-head">
+                <span data-detail-skill>Project Archivist</span>
+                <strong data-detail-title>Organized Project Atlas</strong>
+              </div>
+              <section class="detail-section">
+                <h3>What happened</h3>
+                <p data-detail-summary>ABC grouped project notes, moved loose meeting files into the project folder, and created two short summaries.</p>
+              </section>
+              <section class="detail-section">
+                <h3>Why it was allowed</h3>
+                <div class="rule-row"><span>Folder</span><span data-detail-folder>/Projects/Atlas</span></div>
+                <div class="rule-row"><span>Skill</span><button class="skill-link" type="button" data-open-skill="project-archivist" data-detail-responsible>Project Archivist</button></div>
+                <div class="applied-rules" data-applied-rules></div>
+              </section>
+              <section class="detail-section">
+                <h3>Affected files</h3>
+                <div class="file-row"><span data-file-a>meeting-2026-06-21.md</span><span class="status-text">moved</span></div>
+                <div class="file-row"><span data-file-b>atlas-roadmap-notes.md</span><span class="status-text">summarized</span></div>
+                <div class="file-row"><span data-file-c>loose-research.txt</span><span class="status-text">linked</span></div>
+              </section>
+              <div class="actions">
+                <p class="action-copy" data-detail-control>Undo will move files back and remove generated summaries. The audit entry stays in history.</p>
+                <button class="action-btn primary">Undo run</button>
+                <button class="action-btn">Change rule</button>
+              </div>
+            </aside>
+          </div>
+
+          <div class="tab-panel" data-panel="rules">
+            <section class="pane rules-grid" aria-label="Cloud autonomy rules">
+              <article class="control-card" data-rule-card="projects">
+                <div class="rule-card-head">
+                  <h2>Projects</h2>
+                  <button class="edit-rule-btn" type="button" aria-label="Edit Projects rule" data-edit-rule="projects">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
+                  </button>
+                </div>
+                <p class="rule-text">ABC may organize files inside project folders automatically, as long as every move is logged and reversible. Sharing and direct deletion are not allowed.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Read</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Tag</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Move</span><strong class="level-log">Automatic + log</strong></div>
+                  <div class="permission"><span>Delete</span><strong class="level-ask">Ask first</strong></div>
+                  <div class="permission"><span>Share</span><strong class="level-never">Never</strong></div>
+                </div>
+              </article>
+              <article class="control-card" data-rule-card="finance">
+                <div class="rule-card-head">
+                  <h2>Finance</h2>
+                  <button class="edit-rule-btn" type="button" aria-label="Edit Finance rule" data-edit-rule="finance">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
+                  </button>
+                </div>
+                <p class="rule-text">ABC may read finance files, add tags, and create summaries. It must not edit originals, change folder structure, or create shares.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Read</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Tag</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Move</span><strong class="level-ask">Ask first</strong></div>
+                  <div class="permission"><span>Edit</span><strong class="level-never">Never</strong></div>
+                  <div class="permission"><span>Share</span><strong class="level-never">Never</strong></div>
+                </div>
+              </article>
+              <article class="control-card" data-rule-card="inbox">
+                <div class="rule-card-head">
+                  <h2>Inbox</h2>
+                  <button class="edit-rule-btn" type="button" aria-label="Edit Inbox rule" data-edit-rule="inbox">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
+                  </button>
+                </div>
+                <p class="rule-text">ABC may classify incoming files and move them into safe destinations. It must keep a full action log and ask before deleting anything.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Read</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Tag</span><strong class="level-auto">Automatic</strong></div>
+                  <div class="permission"><span>Move</span><strong class="level-log">Automatic + log</strong></div>
+                  <div class="permission"><span>Delete</span><strong class="level-ask">Ask first</strong></div>
+                  <div class="permission"><span>Create</span><strong class="level-log">Automatic + log</strong></div>
+                </div>
+              </article>
+              <article class="control-card" data-rule-card="global">
+                <div class="rule-card-head">
+                  <h2>Global safety</h2>
+                  <button class="edit-rule-btn" type="button" aria-label="Edit Global safety rule" data-edit-rule="global">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
+                  </button>
+                </div>
+                <p class="rule-text">ABC must keep high-risk changes reversible. Overwrites, deletes, external shares, and unexpected mass changes require explicit confirmation.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Mass move</span><strong class="level-log">Log + reversible</strong></div>
+                  <div class="permission"><span>Overwrite</span><strong class="level-ask">Ask first</strong></div>
+                  <div class="permission"><span>Delete</span><strong class="level-ask">Ask first</strong></div>
+                  <div class="permission"><span>External share</span><strong class="level-never">Never</strong></div>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div class="tab-panel" data-panel="skills">
+            <section class="pane skills-grid" aria-label="Responsible AI skills">
+              <article class="control-card">
+                <div class="skill-top"><h2>Project Archivist</h2><span class="skill-state"><span class="dot"></span>active</span></div>
+                <div class="skill-facts">
+                  <div class="skill-fact"><span>What it does</span><p>Keeps project material organized, links related files, and creates short project summaries.</p></div>
+                  <div class="skill-fact"><span>Used when</span><p>New notes, meeting files, research exports, or loose documents appear near an active project.</p></div>
+                  <div class="skill-fact"><span>Allowed</span><p>Move loose files into project folders, add tags, create summaries, link related files.</p></div>
+                  <div class="skill-fact"><span>Never</span><p>Delete originals, share files externally, or rewrite source documents without versioning.</p></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <div class="skill-top"><h2>Invoice Sorter</h2><span class="skill-state"><span class="dot"></span>active</span></div>
+                <div class="skill-facts">
+                  <div class="skill-fact"><span>What it does</span><p>Recognizes invoices, extracts vendor/date hints, and makes finance documents searchable.</p></div>
+                  <div class="skill-fact"><span>Used when</span><p>PDFs or scans look like invoices, receipts, licenses, or recurring service bills.</p></div>
+                  <div class="skill-fact"><span>Allowed</span><p>Read metadata, tag files, create sidecar summaries, flag missing information.</p></div>
+                  <div class="skill-fact"><span>Never</span><p>Edit originals, move finance folder structure, create shares, or infer payments as completed.</p></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <div class="skill-top"><h2>Duplicate Cleaner</h2><span class="skill-state"><span class="dot amber"></span>limited</span></div>
+                <div class="skill-facts">
+                  <div class="skill-fact"><span>What it does</span><p>Finds likely duplicate files and moves suspicious copies into reversible quarantine.</p></div>
+                  <div class="skill-fact"><span>Used when</span><p>Files have matching hashes, repeated names, old exports, or duplicated downloads.</p></div>
+                  <div class="skill-fact"><span>Allowed</span><p>Compare files, tag duplicates, quarantine likely copies, explain confidence.</p></div>
+                  <div class="skill-fact"><span>Never</span><p>Delete files directly, merge files, touch originals without backup, or hide conflicts.</p></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <div class="skill-top"><h2>Meeting Notes Assistant</h2><span class="skill-state"><span class="dot blue"></span>idle</span></div>
+                <div class="skill-facts">
+                  <div class="skill-fact"><span>What it does</span><p>Turns raw meeting notes into summaries, decisions, and action lists next to the original.</p></div>
+                  <div class="skill-fact"><span>Used when</span><p>Meeting notes, transcripts, or planning documents are added or updated.</p></div>
+                  <div class="skill-fact"><span>Allowed</span><p>Create summaries, extract todos, link related project files, tag topics.</p></div>
+                  <div class="skill-fact"><span>Never</span><p>Move raw notes, overwrite original wording, or mark todos done without evidence.</p></div>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div class="tab-panel" data-panel="folders">
+            <section class="pane folders-grid" aria-label="Allowed cloud folders">
+              <article class="control-card">
+                <h2>/Projects</h2>
+                <p>Primary project memory and source material. Organizing is allowed and reversible.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Mode</span><strong class="level-log">Organize</strong></div>
+                  <div class="permission"><span>Files</span><strong>12,480</strong></div>
+                  <div class="permission"><span>Index</span><strong class="level-auto">Fresh</strong></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <h2>/Finance</h2>
+                <p>Read and tag only. Original documents are protected from edits and moves.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Mode</span><strong class="level-auto">Read + tag</strong></div>
+                  <div class="permission"><span>Files</span><strong>2,081</strong></div>
+                  <div class="permission"><span>Index</span><strong class="level-auto">Fresh</strong></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <h2>/Inbox</h2>
+                <p>Temporary intake. KI may classify, tag, and move files into safe destinations.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Mode</span><strong class="level-log">Auto-sort</strong></div>
+                  <div class="permission"><span>Files</span><strong>184</strong></div>
+                  <div class="permission"><span>Index</span><strong class="level-ask">Queued</strong></div>
+                </div>
+              </article>
+              <article class="control-card">
+                <h2>/Archive</h2>
+                <p>Mostly read-only. Used as destination for finished project material.</p>
+                <div class="permission-list">
+                  <div class="permission"><span>Mode</span><strong class="level-log">Receive only</strong></div>
+                  <div class="permission"><span>Files</span><strong>31,902</strong></div>
+                  <div class="permission"><span>Index</span><strong class="level-auto">Fresh</strong></div>
+                </div>
+              </article>
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const detailData = {
+      atlas: {
+        skillId: 'project-archivist',
+        skill: 'Project Archivist',
+        title: 'Organized Project Atlas',
+        summary: 'ABC grouped project notes, moved loose meeting files into the project folder, and created two short summaries.',
+        folder: '/Projects/Atlas',
+        rules: [
+          { id: 'projects', title: 'Projects', text: 'Organize project files automatically, but log every move and keep it reversible.' },
+          { id: 'global', title: 'Global safety', text: 'Do not share or delete files without explicit confirmation.' }
+        ],
+        responsible: 'Project Archivist',
+        files: ['meeting-2026-06-21.md', 'atlas-roadmap-notes.md', 'loose-research.txt'],
+        states: ['moved', 'summarized', 'linked'],
+        control: 'Undo moves files back and removes generated summaries.',
+        primary: 'Undo run',
+        secondary: 'Change rule'
+      },
+      invoice: {
+        skillId: 'invoice-sorter',
+        skill: 'Invoice Sorter',
+        title: 'Tagged finance PDFs',
+        summary: 'ABC extracted vendor and date hints from invoice filenames and added searchable tags. Originals were not changed.',
+        folder: '/Finance/Invoices',
+        rules: [
+          { id: 'finance', title: 'Finance', text: 'Read and tag finance files automatically, but never edit originals.' },
+          { id: 'global', title: 'Global safety', text: 'External shares and destructive actions stay blocked.' }
+        ],
+        responsible: 'Invoice Sorter',
+        files: ['invoice-strato-2026-06.pdf', 'aws-2026-05.pdf', 'office-license-2026.pdf'],
+        states: ['tagged', 'tagged', 'tagged'],
+        control: 'Undo removes tags and generated metadata.',
+        primary: 'Undo tags',
+        secondary: 'Change rule'
+      },
+      duplicates: {
+        skillId: 'duplicate-cleaner',
+        skill: 'Duplicate Cleaner',
+        title: 'Quarantined likely duplicates',
+        summary: 'ABC found export files with matching hashes and moved the likely duplicates into a quarantine folder.',
+        folder: '/Exports',
+        rules: [
+          { id: 'inbox', title: 'Inbox', text: 'Move incoming or export duplicates only into reversible quarantine.' },
+          { id: 'global', title: 'Global safety', text: 'Direct deletion requires explicit confirmation.' }
+        ],
+        responsible: 'Duplicate Cleaner',
+        files: ['report-final-copy.pdf', 'atlas-export-old.zip', 'meeting-notes-copy.md'],
+        states: ['quarantined', 'quarantined', 'quarantined'],
+        control: 'Restore moves files back. Direct deletion stays disabled.',
+        primary: 'Restore files',
+        secondary: 'Tighten rule'
+      },
+      meeting: {
+        skillId: 'meeting-notes-assistant',
+        skill: 'Meeting Notes Assistant',
+        title: 'Created meeting summaries',
+        summary: 'ABC created short summary files next to raw notes and extracted action items for search.',
+        folder: '/Meetings',
+        rules: [
+          { id: 'inbox', title: 'Inbox', text: 'Create helpful sidecar files automatically when originals stay untouched.' },
+          { id: 'global', title: 'Global safety', text: 'Raw notes must not be moved or overwritten by default.' }
+        ],
+        responsible: 'Meeting Notes Assistant',
+        files: ['design-review-summary.md', 'planning-actions.md', 'weekly-sync-summary.md'],
+        states: ['created', 'created', 'created'],
+        control: 'Undo deletes generated summaries only.',
+        primary: 'Delete summaries',
+        secondary: 'Change rule'
+      }
+    };
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+    function switchTab(tabName) {
+      $$('.tab').forEach(item => item.classList.toggle('active', item.dataset.tab === tabName));
+      $$('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === tabName));
+    }
+
+    function focusRule(ruleId) {
+      switchTab('rules');
+      $$('.control-card').forEach(card => card.classList.remove('rule-focus'));
+      const card = $('[data-rule-card="' + ruleId + '"]');
+      if (!card) return;
+      card.classList.add('rule-focus');
+      card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    $$('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        switchTab(tab.dataset.tab);
+      });
+    });
+
+    function setDetail(key) {
+      const data = detailData[key];
+      if (!data) return;
+      $('[data-detail-skill]').textContent = data.skill;
+      $('[data-detail-title]').textContent = data.title;
+      $('[data-detail-summary]').textContent = data.summary;
+      $('[data-detail-folder]').textContent = data.folder;
+      $('[data-detail-responsible]').textContent = data.responsible;
+      $('[data-detail-responsible]').dataset.openSkill = data.skillId;
+      $('[data-detail-control]').textContent = data.control;
+      const appliedRules = $('[data-applied-rules]');
+      appliedRules.innerHTML = data.rules.map(rule => (
+        '<button class="rule-link" type="button" data-open-rule="' + rule.id + '">' +
+        '<span><strong>' + rule.title + '</strong><small>' + rule.text + '</small></span>' +
+        '<span class="rule-link-arrow">Rules</span>' +
+        '</button>'
+      )).join('');
+      $('[data-file-a]').textContent = data.files[0];
+      $('[data-file-b]').textContent = data.files[1];
+      $('[data-file-c]').textContent = data.files[2];
+      $$('.file-row').forEach((row, index) => {
+        const state = row.querySelector('span:last-child');
+        state.textContent = data.states[index];
+        state.className = key === 'duplicates' ? 'warn-text' : 'status-text';
+      });
+      const actions = $$('.action-btn');
+      actions[0].textContent = data.primary;
+      actions[1].textContent = data.secondary;
+    }
+
+    $$('.activity-row').forEach(row => {
+      row.addEventListener('click', () => {
+        $$('.activity-row').forEach(item => item.classList.toggle('active', item === row));
+        setDetail(row.dataset.detail);
+      });
+    });
+
+    document.addEventListener('click', event => {
+      const ruleLink = event.target.closest('[data-open-rule]');
+      if (ruleLink) {
+        focusRule(ruleLink.dataset.openRule);
+        return;
+      }
+      const editRule = event.target.closest('[data-edit-rule]');
+      if (editRule) {
+        focusRule(editRule.dataset.editRule);
+        return;
+      }
+      const skillLink = event.target.closest('[data-open-skill]');
+      if (skillLink) {
+        window.location.href = 'abc-skills-library.html?skill=' + encodeURIComponent(skillLink.dataset.openSkill);
+      }
+    });
+
+    setDetail('atlas');
+  </script>
+</body>
+</html>

@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Document Viewer Content Modes V2</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #7ea4b5;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    select {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--blue) 16%, transparent), transparent 30%),
+        radial-gradient(circle at 84% 78%, color-mix(in srgb, var(--cyan) 11%, transparent), transparent 32%),
+        var(--bg);
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(118deg, transparent 0 19%, color-mix(in srgb, var(--cyan) 5%, transparent) 29%, transparent 41%),
+        linear-gradient(72deg, transparent 0 53%, color-mix(in srgb, var(--blue) 8%, transparent) 64%, transparent 74%);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 0 1px, transparent 1px 5px);
+      opacity: 0.12;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 8% 34%, color-mix(in srgb, var(--cyan) 24%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 20% 82%, color-mix(in srgb, var(--cyan) 18%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 42% 16%, color-mix(in srgb, var(--cyan) 17%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 58% 70%, color-mix(in srgb, var(--blue) 22%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 82% 28%, color-mix(in srgb, var(--teal) 20%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 94% 76%, color-mix(in srgb, var(--cyan) 15%, transparent) 0 2px, transparent 3px),
+        linear-gradient(28deg, transparent 0 28%, color-mix(in srgb, var(--cyan) 8%, transparent) 28% 28.2%, transparent 28.4% 100%),
+        linear-gradient(151deg, transparent 0 37%, color-mix(in srgb, var(--blue) 8%, transparent) 37% 37.2%, transparent 37.4% 100%);
+      opacity: 0.46;
+    }
+
+    .document-viewer {
+      position: relative;
+      width: min(1120px, calc(100vw - 64px));
+      height: min(800px, calc(100dvh - 64px));
+      display: grid;
+      grid-template-rows: 38px minmax(0, 1fr);
+      border: 1px solid color-mix(in srgb, var(--cyan) 38%, transparent);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--bg) 97%, var(--cyan) 3%), color-mix(in srgb, var(--bg) 95%, transparent)),
+        color-mix(in srgb, var(--bg) 86%, transparent);
+      box-shadow:
+        0 24px 80px color-mix(in srgb, var(--bg) 76%, transparent),
+        0 0 40px color-mix(in srgb, var(--cyan) 10%, transparent);
+      overflow: hidden;
+    }
+
+    .viewer-header {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      min-width: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      background: color-mix(in srgb, var(--bg) 84%, transparent);
+    }
+
+    .document-title {
+      min-width: 0;
+      max-width: min(520px, 52vw);
+      overflow: hidden;
+      color: color-mix(in srgb, var(--ink) 86%, transparent);
+      font: 600 12px/1 var(--mono);
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .window-controls {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 18px;
+    }
+
+    .window-control {
+      width: 18px;
+      height: 18px;
+      border: 0;
+      background: transparent;
+      color: color-mix(in srgb, var(--cyan) 78%, transparent);
+      font: 700 13px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .window-control:hover {
+      color: var(--cyan);
+      opacity: 1;
+      text-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 70%, transparent);
+    }
+
+    .mode-view {
+      display: none;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .document-viewer[data-mode="text"] .text-view,
+    .document-viewer[data-mode="code"] .code-view,
+    .document-viewer[data-mode="pdf"] .pdf-view {
+      display: grid;
+    }
+
+    .demo-switch {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 10;
+      display: inline-flex;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 5px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+      box-shadow: 0 0 24px color-mix(in srgb, var(--cyan) 9%, transparent);
+    }
+
+    .demo-switch button {
+      min-height: 30px;
+      border: 0;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 13%, transparent);
+      background: transparent;
+      color: color-mix(in srgb, var(--muted) 88%, transparent);
+      padding: 0 10px;
+      font: 10px var(--mono);
+      cursor: pointer;
+    }
+
+    .demo-switch button:last-child { border-right: 0; }
+    .demo-switch button.active { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); }
+
+    /* Text / Markdown */
+    .text-view {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .text-format-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 38px;
+      padding: 0 18px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+    }
+
+    .format-button {
+      min-width: 28px;
+      height: 24px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 15%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--cyan) 5%, transparent);
+      color: color-mix(in srgb, var(--ink) 80%, transparent);
+      font: 600 10px var(--mono);
+      cursor: pointer;
+    }
+
+    .format-button.active,
+    .format-button:hover {
+      border-color: color-mix(in srgb, var(--cyan) 38%, transparent);
+      color: var(--cyan);
+    }
+
+    .text-document {
+      overflow: auto;
+      padding: 54px 72px 76px;
+    }
+
+    .text-document h1 {
+      margin: 0 0 22px;
+      color: color-mix(in srgb, var(--ink) 96%, transparent);
+      font: 600 24px/1.18 var(--mono);
+    }
+
+    .text-document h2 {
+      margin: 30px 0 10px;
+      color: color-mix(in srgb, var(--cyan) 90%, transparent);
+      font: 600 15px/1.25 var(--mono);
+    }
+
+    .text-document p,
+    .text-document li {
+      max-width: 76ch;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 14px/1.68 var(--font);
+    }
+
+    .text-document p { margin: 0 0 14px; }
+    .text-document ul { margin: 0 0 16px; padding-left: 22px; }
+    .text-document li + li { margin-top: 6px; }
+
+    /* Code */
+    .code-view {
+      grid-template-rows: 38px minmax(0, 1fr);
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: 38px;
+      padding: 0 14px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 11%, transparent);
+      background: color-mix(in srgb, var(--bg) 84%, transparent);
+    }
+
+    .language-select {
+      height: 26px;
+      min-width: 154px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      color: var(--cyan);
+      padding: 0 8px;
+      font: 10px var(--mono);
+      outline: none;
+    }
+
+    .code-file-label {
+      color: color-mix(in srgb, var(--muted) 84%, transparent);
+      font: 10px var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .code-editor {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      overflow: hidden;
+      background: color-mix(in srgb, var(--bg) 89%, transparent);
+    }
+
+    .line-numbers {
+      padding: 18px 12px 28px;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 9%, transparent);
+      color: color-mix(in srgb, var(--muted) 58%, transparent);
+      font: 11px/1.7 var(--mono);
+      text-align: right;
+      user-select: none;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+    }
+
+    .code-content {
+      margin: 0;
+      overflow: auto;
+      padding: 18px 20px 28px;
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
+      font: 12px/1.7 var(--mono);
+      white-space: pre;
+    }
+
+    .token-key { color: var(--blue); }
+    .token-fn { color: var(--teal); }
+    .token-str { color: var(--green); }
+    .token-num { color: var(--amber); }
+    .token-comment { color: color-mix(in srgb, var(--muted) 72%, transparent); }
+    .token-tag { color: var(--cyan); }
+    .token-attr { color: var(--blue); }
+
+    /* PDF / Docs */
+    .pdf-view {
+      grid-template-rows: 38px minmax(0, 1fr);
+    }
+
+    .pdf-tools {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 0 14px;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      background: color-mix(in srgb, var(--bg) 84%, transparent);
+    }
+
+    .page-state {
+      color: color-mix(in srgb, var(--muted) 88%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .zoom-tools {
+      display: inline-flex;
+      justify-content: center;
+      border: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .zoom-tools button {
+      width: 30px;
+      height: 25px;
+      border: 0;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      background: color-mix(in srgb, var(--cyan) 5%, transparent);
+      color: var(--cyan);
+      font: 11px var(--mono);
+      cursor: pointer;
+    }
+
+    .zoom-tools button:last-child { border-right: 0; }
+
+    .zoom-label {
+      justify-self: end;
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 10px var(--mono);
+    }
+
+    .pdf-canvas {
+      overflow: auto;
+      display: grid;
+      justify-items: center;
+      padding: 36px 0 56px;
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+    }
+
+    .pdf-page {
+      width: min(740px, calc(100% - 72px));
+      min-height: 930px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--ink) 93%, white 7%);
+      color: color-mix(in srgb, var(--bg) 92%, var(--cyan) 8%);
+      box-shadow: 0 18px 48px color-mix(in srgb, var(--bg) 70%, transparent);
+      padding: 62px 72px;
+      font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .pdf-page h1 {
+      margin: 0 0 18px;
+      font-size: 26px;
+      line-height: 1.2;
+    }
+
+    .pdf-page p {
+      margin: 0 0 12px;
+      color: color-mix(in srgb, var(--bg) 82%, var(--cyan) 18%);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .pdf-page .pdf-rule {
+      height: 1px;
+      margin: 24px 0;
+      background: color-mix(in srgb, var(--ink) 66%, var(--cyan) 34%);
+    }
+
+    @media (max-width: 760px) {
+      .stage { padding: 14px; }
+      .document-viewer {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 28px);
+      }
+      .document-title { max-width: 48vw; }
+      .window-controls { gap: 10px; padding: 0 12px; }
+      .text-document { padding: 34px 24px 48px; }
+      .pdf-tools { grid-template-columns: 1fr auto; }
+      .zoom-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="network" aria-hidden="true"></div>
+
+    <article class="document-viewer" data-mode="text" aria-label="Dynamic document viewer">
+      <header class="viewer-header">
+        <div aria-hidden="true"></div>
+        <div class="document-title" data-document-title>Coding Lane Notes.md</div>
+        <div class="window-controls" aria-label="Window controls">
+          <button class="window-control" type="button" title="Minimize">-</button>
+          <button class="window-control" type="button" title="Maximize">[]</button>
+          <button class="window-control" type="button" title="Close">x</button>
+        </div>
+      </header>
+
+      <section class="mode-view text-view" aria-label="Text document mode">
+        <div class="text-format-bar" aria-label="Text formatting">
+          <button class="format-button active" type="button" title="Bold">B</button>
+          <button class="format-button" type="button" title="Italic">I</button>
+          <button class="format-button" type="button" title="Heading">H</button>
+          <button class="format-button" type="button" title="List">List</button>
+          <button class="format-button" type="button" title="Code">`</button>
+        </div>
+        <section class="text-document">
+          <h1>Coding Lane Notes</h1>
+          <p>
+            Text and markdown files open as quiet writing surfaces. The formatting
+            controls stay small, direct, and limited to what a normal person expects
+            while writing.
+          </p>
+          <h2>Editor Rules</h2>
+          <ul>
+            <li>Large writing area first.</li>
+            <li>Formatting is available, but not dominant.</li>
+            <li>Markdown and plain text should feel like one simple editor.</li>
+          </ul>
+          <p>
+            The viewer should not look like an IDE unless the content is actually code.
+          </p>
+        </section>
+      </section>
+
+      <section class="mode-view code-view" aria-label="Code document mode">
+        <header class="code-header">
+          <select class="language-select" aria-label="Programming language preset" data-language-select>
+            <option value="python" selected>Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="html">HTML</option>
+            <option value="json">JSON</option>
+          </select>
+          <div class="code-file-label">src/services/search_memory.py</div>
+        </header>
+        <section class="code-editor">
+          <pre class="line-numbers" data-lines>1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre>
+          <pre class="code-content" data-code><span class="token-key">def</span> <span class="token-fn">search_memory</span>(query, session):
+    <span class="token-comment"># dynamic highlighting follows the selected language preset</span>
+    candidates = collect_candidates(query, session)
+    recent = candidates[:<span class="token-num">240</span>]
+
+    <span class="token-key">return</span> rerank(query, recent)</pre>
+        </section>
+      </section>
+
+      <section class="mode-view pdf-view" aria-label="PDF document mode">
+        <div class="pdf-tools" aria-label="PDF tools">
+          <div class="page-state">Page 1 / 8</div>
+          <div class="zoom-tools">
+            <button type="button" title="Zoom out">-</button>
+            <button type="button" title="Fit page">Fit</button>
+            <button type="button" title="Zoom in">+</button>
+          </div>
+          <div class="zoom-label">92%</div>
+        </div>
+        <section class="pdf-canvas">
+          <article class="pdf-page">
+            <h1>Release Notes</h1>
+            <p>
+              This page represents PDF and office-style documents. The viewer keeps
+              page state and zoom tools visible, but they stay small and out of the
+              reading path.
+            </p>
+            <div class="pdf-rule"></div>
+            <p>
+              A document can be read, zoomed, paged, and later connected to the rest
+              of Odysseus without turning this surface into a dashboard.
+            </p>
+            <p>
+              Images do not need to live here. They can open in the dedicated image
+              editor window.
+            </p>
+          </article>
+        </section>
+      </section>
+    </article>
+
+    <nav class="demo-switch" aria-label="Mockup mode switch">
+      <button class="active" type="button" data-mode="text">Text</button>
+      <button type="button" data-mode="code">Code</button>
+      <button type="button" data-mode="pdf">PDF</button>
+    </nav>
+  </main>
+
+  <script>
+    const viewer = document.querySelector('.document-viewer');
+    const modeButtons = Array.from(document.querySelectorAll('.demo-switch [data-mode]'));
+    const lines = document.querySelector('[data-lines]');
+    const code = document.querySelector('[data-code]');
+    const label = document.querySelector('.code-file-label');
+    const documentTitle = document.querySelector('[data-document-title]');
+    const modeTitles = {
+      text: 'Coding Lane Notes.md',
+      code: 'search_memory.py',
+      pdf: 'Release Notes.pdf'
+    };
+    const snippets = {
+      python: {
+        file: 'src/services/search_memory.py',
+        code: '<span class="token-key">def</span> <span class="token-fn">search_memory</span>(query, session):\n    <span class="token-comment"># dynamic highlighting follows the selected language preset</span>\n    candidates = collect_candidates(query, session)\n    recent = candidates[:<span class="token-num">240</span>]\n\n    <span class="token-key">return</span> rerank(query, recent)'
+      },
+      javascript: {
+        file: 'static/frontpage-v2/app.js',
+        code: '<span class="token-key">const</span> mode = <span class="token-str">"code"</span>;\n<span class="token-key">function</span> <span class="token-fn">openDocument</span>(file) {\n  <span class="token-key">return</span> viewer.render(file, mode);\n}'
+      },
+      html: {
+        file: 'static/mockups/document-view.html',
+        code: '<span class="token-tag">&lt;article</span> <span class="token-attr">class</span>=<span class="token-str">"document-viewer"</span><span class="token-tag">&gt;</span>\n  <span class="token-tag">&lt;section&gt;</span>Current document<span class="token-tag">&lt;/section&gt;</span>\n<span class="token-tag">&lt;/article&gt;</span>'
+      },
+      json: {
+        file: 'data/document-meta.json',
+        code: '{\n  <span class="token-key">"type"</span>: <span class="token-str">"code"</span>,\n  <span class="token-key">"language"</span>: <span class="token-str">"python"</span>,\n  <span class="token-key">"mode"</span>: <span class="token-str">"editor"</span>\n}'
+      }
+    };
+
+    function setMode(mode) {
+      viewer.dataset.mode = mode;
+      modeButtons.forEach(button => button.classList.toggle('active', button.dataset.mode === mode));
+      documentTitle.textContent = mode === 'code' ? basename(label.textContent) : modeTitles[mode];
+    }
+
+    function setLanguage(language) {
+      const snippet = snippets[language] || snippets.python;
+      code.innerHTML = snippet.code;
+      label.textContent = snippet.file;
+      documentTitle.textContent = basename(snippet.file);
+      lines.textContent = Array.from({ length: code.textContent.split('\n').length }, (_, index) => index + 1).join('\n');
+    }
+
+    function basename(path) {
+      return path.split('/').pop() || path;
+    }
+
+    modeButtons.forEach(button => {
+      button.addEventListener('click', () => setMode(button.dataset.mode));
+    });
+
+    document.querySelector('[data-language-select]').addEventListener('change', event => {
+      setLanguage(event.target.value);
+    });
+  </script>
+</body>
+</html>

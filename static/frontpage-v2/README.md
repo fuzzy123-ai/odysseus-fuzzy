@@ -33,6 +33,8 @@ Frontpage elementweise neu auf.
 - keyboard selection `1-4`
 - main chat window at roughly 60% viewport width and near-full height
 - draggable and edge/corner-resizable floating window shell
+- window-to-window Snap On v1 while dragging a window header near another floating window
+- Shift-click multi-window selection with grouped dragging
 - borderless minimize, maximize/restore, and close controls
 - minimized windows appear as centered dock bubbles at the bottom edge
 - vertical AI workline with blue response dots and connector lines
@@ -46,6 +48,13 @@ Frontpage elementweise neu auf.
 - carousel tiles use numbers/icons only and can be clicked or rotated with the mouse wheel
 - small Agent/Plan mode switch inside the composer near the send controls, defaulting to Agent
 - voice input toggle between Agent/Plan and send
+- repo/branch chip in the chat header with linked repo metadata, branch name, and added-code-line delta since last commit
+- global GDPR mode switch in the header with a quiet privacy visual state
+- direct `Projects` toolwheel click opens a placeholder `Projects / Overview` floating window
+- `Projects / Overview` combines a compact project list with selected project overview, roadmap graph placeholder, next-step cards, and normal window controls
+- `Tools > Todos` opens a global Todos window backed by project todos plus global items, with filters and project-first sorting
+- default start page has a hidden bottom-center Universal Inbox that appears on edge hover or when dragging files/items over the page
+- document viewer opens from valid document/file clicks instead of the toolwheel; chat file references are linkified in-place and route to text, code, or PDF/doc modes by file type
 
 ## Naechste moegliche Elemente
 

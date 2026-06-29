@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC Knowledge Graph Viewer Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 52% 76%, rgba(10, 164, 214, 0.14), transparent 28%),
+        radial-gradient(circle at 14% 18%, rgba(30, 92, 182, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(34, 211, 182, 0.08), transparent 34%),
+        #02060d;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.034) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .ambient-graph {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      opacity: 0.5;
+    }
+
+    .ambient-graph line {
+      stroke: rgba(22, 217, 245, 0.1);
+      stroke-width: 1;
+    }
+
+    .ambient-graph circle {
+      fill: rgba(22, 217, 245, 0.15);
+      stroke: rgba(22, 217, 245, 0.28);
+      stroke-width: 1;
+    }
+
+    .brand {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      z-index: 2;
+      color: var(--cyan);
+      font: 600 18px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(22, 217, 245, 0.38);
+    }
+
+    .mock-shell {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      z-index: 3;
+      width: min(1180px, calc(100vw - 72px));
+      height: min(760px, calc(100dvh - 92px));
+      min-width: 880px;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(34, 211, 182, 0.42);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        #07111d;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.46),
+        0 0 0 1px rgba(34, 211, 182, 0.08);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(80, 205, 235, 0.14);
+      background: rgba(2, 10, 18, 0.72);
+      font-family: var(--mono);
+    }
+
+    .window-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font: 600 13px/1 var(--mono);
+    }
+
+    .window-title::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(34, 211, 182, 0.58);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--cyan);
+      transform: translateY(-50%);
+    }
+
+    .window-actions button {
+      width: 16px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: 15px/1 var(--mono);
+      cursor: pointer;
+      opacity: 0.78;
+    }
+
+    .graph-toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+      background:
+        radial-gradient(circle at 20% 24%, rgba(34, 211, 182, 0.08), transparent 46%),
+        rgba(2, 10, 18, 0.42);
+    }
+
+    .search {
+      position: relative;
+      min-width: 0;
+    }
+
+    .search::before {
+      content: "/";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      color: var(--teal);
+      font: 600 15px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .search input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid rgba(34, 211, 182, 0.32);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.78);
+      color: var(--ink);
+      padding: 0 14px 0 36px;
+      font: 12px/1 var(--mono);
+      outline: none;
+    }
+
+    .toolbar-button {
+      height: 38px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.74);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .toolbar-button.active {
+      border-color: rgba(34, 211, 182, 0.52);
+      color: var(--teal);
+      background: rgba(34, 211, 182, 0.08);
+    }
+
+    .window-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 220px minmax(420px, 1fr) 292px;
+    }
+
+    .filter-rail {
+      min-width: 0;
+      border-right: 1px solid rgba(22, 217, 245, 0.14);
+      background: rgba(2, 8, 14, 0.36);
+      padding: 16px 12px;
+      overflow: hidden;
+    }
+
+    .filter-section {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .filter-title {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(215, 247, 255, 0.72);
+      font: 11px/1 var(--mono);
+      margin-bottom: 3px;
+    }
+
+    .facet {
+      --facet: var(--cyan);
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.68);
+      padding: 8px 7px 8px 2px;
+      text-align: left;
+      cursor: pointer;
+      font: 10px/1 var(--mono);
+    }
+
+    .facet:hover,
+    .facet.active {
+      border-color: color-mix(in srgb, var(--facet) 40%, transparent);
+      background: color-mix(in srgb, var(--facet) 9%, transparent);
+      color: var(--ink);
+    }
+
+    .facet::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--facet);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--facet) 48%, transparent);
+    }
+
+    .facet strong {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .facet span {
+      color: rgba(120, 154, 170, 0.82);
+    }
+
+    .range-block {
+      display: grid;
+      gap: 8px;
+      border: 1px solid rgba(22, 217, 245, 0.1);
+      border-radius: 7px;
+      background: rgba(2, 10, 17, 0.45);
+      padding: 10px;
+    }
+
+    .range-block label {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(215, 247, 255, 0.66);
+      font: 10px/1 var(--mono);
+    }
+
+    .range-block input {
+      width: 100%;
+      accent-color: var(--teal);
+    }
+
+    .graph-area {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(34, 211, 182, 0.08), transparent 48%),
+        rgba(2, 9, 16, 0.38);
+    }
+
+    .graph-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-hud {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      max-width: calc(100% - 28px);
+      pointer-events: none;
+    }
+
+    .hud-chip {
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(22, 217, 245, 0.16);
+      border-radius: 999px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.7);
+      padding: 0 8px;
+      font: 10px/1 var(--mono);
+    }
+
+    .minimap {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: 132px;
+      height: 92px;
+      border: 1px solid rgba(22, 217, 245, 0.18);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.72);
+      overflow: hidden;
+    }
+
+    .minimap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .lod-banner {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      max-width: min(520px, calc(100% - 180px));
+      border: 1px solid rgba(34, 211, 182, 0.2);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.78);
+      color: rgba(215, 247, 255, 0.64);
+      padding: 9px 11px;
+      font: 10px/1.35 var(--mono);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .inspector {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      border-left: 1px solid rgba(22, 217, 245, 0.14);
+      background:
+        radial-gradient(circle at 70% 26%, rgba(34, 211, 182, 0.07), transparent 42%),
+        rgba(2, 9, 16, 0.48);
+    }
+
+    .inspector-head {
+      display: grid;
+      gap: 10px;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.13);
+    }
+
+    .inspector-kicker {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(120, 154, 170, 0.86);
+      font: 10px/1 var(--mono);
+    }
+
+    .inspector-kicker span:last-child {
+      color: var(--teal);
+    }
+
+    .inspector h1 {
+      margin: 0;
+      color: rgba(226, 249, 255, 0.94);
+      font: 600 18px/1.25 var(--mono);
+      text-wrap: balance;
+    }
+
+    .inspector-summary {
+      color: rgba(215, 247, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .inspector-body {
+      min-height: 0;
+      overflow: hidden;
+      padding: 15px 18px;
+    }
+
+    .prop-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .prop-grid div {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 25px;
+      align-items: center;
+      border-bottom: 1px solid rgba(22, 217, 245, 0.08);
+      color: rgba(215, 247, 255, 0.74);
+      font: 11px/1.25 var(--mono);
+    }
+
+    .prop-grid span {
+      color: rgba(120, 154, 170, 0.76);
+    }
+
+    .prop-grid strong {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inspector-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 13px 18px 16px;
+      border-top: 1px solid rgba(22, 217, 245, 0.12);
+    }
+
+    .inspector-actions button {
+      min-height: 30px;
+      border: 1px solid rgba(22, 217, 245, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.68);
+      color: rgba(215, 247, 255, 0.72);
+      padding: 0 10px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .inspector-actions .primary {
+      border-color: rgba(34, 211, 182, 0.52);
+      color: var(--teal);
+      background: rgba(34, 211, 182, 0.1);
+    }
+
+    .caption {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      z-index: 2;
+      color: rgba(215, 247, 255, 0.48);
+      font: 11px/1 var(--mono);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    @media (max-width: 960px) {
+      .mock-shell {
+        width: calc(100vw - 28px);
+        height: calc(100dvh - 72px);
+        min-width: 0;
+      }
+
+      .graph-toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .window-body {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-rail,
+      .inspector {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="brand">ABC</div>
+    <svg class="ambient-graph" viewBox="0 0 1200 820" aria-hidden="true">
+      <g>
+        <line x1="42" y1="130" x2="190" y2="80"></line>
+        <line x1="190" y1="80" x2="320" y2="166"></line>
+        <line x1="320" y1="166" x2="512" y2="110"></line>
+        <line x1="512" y1="110" x2="700" y2="180"></line>
+        <line x1="700" y1="180" x2="920" y2="100"></line>
+        <line x1="120" y1="340" x2="320" y2="166"></line>
+        <line x1="430" y1="390" x2="640" y2="330"></line>
+        <line x1="830" y1="420" x2="1060" y2="330"></line>
+        <line x1="80" y1="600" x2="260" y2="510"></line>
+        <line x1="510" y1="650" x2="760" y2="585"></line>
+      </g>
+      <g>
+        <circle cx="190" cy="80" r="4"></circle>
+        <circle cx="320" cy="166" r="5"></circle>
+        <circle cx="700" cy="180" r="5"></circle>
+        <circle cx="430" cy="390" r="5"></circle>
+        <circle cx="80" cy="600" r="5"></circle>
+        <circle cx="760" cy="585" r="4"></circle>
+      </g>
+    </svg>
+
+    <section class="mock-shell" aria-label="Knowledge Graph Viewer mockup">
+      <header class="window-head">
+        <div class="window-title">Knowledge Graph</div>
+        <div class="window-actions" aria-label="Window controls">
+          <button type="button" aria-label="Minimize">-</button>
+          <button type="button" aria-label="Maximize">[]</button>
+          <button type="button" aria-label="Close">x</button>
+        </div>
+      </header>
+
+      <div class="graph-toolbar">
+        <label class="search">
+          <input id="search" type="search" placeholder="find clusters, memories, sources, projects" value="">
+        </label>
+        <button class="toolbar-button active" type="button" id="cluster-mode">Cluster mode</button>
+        <button class="toolbar-button" type="button" id="label-mode">Labels: focus</button>
+        <button class="toolbar-button" type="button" id="layout-mode">Layout: semantic</button>
+      </div>
+
+      <div class="window-body">
+        <aside class="filter-rail">
+          <section class="filter-section">
+            <div class="filter-title"><span>Source</span><span id="source-label">All</span></div>
+            <div id="source-facets"></div>
+          </section>
+          <section class="filter-section">
+            <div class="filter-title"><span>Type</span><span id="type-label">All</span></div>
+            <div id="type-facets"></div>
+          </section>
+          <section class="filter-section">
+            <div class="filter-title"><span>Scale</span><span>LOD</span></div>
+            <div class="range-block">
+              <label for="density"><span>Density</span><span id="density-value">70%</span></label>
+              <input id="density" type="range" min="18" max="100" value="70">
+              <label for="trust"><span>Min trust</span><span id="trust-value">42%</span></label>
+              <input id="trust" type="range" min="0" max="95" value="42">
+            </div>
+          </section>
+        </aside>
+
+        <section class="graph-area" aria-label="Graph canvas">
+          <canvas class="graph-canvas" id="graph-canvas"></canvas>
+          <div class="graph-hud">
+            <span class="hud-chip" id="visible-count">0 visible</span>
+            <span class="hud-chip" id="edge-count">0 links</span>
+            <span class="hud-chip" id="cluster-count">0 clusters</span>
+            <span class="hud-chip">Canvas render</span>
+          </div>
+          <div class="minimap"><canvas id="minimap-canvas"></canvas></div>
+          <div class="lod-banner">Large graph mode: labels are reduced, low-trust nodes fade out, and distant nodes become clusters before rendering.</div>
+        </section>
+
+        <aside class="inspector" id="inspector"></aside>
+      </div>
+    </section>
+
+    <div class="caption">Mockup only. Future implementation should use canvas/WebGL, clustering, viewport culling and progressive labels.</div>
+  </main>
+
+  <script>
+    const colors = {
+      Raptor: '#22d3b6',
+      Memory: '#4ade80',
+      Files: '#16d9f5',
+      Projects: '#4b8cff',
+      Chats: '#f7b955',
+      Code: '#ff5c73'
+    };
+    const types = ['Cluster', 'Summary', 'Source', 'Memory', 'Decision', 'Task'];
+    const sources = Object.keys(colors);
+    const state = {
+      source: 'All',
+      type: 'All',
+      query: '',
+      density: 70,
+      trust: 42,
+      cluster: true,
+      labels: 'focus',
+      selectedId: 'node-14'
+    };
+    const canvas = document.getElementById('graph-canvas');
+    const ctx = canvas.getContext('2d');
+    const minimap = document.getElementById('minimap-canvas');
+    const miniCtx = minimap.getContext('2d');
+    const inspector = document.getElementById('inspector');
+    let dpr = 1;
+    let nodes = [];
+    let edges = [];
+
+    function seededRandom(seed) {
+      let value = seed % 2147483647;
+      return () => {
+        value = value * 16807 % 2147483647;
+        return (value - 1) / 2147483646;
+      };
+    }
+
+    function buildGraph() {
+      const random = seededRandom(128);
+      nodes = Array.from({ length: 240 }, (_, index) => {
+        const source = sources[index % sources.length];
+        const type = types[(index * 7) % types.length];
+        const ring = Math.floor(index / 36);
+        const angle = random() * Math.PI * 2;
+        const radius = 80 + ring * 58 + random() * 120;
+        const cluster = source + ' / ' + (type === 'Cluster' ? 'Core' : type);
+        return {
+          id: 'node-' + index,
+          title: (index % 11 === 0 ? 'Memory retrieval ' : source + ' ') + type + ' ' + (index + 1),
+          source,
+          type,
+          cluster,
+          trust: Math.round(28 + random() * 72),
+          age: Math.round(random() * 96) + 'h',
+          x: Math.cos(angle) * radius + random() * 70,
+          y: Math.sin(angle) * radius + random() * 70,
+          size: type === 'Cluster' ? 8 + random() * 8 : 3 + random() * 5,
+          summary: 'Aggregated knowledge node with linked sources, summaries and downstream chat context candidates.'
+        };
+      });
+
+      for (let index = 0; index < nodes.length; index += 1) {
+        const links = 1 + (index % 4);
+        for (let step = 1; step <= links; step += 1) {
+          const target = (index + step * (7 + index % 9)) % nodes.length;
+          edges.push({ from: nodes[index].id, to: nodes[target].id, weight: 0.2 + (step / 5) });
+        }
+      }
+    }
+
+    function visibleNodes() {
+      const query = state.query.toLowerCase();
+      return nodes.filter(node => {
+        const sourceOk = state.source === 'All' || node.source === state.source;
+        const typeOk = state.type === 'All' || node.type === state.type;
+        const trustOk = node.trust >= state.trust;
+        const queryOk = !query || [node.title, node.source, node.type, node.cluster].join(' ').toLowerCase().includes(query);
+        return sourceOk && typeOk && trustOk && queryOk;
+      }).slice(0, Math.round(nodes.length * state.density / 100));
+    }
+
+    function visibleEdges(visible) {
+      const ids = new Set(visible.map(node => node.id));
+      return edges.filter(edge => ids.has(edge.from) && ids.has(edge.to));
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      minimap.width = Math.floor(132 * dpr);
+      minimap.height = Math.floor(92 * dpr);
+      miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    function project(node, rect) {
+      const scale = Math.min(rect.width, rect.height) / 760;
+      return {
+        x: rect.width / 2 + node.x * scale,
+        y: rect.height / 2 + node.y * scale
+      };
+    }
+
+    function colorFor(node) {
+      return colors[node.source] || '#16d9f5';
+    }
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const visible = visibleNodes();
+      const links = visibleEdges(visible);
+      const byId = new Map(visible.map(node => [node.id, node]));
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = 'rgba(2, 9, 16, 0.24)';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+
+      links.forEach(edge => {
+        const a = byId.get(edge.from);
+        const b = byId.get(edge.to);
+        if (!a || !b) return;
+        const pa = project(a, rect);
+        const pb = project(b, rect);
+        ctx.strokeStyle = 'rgba(22, 217, 245, 0.095)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.stroke();
+      });
+
+      if (state.cluster && visible.length > 90) {
+        drawClusters(visible, rect);
+      }
+
+      visible.forEach(node => {
+        const p = project(node, rect);
+        const selected = node.id === state.selectedId;
+        ctx.beginPath();
+        ctx.fillStyle = selected ? colorFor(node) : colorFor(node) + '66';
+        ctx.strokeStyle = colorFor(node);
+        ctx.lineWidth = selected ? 2 : 1;
+        ctx.shadowColor = selected ? colorFor(node) : 'transparent';
+        ctx.shadowBlur = selected ? 16 : 0;
+        ctx.arc(p.x, p.y, selected ? node.size + 4 : node.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        if (selected || (state.labels === 'focus' && node.type === 'Cluster' && visible.length < 130)) {
+          ctx.fillStyle = 'rgba(215, 247, 255, 0.82)';
+          ctx.font = '10px Fira Code, monospace';
+          ctx.fillText(node.title, p.x + 10, p.y - 8);
+        }
+      });
+
+      drawMinimap(visible);
+      document.getElementById('visible-count').textContent = visible.length + ' visible';
+      document.getElementById('edge-count').textContent = links.length + ' links';
+      document.getElementById('cluster-count').textContent = new Set(visible.map(node => node.cluster)).size + ' clusters';
+      renderInspector(visible.find(node => node.id === state.selectedId) || visible[0]);
+    }
+
+    function drawClusters(visible, rect) {
+      const groups = new Map();
+      visible.forEach(node => {
+        if (!groups.has(node.source)) groups.set(node.source, []);
+        groups.get(node.source).push(node);
+      });
+      groups.forEach((group, source) => {
+        const center = group.reduce((acc, node) => {
+          const p = project(node, rect);
+          acc.x += p.x;
+          acc.y += p.y;
+          return acc;
+        }, { x: 0, y: 0 });
+        center.x /= group.length;
+        center.y /= group.length;
+        const radius = Math.min(90, 26 + group.length * 0.9);
+        ctx.beginPath();
+        ctx.strokeStyle = colors[source] + '33';
+        ctx.fillStyle = colors[source] + '08';
+        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    function drawMinimap(visible) {
+      miniCtx.clearRect(0, 0, 132, 92);
+      miniCtx.fillStyle = 'rgba(2, 9, 16, 0.72)';
+      miniCtx.fillRect(0, 0, 132, 92);
+      visible.forEach(node => {
+        miniCtx.fillStyle = colorFor(node) + '99';
+        miniCtx.beginPath();
+        miniCtx.arc(66 + node.x / 12, 46 + node.y / 12, 1.5, 0, Math.PI * 2);
+        miniCtx.fill();
+      });
+      miniCtx.strokeStyle = 'rgba(22, 217, 245, 0.28)';
+      miniCtx.strokeRect(26, 18, 80, 56);
+    }
+
+    function renderInspector(node) {
+      if (!node) {
+        inspector.innerHTML = '<div class="inspector-body">No node selected.</div>';
+        return;
+      }
+      state.selectedId = node.id;
+      inspector.innerHTML = `
+        <div class="inspector-head">
+          <div class="inspector-kicker"><span>${node.source}</span><span>${node.trust}% trust</span></div>
+          <h1>${node.title}</h1>
+          <div class="inspector-summary">${node.summary}</div>
+        </div>
+        <div class="inspector-body">
+          <div class="prop-grid">
+            <div><span>Type</span><strong>${node.type}</strong></div>
+            <div><span>Cluster</span><strong>${node.cluster}</strong></div>
+            <div><span>Age</span><strong>${node.age}</strong></div>
+            <div><span>Links</span><strong>${edges.filter(edge => edge.from === node.id || edge.to === node.id).length}</strong></div>
+            <div><span>Render</span><strong>Canvas node</strong></div>
+          </div>
+        </div>
+        <div class="inspector-actions">
+          <button type="button">Open Source</button>
+          <button type="button">Attach</button>
+          <button class="primary" type="button">Use Cluster</button>
+        </div>
+      `;
+    }
+
+    function renderFacets() {
+      const sourceFacets = document.getElementById('source-facets');
+      const typeFacets = document.getElementById('type-facets');
+      sourceFacets.innerHTML = [['All', 'var(--cyan)'], ...sources.map(source => [source, colors[source]])].map(([label, color]) => `
+        <button class="facet${state.source === label ? ' active' : ''}" style="--facet:${color}" type="button" data-source="${label}">
+          <strong>${label}</strong><span>${label === 'All' ? nodes.length : nodes.filter(node => node.source === label).length}</span>
+        </button>
+      `).join('');
+      typeFacets.innerHTML = [['All', 'var(--cyan)'], ...types.map(type => [type, 'var(--teal)'])].map(([label, color]) => `
+        <button class="facet${state.type === label ? ' active' : ''}" style="--facet:${color}" type="button" data-type="${label}">
+          <strong>${label}</strong><span>${label === 'All' ? nodes.length : nodes.filter(node => node.type === label).length}</span>
+        </button>
+      `).join('');
+      document.getElementById('source-label').textContent = state.source;
+      document.getElementById('type-label').textContent = state.type;
+    }
+
+    document.getElementById('source-facets').addEventListener('click', event => {
+      const button = event.target.closest('[data-source]');
+      if (!button) return;
+      state.source = button.dataset.source;
+      renderFacets();
+      draw();
+    });
+
+    document.getElementById('type-facets').addEventListener('click', event => {
+      const button = event.target.closest('[data-type]');
+      if (!button) return;
+      state.type = button.dataset.type;
+      renderFacets();
+      draw();
+    });
+
+    document.getElementById('density').addEventListener('input', event => {
+      state.density = Number(event.target.value);
+      document.getElementById('density-value').textContent = state.density + '%';
+      draw();
+    });
+
+    document.getElementById('trust').addEventListener('input', event => {
+      state.trust = Number(event.target.value);
+      document.getElementById('trust-value').textContent = state.trust + '%';
+      draw();
+    });
+
+    document.getElementById('search').addEventListener('input', event => {
+      state.query = event.target.value.trim();
+      draw();
+    });
+
+    document.getElementById('cluster-mode').addEventListener('click', event => {
+      state.cluster = !state.cluster;
+      event.currentTarget.classList.toggle('active', state.cluster);
+      draw();
+    });
+
+    canvas.addEventListener('click', event => {
+      const rect = canvas.getBoundingClientRect();
+      const visible = visibleNodes();
+      let best = null;
+      let bestDistance = Infinity;
+      visible.forEach(node => {
+        const p = project(node, rect);
+        const distance = Math.hypot(event.clientX - rect.left - p.x, event.clientY - rect.top - p.y);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = node;
+        }
+      });
+      if (best && bestDistance < 26) {
+        state.selectedId = best.id;
+        draw();
+      }
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+    buildGraph();
+    renderFacets();
+    resizeCanvas();
+  </script>
+</body>
+</html>

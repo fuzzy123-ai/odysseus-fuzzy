@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ABC Frontend V2</title>
-  <link rel="stylesheet" href="./styles.css?v=subtree-lines-1">
+  <link rel="stylesheet" href="./styles.css?v=workruns-polish-1">
 </head>
 <body>
   <main class="stage" id="stage">
@@ -16,13 +16,46 @@
         <div class="brand-mark">ABC</div>
         <div class="chat-carousel" id="chat-carousel" aria-label="Open chats" hidden></div>
       </div>
-      <div class="build-state" id="build-state">V2 &middot; Main chat window</div>
+      <div class="topline-controls">
+        <label class="privacy-switch" title="Toggle GDPR mode">
+          <input id="privacy-toggle" type="checkbox" aria-label="Toggle GDPR mode">
+          <span class="privacy-track" aria-hidden="true"></span>
+          <span class="privacy-label">GDPR</span>
+        </label>
+        <div class="build-state" id="build-state">V2 &middot; Main chat window</div>
+      </div>
     </header>
 
     <section class="workspace" aria-label="ABC workspace">
       <article class="floating-window core-window active" data-window data-core>
         <header class="window-head core-head" data-drag-handle>
-          <div class="chat-title">Vector Debug</div>
+          <button class="chat-history-button" type="button" data-chat-history-toggle aria-label="Open chat history" title="History">
+            <span class="chat-history-icon" aria-hidden="true"></span>
+          </button>
+          <button class="repo-branch-chip" type="button" data-repo-commit-request aria-label="Repository odysseus, branch dev, 84 new code lines since last commit">
+            <span class="repo-branch-name">dev</span>
+            <span class="repo-line-delta">+84</span>
+            <span class="repo-chip-tooltip" role="tooltip">
+              <span class="repo-tooltip-title">Repository linked</span>
+              <span class="repo-tooltip-row"><span>Repo</span><span>nkatz/odysseus</span></span>
+              <span class="repo-tooltip-row"><span>Branch</span><span>dev</span></span>
+              <span class="repo-tooltip-row"><span>Since commit</span><span>+84 code lines</span></span>
+              <span class="repo-tooltip-row"><span>Files</span><span>2 modified</span></span>
+              <span class="repo-tooltip-row"><span>Mode</span><span>Local workspace</span></span>
+            </span>
+          </button>
+          <div class="chat-title" title="Double click to rename">Vector Debug</div>
+          <input class="chat-title-editor" value="Vector Debug" aria-label="Rename chat title" hidden>
+          <button class="chat-model-chip" type="button" data-header-model-chip aria-label="Current model details">
+            <span class="model-status-dot ready" aria-hidden="true"></span>
+            <span data-current-model-label>deepseek-v4-flash</span>
+            <span class="chat-model-tooltip" role="tooltip">
+              <span class="model-tooltip-row"><span>Route</span><span>API</span></span>
+              <span class="model-tooltip-row"><span>Context</span><span>21% used, 79% free</span></span>
+              <span class="model-tooltip-row"><span>Tokens</span><span>426 in / 48 out</span></span>
+              <span class="model-tooltip-row"><span>Load</span><span>normal</span></span>
+            </span>
+          </button>
           <div class="window-actions" aria-label="Window controls">
             <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
             <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
@@ -30,17 +63,59 @@
           </div>
         </header>
 
+        <aside class="chat-history-panel" data-chat-history-panel aria-label="Chat history" hidden>
+          <div class="chat-history-head">
+            <strong>History</strong>
+            <span data-chat-history-count>1 chat</span>
+          </div>
+          <input class="chat-history-search" type="search" placeholder="Search chats" aria-label="Search chats">
+          <div class="chat-history-list" data-chat-history-list></div>
+        </aside>
+
         <div class="window-body chat-body">
           <main class="messages" aria-label="Chat messages">
             <div class="message user">Check why memory search slows down during long sessions.</div>
+            <section class="work-run complete collapsed" data-work-run>
+              <button class="work-run-summary" type="button" data-work-run-toggle aria-expanded="false">
+                <span class="work-run-dot" aria-hidden="true"></span>
+                <span class="work-run-copy"><strong>ABC did 3 background steps</strong><span>Show work log</span></span>
+              </button>
+              <div class="work-run-details">
+                <div class="work-step" data-work-step-type="read"><span class="work-step-type">Read</span><strong>Request understood</strong><small>Mapped the slowdown to memory search behavior.</small><span class="work-step-index">01</span></div>
+                <div class="work-step" data-work-step-type="checked"><span class="work-step-type">Checked</span><strong>Context compared</strong><small>Checked likely long-session failure paths.</small><span class="work-step-index">02</span></div>
+                <div class="work-step" data-work-step-type="decided"><span class="work-step-type">Decided</span><strong>Likely causes selected</strong><small>Prepared a concise answer before deeper tracing.</small><span class="work-step-index">03</span></div>
+              </div>
+            </section>
             <div class="message ai" data-ai-time="22:24" data-ai-model="deepseek-v4-flash" data-ai-tokens="312 in / 74 out" data-ai-context="18% used" data-ai-latency="1.8s">
               I see three likely causes: a growing candidate pool, duplicate re-ranking paths, and no budget cutoff for older chat context.
             </div>
+            <section class="work-run complete collapsed" data-work-run>
+              <button class="work-run-summary" type="button" data-work-run-toggle aria-expanded="false">
+                <span class="work-run-dot" aria-hidden="true"></span>
+                <span class="work-run-copy"><strong>ABC did 3 background steps</strong><span>Show work log</span></span>
+              </button>
+              <div class="work-run-details">
+                <div class="work-step" data-work-step-type="checked"><span class="work-step-type">Checked</span><strong>Search path inspected</strong><small>Looked for where old context can still enter ranking.</small><span class="work-step-index">01</span></div>
+                <div class="work-step" data-work-step-type="prepared"><span class="work-step-type">Prepared</span><strong>Trace prepared</strong><small>Prepared a safe next check for retrieval budgeting.</small><span class="work-step-index">02</span></div>
+                <div class="work-step" data-work-step-type="decided"><span class="work-step-type">Decided</span><strong>Next step chosen</strong><small>Cap older context before ranking starts.</small><span class="work-step-index">03</span></div>
+              </div>
+            </section>
             <div class="message ai" data-ai-time="22:25" data-ai-model="deepseek-v4-flash" data-ai-tokens="426 in / 48 out" data-ai-context="21% used" data-ai-latency="1.2s">
-              The next step is to trace where old context still enters the search path and cap it before ranking starts.
+              The next step is to trace where old context still enters the search path in src/services/search_memory.py and cap it before ranking starts. I would keep the decision note in docs/plans/memory-budget.md.
             </div>
+            <section class="work-run running" data-work-run>
+              <button class="work-run-summary" type="button" data-work-run-toggle aria-expanded="true">
+                <span class="work-run-dot" aria-hidden="true"></span>
+                <span class="work-run-copy"><strong>ABC is doing 3 background steps</strong><span>Hide work log</span></span>
+              </button>
+              <div class="work-run-details">
+                <div class="work-step" data-work-step-type="read"><span class="work-step-type">Read</span><strong>Trace memory graph</strong><small>Following old context through the retrieval chain.</small><span class="work-step-index">01</span></div>
+                <div class="work-step" data-work-step-type="checked"><span class="work-step-type">Checked</span><strong>Retrieval budget checked</strong><small>Comparing live budget with long-session context.</small><span class="work-step-index">02</span></div>
+                <div class="work-step" data-work-step-type="prepared"><span class="work-step-type">Prepared</span><strong>Cap prepared</strong><small>Waiting for the safe cutoff point.</small><span class="work-step-index">03</span></div>
+              </div>
+            </section>
             <div class="message ai working" data-ai-time="22:26" data-ai-model="deepseek-v4-flash" data-ai-tokens="live" data-ai-context="23% used" data-ai-latency="running">
-              <span class="busy-signal">Tracing memory graph <span class="pixel-wave" data-wave>&#9601;&#9602;&#9603;</span></span>
+              <span class="busy-signal">Tracing memory graph and comparing docs/release-notes.pdf <span class="pixel-wave" data-wave>&#9601;&#9602;&#9603;</span></span>
             </div>
           </main>
 
@@ -53,6 +128,23 @@
                 </span>
               </button>
               <textarea class="prompt-input" rows="3" placeholder="/ ask ABC something"></textarea>
+              <div class="composer-model-chooser" data-composer-model-chooser hidden>
+                <button class="composer-model-button" type="button" data-model-chooser-button aria-expanded="false" aria-label="Choose model">
+                  <span class="model-status-dot ready" aria-hidden="true"></span>
+                  <span data-composer-model-label>deepseek-v4-flash</span>
+                </button>
+                <div class="composer-model-menu" data-model-chooser-menu aria-label="Available models">
+                  <button class="composer-model-row selected" type="button" data-model-name="deepseek-v4-flash" data-model-route="API" data-model-state="ready">
+                    <span class="model-status-dot ready" aria-hidden="true"></span><strong>deepseek-v4-flash</strong><span>API</span>
+                  </button>
+                  <button class="composer-model-row" type="button" data-model-name="gemma-local" data-model-route="local" data-model-state="busy">
+                    <span class="model-status-dot busy" aria-hidden="true"></span><strong>gemma-local</strong><span>local</span>
+                  </button>
+                  <button class="composer-model-row" type="button" data-model-name="old-vision" data-model-route="API" data-model-state="offline">
+                    <span class="model-status-dot offline" aria-hidden="true"></span><strong>old-vision</strong><span>API</span>
+                  </button>
+                </div>
+              </div>
               <div class="mode-switch" role="group" aria-label="Workspace mode">
                 <button class="mode-option" type="button" data-mode-option="plan" aria-pressed="false">Plan</button>
                 <button class="mode-option active" type="button" data-mode-option="agent" aria-pressed="true">Agent</button>
@@ -113,6 +205,18 @@
     <button class="chat-nodge chat-nodge-right" id="chat-nodge-right" type="button" aria-label="Next chat" hidden>
       <span aria-hidden="true">&rsaquo;</span>
     </button>
+    <div class="universal-inbox-trigger" id="universal-inbox-trigger" aria-hidden="true"></div>
+    <section class="universal-inbox" id="universal-inbox" aria-label="Universal Inbox" aria-hidden="true">
+      <header class="universal-inbox-head">
+        <div class="universal-inbox-title">Universal Inbox</div>
+      </header>
+      <div class="universal-inbox-drop" data-inbox-drop>
+        <div class="universal-inbox-copy">
+          <strong>Drop anything here</strong>
+          <span>files, links, text, screenshots, cloud items</span>
+        </div>
+      </div>
+    </section>
 
     <div class="toolwheel constellation" id="toolwheel" aria-hidden="true">
       <div class="toolwheel-panel">
@@ -132,6 +236,7 @@
         <div class="wheel-node" role="button" tabindex="0" style="--x:-220px;--y:-120px;--node-color:var(--red)" data-node="Projects">
           <span class="num">1</span><span class="glyph">&#9671;</span><span class="label">Projects</span>
           <div class="wheel-tree tree-left" aria-label="Projects actions">
+            <button class="tree-item" type="button" data-action="Overview" data-action-type="Open"><span class="tree-action-label">Overview</span><span class="action-type open">Open</span></button>
             <div class="tree-branch" data-submenu-side="left">
               <button class="tree-item has-submenu" type="button" data-action="Open Project" data-action-type="Open" data-has-submenu="true"><span class="tree-action-label">Open Project</span><span class="action-type open">Open</span></button>
               <div class="action-subtree" aria-label="Available projects">
@@ -141,9 +246,8 @@
                 <button class="subtree-item" type="button" data-action="Local Models" data-action-type="Open">Local Models</button>
               </div>
             </div>
-            <button class="tree-item" type="button" data-action="Plan Project" data-action-type="Instant"><span class="tree-action-label">Plan Project</span><span class="action-type instant">Instant</span></button>
-            <button class="tree-item" type="button" data-action="Tasks" data-action-type="Open"><span class="tree-action-label">Tasks</span><span class="action-type open">Open</span></button>
-            <button class="tree-item" type="button" data-action="Timeline" data-action-type="Open"><span class="tree-action-label">Timeline</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="New Project" data-action-type="Open"><span class="tree-action-label">New Project</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Changes" data-action-type="Open"><span class="tree-action-label">Changes</span><span class="action-type open">Open</span></button>
             <button class="tree-item more" type="button" data-action="Projects More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
           </div>
         </div>
@@ -152,8 +256,8 @@
           <span class="num">2</span><span class="glyph">&#9678;</span><span class="label">Knowledge</span>
           <div class="wheel-tree tree-right" aria-label="Knowledge actions">
             <button class="tree-item" type="button" data-action="Search Knowledge" data-action-type="Open"><span class="tree-action-label">Search Knowledge</span><span class="action-type open">Open</span></button>
-            <button class="tree-item" type="button" data-action="Remember Note" data-action-type="Instant"><span class="tree-action-label">Remember Note</span><span class="action-type instant">Instant</span></button>
-            <button class="tree-item" type="button" data-action="Update Knowledge" data-action-type="Instant"><span class="tree-action-label">Update Knowledge</span><span class="action-type instant">Instant</span></button>
+            <button class="tree-item" type="button" data-action="Graph View" data-action-type="Open"><span class="tree-action-label">Graph View</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Memory" data-action-type="Open"><span class="tree-action-label">Memory</span><span class="action-type open">Open</span></button>
             <button class="tree-item" type="button" data-action="Sources" data-action-type="Open"><span class="tree-action-label">Sources</span><span class="action-type open">Open</span></button>
             <button class="tree-item more" type="button" data-action="Knowledge More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
           </div>
@@ -162,10 +266,10 @@
         <div class="wheel-node" role="button" tabindex="0" style="--x:220px;--y:150px;--node-color:var(--blue)" data-node="Tools">
           <span class="num">3</span><span class="glyph">&#8984;</span><span class="label">Tools</span>
           <div class="wheel-tree tree-down" aria-label="Tools actions">
+            <button class="tree-item" type="button" data-action="Todos" data-action-type="Open"><span class="tree-action-label">Todos</span><span class="action-type open">Open</span></button>
             <button class="tree-item" type="button" data-action="Deep Research" data-action-type="Open"><span class="tree-action-label">Deep Research</span><span class="action-type open">Open</span></button>
-            <button class="tree-item" type="button" data-action="Open Terminal" data-action-type="Open"><span class="tree-action-label">Open Terminal</span><span class="action-type open">Open</span></button>
+            <button class="tree-item" type="button" data-action="Open Terminal" data-action-type="Open"><span class="tree-action-label">Terminal</span><span class="action-type open">Open</span></button>
             <button class="tree-item" type="button" data-action="Skills" data-action-type="Open"><span class="tree-action-label">Skills</span><span class="action-type open">Open</span></button>
-            <button class="tree-item" type="button" data-action="Hooks" data-action-type="Open"><span class="tree-action-label">Hooks</span><span class="action-type open">Open</span></button>
             <button class="tree-item more" type="button" data-action="Tools More" data-action-type="More"><span class="tree-action-label">More</span><span class="action-type">More</span></button>
           </div>
         </div>
@@ -191,6 +295,6 @@
     </div>
   </main>
 
-  <script src="./app.js?v=subtree-lines-1"></script>
+  <script src="./app.js?v=workruns-polish-1"></script>
 </body>
 </html>
