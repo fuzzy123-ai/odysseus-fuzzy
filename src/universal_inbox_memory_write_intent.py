@@ -79,6 +79,7 @@ def build_universal_inbox_memory_write_intent(
     policy = analysis_payload.get("policy")
     if not isinstance(policy, Mapping):
         raise UniversalInboxMemoryWriteIntentError("analysis policy is required")
+    author_stamp = _analysis_author_stamp(analysis_payload)
 
     blocked = int(memory_event.get("blocked_field_count") or 0)
     if blocked:
@@ -86,14 +87,30 @@ def build_universal_inbox_memory_write_intent(
             reason="memory_abstraction_fields_blocked",
             memory_event=memory_event,
             policy=policy,
+            author_stamp=author_stamp,
         )
     if str(policy.get("status") or "") == "no_go":
-        return _blocked_intent(reason="analysis_policy_no_go", memory_event=memory_event, policy=policy)
+        return _blocked_intent(
+            reason="analysis_policy_no_go",
+            memory_event=memory_event,
+            policy=policy,
+            author_stamp=author_stamp,
+        )
     if not bool(policy.get("memory_write_allowed")) or not bool(policy.get("raptor_write_allowed")):
-        return _review_intent(reason="analysis_policy_requires_review", memory_event=memory_event, policy=policy)
+        return _review_intent(
+            reason="analysis_policy_requires_review",
+            memory_event=memory_event,
+            policy=policy,
+            author_stamp=author_stamp,
+        )
 
-    record = _build_memory_record(memory_event, policy)
-    raptor_event = _build_raptorgraph_write_event(memory_event, policy, memory_record_ids=(record["memory_id"],))
+    record = _build_memory_record(memory_event, policy, author_stamp=author_stamp)
+    raptor_event = _build_raptorgraph_write_event(
+        memory_event,
+        policy,
+        memory_record_ids=(record["memory_id"],),
+        author_stamp=author_stamp,
+    )
     return UniversalInboxMemoryWriteIntent(
         status="ready",
         reason="policy_allows_abstract_memory_write",
@@ -108,12 +125,18 @@ def _blocked_intent(
     reason: str,
     memory_event: Mapping[str, Any],
     policy: Mapping[str, Any],
+    author_stamp: Mapping[str, Any] | None = None,
 ) -> UniversalInboxMemoryWriteIntent:
     return UniversalInboxMemoryWriteIntent(
         status="blocked",
         reason=reason,
         memory_records=(),
-        raptorgraph_event=_build_raptorgraph_write_event(memory_event, policy, memory_record_ids=()),
+        raptorgraph_event=_build_raptorgraph_write_event(
+            memory_event,
+            policy,
+            memory_record_ids=(),
+            author_stamp=author_stamp,
+        ),
         analysis_policy=dict(policy),
     )
 
@@ -123,17 +146,28 @@ def _review_intent(
     reason: str,
     memory_event: Mapping[str, Any],
     policy: Mapping[str, Any],
+    author_stamp: Mapping[str, Any] | None = None,
 ) -> UniversalInboxMemoryWriteIntent:
     return UniversalInboxMemoryWriteIntent(
         status="review",
         reason=reason,
         memory_records=(),
-        raptorgraph_event=_build_raptorgraph_write_event(memory_event, policy, memory_record_ids=()),
+        raptorgraph_event=_build_raptorgraph_write_event(
+            memory_event,
+            policy,
+            memory_record_ids=(),
+            author_stamp=author_stamp,
+        ),
         analysis_policy=dict(policy),
     )
 
 
-def _build_memory_record(memory_event: Mapping[str, Any], policy: Mapping[str, Any]) -> dict[str, Any]:
+def _build_memory_record(
+    memory_event: Mapping[str, Any],
+    policy: Mapping[str, Any],
+    *,
+    author_stamp: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     source_hash = str(memory_event.get("source_hash") or "")
     if not re.fullmatch(r"(?:sha256:)?[0-9a-fA-F]{32,128}", source_hash):
         raise UniversalInboxMemoryWriteIntentError("source_hash must be sha256-like")
@@ -159,6 +193,7 @@ def _build_memory_record(memory_event: Mapping[str, Any], policy: Mapping[str, A
             "raw_content_stored": False,
             "local_only": bool(policy.get("local_only_required")),
             "dsgvo_mode": bool(policy.get("dsgvo_mode")),
+            "author_stamp": dict(author_stamp or {}),
         },
     }
 
@@ -168,6 +203,7 @@ def _build_raptorgraph_write_event(
     policy: Mapping[str, Any],
     *,
     memory_record_ids: tuple[str, ...],
+    author_stamp: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     status = "ready" if memory_record_ids else ("blocked" if policy.get("status") == "no_go" else "review")
     return {
@@ -185,7 +221,14 @@ def _build_raptorgraph_write_event(
         "review_reasons": tuple(policy.get("review_reasons") or ()),
         "no_go_reasons": tuple(policy.get("no_go_reasons") or ()),
         "raw_content_stored": False,
+        "author_stamp": dict(author_stamp or {}),
     }
+
+
+def _analysis_author_stamp(analysis_payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    metadata = analysis_payload.get("metadata") if isinstance(analysis_payload.get("metadata"), Mapping) else {}
+    stamp = metadata.get("author_stamp") if isinstance(metadata, Mapping) else None
+    return stamp if isinstance(stamp, Mapping) else {}
 
 
 def _memory_text(memory_event: Mapping[str, Any], *, classification: str, document_type: str) -> str:

@@ -14,6 +14,10 @@ from typing import Any, Mapping
 from src.data_classification import DataClassification, resolve_classification
 from src.privacy_runtime import is_dsgvo_mode_enabled
 from src.universal_inbox_memory import FORBIDDEN_MEMORY_KEYS
+from src.universal_inbox_provenance import (
+    build_universal_inbox_author_stamp,
+    coerce_universal_inbox_author_stamp,
+)
 
 
 ANALYSIS_POLICY_SCHEMA = "odysseus.universal_inbox.file_analysis_policy.v1"
@@ -221,6 +225,7 @@ def build_universal_inbox_file_analysis_packet(
     text_sample: str = "",
     settings: Mapping[str, Any] | None = None,
     requested_classification: str | DataClassification | None = None,
+    author_stamp: Mapping[str, Any] | None = None,
 ) -> UniversalInboxFileAnalysisPacket:
     """Build a redacted analysis packet from metadata plus ephemeral text."""
 
@@ -243,6 +248,14 @@ def build_universal_inbox_file_analysis_packet(
         "extractor": str(item.get("extractor") or ""),
         "source_channel": _normalize_token(item.get("source_channel") or item.get("channel") or "unknown", field="source_channel"),
         "analysis_route": "local_model" if policy.local_model_required else ("api_or_local" if policy.api_model_allowed else "none"),
+        "author_stamp": coerce_universal_inbox_author_stamp(author_stamp)
+        if isinstance(author_stamp, Mapping)
+        else build_universal_inbox_author_stamp(
+            action="cataloged",
+            route="deterministic_policy",
+            model_id="deterministic_policy_v1",
+            model_provider="odysseus_local",
+        ),
     }
     return UniversalInboxFileAnalysisPacket(
         status=policy.status,

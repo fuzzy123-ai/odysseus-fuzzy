@@ -65,6 +65,11 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert write_intent["ready_to_write"] is True
     assert write_intent["writes_performed"] is False
     assert write_intent["memory_records"][0]["metadata"]["classification"] == "private"
+    stamp = write_intent["memory_records"][0]["metadata"]["author_stamp"]
+    assert stamp["schema"] == "odysseus.universal_inbox.author_stamp.v1"
+    assert stamp["action"] == "cataloged"
+    assert stamp["model_id"] == "deterministic_policy_v1"
+    assert stamp["source_material_stored"] is False
     assert "This raw text must not persist" not in encoded
     assert str(tmp_path) not in encoded
 

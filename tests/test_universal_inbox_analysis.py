@@ -7,6 +7,7 @@ from src.universal_inbox_analysis import (
     build_universal_inbox_file_analysis_packet,
     evaluate_universal_inbox_file_analysis_policy,
 )
+from src.universal_inbox_provenance import UniversalInboxProvenanceError
 
 
 def test_public_file_allows_api_or_local_and_abstract_memory():
@@ -130,6 +131,59 @@ def test_analysis_packet_serializes_only_abstraction_not_raw_text():
     assert "Rechnung fuer Projekt Alpha" not in encoded
     assert "raw_text" not in encoded
     assert "text_sample" not in encoded
+
+
+def test_analysis_packet_records_redacted_author_stamp():
+    packet = build_universal_inbox_file_analysis_packet(
+        {
+            "filename": "reference.txt",
+            "source_channel": "telegram",
+            "classification": "private",
+            "document_type": "reference",
+            "extraction_status": "completed",
+            "extractor": "plain_text",
+        },
+        text_sample="Kurzer unkritischer Kontext",
+        author_stamp={
+            "schema": "odysseus.universal_inbox.author_stamp.v1",
+            "actor": "odysseus",
+            "action": "cataloged",
+            "route": "local_model",
+            "model_provider": "ollama",
+            "model_id": "gemma3:12b",
+            "generated_at": "2026-06-29T18:00:00Z",
+            "source_material_stored": False,
+        },
+    )
+
+    payload = packet.to_dict()
+    stamp = payload["metadata"]["author_stamp"]
+
+    assert stamp["action"] == "cataloged"
+    assert stamp["model_provider"] == "ollama"
+    assert stamp["model_id"] == "gemma3:12b"
+    assert stamp["generated_at"] == "2026-06-29T18:00:00Z"
+    assert stamp["source_material_stored"] is False
+
+
+def test_analysis_author_stamp_rejects_secret_markers():
+    with pytest.raises(UniversalInboxProvenanceError):
+        build_universal_inbox_file_analysis_packet(
+            {
+                "filename": "reference.txt",
+                "source_channel": "telegram",
+                "classification": "private",
+                "document_type": "reference",
+                "extraction_status": "completed",
+            },
+            author_stamp={
+                "action": "cataloged",
+                "route": "local_model",
+                "model_provider": "ollama",
+                "model_id": "token-leaking-model",
+                "generated_at": "2026-06-29T18:00:00Z",
+            },
+        )
 
 
 def test_invalid_metadata_token_is_rejected_before_serialization():

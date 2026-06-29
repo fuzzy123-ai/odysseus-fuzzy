@@ -56,7 +56,12 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert payload["memory_records"][0]["source"] == "universal_inbox"
     assert payload["memory_records"][0]["metadata"]["classification"] == "private"
     assert payload["memory_records"][0]["metadata"]["raw_content_stored"] is False
+    stamp = payload["memory_records"][0]["metadata"]["author_stamp"]
+    assert stamp["action"] == "cataloged"
+    assert stamp["model_id"] == "deterministic_policy_v1"
+    assert stamp["source_material_stored"] is False
     assert payload["raptorgraph_event"]["event"] == "universal_inbox_memory_write_intent"
+    assert payload["raptorgraph_event"]["author_stamp"]["model_id"] == "deterministic_policy_v1"
     assert payload["raptorgraph_event"]["memory_record_ids"] == (
         payload["memory_records"][0]["memory_id"],
     )
@@ -78,6 +83,7 @@ def test_sensitive_analysis_requires_review_and_creates_no_records():
     assert payload["ready_to_write"] is False
     assert payload["memory_records"] == ()
     assert payload["raptorgraph_event"]["memory_record_ids"] == ()
+    assert payload["raptorgraph_event"]["author_stamp"]["action"] == "cataloged"
     assert payload["analysis_policy"]["classification"] == "sensitive"
 
 
