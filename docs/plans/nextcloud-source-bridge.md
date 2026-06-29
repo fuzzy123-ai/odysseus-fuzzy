@@ -15,6 +15,7 @@ Implementierungsstand:
 - Source-Provider-, Tag-Governance-, Intake-Ledger-, Review-Queue-, Transfer-Readiness- und Control-Adapter-Bausteine existieren als offline getestete Backend-Module.
 - Routing und Safe Placement existieren als Dry-Run-Modell: Odysseus kann Zielpfad, Confidence, Review-Gruende, Copy-Plan, Sidecar-Plan und erlaubte Tag-Projektion berechnen, fuehrt aber keine Nextcloud-Schreibaktion aus.
 - RaptorGraph-Provenance existiert als abgeleiteter, rebuildbarer Graph-Plan fuer Nextcloud-Dokumente, geplante Pfade, Tags und Dry-Run-Aktionen; kein globaler Rebuild und keine Live-Mutation sind Teil dieses Bausteins.
+- Review-Queue-Artefakte existieren als redaktierte JSON-/Markdown-Pakete mit Zielvorschlag, Confidence, Review-Gruenden und sicheren Operator-Optionen; private Inhalte, Raw-Provider-Output und Secret-Werte bleiben ausgeschlossen.
 - Live-Ausfuehrung bleibt separat gegated: Podman/Pods ist die Betriebsannahme; Delete, Move, Overwrite und Admin-Operationen bleiben fuer den MVP-Control-Pfad blockiert.
 
 ## Zielbild
