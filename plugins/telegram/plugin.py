@@ -1209,9 +1209,12 @@ def _handle_telegram_control_command(
                         project_intake_apply_event_id=apply_report.get("event_id"),
                     )
                 if apply_performed:
+                    merge_report = apply_report.get("intake_merge") if isinstance(apply_report.get("intake_merge"), dict) else {}
                     reply_text = (
                         "Project-Intake bestaetigt und ins Projekt-Intake-Ledger uebernommen. "
-                        "Projektdateien/Roadmap-Dateien wurden noch nicht direkt veraendert."
+                        f"Integriert: {int(merge_report.get('added_task_count') or 0)} neue Tasks, "
+                        f"{int(merge_report.get('added_risk_count') or 0)} Risiken, "
+                        f"{int(merge_report.get('added_roadmap_update_count') or 0)} Roadmap-Updates."
                     )
                     status = "project_intake_review_confirmed"
                 else:
@@ -1923,6 +1926,7 @@ def _apply_telegram_project_intake_review(
         return {"status": "blocked", "applied": False, "blockers": ("project_slug_missing",)}
     try:
         from src.project_intake import apply_project_intake_proposal
+        from src.server_project_intake_state import merge_project_intake_ledger
         from src.server_project_registry import ServerProjectRegistry
     except Exception as exc:
         return {"status": "blocked", "applied": False, "blockers": (f"project_intake_unavailable:{str(exc)[:80]}",)}
@@ -1930,17 +1934,34 @@ def _apply_telegram_project_intake_review(
     registry_path = Path(project_registry_path) if project_registry_path is not None else Path(data_dir) / _PROJECT_REGISTRY_FILE
     try:
         registry = ServerProjectRegistry.load_json(registry_path) if registry_path.exists() else ServerProjectRegistry()
+        record = registry.get(project_slug)
+        ledger_path = Path(data_dir) / "server_projects" / project_slug / ".odysseus" / "project_intake_ledger.json"
+        state_path = Path(data_dir) / "server_projects" / project_slug / ".odysseus" / "project_state.json"
         report = apply_project_intake_proposal(
             registry=registry,
             project_slug=project_slug,
             proposal=proposal,
-            ledger_path=Path(data_dir) / "server_projects" / project_slug / ".odysseus" / "project_intake_ledger.json",
+            ledger_path=ledger_path,
             applied_by="telegram",
             review_confirmed=True,
         )
+        payload = report.to_dict()
+        if report.applied:
+            merge_report = merge_project_intake_ledger(
+                record=record,
+                ledger_path=ledger_path,
+                state_path=state_path,
+                merged_at=_utc_now_iso(),
+                source_event_id=report.event_id,
+            )
+            payload["intake_merge"] = merge_report.to_dict()
     except Exception as exc:
         return {"status": "blocked", "applied": False, "blockers": (str(exc)[:120],)}
-    return report.to_dict()
+    return payload
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _format_project_intake_review_status(review: dict[str, Any] | None) -> str:

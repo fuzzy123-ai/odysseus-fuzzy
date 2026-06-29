@@ -119,6 +119,43 @@ def test_project_routes_apply_reviewed_project_intake(tmp_path: Path):
     assert str(projects_root) not in json.dumps(body)
 
 
+def test_project_routes_merge_intake_into_project_state(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+    preview = client.post(
+        "/api/projects/kundenportal-mvp/intake/preview",
+        json={
+            "source_channel": "telegram",
+            "text": (
+                "TODO: Release Smoke unterwegs pruefbar machen.\n"
+                "Risiko: DSGVO Review vor Livegang."
+            ),
+        },
+    ).json()["intake"]
+    apply_body = client.post(
+        "/api/projects/kundenportal-mvp/intake/apply",
+        json={"proposal": preview, "review_confirmed": True, "applied_by": "telegram"},
+    ).json()
+
+    merged = client.post("/api/projects/kundenportal-mvp/intake/merge", json={})
+    assert merged.status_code == 200
+    merge_payload = merged.json()
+    assert merge_payload["success"] is True
+    assert merge_payload["intake_merge"]["added_task_count"] == 1
+    assert merge_payload["intake_merge"]["added_risk_count"] == 1
+    assert merge_payload["intake_merge"]["state_path"] == "project_state.json"
+
+    state = client.get("/api/projects/kundenportal-mvp/intake/state")
+    assert state.status_code == 200
+    state_payload = state.json()["intake_state"]
+    assert state_payload["tasks"][0]["title"] == "Release Smoke unterwegs pruefbar machen."
+    assert state_payload["risks"][0]["text"] == "DSGVO Review vor Livegang."
+    assert state_payload["processed_event_ids"] == [apply_body["intake_apply"]["event_id"]]
+    assert str(projects_root) not in json.dumps(merge_payload)
+
+
 def test_project_routes_preview_rejects_secret_like_intake(tmp_path: Path):
     registry_path = tmp_path / "projects.json"
     client = _client(registry_path)
@@ -302,6 +339,8 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
         "/api/projects/missing/intake/apply",
         json={"proposal": {}, "review_confirmed": True},
     ).status_code == 404
+    assert client.get("/api/projects/missing/intake/state").status_code == 404
+    assert client.post("/api/projects/missing/intake/merge", json={}).status_code == 404
     assert client.post(
         "/api/projects/missing/task-run",
         json={"objective": "x", "file_writes": [], "checks": []},

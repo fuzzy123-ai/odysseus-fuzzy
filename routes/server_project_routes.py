@@ -19,6 +19,11 @@ from src.server_project_commit_runner import (
     ServerProjectCommitRunnerError,
     run_project_local_commit,
 )
+from src.server_project_intake_state import (
+    ServerProjectIntakeStateError,
+    load_project_intake_state,
+    merge_project_intake_ledger,
+)
 from src.server_project_provisioner import (
     ServerProjectProvisioningError,
     provision_project_workspace,
@@ -132,6 +137,10 @@ class ProjectIntakeApplyRequest(BaseModel):
     applied_by: str = "operator"
 
 
+class ProjectIntakeMergeRequest(BaseModel):
+    source_event_id: str | None = Field(default=None, max_length=80)
+
+
 def setup_server_project_routes(
     *,
     registry_path: str | Path = DEFAULT_PROJECT_REGISTRY_PATH,
@@ -200,7 +209,7 @@ def setup_server_project_routes(
                 registry=registry,
                 project_slug=project_slug,
                 proposal=body.proposal,
-                ledger_path=configured_projects_root / project_slug / ".odysseus" / "project_intake_ledger.json",
+                ledger_path=_project_intake_ledger_path(configured_projects_root, project_slug),
                 applied_at=_now_iso(),
                 applied_by=body.applied_by,
                 review_confirmed=body.review_confirmed,
@@ -210,6 +219,39 @@ def setup_server_project_routes(
         except ProjectIntakeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": report.applied, "intake_apply": report.to_dict()}
+
+    @router.get("/{project_slug}/intake/state")
+    def get_project_intake_state(project_slug: str) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            state = load_project_intake_state(
+                record=record,
+                state_path=_project_intake_state_path(configured_projects_root, project_slug),
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectIntakeStateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": True, "intake_state": state}
+
+    @router.post("/{project_slug}/intake/merge")
+    def merge_project_intake(project_slug: str, body: ProjectIntakeMergeRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            record = registry.get(project_slug)
+            report = merge_project_intake_ledger(
+                record=record,
+                ledger_path=_project_intake_ledger_path(configured_projects_root, project_slug),
+                state_path=_project_intake_state_path(configured_projects_root, project_slug),
+                merged_at=_now_iso(),
+                source_event_id=body.source_event_id,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ServerProjectIntakeStateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.merged, "intake_merge": report.to_dict()}
 
     @router.get("/{project_slug}")
     def get_project(project_slug: str) -> dict[str, Any]:
@@ -389,3 +431,11 @@ def _save_registry(path: Path, registry: ServerProjectRegistry) -> None:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _project_intake_ledger_path(projects_root: Path, project_slug: str) -> Path:
+    return projects_root / project_slug / ".odysseus" / "project_intake_ledger.json"
+
+
+def _project_intake_state_path(projects_root: Path, project_slug: str) -> Path:
+    return projects_root / project_slug / ".odysseus" / "project_state.json"

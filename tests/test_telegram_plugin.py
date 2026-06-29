@@ -1580,6 +1580,11 @@ def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monk
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
     assert ledger["events"][0]["task_count"] == 1
     assert ledger["events"][0]["project_state_write_performed"] is False
+    state_path = tmp_path / "server_projects" / "kundenportal-mvp" / ".odysseus" / "project_state.json"
+    assert state_path.is_file()
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["tasks"][0]["title"] == "Login als MVP Slice aufnehmen."
+    assert any("Integriert: 1 neue Tasks" in reply[1] for reply in replies)
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "project-chat-1" not in persisted_text
     assert "project_intake_apply_performed" in persisted_text
