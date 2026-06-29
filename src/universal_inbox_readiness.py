@@ -70,6 +70,7 @@ def build_universal_inbox_readiness(
 
     payload = report.to_dict()
     discovery = payload.get("discovery") or {}
+    memory_write_intent_status = _memory_write_intent_status(payload)
     return {
         "feature": "universal_inbox",
         "status": str(payload.get("status") or "blocked"),
@@ -85,6 +86,7 @@ def build_universal_inbox_readiness(
         "warning_count": len(tuple(discovery.get("warnings") or ())),
         "review_reason_count": len(tuple(payload.get("review_reasons") or ())),
         "no_go_reason_count": len(tuple(payload.get("no_go_reasons") or ())),
+        "memory_write_intent_status": memory_write_intent_status,
         "reason": _status_reason(str(payload.get("status") or ""), int(payload.get("item_count") or 0)),
     }
 
@@ -140,3 +142,24 @@ def _status_reason(status: str, item_count: int) -> str:
     if status == "no_go":
         return "Inbox erreichbar; mindestens ein No-Go-Gate blockiert Verarbeitung."
     return "Universal-Inbox-Status ist blockiert."
+
+
+def _memory_write_intent_status(payload: dict[str, Any]) -> str:
+    statuses: list[str] = []
+    for item in tuple(payload.get("items") or ()):
+        if not isinstance(item, dict):
+            continue
+        pipeline = item.get("pipeline_report") if isinstance(item.get("pipeline_report"), dict) else {}
+        intent = pipeline.get("memory_write_intent") if isinstance(pipeline.get("memory_write_intent"), dict) else {}
+        status = str(intent.get("status") or "").strip()
+        if status:
+            statuses.append(status)
+    if not statuses:
+        return ""
+    if "blocked" in statuses:
+        return "blocked"
+    if "review" in statuses:
+        return "review"
+    if "ready" in statuses:
+        return "ready"
+    return statuses[0]

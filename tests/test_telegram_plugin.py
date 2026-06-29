@@ -1443,6 +1443,64 @@ def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, 
     assert "scan.pdf" not in persisted_text
 
 
+def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    replies = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 52,
+            "message": {
+                "message_id": 62,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "memory-document-file-id",
+                    "file_unique_id": "memory-document-unique",
+                    "file_name": "reference.txt",
+                    "mime_type": "text/plain",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"Memory candidate",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert first["processed"] == 1
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    attachment_event = next(item for item in history if item.get("kind") == "universal_inbox_attachment")
+    assert attachment_event["memory_write_intent_status"] == "ready"
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 53,
+            "message": {
+                "message_id": 63,
+                "chat": {"id": "document-chat-999"},
+                "text": "/review memory ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["control_commands"] == 1
+    assert any("Memory-Review best" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=40)
+    assert any(
+        item.get("kind") == "universal_inbox_memory_review"
+        and item.get("status") == "confirmed"
+        and item.get("memory_write_intent_status") == "ready"
+        for item in history
+    )
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "memory-document-file-id" not in persisted_text
+    assert "reference.txt" not in persisted_text
+    assert "Memory candidate" not in persisted_text
+
+
 def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "image-chat-999")
     monkeypatch.setenv("TELEGRAM_IMAGE_ACTIONS_ENABLED", "true")

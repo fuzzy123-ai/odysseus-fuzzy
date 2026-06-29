@@ -1,6 +1,7 @@
 import json
 
 from src.universal_inbox_worker import run_universal_inbox_dry_run
+from src.universal_inbox_memory_write_executor import execute_universal_inbox_memory_write_intent
 
 
 TEST_RULES = {
@@ -66,6 +67,30 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert write_intent["memory_records"][0]["metadata"]["classification"] == "private"
     assert "This raw text must not persist" not in encoded
     assert str(tmp_path) not in encoded
+
+
+def test_worker_memory_write_intent_can_be_planned_after_review_without_writes(tmp_path):
+    inbox = tmp_path / "Incoming"
+    inbox.mkdir()
+    (inbox / "reference.md").write_text("# Safe derived context\nNo raw persistence.", encoding="utf-8")
+
+    report = run_universal_inbox_dry_run(inbox, rules=TEST_RULES)
+    payload = report.to_dict()
+    intent = payload["items"][0]["pipeline_report"]["memory_write_intent"]
+
+    execution = execute_universal_inbox_memory_write_intent(
+        intent,
+        review_confirmed=True,
+        dry_run=True,
+    ).to_dict()
+
+    assert intent["status"] == "ready"
+    assert execution["status"] == "planned"
+    assert execution["memory_records_planned"] == 1
+    assert execution["raptorgraph_events_planned"] == 1
+    assert execution["writes_performed"] is False
+    encoded = json.dumps(execution, sort_keys=True)
+    assert "Safe derived context" not in encoded
 
 
 def test_worker_dry_run_routes_partial_pdf_to_review(tmp_path):

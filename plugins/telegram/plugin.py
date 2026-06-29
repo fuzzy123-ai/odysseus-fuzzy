@@ -494,6 +494,18 @@ class TelegramInboxStore:
             return dict(message)
         return None
 
+    def latest_universal_inbox_memory_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
+        chat_handle = _chat_handle(chat_id) if chat_id else ""
+        for message in reversed(self._read()["messages"]):
+            if message.get("kind") != "universal_inbox_attachment":
+                continue
+            if chat_handle and message.get("chat_handle") != chat_handle:
+                continue
+            status = str(message.get("memory_write_intent_status") or "")
+            if status in {"review", "ready"}:
+                return dict(message)
+        return None
+
 
 class TelegramPollingStateStore:
     """Small JSON store for polling offsets and dry-run state."""
@@ -921,6 +933,11 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
     if command in {"/inbox", "/universal_inbox", "/universalinbox"}:
         return "universal_inbox_status"
     if command in {"/review", "/inboxreview", "/inbox_review"}:
+        args = parts[1].strip().lower().split() if len(parts) > 1 and parts[1].strip() else []
+        if args and args[0] in {"memory", "gedaechtnis", "gedächtnis", "raptor"}:
+            if len(args) > 1 and args[1] in {"ok", "yes", "ja", "confirm", "bestaetigen", "approve", "freigeben"}:
+                return "universal_inbox_memory_review_confirm"
+            return "universal_inbox_memory_review_status"
         if arg in {"ok", "yes", "ja", "confirm", "bestätigen", "bestaetigen", "approve", "freigeben"}:
             return "universal_inbox_review_confirm"
         return "universal_inbox_review_status"
@@ -1056,6 +1073,44 @@ def _handle_telegram_control_command(
             "reply_text": reply_text,
             "reply": reply_result,
         }
+    if command in {"universal_inbox_memory_review_status", "universal_inbox_memory_review_confirm"}:
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        review = store.latest_universal_inbox_memory_review(chat_id=bridge["chat_id"]) if store is not None else None
+        if review is None:
+            reply_text = "Keine offene Universal-Inbox-Memory-Review gefunden."
+            status = "universal_inbox_memory_review_missing"
+        elif command == "universal_inbox_memory_review_confirm":
+            if store is not None:
+                store.append_event(
+                    kind="universal_inbox_memory_review",
+                    status="confirmed",
+                    chat_id=bridge["chat_id"],
+                    source_message_id=review.get("message_id"),
+                    memory_write_intent_status=str(review.get("memory_write_intent_status") or ""),
+                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
+            reply_text = "Memory-Review bestaetigt. Die Freigabe ist vorgemerkt; es wurden noch keine Inhalte geschrieben."
+            status = "universal_inbox_memory_review_confirmed"
+        else:
+            reply_text = _format_universal_inbox_memory_review_status(review)
+            status = "universal_inbox_memory_review_status"
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": status,
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
+        }
     if command != "new_chat":
         return None
     bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
@@ -1117,6 +1172,24 @@ def _format_universal_inbox_review_status(review: dict[str, Any]) -> str:
         f"Status: {status}\n"
         f"Items: {processable}\n"
         "Zum Bestätigen antworte mit /review ok."
+    )
+
+
+def _format_universal_inbox_memory_review_status(review: dict[str, Any]) -> str:
+    status = str(review.get("memory_write_intent_status") or "unknown")
+    inbox_status = str(review.get("universal_inbox_status") or "unknown")
+    if status == "ready":
+        return (
+            "Universal Inbox Memory: bereit zur Freigabe.\n"
+            f"Inbox-Status: {inbox_status}\n"
+            "Es wird nur eine redaktierte Abstraktion vorgemerkt, kein Rohinhalt.\n"
+            "Zum Bestaetigen antworte mit /review memory ok."
+        )
+    return (
+        "Universal Inbox Memory: Review noetig.\n"
+        f"Memory-Status: {status}\n"
+        f"Inbox-Status: {inbox_status}\n"
+        "Zum Bestaetigen antworte mit /review memory ok."
     )
 
 
@@ -1433,10 +1506,12 @@ def run_telegram_universal_inbox_attachment_pipeline(
     target.write_bytes(payload)
 
     snapshot = build_universal_inbox_readiness(spool_dir)
+    memory_write_intent_status = str(snapshot.get("memory_write_intent_status") or "")
     return {
         "status": "processed" if snapshot.get("ready") else "blocked",
         "reason": snapshot.get("reason") or "",
         "universal_inbox_status": snapshot.get("status"),
+        "memory_write_intent_status": memory_write_intent_status,
         "discovered_count": snapshot.get("discovered_count"),
         "processable_count": snapshot.get("processable_count"),
         "spooled": True,
@@ -1808,6 +1883,7 @@ def run_telegram_polling_cycle(
                     update_id=message.get("update_id"),
                     message_id=message.get("message_id"),
                     universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+                    memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
                     discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                     processable_count=int(inbox_attachment.get("processable_count") or 0),
                     spool_key=spool_key,
@@ -2597,6 +2673,7 @@ def setup(ctx):
                 update_id=message.get("update_id"),
                 message_id=message.get("message_id"),
                 universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+                memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
                 discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                 processable_count=int(inbox_attachment.get("processable_count") or 0),
                 spool_key=spool_key,
