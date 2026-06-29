@@ -40,6 +40,8 @@ class _PluginContext:
     registered_tools: list = field(default_factory=list)
     require_admin: Callable[[Any], None] = lambda _request: None
     telegram_agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None
+    memory_manager: Any = None
+    memory_vector: Any = None
 
     def add_router(self, router):
         self.app.include_router(router)
@@ -1448,6 +1450,37 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
     replies = []
 
+    class FakeMemoryManager:
+        def __init__(self):
+            self.saved = []
+
+        def add_entry(self, text, source="user", category="fact", owner=None):
+            return {
+                "id": "mem-1",
+                "text": text,
+                "source": source,
+                "category": category,
+                "owner": owner,
+            }
+
+        def load_all(self):
+            return []
+
+        def save(self, memories):
+            self.saved = list(memories)
+
+    class FakeMemoryVector:
+        healthy = True
+
+        def __init__(self):
+            self.added = []
+
+        def add(self, memory_id, text):
+            self.added.append((memory_id, text))
+
+    memory_manager = FakeMemoryManager()
+    memory_vector = FakeMemoryVector()
+
     first = run_telegram_polling_cycle(
         data_dir=tmp_path,
         fetch_updates=lambda _offset: [{
@@ -1484,10 +1517,12 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
             },
         }],
         reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+        memory_manager=memory_manager,
+        memory_vector=memory_vector,
     )
 
     assert second["control_commands"] == 1
-    assert any("Memory-Review best" in reply[1] for reply in replies)
+    assert any("Langzeitgedaechtnis geschrieben" in reply[1] for reply in replies)
     history = TelegramInboxStore(tmp_path).history(limit=40)
     assert any(
         item.get("kind") == "universal_inbox_memory_review"
@@ -1495,10 +1530,80 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
         and item.get("memory_write_intent_status") == "ready"
         for item in history
     )
+    assert any(
+        item.get("kind") == "universal_inbox_memory_write"
+        and item.get("status") == "written"
+        and item.get("memory_records_written") == 1
+        and item.get("writes_performed") is True
+        for item in history
+    )
+    assert len(memory_manager.saved) == 1
+    saved = memory_manager.saved[0]
+    assert saved["source"] == "universal_inbox"
+    assert saved["category"] == "document"
+    assert saved["owner"] == "telegram"
+    assert saved["metadata"]["classification"] == "private"
+    assert saved["metadata"]["raw_content_stored"] is False
+    assert "Universal Inbox memory:" in saved["text"]
+    assert memory_vector.added == [("mem-1", saved["text"])]
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "memory-document-file-id" not in persisted_text
     assert "reference.txt" not in persisted_text
     assert "Memory candidate" not in persisted_text
+
+
+def test_review_memory_ok_reports_blocked_when_memory_writer_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    replies = []
+
+    run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 52,
+            "message": {
+                "message_id": 62,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "blocked-memory-document-file-id",
+                    "file_unique_id": "blocked-memory-document-unique",
+                    "file_name": "blocked-reference.txt",
+                    "mime_type": "text/plain",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"Blocked memory candidate",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 53,
+            "message": {
+                "message_id": 63,
+                "chat": {"id": "document-chat-999"},
+                "text": "/review memory ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["control_commands"] == 1
+    assert any("Memory-Write wurde blockiert" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=40)
+    assert any(
+        item.get("kind") == "universal_inbox_memory_write"
+        and item.get("status") == "blocked"
+        and item.get("memory_records_written") == 0
+        and item.get("writes_performed") is False
+        for item in history
+    )
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "blocked-memory-document-file-id" not in persisted_text
+    assert "blocked-reference.txt" not in persisted_text
+    assert "Blocked memory candidate" not in persisted_text
 
 
 def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):

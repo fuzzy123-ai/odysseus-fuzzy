@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from src.chat_security_state import ChatSecurityState
 from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_only
@@ -964,6 +964,8 @@ def _handle_telegram_control_command(
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
     store: TelegramInboxStore | None = None,
     pin_store: TelegramPrivacyPinStore | None = None,
+    memory_manager: Any = None,
+    memory_vector: Any = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -1092,7 +1094,36 @@ def _handle_telegram_control_command(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
-            reply_text = "Memory-Review bestaetigt. Die Freigabe ist vorgemerkt; es wurden noch keine Inhalte geschrieben."
+            execution = (
+                _execute_telegram_memory_review_write(
+                    data_dir=store.data_dir,
+                    store=store,
+                    chat_id=bridge["chat_id"],
+                    memory_manager=memory_manager,
+                    memory_vector=memory_vector,
+                    dry_run=False,
+                )
+                if store is not None
+                else {"status": "blocked", "reason": "store_missing", "writes_performed": False}
+            )
+            if store is not None:
+                store.append_event(
+                    kind="universal_inbox_memory_write",
+                    status=str(execution.get("status") or "blocked"),
+                    chat_id=bridge["chat_id"],
+                    source_message_id=review.get("message_id"),
+                    memory_records_written=int(execution.get("memory_records_written") or 0),
+                    raptorgraph_events_written=int(execution.get("raptorgraph_events_written") or 0),
+                    writes_performed=bool(execution.get("writes_performed")),
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
+            if str(execution.get("status") or "") == "written":
+                reply_text = "Memory-Review bestaetigt. Die redaktierte Abstraktion wurde ins Langzeitgedaechtnis geschrieben."
+            else:
+                reason = str(execution.get("reason") or execution.get("status") or "unknown")
+                reply_text = f"Memory-Review bestaetigt, aber der Memory-Write wurde blockiert: {reason}."
             status = "universal_inbox_memory_review_confirmed"
         else:
             reply_text = _format_universal_inbox_memory_review_status(review)
@@ -1110,6 +1141,7 @@ def _handle_telegram_control_command(
             "binding": {},
             "reply_text": reply_text,
             "reply": reply_result,
+            "memory_write": execution if command == "universal_inbox_memory_review_confirm" and review is not None else None,
         }
     if command != "new_chat":
         return None
@@ -1454,6 +1486,42 @@ def build_recent_telegram_attachment_context(
     }
 
 
+def build_recent_telegram_memory_write_intent(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+) -> dict[str, Any] | None:
+    review = store.latest_universal_inbox_memory_review(chat_id=chat_id)
+    if not review:
+        return None
+    spool_key = str(review.get("spool_key") or "").strip()
+    if not spool_key:
+        chat_handle = str(review.get("chat_handle") or _chat_handle(chat_id) or "chat")
+        message_id = str(review.get("message_id") or "")
+        if message_id:
+            spool_key = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    if not spool_key:
+        return None
+    spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    if not spool_dir.exists() or not spool_dir.is_dir():
+        return None
+    snapshot = build_universal_inbox_readiness(spool_dir)
+    try:
+        from src.universal_inbox_worker import run_universal_inbox_dry_run
+
+        report = run_universal_inbox_dry_run(spool_dir).to_dict()
+        items = tuple(report.get("items") or ())
+        first = items[0] if items else {}
+        pipeline = first.get("pipeline_report") if isinstance(first, dict) else {}
+        intent = pipeline.get("memory_write_intent") if isinstance(pipeline, dict) else {}
+        return dict(intent) if isinstance(intent, dict) else None
+    except Exception:
+        # The public readiness snapshot still gives the caller a redacted status.
+        status = str(snapshot.get("memory_write_intent_status") or "")
+        return {"status": status, "ready_to_write": False, "memory_records": (), "raptorgraph_event": {}}
+
+
 def _call_file_bytes_provider(
     provider: Callable[..., bytes],
     message: dict[str, Any],
@@ -1581,6 +1649,66 @@ def _call_voice_bytes_provider(
         return bytes(provider(message, max_bytes=max_bytes))
     except TypeError:
         return bytes(provider(message))
+
+
+def _build_native_memory_writer(memory_manager: Any, memory_vector: Any = None, *, owner: str = "telegram") -> Callable[[dict[str, Any]], Any] | None:
+    if memory_manager is None:
+        return None
+
+    def _writer(record: Mapping[str, Any]) -> Any:
+        text = str(record.get("text") or "").strip()
+        if not text:
+            raise ValueError("memory record text is empty")
+        metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+        entry = memory_manager.add_entry(
+            text,
+            source=str(record.get("source") or "universal_inbox"),
+            category=str(record.get("category") or "document"),
+            owner=owner,
+        )
+        entry["metadata"] = dict(metadata)
+        memories = memory_manager.load_all()
+        memories.append(entry)
+        memory_manager.save(memories)
+        if memory_vector is not None and getattr(memory_vector, "healthy", True):
+            memory_vector.add(entry["id"], entry["text"])
+        return entry
+
+    return _writer
+
+
+def _execute_telegram_memory_review_write(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    memory_manager: Any = None,
+    memory_vector: Any = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    try:
+        from src.universal_inbox_memory_write_executor import execute_universal_inbox_memory_write_intent
+    except Exception as exc:
+        return {"status": "blocked", "reason": f"executor_unavailable:{str(exc)[:80]}"}
+    intent = build_recent_telegram_memory_write_intent(data_dir=data_dir, store=store, chat_id=chat_id)
+    if not intent:
+        return {"status": "blocked", "reason": "memory_write_intent_missing"}
+    writer = _build_native_memory_writer(memory_manager, memory_vector, owner="telegram")
+    try:
+        report = execute_universal_inbox_memory_write_intent(
+            intent,
+            review_confirmed=True,
+            dry_run=dry_run,
+            memory_writer=writer,
+        ).to_dict()
+    except Exception as exc:
+        return {
+            "status": "blocked",
+            "reason": str(exc)[:120],
+            "writes_performed": False,
+            "memory_records_written": 0,
+        }
+    return report
 
 
 def build_telegram_live_voice_stt_provider(
@@ -1789,6 +1917,8 @@ def run_telegram_polling_cycle(
     attachment_bytes_provider: Callable[..., bytes] | None = None,
     image_worker_client: Any | None = None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
+    memory_manager: Any | None = None,
+    memory_vector: Any | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -1832,6 +1962,8 @@ def run_telegram_polling_cycle(
                 reply_handler=reply_handler,
                 store=store,
                 pin_store=privacy_pins,
+                memory_manager=memory_manager,
+                memory_vector=memory_vector,
             )
             if control_result is not None:
                 control_commands += 1
@@ -2430,6 +2562,8 @@ def setup(ctx):
     image_bytes_provider = _ctx_attr("telegram_image_bytes_provider")
     attachment_bytes_provider = _ctx_attr("telegram_attachment_bytes_provider")
     image_worker_client = _ctx_attr("telegram_image_worker_client")
+    memory_manager = _ctx_attr("memory_manager")
+    memory_vector = _ctx_attr("memory_vector")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
@@ -2621,6 +2755,8 @@ def setup(ctx):
                 text,
                 source_message_id=source_message_id,
             ),
+            memory_manager=memory_manager,
+            memory_vector=memory_vector,
         )
         if not result["ok"]:
             raise HTTPException(403, result["status"])
@@ -2713,6 +2849,8 @@ def setup(ctx):
             ),
             store=store,
             pin_store=privacy_pins,
+            memory_manager=memory_manager,
+            memory_vector=memory_vector,
         )
         if control_result is not None:
             store.append_event(

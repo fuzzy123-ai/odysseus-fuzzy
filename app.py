@@ -548,7 +548,10 @@ from core.models import set_session_manager_instance
 set_session_manager_instance(session_manager)
 app.state.session_manager = session_manager
 memory_manager    = components["memory_manager"]
+app.state.memory_manager = memory_manager
 memory_vector     = components.get("memory_vector")
+app.state.memory_vector = memory_vector
+app.state.memory_provider_registry = components.get("memory_provider_registry")
 upload_handler    = components["upload_handler"]
 app.state.upload_handler = upload_handler
 personal_docs_mgr = components["personal_docs_manager"]
