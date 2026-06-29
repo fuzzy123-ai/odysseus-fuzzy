@@ -1163,7 +1163,43 @@ def _handle_telegram_control_command(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
-            reply_text = "Review bestätigt. Der Anhang bleibt in der Universal-Inbox-Review Queue vorgemerkt."
+            transfer = (
+                _build_recent_telegram_nextcloud_transfer_dry_run(
+                    data_dir=store.data_dir,
+                    store=store,
+                    chat_id=bridge["chat_id"],
+                    review=review,
+                )
+                if store is not None
+                else {"status": "blocked", "reason": "store_missing", "writes_performed": False}
+            )
+            if store is not None:
+                store.append_event(
+                    kind="universal_inbox_nextcloud_transfer",
+                    status=str(transfer.get("status") or "blocked"),
+                    chat_id=bridge["chat_id"],
+                    source_message_id=review.get("message_id"),
+                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
+                    nextcloud_transfer_status=str(transfer.get("status") or "blocked"),
+                    reason=str(transfer.get("reason") or ""),
+                    dry_run=bool(transfer.get("dry_run", True)),
+                    writes_performed=bool(transfer.get("writes_performed")),
+                    verified=bool(transfer.get("verified")),
+                    review_approved=bool(transfer.get("review_approved")),
+                    target_path_visible=False,
+                    sidecar_path_visible=False,
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
+            if str(transfer.get("status") or "") == "dry_run_ready":
+                reply_text = (
+                    "Review bestaetigt. Nextcloud-Ablage ist vorbereitet, aber noch Dry-run. "
+                    "Live-Copy wartet auf Operator-Go."
+                )
+            else:
+                reason = str(transfer.get("reason") or transfer.get("status") or "unknown")
+                reply_text = f"Review bestaetigt. Nextcloud-Ablage ist noch blockiert: {reason}."
             status = "universal_inbox_review_confirmed"
         else:
             reply_text = _format_universal_inbox_review_status(review)
@@ -1181,6 +1217,7 @@ def _handle_telegram_control_command(
             "binding": {},
             "reply_text": reply_text,
             "reply": reply_result,
+            "nextcloud_transfer": transfer if command == "universal_inbox_review_confirm" and review is not None else None,
         }
     if command in {"universal_inbox_memory_review_status", "universal_inbox_memory_review_confirm"}:
         bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
@@ -1795,6 +1832,61 @@ def build_recent_telegram_memory_write_intent(
         # The public readiness snapshot still gives the caller a redacted status.
         status = str(snapshot.get("memory_write_intent_status") or "")
         return {"status": status, "ready_to_write": False, "memory_records": (), "raptorgraph_event": {}}
+
+
+def _build_recent_telegram_nextcloud_transfer_dry_run(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    review: Mapping[str, Any],
+) -> dict[str, Any]:
+    spool_key = str(review.get("spool_key") or "").strip()
+    if not spool_key:
+        chat_handle = str(review.get("chat_handle") or _chat_handle(chat_id) or "chat")
+        message_id = str(review.get("message_id") or "")
+        if message_id:
+            spool_key = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    if not spool_key:
+        return {"status": "blocked", "reason": "spool_key_missing", "dry_run": True, "writes_performed": False}
+
+    spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    try:
+        files = [path for path in spool_dir.iterdir() if path.is_file() and not path.is_symlink()]
+    except OSError:
+        files = []
+    if not files:
+        return {"status": "blocked", "reason": "spool_file_missing", "dry_run": True, "writes_performed": False}
+
+    try:
+        from src.universal_inbox_nextcloud_transfer import (
+            UniversalInboxNextcloudTransferRequest,
+            execute_universal_inbox_nextcloud_transfer,
+        )
+        from src.universal_inbox_worker import run_universal_inbox_dry_run
+
+        report = run_universal_inbox_dry_run(spool_dir).to_dict()
+        items = tuple(report.get("items") or ())
+        first = items[0] if items else {}
+        placement = first.get("placement_plan") if isinstance(first, dict) else {}
+        source_hash = str(first.get("source_hash") or "") if isinstance(first, dict) else ""
+        request = UniversalInboxNextcloudTransferRequest.from_placement_plan(
+            placement if isinstance(placement, Mapping) else {},
+            source_path=files[0],
+            source_hash=source_hash,
+            review_approved=True,
+            operator_live_go=False,
+            dry_run=True,
+            actor="telegram",
+        )
+        return execute_universal_inbox_nextcloud_transfer(request).to_dict()
+    except Exception as exc:
+        return {
+            "status": "blocked",
+            "reason": f"nextcloud_transfer_plan_failed:{str(exc)[:80]}",
+            "dry_run": True,
+            "writes_performed": False,
+        }
 
 
 def build_recent_telegram_attachment_export_plan(

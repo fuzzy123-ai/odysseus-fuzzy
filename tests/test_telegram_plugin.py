@@ -1764,12 +1764,23 @@ def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, 
     )
 
     assert second["control_commands"] == 1
-    assert any("Review bestätigt" in reply[1] for reply in replies)
+    assert any("Nextcloud-Ablage ist vorbereitet" in reply[1] for reply in replies)
     history = TelegramInboxStore(tmp_path).history(limit=30)
     assert any(item.get("kind") == "universal_inbox_review" and item.get("status") == "confirmed" for item in history)
+    assert any(
+        item.get("kind") == "universal_inbox_nextcloud_transfer"
+        and item.get("status") == "dry_run_ready"
+        and item.get("nextcloud_transfer_status") == "dry_run_ready"
+        and item.get("dry_run") is True
+        and item.get("writes_performed") is False
+        and item.get("review_approved") is True
+        and item.get("target_path_visible") is False
+        for item in history
+    )
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "partial-document-file-id" not in persisted_text
     assert "scan.pdf" not in persisted_text
+    assert "AI Inbox/Needs Review" not in persisted_text
 
 
 def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypatch):
