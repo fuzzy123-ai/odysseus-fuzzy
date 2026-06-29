@@ -23,6 +23,20 @@ AUDIO_SUFFIXES = frozenset({".ogg", ".opus", ".mp3", ".wav", ".m4a", ".flac", ".
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".webm", ".mkv", ".avi"})
 ARCHIVE_SUFFIXES = frozenset({".zip", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz"})
 MESSAGE_SUFFIXES = frozenset({".eml", ".msg", ".ics", ".vcf"})
+GAMEDEV_ASSET_SUFFIXES = frozenset({
+    ".glb",
+    ".gltf",
+    ".obj",
+    ".fbx",
+    ".blend",
+    ".stl",
+    ".dae",
+    ".tscn",
+    ".tres",
+    ".res",
+    ".unitypackage",
+    ".spriteframes",
+})
 DANGEROUS_SUFFIXES = frozenset({".exe", ".msi", ".bat", ".cmd", ".ps1", ".sh", ".scr", ".com", ".dll", ".vbs", ".jar"})
 
 _CATEGORY_BY_SUFFIX = {
@@ -33,6 +47,7 @@ _CATEGORY_BY_SUFFIX = {
     **{suffix: "video_metadata" for suffix in VIDEO_SUFFIXES},
     **{suffix: "archive_expandable" for suffix in ARCHIVE_SUFFIXES},
     **{suffix: "structured_message" for suffix in MESSAGE_SUFFIXES},
+    **{suffix: "gamedev_asset" for suffix in GAMEDEV_ASSET_SUFFIXES},
     **{suffix: "dangerous" for suffix in DANGEROUS_SUFFIXES},
 }
 
@@ -54,6 +69,10 @@ _MIME_CATEGORY = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document_extractable",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document_extractable",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": "document_extractable",
+    "model/gltf+json": "gamedev_asset",
+    "model/gltf-binary": "gamedev_asset",
+    "model/obj": "gamedev_asset",
+    "model/stl": "gamedev_asset",
     "text/calendar": "structured_message",
     "text/vcard": "structured_message",
     "message/rfc822": "structured_message",
@@ -67,6 +86,7 @@ _FAMILY_BY_CATEGORY = {
     "video_metadata": "video",
     "archive_expandable": "archive",
     "structured_message": "message",
+    "gamedev_asset": "asset",
     "dangerous": "dangerous",
     "unsupported": "unknown",
 }
@@ -77,6 +97,7 @@ _REVIEW_CODES = {
     "video_metadata": "video_metadata_only",
     "archive_expandable": "archive_needs_review",
     "structured_message": "structured_message_needs_parser",
+    "gamedev_asset": "asset_analysis_pending",
     "dangerous": "dangerous_type_blocked",
     "unsupported": "unsupported_type",
 }
@@ -181,6 +202,8 @@ def _category_from_magic(sample: bytes) -> str:
         return "media_metadata"
     if sample.startswith((b"ID3", b"OggS", b"fLaC", b"RIFF")):
         return "audio_transcribable"
+    if sample.startswith(b"glTF"):
+        return "gamedev_asset"
     if sample.startswith(b"MZ"):
         return "dangerous"
     return "unsupported"

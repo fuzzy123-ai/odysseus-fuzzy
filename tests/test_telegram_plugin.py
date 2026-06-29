@@ -1396,6 +1396,64 @@ def test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemer
     assert "notiz.txt" not in persisted_text
 
 
+def test_polling_cycle_followup_export_request_plans_recent_attachment(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    replies = []
+    turns = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 52,
+            "message": {
+                "message_id": 62,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "export-document-file-id",
+                    "file_unique_id": "export-document-unique",
+                    "file_name": "source.md",
+                    "mime_type": "text/markdown",
+                    "file_size": 18,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"# Export me\n",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert first["processed"] == 1
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 53,
+            "message": {
+                "message_id": 63,
+                "chat": {"id": "document-chat-999"},
+                "text": "Mach daraus bitte ein PDF.",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "sess-export"},
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"reply_text": "should not run"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["processed"] == 1
+    assert second["agent_turns"] == 0
+    assert turns == []
+    assert any("Export erkannt" in reply[1] and "pdf" in reply[1].lower() for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=40)
+    event = next(item for item in history if item.get("kind") == "universal_inbox_export_plan")
+    assert event["status"] == "planned"
+    assert event["target_format"] == "pdf"
+    assert event["required_tool"] == "libreoffice_or_pandoc"
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "export-document-file-id" not in persisted_text
+    assert "source.md" not in persisted_text
+    assert "Export me" not in persisted_text
+
+
 def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")

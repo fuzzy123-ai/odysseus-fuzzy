@@ -25,6 +25,7 @@ def test_classifies_media_audio_video_archive_and_messages_for_review():
         "clip.mp4": ("video_metadata", "video_metadata_only"),
         "bundle.zip": ("archive_expandable", "archive_needs_review"),
         "mail.eml": ("structured_message", "structured_message_needs_parser"),
+        "model.glb": ("gamedev_asset", "asset_analysis_pending"),
     }
 
     for filename, (category, reason) in cases.items():
@@ -48,10 +49,13 @@ def test_mime_and_magic_bytes_fill_missing_or_unknown_extensions():
     text = classify_universal_inbox_file("payload.bin", mime_type="text/plain")
     pdf = classify_universal_inbox_file("payload", sample=b"%PDF-1.4\n")
     zip_file = classify_universal_inbox_file("payload", sample=b"PK\x03\x04")
+    gltf = classify_universal_inbox_file("payload", mime_type="model/gltf-binary")
 
     assert text.category == "text_extractable"
     assert pdf.category == "document_extractable"
     assert zip_file.category == "archive_expandable"
+    assert gltf.category == "gamedev_asset"
+    assert gltf.family == "asset"
 
 
 def test_unknown_type_requires_review_as_unsupported():

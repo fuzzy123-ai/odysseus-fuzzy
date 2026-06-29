@@ -1524,6 +1524,76 @@ def build_recent_telegram_memory_write_intent(
         return {"status": status, "ready_to_write": False, "memory_records": (), "raptorgraph_event": {}}
 
 
+def build_recent_telegram_attachment_export_plan(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    text: str,
+) -> dict[str, Any] | None:
+    try:
+        from src.universal_export import build_universal_export_plan_from_intent, parse_universal_export_intent
+    except Exception as exc:
+        return {"status": "blocked", "reason": f"export_planner_unavailable:{str(exc)[:80]}", "raw_content_visible": False}
+
+    event = store.latest_universal_inbox_attachment(
+        chat_id=chat_id,
+        max_age_seconds=_telegram_attachment_context_ttl_seconds(),
+    )
+    intent = parse_universal_export_intent(text, recent_input_available=event is not None)
+    if intent.status == "not_export_intent":
+        return None
+    if event is None:
+        return {"status": "blocked", "reason": "recent_attachment_missing", "intent": intent.to_dict(), "raw_content_visible": False}
+
+    spool_key = str(event.get("spool_key") or "").strip()
+    if not spool_key:
+        chat_handle = str(event.get("chat_handle") or _chat_handle(chat_id) or "chat")
+        message_id = str(event.get("message_id") or "")
+        if message_id:
+            spool_key = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    if not spool_key:
+        return {"status": "blocked", "reason": "spool_key_missing", "intent": intent.to_dict(), "raw_content_visible": False}
+
+    spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    try:
+        files = [path for path in spool_dir.iterdir() if path.is_file() and not path.is_symlink()]
+    except OSError:
+        files = []
+    if not files:
+        return {"status": "blocked", "reason": "spool_file_missing", "intent": intent.to_dict(), "raw_content_visible": False}
+
+    plan = build_universal_export_plan_from_intent(files[0], intent).to_dict()
+    return {
+        "status": str(plan.get("status") or "blocked"),
+        "reason": str(plan.get("reason") or ""),
+        "target_format": str(plan.get("target_format") or ""),
+        "action": str(plan.get("action") or ""),
+        "required_tool": str(plan.get("required_tool") or ""),
+        "local_only": bool(plan.get("local_only")),
+        "review_required": bool(plan.get("review_required", True)),
+        "intent": intent.to_dict(),
+        "plan": plan,
+        "raw_content_visible": False,
+        "host_paths_visible": False,
+        "filename_visible": False,
+    }
+
+
+def format_telegram_attachment_export_reply(result: dict[str, Any]) -> str:
+    status = str(result.get("status") or "blocked")
+    target = str(result.get("target_format") or "unknown")
+    tool = str(result.get("required_tool") or "")
+    if status == "planned":
+        return (
+            f"Export erkannt: Ziel {target}.\n"
+            f"Aktion: {result.get('action') or 'convert'}.\n"
+            f"Benoetigtes lokales Tool: {tool or 'noch offen'}.\n"
+            "Die echte Datei-Ausgabe ist noch nicht aktiviert; der sichere Export-Plan ist vorgemerkt."
+        )
+    return f"Export erkannt, aber blockiert: {result.get('reason') or 'policy_gate'}."
+
+
 def _call_file_bytes_provider(
     provider: Callable[..., bytes],
     message: dict[str, Any],
@@ -2066,6 +2136,36 @@ def run_telegram_polling_cycle(
                         update_id=message.get("update_id"),
                         message_id=message.get("message_id"),
                     )
+            if stored["message"].get("kind") == "text":
+                export_plan = build_recent_telegram_attachment_export_plan(
+                    data_dir=data_dir,
+                    store=store,
+                    chat_id=str(message.get("chat_id") or ""),
+                    text=str(stored["message"].get("text") or ""),
+                )
+                if export_plan is not None:
+                    store.append_event(
+                        kind="universal_inbox_export_plan",
+                        status=str(export_plan.get("status") or "blocked"),
+                        chat_id=str(message.get("chat_id") or ""),
+                        update_id=message.get("update_id"),
+                        message_id=message.get("message_id"),
+                        target_format=str(export_plan.get("target_format") or ""),
+                        action=str(export_plan.get("action") or ""),
+                        required_tool=str(export_plan.get("required_tool") or ""),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                        filename_visible=False,
+                    )
+                    if reply_handler is not None:
+                        reply_handler(
+                            str(message.get("chat_id") or ""),
+                            format_telegram_attachment_export_reply(export_plan),
+                            message.get("message_id"),
+                        )
+                        replies += 1
+                    processed += 1
+                    continue
             recent_attachment_context = build_recent_telegram_attachment_context(
                 data_dir=data_dir,
                 store=store,
@@ -2892,6 +2992,50 @@ def setup(ctx):
                     "pin_status": control_result.get("pin_status"),
                     "session_id_present": bool((control_result.get("binding") or {}).get("session_id")),
                 },
+                "token_value_visible": False,
+            }
+        export_plan = None
+        if stored["message"].get("kind") == "text":
+            export_plan = build_recent_telegram_attachment_export_plan(
+                data_dir=ctx.data_dir,
+                store=store,
+                chat_id=str(message.get("chat_id") or ""),
+                text=str(stored["message"].get("text") or ""),
+            )
+        if export_plan is not None:
+            store.append_event(
+                kind="universal_inbox_export_plan",
+                status=str(export_plan.get("status") or "blocked"),
+                chat_id=str(message.get("chat_id") or ""),
+                update_id=message.get("update_id"),
+                message_id=message.get("message_id"),
+                target_format=str(export_plan.get("target_format") or ""),
+                action=str(export_plan.get("action") or ""),
+                required_tool=str(export_plan.get("required_tool") or ""),
+                raw_content_visible=False,
+                raw_identifiers_visible=False,
+                filename_visible=False,
+            )
+            reply_result = _reply_with_gate(
+                str(message.get("chat_id") or ""),
+                format_telegram_attachment_export_reply(export_plan),
+                source_message_id=message.get("message_id"),
+            )
+            return {
+                "stored": stored["stored"],
+                "message": stored["message"],
+                "agent_bridge": bridge,
+                "voice_pipeline": voice_pipeline,
+                "image_action": image_action,
+                "universal_inbox_attachment": inbox_attachment,
+                "universal_inbox_export_plan": {
+                    "status": export_plan.get("status"),
+                    "target_format": export_plan.get("target_format"),
+                    "action": export_plan.get("action"),
+                    "raw_content_visible": False,
+                },
+                "agent_turn": None,
+                "reply": _public_reply_result(reply_result),
                 "token_value_visible": False,
             }
         if bridge["ready_for_agent"]:
