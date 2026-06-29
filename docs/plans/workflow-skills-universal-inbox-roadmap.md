@@ -1,6 +1,6 @@
 # Workflow-Bound Skills For Universal Inbox Roadmap
 
-Status: planned
+Status: implemented
 
 Source of truth:
 - `docs/plans/workflow-skills-universal-inbox-handoff.md`
@@ -38,6 +38,7 @@ Stop rules:
 Slice queue:
 
 1. `WSU-1-resolver-contract`
+   - Status: done
    - Class: repo_only
    - Owner: Bob
    - Allowed paths: `src/workflow_skills.py`, `tests/test_workflow_skills.py`
@@ -53,6 +54,7 @@ Slice queue:
      - Raw text/content keys are rejected or ignored as trigger sources.
 
 2. `WSU-2-quality-gates`
+   - Status: done
    - Class: repo_only
    - Owner: Bob
    - Allowed paths: `src/workflow_skills.py`, `tests/test_workflow_skills.py`, optional `services/memory/skills.py`
@@ -65,6 +67,7 @@ Slice queue:
      - optional metadata such as `eligible_for_required_workflows` / `trust_level` can be supported, but trigger policy remains outside SKILL.md.
 
 3. `WSU-3-telegram-bridge-metadata`
+   - Status: done
    - Class: repo_only
    - Owner: Charlie
    - Allowed paths: `plugins/telegram/plugin.py`, `tests/test_telegram_plugin.py`
@@ -74,6 +77,7 @@ Slice queue:
      - Do not include raw extracted text, prompt text, spool path, absolute host path, file bytes or chat ids.
 
 4. `WSU-4-agent-loop-consumption`
+   - Status: done
    - Class: repo_only
    - Owner: Bob
    - Allowed paths: `app.py`, `src/agent_loop.py`, `src/workflow_skills.py`, relevant agent-loop tests
@@ -84,6 +88,7 @@ Slice queue:
      - Missing required skill blocks or warns clearly according to binding policy.
 
 5. `WSU-5-admin-reviewed-skills`
+   - Status: done
    - Class: repo_only
    - Owner: Alice
    - Allowed paths: `data/skills/workflows/**/SKILL.md`, tests
@@ -100,6 +105,7 @@ Slice queue:
 6. `WSU-6-final-verification`
    - Class: repo_only
    - Owner: Charlie
+   - Status: done
    - Goal: focused tests pass, scoped commit and push to `fuzzy/dev`, deploy only after explicit Go or if user has already asked to keep backend changes live.
    - Tests:
      - `tests/test_workflow_skills.py`

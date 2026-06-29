@@ -78,6 +78,8 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "llm_call(" not in body
     assert "enforce_session_provider_runtime_gate" in body
     assert "telegram_dsgvo_provider_gate_failed" in body
+    assert "resolve_workflow_skills" in body
+    assert "workflow_skill_resolution=workflow_skill_resolution" in body
 
 
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):
@@ -1388,13 +1390,65 @@ def test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemer
     assert result["agent_turns"] == 1
     assert turns[0]["recent_attachment_context"]["present"] is True
     assert turns[0]["recent_attachment_context"]["raw_content_visible"] is True
+    assert turns[0]["workflow_context"] == {
+        "channel": "telegram",
+        "message_kind": "text",
+        "intent": "question-answer",
+        "dsgvo_mode": "off",
+        "security_mode": "normal",
+        "recent_attachment": {
+            "present": True,
+            "family": "document",
+            "suffix": ".txt",
+            "universal_inbox_status": "go",
+            "memory_write_intent_status": "ready",
+        },
+    }
     assert "Projekt Alpha braucht Review." in turns[0]["prompt"]
     assert "Worum geht es in der Datei?" in turns[0]["prompt"]
     assert turns[0]["persisted_prompt"] == "Worum geht es in der Datei?"
+    assert "Projekt Alpha braucht Review." not in str(turns[0]["workflow_context"])
+    assert "document-chat-999" not in str(turns[0]["workflow_context"])
+    assert "context-document-file-id" not in str(turns[0]["workflow_context"])
+    assert "notiz.txt" not in str(turns[0]["workflow_context"])
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "Projekt Alpha braucht Review." not in persisted_text
     assert "context-document-file-id" not in persisted_text
     assert "notiz.txt" not in persisted_text
+
+
+def test_agent_bridge_workflow_context_classifies_export_without_raw_prompt(monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_DSGVO_MODE", raising=False)
+    bridge = build_agent_bridge_request(
+        {
+            "kind": "text",
+            "chat_id": "sensitive-chat-id",
+            "message_id": 77,
+            "text": "Mach daraus bitte ein PDF.",
+        },
+        raw_chat_id="sensitive-chat-id",
+        recent_attachment_context={
+            "present": True,
+            "context": "Private Rechnung mit Betrag 123",
+            "family": "document",
+            "suffix": ".docx",
+            "universal_inbox_status": "go",
+            "memory_write_intent_status": "review",
+            "source_message_id": 76,
+        },
+    )
+
+    assert bridge["workflow_context"]["intent"] == "export"
+    assert bridge["workflow_context"]["recent_attachment"] == {
+        "present": True,
+        "family": "document",
+        "suffix": ".docx",
+        "universal_inbox_status": "go",
+        "memory_write_intent_status": "review",
+    }
+    assert "Mach daraus" not in str(bridge["workflow_context"])
+    assert "Private Rechnung" not in str(bridge["workflow_context"])
+    assert "sensitive-chat-id" not in str(bridge["workflow_context"])
 
 
 def test_polling_cycle_followup_export_request_sends_recent_attachment_pdf(tmp_path, monkeypatch):

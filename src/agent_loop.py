@@ -1328,14 +1328,43 @@ def _build_system_prompt(
                 except (TypeError, ValueError):
                     _skill_max_injected = 3
                 _skill_max_injected = max(0, min(12, _skill_max_injected))
+                _owner_skills = sm.load(owner=owner)
+                _required_name_set = set(workflow_required_skill_names)
+                required_skills = [
+                    sk for sk in _owner_skills
+                    if str(sk.get("name") or sk.get("id") or "").strip() in _required_name_set
+                ]
                 relevant_skills = sm.get_relevant_skills(
                     last_user,
-                    skills=sm.load(owner=owner),
+                    skills=_owner_skills,
                     threshold=0.25,
                     max_items=_skill_max_injected,
                     min_confidence=_skill_min_conf,
                 ) if _skill_max_injected > 0 else []
+                if required_skills:
+                    required_names = {str(sk.get("name") or sk.get("id") or "").strip() for sk in required_skills}
+                    relevant_skills = required_skills + [
+                        sk for sk in relevant_skills
+                        if str(sk.get("name") or sk.get("id") or "").strip() not in required_names
+                    ]
                 lines = [""]
+                if required_skills:
+                    lines.append("## Required workflow skills for this request")
+                    lines.append("These skills were selected by trusted runtime metadata, not by document contents or fuzzy retrieval.")
+                    for sk in required_skills:
+                        lines.append(f"\n### {sk.get('name','?')}")
+                        if sk.get("description"):
+                            lines.append(sk["description"])
+                        if sk.get("when_to_use"):
+                            lines.append(f"_When to use:_ {sk['when_to_use']}")
+                        proc = sk.get("procedure") or []
+                        if proc:
+                            lines.append("Procedure:")
+                            for i, step in enumerate(proc, 1):
+                                lines.append(f"  {i}. {step}")
+                        pitfalls = sk.get("pitfalls") or []
+                        if pitfalls:
+                            lines.append("Pitfalls: " + "; ".join(pitfalls))
                 if relevant_skills:
                     # Bump the "uses" counter on every skill we actually surface
                     # to the agent — otherwise every skill shows "0 times" no
@@ -2114,6 +2143,7 @@ async def stream_agent_loop(
     approved_plan: Optional[str] = None,
     tool_policy: Optional[ToolPolicy] = None,
     workspace: Optional[str] = None,
+    workflow_skill_resolution: Optional[Dict] = None,
     _is_teacher_run: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
@@ -2130,6 +2160,17 @@ async def stream_agent_loop(
     mcp_mgr = get_mcp_manager()
     prep_timings: Dict[str, float] = {}
     disabled_tools = set(disabled_tools or [])
+    workflow_skill_resolution = workflow_skill_resolution if isinstance(workflow_skill_resolution, dict) else {}
+    workflow_required_skill_names = tuple(
+        str(name or "").strip()
+        for name in (workflow_skill_resolution.get("required_skill_names") or ())
+        if str(name or "").strip()
+    )
+    workflow_requested_toolsets = {
+        str(name or "").strip()
+        for name in (workflow_skill_resolution.get("requested_toolsets") or ())
+        if str(name or "").strip()
+    }
     if tool_policy:
         disabled_tools.update(tool_policy.all_disabled_names())
         if tool_policy.disable_mcp:
@@ -2305,12 +2346,13 @@ async def stream_agent_loop(
             _owner_skills = _sm.load(owner=owner) if _skills_on else []
             if _owner_skills:
                 _relevant_tools.add("manage_skills")
+                from src.tool_policy import known_tool_names
+                _known = known_tool_names()
+                _relevant_tools.update(t for t in workflow_requested_toolsets if t in _known)
                 if _retrieval_query:
                     # Validate against every known executable tool, not just
                     # TOOL_SECTIONS — code-nav tools (grep/glob/ls) ship as
                     # schemas without a prompt-prose section.
-                    from src.tool_policy import known_tool_names
-                    _known = known_tool_names()
                     for _sk in _sm.get_relevant_skills(
                         _retrieval_query, skills=_owner_skills,
                         threshold=0.25, max_items=3,

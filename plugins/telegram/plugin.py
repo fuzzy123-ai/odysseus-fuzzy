@@ -844,6 +844,70 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
     return base
 
 
+def _telegram_workflow_intent_from_text(text: str) -> str:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return ""
+    export_terms = (
+        "export",
+        "convert",
+        "konvert",
+        "umwand",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "png",
+        "jpg",
+        "jpeg",
+        "wav",
+        "mp3",
+    )
+    if any(term in normalized for term in export_terms):
+        return "export"
+    if any(term in normalized for term in ("review", "pruef", "prüf", "freig", "route", "einsort", "warum")):
+        return "review"
+    if any(term in normalized for term in ("zusammenfass", "summary", "summar")):
+        return "summarize"
+    if any(term in normalized for term in ("frage", "was", "worum", "wie", "warum", "?")):
+        return "question_answer"
+    if any(term in normalized for term in ("analys", "inspect", "untersuch", "auswert")):
+        return "analyze"
+    return "follow_up"
+
+
+def build_telegram_workflow_context(
+    message: dict[str, Any],
+    *,
+    recent_attachment_context: dict[str, Any] | None = None,
+    dsgvo_mode: bool = False,
+) -> dict[str, Any]:
+    """Return trusted Telegram workflow routing metadata without raw content."""
+
+    recent = recent_attachment_context if isinstance(recent_attachment_context, dict) else {}
+    present = bool(recent.get("context") or recent.get("present"))
+    return {
+        "channel": "telegram",
+        "message_kind": _safe_workflow_token(message.get("kind") or "", default="unknown"),
+        "intent": _safe_workflow_token(_telegram_workflow_intent_from_text(str(message.get("text") or ""))),
+        "dsgvo_mode": "on" if dsgvo_mode else "off",
+        "security_mode": "secure" if dsgvo_mode else "normal",
+        "recent_attachment": {
+            "present": present,
+            "family": _safe_workflow_token(recent.get("family") or "", default="unknown") if present else "",
+            "suffix": _safe_workflow_suffix(recent.get("suffix") or ""),
+            "universal_inbox_status": _safe_workflow_token(
+                recent.get("universal_inbox_status") or recent.get("status") or "",
+                default="",
+            ),
+            "memory_write_intent_status": _safe_workflow_token(
+                recent.get("memory_write_intent_status") or "",
+                default="",
+            ),
+        },
+    }
+
+
 def build_agent_bridge_request(
     message: dict[str, Any],
     *,
@@ -912,6 +976,11 @@ def build_agent_bridge_request(
         note = "unsupported_message"
 
     dsgvo_mode = _dsgvo_mode_active()
+    workflow_context = build_telegram_workflow_context(
+        message,
+        recent_attachment_context=recent_attachment_context,
+        dsgvo_mode=dsgvo_mode,
+    )
     return {
         "channel": "telegram",
         "session_alias": f"telegram:{chat_handle}",
@@ -932,6 +1001,7 @@ def build_agent_bridge_request(
             "raw_content_visible": bool((recent_attachment_context or {}).get("raw_content_visible")),
             "host_paths_visible": False,
         },
+        "workflow_context": workflow_context,
         "intake_status": message.get("intake_status") or note,
         "dsgvo_mode": dsgvo_mode,
         "security_mode": "secure" if dsgvo_mode else "normal",
@@ -1482,6 +1552,33 @@ def _telegram_attachment_suffix(message: dict[str, Any]) -> str:
     return ".bin"
 
 
+def _telegram_attachment_family(message: dict[str, Any]) -> str:
+    kind = str(message.get("kind") or "").strip().lower()
+    if kind == "image":
+        return "image"
+    if kind == "document":
+        return "document"
+    return "unknown"
+
+
+def _safe_workflow_token(value: Any, *, default: str = "") -> str:
+    text = str(value or "").strip().lower().replace("_", "-")
+    if not text:
+        return default
+    if re.fullmatch(r"^[a-z][a-z0-9_.:-]{0,79}$", text):
+        return text
+    return default
+
+
+def _safe_workflow_suffix(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if not text.startswith("."):
+        text = f".{text}"
+    return text if re.fullmatch(r"\.[a-z0-9]{1,16}", text) else ""
+
+
 def _telegram_attachment_spool_dir(data_dir: str | Path, message: dict[str, Any]) -> Path:
     chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")) or "chat")
     message_id = str(message.get("message_id") or int(time.time() * 1000))
@@ -1536,9 +1633,15 @@ def build_recent_telegram_attachment_context(
     if not spool_key:
         return None
     spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    family = _safe_workflow_token(event.get("attachment_family") or "document")
+    suffix = _safe_workflow_suffix(event.get("attachment_suffix") or "")
     if not spool_dir.exists() or not spool_dir.is_dir():
         return {
             "status": "missing_spool",
+            "family": family,
+            "suffix": suffix,
+            "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
+            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
             "context": (
                 "[Letzter Telegram-Anhang: verarbeitet, aber die lokale Datei ist "
                 "nicht mehr im Attachment-Spool verfuegbar.]"
@@ -1553,11 +1656,17 @@ def build_recent_telegram_attachment_context(
     if not files:
         return {
             "status": "missing_spool_file",
+            "family": family,
+            "suffix": suffix,
+            "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
+            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
             "context": "[Letzter Telegram-Anhang: verarbeitet, aber keine lokale Spool-Datei gefunden.]",
             "raw_content_visible": False,
             "host_paths_visible": False,
         }
 
+    if not suffix and files:
+        suffix = _safe_workflow_suffix(files[0].suffix)
     try:
         from src.universal_inbox_extraction import extract_universal_inbox_content
 
@@ -1569,6 +1678,10 @@ def build_recent_telegram_attachment_context(
     except Exception as exc:
         return {
             "status": "context_extract_failed",
+            "family": family,
+            "suffix": suffix,
+            "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
+            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
             "context": f"[Letzter Telegram-Anhang: Kontext-Extraktion fehlgeschlagen: {str(exc)[:120]}]",
             "raw_content_visible": False,
             "host_paths_visible": False,
@@ -1592,6 +1705,10 @@ def build_recent_telegram_attachment_context(
         raw_visible = False
     return {
         "status": "ready",
+        "family": family,
+        "suffix": suffix or _safe_workflow_suffix(packet.suffix),
+        "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
+        "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
         "context": context,
         "raw_content_visible": raw_visible,
         "host_paths_visible": False,
@@ -2497,6 +2614,8 @@ def run_telegram_polling_cycle(
                     message_id=message.get("message_id"),
                     universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
                     memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
+                    attachment_family=_telegram_attachment_family(stored["message"]),
+                    attachment_suffix=_telegram_attachment_suffix(stored["message"]),
                     discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                     processable_count=int(inbox_attachment.get("processable_count") or 0),
                     spool_key=spool_key,
@@ -3534,6 +3653,8 @@ def setup(ctx):
                 message_id=message.get("message_id"),
                 universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
                 memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
+                attachment_family=_telegram_attachment_family(stored["message"]),
+                attachment_suffix=_telegram_attachment_suffix(stored["message"]),
                 discovered_count=int(inbox_attachment.get("discovered_count") or 0),
                 processable_count=int(inbox_attachment.get("processable_count") or 0),
                 spool_key=spool_key,

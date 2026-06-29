@@ -888,6 +888,7 @@ def _telegram_dsgvo_model_block_reply(block_reason: str) -> str:
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
+    from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -934,6 +935,31 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         context = session.get_context_messages()
         messages = list(context)
         messages.append({"role": "user", "content": prompt})
+        workflow_skill_resolution = None
+        workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
+        if workflow_context:
+            try:
+                resolution = resolve_workflow_skills(
+                    workflow_context,
+                    skills=skills_manager.load(owner=owner),
+                )
+            except WorkflowSkillError as exc:
+                return {
+                    "status": "blocked",
+                    "error": f"telegram_workflow_context_invalid:{exc}",
+                    "reply_text": "Ich kann diesen Workflow nicht sicher routen, weil die Telegram-Metadaten nicht sauber sind.",
+                }
+            workflow_skill_resolution = resolution.to_dict()
+            if resolution.blocked:
+                return {
+                    "status": "blocked",
+                    "error": "telegram_required_workflow_skill_blocked",
+                    "workflow_skill_resolution": workflow_skill_resolution,
+                    "reply_text": (
+                        "Ich kann diesen Workflow noch nicht ausfuehren, weil ein erforderlicher "
+                        "Workflow-Skill fehlt oder nicht freigegeben ist."
+                    ),
+                }
 
         async def _run_agent_turn() -> str:
             reply_parts: list[str] = []
@@ -944,6 +970,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 headers=headers,
                 session_id=session_id,
                 owner=owner,
+                workflow_skill_resolution=workflow_skill_resolution,
             ):
                 if not chunk.startswith("data: ") or chunk.startswith("data: [DONE]"):
                     continue
