@@ -14,6 +14,7 @@ from src.server_project_chat_context import (
     ServerProjectChatContextError,
     bind_project_chat_session,
 )
+from src.project_intake import ProjectIntakeError, build_project_intake_preview
 from src.server_project_commit_runner import (
     ServerProjectCommitRunnerError,
     run_project_local_commit,
@@ -118,6 +119,13 @@ class ProjectPushRunRequest(BaseModel):
     operator_decision: str = "missing"
 
 
+class ProjectIntakePreviewRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=8000)
+    source_channel: str = "telegram"
+    chat_session_id: str | None = Field(default=None, max_length=160)
+    project_slug: str | None = Field(default=None, max_length=80)
+
+
 def setup_server_project_routes(
     *,
     registry_path: str | Path = DEFAULT_PROJECT_REGISTRY_PATH,
@@ -147,6 +155,36 @@ def setup_server_project_routes(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         _save_registry(registry_file, registry)
         return {"success": True, "project": record.to_dict()}
+
+    @router.post("/intake/preview")
+    def preview_project_intake(body: ProjectIntakePreviewRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            proposal = build_project_intake_preview(
+                registry=registry,
+                text=body.text,
+                source_channel=body.source_channel,
+                chat_session_id=body.chat_session_id,
+                forced_project_slug=body.project_slug,
+            )
+        except ProjectIntakeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": proposal.status != "blocked", "intake": proposal.to_dict()}
+
+    @router.post("/{project_slug}/intake/preview")
+    def preview_project_intake_for_project(project_slug: str, body: ProjectIntakePreviewRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            proposal = build_project_intake_preview(
+                registry=registry,
+                text=body.text,
+                source_channel=body.source_channel,
+                chat_session_id=body.chat_session_id,
+                forced_project_slug=project_slug,
+            )
+        except ProjectIntakeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": proposal.status != "blocked", "intake": proposal.to_dict()}
 
     @router.get("/{project_slug}")
     def get_project(project_slug: str) -> dict[str, Any]:

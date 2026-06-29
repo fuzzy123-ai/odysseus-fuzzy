@@ -47,6 +47,60 @@ def test_project_routes_create_list_get_and_bind_chat(tmp_path: Path):
     assert stored["projects"][0]["chat_session_ids"] == ["chat-1"]
 
 
+def test_project_routes_preview_mobile_project_intake(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    client = _client(registry_path)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/intake/preview",
+        json={
+            "source_channel": "telegram",
+            "text": "#project:kundenportal-mvp TODO: Login als MVP Slice aufnehmen.",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    intake = body["intake"]
+    assert intake["status"] == "review"
+    assert intake["candidate_project"]["project_slug"] == "kundenportal-mvp"
+    assert intake["tasks"][0]["title"] == "Login als MVP Slice aufnehmen."
+    assert intake["raw_content_visible"] is False
+
+
+def test_project_routes_preview_for_project_forces_target_project(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    client = _client(registry_path)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/kundenportal-mvp/intake/preview",
+        json={"source_channel": "telegram", "text": "TODO: Release Smoke fuer unterwegs."},
+    )
+
+    assert response.status_code == 200
+    intake = response.json()["intake"]
+    assert intake["candidate_project"]["project_slug"] == "kundenportal-mvp"
+    assert intake["candidate_project"]["confidence"] == 1.0
+    assert "forced_project" in intake["candidate_project"]["reasons"]
+
+
+def test_project_routes_preview_rejects_secret_like_intake(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    client = _client(registry_path)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+
+    response = client.post(
+        "/api/projects/intake/preview",
+        json={"text": "#project:kundenportal-mvp password=abc123456789"},
+    )
+
+    assert response.status_code == 400
+    assert "secret material" in response.json()["detail"]
+
+
 def test_project_routes_provision_workspace_requires_go_then_creates(tmp_path: Path):
     registry_path = tmp_path / "projects.json"
     projects_root = tmp_path / "server-projects"
