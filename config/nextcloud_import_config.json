@@ -1,0 +1,71 @@
+{
+  "schema": "odysseus.nextcloud_import_config.v1",
+  "source_id": "nextcloud-main",
+  "source_root_env": "ODYSSEUS_NEXTCLOUD_IMPORT_ROOT",
+  "mode": "dry_run",
+  "default_unknown_private": true,
+  "sensitive_roots": [
+    "Privat",
+    "Niklas&Maaike",
+    "Photos",
+    "Camera Uploads"
+  ],
+  "exclude_names": [
+    "Desktop.ini",
+    "Thumbs.db",
+    ".DS_Store",
+    ".nextcloudsync.log"
+  ],
+  "exclude_globs": [
+    ".sync_*.db",
+    ".sync_*.db-shm",
+    ".sync_*.db-wal",
+    "~$*",
+    "*.tmp",
+    "*.temp",
+    "*.part",
+    "*.partial",
+    "*.crdownload",
+    "*.download"
+  ],
+  "include_zero_byte": false,
+  "binary_extensions": [
+    ".exe",
+    ".dll",
+    ".msi",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".sh",
+    ".scr",
+    ".com",
+    ".jar"
+  ],
+  "document_extensions_initial": [
+    ".txt",
+    ".md",
+    ".json",
+    ".csv",
+    ".tsv",
+    ".html",
+    ".htm",
+    ".xml",
+    ".pdf",
+    ".docx"
+  ],
+  "software_archives": {
+    "enabled": true,
+    "dry_run": true,
+    "target_root": "Software Archives",
+    "write_sidecar": true,
+    "write_manifest_inside_zip": true,
+    "delete_original": false,
+    "overwrite_existing": false,
+    "review_required": true
+  },
+  "extraction": {
+    "max_extract_bytes": 2097152,
+    "max_chunk_chars": 4000,
+    "max_chunks_per_item": 256
+  }
+}
