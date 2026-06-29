@@ -12,6 +12,7 @@ import json
 import os
 import hashlib
 import re
+import mimetypes
 import time
 import urllib.parse
 import urllib.request
@@ -191,6 +192,14 @@ def _image_unique_handle(file_unique_id: Any) -> str:
     return _stable_handle("image_unique", file_unique_id)
 
 
+def _document_file_handle(file_id: Any) -> str:
+    return _stable_handle("document_file", file_id)
+
+
+def _document_unique_handle(file_unique_id: Any) -> str:
+    return _stable_handle("document_unique", file_unique_id)
+
+
 def build_telegram_draft_id(*, chat_id: str, source_message_id: Any = "") -> int:
     digest = hashlib.sha256(f"telegram-draft:{chat_id}:{source_message_id}".encode("utf-8")).hexdigest()
     return int(digest[:12], 16) or 1
@@ -230,15 +239,26 @@ def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
         sanitized_media = dict(media)
         raw_file_id = sanitized_media.pop("file_id", "")
         raw_unique_id = sanitized_media.pop("file_unique_id", "")
+        raw_file_name = sanitized_media.pop("file_name", "")
+        if raw_file_name:
+            suffix = Path(str(raw_file_name)).suffix.lower()
+            if suffix:
+                sanitized_media["file_suffix"] = suffix[:16]
         media_type = str(sanitized_media.get("type") or "")
         if raw_file_id:
-            sanitized_media["file_handle"] = (
-                _image_file_handle(raw_file_id) if media_type == "image" else _voice_file_handle(raw_file_id)
-            )
+            if media_type == "image":
+                sanitized_media["file_handle"] = _image_file_handle(raw_file_id)
+            elif media_type == "document":
+                sanitized_media["file_handle"] = _document_file_handle(raw_file_id)
+            else:
+                sanitized_media["file_handle"] = _voice_file_handle(raw_file_id)
         if raw_unique_id:
-            sanitized_media["file_unique_handle"] = (
-                _image_unique_handle(raw_unique_id) if media_type == "image" else _voice_unique_handle(raw_unique_id)
-            )
+            if media_type == "image":
+                sanitized_media["file_unique_handle"] = _image_unique_handle(raw_unique_id)
+            elif media_type == "document":
+                sanitized_media["file_unique_handle"] = _document_unique_handle(raw_unique_id)
+            else:
+                sanitized_media["file_unique_handle"] = _voice_unique_handle(raw_unique_id)
         stored["media"] = sanitized_media
     stored["chat_id_value_visible"] = False
     stored["sender_id_value_visible"] = False
@@ -246,6 +266,8 @@ def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
     stored["voice_file_unique_id_value_visible"] = False
     stored["image_file_id_value_visible"] = False
     stored["image_file_unique_id_value_visible"] = False
+    stored["document_file_id_value_visible"] = False
+    stored["document_file_unique_id_value_visible"] = False
     return stored
 
 
@@ -345,6 +367,7 @@ class TelegramInboxStore:
         transcript_status: str | None = None,
         voice_status: str | None = None,
         intake_status: str | None = None,
+        universal_inbox_status: str | None = None,
     ) -> dict[str, Any] | None:
         data = self._read()
         key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
@@ -362,6 +385,8 @@ class TelegramInboxStore:
                 existing["voice_status"] = voice_status
             if intake_status is not None:
                 existing["intake_status"] = intake_status
+            if universal_inbox_status is not None:
+                existing["universal_inbox_status"] = universal_inbox_status
             existing["updated_at"] = int(time.time())
             self._write(data)
             return dict(existing)
@@ -418,10 +443,12 @@ class TelegramInboxStore:
             "outbound": sum(1 for m in messages if m.get("direction") == "outbound"),
             "voice": sum(1 for m in messages if m.get("kind") == "voice"),
             "image": sum(1 for m in messages if m.get("kind") == "image"),
+            "document": sum(1 for m in messages if m.get("kind") == "document"),
             "blocked": sum(1 for m in messages if m.get("kind") == "blocked"),
             "duplicates": sum(1 for m in messages if m.get("kind") == "duplicate"),
             "pending_stt": sum(1 for m in messages if m.get("transcript_status") == "pending_stt"),
             "pending_image_action": sum(1 for m in messages if m.get("image_action_status") == "pending_image_action"),
+            "pending_universal_inbox": sum(1 for m in messages if m.get("universal_inbox_status") == "pending_universal_inbox"),
         }
 
     def last_delivery_summary(self) -> dict[str, Any]:
@@ -721,6 +748,7 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
             "kind": "image",
             "text": "",
             "image_action_status": "pending_image_action",
+            "universal_inbox_status": "pending_universal_inbox",
             "intake_status": "pending_image_action" if base["chat_allowed"] else "blocked_chat",
             "media": {
                 "type": "image",
@@ -730,6 +758,22 @@ def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
                 "height": photo.get("height"),
                 "file_size": photo.get("file_size"),
                 "mime_type": "image/jpeg",
+            },
+        })
+    elif isinstance(message.get("document"), dict):
+        document = message["document"]
+        base.update({
+            "kind": "document",
+            "text": str(message.get("caption") or ""),
+            "universal_inbox_status": "pending_universal_inbox",
+            "intake_status": "pending_universal_inbox" if base["chat_allowed"] else "blocked_chat",
+            "media": {
+                "type": "document",
+                "file_id": document.get("file_id") or "",
+                "file_unique_id": document.get("file_unique_id") or "",
+                "file_name": document.get("file_name") or "",
+                "mime_type": document.get("mime_type") or "",
+                "file_size": document.get("file_size"),
             },
         })
     else:
@@ -783,6 +827,15 @@ def build_agent_bridge_request(
         )
         ready_for_agent = False
         note = "image_action_pending"
+    elif kind == "document":
+        media = message.get("media") or {}
+        prompt = (
+            "[Telegram document received. "
+            f"file_handle={media.get('file_handle', '')}; size={media.get('file_size', 'unknown')}; "
+            "universal inbox processing pending.]"
+        )
+        ready_for_agent = False
+        note = "universal_inbox_pending"
     else:
         prompt = "[Unsupported Telegram message received.]"
         ready_for_agent = False
@@ -958,6 +1011,15 @@ def _telegram_voice_max_bytes() -> int:
     return max(1, min(value, 100_000_000))
 
 
+def _telegram_attachment_max_bytes() -> int:
+    raw = os.getenv("TELEGRAM_ATTACHMENT_MAX_BYTES") or "25000000"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 25_000_000
+    return max(1, min(value, 100_000_000))
+
+
 def run_telegram_voice_pipeline(
     message: dict[str, Any],
     *,
@@ -1013,6 +1075,147 @@ def run_telegram_voice_pipeline(
             "prompt_value_visible": False,
             "raw_identifiers_visible": turn.raw_identifiers_visible,
         },
+    }
+
+
+def _message_file_id(message: dict[str, Any]) -> str:
+    media = message.get("media") if isinstance(message.get("media"), dict) else {}
+    return str(media.get("file_id") or "").strip()
+
+
+def download_telegram_file_bytes(
+    message: dict[str, Any],
+    *,
+    max_bytes: int | None = None,
+    token: str | None = None,
+    urlopen: Callable[..., Any] | None = None,
+) -> bytes:
+    """Download a Telegram file for local Universal Inbox processing."""
+
+    file_id = _message_file_id(message)
+    if not file_id:
+        raise ValueError("telegram file id is missing")
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    limit = max(1, min(int(max_bytes or _telegram_attachment_max_bytes()), 100_000_000))
+    open_url = urlopen or urllib.request.urlopen
+
+    metadata_url = f"https://api.telegram.org/bot{token}/getFile?{urllib.parse.urlencode({'file_id': file_id})}"
+    with open_url(metadata_url, timeout=20) as response:  # nosec: token-gated Telegram API endpoint
+        payload = json.loads(response.read().decode("utf-8"))
+    if not payload.get("ok"):
+        raise ValueError("telegram getFile failed")
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    declared_size = result.get("file_size")
+    if isinstance(declared_size, int) and declared_size > limit:
+        raise ValueError("telegram file too large")
+    file_path = str(result.get("file_path") or "").strip()
+    if not file_path:
+        raise ValueError("telegram getFile returned no file path")
+
+    quoted_path = urllib.parse.quote(file_path, safe="/")
+    download_url = f"https://api.telegram.org/file/bot{token}/{quoted_path}"
+    with open_url(download_url, timeout=30) as response:  # nosec: file path returned by token-gated Telegram API
+        header_size = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
+        try:
+            if header_size and int(header_size) > limit:
+                raise ValueError("telegram file too large")
+        except ValueError:
+            raise ValueError("telegram file too large") from None
+        data = response.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("telegram file too large")
+    if not data:
+        raise ValueError("telegram file is empty")
+    return data
+
+
+def _telegram_attachment_suffix(message: dict[str, Any]) -> str:
+    media = message.get("media") if isinstance(message.get("media"), dict) else {}
+    filename = str(media.get("file_name") or "").strip()
+    suffix = Path(filename).suffix.lower()
+    if suffix:
+        return suffix[:16]
+    mime_type = str(media.get("mime_type") or "").strip().lower()
+    guessed = mimetypes.guess_extension(mime_type) if mime_type else ""
+    if guessed:
+        return guessed.lower()[:16]
+    if message.get("kind") == "image":
+        return ".jpg"
+    return ".bin"
+
+
+def _telegram_attachment_spool_dir(data_dir: str | Path, message: dict[str, Any]) -> Path:
+    chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")) or "chat")
+    message_id = str(message.get("message_id") or int(time.time() * 1000))
+    digest = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    return Path(data_dir) / "universal_inbox_telegram" / digest
+
+
+def _call_file_bytes_provider(
+    provider: Callable[..., bytes],
+    message: dict[str, Any],
+    *,
+    max_bytes: int,
+) -> bytes:
+    try:
+        return bytes(provider(message, max_bytes=max_bytes))
+    except TypeError:
+        return bytes(provider(message))
+
+
+def run_telegram_universal_inbox_attachment_pipeline(
+    message: dict[str, Any],
+    *,
+    data_dir: str | Path,
+    file_bytes_provider: Callable[..., bytes] | None = None,
+) -> dict[str, Any] | None:
+    """Download a Telegram attachment into a local spool and run Universal Inbox."""
+
+    if message.get("kind") not in {"document", "image"}:
+        return None
+    if message.get("chat_allowed") is not True:
+        return {"status": "blocked", "reason": "chat_not_allowed", "raw_content_visible": False}
+    limit = _telegram_attachment_max_bytes()
+    media = message.get("media") if isinstance(message.get("media"), dict) else {}
+    declared_size = media.get("file_size")
+    if isinstance(declared_size, int) and declared_size > limit:
+        return {"status": "blocked", "reason": "size_limit_exceeded", "raw_content_visible": False}
+
+    provider = file_bytes_provider or download_telegram_file_bytes
+    try:
+        payload = _call_file_bytes_provider(provider, message, max_bytes=limit)
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reason": str(exc)[:120],
+            "raw_content_visible": False,
+            "raw_identifiers_visible": False,
+        }
+    if len(payload) > limit:
+        return {"status": "blocked", "reason": "size_limit_exceeded", "raw_content_visible": False}
+    if not payload:
+        return {"status": "failed", "reason": "empty_file", "raw_content_visible": False}
+
+    spool_dir = _telegram_attachment_spool_dir(data_dir, message)
+    spool_dir.mkdir(parents=True, exist_ok=True)
+    suffix = _telegram_attachment_suffix(message)
+    target = spool_dir / f"telegram-attachment{suffix}"
+    target.write_bytes(payload)
+
+    snapshot = build_universal_inbox_readiness(spool_dir)
+    return {
+        "status": "processed" if snapshot.get("ready") else "blocked",
+        "reason": snapshot.get("reason") or "",
+        "universal_inbox_status": snapshot.get("status"),
+        "discovered_count": snapshot.get("discovered_count"),
+        "processable_count": snapshot.get("processable_count"),
+        "spooled": True,
+        "spool_path_visible": False,
+        "raw_content_visible": False,
+        "raw_identifiers_visible": False,
+        "filename_visible": False,
     }
 
 
@@ -1280,6 +1483,7 @@ def run_telegram_polling_cycle(
     voice_stt_provider: Callable[[str], str] | None = None,
     voice_bytes_provider: Callable[..., bytes] | None = None,
     image_bytes_provider: Callable[[str], bytes] | None = None,
+    attachment_bytes_provider: Callable[..., bytes] | None = None,
     image_worker_client: Any | None = None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -1353,6 +1557,34 @@ def run_telegram_polling_cycle(
                 image_bytes_provider=image_bytes_provider,
                 worker_client=image_worker_client,
             )
+            inbox_attachment = run_telegram_universal_inbox_attachment_pipeline(
+                message,
+                data_dir=data_dir,
+                file_bytes_provider=attachment_bytes_provider,
+            )
+            if inbox_attachment is not None:
+                refreshed = store.update_inbound_status(
+                    stored["message"],
+                    universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
+                    intake_status="universal_inbox_processed"
+                    if inbox_attachment.get("status") == "processed"
+                    else str(inbox_attachment.get("status") or "failed"),
+                )
+                if refreshed is not None:
+                    stored["message"] = refreshed
+                store.append_event(
+                    kind="universal_inbox_attachment",
+                    status=str(inbox_attachment.get("status") or "failed"),
+                    chat_id=str(message.get("chat_id") or ""),
+                    update_id=message.get("update_id"),
+                    message_id=message.get("message_id"),
+                    universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+                    discovered_count=int(inbox_attachment.get("discovered_count") or 0),
+                    processable_count=int(inbox_attachment.get("processable_count") or 0),
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
             if _voice_pipeline is not None:
                 stt_status = str((_voice_pipeline.get("stt") or {}).get("status") or "")
                 stt_reason = str((_voice_pipeline.get("stt") or {}).get("reason") or "")
@@ -1876,6 +2108,7 @@ def setup(ctx):
     voice_stt_provider = _ctx_attr("telegram_voice_stt_provider")
     voice_bytes_provider = _ctx_attr("telegram_voice_bytes_provider")
     image_bytes_provider = _ctx_attr("telegram_image_bytes_provider")
+    attachment_bytes_provider = _ctx_attr("telegram_attachment_bytes_provider")
     image_worker_client = _ctx_attr("telegram_image_worker_client")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
@@ -2061,6 +2294,7 @@ def setup(ctx):
             voice_stt_provider=voice_stt_provider,
             voice_bytes_provider=voice_bytes_provider,
             image_bytes_provider=image_bytes_provider,
+            attachment_bytes_provider=attachment_bytes_provider,
             image_worker_client=image_worker_client,
             reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
                 chat_id,
@@ -2096,6 +2330,34 @@ def setup(ctx):
             image_bytes_provider=image_bytes_provider,
             worker_client=image_worker_client,
         )
+        inbox_attachment = run_telegram_universal_inbox_attachment_pipeline(
+            message,
+            data_dir=ctx.data_dir,
+            file_bytes_provider=attachment_bytes_provider,
+        )
+        if inbox_attachment is not None:
+            refreshed = store.update_inbound_status(
+                stored["message"],
+                universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
+                intake_status="universal_inbox_processed"
+                if inbox_attachment.get("status") == "processed"
+                else str(inbox_attachment.get("status") or "failed"),
+            )
+            if refreshed is not None:
+                stored["message"] = refreshed
+            store.append_event(
+                kind="universal_inbox_attachment",
+                status=str(inbox_attachment.get("status") or "failed"),
+                chat_id=str(message.get("chat_id") or ""),
+                update_id=message.get("update_id"),
+                message_id=message.get("message_id"),
+                universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+                discovered_count=int(inbox_attachment.get("discovered_count") or 0),
+                processable_count=int(inbox_attachment.get("processable_count") or 0),
+                raw_content_visible=False,
+                raw_identifiers_visible=False,
+                filename_visible=False,
+            )
         bridge = build_agent_bridge_request(
             stored["message"],
             raw_chat_id=str(message.get("chat_id") or ""),
@@ -2132,6 +2394,7 @@ def setup(ctx):
                 "agent_bridge": bridge,
                 "voice_pipeline": voice_pipeline,
                 "image_action": image_action,
+                "universal_inbox_attachment": inbox_attachment,
                 "agent_turn": None,
                 "reply": _public_reply_result(control_result.get("reply")),
                 "control_command": {
@@ -2179,6 +2442,7 @@ def setup(ctx):
             "agent_bridge": bridge,
             "voice_pipeline": voice_pipeline,
             "image_action": image_action,
+            "universal_inbox_attachment": inbox_attachment,
             "agent_turn": _public_agent_turn_result(agent_turn),
             "reply": _public_reply_result(reply_result),
             "token_value_visible": False,

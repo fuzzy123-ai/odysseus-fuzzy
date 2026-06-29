@@ -18,8 +18,10 @@ from plugins.telegram.plugin import (
     _telegram_control_command,
     build_agent_bridge_request,
     build_telegram_readiness,
+    download_telegram_file_bytes,
     download_telegram_voice_bytes,
     parse_telegram_update,
+    run_telegram_universal_inbox_attachment_pipeline,
     run_telegram_polling_cycle,
     setup,
 )
@@ -1242,6 +1244,90 @@ def test_image_identifiers_are_redacted_and_actions_are_default_off(tmp_path, mo
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "large-image-file-id" not in persisted_text
     assert "large-unique" not in persisted_text
+
+
+def test_document_attachment_is_redacted_and_processed_by_universal_inbox(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_attachment_bytes_provider = lambda _message, max_bytes=None: b"Rechnung Test\nBetrag 12 Euro\n"
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 38,
+        "message": {
+            "message_id": 42,
+            "chat": {"id": "document-chat-999"},
+            "document": {
+                "file_id": "document-file-id",
+                "file_unique_id": "document-unique",
+                "file_name": "private-rechnung-name.txt",
+                "mime_type": "text/plain",
+                "file_size": 28,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["message"]["kind"] == "document"
+    assert payload["message"]["media"]["file_handle"].startswith("document_file_")
+    assert payload["message"]["media"]["file_unique_handle"].startswith("document_unique_")
+    assert payload["message"]["universal_inbox_status"] == "processed"
+    assert payload["universal_inbox_attachment"]["status"] == "processed"
+    assert payload["universal_inbox_attachment"]["processable_count"] == 1
+    assert payload["agent_bridge"]["ready_for_agent"] is False
+    assert "file_id" not in payload["message"]["media"]
+    assert "file_unique_id" not in payload["message"]["media"]
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "document-file-id" not in persisted_text
+    assert "document-unique" not in persisted_text
+    assert "private-rechnung-name" not in persisted_text
+    assert "Betrag 12" not in persisted_text
+    assert any((tmp_path / "universal_inbox_telegram").glob("*/telegram-attachment.txt"))
+
+
+def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_turn(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 39,
+            "message": {
+                "message_id": 43,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "poll-document-file-id",
+                    "file_unique_id": "poll-document-unique",
+                    "file_name": "rechnung-ohne-prompt.txt",
+                    "mime_type": "text/plain",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"Nur Datei\n",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["processed"] == 1
+    assert result["agent_turns"] == 0
+    assert turns == []
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(
+        item.get("kind") == "universal_inbox_attachment"
+        and item.get("status") == "processed"
+        and item.get("processable_count") == 1
+        for item in history
+    )
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "poll-document-file-id" not in persisted_text
+    assert "rechnung-ohne-prompt" not in persisted_text
+    assert "Nur Datei" not in persisted_text
 
 
 def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):
