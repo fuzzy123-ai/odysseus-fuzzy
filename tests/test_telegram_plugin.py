@@ -27,6 +27,7 @@ from plugins.telegram.plugin import (
 )
 from src.image_tools_worker import ImageToolsWorkerResult
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
+from src.server_project_registry import ServerProjectRegistry
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1461,6 +1462,106 @@ def test_polling_cycle_followup_export_request_sends_recent_attachment_pdf(tmp_p
     assert "export-document-file-id" not in persisted_text
     assert "source.md" not in persisted_text
     assert "Export me" not in persisted_text
+
+
+def test_polling_cycle_project_intake_preview_for_mobile_plan(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "project-chat-1")
+    registry = ServerProjectRegistry()
+    registry.create_project(
+        project_title="Kundenportal MVP",
+        project_type="app",
+        created_at="2026-06-29T10:00:00Z",
+    )
+    registry.save_json(tmp_path / "server_project_registry.json")
+    replies = []
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 60,
+            "message": {
+                "message_id": 70,
+                "chat": {"id": "project-chat-1"},
+                "text": "#project:kundenportal-mvp TODO: Login als MVP Slice aufnehmen.",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "should-not-run"},
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"reply_text": "should not run"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["processed"] == 1
+    assert result["agent_turns"] == 0
+    assert turns == []
+    assert any("Project-Intake erkannt fuer kundenportal-mvp" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    event = next(item for item in history if item.get("kind") == "project_intake_review")
+    assert event["status"] == "review"
+    assert event["project_slug"] == "kundenportal-mvp"
+    assert event["task_count"] == 1
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "project-chat-1" not in persisted_text
+    assert '"chat_id":' not in persisted_text
+    assert "TOKEN=" not in persisted_text
+
+
+def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "project-chat-1")
+    store = TelegramInboxStore(tmp_path)
+    store.append_event(
+        kind="project_intake_review",
+        status="review",
+        chat_id="project-chat-1",
+        source_message_id=70,
+        project_slug="kundenportal-mvp",
+        task_count=2,
+        decision_count=1,
+        risk_count=1,
+        raw_content_visible=False,
+        raw_identifiers_visible=False,
+        project_intake_apply_performed=False,
+    )
+    replies = []
+
+    status = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 61,
+            "message": {
+                "message_id": 71,
+                "chat": {"id": "project-chat-1"},
+                "text": "/project status",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+    assert status["control_commands"] == 1
+    assert any("Offene Project-Intake-Review fuer kundenportal-mvp" in reply[1] for reply in replies)
+
+    confirmed = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 62,
+            "message": {
+                "message_id": 72,
+                "chat": {"id": "project-chat-1"},
+                "text": "/project ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert confirmed["control_commands"] == 1
+    history = TelegramInboxStore(tmp_path).history(limit=40)
+    assert any(item.get("kind") == "project_intake_review" and item.get("status") == "confirmed" for item in history)
+    assert any("vorgemerkt" in reply[1] for reply in replies)
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "project-chat-1" not in persisted_text
+    assert "project_intake_apply_performed" in persisted_text
 
 
 def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, monkeypatch):

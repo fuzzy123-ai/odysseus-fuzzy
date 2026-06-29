@@ -70,7 +70,12 @@ _HISTORY_FILE = "telegram_history.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
+_PROJECT_REGISTRY_FILE = "server_project_registry.json"
 _THINKING_BLOCK_RE = re.compile(r"<tg-thinking>.*?</tg-thinking>", re.IGNORECASE | re.DOTALL)
+_PROJECT_INTAKE_HINT_RE = re.compile(
+    r"(#project:|#projekt:|project:|projekt:|\broadmap\b|\bmvp\b|\btodo\b|\baufgabe\b|\bplan\b|\bslice\b)",
+    re.IGNORECASE,
+)
 
 
 def _bool_env(name: str) -> bool:
@@ -503,6 +508,20 @@ class TelegramInboxStore:
                 continue
             status = str(message.get("memory_write_intent_status") or "")
             if status in {"review", "ready"}:
+                return dict(message)
+        return None
+
+    def latest_project_intake_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
+        chat_handle = _chat_handle(chat_id) if chat_id else ""
+        for message in reversed(self._read()["messages"]):
+            if message.get("kind") != "project_intake_review":
+                continue
+            if chat_handle and message.get("chat_handle") != chat_handle:
+                continue
+            status = str(message.get("status") or "")
+            if status in {"confirmed", "held"}:
+                return None
+            if status in {"review", "blocked"}:
                 return dict(message)
         return None
 
@@ -941,6 +960,16 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
         if arg in {"ok", "yes", "ja", "confirm", "bestätigen", "bestaetigen", "approve", "freigeben"}:
             return "universal_inbox_review_confirm"
         return "universal_inbox_review_status"
+    if command in {"/project", "/projekt"}:
+        args = parts[1].strip().split() if len(parts) > 1 and parts[1].strip() else []
+        first_arg = args[0].lower() if args else ""
+        if first_arg in {"ok", "yes", "ja", "confirm", "bestaetigen", "bestätigen", "approve", "freigeben"}:
+            return "project_intake_review_confirm"
+        if first_arg in {"hold", "pause", "stop", "later", "spaeter", "später"}:
+            return "project_intake_review_hold"
+        if first_arg in {"status", "state", "info", ""}:
+            return "project_intake_review_status"
+        return ""
     if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
         if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
             return "dsgvo_enable"
@@ -1144,6 +1173,67 @@ def _handle_telegram_control_command(
             "reply_text": reply_text,
             "reply": reply_result,
             "memory_write": execution if command == "universal_inbox_memory_review_confirm" and review is not None else None,
+        }
+    if command.startswith("project_intake_"):
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        review = store.latest_project_intake_review(chat_id=bridge["chat_id"]) if store is not None else None
+        status = "project_intake_review_status"
+        if command == "project_intake_review_confirm":
+            if review is None:
+                reply_text = "Keine offene Project-Intake-Review gefunden."
+                status = "project_intake_review_missing"
+            else:
+                if store is not None:
+                    store.append_event(
+                        kind="project_intake_review",
+                        status="confirmed",
+                        chat_id=bridge["chat_id"],
+                        source_message_id=review.get("source_message_id"),
+                        project_slug=str(review.get("project_slug") or ""),
+                        task_count=int(review.get("task_count") or 0),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                        project_intake_apply_performed=False,
+                    )
+                reply_text = (
+                    "Project-Intake bestaetigt. Ich habe den Merge-Vorschlag vorgemerkt; "
+                    "das Schreiben in Projektstate/Roadmap kommt im naechsten Gate."
+                )
+                status = "project_intake_review_confirmed"
+        elif command == "project_intake_review_hold":
+            if review is None:
+                reply_text = "Keine offene Project-Intake-Review gefunden."
+                status = "project_intake_review_missing"
+            else:
+                if store is not None:
+                    store.append_event(
+                        kind="project_intake_review",
+                        status="held",
+                        chat_id=bridge["chat_id"],
+                        source_message_id=review.get("source_message_id"),
+                        project_slug=str(review.get("project_slug") or ""),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                        project_intake_apply_performed=False,
+                    )
+                reply_text = "Project-Intake pausiert. Ich schreibe nichts in das Projekt."
+                status = "project_intake_review_held"
+        else:
+            reply_text = _format_project_intake_review_status(review)
+            status = "project_intake_review_status" if review is not None else "project_intake_review_missing"
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": status,
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
         }
     if command != "new_chat":
         return None
@@ -1693,6 +1783,137 @@ def format_telegram_attachment_export_reply(result: dict[str, Any]) -> str:
     return f"Export erkannt, aber blockiert: {result.get('reason') or 'policy_gate'}."
 
 
+def build_telegram_project_intake_preview(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    sessions: TelegramSessionBridgeStore,
+    chat_id: str,
+    text: str,
+    source_message_id: int | None = None,
+    project_registry_path: str | Path | None = None,
+) -> dict[str, Any] | None:
+    if not _looks_like_project_intake(text):
+        return None
+    try:
+        from src.project_intake import ProjectIntakeError, build_project_intake_preview
+        from src.server_project_registry import ServerProjectRegistry
+    except Exception as exc:
+        return {"status": "blocked", "reason": f"project_intake_unavailable:{str(exc)[:80]}", "raw_content_visible": False}
+
+    registry_path = Path(project_registry_path) if project_registry_path is not None else Path(data_dir) / _PROJECT_REGISTRY_FILE
+    try:
+        registry = ServerProjectRegistry.load_json(registry_path) if registry_path.exists() else ServerProjectRegistry()
+    except Exception:
+        return {"status": "blocked", "reason": "project_registry_unreadable", "raw_content_visible": False}
+
+    session = sessions.get(chat_id) or {}
+    try:
+        proposal = build_project_intake_preview(
+            registry=registry,
+            text=text,
+            source_channel="telegram",
+            chat_session_id=str(session.get("session_id") or ""),
+        ).to_dict()
+    except ProjectIntakeError as exc:
+        return {"status": "blocked", "reason": str(exc)[:120], "raw_content_visible": False}
+
+    candidate = proposal.get("candidate_project") if isinstance(proposal.get("candidate_project"), dict) else {}
+    tasks = tuple(proposal.get("tasks") or ())
+    decisions = tuple(proposal.get("decisions") or ())
+    risks = tuple(proposal.get("risks") or ())
+    roadmap_updates = tuple(proposal.get("roadmap_updates") or ())
+    result = {
+        "status": str(proposal.get("status") or "blocked"),
+        "reason": str(proposal.get("reason") or ""),
+        "project_slug": str(candidate.get("project_slug") or ""),
+        "project_title": str(candidate.get("project_title") or ""),
+        "confidence": float(candidate.get("confidence") or 0),
+        "task_count": len(tasks),
+        "decision_count": len(decisions),
+        "risk_count": len(risks),
+        "roadmap_update_count": len(roadmap_updates),
+        "tasks": tasks,
+        "decisions": decisions,
+        "risks": risks,
+        "roadmap_updates": roadmap_updates,
+        "recommended_next_action": str(proposal.get("recommended_next_action") or "review_project_intake"),
+        "requires_review": bool(proposal.get("requires_review", True)),
+        "proposal": proposal,
+        "source_message_id": source_message_id,
+        "raw_content_visible": False,
+        "raw_content_persisted": False,
+        "host_paths_visible": False,
+    }
+    if store is not None:
+        store.append_event(
+            kind="project_intake_review",
+            status=str(result.get("status") or "blocked"),
+            chat_id=chat_id,
+            source_message_id=source_message_id,
+            project_slug=str(result.get("project_slug") or ""),
+            confidence=float(result.get("confidence") or 0),
+            task_count=int(result.get("task_count") or 0),
+            decision_count=int(result.get("decision_count") or 0),
+            risk_count=int(result.get("risk_count") or 0),
+            roadmap_update_count=int(result.get("roadmap_update_count") or 0),
+            raw_content_visible=False,
+            raw_content_persisted=False,
+            raw_identifiers_visible=False,
+            host_paths_visible=False,
+            project_intake_apply_performed=False,
+        )
+    return result
+
+
+def format_telegram_project_intake_reply(result: dict[str, Any]) -> str:
+    status = str(result.get("status") or "blocked")
+    if status == "blocked":
+        reason = str(result.get("reason") or "project_choice_required")
+        if reason == "project_choice_required":
+            return "Project-Intake erkannt, aber ich konnte kein Zielprojekt sicher bestimmen. Bitte sende z.B. #project:projekt-slug dazu."
+        return f"Project-Intake blockiert: {reason}."
+    project = str(result.get("project_slug") or "unknown")
+    confidence = float(result.get("confidence") or 0)
+    lines = [
+        f"Project-Intake erkannt fuer {project} ({round(confidence * 100)}%).",
+        f"Tasks: {int(result.get('task_count') or 0)}, Decisions: {int(result.get('decision_count') or 0)}, Risiken: {int(result.get('risk_count') or 0)}, Roadmap-Updates: {int(result.get('roadmap_update_count') or 0)}.",
+    ]
+    task_titles = []
+    for task in tuple(result.get("tasks") or ())[:3]:
+        if isinstance(task, dict) and task.get("title"):
+            task_titles.append(str(task.get("title")))
+    if task_titles:
+        lines.append("Vorschlag:")
+        lines.extend(f"- {title}" for title in task_titles)
+    lines.append("Antwort: /project ok zum Vormerken, /project hold zum Pausieren. Schreiben in Projektstate bleibt noch gesperrt.")
+    return "\n".join(lines)
+
+
+def _format_project_intake_review_status(review: dict[str, Any] | None) -> str:
+    if review is None:
+        return "Keine offene Project-Intake-Review gefunden."
+    project = str(review.get("project_slug") or "unbekannt")
+    return (
+        f"Offene Project-Intake-Review fuer {project}: "
+        f"{int(review.get('task_count') or 0)} Tasks, "
+        f"{int(review.get('decision_count') or 0)} Decisions, "
+        f"{int(review.get('risk_count') or 0)} Risiken. "
+        "Antwort: /project ok oder /project hold."
+    )
+
+
+def _looks_like_project_intake(text: str) -> bool:
+    prompt = str(text or "").strip()
+    if not prompt or prompt.startswith("/"):
+        return False
+    if not _PROJECT_INTAKE_HINT_RE.search(prompt):
+        return False
+    if re.search(r"(mach|mache|wandle|konvertier|export|schick).{0,40}\b(pdf|png|jpg|docx|mp3|wav)\b", prompt, re.IGNORECASE):
+        return False
+    return bool(re.search(r"(#project:|#projekt:|project:|projekt:|\broadmap\b|\bmvp\b|\btodo\b|\baufgabe\b|\bslice\b)", prompt, re.IGNORECASE))
+
+
 def _call_file_bytes_provider(
     provider: Callable[..., bytes],
     message: dict[str, Any],
@@ -2102,6 +2323,7 @@ def run_telegram_polling_cycle(
     memory_manager: Any | None = None,
     memory_vector: Any | None = None,
     memory_owner: str | None = None,
+    project_registry_path: str | Path | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -2298,6 +2520,25 @@ def run_telegram_polling_cycle(
                                 message.get("message_id"),
                             )
                             replies += 1
+                    processed += 1
+                    continue
+                project_intake = build_telegram_project_intake_preview(
+                    data_dir=data_dir,
+                    store=store,
+                    sessions=sessions,
+                    chat_id=str(message.get("chat_id") or ""),
+                    text=str(stored["message"].get("text") or ""),
+                    source_message_id=message.get("message_id"),
+                    project_registry_path=project_registry_path,
+                )
+                if project_intake is not None:
+                    if reply_handler is not None:
+                        reply_handler(
+                            str(message.get("chat_id") or ""),
+                            format_telegram_project_intake_reply(project_intake),
+                            message.get("message_id"),
+                        )
+                        replies += 1
                     processed += 1
                     continue
             recent_attachment_context = build_recent_telegram_attachment_context(
@@ -3164,6 +3405,7 @@ def setup(ctx):
             memory_manager=memory_manager,
             memory_vector=memory_vector,
             memory_owner=memory_owner,
+            project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
         )
         if not result["ok"]:
             raise HTTPException(403, result["status"])
@@ -3351,6 +3593,40 @@ def setup(ctx):
                     "status": export_plan.get("status"),
                     "target_format": export_plan.get("target_format"),
                     "action": export_plan.get("action"),
+                    "raw_content_visible": False,
+                },
+                "agent_turn": None,
+                "reply": _public_reply_result(reply_result),
+                "token_value_visible": False,
+            }
+        project_intake = None
+        if stored["message"].get("kind") == "text":
+            project_intake = build_telegram_project_intake_preview(
+                data_dir=ctx.data_dir,
+                store=store,
+                sessions=sessions,
+                chat_id=str(message.get("chat_id") or ""),
+                text=str(stored["message"].get("text") or ""),
+                source_message_id=message.get("message_id"),
+                project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+            )
+        if project_intake is not None:
+            reply_result = _reply_with_gate(
+                str(message.get("chat_id") or ""),
+                format_telegram_project_intake_reply(project_intake),
+                source_message_id=message.get("message_id"),
+            )
+            return {
+                "stored": stored["stored"],
+                "message": stored["message"],
+                "agent_bridge": bridge,
+                "voice_pipeline": voice_pipeline,
+                "image_action": image_action,
+                "universal_inbox_attachment": inbox_attachment,
+                "project_intake": {
+                    "status": project_intake.get("status"),
+                    "project_slug": project_intake.get("project_slug"),
+                    "task_count": project_intake.get("task_count"),
                     "raw_content_visible": False,
                 },
                 "agent_turn": None,
