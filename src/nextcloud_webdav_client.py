@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import posixpath
 import re
 from typing import Any, Mapping
@@ -127,6 +128,34 @@ class NextcloudWebDAVClient:
     def _url(self, relative_path: str) -> str:
         encoded = "/".join(quote(part, safe="") for part in relative_path.split("/") if part)
         return f"{self.base_url}/{encoded}"
+
+
+def build_nextcloud_webdav_client_from_env() -> NextcloudWebDAVClient:
+    """Create a WebDAV client from runtime env without exposing secret values.
+
+    This helper is intentionally narrow and performs no network IO on its own.
+    The caller still needs an explicit review/operator gate before any write.
+    """
+
+    missing = [
+        name
+        for name in (
+            "NEXTCLOUD_WEBDAV_BASE_URL",
+            "NEXTCLOUD_WEBDAV_USERNAME",
+            "NEXTCLOUD_WEBDAV_APP_PASSWORD",
+        )
+        if not str(os.getenv(name) or "").strip()
+    ]
+    if missing:
+        raise NextcloudWebDAVClientError(
+            "Nextcloud WebDAV runtime config missing: " + ",".join(missing)
+        )
+    return NextcloudWebDAVClient(
+        base_url=os.environ["NEXTCLOUD_WEBDAV_BASE_URL"],
+        username=os.environ["NEXTCLOUD_WEBDAV_USERNAME"],
+        app_password=os.environ["NEXTCLOUD_WEBDAV_APP_PASSWORD"],
+        root=os.getenv("NEXTCLOUD_WEBDAV_ROOT", ""),
+    )
 
 
 def _parse_propfind(text: str, relative_path: str) -> Mapping[str, Any]:

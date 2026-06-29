@@ -1192,7 +1192,12 @@ def _handle_telegram_control_command(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
-            if str(transfer.get("status") or "") == "dry_run_ready":
+            transfer_status = str(transfer.get("status") or "")
+            if transfer_status == "completed":
+                reply_text = "Review bestaetigt. Nextcloud-Ablage wurde kopiert und verifiziert."
+            elif transfer_status == "copied_unverified":
+                reply_text = "Review bestaetigt. Nextcloud-Ablage wurde kopiert, braucht aber Verifikation."
+            elif transfer_status == "dry_run_ready":
                 reply_text = (
                     "Review bestaetigt. Nextcloud-Ablage ist vorbereitet, aber noch Dry-run. "
                     "Live-Copy wartet auf Operator-Go."
@@ -1859,6 +1864,7 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
         return {"status": "blocked", "reason": "spool_file_missing", "dry_run": True, "writes_performed": False}
 
     try:
+        from src.nextcloud_webdav_client import build_nextcloud_webdav_client_from_env
         from src.universal_inbox_nextcloud_transfer import (
             UniversalInboxNextcloudTransferRequest,
             execute_universal_inbox_nextcloud_transfer,
@@ -1870,16 +1876,22 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
         first = items[0] if items else {}
         placement = first.get("placement_plan") if isinstance(first, dict) else {}
         source_hash = str(first.get("source_hash") or "") if isinstance(first, dict) else ""
+        operator_live_go = _telegram_nextcloud_live_write_enabled()
         request = UniversalInboxNextcloudTransferRequest.from_placement_plan(
             placement if isinstance(placement, Mapping) else {},
             source_path=files[0],
             source_hash=source_hash,
             review_approved=True,
-            operator_live_go=False,
-            dry_run=True,
+            operator_live_go=operator_live_go,
+            dry_run=not operator_live_go,
             actor="telegram",
         )
-        return execute_universal_inbox_nextcloud_transfer(request).to_dict()
+        client = build_nextcloud_webdav_client_from_env() if operator_live_go else None
+        try:
+            return execute_universal_inbox_nextcloud_transfer(request, client=client).to_dict()
+        finally:
+            if client is not None:
+                client.close()
     except Exception as exc:
         return {
             "status": "blocked",
@@ -1887,6 +1899,14 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
             "dry_run": True,
             "writes_performed": False,
         }
+
+
+def _telegram_nextcloud_live_write_enabled() -> bool:
+    """Return true only when both live-write runtime gates are explicit."""
+
+    enabled = (os.getenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED") or "").strip().lower()
+    operator_go = (os.getenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO") or "").strip().lower()
+    return enabled in {"1", "true", "yes", "on"} and operator_go in {"1", "true", "yes", "on"}
 
 
 def build_recent_telegram_attachment_export_plan(

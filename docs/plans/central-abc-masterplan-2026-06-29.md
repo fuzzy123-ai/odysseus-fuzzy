@@ -119,6 +119,21 @@ Done state:
 - Memory/RaptorGraph writes remain governed by Memory Write Intent and privacy
   gates.
 
+Current evidence:
+
+- 2026-06-29: WebDAV client has an env-based runtime factory that performs no
+  network IO during construction and redacts missing secret values to config
+  keys only.
+- 2026-06-29: Telegram `/review ok` now keeps the default Dry-run path, but can
+  execute a WebDAV copy only when both runtime gates are explicit:
+  `UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED=true` and
+  `UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO=true`.
+- 2026-06-29: Successful live-gated copy returns a Telegram success message only
+  after size verification; missing gates continue to report Dry-run/operator-Go.
+- 2026-06-29 Focused tests passed:
+  `python -m pytest tests/test_nextcloud_webdav_client.py tests/test_universal_inbox_nextcloud_transfer.py tests/test_universal_inbox_extraction.py tests/test_universal_inbox_memory_write_intent.py tests/test_universal_inbox_worker.py tests/test_telegram_plugin.py -q`
+  returned `103 passed, 1 warning`.
+
 Primary allowed paths:
 
 - `src/universal_inbox*.py`
@@ -137,12 +152,12 @@ Slice queue:
 
 | Slice | Class | Owner | Goal |
 | --- | --- | --- | --- |
-| L1-0-state-check | safe_offline | Charlie | Reconcile existing Inbox/Nextcloud state, dirty files and tests. |
-| L1-1-live-write-roadmap | repo_only | Alice | Add explicit live-write slice/gates to the Nextcloud/Inbox roadmap. |
-| L1-2-webdav-upload-gate | repo_only | Bob | Ensure upload client has copy-only, no-overwrite, dry-run and redacted audit behavior. |
-| L1-3-telegram-review-loop | repo_only | Bob | Telegram response tells user when a file needs review and how to confirm. |
-| L1-4-pdf-and-doc-evidence | repo_only | Bob | Verify PDF and common document handling through Inbox policy. |
-| L1-5-memory-intent-link | repo_only | Bob | Confirm placement, extraction and memory-write intent stay linked by doc id/provenance. |
+| L1-0-state-check | safe_offline | Charlie | Done: existing Inbox/Nextcloud modules and tests reconciled; unrelated dirty files ignored. |
+| L1-1-live-write-roadmap | repo_only | Alice | Done: live-write gates and evidence are recorded in this masterplan and Nextcloud roadmap. |
+| L1-2-webdav-upload-gate | repo_only | Bob | Done: WebDAV env factory plus transfer executor keep copy-only, no-overwrite, dry-run and redacted behavior. |
+| L1-3-telegram-review-loop | repo_only | Bob | Done: `/review ok` confirms review, reports dry-run/operator gate, and reports verified live copy only when both gates are set. |
+| L1-4-pdf-and-doc-evidence | repo_only | Bob | Done: focused extraction tests cover PDF, DOCX and common text-like documents without raw persistence. |
+| L1-5-memory-intent-link | repo_only | Bob | Done: worker tests cover placement, extraction and Memory Write Intent/RaptorGraph provenance linkage without writes. |
 | L1-6-live-upload-smoke | needs_live_go | Charlie | Perform bounded Nextcloud write smoke after explicit Go. |
 
 Gate queue:
@@ -406,27 +421,27 @@ Stop or defer the active slice if:
 
 ## Recommended Execution Order
 
-1. L3-0 through L3-2: finish the local MCP smoke, runbook reconciliation and
-   safe tool-policy evidence.
-2. L3-3 and L3-5: prepare Playwright evidence and Podman read-only checks as
-   verification helpers. L3-4 can run in parallel as docs/policy work.
-3. L1-0 and L1-1: make Nextcloud Live Write an explicit gated track.
-4. L1-2 through L1-5: finish safe backend path for Inbox -> Nextcloud proposal,
-   review, confirmation and memory intent.
-5. L2-0 and L2-1 in parallel if coding-agent dirty files are intentionally in
+1. L3-0 through L3-2: done; local MCP smoke, runbook reconciliation and safe
+   tool-policy evidence are recorded.
+2. L3-4 through L3-6: done as plan; Playwright, GitHub and Podman read-only
+   evidence paths are documented. L3-3 remains a Codex-side setup gate.
+3. L1-0 through L1-5: done; safe backend path for Inbox -> Nextcloud proposal,
+   review, optional WebDAV copy gate and memory intent is implemented and
+   tested.
+4. Decide whether to run L1-6 bounded live upload smoke after runtime env is
+   configured on the server.
+5. L2-0 and L2-1 can run in parallel if coding-agent dirty files are intentionally in
    scope.
-6. Only after L1 safe path is stable: decide whether to run L1-6 live upload
-   smoke.
-7. Then choose between L2 route/policy consolidation, L5 export-plan completion
+6. Then choose between L2 route/policy consolidation, L5 export-plan completion
    or L4 graph/memory stabilization.
-8. Start L6 refactoring only after feature hotfiles are quiet.
+7. Start L6 refactoring only after feature hotfiles are quiet.
 
 ## Current Master Status
 
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | partial, gated | L3-0 through L3-2 are done offline and L3-4 through L3-6 are planned; Codex-side service setup/live smoke remains gated. |
-| L1 Nextcloud Live Write + Universal Inbox | open | Live write track is not yet explicit and upload smoke needs operator Go. |
+| L1 Nextcloud Live Write + Universal Inbox | partial, live-gated | Safe backend path is implemented and tested; bounded live upload smoke still needs operator Go plus runtime env. |
 | L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
@@ -435,7 +450,7 @@ Stop or defer the active slice if:
 
 Recommended next human decision:
 
-- Approve L3 as the next active ABC lane: finish the local/read-only MCP
-  workbench core first, then use that evidence path to verify L1 Nextcloud Live
-  Write + Universal Inbox work. Live MCP activation, remote exposure and
-  Podman mutations remain separately gated.
+- Decide whether to run L1-6 as a bounded live upload smoke on the server. This
+  requires the dedicated Nextcloud automation user, WebDAV runtime env and both
+  live-write gates. If not, continue with L2 route/policy consolidation or L5
+  export-plan completion.

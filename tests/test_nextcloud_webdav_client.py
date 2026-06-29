@@ -2,7 +2,11 @@ from pathlib import Path
 
 import httpx
 
-from src.nextcloud_webdav_client import NextcloudWebDAVClient, NextcloudWebDAVClientError
+from src.nextcloud_webdav_client import (
+    NextcloudWebDAVClient,
+    NextcloudWebDAVClientError,
+    build_nextcloud_webdav_client_from_env,
+)
 
 
 def _client(handler, *, root: str = ""):
@@ -97,3 +101,38 @@ def test_http_errors_are_redacted():
         assert "backend secret" not in str(exc)
     else:
         raise AssertionError("HTTP errors should raise")
+
+
+def test_env_factory_requires_config_without_leaking_secret_names(monkeypatch):
+    for name in (
+        "NEXTCLOUD_WEBDAV_BASE_URL",
+        "NEXTCLOUD_WEBDAV_USERNAME",
+        "NEXTCLOUD_WEBDAV_APP_PASSWORD",
+        "NEXTCLOUD_WEBDAV_ROOT",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    try:
+        build_nextcloud_webdav_client_from_env()
+    except NextcloudWebDAVClientError as exc:
+        text = str(exc)
+        assert "NEXTCLOUD_WEBDAV_BASE_URL" in text
+        assert "NEXTCLOUD_WEBDAV_APP_PASSWORD" in text
+        assert "app-password" not in text
+    else:
+        raise AssertionError("missing env should block client creation")
+
+
+def test_env_factory_creates_client_without_network_io(monkeypatch):
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_BASE_URL", "https://nextcloud.example/remote.php/dav/files/odysseus")
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_USERNAME", "odysseus")
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_APP_PASSWORD", "secret-app-password")
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_ROOT", "AI Inbox")
+
+    client = build_nextcloud_webdav_client_from_env()
+    try:
+        assert client.base_url == "https://nextcloud.example/remote.php/dav/files/odysseus"
+        assert client.username == "odysseus"
+        assert client.root == "AI Inbox"
+    finally:
+        client.close()

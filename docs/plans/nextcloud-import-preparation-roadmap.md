@@ -1,9 +1,51 @@
 # Nextcloud Import Preparation Roadmap
 
-Status: draft
+Status: safe backend path partial; live upload smoke remains operator-gated
 Owner: operator + Odysseus
 Scope: `C:\Users\nkatz\Nextcloud` local synced source
 Mode: dry-run first, review-gated execution, no delete by default
+
+## 0. Aktueller L1 Live-Write-Stand
+
+Stand: 2026-06-29
+
+Der sichere Backend-Pfad fuer Universal Inbox -> Nextcloud ist vorbereitet:
+
+- Telegram-Dateianhaenge laufen in die Universal Inbox.
+- `/review ok` bestaetigt die Review der letzten offenen Inbox-Datei.
+- Ohne Live-Gates bleibt die Nextcloud-Ablage ein Dry-run und meldet dem Nutzer,
+  dass Live-Copy auf Operator-Go wartet.
+- Mit beiden expliziten Runtime-Gates kann der Telegram-Review-Pfad eine
+  WebDAV-Copy ausfuehren:
+  - `UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED=true`
+  - `UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO=true`
+- Die WebDAV-Konfiguration kommt aus Runtime-Env:
+  - `NEXTCLOUD_WEBDAV_BASE_URL`
+  - `NEXTCLOUD_WEBDAV_USERNAME`
+  - `NEXTCLOUD_WEBDAV_APP_PASSWORD`
+  - optional `NEXTCLOUD_WEBDAV_ROOT`
+- Die Env-Factory baut nur den Client und fuehrt dabei keine Netzwerkaktion aus.
+- Copy bleibt review-gated, operator-gated, copy-only, no-delete,
+  no-overwrite und sidecar-redacted.
+- Erfolgreiche Live-Copy meldet Telegram erst nach Size-Verifikation:
+  `Nextcloud-Ablage wurde kopiert und verifiziert`.
+
+Fokussierte Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_nextcloud_webdav_client.py tests\test_universal_inbox_nextcloud_transfer.py tests\test_universal_inbox_extraction.py tests\test_universal_inbox_memory_write_intent.py tests\test_universal_inbox_worker.py tests\test_telegram_plugin.py -q
+```
+
+Ergebnis am 2026-06-29: `103 passed, 1 warning`.
+
+Offen:
+
+- Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
+- Live-Smoke braucht konkrete Runtime-Env auf dem Server, dedizierten
+  Nextcloud-User und explizites Operator-Go.
+- Delete, Move, Rename, Overwrite, Tag-Write, Sidecar-Write ausserhalb des
+  Transfer-Sidecars und Memory/RaptorGraph-Live-Writes bleiben verboten oder
+  separat gegated.
 
 ## 1. Ausgangslage
 

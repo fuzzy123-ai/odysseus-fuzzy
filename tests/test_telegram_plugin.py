@@ -1783,6 +1783,92 @@ def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, 
     assert "AI Inbox/Needs Review" not in persisted_text
 
 
+def test_review_ok_executes_nextcloud_copy_only_with_explicit_live_gates(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED", "true")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO", "true")
+    replies = []
+
+    class FakeNextcloudClient:
+        def __init__(self):
+            self.files = {}
+            self.sidecars = {}
+            self.closed = False
+
+        def stat(self, relative_path):
+            if relative_path not in self.files:
+                return None
+            return {"size_bytes": len(self.files[relative_path]), "etag": "fake-etag"}
+
+        def put_file(self, source_path, relative_path):
+            payload = source_path.read_bytes()
+            self.files[relative_path] = payload
+            return {"size_bytes": len(payload), "etag": "fake-upload"}
+
+        def put_text(self, relative_path, text):
+            self.sidecars[relative_path] = text
+            return {"size_bytes": len(text.encode("utf-8")), "etag": "fake-sidecar"}
+
+        def close(self):
+            self.closed = True
+
+    fake_client = FakeNextcloudClient()
+    monkeypatch.setattr(
+        "src.nextcloud_webdav_client.build_nextcloud_webdav_client_from_env",
+        lambda: fake_client,
+    )
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 40,
+            "message": {
+                "message_id": 44,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "partial-document-file-id",
+                    "file_unique_id": "partial-document-unique",
+                    "file_name": "scan.pdf",
+                    "mime_type": "application/pdf",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"%PDF-1.4 no text",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+    assert first["processed"] == 1
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 41,
+            "message": {
+                "message_id": 45,
+                "chat": {"id": "document-chat-999"},
+                "text": "/review ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["control_commands"] == 1
+    assert any("Nextcloud-Ablage wurde kopiert und verifiziert" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    transfer = next(item for item in history if item.get("kind") == "universal_inbox_nextcloud_transfer")
+    assert transfer["status"] == "completed"
+    assert transfer["dry_run"] is False
+    assert transfer["writes_performed"] is True
+    assert transfer["verified"] is True
+    assert fake_client.files
+    assert fake_client.sidecars
+    assert fake_client.closed is True
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "partial-document-file-id" not in persisted_text
+    assert "scan.pdf" not in persisted_text
+
+
 def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
