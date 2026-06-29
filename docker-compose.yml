@@ -20,6 +20,9 @@ services:
       # land under /app/.local for the odysseus user. Persist them so a
       # container recreate does not silently remove installed serve engines.
       - ${APP_DATA_DIR:-./data}/local:/app/.local:z
+      # Optional Universal Inbox source mount. Keep this read-only; live write
+      # actions stay behind separate operator gates.
+      - ${UNIVERSAL_INBOX_HOST_PATH:-./data/universal-inbox}:${UNIVERSAL_INBOX_PATH:-/app/universal-inbox}:ro,z
     extra_hosts:
       # Lets the container reach local services on the Docker host, including
       # Ollama at http://host.docker.internal:11434.
@@ -73,6 +76,7 @@ services:
       - TELEGRAM_VOICE_DOWNLOAD_ENABLED=${TELEGRAM_VOICE_DOWNLOAD_ENABLED:-false}
       - TELEGRAM_VOICE_STT_ENABLED=${TELEGRAM_VOICE_STT_ENABLED:-false}
       - TELEGRAM_VOICE_MAX_BYTES=${TELEGRAM_VOICE_MAX_BYTES:-10000000}
+      - UNIVERSAL_INBOX_PATH=${UNIVERSAL_INBOX_PATH:-/app/universal-inbox}
       - ODYSSEUS_GIT_COMMIT=${ODYSSEUS_GIT_COMMIT:-}
       - ODYSSEUS_GIT_SHORT_COMMIT=${ODYSSEUS_GIT_SHORT_COMMIT:-}
       - ODYSSEUS_GIT_BRANCH=${ODYSSEUS_GIT_BRANCH:-}

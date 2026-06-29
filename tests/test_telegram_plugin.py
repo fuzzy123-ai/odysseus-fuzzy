@@ -756,6 +756,55 @@ def test_telegram_control_command_detects_dsgvo_aliases():
     assert _telegram_control_command({"kind": "text", "text": "/datenschutz maybe"}) == "dsgvo_help"
 
 
+def test_telegram_control_command_detects_universal_inbox_status():
+    assert _telegram_control_command({"kind": "text", "text": "/inbox"}) == "universal_inbox_status"
+    assert _telegram_control_command({"kind": "text", "text": "/universal_inbox"}) == "universal_inbox_status"
+    assert _telegram_control_command({"kind": "text", "text": "/universalinbox status"}) == "universal_inbox_status"
+
+
+def test_polling_cycle_universal_inbox_command_replies_without_agent_turn(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    (inbox / "private-file-name.txt").write_text("hello", encoding="utf-8")
+    monkeypatch.setenv("UNIVERSAL_INBOX_PATH", str(inbox))
+    replies = []
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 84,
+            "message": {
+                "message_id": 93,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/inbox",
+            },
+        }],
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["control_commands"] == 1
+    assert result["agent_turns"] == 0
+    assert result["replies"] == 1
+    assert turns == []
+    assert replies[0][0] == "123"
+    assert replies[0][2] == 93
+    assert "Universal Inbox" in replies[0][1]
+    assert "private-file-name" not in replies[0][1]
+    assert str(inbox) not in replies[0][1]
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(
+        item.get("kind") == "control_command"
+        and item.get("status") in {"universal_inbox_go", "universal_inbox_partial"}
+        for item in history
+    )
+
+
 def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")

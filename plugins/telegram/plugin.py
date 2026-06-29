@@ -31,6 +31,10 @@ from src.telegram_voice_pipeline import (
     plan_voice_download,
     run_fakeable_stt,
 )
+from src.universal_inbox_readiness import (
+    build_universal_inbox_readiness,
+    format_universal_inbox_readiness_for_telegram,
+)
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from src.user_notification_contract import (
@@ -815,6 +819,8 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
     command = first.split("@", 1)[0]
     if command == "/new":
         return "new_chat"
+    if command in {"/inbox", "/universal_inbox", "/universalinbox"}:
+        return "universal_inbox_status"
     if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
         if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
             return "dsgvo_enable"
@@ -890,6 +896,25 @@ def _handle_telegram_control_command(
             "reply": reply_result,
             "dsgvo_mode": bool((result or {}).get("after") if result is not None else _dsgvo_mode_active()),
             "pin_status": pin_result.get("status"),
+        }
+    if command == "universal_inbox_status":
+        snapshot = build_universal_inbox_readiness()
+        reply_text = format_universal_inbox_readiness_for_telegram(snapshot)
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": f"universal_inbox_{snapshot.get('status') or 'blocked'}",
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
+            "universal_inbox": snapshot,
         }
     if command != "new_chat":
         return None
@@ -1775,7 +1800,7 @@ def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, An
             "dsgvo_mode": dsgvo_mode,
             "local_only_required": runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}),
             "telegram_control_enabled": True,
-            "telegram_commands": ["/dsgvo", "/privacy", "/gdpr"],
+            "telegram_commands": ["/dsgvo", "/privacy", "/gdpr", "/inbox"],
             "settings_values_visible": False,
             "pinned_status_enabled": _privacy_pin_enabled(),
             "active_pinned_status_count": active_privacy_pins,
