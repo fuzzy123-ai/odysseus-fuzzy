@@ -197,6 +197,10 @@ async def send_to_session(content: str, session_id: Optional[str] = None, owner:
             sess.endpoint_url, sess.model, context,
             headers=sess.headers,
             timeout=AI_CHAT_TIMEOUT,
+            owner=owner,
+            surface="agent_tool",
+            session_id=target_sid,
+            prompt_type="message_session_tool",
         )
 
         # Save both messages to session

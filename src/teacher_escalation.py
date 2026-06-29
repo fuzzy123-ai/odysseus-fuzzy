@@ -343,6 +343,9 @@ async def _call_teacher(teacher_model_spec: str, prompt: str,
             ],
             headers=headers,
             timeout=120,
+            owner=owner,
+            surface="teacher",
+            prompt_type="teacher_escalation",
         )
     except Exception as e:
         logger.warning(f"teacher call failed: {e}")

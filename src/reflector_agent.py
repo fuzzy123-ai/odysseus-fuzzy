@@ -58,6 +58,8 @@ async def run_reflector_assessment(
             temperature=0.0,
             max_tokens=700,
             timeout=90,
+            owner=owner,
+            surface="reflector",
             prompt_type="orchestrator_reflector",
         )
     except Exception as exc:

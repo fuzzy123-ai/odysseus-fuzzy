@@ -14,7 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 from urllib.parse import urlparse
 
 from src.constants import DATA_DIR
@@ -117,6 +117,75 @@ def record_ai_activity(**kwargs: Any) -> dict[str, Any]:
     return append_ai_activity(build_ai_activity_record(**kwargs))
 
 
+def read_ai_activity(
+    *,
+    day: str | None = None,
+    limit: int = 100,
+    owner: str | None = None,
+    surface: str | None = None,
+    status: str | None = None,
+) -> dict[str, Any]:
+    """Read recent redacted activity records for diagnostics.
+
+    The reader returns only records already accepted by the ledger safety
+    checks. Filters use the same label sanitizer as writes, so diagnostics
+    callers cannot use this endpoint to probe host paths or secrets.
+    """
+
+    capped_limit = max(1, min(int(limit or 100), 1000))
+    filters = {
+        "owner": _safe_label(owner, field="owner_filter") if owner else "",
+        "surface": _safe_label(surface, field="surface_filter") if surface else "",
+        "status": _safe_label(status, field="status_filter") if status else "",
+    }
+    path = ledger_path(day)
+    if not path.exists():
+        return {
+            "status": "success",
+            "day": path.stem,
+            "limit": capped_limit,
+            "filters": {key: value for key, value in filters.items() if value},
+            "count": 0,
+            "records": [],
+            "summary": _summarize_records([]),
+        }
+
+    matches: list[dict[str, Any]] = []
+    skipped = 0
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+                _reject_forbidden_payload(record)
+            except Exception:
+                skipped += 1
+                continue
+            if not isinstance(record, dict):
+                skipped += 1
+                continue
+            if any(value and str(record.get(key, "")) != value for key, value in filters.items()):
+                continue
+            matches.append(_diagnostic_record(record))
+
+    recent = matches[-capped_limit:]
+    recent.reverse()
+    summary = _summarize_records(matches)
+    summary["skipped"] = skipped
+    return {
+        "status": "success",
+        "day": path.stem,
+        "limit": capped_limit,
+        "filters": {key: value for key, value in filters.items() if value},
+        "count": len(recent),
+        "total_matches": len(matches),
+        "records": recent,
+        "summary": summary,
+    }
+
+
 def ledger_path(day: str | None = None) -> Path:
     day_text = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day_text):
@@ -213,3 +282,63 @@ def _reject_forbidden_payload(payload: Mapping[str, Any]) -> None:
     )
     if any(marker in lowered for marker in forbidden):
         raise AIActivityLedgerError("activity payload contains forbidden content marker")
+
+
+_DIAGNOSTIC_FIELDS = (
+    "ts",
+    "owner",
+    "surface",
+    "correlation_id",
+    "session_id",
+    "task_id",
+    "doc_id",
+    "prompt_type",
+    "provider",
+    "base_host",
+    "model",
+    "input_chars",
+    "output_chars",
+    "input_tokens",
+    "output_tokens",
+    "duration_ms",
+    "status",
+    "error_class",
+    "cache_hit",
+    "side_effects",
+)
+
+
+def _diagnostic_record(record: Mapping[str, Any]) -> dict[str, Any]:
+    safe = {field: record.get(field) for field in _DIAGNOSTIC_FIELDS if field in record}
+    _reject_forbidden_payload(safe)
+    return safe
+
+
+def _summarize_records(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    by_surface: dict[str, int] = {}
+    by_status: dict[str, int] = {}
+    error_classes: dict[str, int] = {}
+    total_duration = 0
+    duration_count = 0
+    for record in records:
+        surface = str(record.get("surface") or "unknown")
+        status = str(record.get("status") or "unknown")
+        by_surface[surface] = by_surface.get(surface, 0) + 1
+        by_status[status] = by_status.get(status, 0) + 1
+        error_class = str(record.get("error_class") or "")
+        if error_class:
+            error_classes[error_class] = error_classes.get(error_class, 0) + 1
+        try:
+            duration = int(record.get("duration_ms") or 0)
+        except (TypeError, ValueError):
+            duration = 0
+        if duration > 0:
+            total_duration += duration
+            duration_count += 1
+    return {
+        "total": sum(by_status.values()),
+        "by_surface": by_surface,
+        "by_status": by_status,
+        "error_classes": error_classes,
+        "avg_duration_ms": int(total_duration / duration_count) if duration_count else None,
+    }

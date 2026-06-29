@@ -1817,6 +1817,7 @@ def _build_actions_snapshot(tool_events: list, limit: int = 8000) -> str:
 async def _run_verifier_subagent(
     instruction: str, actions_snapshot: str,
     *, endpoint_url: str, model: str, headers: dict,
+    owner: Optional[str] = None, session_id: Optional[str] = None,
 ) -> list:
     """Fresh-context completion verifier. A second model instance with NO
     shared history reads the user's request + a record of what the agent did
@@ -1849,6 +1850,10 @@ async def _run_verifier_subagent(
             url=endpoint_url, model=model,
             messages=[{"role": "user", "content": prompt}],
             headers=headers, temperature=0.0, max_tokens=600, timeout=60,
+            owner=owner,
+            surface="agent",
+            session_id=session_id,
+            prompt_type="agent_verifier",
         )
     except Exception as e:
         logger.warning(f"[agent] verifier subagent failed: {e}")
@@ -3007,6 +3012,7 @@ async def stream_agent_loop(
                     _verifier_instruction,
                     _build_actions_snapshot(tool_events),
                     endpoint_url=endpoint_url, model=model, headers=headers,
+                    owner=owner, session_id=session_id,
                 )
                 if _vfail:
                     _verifier_rounds += 1

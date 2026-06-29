@@ -579,6 +579,10 @@ def setup_history_routes(session_manager) -> APIRouter:
                 ],
                 temperature=0.2, max_tokens=1024,
                 headers=compact_headers, timeout=30,
+                owner=getattr(session, "owner", None),
+                surface="history",
+                session_id=session_id,
+                prompt_type="history_manual_compact",
             )
 
             # Replace session history: summary as system message + recent messages

@@ -155,6 +155,9 @@ async def action_consolidate_memory(owner: str, **kwargs) -> Tuple[str, bool]:
                     max_tokens=4096,
                     headers=headers,
                     timeout=120,
+                    owner=owner,
+                    surface="memory",
+                    prompt_type="memory_consolidate",
                 )
                 from src.text_helpers import strip_think
 
@@ -704,6 +707,9 @@ async def action_classify_events(owner: str, **kwargs) -> Tuple[str, bool]:
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.1, max_tokens=16384,
                         headers=llm_headers, timeout=180,
+                        owner=owner,
+                        surface="calendar",
+                        prompt_type="calendar_classify_events",
                     )
                     from src.text_helpers import strip_think as _st
                     raw = _st(raw or "", prose=False, prompt_echo=False)
@@ -954,6 +960,9 @@ async def action_learn_sender_signatures(owner: str, **kwargs) -> Tuple[str, boo
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.0, max_tokens=600,
                     headers=headers, timeout=60,
+                    owner=owner,
+                    surface="email",
+                    prompt_type="email_signature_extract",
                 )
                 from src.text_helpers import strip_think as _st
                 sig = _st(raw or "", prose=False, prompt_echo=False).strip()
@@ -1681,6 +1690,9 @@ async def action_check_email_urgency(owner: str, **kwargs) -> Tuple[str, bool]:
                         candidates,
                         [{"role": "user", "content": prompt}],
                         temperature=0.1, max_tokens=220, timeout=30,
+                        owner=owner,
+                        surface="email",
+                        prompt_type="email_urgency_classify",
                     )
                     # Tolerant JSON-parse: strip code fences if present.
                     txt = (raw or "").strip()

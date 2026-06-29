@@ -183,8 +183,18 @@ async def run_auto_sort(owner: str, skip_llm: bool = False, delete_throwaway: bo
         try:
             # 16384 (was 4096): large folder JSON + reasoning-model thinking
             # overflowed 4096 and truncated the JSON, so it never parsed.
-            raw = await llm_call_async(url, model, [{"role": "user", "content": prompt}],
-                                       temperature=0.3, max_tokens=16384, headers=headers, timeout=120)
+            raw = await llm_call_async(
+                url,
+                model,
+                [{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=16384,
+                headers=headers,
+                timeout=120,
+                owner=owner,
+                surface="session",
+                prompt_type="session_auto_sort",
+            )
         except Exception as e:
             logger.warning(f"Auto-sort LLM call failed: {e}")
             return f"Cleaned {deleted_empty + deleted_throwaway} sessions. Folder sort skipped (model unreachable)."

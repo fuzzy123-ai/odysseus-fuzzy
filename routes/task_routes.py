@@ -327,6 +327,9 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 max_tokens=20,
                 headers=headers,
                 timeout=15,
+                owner=owner,
+                surface="task",
+                prompt_type="task_name_generate",
             )
             title = result.strip().strip('"\'').strip()
             return title[:60] if title else prompt[:50].strip()
@@ -1123,6 +1126,9 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 messages=[{"role": "system", "content": sys},
                           {"role": "user", "content": desc[:1000]}],
                 temperature=0.2, max_tokens=400, headers=headers, timeout=45,
+                owner=user,
+                surface="task",
+                prompt_type="task_parse_draft",
             )
             text = _strip_think(raw or "", prose=False, prompt_echo=False).strip()
             if text.startswith("```"):

@@ -390,6 +390,8 @@ class DeepResearcher:
             max_tokens=max_tokens,
             headers=self.llm_headers,
             timeout=timeout,
+            surface="research",
+            prompt_type="deep_research_llm",
         )
         return strip_thinking(response)
 

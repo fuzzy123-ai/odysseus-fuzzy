@@ -223,6 +223,9 @@ async def dispatch_reminder(
                         {"role": "user", "content": f"Title: {title}\n\n{note_body}".strip()},
                     ],
                     temperature=0.7, max_tokens=200, headers=headers, timeout=30,
+                    owner=owner,
+                    surface="notes",
+                    prompt_type="note_reminder_synthesis",
                 )
                 from src.text_helpers import strip_think as _strip_think
                 # prose=True strips untagged "The user wants me to…" chain-of-thought.

@@ -62,6 +62,9 @@ async def do_delegate(
             temperature=0.2,
             max_tokens=900,
             timeout=90,
+            owner=owner,
+            surface="delegate",
+            session_id=session_id,
             prompt_type="delegate_worker",
         )
     except Exception as exc:

@@ -380,6 +380,10 @@ def setup_webhook_routes(
         reply = await llm_call_async(
             sess.endpoint_url, sess.model, messages,
             headers=sess.headers, timeout=120,
+            owner=token_owner,
+            surface="webhook",
+            session_id=session_id,
+            prompt_type="webhook_chat_completion",
         )
         sess.add_message(ChatMessage("assistant", reply))
         session_manager.save_sessions()

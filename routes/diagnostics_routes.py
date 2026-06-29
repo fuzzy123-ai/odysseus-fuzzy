@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException, Form, Request
+from fastapi import APIRouter, HTTPException, Form, Query, Request
 
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
@@ -52,6 +52,38 @@ def setup_diagnostics_routes(
         except Exception as e:
             logger.error(f"Diagnostics logs retrieval error: {e}")
             raise HTTPException(500, f"Failed to retrieve logs: {str(e)}")
+
+    @router.get("/api/diagnostics/ai-activity")
+    async def get_ai_activity(
+        request: Request,
+        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        limit: int = Query(100, ge=1, le=1000),
+        owner: str | None = None,
+        surface: str | None = None,
+        status: str | None = None,
+    ) -> Dict[str, Any]:
+        """Return redacted AI activity records for admin diagnostics.
+
+        The underlying ledger stores metadata and hashes only. This route does
+        not read chat history, prompts, documents, e-mail bodies, image data, or
+        provider headers.
+        """
+        require_admin(request)
+        try:
+            from src.ai_activity_ledger import read_ai_activity
+
+            return read_ai_activity(
+                day=day,
+                limit=limit,
+                owner=owner,
+                surface=surface,
+                status=status,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"AI activity diagnostics retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve AI activity diagnostics")
 
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:

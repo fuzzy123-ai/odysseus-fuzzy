@@ -1172,6 +1172,10 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 max_tokens=1024,
                 headers=headers,
                 timeout=60,
+                owner=owner,
+                surface="session",
+                session_id=session_id,
+                prompt_type="session_manual_compact",
             )
         except Exception as e:
             logger.error("Manual compaction failed: %s", e)
