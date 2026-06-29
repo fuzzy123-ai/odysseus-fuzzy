@@ -1679,6 +1679,13 @@ def _build_native_memory_writer(memory_manager: Any, memory_vector: Any = None, 
     return _writer
 
 
+def _build_raptorgraph_event_writer(data_dir: str | Path) -> Callable[[Mapping[str, Any]], Any]:
+    from src.universal_inbox_raptorgraph_store import build_universal_inbox_raptorgraph_writer
+
+    root = Path(data_dir) / "universal_inbox_raptorgraph"
+    return build_universal_inbox_raptorgraph_writer(root)
+
+
 def _execute_telegram_memory_review_write(
     *,
     data_dir: str | Path,
@@ -1697,12 +1704,14 @@ def _execute_telegram_memory_review_write(
     if not intent:
         return {"status": "blocked", "reason": "memory_write_intent_missing"}
     writer = _build_native_memory_writer(memory_manager, memory_vector, owner=memory_owner or "telegram")
+    raptorgraph_writer = _build_raptorgraph_event_writer(data_dir)
     try:
         report = execute_universal_inbox_memory_write_intent(
             intent,
             review_confirmed=True,
             dry_run=dry_run,
             memory_writer=writer,
+            raptorgraph_writer=raptorgraph_writer,
         ).to_dict()
     except Exception as exc:
         return {

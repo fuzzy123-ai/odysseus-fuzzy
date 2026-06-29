@@ -1535,6 +1535,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
         item.get("kind") == "universal_inbox_memory_write"
         and item.get("status") == "written"
         and item.get("memory_records_written") == 1
+        and item.get("raptorgraph_events_written") == 1
         and item.get("writes_performed") is True
         for item in history
     )
@@ -1547,6 +1548,14 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     assert saved["metadata"]["raw_content_stored"] is False
     assert "Universal Inbox memory:" in saved["text"]
     assert memory_vector.added == [("mem-1", saved["text"])]
+    graph_log = tmp_path / "universal_inbox_raptorgraph" / "events.jsonl"
+    assert graph_log.exists()
+    graph_rows = [json.loads(line) for line in graph_log.read_text(encoding="utf-8").splitlines()]
+    assert len(graph_rows) == 1
+    assert graph_rows[0]["event"] == "universal_inbox_memory_write"
+    assert graph_rows[0]["memory_record_ids"]
+    assert graph_rows[0]["raw_content_visible"] is False
+    assert graph_rows[0]["raw_content_stored"] is False
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "memory-document-file-id" not in persisted_text
     assert "reference.txt" not in persisted_text
