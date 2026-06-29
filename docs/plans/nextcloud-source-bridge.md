@@ -10,6 +10,12 @@ Status: **aktivierbar / Infrastruktur vorhanden**.
 
 Die Nextcloud-Instanz laeuft auf dem Homeserver unter Podman. Dieser Plan ist damit nicht mehr rein pausiert, sondern darf in aktive Slices uebersetzt werden. Die Umsetzung bleibt trotzdem nicht Teil eines unkontrollierten 1.0-Finalisierungsscope; sie startet als abgegrenzter Source-Provider- und Inbox-Track.
 
+Implementierungsstand:
+
+- Source-Provider-, Tag-Governance-, Intake-Ledger-, Review-Queue-, Transfer-Readiness- und Control-Adapter-Bausteine existieren als offline getestete Backend-Module.
+- Routing und Safe Placement existieren als Dry-Run-Modell: Odysseus kann Zielpfad, Confidence, Review-Gruende, Copy-Plan, Sidecar-Plan und erlaubte Tag-Projektion berechnen, fuehrt aber keine Nextcloud-Schreibaktion aus.
+- Live-Ausfuehrung bleibt separat gegated: Podman/Pods ist die Betriebsannahme; Delete, Move, Overwrite und Admin-Operationen bleiben fuer den MVP-Control-Pfad blockiert.
+
 ## Zielbild
 
 Nextcloud wird der private Sync- und Archiv-Layer fuer Odysseus:
