@@ -3946,30 +3946,6 @@ button {
   display: none;
 }
 
-.document-context-tray {
-  position: fixed;
-  left: 50%;
-  bottom: 132px;
-  z-index: 86;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-width: min(620px, calc(100vw - 48px));
-  padding: 5px 6px;
-  border: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--bg) 74%, transparent);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
-  transform: translateX(-50%);
-}
-
-.document-context-tray:empty,
-.document-context-tray[hidden] {
-  display: none;
-}
-
 .context-nodge {
   --context-color: var(--cyan);
   display: inline-flex;

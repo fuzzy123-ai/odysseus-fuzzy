@@ -1314,30 +1314,15 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   function renderOpenDocumentContextSuggestions() {
     if (!contextNodges) return;
     contextNodges.querySelectorAll('[data-context-suggestion="true"]').forEach(item => item.remove());
-    const tray = documentContextTray();
-    tray.querySelectorAll('[data-context-suggestion="true"]').forEach(item => item.remove());
+    document.getElementById('document-context-tray')?.remove();
     const pinnedPaths = new Set(serializeContextNodges()
       .filter(context => context.kind === 'Document')
       .map(context => context.path));
     openDocumentContexts().forEach(context => {
       if (pinnedPaths.has(context.path)) return;
       contextNodges.appendChild(documentSuggestionNodge(context));
-      tray.appendChild(documentSuggestionNodge(context));
     });
     contextNodges.hidden = !contextNodges.children.length;
-    tray.hidden = !tray.children.length;
-  }
-
-  function documentContextTray() {
-    let tray = document.getElementById('document-context-tray');
-    if (!tray) {
-      tray = document.createElement('div');
-      tray.id = 'document-context-tray';
-      tray.className = 'document-context-tray';
-      tray.setAttribute('aria-label', 'Open document context suggestions');
-      stage.appendChild(tray);
-    }
-    return tray;
   }
 
   function documentSuggestionNodge(context) {
