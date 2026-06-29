@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from src.nextcloud_source_provider import assess_nextcloud_source_provider
 from src.nextcloud_transfer_readiness import ALLOWED_RUNTIME_BACKENDS
+from src.odysseus_updater_backup_gate import build_odysseus_updater_backup_gate
 
 
 READ_ONLY_ACTIONS = ("list", "stat", "read", "download")
@@ -30,6 +31,8 @@ class NextcloudControlPlan:
     read_only: bool
     review_gated: bool
     live_execution_allowed: bool
+    backup_gate_status: str
+    backup_gate_decision: str
     reasons: tuple[str, ...]
     next_actions: tuple[str, ...]
     errors: tuple[str, ...]
@@ -45,6 +48,8 @@ class NextcloudControlPlan:
             "read_only": self.read_only,
             "review_gated": self.review_gated,
             "live_execution_allowed": self.live_execution_allowed,
+            "backup_gate_status": self.backup_gate_status,
+            "backup_gate_decision": self.backup_gate_decision,
             "reasons": self.reasons,
             "next_actions": self.next_actions,
             "errors": self.errors,
@@ -67,6 +72,7 @@ def plan_nextcloud_control_action(config: Mapping[str, Any]) -> NextcloudControl
     runtime_backend = _normalize_runtime_backend(config.get("runtime_backend"), errors)
     operator_live_go = bool(config.get("operator_live_go"))
     review_approved = bool(config.get("review_approved"))
+    backup_gate = _backup_gate(config, errors)
 
     read_only = action in READ_ONLY_ACTIONS
     review_gated = action in REVIEW_GATED_ACTIONS
@@ -88,8 +94,14 @@ def plan_nextcloud_control_action(config: Mapping[str, Any]) -> NextcloudControl
         reasons.append("read_only_action")
     if review_gated:
         reasons.append("review_gated_action")
+    if backup_gate.status == "ready":
+        reasons.append("backup_gate_ready")
+    else:
+        reasons.append(f"backup_gate_{backup_gate.status}")
     if forbidden:
         errors.append("action_forbidden")
+    if operator_live_go and backup_gate.deployment_decision != "go":
+        errors.append("backup_gate_not_green")
     if review_gated and not review_approved:
         reasons.append("review_approval_missing")
         next_actions.append("Collect explicit review approval before planning any Nextcloud write.")
@@ -100,6 +112,7 @@ def plan_nextcloud_control_action(config: Mapping[str, Any]) -> NextcloudControl
         not errors
         and runtime_backend
         and source.status in {"ready", "partial"}
+        and backup_gate.deployment_decision == "go"
         and (read_only or (review_gated and review_approved))
         and operator_live_go
     )
@@ -121,6 +134,7 @@ def plan_nextcloud_control_action(config: Mapping[str, Any]) -> NextcloudControl
             review_gated=review_gated,
             review_approved=review_approved,
             operator_live_go=operator_live_go,
+            backup_gate_status=backup_gate.status,
         )
     )
 
@@ -133,6 +147,8 @@ def plan_nextcloud_control_action(config: Mapping[str, Any]) -> NextcloudControl
         read_only=read_only,
         review_gated=review_gated,
         live_execution_allowed=live_execution_allowed,
+        backup_gate_status=backup_gate.status,
+        backup_gate_decision=backup_gate.deployment_decision,
         reasons=tuple(dict.fromkeys(reasons)),
         next_actions=tuple(dict.fromkeys(next_actions)),
         errors=tuple(dict.fromkeys(errors)),
@@ -193,12 +209,17 @@ def _next_actions(
     review_gated: bool,
     review_approved: bool,
     operator_live_go: bool,
+    backup_gate_status: str,
 ) -> tuple[str, ...]:
     actions: list[str] = []
     if not action:
         actions.append("Choose a supported Nextcloud control action.")
     if not runtime_backend:
         actions.append("Use the Podman/pod runtime path; Docker-based control is out of scope.")
+    if backup_gate_status != "ready":
+        actions.append(
+            "Provide green pre-update snapshot, repository check, and restore-smoke evidence before live Nextcloud execution."
+        )
     if review_gated and not review_approved:
         actions.append("Approve the concrete copy/sidecar/tag projection plan before live execution.")
     if status == "blocked":
@@ -210,3 +231,28 @@ def _next_actions(
     else:
         actions.append("Proceed only with the smallest review-approved live batch and redacted evidence.")
     return tuple(actions)
+
+
+def _backup_gate(config: Mapping[str, Any], errors: list[str]):
+    gate = config.get("backup_gate")
+    evaluated_at = config.get("evaluated_at") or "2026-06-29T00:00:00Z"
+    if gate is None:
+        return build_odysseus_updater_backup_gate(
+            risk_level="high",
+            evaluated_at=evaluated_at,
+            evidence_inputs=(),
+        )
+    if hasattr(gate, "deployment_decision") and hasattr(gate, "status"):
+        return gate
+    if not isinstance(gate, Mapping):
+        errors.append("backup_gate_invalid")
+        return build_odysseus_updater_backup_gate(
+            risk_level="high",
+            evaluated_at=evaluated_at,
+            evidence_inputs=(),
+        )
+    return build_odysseus_updater_backup_gate(
+        risk_level=gate.get("risk_level", "high"),
+        evaluated_at=gate.get("evaluated_at") or evaluated_at,
+        evidence_inputs=gate.get("evidence") or gate.get("evidence_inputs") or (),
+    )
