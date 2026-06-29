@@ -8,12 +8,14 @@ import hashlib
 import threading
 import re
 import os
+import contextvars
 from fastapi import HTTPException
 from typing import Optional, Dict, List, Tuple
 from src.model_context import get_context_length, DEFAULT_CONTEXT
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+_ai_activity_cache_hit = contextvars.ContextVar("ai_activity_cache_hit", default=False)
 
 class LLMConfig:
     """Configuration constants for LLM operations."""
@@ -243,6 +245,104 @@ def _clear_host_dead(url: str) -> None:
         _host_fails.pop(key, None)
 
 
+def _record_ai_activity_safe(
+    *,
+    owner: Optional[str] = None,
+    surface: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+    doc_id: Optional[str] = None,
+    prompt_type: Optional[str] = None,
+    provider: Optional[str] = None,
+    endpoint_url: Optional[str] = None,
+    model: Optional[str] = None,
+    messages: Optional[List[Dict]] = None,
+    output_chars: Optional[int] = None,
+    input_tokens: Optional[int] = None,
+    output_tokens: Optional[int] = None,
+    duration_ms: Optional[int] = None,
+    status: str = "unknown",
+    error_class: Optional[str] = None,
+    cache_hit: bool = False,
+    side_effects: tuple[str, ...] = (),
+) -> None:
+    try:
+        from src.ai_activity_ledger import record_ai_activity
+
+        record_ai_activity(
+            owner=owner,
+            surface=surface,
+            correlation_id=correlation_id,
+            session_id=session_id,
+            task_id=task_id,
+            doc_id=doc_id,
+            prompt_type=prompt_type,
+            provider=provider,
+            endpoint_url=endpoint_url,
+            model=model,
+            messages=messages,
+            output_chars=output_chars,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            duration_ms=duration_ms,
+            status=status,
+            error_class=error_class,
+            cache_hit=cache_hit,
+            side_effects=side_effects,
+        )
+    except Exception:
+        logger.debug("[ai-activity-ledger] failed to append safe record", exc_info=True)
+
+
+def _sse_activity_delta_chars(chunk: str) -> int:
+    total = 0
+    try:
+        for line in str(chunk).splitlines():
+            if not line.startswith("data:"):
+                continue
+            raw = line[5:].strip()
+            if not raw or raw == "[DONE]":
+                continue
+            data = json.loads(raw)
+            if isinstance(data, dict) and isinstance(data.get("delta"), str):
+                total += len(data["delta"])
+    except Exception:
+        return total
+    return total
+
+
+def _sse_activity_usage(chunk: str) -> tuple[int | None, int | None]:
+    try:
+        for line in str(chunk).splitlines():
+            if not line.startswith("data:"):
+                continue
+            raw = line[5:].strip()
+            if not raw or raw == "[DONE]":
+                continue
+            data = json.loads(raw)
+            if isinstance(data, dict) and data.get("type") == "usage" and isinstance(data.get("data"), dict):
+                usage = data["data"]
+                return usage.get("input_tokens"), usage.get("output_tokens")
+    except Exception:
+        return None, None
+    return None, None
+
+
+def _sse_activity_error_class(chunk: str) -> str | None:
+    if not str(chunk).startswith("event: error"):
+        return None
+    try:
+        for line in str(chunk).splitlines():
+            if line.startswith("data:"):
+                data = json.loads(line[5:].strip())
+                status = data.get("status") if isinstance(data, dict) else None
+                return f"sse_error_{status}" if status else "sse_error"
+    except Exception:
+        return "sse_error"
+    return "sse_error"
+
+
 # Shared async HTTP client. Reusing one client keeps connections warm:
 # repeat calls to api.anthropic.com / api.openai.com / openrouter skip the
 # 100-500ms TCP+TLS handshake. Lazy init so we bind to the running event loop.
@@ -261,7 +361,9 @@ def _get_http_client() -> httpx.AsyncClient:
 
 def _get_cached_response(cache_key: str) -> Optional[str]:
     """Get cached response if it exists."""
-    return _response_cache.get(cache_key)
+    response = _response_cache.get(cache_key)
+    _ai_activity_cache_hit.set(response is not None)
+    return response
 
 def _set_cached_response(cache_key: str, response: str) -> None:
     """Store response in cache."""
@@ -1435,7 +1537,7 @@ def normalize_model_id(
             return a
     return None
 
-def llm_call(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
              max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None, 
              timeout: int = LLMConfig.DEFAULT_TIMEOUT, prompt_type: Optional[str] = None) -> str:
     """Synchronous LLM call with optional prompt type enhancement."""
@@ -1529,6 +1631,70 @@ def llm_call(url: str, model: str, messages: List[Dict], temperature: float = LL
         raise HTTPException(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
 
 
+def llm_call(
+    url: str,
+    model: str,
+    messages: List[Dict],
+    temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+    max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS,
+    headers: Optional[Dict] = None,
+    timeout: int = LLMConfig.DEFAULT_TIMEOUT,
+    prompt_type: Optional[str] = None,
+    *,
+    owner: Optional[str] = None,
+    surface: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+    doc_id: Optional[str] = None,
+) -> str:
+    """Synchronous LLM call with redacted AI-activity audit metadata."""
+
+    token = _ai_activity_cache_hit.set(False)
+    start = time.time()
+    status = "success"
+    error_class = None
+    response = ""
+    try:
+        response = _llm_call_impl(
+            url,
+            model,
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            headers=headers,
+            timeout=timeout,
+            prompt_type=prompt_type,
+        )
+        return response
+    except Exception as exc:
+        status = "error"
+        error_class = type(exc).__name__
+        raise
+    finally:
+        duration_ms = int((time.time() - start) * 1000)
+        cache_hit = bool(_ai_activity_cache_hit.get(False))
+        _ai_activity_cache_hit.reset(token)
+        _record_ai_activity_safe(
+            owner=owner,
+            surface=surface,
+            correlation_id=correlation_id,
+            session_id=session_id,
+            task_id=task_id,
+            doc_id=doc_id,
+            prompt_type=prompt_type or "llm_call",
+            provider=_detect_provider(url),
+            endpoint_url=url,
+            model=model,
+            messages=messages,
+            output_chars=len(response or ""),
+            duration_ms=duration_ms,
+            status=status,
+            error_class=error_class,
+            cache_hit=cache_hit,
+        )
+
+
 def _dedupe_candidates(candidates):
     """Filter malformed entries and drop a later repeat of an already-seen
     ``(url, model)`` route, preserving order (first occurrence wins).
@@ -1594,7 +1760,7 @@ async def llm_call_async_with_fallback(candidates, messages, **kwargs) -> str:
     raise last_err if last_err else HTTPException(503, "All fallback candidates failed")
 
 
-async def llm_call_async(
+async def _llm_call_async_impl(
     url: str,
     model: str,
     messages: List[Dict],
@@ -1768,7 +1934,75 @@ async def llm_call_async(
                 raise HTTPException(502, f"POST {target_url} failed after {max_retries} attempts: {e}")
             await asyncio.sleep(LLMConfig.RETRY_DELAY)
 
-async def stream_llm(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+
+async def llm_call_async(
+    url: str,
+    model: str,
+    messages: List[Dict],
+    temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+    max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS,
+    headers: Optional[Dict] = None,
+    timeout: int = LLMConfig.STREAM_TIMEOUT,
+    max_retries: int = LLMConfig.MAX_RETRIES,
+    prompt_type: Optional[str] = None,
+    session_id: Optional[str] = None,
+    *,
+    owner: Optional[str] = None,
+    surface: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+    doc_id: Optional[str] = None,
+) -> str:
+    """Asynchronous LLM call with redacted AI-activity audit metadata."""
+
+    token = _ai_activity_cache_hit.set(False)
+    start = time.time()
+    status = "success"
+    error_class = None
+    response = ""
+    try:
+        response = await _llm_call_async_impl(
+            url,
+            model,
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            headers=headers,
+            timeout=timeout,
+            max_retries=max_retries,
+            prompt_type=prompt_type,
+            session_id=session_id,
+        )
+        return response
+    except Exception as exc:
+        status = "error"
+        error_class = type(exc).__name__
+        raise
+    finally:
+        duration_ms = int((time.time() - start) * 1000)
+        cache_hit = bool(_ai_activity_cache_hit.get(False))
+        _ai_activity_cache_hit.reset(token)
+        _record_ai_activity_safe(
+            owner=owner,
+            surface=surface,
+            correlation_id=correlation_id,
+            session_id=session_id,
+            task_id=task_id,
+            doc_id=doc_id,
+            prompt_type=prompt_type or "llm_call_async",
+            provider=_detect_provider(url),
+            endpoint_url=url,
+            model=model,
+            messages=messages,
+            output_chars=len(response or ""),
+            duration_ms=duration_ms,
+            status=status,
+            error_class=error_class,
+            cache_hit=cache_hit,
+        )
+
+
+async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
                      max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None,
                      timeout: int = LLMConfig.STREAM_TIMEOUT, prompt_type: Optional[str] = None,
                      tools: Optional[List[Dict]] = None, session_id: Optional[str] = None):
@@ -2358,6 +2592,84 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
     except Exception as e:
         logger.error(f"Stream error: {e}")
         yield f'event: error\ndata: {json.dumps({"error": str(e), "status": 502})}\n\n'
+
+
+async def stream_llm(
+    url: str,
+    model: str,
+    messages: List[Dict],
+    temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+    max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS,
+    headers: Optional[Dict] = None,
+    timeout: int = LLMConfig.STREAM_TIMEOUT,
+    prompt_type: Optional[str] = None,
+    tools: Optional[List[Dict]] = None,
+    session_id: Optional[str] = None,
+    *,
+    owner: Optional[str] = None,
+    surface: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+    doc_id: Optional[str] = None,
+):
+    """Stream LLM responses and record redacted activity metadata."""
+
+    start = time.time()
+    output_chars = 0
+    input_tokens = None
+    output_tokens = None
+    status = "success"
+    error_class = None
+    try:
+        async for chunk in _stream_llm_impl(
+            url,
+            model,
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            headers=headers,
+            timeout=timeout,
+            prompt_type=prompt_type,
+            tools=tools,
+            session_id=session_id,
+        ):
+            output_chars += _sse_activity_delta_chars(chunk)
+            usage_in, usage_out = _sse_activity_usage(chunk)
+            if usage_in is not None:
+                input_tokens = usage_in
+            if usage_out is not None:
+                output_tokens = usage_out
+            chunk_error = _sse_activity_error_class(chunk)
+            if chunk_error:
+                status = "error"
+                error_class = chunk_error
+            yield chunk
+    except Exception as exc:
+        status = "error"
+        error_class = type(exc).__name__
+        raise
+    finally:
+        _record_ai_activity_safe(
+            owner=owner,
+            surface=surface,
+            correlation_id=correlation_id,
+            session_id=session_id,
+            task_id=task_id,
+            doc_id=doc_id,
+            prompt_type=prompt_type or "stream_llm",
+            provider=_detect_provider(url),
+            endpoint_url=url,
+            model=model,
+            messages=messages,
+            output_chars=output_chars,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            duration_ms=int((time.time() - start) * 1000),
+            status=status,
+            error_class=error_class,
+            cache_hit=False,
+            side_effects=("stream",),
+        )
 
 
 def _summarize_stream_error(err_chunk: Optional[str]) -> str:
