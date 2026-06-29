@@ -33,6 +33,7 @@ def test_text_extraction_packet_is_ephemeral_and_report_excludes_raw_text(tmp_pa
         ("rows.csv", "name,value\nalpha,1\n", "alpha,1"),
         ("rows.tsv", "name\tvalue\nalpha\t1\n", "alpha\t1"),
         ("page.html", "<html><script>hidden()</script><body><h1>Visible</h1></body></html>", "Visible"),
+        ("feed.xml", "<root><title>Visible XML</title></root>", "Visible XML"),
     ],
 )
 def test_supported_text_like_formats_extract_runtime_text(tmp_path, filename, body, expected):
@@ -117,3 +118,27 @@ def test_extraction_rejects_absolute_serialized_relative_path(tmp_path):
 
     with pytest.raises(UniversalInboxExtractionError):
         extract_universal_inbox_content(source, relative_path=str(source))
+
+
+@pytest.mark.parametrize(
+    ("filename", "body", "status", "warning"),
+    [
+        ("photo.jpg", b"\xff\xd8\xff bytes", "metadata_only", "image_metadata_only"),
+        ("voice.ogg", b"OggS bytes", "metadata_only", "audio_transcription_required"),
+        ("bundle.zip", b"PK\x03\x04 bytes", "metadata_only", "archive_needs_review"),
+        ("mail.eml", b"Subject: hi\n\nbody", "metadata_only", "structured_message_needs_parser"),
+        ("sheet.xlsx", b"PK\x03\x04 bytes", "metadata_only", "document_extractor_pending"),
+        ("payload.unknown", b"opaque", "unsupported", "unsupported_type"),
+        ("setup.exe", b"MZ bytes", "blocked", "dangerous_type_blocked"),
+    ],
+)
+def test_non_text_types_get_structured_review_decisions(tmp_path, filename, body, status, warning):
+    source = tmp_path / filename
+    source.write_bytes(body)
+
+    packet = extract_universal_inbox_content(source, relative_path=filename)
+
+    assert packet.status == status
+    assert packet.raw_text == ""
+    assert packet.warnings[0].code == warning
+    assert packet.to_dict()["metadata"]["file_type"]["review_required"] is True

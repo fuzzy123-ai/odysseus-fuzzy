@@ -197,7 +197,7 @@ def _routing_item(
     config: UniversalInboxWorkerConfig,
 ) -> dict[str, Any]:
     document_type = _infer_document_type(item["filename"], config.default_document_type)
-    partial_extraction = extraction.status in {"partial", "metadata_only", "unsupported", "failed"}
+    partial_extraction = extraction.status in {"partial", "metadata_only", "unsupported", "failed", "blocked"}
     confidence = config.review_confidence if partial_extraction else config.default_confidence
     return {
         "original_path": f"{config.incoming_prefix}/{item['relative_path']}",
@@ -244,6 +244,8 @@ def _summary_for_status(status: str) -> str:
         return "local file metadata captured without text extraction"
     if status == "unsupported":
         return "local file type requires review before extraction"
+    if status == "blocked":
+        return "local file type is blocked before extraction"
     return "local file extraction requires review"
 
 

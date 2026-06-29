@@ -58,7 +58,7 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert str(tmp_path) not in encoded
 
 
-def test_worker_dry_run_routes_metadata_only_pdf_to_partial_review(tmp_path):
+def test_worker_dry_run_routes_partial_pdf_to_review(tmp_path):
     inbox = tmp_path / "Incoming"
     inbox.mkdir()
     (inbox / "invoice.pdf").write_bytes(b"%PDF-1.4 private bytes")
@@ -67,7 +67,7 @@ def test_worker_dry_run_routes_metadata_only_pdf_to_partial_review(tmp_path):
     payload = report.to_dict()
 
     assert payload["status"] == "partial"
-    assert payload["items"][0]["extraction_status"] == "metadata_only"
+    assert payload["items"][0]["extraction_status"] == "partial"
     assert "partial_extraction" in payload["items"][0]["routing_decision"]["review_reasons"]
     assert payload["items"][0]["placement_plan"]["status"] == "review"
     assert payload["no_go_reasons"] == ()

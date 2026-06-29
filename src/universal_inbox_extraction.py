@@ -15,11 +15,18 @@ from typing import Any, Mapping
 from xml.etree import ElementTree
 import zipfile
 
+from src.universal_inbox_file_types import (
+    DOCUMENT_SUFFIXES,
+    TEXT_SUFFIXES as CLASSIFIED_TEXT_SUFFIXES,
+    UniversalInboxFileTypeDecision,
+    classify_universal_inbox_file,
+)
+
 
 EXTRACTION_SCHEMA = "odysseus.universal_inbox.local_extraction_packet.v1"
 DEFAULT_MAX_EXTRACT_BYTES = 2 * 1024 * 1024
 TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
-STRUCTURED_TEXT_SUFFIXES = {".json", ".csv", ".tsv", ".html", ".htm"}
+STRUCTURED_TEXT_SUFFIXES = {".json", ".csv", ".tsv", ".html", ".htm", ".xml"}
 DOCX_SUFFIX = ".docx"
 PDF_SUFFIX = ".pdf"
 
@@ -89,12 +96,14 @@ def extract_universal_inbox_content(
 
     suffix = path.suffix.lower()
     size = path.stat().st_size
+    file_type = classify_universal_inbox_file(path)
     base_metadata = {
         "filename": path.name,
         "size": size,
         "char_count": 0,
         "line_count": 0,
         "extractor": _extractor_name(suffix),
+        "file_type": file_type.to_dict(),
     }
     warnings: list[UniversalInboxExtractionWarning] = []
     if size > max_extract_bytes:
@@ -113,6 +122,15 @@ def extract_universal_inbox_content(
             warnings=tuple(warnings),
         )
 
+    if file_type.blocked:
+        return _metadata_only_packet(
+            normalized_relative_path,
+            suffix,
+            base_metadata,
+            file_type,
+            status="blocked",
+        )
+
     if suffix in TEXT_SUFFIXES:
         raw_text, warning = _read_text(path, normalized_relative_path)
     elif suffix == ".json":
@@ -121,20 +139,24 @@ def extract_universal_inbox_content(
         raw_text, warning = _read_delimited(path, normalized_relative_path, delimiter="\t" if suffix == ".tsv" else ",")
     elif suffix in {".html", ".htm"}:
         raw_text, warning = _read_html(path, normalized_relative_path)
+    elif suffix == ".xml":
+        raw_text, warning = _read_text(path, normalized_relative_path)
     elif suffix == DOCX_SUFFIX:
         raw_text, warning = _read_docx(path, normalized_relative_path)
     elif suffix == PDF_SUFFIX:
         raw_text, warning = _read_pdf(path, normalized_relative_path)
     else:
-        warnings.append(
-            UniversalInboxExtractionWarning("unsupported_type", normalized_relative_path)
-        )
-        return UniversalInboxExtractionPacket(
-            relative_path=normalized_relative_path,
-            suffix=suffix,
-            status="unsupported",
-            metadata=base_metadata,
-            warnings=tuple(warnings),
+        return _metadata_only_packet(
+            normalized_relative_path,
+            suffix,
+            base_metadata,
+            file_type,
+            status="unsupported" if file_type.category == "unsupported" else "metadata_only",
+            reason_codes=(
+                ("document_extractor_pending",)
+                if file_type.category == "document_extractable"
+                else None
+            ),
         )
 
     if warning is not None:
@@ -170,6 +192,28 @@ def build_universal_inbox_extraction_packet(
         root=root,
         relative_path=relative_path,
         max_extract_bytes=max_extract_bytes,
+    )
+
+
+def _metadata_only_packet(
+    relative_path: str,
+    suffix: str,
+    metadata: Mapping[str, Any],
+    file_type: UniversalInboxFileTypeDecision,
+    *,
+    status: str,
+    reason_codes: tuple[str, ...] | None = None,
+) -> UniversalInboxExtractionPacket:
+    selected_reason_codes = reason_codes or file_type.reason_codes or ("unsupported_type",)
+    return UniversalInboxExtractionPacket(
+        relative_path=relative_path,
+        suffix=suffix,
+        status=status,
+        metadata=metadata,
+        warnings=tuple(
+            UniversalInboxExtractionWarning(code, relative_path)
+            for code in selected_reason_codes
+        ),
     )
 
 
@@ -329,6 +373,10 @@ def _extractor_name(suffix: str) -> str:
         return "docx_zip_xml"
     if suffix == PDF_SUFFIX:
         return "pypdf"
+    if suffix in DOCUMENT_SUFFIXES:
+        return "document_extractor_pending"
+    if suffix in CLASSIFIED_TEXT_SUFFIXES:
+        return "plain_text"
     return "unsupported"
 
 
