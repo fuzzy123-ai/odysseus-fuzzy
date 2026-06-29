@@ -2145,6 +2145,10 @@ async def stream_agent_loop(
     workspace: Optional[str] = None,
     workflow_skill_resolution: Optional[Dict] = None,
     _is_teacher_run: bool = False,
+    audit_surface: Optional[str] = None,
+    audit_correlation_id: Optional[str] = None,
+    audit_task_id: Optional[str] = None,
+    audit_doc_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
 
@@ -2728,6 +2732,11 @@ async def stream_agent_loop(
             tools=all_tool_schemas if all_tool_schemas else None,
             timeout=agent_stream_timeout,
             session_id=session_id,
+            owner=owner,
+            surface=audit_surface or "agent",
+            correlation_id=audit_correlation_id,
+            task_id=audit_task_id,
+            doc_id=audit_doc_id,
         ):
             if time.time() > _round_deadline:
                 logger.warning(f"[agent] round {round_num} stream exceeded wall-clock deadline; cutting off")
@@ -2914,6 +2923,12 @@ async def stream_agent_loop(
                     _raw = await llm_call_async(
                         url=endpoint_url, model=model, messages=_synth_messages,
                         headers=headers, temperature=0.3, max_tokens=max_tokens, timeout=60,
+                        session_id=session_id, owner=owner,
+                        surface=audit_surface or "agent",
+                        correlation_id=audit_correlation_id,
+                        task_id=audit_task_id,
+                        doc_id=audit_doc_id,
+                        prompt_type="agent_grace_synthesis",
                     )
                     _synth = _THINK_RE.sub("", strip_tool_blocks(_raw or "")).strip()
                 except Exception as _e:

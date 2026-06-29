@@ -776,7 +776,7 @@ class TaskScheduler:
                     run.result = result
                 else:
                     # LLM task — use agent loop for tool access
-                    result = await self._execute_llm_task(task, db)
+                    result = await self._execute_llm_task(task, db, run_id=run_id)
                     run.status = "success"
                     run.result = result
                 # Record which model actually ran (resolved inside the executor).
@@ -1148,7 +1148,8 @@ class TaskScheduler:
         return "\n".join(lines[:10])
 
     async def _execute_checkin(self, task, crew, db, session_id: str,
-                               endpoint_url: str, model: str) -> str:
+                               endpoint_url: str, model: str,
+                               run_id: str | None = None) -> str:
         """Gather raw data from all integrations, hand it to the LLM to write the check-in."""
         from src.tool_implementations import do_manage_notes
         from src.tool_utils import get_mcp_manager
@@ -1324,9 +1325,10 @@ class TaskScheduler:
             system_prompt=(crew.personality or "").strip() if crew else None,
             disabled_tools=None, relevant_tools=None,
             override_user_message=context,
+            run_id=run_id,
         )
 
-    async def _execute_llm_task(self, task, db) -> str:
+    async def _execute_llm_task(self, task, db, run_id: str | None = None) -> str:
         """Execute an LLM task with full tool access via the agent loop."""
         from core.database import Session as DbSession, ChatMessage, CrewMember
 
@@ -1384,7 +1386,7 @@ class TaskScheduler:
         # as separate messages. More reliable than hoping the model calls tools.
         is_checkin = crew and crew.is_default_assistant and "check-in" in (task.name or "").lower()
         if is_checkin:
-            return await self._execute_checkin(task, crew, db, session_id, endpoint_url, model)
+            return await self._execute_checkin(task, crew, db, session_id, endpoint_url, model, run_id=run_id)
 
         # Build system prompt: crew member persona overrides the default.
         # Built-in character_id (Socrates, Razor, etc.) further biases the
@@ -1465,6 +1467,7 @@ class TaskScheduler:
                 endpoint_url, model, task, session_id,
                 system_prompt=system_prompt, disabled_tools=disabled_tools or None,
                 relevant_tools=relevant_tools,
+                run_id=run_id,
             )
         except Exception as e:
             logger.warning(f"Agent loop failed for task '{task.name}', falling back to simple call: {e}")
@@ -1473,7 +1476,18 @@ class TaskScheduler:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task.prompt},
             ]
-            result = await llm_call_async(url=endpoint_url, model=model, messages=messages, timeout=120)
+            result = await llm_call_async(
+                url=endpoint_url,
+                model=model,
+                messages=messages,
+                timeout=120,
+                owner=task.owner,
+                surface="scheduled_task",
+                correlation_id=run_id or task.id,
+                session_id=session_id,
+                task_id=task.id,
+                prompt_type="scheduled_task_fallback",
+            )
 
         # Strip the model's chain-of-thought before saving/delivering. Task
         # output is LLM-only, so prose=True (which also removes untagged
@@ -1662,7 +1676,8 @@ class TaskScheduler:
                               system_prompt: str | None = None,
                               disabled_tools: set | None = None,
                               relevant_tools: set | None = None,
-                              override_user_message: str | None = None) -> str:
+                              override_user_message: str | None = None,
+                              run_id: str | None = None) -> str:
         """Run the full agent loop with tool access, collecting the final text."""
         from src.agent_loop import stream_agent_loop
 
@@ -1707,6 +1722,24 @@ class TaskScheduler:
             _task_fallbacks = resolve_utility_fallback_candidates(owner=task.owner or None)
         except Exception:
             _task_fallbacks = []
+        ledger_started = False
+        try:
+            from src import agent_run_ledger
+
+            agent_run_ledger.append_run_started(session_id)
+            agent_run_ledger.append_event(
+                session_id,
+                "task_run_context",
+                {
+                    "task_id": str(task.id),
+                    "run_id": str(run_id or ""),
+                    "owner": str(task.owner or ""),
+                    "surface": "scheduled_task",
+                },
+            )
+            ledger_started = True
+        except Exception:
+            logger.debug("Task agent-run ledger start failed", exc_info=True)
         async for event_str in stream_agent_loop(
             endpoint_url=endpoint_url,
             model=model,
@@ -1718,7 +1751,15 @@ class TaskScheduler:
             disabled_tools=disabled_tools,
             relevant_tools=relevant_tools,
             fallbacks=_task_fallbacks,
+            audit_surface="scheduled_task",
+            audit_correlation_id=str(run_id or task.id),
+            audit_task_id=task.id,
         ):
+            if ledger_started:
+                try:
+                    agent_run_ledger.append_sse_event(session_id, event_str)
+                except Exception:
+                    logger.debug("Task agent-run ledger event append failed", exc_info=True)
             if event_str.startswith("data: ") and not event_str.startswith("data: [DONE]"):
                 try:
                     data = json.loads(event_str[6:])
@@ -1735,6 +1776,11 @@ class TaskScheduler:
                             tool_results.append(f"[{data.get('tool', '?')}] {tool_summary[:500]}")
                 except (json.JSONDecodeError, KeyError):
                     pass
+        if ledger_started:
+            try:
+                agent_run_ledger.append_status(session_id, "done")
+            except Exception:
+                logger.debug("Task agent-run ledger done status failed", exc_info=True)
 
         # Grace summarization — if the model exhausted rounds on tool calls
         # without producing a final text response, do one last LLM call
@@ -1757,6 +1803,12 @@ class TaskScheduler:
                         {"role": "user", "content": grace_context},
                     ],
                     timeout=30,
+                    owner=task.owner,
+                    surface="scheduled_task",
+                    correlation_id=str(run_id or task.id),
+                    session_id=session_id,
+                    task_id=task.id,
+                    prompt_type="scheduled_task_grace_summary",
                 )
                 full_text = (full_text or "").strip()
             except Exception as e:

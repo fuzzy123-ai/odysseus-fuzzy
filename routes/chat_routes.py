@@ -688,6 +688,12 @@ def setup_chat_routes(
         )
 
         _research_flags = {"do": do_research}  # Mutable container for generator scope
+        _is_compare_session = (
+            str(compare_mode).lower() == "true"
+            or str(getattr(sess, "name", "") or "").startswith("[CMP]")
+        )
+        _chat_audit_surface = "compare" if _is_compare_session else "chat"
+        _agent_audit_surface = "compare" if _is_compare_session else "agent"
 
         # Query active document — prefer explicit ID from frontend, fall back to session lookup
         active_doc = None
@@ -1137,6 +1143,9 @@ def setup_chat_routes(
                         prompt_type=preset_id,
                         tools=None,
                         session_id=session,
+                        owner=_user,
+                        surface=_chat_audit_surface,
+                        correlation_id=session,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:
@@ -1289,6 +1298,8 @@ def setup_chat_routes(
                         context_was_compacted=ctx.was_compacted,
                         approved_plan=approved_plan or None,
                         workspace=workspace or None,
+                        audit_surface=_agent_audit_surface,
+                        audit_correlation_id=session,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:
@@ -1585,6 +1596,11 @@ def setup_chat_routes(
                     # on "Rewriting...". Same fix as the chat max_tokens cap.
                     max_tokens=0,
                     tools=None,
+                    session_id=session_id,
+                    owner=effective_user(request),
+                    surface="rewrite",
+                    correlation_id=session_id,
+                    prompt_type="rewrite",
                 ):
                     if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                         try:
