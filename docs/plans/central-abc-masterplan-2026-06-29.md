@@ -30,6 +30,7 @@ Primary sources:
 - `docs/plans/repo-control-roadmap.md`
 - `docs/plans/server-project-runner-roadmap.md`
 - `docs/plans/odysseus-mcp-server-roadmap.md`
+- `docs/plans/mcp-workbench-evidence-plan.md`
 - `docs/mcp-server-runbook.md`
 - `docs/plans/large-file-refactoring-abc-plan.md`
 - `docs/plans/large-file-refactoring-overview.md`
@@ -237,6 +238,9 @@ Current evidence:
 - New handoff prefers Podman read-only checks, not Docker MCP.
 - 2026-06-29 Bootstrap evidence: `docs/mcp-server-runbook.md` now documents
   the Codex MCP workbench setup gate and Podman-only read-only stance.
+- 2026-06-29 Workbench evidence plan:
+  `docs/plans/mcp-workbench-evidence-plan.md` defines Codex-side MCP setup
+  gates, Playwright evidence, GitHub context policy and Podman read-only checks.
 - 2026-06-29 Focused tests passed:
   `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
   returned `16 passed, 1 warning`.
@@ -259,10 +263,10 @@ Slice queue:
 | L3-0-runbook-reconcile | repo_only | Alice | Done: reconciled runbook with Codex MCP workbench setup gate and Docker MCP non-goal. |
 | L3-1-local-mcp-smoke-contract | repo_only | Bob | Done: initialize, tools/list, readiness, prompts/resources and redacted audit have focused route tests. |
 | L3-2-safe-tool-policy-evidence | repo_only | Bob | Done: high-risk registered tools remain absent, `expose_all` is ignored and generic API stays hidden by default. |
-| L3-3-codex-mcp-service-setup | needs_live_go | Charlie | Install/configure corresponding MCP services or connectors in Codex when available, then run bounded setup tests. |
-| L3-4-playwright-evidence-plan | safe_offline | Charlie | Define UI smoke evidence path; no external browser secrets. |
-| L3-5-github-context-policy | safe_offline | Alice | Document GitHub connector/MCP boundaries and write policies. |
-| L3-6-podman-readonly-plan | repo_only | Bob | Define or implement read-only Podman health/status adapter; no restart. |
+| L3-3-codex-mcp-service-setup | needs_live_go | Charlie | Gated: install/configure corresponding MCP services or connectors in Codex when available, then run bounded setup tests. |
+| L3-4-playwright-evidence-plan | safe_offline | Charlie | Done: `mcp-workbench-evidence-plan.md` defines UI smoke targets, artifacts and privacy gates. |
+| L3-5-github-context-policy | safe_offline | Alice | Done: `mcp-workbench-evidence-plan.md` defines GitHub read/write boundaries. |
+| L3-6-podman-readonly-plan | repo_only | Bob | Done as plan: `mcp-workbench-evidence-plan.md` maps read-only Podman checks to existing health foundations; implementation can remain future-scoped. |
 
 Gates:
 
@@ -421,7 +425,7 @@ Stop or defer the active slice if:
 
 | Lane | Status | Why not complete |
 | --- | --- | --- |
-| L3 MCP Workbench + Podman Checks | partial, active | L3-0 through L3-2 are done offline; Codex-side service setup, Playwright evidence and Podman read-only checks remain. |
+| L3 MCP Workbench + Podman Checks | partial, gated | L3-0 through L3-2 are done offline and L3-4 through L3-6 are planned; Codex-side service setup/live smoke remains gated. |
 | L1 Nextcloud Live Write + Universal Inbox | open | Live write track is not yet explicit and upload smoke needs operator Go. |
 | L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
