@@ -234,6 +234,8 @@ async def _eval_skill_run(skill_md: str, task: str, transcript: str,
                 # this same cap; the server clamps to its own max).
                 url, model, msgs,
                 temperature=0.1, max_tokens=32768, headers=headers, timeout=180,
+                surface="skills",
+                prompt_type="skill_run_evaluation",
             )
         except Exception as e:
             # Don't give up on a transient first-attempt error — let the second
@@ -282,6 +284,8 @@ async def _eval_skill_necessity(skill_md: str, others: list, url: str, model: st
             url, model,
             [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_msg}],
             temperature=0.1, max_tokens=8192, headers=headers, timeout=120,
+            surface="skills",
+            prompt_type="skill_necessity_audit",
         )
     except Exception as e:
         logger.warning(f"Necessity check failed: {e}")
@@ -370,6 +374,8 @@ async def _eval_skill_retrieval_precision(skill_md: str, others: list,
             url, model,
             [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_msg}],
             temperature=0.1, max_tokens=4096, headers=headers, timeout=90,
+            surface="skills",
+            prompt_type="skill_retrieval_precision_audit",
         )
     except Exception as e:
         logger.warning(f"Retrieval precision check failed: {e}")
@@ -747,7 +753,9 @@ async def _improve_skill_md(skill_md: str, verdict: dict, transcript: str, url, 
         raw = await llm_call_async(url, model,
                                    [{"role": "system", "content": sys_prompt},
                                     {"role": "user", "content": user_msg}],
-                                   temperature=0.2, max_tokens=16384, headers=headers, timeout=180)
+                                   temperature=0.2, max_tokens=16384, headers=headers, timeout=180,
+                                   surface="skills",
+                                   prompt_type="skill_markdown_improve")
     except Exception as e:
         logger.warning(f"Audit: improve call failed: {e}")
         return None

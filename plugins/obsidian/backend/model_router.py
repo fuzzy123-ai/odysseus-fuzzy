@@ -474,7 +474,9 @@ async def synthesize_answer(
                 max_tokens=500,
                 temperature=0.2,
                 timeout=45,
-                prompt_type="obsidian_memory_answer",
+                owner=owner,
+                surface="legacy_vault",
+                prompt_type="legacy_vault_memory_answer",
             )
             return {
                 "answer_mode": candidate.mode,

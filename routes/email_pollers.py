@@ -24,6 +24,7 @@ import re
 import html
 import logging
 import inspect
+import hashlib
 from datetime import datetime
 
 from email.mime.text import MIMEText
@@ -43,6 +44,13 @@ from routes.email_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _audit_email_correlation(value) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    return "email:" + hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
 _CAL_ACTION_ARRAY_RE = re.compile(
     r'\[\s*\{[^{}]*"action"[^{}]*\}\s*(?:,\s*\{[^{}]*\}\s*)*\]',
@@ -470,6 +478,10 @@ async def _auto_summarize_pass_single(days_back: int = 1, account_id: str | None
                             ],
                             temperature=0.7, max_tokens=1024,
                             headers=req_headers, timeout=90,
+                            owner=account_owner,
+                            surface="email",
+                            correlation_id=_audit_email_correlation(message_id),
+                            prompt_type="email_background_reply",
                         )
                         reply = _apply_email_style_mechanics(_extract_reply(reply or ""))
                         if reply:
@@ -558,6 +570,10 @@ async def _auto_summarize_pass_single(days_back: int = 1, account_id: str | None
                             ],
                             temperature=0.1, max_tokens=16384,
                             headers=req_headers, timeout=180,
+                            owner=account_owner,
+                            surface="email",
+                            correlation_id=_audit_email_correlation(message_id),
+                            prompt_type="email_calendar_extract",
                         )
                         _raw_original = cal_extract or ""
                         cal_extract = _strip_think(_raw_original)
@@ -736,6 +752,10 @@ async def _auto_summarize_pass_single(days_back: int = 1, account_id: str | None
                         urg_raw = await llm_call_async(
                             url=url, model=model, messages=payload["messages"],
                             temperature=0, max_tokens=200, headers=req_headers, timeout=60,
+                            owner=account_owner,
+                            surface="email",
+                            correlation_id=_audit_email_correlation(message_id),
+                            prompt_type="email_urgency_classify",
                         )
                         urg_raw = _strip_think(urg_raw or "")
                         urg_raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", urg_raw, flags=re.MULTILINE).strip()

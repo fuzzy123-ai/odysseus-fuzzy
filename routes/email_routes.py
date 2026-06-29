@@ -2602,7 +2602,16 @@ def setup_email_routes():
                 },
             ]
 
-            style = await llm_call_async(url, model, messages, headers=headers, max_tokens=2048)
+            style = await llm_call_async(
+                url,
+                model,
+                messages,
+                headers=headers,
+                max_tokens=2048,
+                owner=owner,
+                surface="email",
+                prompt_type="email_writing_style_extract",
+            )
             style = _strip_think(style or "")
             if not style:
                 return {"success": False, "error": "LLM failed to generate style description"}
@@ -2957,6 +2966,10 @@ def setup_email_routes():
                     temperature=0.7,
                     max_tokens=1024 if fast_reply else 6144,
                     timeout=60 if fast_reply else 180,
+                    owner=owner,
+                    surface="email",
+                    correlation_id=str(uid or ""),
+                    prompt_type="email_ai_reply",
                 )
             except Exception as e:
                 detail = getattr(e, "detail", None) or str(e)

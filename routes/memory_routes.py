@@ -270,6 +270,10 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
                 temperature=0.2,
                 max_tokens=500,
                 headers=t_headers,
+                owner=_owner(request),
+                surface="memory",
+                session_id=session,
+                prompt_type="memory_chat_extract",
             )
             try:
                 suggestions = json.loads(suggestion_text)
@@ -465,6 +469,11 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
                 temperature=0.2,
                 max_tokens=2000,
                 headers=headers,
+                owner=user,
+                surface="memory",
+                session_id=session,
+                doc_id="uploaded_file",
+                prompt_type="memory_file_extract",
             )
 
             # Parse JSON

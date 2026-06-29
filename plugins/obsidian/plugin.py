@@ -207,7 +207,9 @@ def project_planning_llm_call(owner: Optional[str] = None):
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=120,
-            prompt_type="obsidian_project_planning",
+            owner=owner,
+            surface="legacy_vault",
+            prompt_type="legacy_vault_project_planning",
         )
 
     return _call
