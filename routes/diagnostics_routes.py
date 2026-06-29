@@ -85,6 +85,33 @@ def setup_diagnostics_routes(
             logger.error(f"AI activity diagnostics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve AI activity diagnostics")
 
+    @router.get("/api/diagnostics/memory-provenance")
+    async def get_memory_provenance(
+        request: Request,
+        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        limit: int = Query(100, ge=1, le=1000),
+        event_type: str | None = None,
+        owner: str | None = None,
+        status: str | None = None,
+    ) -> Dict[str, Any]:
+        """Return redacted memory/RaptorGraph provenance for admin diagnostics."""
+        require_admin(request)
+        try:
+            from src.memory_provenance_ledger import read_memory_provenance
+
+            return read_memory_provenance(
+                day=day,
+                limit=limit,
+                event_type=event_type,
+                owner=owner,
+                status=status,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"Memory provenance diagnostics retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve memory provenance diagnostics")
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)

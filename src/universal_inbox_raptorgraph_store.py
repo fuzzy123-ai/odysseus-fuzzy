@@ -62,6 +62,7 @@ class UniversalInboxRaptorGraphEventStore:
         event_id = str(normalized["event_id"])
         self.root.mkdir(parents=True, exist_ok=True)
         if self._contains(event_id):
+            _record_raptorgraph_mutation(normalized, status="duplicate", duplicate=True)
             return UniversalInboxRaptorGraphAppendResult(
                 status="duplicate",
                 event_id=event_id,
@@ -71,6 +72,7 @@ class UniversalInboxRaptorGraphEventStore:
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(normalized, ensure_ascii=False, sort_keys=True))
             handle.write("\n")
+        _record_raptorgraph_mutation(normalized, status="written", duplicate=False)
         return UniversalInboxRaptorGraphAppendResult(
             status="written",
             event_id=event_id,
@@ -180,3 +182,29 @@ def _safe_string_tuple(values: Any) -> tuple[str, ...]:
         if text and not _FORBIDDEN_TEXT_RE.search(text):
             result.append(text[:120])
     return tuple(result)
+
+
+def _record_raptorgraph_mutation(event: Mapping[str, Any], *, status: str, duplicate: bool) -> None:
+    try:
+        from src.memory_provenance_ledger import record_memory_provenance
+
+        record_memory_provenance(
+            "raptorgraph_mutation",
+            owner="unknown",
+            surface="universal_inbox",
+            source="raptorgraph_event_store",
+            action="append_event",
+            status=status,
+            reason="duplicate" if duplicate else "event_appended",
+            source_hash=str(event.get("source_hash") or ""),
+            memory_record_ids=event.get("memory_record_ids") or (),
+            graph_event_id=str(event.get("event_id") or ""),
+            node_count=len(tuple(event.get("memory_record_ids") or ())),
+            edge_count=1 if event.get("memory_record_ids") else 0,
+            dsgvo_mode=bool(event.get("dsgvo_mode")),
+            local_only=bool(event.get("local_only")),
+            classification=str(event.get("classification") or ""),
+            writes_performed=status == "written" and not duplicate,
+        )
+    except Exception:
+        pass

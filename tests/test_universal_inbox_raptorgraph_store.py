@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from src import memory_provenance_ledger
 from src.universal_inbox_raptorgraph_store import (
     UniversalInboxRaptorGraphStoreError,
     build_universal_inbox_raptorgraph_writer,
@@ -50,6 +51,25 @@ def test_writer_appends_jsonl_and_dedupes_by_event_id(tmp_path):
     assert rows[0]["source_hash"] == "a" * 64
     encoded = json.dumps(rows[0], ensure_ascii=False)
     assert "PRIVATE RAW TEXT" not in encoded
+
+
+def test_writer_records_redacted_graph_mutations(tmp_path, monkeypatch):
+    ledger_dir = tmp_path / "ledger"
+    graph_dir = tmp_path / "graph"
+    monkeypatch.setattr(memory_provenance_ledger, "MEMORY_PROVENANCE_LEDGER_DIR", str(ledger_dir))
+    writer = build_universal_inbox_raptorgraph_writer(graph_dir)
+
+    writer(READY_EVENT)
+    writer(READY_EVENT)
+
+    rows = [
+        json.loads(line)
+        for line in memory_provenance_ledger.ledger_path().read_text(encoding="utf-8").splitlines()
+    ]
+    assert [row["event_type"] for row in rows] == ["raptorgraph_mutation", "raptorgraph_mutation"]
+    assert [row["status"] for row in rows] == ["written", "duplicate"]
+    assert rows[0]["graph_event_id"].startswith("uix-rg-")
+    assert rows[0]["raw_content_visible"] is False
 
 
 def test_rejects_unsafe_raw_or_secret_material():

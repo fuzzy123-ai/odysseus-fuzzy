@@ -65,6 +65,24 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
                 existing = memory_manager.load()
                 if existing:
                     memory_vector.rebuild(existing)
+                    try:
+                        from src.memory_provenance_ledger import record_memory_provenance
+
+                        record_memory_provenance(
+                            "memory_maintenance",
+                            owner="unknown",
+                            surface="startup",
+                            source="memory_vector",
+                            action="rebuild",
+                            status="success",
+                            reason="startup_empty_index",
+                            before_count=0,
+                            after_count=len(existing),
+                            node_count=len(existing),
+                            writes_performed=True,
+                        )
+                    except Exception:
+                        pass
                     logger.info(f"Rebuilt memory vector index from {len(existing)} existing entries")
             logger.info("MemoryVectorStore initialized")
         else:

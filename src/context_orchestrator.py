@@ -78,8 +78,25 @@ def preload_provider_context(
         try:
             raw = provider.retrieve(owner=owner, query=query, budget=per_provider, mode=mode)
             payload = raw if isinstance(raw, dict) else {"snippets": raw}
+            _record_retrieval(
+                owner=owner,
+                provider_id=provider.id,
+                mode=mode,
+                payload=payload,
+                status="success",
+                budget=per_provider,
+            )
         except Exception as exc:
             warnings.append(f"context provider {provider.id} failed: {exc}")
+            _record_retrieval(
+                owner=owner,
+                provider_id=provider.id,
+                mode=mode,
+                payload={},
+                status="error",
+                budget=per_provider,
+                reason=type(exc).__name__,
+            )
             continue
         for warning in _provider_payload_warnings(payload):
             warnings.append(f"{provider.id}: {warning}")
@@ -90,6 +107,45 @@ def preload_provider_context(
             capabilities=provider.capabilities,
         ))
     return payloads, warnings
+
+
+def _record_retrieval(
+    *,
+    owner: Optional[str],
+    provider_id: str,
+    mode: str,
+    payload: Dict[str, Any],
+    status: str,
+    budget: int,
+    reason: str = "",
+) -> None:
+    try:
+        from src.memory_provenance_ledger import record_memory_provenance
+
+        snippets = payload.get("snippets") if isinstance(payload.get("snippets"), list) else []
+        sources = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+        memory = payload.get("memory") if isinstance(payload.get("memory"), dict) else {}
+        summary = memory.get("summary") if isinstance(memory.get("summary"), dict) else {}
+        raptor = memory.get("raptor") if isinstance(memory.get("raptor"), dict) else {}
+        record_memory_provenance(
+            "memory_retrieval",
+            owner=owner,
+            surface="context_orchestrator",
+            source=provider_id,
+            action="provider_retrieve",
+            status=status,
+            reason=reason,
+            retrieval_count=len(snippets) or len(sources),
+            used_in_context=bool(snippets or payload.get("structured_state")),
+            metadata={
+                "mode": mode,
+                "budget": budget,
+                "provider_id": provider_id,
+                "readiness_state": summary.get("readiness_state") or raptor.get("state") or "",
+            },
+        )
+    except Exception:
+        pass
 
 
 def _provider_payload_warnings(payload: Dict[str, Any]) -> List[str]:

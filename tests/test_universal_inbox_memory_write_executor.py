@@ -1,5 +1,6 @@
 import pytest
 
+from src import memory_provenance_ledger
 from src.universal_inbox_memory_write_executor import (
     UniversalInboxMemoryWriteExecutionError,
     execute_universal_inbox_memory_write_intent,
@@ -88,3 +89,22 @@ def test_executor_live_uses_injected_writers_only_when_explicit():
     assert report["raptorgraph_events_written"] == 1
     assert memory_calls[0]["memory_id"] == "uix-abc"
     assert graph_calls[0]["memory_record_ids"] == ("uix-abc",)
+
+
+def test_executor_writes_redacted_memory_provenance_events(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory_provenance_ledger, "MEMORY_PROVENANCE_LEDGER_DIR", str(tmp_path))
+
+    execute_universal_inbox_memory_write_intent(
+        READY_INTENT,
+        review_confirmed=True,
+        dry_run=True,
+    )
+
+    rows = [
+        __import__("json").loads(line)
+        for line in memory_provenance_ledger.ledger_path().read_text(encoding="utf-8").splitlines()
+    ]
+    event_types = [row["event_type"] for row in rows]
+    assert "memory_write_intent" in event_types
+    assert "memory_user_interaction" in event_types
+    assert all(row["raw_content_visible"] is False for row in rows)

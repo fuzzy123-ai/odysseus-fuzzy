@@ -647,6 +647,25 @@ async def audit_memories(
         # owner's entries until they happen to run their own audit.
         if memory_vector and memory_vector.healthy:
             memory_vector.rebuild(saved_entries)
+            try:
+                from src.memory_provenance_ledger import record_memory_provenance
+
+                record_memory_provenance(
+                    "memory_maintenance",
+                    owner=owner,
+                    surface="memory_audit",
+                    source="memory_vector",
+                    action="rebuild",
+                    status="success",
+                    reason="audit_completed",
+                    before_count=before_count,
+                    after_count=after_count,
+                    node_count=len(saved_entries),
+                    writes_performed=True,
+                    model_id=model,
+                )
+            except Exception:
+                pass
 
         # Persist the post-tidy fingerprint so the next call short-circuits
         # if nothing has changed in the meantime.

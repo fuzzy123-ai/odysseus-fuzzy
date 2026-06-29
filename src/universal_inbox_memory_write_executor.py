@@ -62,29 +62,35 @@ def execute_universal_inbox_memory_write_intent(
     planned_raptor = 1 if raptorgraph_event and memory_records else 0
 
     if str(intent.get("status") or "") != "ready" or not bool(intent.get("ready_to_write")):
-        return UniversalInboxMemoryWriteExecutionReport(
+        report = UniversalInboxMemoryWriteExecutionReport(
             status="blocked",
             reason="intent_not_ready",
             memory_records_planned=len(memory_records),
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
+        _record_execution(intent, report, review_confirmed=review_confirmed)
+        return report
     if not review_confirmed:
-        return UniversalInboxMemoryWriteExecutionReport(
+        report = UniversalInboxMemoryWriteExecutionReport(
             status="review",
             reason="review_confirmation_required",
             memory_records_planned=len(memory_records),
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
+        _record_execution(intent, report, review_confirmed=review_confirmed)
+        return report
     if dry_run:
-        return UniversalInboxMemoryWriteExecutionReport(
+        report = UniversalInboxMemoryWriteExecutionReport(
             status="planned",
             reason="dry_run_only",
             memory_records_planned=len(memory_records),
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
+        _record_execution(intent, report, review_confirmed=review_confirmed)
+        return report
     if memory_writer is None:
         raise UniversalInboxMemoryWriteExecutionError("memory_writer is required for live execution")
 
@@ -100,7 +106,7 @@ def execute_universal_inbox_memory_write_intent(
         raptorgraph_writer(raptorgraph_event)
         raptor_written = 1
 
-    return UniversalInboxMemoryWriteExecutionReport(
+    report = UniversalInboxMemoryWriteExecutionReport(
         status="written",
         reason="review_confirmed_and_writers_completed",
         memory_records_planned=len(memory_records),
@@ -110,3 +116,60 @@ def execute_universal_inbox_memory_write_intent(
         dry_run=False,
         writes_performed=bool(memory_written or raptor_written),
     )
+    _record_execution(intent, report, review_confirmed=review_confirmed)
+    return report
+
+
+def _record_execution(
+    intent: Mapping[str, Any],
+    report: UniversalInboxMemoryWriteExecutionReport,
+    *,
+    review_confirmed: bool,
+) -> None:
+    try:
+        from src.memory_provenance_ledger import record_memory_provenance
+
+        raptorgraph_event = intent.get("raptorgraph_event") if isinstance(intent.get("raptorgraph_event"), Mapping) else {}
+        policy = intent.get("analysis_policy") if isinstance(intent.get("analysis_policy"), Mapping) else {}
+        record_memory_provenance(
+            "memory_write_intent",
+            owner=str(policy.get("owner") or "unknown"),
+            surface="universal_inbox",
+            source="universal_inbox",
+            action="execute_write_intent",
+            status=report.status,
+            reason=report.reason,
+            source_hash=str(raptorgraph_event.get("source_hash") or ""),
+            memory_record_ids=tuple(record.get("memory_id") for record in (intent.get("memory_records") or ()) if isinstance(record, Mapping)),
+            dsgvo_mode=bool(raptorgraph_event.get("dsgvo_mode")),
+            local_only=bool(raptorgraph_event.get("local_only")),
+            classification=str(raptorgraph_event.get("classification") or ""),
+            review_required=not review_confirmed,
+            dry_run=report.dry_run,
+            writes_performed=report.writes_performed,
+            metadata={
+                "memory_records_planned": report.memory_records_planned,
+                "memory_records_written": report.memory_records_written,
+                "raptorgraph_events_planned": report.raptorgraph_events_planned,
+                "raptorgraph_events_written": report.raptorgraph_events_written,
+            },
+        )
+        if review_confirmed:
+            record_memory_provenance(
+                "memory_user_interaction",
+                owner=str(policy.get("owner") or "unknown"),
+                surface="universal_inbox",
+                source="telegram_or_ui_review",
+                action="review_confirmed",
+                status=report.status,
+                reason=report.reason,
+                source_hash=str(raptorgraph_event.get("source_hash") or ""),
+                memory_record_ids=tuple(record.get("memory_id") for record in (intent.get("memory_records") or ()) if isinstance(record, Mapping)),
+                dsgvo_mode=bool(raptorgraph_event.get("dsgvo_mode")),
+                local_only=bool(raptorgraph_event.get("local_only")),
+                classification=str(raptorgraph_event.get("classification") or ""),
+                dry_run=report.dry_run,
+                writes_performed=report.writes_performed,
+            )
+    except Exception:
+        pass
