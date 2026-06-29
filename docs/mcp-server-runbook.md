@@ -15,6 +15,30 @@ This is intentional. Enabling the plugin creates a powerful automation surface f
 - Generic API tool: hidden by default.
 - Shell/Python/file-write/email-send/admin/settings/token/plugin-management tools: hidden by default.
 - `odysseus_notify_user`: allowed when the Telegram plugin has registered the tool, but still dry-run/gated by its own server-side rules.
+- Docker MCP is not part of this deployment model. Runtime checks must assume Podman/pods and remain read-only unless a separate operator approval explicitly allows a mutation.
+
+## Codex MCP Workbench
+
+When the corresponding MCP services, plugins or connectors are available in
+this Codex environment, set them up as a small verification workbench before
+using them as roadmap evidence.
+
+Preferred Codex-side services:
+
+- local Odysseus MCP endpoint for `initialize`, `tools/list`, readiness and
+  redacted audit checks
+- Playwright/browser MCP for UI smoke evidence
+- GitHub connector or GitHub MCP for PR, Actions and issue context
+- documentation MCPs such as Context7 or OpenAI Docs for current technical docs
+- optional Chrome DevTools MCP for browser diagnostics when Playwright evidence
+  is not enough
+- a narrow Podman read-only check path for service status, ports, health and
+  logs
+
+Do not enable broad filesystem, shell, Docker, generic remote-control or
+`expose_all` MCP surfaces just because they are available. Non-bundled,
+networked or write-capable MCP services need explicit operator approval before
+installation or activation.
 
 ## Local Smoke
 
@@ -100,6 +124,8 @@ Before LAN, tunnel, or reverse-proxy exposure:
 - high-risk tools remain absent from `tools/list`
 - `odysseus_call` remains absent unless a later positive endpoint allowlist exists
 - redacted audit log is being written to the plugin data dir
+- Podman/runtime checks remain read-only; restart/recreate/redeploy stays a
+  separate gated action
 - rollback command is known
 - Cloudflare Tunnel exposure has a separate operator approval
 

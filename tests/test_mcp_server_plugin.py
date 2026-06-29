@@ -12,6 +12,21 @@ from src.tool_registry import ToolSpec, unregister_tool, register_tool
 from src.user_notification_contract import build_user_notification_decision
 
 
+RUNBOOK_HIGH_RISK_TOOLS = (
+    "bash",
+    "python",
+    "write_file",
+    "edit_file",
+    "app_api",
+    "api_call",
+    "send_email",
+    "manage_tokens",
+    "manage_settings",
+    "manage_mcp",
+    "odysseus_call",
+)
+
+
 @dataclass
 class _PluginContext:
     app: FastAPI
@@ -89,6 +104,53 @@ def test_mcp_tools_list_is_policy_filtered_and_includes_notification(tmp_path, m
     assert "write_file" not in names
     assert "app_api" not in names
     assert "odysseus_call" not in names
+
+
+def test_mcp_tools_list_excludes_runbook_high_risk_tools_when_registered(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    for name in RUNBOOK_HIGH_RISK_TOOLS:
+        unregister_tool(name)
+        register_tool(ToolSpec(
+            name=name,
+            description=f"High-risk placeholder for {name}.",
+            parameters={"type": "object", "properties": {}},
+            execute=lambda content, **_kwargs: {"output": content, "exit_code": 0},
+        ))
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={"enabled": True})
+
+    try:
+        response = client.post("/api/plugins/mcp", json=_rpc("tools/list"))
+    finally:
+        for name in RUNBOOK_HIGH_RISK_TOOLS:
+            unregister_tool(name)
+
+    assert response.status_code == 200
+    names = {tool["name"] for tool in response.json()["result"]["tools"]}
+    assert names.isdisjoint(RUNBOOK_HIGH_RISK_TOOLS)
+
+
+def test_mcp_config_ignores_expose_all_and_keeps_generic_api_default_hidden(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    client = _client(tmp_path)
+
+    config_response = client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "expose_all": True,
+        "allow_generic_api": False,
+    })
+    config = config_response.json()
+    readiness = client.post("/api/plugins/mcp", json=_rpc("resources/read", {
+        "uri": "odysseus://mcp/readiness",
+    })).json()["result"]["contents"][0]
+    readiness_payload = json.loads(readiness["text"])
+
+    assert config_response.status_code == 200
+    assert "expose_all" not in config
+    assert readiness_payload["expose_all_supported"] is False
+    assert readiness_payload["generic_api_enabled"] is False
+    assert "token" not in readiness["text"].lower()
+    assert "secret" not in readiness["text"].lower()
 
 
 def test_mcp_tools_call_denies_hidden_high_risk_tool(tmp_path, monkeypatch):
@@ -172,6 +234,27 @@ def test_mcp_resources_and_prompts_are_available(tmp_path, monkeypatch):
         "odysseus_mcp_readiness_review",
     }
     assert "odysseus_notify_user" in prompt["messages"][0]["content"]["text"]
+
+
+def test_mcp_audit_trail_is_redacted_for_smoke_calls(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={"enabled": True})
+
+    client.post("/api/plugins/mcp", json=_rpc("initialize"))
+    client.post("/api/plugins/mcp", json=_rpc("tools/list"))
+    client.post("/api/plugins/mcp", json=_rpc("resources/read", {
+        "uri": "odysseus://mcp/readiness",
+    }))
+
+    audit_path = tmp_path / "mcp_audit.jsonl"
+    assert audit_path.exists()
+    entries = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+    assert {entry["method"] for entry in entries} >= {"initialize", "tools/list", "resources/read"}
+    for entry in entries:
+        assert entry["token_value_visible"] is False
+        assert entry["secret_value_visible"] is False
+        assert "authorization" not in json.dumps(entry).lower()
 
 
 def test_mcp_notifications_return_accepted_without_body(tmp_path, monkeypatch):

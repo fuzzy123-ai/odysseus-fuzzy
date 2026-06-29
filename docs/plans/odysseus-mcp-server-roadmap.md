@@ -132,7 +132,22 @@ Add tests before code porting:
 - generic API calls cannot reach denied routes
 - Origin/auth behavior is tested where feasible
 
-Status: Started. The first executable policy contract is in `src/mcp_server_tool_policy.py` with focused tests in `tests/test_mcp_server_tool_policy.py`. Runtime JSON-RPC route tests remain for `MCP3-minimal-port`.
+Status: Done for the current offline MCP workbench scope.
+`src/mcp_server_tool_policy.py`, `tests/test_mcp_server_tool_policy.py` and
+`tests/test_mcp_server_plugin.py` cover the executable policy and local
+JSON-RPC route contract.
+
+2026-06-29 bootstrap evidence:
+
+- The route contract covers disabled-by-default behavior, `initialize`,
+  `tools/list`, `tools/call`, `resources/list`, `resources/read`,
+  `prompts/list`, `prompts/get`, notifications and redacted audit writes.
+- Registered high-risk tool names from the runbook remain absent from
+  `tools/list`.
+- `expose_all` is ignored by config and reported as unsupported in readiness.
+- Focused verification:
+  `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
+  returned `16 passed, 1 warning`.
 
 ### MCP3-minimal-port
 
@@ -186,6 +201,15 @@ Create `docs/mcp-server-runbook.md` covering:
 - rollback/disable procedure
 
 Status: Done. See `docs/mcp-server-runbook.md`.
+
+2026-06-29 reconciliation:
+
+- The runbook now names the Codex MCP workbench setup path for local Odysseus
+  MCP, Playwright/browser MCP, GitHub connector/MCP, documentation MCPs,
+  optional Chrome DevTools MCP and narrow Podman read-only checks.
+- Docker MCP is explicitly not part of this deployment model.
+- Non-bundled, networked or write-capable Codex-side MCP services remain
+  operator-gated.
 
 ### MCP7-live-smoke
 
