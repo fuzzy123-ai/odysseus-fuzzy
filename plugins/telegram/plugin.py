@@ -976,6 +976,11 @@ def build_agent_bridge_request(
         note = "unsupported_message"
 
     dsgvo_mode = _dsgvo_mode_active()
+    attachment_local_only = bool((recent_attachment_context or {}).get("local_only_required"))
+    local_only_required = bool(
+        runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode})
+        or attachment_local_only
+    )
     workflow_context = build_telegram_workflow_context(
         message,
         recent_attachment_context=recent_attachment_context,
@@ -1004,8 +1009,9 @@ def build_agent_bridge_request(
         "workflow_context": workflow_context,
         "intake_status": message.get("intake_status") or note,
         "dsgvo_mode": dsgvo_mode,
-        "security_mode": "secure" if dsgvo_mode else "normal",
-        "local_only_required": runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}),
+        "security_mode": "secure" if local_only_required else "normal",
+        "local_only_required": local_only_required,
+        "attachment_local_only_required": attachment_local_only,
     }
 
 
@@ -1604,6 +1610,15 @@ def _telegram_attachment_context_max_chars() -> int:
     return max(512, min(value, 50000))
 
 
+def _telegram_attachment_context_max_extract_bytes() -> int:
+    raw = os.getenv("TELEGRAM_ATTACHMENT_CONTEXT_MAX_EXTRACT_BYTES") or "4194304"
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 4 * 1024 * 1024
+    return max(64 * 1024, min(value, 64 * 1024 * 1024))
+
+
 def _telegram_attachment_spool_key(message: dict[str, Any]) -> str:
     chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")) or "chat")
     message_id = str(message.get("message_id") or "")
@@ -1673,7 +1688,7 @@ def build_recent_telegram_attachment_context(
         packet = extract_universal_inbox_content(
             files[0],
             root=spool_dir,
-            max_extract_bytes=_telegram_attachment_context_max_chars() * 4,
+            max_extract_bytes=_telegram_attachment_context_max_extract_bytes(),
         )
     except Exception as exc:
         return {
@@ -1687,6 +1702,32 @@ def build_recent_telegram_attachment_context(
             "host_paths_visible": False,
         }
 
+    analysis_policy: dict[str, Any] = {}
+    if packet.raw_text:
+        try:
+            from src.universal_inbox_analysis import build_universal_inbox_file_analysis_packet
+
+            analysis = build_universal_inbox_file_analysis_packet(
+                {
+                    "status": packet.status,
+                    "extraction_status": packet.status,
+                    "suffix": packet.suffix,
+                    "filename": "telegram-attachment",
+                    "source_channel": "telegram",
+                    "extractor": packet.metadata.get("extractor") or "",
+                },
+                text_sample=packet.raw_text[: min(len(packet.raw_text), 4000)],
+                requested_classification="private",
+                settings={"dsgvo_mode": _dsgvo_mode_active()},
+            ).to_dict()
+            analysis_policy = dict(analysis.get("policy") or {})
+        except Exception:
+            analysis_policy = {
+                "status": "review",
+                "api_model_allowed": False,
+                "local_only_required": True,
+                "review_reasons": ("local_policy_analysis_failed",),
+            }
     warnings = ", ".join(warning.code for warning in packet.warnings) or "none"
     header = (
         "[Letzter Telegram-Anhang fuer diese Unterhaltung]\n"
@@ -1694,6 +1735,7 @@ def build_recent_telegram_attachment_context(
         f"- Typ: {packet.suffix or 'unknown'}\n"
         f"- Extractor: {packet.metadata.get('extractor') or 'unknown'}\n"
         f"- Warnungen: {warnings}\n"
+        f"- Lokale Vorpruefung: {analysis_policy.get('status') or 'metadata_only'}\n"
     )
     if packet.raw_text:
         text = packet.raw_text[: _telegram_attachment_context_max_chars()]
@@ -1712,6 +1754,9 @@ def build_recent_telegram_attachment_context(
         "context": context,
         "raw_content_visible": raw_visible,
         "host_paths_visible": False,
+        "analysis_policy": analysis_policy,
+        "api_model_allowed": bool(analysis_policy.get("api_model_allowed")) if analysis_policy else False,
+        "local_only_required": bool(analysis_policy.get("local_only_required")),
         "source_message_id": event.get("message_id"),
     }
 

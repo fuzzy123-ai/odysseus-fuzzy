@@ -17,6 +17,7 @@ from plugins.telegram.plugin import (
     TelegramSessionBridgeStore,
     _telegram_control_command,
     build_agent_bridge_request,
+    build_recent_telegram_attachment_context,
     build_telegram_readiness,
     download_telegram_file_bytes,
     download_telegram_voice_bytes,
@@ -1449,6 +1450,84 @@ def test_agent_bridge_workflow_context_classifies_export_without_raw_prompt(monk
     assert "Mach daraus" not in str(bridge["workflow_context"])
     assert "Private Rechnung" not in str(bridge["workflow_context"])
     assert "sensitive-chat-id" not in str(bridge["workflow_context"])
+
+
+def test_recent_pdf_attachment_context_uses_separate_extract_byte_limit(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ATTACHMENT_CONTEXT_MAX_CHARS", "512")
+    monkeypatch.setenv("TELEGRAM_ATTACHMENT_CONTEXT_MAX_EXTRACT_BYTES", "1048576")
+    monkeypatch.setattr(
+        "src.personal_docs.extract_pdf_text",
+        lambda _path: "Projekt Alpha PDF Inhalt " * 80,
+    )
+    store = TelegramInboxStore(tmp_path)
+    spool = tmp_path / "universal_inbox_telegram" / "spoolpdf"
+    spool.mkdir(parents=True)
+    (spool / "telegram-attachment.pdf").write_bytes(b"%PDF-1.4\n" + (b"x" * 200_000))
+    store.append_event(
+        kind="universal_inbox_attachment",
+        status="processed",
+        chat_id="pdf-chat-1",
+        message_id=123,
+        universal_inbox_status="go",
+        memory_write_intent_status="ready",
+        attachment_family="document",
+        attachment_suffix=".pdf",
+        spool_key="spoolpdf",
+        raw_content_visible=False,
+        raw_identifiers_visible=False,
+        filename_visible=False,
+    )
+
+    context = build_recent_telegram_attachment_context(
+        data_dir=tmp_path,
+        store=store,
+        chat_id="pdf-chat-1",
+    )
+
+    assert context["raw_content_visible"] is True
+    assert "Projekt Alpha PDF Inhalt" in context["context"]
+    assert "size_limit_exceeded" not in context["context"]
+    assert context["api_model_allowed"] is True
+    assert context["local_only_required"] is False
+
+
+def test_sensitive_recent_attachment_requires_local_only(tmp_path):
+    store = TelegramInboxStore(tmp_path)
+    spool = tmp_path / "universal_inbox_telegram" / "spoolsensitive"
+    spool.mkdir(parents=True)
+    (spool / "telegram-attachment.txt").write_text("IBAN DE00 0000 0000 0000 Rechnung privat", encoding="utf-8")
+    store.append_event(
+        kind="universal_inbox_attachment",
+        status="processed",
+        chat_id="sensitive-chat-1",
+        message_id=124,
+        universal_inbox_status="go",
+        memory_write_intent_status="review",
+        attachment_family="document",
+        attachment_suffix=".txt",
+        spool_key="spoolsensitive",
+        raw_content_visible=False,
+        raw_identifiers_visible=False,
+        filename_visible=False,
+    )
+
+    context = build_recent_telegram_attachment_context(
+        data_dir=tmp_path,
+        store=store,
+        chat_id="sensitive-chat-1",
+    )
+    bridge = build_agent_bridge_request(
+        {"kind": "text", "chat_id": "sensitive-chat-1", "message_id": 125, "text": "Worum geht es?"},
+        raw_chat_id="sensitive-chat-1",
+        recent_attachment_context=context,
+    )
+
+    assert context["raw_content_visible"] is True
+    assert context["api_model_allowed"] is False
+    assert context["local_only_required"] is True
+    assert bridge["local_only_required"] is True
+    assert bridge["attachment_local_only_required"] is True
+    assert bridge["security_mode"] == "secure"
 
 
 def test_polling_cycle_followup_export_request_sends_recent_attachment_pdf(tmp_path, monkeypatch):

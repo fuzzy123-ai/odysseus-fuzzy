@@ -885,6 +885,15 @@ def _telegram_dsgvo_model_block_reply(block_reason: str) -> str:
     )
 
 
+def _telegram_local_only_model_block_reply(block_reason: str) -> str:
+    return (
+        "Diese Telegram-Datei muss lokal verarbeitet werden. Der aktive Chat nutzt "
+        "aber ein externes/API-Modell. Bitte stelle fuer diese Telegram-Session ein "
+        "lokales Modell ein oder starte danach /new. Grund: "
+        f"{block_reason}"
+    )
+
+
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
@@ -909,7 +918,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 enforce_session_provider_runtime_gate,
             )
 
-            if is_dsgvo_mode_enabled():
+            if is_dsgvo_mode_enabled() or bool(bridge.get("local_only_required")):
                 try:
                     enforce_session_provider_runtime_gate(
                         security_mode="secure",
@@ -919,10 +928,15 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         model_id=getattr(session, "model", ""),
                     )
                 except SecureProviderRuntimeError as gate_exc:
+                    reply = (
+                        _telegram_dsgvo_model_block_reply(str(gate_exc))
+                        if is_dsgvo_mode_enabled()
+                        else _telegram_local_only_model_block_reply(str(gate_exc))
+                    )
                     return {
                         "status": "blocked",
                         "error": str(gate_exc),
-                        "reply_text": _telegram_dsgvo_model_block_reply(str(gate_exc)),
+                        "reply_text": reply,
                     }
         except Exception as privacy_exc:
             logger.warning("Telegram DSGVO provider gate failed closed: %s", privacy_exc)
