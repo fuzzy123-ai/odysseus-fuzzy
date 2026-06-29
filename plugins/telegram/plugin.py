@@ -996,6 +996,7 @@ def _handle_telegram_control_command(
     memory_manager: Any = None,
     memory_vector: Any = None,
     memory_owner: str | None = None,
+    project_registry_path: str | Path | None = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -1183,23 +1184,40 @@ def _handle_telegram_control_command(
                 reply_text = "Keine offene Project-Intake-Review gefunden."
                 status = "project_intake_review_missing"
             else:
+                apply_report = _apply_telegram_project_intake_review(
+                    data_dir=store.data_dir if store is not None else ".",
+                    review=review,
+                    project_registry_path=project_registry_path,
+                )
+                apply_performed = bool(apply_report.get("applied"))
                 if store is not None:
                     store.append_event(
                         kind="project_intake_review",
-                        status="confirmed",
+                        status="confirmed" if apply_performed else "blocked",
                         chat_id=bridge["chat_id"],
                         source_message_id=review.get("source_message_id"),
                         project_slug=str(review.get("project_slug") or ""),
                         task_count=int(review.get("task_count") or 0),
+                        decision_count=int(review.get("decision_count") or 0),
+                        risk_count=int(review.get("risk_count") or 0),
+                        roadmap_update_count=int(review.get("roadmap_update_count") or 0),
                         raw_content_visible=False,
                         raw_identifiers_visible=False,
-                        project_intake_apply_performed=False,
+                        project_intake_apply_performed=apply_performed,
+                        project_intake_apply_status=str(apply_report.get("status") or "blocked"),
+                        project_intake_apply_blockers=tuple(apply_report.get("blockers") or ()),
+                        project_intake_apply_event_id=apply_report.get("event_id"),
                     )
-                reply_text = (
-                    "Project-Intake bestaetigt. Ich habe den Merge-Vorschlag vorgemerkt; "
-                    "das Schreiben in Projektstate/Roadmap kommt im naechsten Gate."
-                )
-                status = "project_intake_review_confirmed"
+                if apply_performed:
+                    reply_text = (
+                        "Project-Intake bestaetigt und ins Projekt-Intake-Ledger uebernommen. "
+                        "Projektdateien/Roadmap-Dateien wurden noch nicht direkt veraendert."
+                    )
+                    status = "project_intake_review_confirmed"
+                else:
+                    blockers = ", ".join(str(item) for item in apply_report.get("blockers") or ("apply_blocked",))
+                    reply_text = f"Project-Intake bestaetigt, aber Apply ist blockiert: {blockers}."
+                    status = "project_intake_review_apply_blocked"
         elif command == "project_intake_review_hold":
             if review is None:
                 reply_text = "Keine offene Project-Intake-Review gefunden."
@@ -1862,6 +1880,7 @@ def build_telegram_project_intake_preview(
             raw_identifiers_visible=False,
             host_paths_visible=False,
             project_intake_apply_performed=False,
+            project_intake_proposal=proposal,
         )
     return result
 
@@ -1886,8 +1905,42 @@ def format_telegram_project_intake_reply(result: dict[str, Any]) -> str:
     if task_titles:
         lines.append("Vorschlag:")
         lines.extend(f"- {title}" for title in task_titles)
-    lines.append("Antwort: /project ok zum Vormerken, /project hold zum Pausieren. Schreiben in Projektstate bleibt noch gesperrt.")
+    lines.append("Antwort: /project ok uebernimmt ins Intake-Ledger, /project hold pausiert. Projektdateien bleiben noch gesperrt.")
     return "\n".join(lines)
+
+
+def _apply_telegram_project_intake_review(
+    *,
+    data_dir: str | Path,
+    review: dict[str, Any],
+    project_registry_path: str | Path | None = None,
+) -> dict[str, Any]:
+    proposal = review.get("project_intake_proposal")
+    if not isinstance(proposal, dict):
+        return {"status": "blocked", "applied": False, "blockers": ("proposal_missing_from_review",)}
+    project_slug = str(review.get("project_slug") or "")
+    if not project_slug:
+        return {"status": "blocked", "applied": False, "blockers": ("project_slug_missing",)}
+    try:
+        from src.project_intake import apply_project_intake_proposal
+        from src.server_project_registry import ServerProjectRegistry
+    except Exception as exc:
+        return {"status": "blocked", "applied": False, "blockers": (f"project_intake_unavailable:{str(exc)[:80]}",)}
+
+    registry_path = Path(project_registry_path) if project_registry_path is not None else Path(data_dir) / _PROJECT_REGISTRY_FILE
+    try:
+        registry = ServerProjectRegistry.load_json(registry_path) if registry_path.exists() else ServerProjectRegistry()
+        report = apply_project_intake_proposal(
+            registry=registry,
+            project_slug=project_slug,
+            proposal=proposal,
+            ledger_path=Path(data_dir) / "server_projects" / project_slug / ".odysseus" / "project_intake_ledger.json",
+            applied_by="telegram",
+            review_confirmed=True,
+        )
+    except Exception as exc:
+        return {"status": "blocked", "applied": False, "blockers": (str(exc)[:120],)}
+    return report.to_dict()
 
 
 def _format_project_intake_review_status(review: dict[str, Any] | None) -> str:
@@ -2370,6 +2423,7 @@ def run_telegram_polling_cycle(
                 memory_manager=memory_manager,
                 memory_vector=memory_vector,
                 memory_owner=memory_owner,
+                project_registry_path=project_registry_path,
             )
             if control_result is not None:
                 control_commands += 1
@@ -3501,6 +3555,7 @@ def setup(ctx):
             memory_manager=memory_manager,
             memory_vector=memory_vector,
             memory_owner=memory_owner,
+            project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
         )
         if control_result is not None:
             store.append_event(

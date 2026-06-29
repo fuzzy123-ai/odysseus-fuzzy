@@ -1511,6 +1511,20 @@ def test_polling_cycle_project_intake_preview_for_mobile_plan(tmp_path, monkeypa
 def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "project-chat-1")
+    registry = ServerProjectRegistry()
+    registry.create_project(
+        project_title="Kundenportal MVP",
+        project_type="app",
+        created_at="2026-06-29T10:00:00Z",
+    )
+    registry.save_json(tmp_path / "server_project_registry.json")
+    from src.project_intake import build_project_intake_preview
+
+    proposal = build_project_intake_preview(
+        registry=registry,
+        text="#project:kundenportal-mvp TODO: Login als MVP Slice aufnehmen.",
+        source_channel="telegram",
+    ).to_dict()
     store = TelegramInboxStore(tmp_path)
     store.append_event(
         kind="project_intake_review",
@@ -1518,12 +1532,14 @@ def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monk
         chat_id="project-chat-1",
         source_message_id=70,
         project_slug="kundenportal-mvp",
-        task_count=2,
-        decision_count=1,
-        risk_count=1,
+        task_count=1,
+        decision_count=0,
+        risk_count=0,
+        roadmap_update_count=0,
         raw_content_visible=False,
         raw_identifiers_visible=False,
         project_intake_apply_performed=False,
+        project_intake_proposal=proposal,
     )
     replies = []
 
@@ -1558,7 +1574,12 @@ def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monk
     assert confirmed["control_commands"] == 1
     history = TelegramInboxStore(tmp_path).history(limit=40)
     assert any(item.get("kind") == "project_intake_review" and item.get("status") == "confirmed" for item in history)
-    assert any("vorgemerkt" in reply[1] for reply in replies)
+    assert any("Intake-Ledger uebernommen" in reply[1] for reply in replies)
+    ledger_path = tmp_path / "server_projects" / "kundenportal-mvp" / ".odysseus" / "project_intake_ledger.json"
+    assert ledger_path.is_file()
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert ledger["events"][0]["task_count"] == 1
+    assert ledger["events"][0]["project_state_write_performed"] is False
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "project-chat-1" not in persisted_text
     assert "project_intake_apply_performed" in persisted_text

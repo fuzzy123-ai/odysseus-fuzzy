@@ -87,6 +87,38 @@ def test_project_routes_preview_for_project_forces_target_project(tmp_path: Path
     assert "forced_project" in intake["candidate_project"]["reasons"]
 
 
+def test_project_routes_apply_reviewed_project_intake(tmp_path: Path):
+    registry_path = tmp_path / "projects.json"
+    projects_root = tmp_path / "server-projects"
+    client = _client(registry_path, projects_root=projects_root)
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+    preview = client.post(
+        "/api/projects/kundenportal-mvp/intake/preview",
+        json={"source_channel": "telegram", "text": "TODO: Release Smoke fuer unterwegs."},
+    ).json()["intake"]
+
+    blocked = client.post(
+        "/api/projects/kundenportal-mvp/intake/apply",
+        json={"proposal": preview, "review_confirmed": False, "applied_by": "telegram"},
+    )
+    assert blocked.status_code == 200
+    assert blocked.json()["success"] is False
+    assert "review_not_confirmed" in blocked.json()["intake_apply"]["blockers"]
+
+    applied = client.post(
+        "/api/projects/kundenportal-mvp/intake/apply",
+        json={"proposal": preview, "review_confirmed": True, "applied_by": "telegram"},
+    )
+    assert applied.status_code == 200
+    body = applied.json()
+    assert body["success"] is True
+    assert body["intake_apply"]["task_count"] == 1
+    assert body["intake_apply"]["ledger_path"] == "project_intake_ledger.json"
+    ledger = projects_root / "kundenportal-mvp" / ".odysseus" / "project_intake_ledger.json"
+    assert ledger.is_file()
+    assert str(projects_root) not in json.dumps(body)
+
+
 def test_project_routes_preview_rejects_secret_like_intake(tmp_path: Path):
     registry_path = tmp_path / "projects.json"
     client = _client(registry_path)
@@ -266,6 +298,10 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert missing_bind.status_code == 404
     assert client.post("/api/projects/missing/provision", json={"live_enabled": True, "operator_decision": "go"}).status_code == 404
     assert client.post("/api/projects/missing/repo-provision", json={}).status_code == 404
+    assert client.post(
+        "/api/projects/missing/intake/apply",
+        json={"proposal": {}, "review_confirmed": True},
+    ).status_code == 404
     assert client.post(
         "/api/projects/missing/task-run",
         json={"objective": "x", "file_writes": [], "checks": []},

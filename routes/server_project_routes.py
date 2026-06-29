@@ -14,7 +14,7 @@ from src.server_project_chat_context import (
     ServerProjectChatContextError,
     bind_project_chat_session,
 )
-from src.project_intake import ProjectIntakeError, build_project_intake_preview
+from src.project_intake import ProjectIntakeError, apply_project_intake_proposal, build_project_intake_preview
 from src.server_project_commit_runner import (
     ServerProjectCommitRunnerError,
     run_project_local_commit,
@@ -126,6 +126,12 @@ class ProjectIntakePreviewRequest(BaseModel):
     project_slug: str | None = Field(default=None, max_length=80)
 
 
+class ProjectIntakeApplyRequest(BaseModel):
+    proposal: dict[str, Any]
+    review_confirmed: bool = False
+    applied_by: str = "operator"
+
+
 def setup_server_project_routes(
     *,
     registry_path: str | Path = DEFAULT_PROJECT_REGISTRY_PATH,
@@ -185,6 +191,25 @@ def setup_server_project_routes(
         except ProjectIntakeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"success": proposal.status != "blocked", "intake": proposal.to_dict()}
+
+    @router.post("/{project_slug}/intake/apply")
+    def apply_project_intake(project_slug: str, body: ProjectIntakeApplyRequest) -> dict[str, Any]:
+        registry = _load_registry(registry_file)
+        try:
+            report = apply_project_intake_proposal(
+                registry=registry,
+                project_slug=project_slug,
+                proposal=body.proposal,
+                ledger_path=configured_projects_root / project_slug / ".odysseus" / "project_intake_ledger.json",
+                applied_at=_now_iso(),
+                applied_by=body.applied_by,
+                review_confirmed=body.review_confirmed,
+            )
+        except ServerProjectRegistryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ProjectIntakeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": report.applied, "intake_apply": report.to_dict()}
 
     @router.get("/{project_slug}")
     def get_project(project_slug: str) -> dict[str, Any]:

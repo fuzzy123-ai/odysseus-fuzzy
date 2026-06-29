@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from src.project_intake import ProjectIntakeError, build_project_intake_preview
+from src.project_intake import ProjectIntakeError, apply_project_intake_proposal, build_project_intake_preview
 from src.server_project_registry import ServerProjectRegistry
 
 
@@ -99,6 +99,61 @@ def test_project_intake_accepts_ai_planner_but_keeps_review_boundary():
     assert proposal["decisions"] == ("Apply bleibt bis Review gesperrt",)
     assert proposal["requires_review"] is True
     assert proposal["ready_for_apply"] is False
+
+
+def test_project_intake_apply_writes_reviewed_redacted_ledger(tmp_path):
+    registry = _registry()
+    proposal = build_project_intake_preview(
+        registry=registry,
+        text="#project:kundenportal-mvp TODO: Login als MVP Slice aufnehmen.",
+        source_channel="telegram",
+    ).to_dict()
+    ledger_path = tmp_path / "project_intake_ledger.json"
+
+    report = apply_project_intake_proposal(
+        registry=registry,
+        project_slug="kundenportal-mvp",
+        proposal=proposal,
+        ledger_path=ledger_path,
+        applied_at="2026-06-29T12:00:00Z",
+        applied_by="telegram",
+        review_confirmed=True,
+    )
+
+    payload = report.to_dict()
+    assert payload["status"] == "applied"
+    assert payload["applied"] is True
+    assert payload["task_count"] == 1
+    assert payload["ledger_path"] == "project_intake_ledger.json"
+    stored = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert stored["schema"] == "odysseus.project_intake.ledger.v1"
+    assert stored["events"][0]["project_slug"] == "kundenportal-mvp"
+    assert stored["events"][0]["tasks"][0]["title"] == "Login als MVP Slice aufnehmen."
+    assert stored["events"][0]["project_state_write_performed"] is False
+    assert stored["events"][0]["raw_content_persisted"] is False
+    assert str(tmp_path) not in json.dumps(payload)
+
+
+def test_project_intake_apply_requires_review_confirmation(tmp_path):
+    registry = _registry()
+    proposal = build_project_intake_preview(
+        registry=registry,
+        text="#project:kundenportal-mvp TODO: Login als MVP Slice aufnehmen.",
+    ).to_dict()
+
+    report = apply_project_intake_proposal(
+        registry=registry,
+        project_slug="kundenportal-mvp",
+        proposal=proposal,
+        ledger_path=tmp_path / "project_intake_ledger.json",
+        applied_at="2026-06-29T12:00:00Z",
+        review_confirmed=False,
+    ).to_dict()
+
+    assert report["status"] == "blocked"
+    assert report["applied"] is False
+    assert "review_not_confirmed" in report["blockers"]
+    assert not (tmp_path / "project_intake_ledger.json").exists()
 
 
 def test_project_intake_rejects_secret_and_host_path_material():
