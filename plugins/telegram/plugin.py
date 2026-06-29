@@ -1580,10 +1580,109 @@ def build_recent_telegram_attachment_export_plan(
     }
 
 
+def execute_recent_telegram_attachment_export(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    text: str,
+) -> dict[str, Any] | None:
+    plan = build_recent_telegram_attachment_export_plan(
+        data_dir=data_dir,
+        store=store,
+        chat_id=chat_id,
+        text=text,
+    )
+    if plan is None:
+        return None
+    if str(plan.get("status") or "") != "ready":
+        return plan
+    try:
+        from src.universal_export_executor import execute_universal_export
+    except Exception as exc:
+        result = dict(plan)
+        result.update(
+            {
+                "status": "blocked",
+                "reason": f"export_executor_unavailable:{str(exc)[:80]}",
+                "execution": {"status": "blocked", "reason": "export_executor_unavailable", "raw_content_visible": False},
+            }
+        )
+        return result
+
+    event = store.latest_universal_inbox_attachment(
+        chat_id=chat_id,
+        max_age_seconds=_telegram_attachment_context_ttl_seconds(),
+    )
+    spool_key = str((event or {}).get("spool_key") or "").strip()
+    if not spool_key:
+        chat_handle = str((event or {}).get("chat_handle") or _chat_handle(chat_id) or "chat")
+        message_id = str((event or {}).get("message_id") or "")
+        if message_id:
+            spool_key = hashlib.sha256(f"{chat_handle}:{message_id}".encode("utf-8")).hexdigest()[:16]
+    if not spool_key:
+        blocked = dict(plan)
+        blocked.update({"status": "blocked", "reason": "spool_key_missing"})
+        return blocked
+
+    spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
+    try:
+        files = [path for path in spool_dir.iterdir() if path.is_file() and not path.is_symlink()]
+    except OSError:
+        files = []
+    if not files:
+        blocked = dict(plan)
+        blocked.update({"status": "blocked", "reason": "spool_file_missing"})
+        return blocked
+
+    output_dir = Path(data_dir) / "universal_inbox_exports" / spool_key
+    execution = execute_universal_export(
+        files[0],
+        str(plan.get("target_format") or ""),
+        output_dir,
+        dsgvo_mode=is_dsgvo_mode_enabled(),
+        output_basename="telegram-export",
+    )
+    result = dict(plan)
+    result["execution"] = execution.to_dict()
+    result["delivery_ready"] = execution.delivery_ready
+    if execution.ok:
+        result.update(
+            {
+                "status": "exported",
+                "reason": execution.reason,
+                "output_path": execution.output_path,
+                "output_filename": execution.output_filename,
+                "mime_type": execution.mime_type,
+                "bytes_written": execution.bytes_written,
+                "filename_visible": False,
+                "host_paths_visible": False,
+                "raw_content_visible": False,
+            }
+        )
+    else:
+        result.update({"status": "blocked", "reason": execution.reason})
+    return result
+
+
 def format_telegram_attachment_export_reply(result: dict[str, Any]) -> str:
     status = str(result.get("status") or "blocked")
     target = str(result.get("target_format") or "unknown")
     tool = str(result.get("required_tool") or "")
+    if status == "sent":
+        return f"Export fertig: Ich habe dir die {target.upper()}-Datei geschickt."
+    if status == "exported":
+        return (
+            f"Export fertig: {target.upper()} wurde lokal erzeugt.\n"
+            "Die Datei ist bereit, aber der Telegram-Dokumentversand ist gerade nicht aktiv."
+        )
+    if status == "ready":
+        return (
+            f"Export erkannt: Ziel {target}.\n"
+            f"Aktion: {result.get('action') or 'convert'}.\n"
+            f"Konverter: {tool or 'builtin'}.\n"
+            "Die Datei kann jetzt lokal erzeugt werden."
+        )
     if status == "planned":
         return (
             f"Export erkannt: Ziel {target}.\n"
@@ -1999,6 +2098,7 @@ def run_telegram_polling_cycle(
     attachment_bytes_provider: Callable[..., bytes] | None = None,
     image_worker_client: Any | None = None,
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
+    document_reply_handler: Callable[[str, str, str, str, int | None], dict[str, Any]] | None = None,
     memory_manager: Any | None = None,
     memory_vector: Any | None = None,
     memory_owner: str | None = None,
@@ -2137,7 +2237,7 @@ def run_telegram_polling_cycle(
                         message_id=message.get("message_id"),
                     )
             if stored["message"].get("kind") == "text":
-                export_plan = build_recent_telegram_attachment_export_plan(
+                export_plan = execute_recent_telegram_attachment_export(
                     data_dir=data_dir,
                     store=store,
                     chat_id=str(message.get("chat_id") or ""),
@@ -2153,17 +2253,51 @@ def run_telegram_polling_cycle(
                         target_format=str(export_plan.get("target_format") or ""),
                         action=str(export_plan.get("action") or ""),
                         required_tool=str(export_plan.get("required_tool") or ""),
+                        bytes_written=int(export_plan.get("bytes_written") or 0),
+                        delivery_ready=bool(export_plan.get("delivery_ready")),
                         raw_content_visible=False,
                         raw_identifiers_visible=False,
                         filename_visible=False,
                     )
+                    if str(export_plan.get("status") or "") == "exported" and document_reply_handler is not None:
+                        try:
+                            document_sent = document_reply_handler(
+                                str(message.get("chat_id") or ""),
+                                str(export_plan.get("output_path") or ""),
+                                str(export_plan.get("output_filename") or "telegram-export.pdf"),
+                                format_telegram_attachment_export_reply({**export_plan, "status": "sent"}),
+                                message.get("message_id"),
+                            )
+                            delivered = bool(document_sent.get("ok", True))
+                            export_plan = {
+                                **export_plan,
+                                "status": "sent" if delivered else "exported",
+                                "document_delivery": _public_reply_result(document_sent),
+                            }
+                            store.append_event(
+                                kind="universal_inbox_export_delivery",
+                                status="sent" if delivered else "failed",
+                                chat_id=str(message.get("chat_id") or ""),
+                                update_id=message.get("update_id"),
+                                message_id=message.get("message_id"),
+                                target_format=str(export_plan.get("target_format") or ""),
+                                bytes_written=int(export_plan.get("bytes_written") or 0),
+                                raw_content_visible=False,
+                                raw_identifiers_visible=False,
+                                filename_visible=False,
+                                host_paths_visible=False,
+                            )
+                            replies += 1
+                        except Exception as exc:
+                            export_plan = {**export_plan, "status": "exported", "reason": f"document_delivery_failed:{str(exc)[:80]}"}
                     if reply_handler is not None:
-                        reply_handler(
-                            str(message.get("chat_id") or ""),
-                            format_telegram_attachment_export_reply(export_plan),
-                            message.get("message_id"),
-                        )
-                        replies += 1
+                        if str(export_plan.get("status") or "") != "sent":
+                            reply_handler(
+                                str(message.get("chat_id") or ""),
+                                format_telegram_attachment_export_reply(export_plan),
+                                message.get("message_id"),
+                            )
+                            replies += 1
                     processed += 1
                     continue
             recent_attachment_context = build_recent_telegram_attachment_context(
@@ -2268,6 +2402,42 @@ def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
     body = urllib.parse.urlencode(payload).encode("utf-8")
     request = urllib.request.Request(url, data=body, method="POST")
     with urllib.request.urlopen(request, timeout=15) as response:  # nosec: gated by env and explicit route call
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _telegram_http_post_multipart(
+    url: str,
+    payload: dict[str, Any],
+    file_field: str,
+    file_path: str | Path,
+    *,
+    filename: str,
+    mime_type: str = "application/octet-stream",
+) -> dict[str, Any]:
+    boundary = f"----OdysseusTelegram{hashlib.sha256(os.urandom(16)).hexdigest()[:24]}"
+    body = bytearray()
+    for key, value in payload.items():
+        body.extend(f"--{boundary}\r\n".encode("ascii"))
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("ascii"))
+        body.extend(str(value).encode("utf-8"))
+        body.extend(b"\r\n")
+    body.extend(f"--{boundary}\r\n".encode("ascii"))
+    body.extend(
+        (
+            f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"\r\n'
+            f"Content-Type: {mime_type}\r\n\r\n"
+        ).encode("utf-8")
+    )
+    body.extend(Path(file_path).read_bytes())
+    body.extend(b"\r\n")
+    body.extend(f"--{boundary}--\r\n".encode("ascii"))
+    request = urllib.request.Request(
+        url,
+        data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec: token-gated Telegram API endpoint
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -2397,6 +2567,53 @@ def send_telegram_text(
         "message_count": len(chunks),
         "token_value_visible": False,
         "raw_rich_payload_visible": False,
+    }
+
+
+def send_telegram_document(
+    chat_id: str,
+    file_path: str | Path,
+    *,
+    filename: str = "telegram-export.pdf",
+    caption: str = "",
+    token: str | None = None,
+    http_post_multipart: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Send a Telegram document. Callers must enforce env and chat gates first."""
+
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    path = Path(file_path)
+    if not path.exists() or not path.is_file() or path.is_symlink():
+        raise ValueError("telegram document path is invalid")
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]+", "-", str(filename or "telegram-export.pdf")).strip(".-")
+    if not safe_filename:
+        safe_filename = "telegram-export.pdf"
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    payload: dict[str, Any] = {"chat_id": str(chat_id)}
+    if caption.strip():
+        payload["caption"] = caption.strip()[:1024]
+    post = http_post_multipart or _telegram_http_post_multipart
+    result = post(
+        url,
+        payload,
+        "document",
+        path,
+        filename=safe_filename,
+        mime_type=mimetypes.guess_type(safe_filename)[0] or "application/octet-stream",
+    )
+    return {
+        "ok": bool(result.get("ok")),
+        "telegram_message_id": ((result.get("result") or {}).get("message_id")),
+        "delivery_mode": "document",
+        "formatting_mode": "document_caption",
+        "token_value_visible": False,
+        "raw_file_payload_visible": False,
+        "filename_visible": False,
+        "host_paths_visible": False,
     }
 
 
@@ -2781,6 +2998,73 @@ def setup(ctx):
             "exit_code": 0,
         }
 
+    def _document_reply_with_gate(
+        chat_id: str,
+        file_path: str,
+        filename: str,
+        caption: str,
+        source_message_id: int | None = None,
+    ) -> dict[str, Any]:
+        if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
+            outbound = store.append_outbound(
+                chat_id,
+                caption or "Dokument-Export blockiert.",
+                source_message_id=source_message_id,
+                delivery_status="blocked",
+                failure_reason="reply_gate_disabled",
+                delivery_mode="document_blocked",
+                formatting_mode="document_caption",
+            )
+            return {"error": "Telegram reply gate is disabled", "exit_code": 1, "message": outbound}
+        if not _chat_allowed(chat_id):
+            outbound = store.append_outbound(
+                chat_id,
+                caption or "Dokument-Export blockiert.",
+                source_message_id=source_message_id,
+                delivery_status="blocked",
+                failure_reason="chat_not_allowed",
+                delivery_mode="document_blocked",
+                formatting_mode="document_caption",
+            )
+            return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
+        try:
+            sent = send_telegram_document(chat_id, file_path, filename=filename, caption=caption)
+        except Exception as exc:
+            outbound = store.append_outbound(
+                chat_id,
+                caption or "Dokument-Export fehlgeschlagen.",
+                source_message_id=source_message_id,
+                delivery_status="failed",
+                failure_reason=str(exc),
+                delivery_mode="document",
+                formatting_mode="document_caption",
+            )
+            return {"error": str(exc), "exit_code": 1, "message": outbound}
+        if not bool(sent.get("ok")):
+            outbound = store.append_outbound(
+                chat_id,
+                caption or "Dokument-Export fehlgeschlagen.",
+                source_message_id=source_message_id,
+                delivery_status="failed",
+                failure_reason="telegram_document_not_ok",
+                delivery_mode="document",
+                formatting_mode="document_caption",
+            )
+            return {"error": "telegram_document_not_ok", "exit_code": 1, "message": outbound, "ok": False}
+        outbound = store.append_outbound(
+            chat_id,
+            caption or "Dokument-Export gesendet.",
+            source_message_id=source_message_id,
+            delivery_status="sent",
+            delivery_mode="document",
+            formatting_mode="document_caption",
+        )
+        return {
+            "output": json.dumps({"sent": sent, "message": outbound}, ensure_ascii=False),
+            "exit_code": 0,
+            "ok": bool(sent.get("ok")),
+        }
+
     def _notification_target() -> str:
         return str(_ctx_attr("telegram_notification_target") or os.getenv("TELEGRAM_NOTIFICATION_CHAT_ID") or "")
 
@@ -2868,6 +3152,13 @@ def setup(ctx):
             reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
                 chat_id,
                 text,
+                source_message_id=source_message_id,
+            ),
+            document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: _document_reply_with_gate(
+                chat_id,
+                file_path,
+                filename,
+                caption,
                 source_message_id=source_message_id,
             ),
             memory_manager=memory_manager,
@@ -2996,7 +3287,7 @@ def setup(ctx):
             }
         export_plan = None
         if stored["message"].get("kind") == "text":
-            export_plan = build_recent_telegram_attachment_export_plan(
+            export_plan = execute_recent_telegram_attachment_export(
                 data_dir=ctx.data_dir,
                 store=store,
                 chat_id=str(message.get("chat_id") or ""),
@@ -3012,15 +3303,43 @@ def setup(ctx):
                 target_format=str(export_plan.get("target_format") or ""),
                 action=str(export_plan.get("action") or ""),
                 required_tool=str(export_plan.get("required_tool") or ""),
+                bytes_written=int(export_plan.get("bytes_written") or 0),
+                delivery_ready=bool(export_plan.get("delivery_ready")),
                 raw_content_visible=False,
                 raw_identifiers_visible=False,
                 filename_visible=False,
             )
-            reply_result = _reply_with_gate(
-                str(message.get("chat_id") or ""),
-                format_telegram_attachment_export_reply(export_plan),
-                source_message_id=message.get("message_id"),
-            )
+            if str(export_plan.get("status") or "") == "exported":
+                reply_result = _document_reply_with_gate(
+                    str(message.get("chat_id") or ""),
+                    str(export_plan.get("output_path") or ""),
+                    str(export_plan.get("output_filename") or "telegram-export.pdf"),
+                    format_telegram_attachment_export_reply({**export_plan, "status": "sent"}),
+                    source_message_id=message.get("message_id"),
+                )
+                if reply_result.get("exit_code") == 0:
+                    export_plan = {**export_plan, "status": "sent"}
+                    store.append_event(
+                        kind="universal_inbox_export_delivery",
+                        status="sent",
+                        chat_id=str(message.get("chat_id") or ""),
+                        update_id=message.get("update_id"),
+                        message_id=message.get("message_id"),
+                        target_format=str(export_plan.get("target_format") or ""),
+                        bytes_written=int(export_plan.get("bytes_written") or 0),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                        filename_visible=False,
+                        host_paths_visible=False,
+                    )
+                else:
+                    export_plan = {**export_plan, "reason": f"document_delivery_failed:{str(reply_result.get('error') or '')[:80]}"}
+            else:
+                reply_result = _reply_with_gate(
+                    str(message.get("chat_id") or ""),
+                    format_telegram_attachment_export_reply(export_plan),
+                    source_message_id=message.get("message_id"),
+                )
             return {
                 "stored": stored["stored"],
                 "message": stored["message"],

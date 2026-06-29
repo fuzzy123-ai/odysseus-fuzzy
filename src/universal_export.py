@@ -1,6 +1,7 @@
 """Universal export intent and capability planning.
 
-The first implementation deliberately plans exports only. It does not call
+Most conversions are planned only. A tiny built-in text/markdown-to-PDF path is
+marked ready so Telegram and Inbox flows can execute one safe MVP export without
 LibreOffice, ffmpeg, OCR, Blender, or other external converters.
 """
 
@@ -193,8 +194,8 @@ def build_universal_export_plan(
 
     action, tool, reason_codes = capability
     return UniversalExportPlan(
-        status="planned",
-        reason="converter_tool_required",
+        status="ready" if tool == "builtin_text_pdf" else "planned",
+        reason="builtin_converter_available" if tool == "builtin_text_pdf" else "converter_tool_required",
         source_family=source.family,
         source_suffix=source.suffix,
         target_format=target,
@@ -238,6 +239,8 @@ def build_universal_export_plan_from_intent(
 
 def _capability_for(family: str, suffix: str, target: str) -> tuple[str, str, tuple[str, ...]] | None:
     if target in DOCUMENT_TARGETS:
+        if target == "pdf" and suffix in {".txt", ".md", ".markdown"}:
+            return ("convert", "builtin_text_pdf", ("no_original_overwrite", "local_builtin_converter"))
         if target == "pdf" and family in {"document", "text", "message"}:
             return ("convert", "libreoffice_or_pandoc", ("tool_check_required", "no_original_overwrite"))
         if target in {"txt", "md", "html"} and family in {"document", "text", "message"}:

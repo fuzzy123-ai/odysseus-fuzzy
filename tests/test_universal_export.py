@@ -41,6 +41,18 @@ def test_builds_docx_to_pdf_export_plan_without_executing_tool():
     assert plan["raw_content_visible"] is False
 
 
+def test_builds_text_to_pdf_export_plan_as_builtin_ready():
+    plan = build_universal_export_plan("notes.md", "pdf").to_dict()
+
+    assert plan["status"] == "ready"
+    assert plan["source_family"] == "text"
+    assert plan["source_suffix"] == ".md"
+    assert plan["target_format"] == "pdf"
+    assert plan["required_tool"] == "builtin_text_pdf"
+    assert plan["executable_now"] is True
+    assert plan["raw_content_visible"] is False
+
+
 def test_builds_pdf_to_png_page_render_plan():
     plan = build_universal_export_plan("scan.pdf", "png").to_dict()
 

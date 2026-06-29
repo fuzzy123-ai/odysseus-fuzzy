@@ -1396,10 +1396,11 @@ def test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemer
     assert "notiz.txt" not in persisted_text
 
 
-def test_polling_cycle_followup_export_request_plans_recent_attachment(tmp_path, monkeypatch):
+def test_polling_cycle_followup_export_request_sends_recent_attachment_pdf(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
     replies = []
+    documents = []
     turns = []
 
     first = run_telegram_polling_cycle(
@@ -1437,17 +1438,25 @@ def test_polling_cycle_followup_export_request_plans_recent_attachment(tmp_path,
         session_creator=lambda **_kwargs: {"session_id": "sess-export"},
         agent_turn_handler=lambda bridge: turns.append(bridge) or {"reply_text": "should not run"},
         reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+        document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: documents.append(
+            (chat_id, file_path, filename, caption, source_message_id)
+        ) or {"ok": True, "delivery_mode": "document"},
     )
 
     assert second["processed"] == 1
     assert second["agent_turns"] == 0
     assert turns == []
-    assert any("Export erkannt" in reply[1] and "pdf" in reply[1].lower() for reply in replies)
+    assert len(documents) == 1
+    assert documents[0][0] == "document-chat-999"
+    assert documents[0][2].endswith(".pdf")
+    assert Path(documents[0][1]).read_bytes().startswith(b"%PDF-")
+    assert "PDF-Datei geschickt" in documents[0][3]
     history = TelegramInboxStore(tmp_path).history(limit=40)
     event = next(item for item in history if item.get("kind") == "universal_inbox_export_plan")
-    assert event["status"] == "planned"
+    assert event["status"] == "exported"
     assert event["target_format"] == "pdf"
-    assert event["required_tool"] == "libreoffice_or_pandoc"
+    assert event["required_tool"] == "builtin_text_pdf"
+    assert any(item.get("kind") == "universal_inbox_export_delivery" for item in history)
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "export-document-file-id" not in persisted_text
     assert "source.md" not in persisted_text
