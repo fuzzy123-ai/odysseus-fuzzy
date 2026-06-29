@@ -142,3 +142,36 @@ def test_ignores_low_density_document_folder_with_single_binary():
     )
 
     assert plans == ()
+
+
+def test_skips_sensitive_inventory_when_planning_archives():
+    records = [
+        BigDataLedgerRecord.create(
+            _item("Privat/Tool/bin/app.exe"),
+            stage="inventory",
+            status="completed",
+            metadata={
+                "privacy": {
+                    "privacy_class": "local_sensitive",
+                    "archive_allowed": False,
+                    "mirror_to_new_nextcloud": False,
+                }
+            },
+        ),
+        BigDataLedgerRecord.create(
+            _item("Privat/Tool/bin/helper.dll"),
+            stage="inventory",
+            status="completed",
+            metadata={
+                "privacy": {
+                    "privacy_class": "local_sensitive",
+                    "archive_allowed": False,
+                    "mirror_to_new_nextcloud": False,
+                }
+            },
+        ),
+    ]
+
+    plans = build_nextcloud_software_archive_plans(records, source_id="nextcloud-main", min_executable_files=1)
+
+    assert plans == ()

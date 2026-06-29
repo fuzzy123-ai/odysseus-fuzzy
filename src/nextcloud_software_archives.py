@@ -19,6 +19,7 @@ from src.bigdata_ledger_contract import (
     BigDataLedgerItem,
     BigDataLedgerRecord,
 )
+from src.nextcloud_privacy_partition import privacy_metadata_allows_archive
 
 
 PLAN_SCHEMA = "odysseus.nextcloud.software_archive_plan.v1"
@@ -293,6 +294,9 @@ def _inventory_records(
         if parsed.stage != "inventory" or parsed.status != "completed":
             continue
         if source_id is not None and parsed.item.source_id != source_id:
+            continue
+        privacy = parsed.metadata.get("privacy")
+        if isinstance(privacy, Mapping) and not privacy_metadata_allows_archive(privacy):
             continue
         yield parsed
 
