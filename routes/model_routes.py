@@ -41,6 +41,7 @@ from routes.model_probe_helpers import (
     model_endpoint_error_message as _model_endpoint_error_message_impl,
     model_ids_from_listing_payload as _model_ids_from_listing_payload,
     ollama_native_probe_root as _ollama_native_probe_root,
+    ollama_tag_model_ids_from_payload as _ollama_tag_model_ids_from_payload,
     ping_result_from_response as _ping_result_from_response,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
@@ -237,7 +238,7 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
             r = httpx.get(root + "/api/tags", timeout=timeout, verify=llm_verify())
             r.raise_for_status()
             data = r.json()
-            models = [m.get("name") or m.get("model") for m in (data.get("models") or []) if m.get("name") or m.get("model")]
+            models = _ollama_tag_model_ids_from_payload(data)
             if models:
                 return [m for m in models if _is_chat_model(m)]
     except Exception as e:

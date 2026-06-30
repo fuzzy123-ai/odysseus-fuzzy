@@ -15,7 +15,8 @@ probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
 implemented, plus R11AK model Ollama ping-root helper split and R11AL model
 listing-payload helper split and R11AM model Anthropic listing helper split;
-R11AN model ping-fallback helper split and R11AO model curated-fallback helper split; tool
+R11AN model ping-fallback helper split, R11AO model curated-fallback helper split
+and R11AP model Ollama tags payload helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2557,6 +2558,57 @@ Completion criteria:
   with curated fallback lookup separated from route orchestration.
 - Keyed probe failures still return no curated fallback; unkeyed URL-matched
   endpoints can still use curated fallback models.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AP / L7-R12AE: Model Ollama Tags Payload Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Ollama native `/api/tags` payload parsing out of `_probe_endpoint()`
+  while preserving route-owned transport, fallback handling and chat-model
+  filtering.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AP done 2026-06-30: Ollama native `/api/tags` payload parsing moved to
+  `ollama_tag_model_ids_from_payload()` in `routes/model_probe_helpers.py`.
+  `_probe_endpoint()` still owns HTTP transport, error handling and
+  `_is_chat_model()` filtering.
+- Compatibility evidence: helper tests cover `name` and `model` payload
+  entries, unknown payload shape behavior and reuse from the generic listing
+  parser; existing endpoint probing and model route tests remain green.
+- R11AP line count 2026-06-30: `routes/model_routes.py` is 1725 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AP focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AP Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `202 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with Ollama tags payload parsing separated from route orchestration.
+- Ollama `/api/tags` fallback continues to accept `name` or `model` entries
+  and still filters non-chat models at the route boundary.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

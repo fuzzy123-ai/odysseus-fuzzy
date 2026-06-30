@@ -6,6 +6,7 @@ from routes.model_probe_helpers import (
     curated_probe_fallback_models,
     model_ids_from_listing_payload,
     ollama_native_probe_root,
+    ollama_tag_model_ids_from_payload,
     ping_result_from_response,
     should_try_models_url_after_ping,
 )
@@ -142,6 +143,16 @@ def test_ollama_native_probe_root_strips_api_suffix():
 
 def test_ollama_native_probe_root_ignores_openai_style_proxy():
     assert ollama_native_probe_root("https://api.example.com/v1") is None
+
+
+def test_ollama_tag_model_ids_from_payload_reads_name_or_model():
+    assert ollama_tag_model_ids_from_payload({
+        "models": [{"name": "llama3:8b"}, {"model": "qwen3:4b"}, {"id": "ignored"}],
+    }) == ["llama3:8b", "qwen3:4b"]
+
+
+def test_ollama_tag_model_ids_from_payload_returns_empty_for_unknown_shape():
+    assert ollama_tag_model_ids_from_payload({"data": [{"id": "ignored"}]}) == []
 
 
 def test_model_ids_from_listing_payload_reads_openai_data_ids():

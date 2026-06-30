@@ -302,16 +302,21 @@ def ollama_native_probe_root(base_url: str) -> Optional[str]:
     return root.rstrip("/")
 
 
-def model_ids_from_listing_payload(data: Mapping[str, Any]) -> list[str]:
-    """Extract model IDs from OpenAI-compatible or Ollama-style listing payloads."""
-    models = [item.get("id") for item in (data.get("data") or []) if item.get("id")]
-    if models:
-        return models
+def ollama_tag_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
+    """Extract model IDs from Ollama native /api/tags payloads."""
     return [
         item.get("name") or item.get("model")
         for item in (data.get("models") or [])
         if item.get("name") or item.get("model")
     ]
+
+
+def model_ids_from_listing_payload(data: Mapping[str, Any]) -> list[str]:
+    """Extract model IDs from OpenAI-compatible or Ollama-style listing payloads."""
+    models = [item.get("id") for item in (data.get("data") or []) if item.get("id")]
+    if models:
+        return models
+    return ollama_tag_model_ids_from_payload(data)
 
 
 def anthropic_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
