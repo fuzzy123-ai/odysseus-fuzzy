@@ -11,8 +11,6 @@ import imaplib
 import smtplib
 import email
 import email.utils
-from email.message import EmailMessage
-import re
 import json
 import sys
 import os
@@ -74,6 +72,7 @@ from mcp_servers.email_message_utils import (
     _decode_header,
     _extract_text,
 )
+from mcp_servers.email_send_utils import send_email as send_email_via_helper
 from mcp_servers.email_smtp_connection_utils import (
     connect_smtp,
     resolve_send_config,
@@ -509,73 +508,24 @@ def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, b
     `agent_draft` row and the user reviews + approves it from the chat
     UI. This closes the auto-send hole that let earlier models invent
     signatures and ship them to real recipients without confirmation."""
-    if _read_agent_email_confirm_setting():
-        return _stash_agent_draft(
-            to=to, subject=subject, body=body,
-            in_reply_to=in_reply_to, references=references,
-            cc=cc, bcc=bcc, account=account,
-        )
-    send_account, cfg = _resolve_send_config(account)
-    msg = EmailMessage()
-    msg["From"] = _clean_header_value(cfg["from_address"])
-    msg["To"] = _clean_header_value(to if isinstance(to, str) else ", ".join(to))
-    msg["Subject"] = _clean_header_value(subject)
-    if cc:
-        msg["Cc"] = _clean_header_value(cc if isinstance(cc, str) else ", ".join(cc))
-    if in_reply_to:
-        msg["In-Reply-To"] = _clean_header_value(in_reply_to)
-    if references:
-        msg["References"] = _clean_header_value(references if isinstance(references, str) else " ".join(references))
-    if "Date" not in msg:
-        msg["Date"] = email.utils.formatdate(localtime=True)
-    if "Message-ID" not in msg:
-        msg["Message-ID"] = email.utils.make_msgid()
-    msg.set_content(body)
-
-    recipients = []
-    if isinstance(to, str):
-        recipients.extend([a.strip() for a in to.split(",") if a.strip()])
-    else:
-        recipients.extend(to)
-    if cc:
-        recipients.extend([a.strip() for a in cc.split(",")] if isinstance(cc, str) else cc)
-    if bcc:
-        recipients.extend([a.strip() for a in bcc.split(",")] if isinstance(bcc, str) else bcc)
-
-    conn = _smtp_connect(send_account, cfg=cfg)
-    try:
-        conn.send_message(msg, from_addr=cfg["from_address"], to_addrs=recipients)
-    finally:
-        conn.quit()
-
-    sent_folder = None
-    sent_uid = None
-    try:
-        imap = _imap_connect(send_account)
-        try:
-            sent_folder = _detect_sent_folder(imap)
-            append_st, append_data = imap.append(_q(sent_folder), "\\Seen", None, msg.as_bytes())
-            if append_st == "OK" and append_data:
-                m = re.search(rb"APPENDUID\s+\d+\s+(\d+)", append_data[0] or b"")
-                if m:
-                    sent_uid = m.group(1).decode("ascii", errors="ignore")
-        finally:
-            imap.logout()
-    except Exception:
-        # Delivery already succeeded; Sent-copy failure should not turn a sent
-        # message into a hard failure for the user.
-        pass
-
-    return {
-        "sent": True,
-        "to": recipients,
-        "subject": subject,
-        "account": cfg.get("account_name"),
-        "account_id": cfg.get("account_id"),
-        "sent_folder": sent_folder,
-        "sent_uid": sent_uid,
-        "message_id": msg.get("Message-ID", ""),
-    }
+    return send_email_via_helper(
+        to=to,
+        subject=subject,
+        body=body,
+        in_reply_to=in_reply_to,
+        references=references,
+        cc=cc,
+        bcc=bcc,
+        account=account,
+        read_confirm_setting_func=_read_agent_email_confirm_setting,
+        stash_draft_func=_stash_agent_draft,
+        resolve_send_config_func=_resolve_send_config,
+        smtp_connect_func=_smtp_connect,
+        clean_header_value_func=_clean_header_value,
+        imap_connect_func=_imap_connect,
+        detect_sent_folder_func=_detect_sent_folder,
+        quote_folder_func=_q,
+    )
 
 
 def _build_email_document_content(

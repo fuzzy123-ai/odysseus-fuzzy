@@ -5065,6 +5065,54 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CL / L7-R12CA: Email MCP Send Orchestration Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving MIME assembly, direct SMTP
+  delivery and best-effort Sent-folder copy into a focused helper while
+  preserving the legacy `_send_email` wrapper and its injected private
+  dependencies.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_send_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_email_owner_scope.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CL done 2026-06-30: `send_email` orchestration moved to
+  `mcp_servers/email_send_utils.py`; `mcp_servers.email_server._send_email`
+  remains the compatibility wrapper for existing call sites and monkeypatches.
+- R11CL line count 2026-06-30: `mcp_servers/email_server.py` is 1266 lines,
+  still in warning band but reduced from 1314 after R11CK;
+  `mcp_servers/email_send_utils.py` is 113 lines and below the report
+  threshold.
+- R11CL focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_agent_draft_utils.py mcp_servers\email_draft_document_utils.py mcp_servers\email_send_utils.py`
+  passed.
+- R11CL email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py tests\test_imap_leak_fixes.py tests\test_email_owner_scope.py -q`
+  returned `41 passed, 7 warnings`.
+
+Completion criteria:
+
+- Agent confirmation still stages pending drafts before any SMTP attempt.
+- Direct send still assembles the same headers, recipient list and sent-copy
+  metadata.
+- The split performs no live IMAP/SMTP calls in tests and preserves the
+  `_send_email` compatibility surface.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
