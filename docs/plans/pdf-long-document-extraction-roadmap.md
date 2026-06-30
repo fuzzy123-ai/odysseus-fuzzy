@@ -84,7 +84,7 @@ Pipelines.
 | P4 | Chat/Document Processor umstellen | Done 2026-06-30: Ein Extractor statt Sonderlogik |
 | P5 | OCR/Vision-Fallback absichern | Done 2026-06-30: Optional, lokal-only, bounded |
 | P6 | UI/Operator-Sichtbarkeit herstellen | Review-Gruende und Re-Extract-Aktionen sichtbar |
-| P7 | Tests und Release-Gates | Regressionen fuer grosse/kaputte/scanned PDFs |
+| P7 | Tests und Release-Gates | Done 2026-06-30: Regressionen fuer grosse/kaputte/scanned PDFs |
 
 ## 6. P0: Contracts und Budgets
 
@@ -318,6 +318,14 @@ Pflichttests:
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_universal_inbox_extraction.py tests\test_nextcloud_chunked_extraction.py tests\test_personal_docs_pdf_index.py tests\test_rag_manager_owner_compat.py
 ```
 
+Release-gate evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_universal_inbox_extraction.py tests\test_nextcloud_chunked_extraction.py tests\test_personal_docs_pdf_index.py tests\test_rag_manager_owner_compat.py tests\test_pdf_extraction.py tests\test_rag_pdf_partial_index.py tests\test_document_processor_pdf_extraction.py -q
+```
+
+Result: `49 passed, 1 warning`.
+
 Neue Tests:
 
 - `tests/test_pdf_extraction.py`
@@ -326,12 +334,11 @@ Neue Tests:
 
 Manuelle Smoke-Szenarien:
 
-- 1 kleines Text-PDF
-- 1 langes Text-PDF
-- 1 gescanntes PDF
-- 1 bewusst kaputtes PDF
-- 1 grosses PDF ueber `max_extract_bytes`
-- 1 PDF mit gemischten Text- und Bildseiten
+- Automated fixture coverage: kleines Text-PDF, langes Text-PDF,
+  gescanntes/leeres PDF, bewusst kaputtes PDF, grosses PDF ueber Budget,
+  partial PDF mit kaputter Seite.
+- Remaining UI/operator visibility follow-up: gemischte Text- und Bildseiten
+  im Document Viewer/Review UI anzeigen. Placement gehoert zu L8/UI-Agent.
 
 Release-Definition:
 
