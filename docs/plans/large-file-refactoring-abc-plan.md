@@ -3,8 +3,9 @@
 Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
-R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits and R10A model endpoint
-helper split implemented; tool implementation/admin, agent-loop, email-route and model-route facades are below
+R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
+helper split, R11P database migration split and R11Q LLM-core provider/format split implemented; tool
+implementation/admin, agent-loop, email-route, model-route, database and LLM-core facades are below
 threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
@@ -1272,6 +1273,63 @@ Completion criteria:
 - Startup migration order remains centralized and covered by focused tests.
 - Legacy migration helper access remains compatible for tests and emergency
   diagnostics.
+
+### R11Q: LLM Core Provider/Format Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move provider-specific payload, stream-routing and message-format helpers out
+  of `src/llm_core.py` while preserving `src.llm_core` as the compatibility
+  facade for tests, monkeypatches and existing callers.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_kimi_code.py`
+- `src/llm_ollama.py`
+- `src/llm_stream_events.py`
+- `src/llm_message_formats.py`
+- `src/llm_chatgpt_subscription.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11Q done 2026-06-30: Kimi Code User-Agent retries moved to
+  `src/llm_kimi_code.py`; native Ollama payload/parse helpers moved to
+  `src/llm_ollama.py`; Harmony stream routing moved to
+  `src/llm_stream_events.py`; Anthropic/Mistral/message sanitization helpers
+  moved to `src/llm_message_formats.py`; ChatGPT Subscription instruction
+  helpers moved to `src/llm_chatgpt_subscription.py`.
+- Compatibility evidence: `src/llm_core.py` re-exports the moved private helper
+  names so existing imports and focused monkeypatch tests continue to work.
+- R11Q line count 2026-06-30: `src/llm_core.py` is 1997 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11Q focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_kimi_code.py src\llm_ollama.py src\llm_stream_events.py src\llm_message_formats.py src\llm_chatgpt_subscription.py`
+  passed.
+- R11Q format/sanitize test block 2026-06-30:
+  `python -m pytest tests\test_llm_core_sanitize_tool_calls.py tests\test_sanitize_multimodal_merge.py tests\test_sanitize_preserves_reasoning.py tests\test_llm_core_mistral_content.py tests\test_anthropic_response_parse.py tests\test_llm_core_anthropic_cache.py tests\test_llm_core_anthropic_temp_omit.py tests\test_llm_core_anthropic_temp_clamp.py tests\test_llm_core_system_msg_missing_content.py -q`
+  returned `61 passed, 1 warning`.
+- R11Q provider/Ollama/Kimi test block 2026-06-30:
+  `python -m pytest tests\test_ai_activity_ledger.py tests\test_llm_core_ollama.py tests\test_llm_core_ollama_thinking.py tests\test_ollama_multimodal.py tests\test_kimi_code_user_agent.py tests\test_provider_detection.py tests\test_provider_classification.py -q`
+  returned `117 passed, 1 warning`.
+- R11Q model-route Kimi subset 2026-06-30:
+  `python -m pytest tests\test_model_routes.py::TestMatchProviderCurated::test_kimi_code_url tests\test_model_routes.py::TestCurateModels::test_kimi_code_partitions -q`
+  returned `2 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/llm_core.py` is below the large-file candidate threshold.
+- Provider-specific helpers live in focused modules with compatibility exports.
+- Existing Kimi, Ollama, Anthropic/Mistral, sanitize and model-route behavior
+  remains covered by focused tests.
 
 ### R12: Obsidian Frontend Split
 

@@ -44,8 +44,6 @@ def _stream_timeout(read_timeout) -> httpx.Timeout:
     """Per-request timeout for streaming LLM calls (connect from config)."""
     return httpx.Timeout(connect=LLMConfig.CONNECT_TIMEOUT, read=float(read_timeout), write=30.0, pool=5.0)
 
-
-# Cache for LLM responses
 def _get_cache_key(url: str, model: str, messages: List[Dict], 
                    temperature: float, max_tokens: int) -> str:
     """Generate cache key for LLM requests."""
@@ -62,10 +60,8 @@ def _get_cache_key(url: str, model: str, messages: List[Dict],
         'max_tokens': max_tokens
     }, sort_keys=True)
     return hashlib.sha256(content.encode()).hexdigest()
-
 _response_cache = {}
 
-# Dead-host cooldown: maps host (scheme://host:port) -> unix ts when cooldown expires.
 # When a connect to a host fails, we mark it dead for DEAD_HOST_COOLDOWN seconds so
 # subsequent calls fail instantly instead of waiting on the connect timeout. Keeps
 # one unreachable upstream from jamming chat across the rest of the app.
@@ -88,106 +84,15 @@ _host_fails: Dict[str, int] = {}
 _host_health_lock = threading.Lock()
 _model_activity: Dict[str, float] = {}
 
-_HARMONY_MARKER_RE = re.compile(
-    r"<\|channel\|>(analysis|commentary|final)"
-    r"|<\|start\|>(?:assistant|system|user|tool)?"
-    r"|<\|message\|>"
-    r"|<\|end\|>"
-    r"|<\|return\|>"
-    r"|<\|call\|>"
+from src.llm_stream_events import (
+    _HarmonyStreamRouter,
+    _HARMONY_MARKER_RE,
+    _HARMONY_MARKERS,
+    _HARMONY_MAX_MARKER_LEN,
+    _harmony_suffix_hold_len,
+    _stream_delta_event,
 )
-_HARMONY_MARKERS = (
-    "<|channel|>analysis",
-    "<|channel|>commentary",
-    "<|channel|>final",
-    "<|start|>assistant",
-    "<|start|>system",
-    "<|start|>user",
-    "<|start|>tool",
-    "<|start|>",
-    "<|message|>",
-    "<|end|>",
-    "<|return|>",
-    "<|call|>",
-)
-_HARMONY_MAX_MARKER_LEN = max(len(marker) for marker in _HARMONY_MARKERS)
 
-
-def _harmony_suffix_hold_len(text: str) -> int:
-    """Return how many trailing chars could be the start of a harmony marker."""
-    limit = min(len(text), _HARMONY_MAX_MARKER_LEN - 1)
-    for n in range(limit, 0, -1):
-        suffix = text[-n:]
-        if any(marker.startswith(suffix) for marker in _HARMONY_MARKERS):
-            return n
-    return 0
-
-
-class _HarmonyStreamRouter:
-    """Route OpenAI harmony analysis/final channels without leaking markers."""
-
-    def __init__(self) -> None:
-        self._buf = ""
-        self._seen_harmony = False
-        self._channel: Optional[str] = None
-        self._in_message = False
-
-    def feed(self, text: str) -> List[Tuple[str, bool]]:
-        if not text:
-            return []
-        self._buf += text
-        return self._drain(final=False)
-
-    def flush(self) -> List[Tuple[str, bool]]:
-        return self._drain(final=True)
-
-    def _append_text(self, out: List[Tuple[str, bool]], text: str) -> None:
-        if not text:
-            return
-        if not self._seen_harmony:
-            out.append((text, False))
-            return
-        if self._in_message:
-            # analysis + commentary (tool-call preambles / function-arg bodies)
-            # are internal, not user-facing — route them to thinking so they
-            # don't leak into the visible answer; only `final` is visible.
-            out.append((text, self._channel in ("analysis", "commentary")))
-
-    def _handle_marker(self, match: re.Match[str]) -> None:
-        marker = match.group(0)
-        self._seen_harmony = True
-        if marker.startswith("<|channel|>"):
-            self._channel = match.group(1)
-            self._in_message = False
-        elif marker == "<|message|>":
-            self._in_message = True
-        else:
-            self._in_message = False
-            if marker in {"<|end|>", "<|return|>", "<|call|>"}:
-                self._channel = None
-
-    def _drain(self, *, final: bool) -> List[Tuple[str, bool]]:
-        out: List[Tuple[str, bool]] = []
-        while True:
-            match = _HARMONY_MARKER_RE.search(self._buf)
-            if not match:
-                break
-            self._append_text(out, self._buf[:match.start()])
-            self._handle_marker(match)
-            self._buf = self._buf[match.end():]
-
-        hold = 0 if final else _harmony_suffix_hold_len(self._buf)
-        emit = self._buf if hold == 0 else self._buf[:-hold]
-        self._buf = "" if hold == 0 else self._buf[-hold:]
-        self._append_text(out, emit)
-        return out
-
-
-def _stream_delta_event(text: str, *, thinking: bool = False) -> str:
-    payload = {"delta": text}
-    if thinking:
-        payload["thinking"] = True
-    return f"data: {json.dumps(payload)}\n\n"
 
 def _model_activity_key(url: str, model: str) -> str:
     return f"{(url or '').strip()}|{(model or '').strip()}"
@@ -385,175 +290,16 @@ ANTHROPIC_MODELS = [
 ]
 
 
-def _is_ollama_native_url(url: str) -> bool:
-    """Return True for native Ollama API URLs, including Ollama Cloud."""
-    try:
-        parsed = urlparse(url or "")
-    except Exception as e:
-        logger.warning("Failed to parse URL for Ollama detection", exc_info=e)
-        return False
-    host = parsed.hostname or ""
-    path = (parsed.path or "").rstrip("/")
-    if _host_match(url, "ollama.com"):
-        return True
-    if path.startswith("/v1"):
-        return False
-    local_ollama_host = host in {"localhost", "127.0.0.1", "0.0.0.0", "::1"} or parsed.port == 11434
-    return local_ollama_host and (path == "" or path == "/api" or path.startswith("/api/"))
-
-
-def _is_ollama_openai_compat_url(url: str) -> bool:
-    """Return True for local Ollama's OpenAI-compatible /v1 surface.
-
-    Mirrors the host detection used by ``_is_ollama_native_url`` so that the
-    two helpers stay in lockstep: a localhost Ollama on a non-default port
-    (custom ``OLLAMA_HOST``, reverse proxy, container port remap) is treated
-    the same way here as it is on the native ``/api`` path.
-    """
-    try:
-        parsed = urlparse(url or "")
-    except Exception:
-        return False
-    host = parsed.hostname or ""
-    path = (parsed.path or "").rstrip("/")
-    local_ollama_host = host in {"localhost", "127.0.0.1", "0.0.0.0", "::1"} or parsed.port == 11434
-    return local_ollama_host and (path == "/v1" or path.startswith("/v1/"))
-
-
-def _ollama_api_root(url: str) -> str:
-    """Return a native Ollama API root such as https://ollama.com/api."""
-    url = (url or "").strip().rstrip("/")
-    parsed = urlparse(url)
-    path = (parsed.path or "").rstrip("/")
-    if path.endswith("/api/chat"):
-        return url[: -len("/chat")]
-    if path.endswith("/api/tags"):
-        return url[: -len("/tags")]
-    if path.endswith("/api/generate"):
-        return url[: -len("/generate")]
-    if path.endswith("/api"):
-        return url
-    if path == "":
-        return url + "/api"
-    if _host_match(url, "ollama.com"):
-        root = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else "https://ollama.com"
-        return root.rstrip("/") + "/api"
-    return url
-
-
-def _normalize_ollama_url(url: str) -> str:
-    """Ensure a native Ollama URL points at /api/chat."""
-    base = _ollama_api_root(url)
-    return base.rstrip("/") + "/chat"
-
-
-def _ollama_normalize_messages(messages: List[Dict]) -> List[Dict]:
-    """Adapt Odysseus' canonical OpenAI-style messages to native Ollama /api/chat.
-
-    Odysseus carries assistant tool calls in the OpenAI shape, where
-    `function.arguments` is a JSON *string*. Native Ollama expects it to be a
-    JSON *object*; given the string it fails the whole request with HTTP 400
-    "Value looks like object, but can't find closing '}' symbol", which aborts
-    every follow-up (tool-result) round. Parse the arguments back into an object
-    here, on a shallow copy, leaving non-tool messages untouched. The opaque
-    Gemini `extra_content` (thought_signature) is dropped — it is meaningless to
-    Ollama and only matters when the conversation is replayed to Gemini.
-    """
-    out: List[Dict] = []
-    for m in messages or []:
-        if not isinstance(m, dict):
-            out.append(m)
-            continue
-        nm = dict(m)
-        tcs = nm.get("tool_calls")
-        if tcs:
-            new_calls = []
-            for tc in tcs:
-                fn = tc.get("function") or {}
-                args = fn.get("arguments")
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args) if args.strip() else {}
-                    except (json.JSONDecodeError, TypeError):
-                        args = {}
-                call: Dict = {"function": {"name": fn.get("name", ""), "arguments": args or {}}}
-                if tc.get("id"):
-                    call["id"] = tc["id"]
-                new_calls.append(call)
-            nm["tool_calls"] = new_calls
-        content = nm.get("content")
-        images = list(nm.get("images") or [])
-        if isinstance(content, list):
-            text_parts: List[str] = []
-            for block in content:
-                if not isinstance(block, dict):
-                    if block:
-                        text_parts.append(str(block))
-                    continue
-                if block.get("type") == "text":
-                    text = block.get("text")
-                    if text:
-                        text_parts.append(str(text))
-                elif block.get("type") == "image_url":
-                    url = (block.get("image_url") or {}).get("url", "")
-                    if url.startswith("data:"):
-                        _, _, b64 = url.partition(",")
-                        if b64:
-                            images.append(b64)
-                    elif url:
-                        logger.warning("Skipping non-data image_url for native Ollama images[]: %s", url[:80])
-            nm["content"] = "\n".join(text_parts).strip()
-        if images:
-            nm["images"] = images
-        out.append(nm)
-    return out
-
-
-_ollama_normalize_tool_messages = _ollama_normalize_messages
-
-
-def _build_ollama_payload(
-    model: str,
-    messages: List[Dict],
-    temperature: float,
-    max_tokens: int,
-    stream: bool = False,
-    tools: Optional[List[Dict]] = None,
-    num_ctx: Optional[int] = None,
-) -> Dict:
-    """Build the JSON payload for Ollama's /api/chat endpoint.
-
-    ``num_ctx`` sets the input context window. Ollama defaults to 2048
-    when the option is omitted, so a model with a larger advertised
-    window is silently truncated there, and a model with a smaller one
-    gets an oversized window it can't service. Pass the discovered
-    context length through ``num_ctx``; this builder only emits it when
-    the value is trusted (not the ``DEFAULT_CONTEXT`` fallback), so we
-    don't guess for unknown models but do tell Ollama the real window
-    when we know it — even if it's smaller than 2048.
-    """
-    payload: Dict = {
-        "model": model,
-        "messages": _ollama_normalize_messages(messages),
-        "stream": stream,
-    }
-    options: Dict = {}
-    if temperature is not None:
-        options["temperature"] = temperature
-    if max_tokens and max_tokens > 0:
-        options["num_predict"] = max_tokens
-    if num_ctx is not None and num_ctx > 0 and num_ctx != DEFAULT_CONTEXT:
-        options["num_ctx"] = num_ctx
-    if options:
-        payload["options"] = options
-    if tools:
-        payload["tools"] = tools
-    return payload
-
-
-def _parse_ollama_response(data: dict) -> str:
-    message = data.get("message") or {}
-    return message.get("content") or data.get("response") or ""
+from src.llm_ollama import (
+    _build_ollama_payload,
+    _is_ollama_native_url,
+    _is_ollama_openai_compat_url,
+    _normalize_ollama_url,
+    _ollama_api_root,
+    _ollama_normalize_messages,
+    _ollama_normalize_tool_messages,
+    _parse_ollama_response,
+)
 
 
 def _host_match(url: str, *domains: str) -> bool:
@@ -577,144 +323,20 @@ def _host_match(url: str, *domains: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in domains)
 
 
-# Kimi Code subscription keys (api.kimi.com/coding/v1) require a whitelisted
-# coding-agent User-Agent; otherwise the API returns 403 access_terminated_error.
-# Tried in order; first success is cached per base URL for later requests.
-KIMI_CODE_USER_AGENTS: tuple[str, ...] = (
-    "claude-code/0.1.0",
-    "claude-code/1.0.0",
-    "KimiCLI/1.0",
-    "Kilo-Code/1.0",
-    "Roo-Code/1.0",
-    "Cursor/1.0",
+from src.llm_kimi_code import (
+    KIMI_CODE_USER_AGENTS,
+    KIMI_CODE_USER_AGENT,
+    _is_kimi_code_access_denied,
+    _is_kimi_code_url,
+    _kimi_code_base_key,
+    _kimi_code_ua_cache,
+    _kimi_code_ua_candidates,
+    _remember_kimi_code_user_agent,
+    apply_kimi_code_headers,
+    httpx_get_kimi_aware,
+    httpx_post_kimi_aware,
+    httpx_post_kimi_aware_async,
 )
-KIMI_CODE_USER_AGENT = KIMI_CODE_USER_AGENTS[0]
-_kimi_code_ua_cache: dict[str, str] = {}
-
-
-def _is_kimi_code_url(url: str) -> bool:
-    if not url or not _host_match(url, "kimi.com"):
-        return False
-    try:
-        return "/coding" in (urlparse(url).path or "")
-    except Exception:
-        return False
-
-
-def _kimi_code_base_key(url: str) -> str:
-    """Normalize a Kimi Code chat/models URL to its OpenAI base (.../coding/v1)."""
-    parsed = urlparse(url)
-    path = (parsed.path or "").rstrip("/")
-    for suffix in ("/chat/completions", "/models", "/completions"):
-        if path.endswith(suffix):
-            path = path[: -len(suffix)]
-    path = path.rstrip("/") or "/coding/v1"
-    return f"{parsed.scheme}://{parsed.netloc}{path}"
-
-
-def _is_kimi_code_access_denied(status: int, body: bytes | str) -> bool:
-    if status != 403:
-        return False
-    text = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else (body or "")
-    lower = text.lower()
-    return (
-        "access_terminated_error" in lower
-        or "coding agents" in lower
-        or "only available for coding" in lower
-    )
-
-
-def _kimi_code_ua_candidates(url: str) -> list[str]:
-    if not _is_kimi_code_url(url):
-        return []
-    base_key = _kimi_code_base_key(url)
-    cached = _kimi_code_ua_cache.get(base_key)
-    if cached:
-        return [cached] + [ua for ua in KIMI_CODE_USER_AGENTS if ua != cached]
-    return list(KIMI_CODE_USER_AGENTS)
-
-
-def _remember_kimi_code_user_agent(url: str, user_agent: str) -> None:
-    _kimi_code_ua_cache[_kimi_code_base_key(url)] = user_agent
-
-
-def apply_kimi_code_headers(headers: Optional[Dict], url: str) -> Dict[str, str]:
-    """Pick a Kimi Code User-Agent (cached probe when possible)."""
-    h = dict(headers or {})
-    if not _is_kimi_code_url(url):
-        return h
-    base_key = _kimi_code_base_key(url)
-    cached = _kimi_code_ua_cache.get(base_key)
-    if cached:
-        h["User-Agent"] = cached
-        return h
-    models_url = base_key.rstrip("/") + "/models"
-    from src.tls_overrides import llm_verify
-    for ua in KIMI_CODE_USER_AGENTS:
-        trial = dict(h)
-        trial["User-Agent"] = ua
-        try:
-            r = httpx.get(models_url, headers=trial, timeout=8, verify=llm_verify())
-        except Exception:
-            continue
-        if _is_kimi_code_access_denied(r.status_code, r.content):
-            logger.debug("Kimi Code rejected User-Agent %s (403), trying next", ua)
-            continue
-        if r.status_code < 400:
-            _remember_kimi_code_user_agent(url, ua)
-            h["User-Agent"] = ua
-            return h
-        break
-    h.setdefault("User-Agent", KIMI_CODE_USER_AGENT)
-    return h
-
-
-def httpx_get_kimi_aware(url: str, headers: Optional[Dict], **kwargs):
-    h = apply_kimi_code_headers(headers, url)
-    if not _is_kimi_code_url(url):
-        return httpx.get(url, headers=h, **kwargs)
-    last = None
-    for ua in _kimi_code_ua_candidates(url):
-        trial = dict(h)
-        trial["User-Agent"] = ua
-        last = httpx.get(url, headers=trial, **kwargs)
-        if not _is_kimi_code_access_denied(last.status_code, last.content):
-            if last.status_code < 400:
-                _remember_kimi_code_user_agent(url, ua)
-            return last
-    return last
-
-
-def httpx_post_kimi_aware(url: str, headers: Optional[Dict], **kwargs):
-    h = apply_kimi_code_headers(headers, url)
-    if not _is_kimi_code_url(url):
-        return httpx.post(url, headers=h, **kwargs)
-    last = None
-    for ua in _kimi_code_ua_candidates(url):
-        trial = dict(h)
-        trial["User-Agent"] = ua
-        last = httpx.post(url, headers=trial, **kwargs)
-        if not _is_kimi_code_access_denied(last.status_code, last.content):
-            if last.status_code < 400:
-                _remember_kimi_code_user_agent(url, ua)
-            return last
-    return last
-
-
-async def httpx_post_kimi_aware_async(client, url: str, headers: Optional[Dict], **kwargs):
-    h = apply_kimi_code_headers(headers, url)
-    if not _is_kimi_code_url(url):
-        return await client.post(url, headers=h, **kwargs)
-    last = None
-    for ua in _kimi_code_ua_candidates(url):
-        trial = dict(h)
-        trial["User-Agent"] = ua
-        last = await client.post(url, headers=trial, **kwargs)
-        if not _is_kimi_code_access_denied(last.status_code, last.content):
-            if last.status_code < 400:
-                _remember_kimi_code_user_agent(url, ua)
-            return last
-    return last
 
 
 def _detect_provider(url: str) -> str:
@@ -856,42 +478,11 @@ def _provider_label(url: str) -> str:
     return host or "provider"
 
 
-def _normalize_chatgpt_subscription_url(url: str) -> str:
-    base = (url or "").strip().rstrip("/")
-    if base.endswith("/responses"):
-        return base
-    return base + "/responses"
-
-
-def _message_content_as_text(content) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts: list[str] = []
-        for part in content:
-            if not isinstance(part, dict):
-                if part:
-                    parts.append(str(part))
-                continue
-            if isinstance(part.get("text"), str):
-                parts.append(part["text"])
-                continue
-            if isinstance(part.get("content"), str):
-                parts.append(part["content"])
-        return "\n".join(parts)
-    return "" if content is None else str(content)
-
-
-def _chatgpt_subscription_instructions(messages: List[Dict]) -> str:
-    instructions = [
-        _message_content_as_text(msg.get("content")).strip()
-        for msg in messages or []
-        if (msg.get("role") or "") == "system"
-    ]
-    instructions = [part for part in instructions if part]
-    if instructions:
-        return "\n\n".join(instructions)
-    return "You are a helpful AI assistant."
+from src.llm_chatgpt_subscription import (
+    chatgpt_subscription_instructions as _chatgpt_subscription_instructions,
+    message_content_as_text as _message_content_as_text,
+    normalize_chatgpt_subscription_url as _normalize_chatgpt_subscription_url,
+)
 
 
 def _build_chatgpt_responses_payload(
@@ -968,8 +559,6 @@ def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
     if status >= 500:
         return f"{provider} is having an outage (HTTP {status})." + (f" {detail}" if detail else "")
     return f"{provider} returned HTTP {status}" + (f": {detail}" if detail else "")
-
-# Models that require max_completion_tokens instead of max_tokens
 _MAX_COMPLETION_TOKENS_MODELS = {"o1", "o3", "o4", "gpt-4.5", "gpt-5"}
 
 def _uses_max_completion_tokens(model: str) -> bool:
@@ -1022,369 +611,18 @@ def _omit_temperature(provider: str, model: str) -> bool:
 # even 0.0 — returns HTTP 400. Earlier Claude models (Opus 4.6 and below, every
 # Sonnet/Haiku) still accept temperature in [0.0, 1.0], so the omission must be
 # version-gated rather than applied to all `claude-*` models.
-def _anthropic_rejects_temperature(model: str) -> bool:
-    """Check if a native-Anthropic model rejects the temperature field (Opus 4.7+)."""
-    if not isinstance(model, str) or not model:
-        return False
-    # `(?<![a-z])` anchors "opus" to a word boundary so a substring match like
-    # `oct-opus`/`octopus-4-8` can't be read as Opus (it would otherwise strip
-    # temperature). Cap the minor at 1-2 digits and forbid a trailing digit so a
-    # dated id like `claude-opus-4-20250514` (Opus 4.0) parses as major-only (no
-    # minor match, kept) instead of reading the date `20250514` as a giant minor
-    # that would falsely test >= 4.7. Dated 4.7+ snapshots (`claude-opus-4-7-
-    # 20260201`) keep their explicit minor and are still matched.
-    match = re.search(r"(?<![a-z])opus[-_]?(\d+)[-_.](\d{1,2})(?!\d)", model.lower())
-    if not match:
-        return False
-    return (int(match.group(1)), int(match.group(2))) >= (4, 7)
-
-# Models that support structured thinking — may output </think> without opening tag
-_MISTRAL_REASONING_EFFORT = os.getenv("ODYSSEUS_MISTRAL_REASONING_EFFORT", "high")
-
-_THINKING_MODEL_PATTERNS = (
-    "qwen3", "qwq", "deepseek-r1", "deepseek-reasoner", "minimax",
-    "m2-reap", "gemma", "magistral", "mistral-small", "mistral-medium",
+from src.llm_message_formats import (
+    _anthropic_rejects_temperature,
+    _as_content_blocks,
+    _build_anthropic_headers,
+    _build_anthropic_payload,
+    _convert_openai_content_to_anthropic,
+    _normalize_mistral_content,
+    _parse_anthropic_response,
+    _sanitize_llm_messages,
+    _supports_thinking,
 )
 
-def _supports_thinking(model: str) -> bool:
-    """Check if model supports structured thinking output."""
-    if not model:
-        return False
-    m = model.lower()
-    return any(p in m for p in _THINKING_MODEL_PATTERNS)
-
-def _normalize_mistral_content(content):
-    if isinstance(content, str):
-        return content, ""
-    if not isinstance(content, list):
-        return "", ""
-    text_parts = []
-    thinking_parts = []
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        btype = block.get("type")
-        if btype == "text":
-            text = block.get("text", "")
-            if text:
-                text_parts.append(text)
-        elif btype == "thinking":
-            inner = block.get("thinking", [])
-            if isinstance(inner, list):
-                for tb in inner:
-                    if isinstance(tb, dict) and tb.get("text"):
-                        thinking_parts.append(tb["text"])
-            elif isinstance(inner, str):
-                thinking_parts.append(inner)
-    return "".join(text_parts), "".join(thinking_parts)
-
-def _convert_openai_content_to_anthropic(content):
-    """Convert OpenAI multimodal content blocks to Anthropic format.
-
-    Converts image_url blocks (data URI) → Anthropic image blocks.
-    Passes text blocks through unchanged.
-    """
-    if not isinstance(content, list):
-        return content
-    converted = []
-    for block in content:
-        if not isinstance(block, dict):
-            converted.append(block)
-            continue
-        if block.get("type") == "image_url":
-            url = (block.get("image_url") or {}).get("url", "")
-            # Parse data URI: data:image/<fmt>;base64,<data>
-            if url.startswith("data:"):
-                try:
-                    header, b64_data = url.split(",", 1)
-                    media_type = header.split(";")[0].replace("data:", "")
-                except (ValueError, IndexError):
-                    continue
-                converted.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,
-                        "data": b64_data,
-                    },
-                })
-            else:
-                # External URL — use Anthropic's URL source
-                converted.append({
-                    "type": "image",
-                    "source": {"type": "url", "url": url},
-                })
-        elif block.get("type") == "text":
-            converted.append(block)
-        else:
-            converted.append(block)
-    return converted
-
-
-def _build_anthropic_payload(model, messages, temperature, max_tokens, stream=False, tools=None):
-    """Convert OpenAI-style messages to Anthropic format."""
-    system_parts = []
-    chat_messages = []
-    for m in messages:
-        if m.get("role") == "system":
-            system_parts.append(m.get("content") or "")
-        elif m.get("role") == "tool":
-            # Convert OpenAI tool result to Anthropic format
-            chat_messages.append({
-                "role": "user",
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": m.get("tool_call_id", ""),
-                    "content": m.get("content", ""),
-                }],
-            })
-        elif m.get("role") == "assistant" and isinstance(m.get("tool_calls"), list):
-            # Convert OpenAI assistant tool_calls to Anthropic format
-            content = []
-            if m.get("content"):
-                content.append({"type": "text", "text": m["content"]})
-            for tc in m["tool_calls"]:
-                fn = tc.get("function") or {}
-                args_str = fn.get("arguments") or "{}"
-                try:
-                    args = json.loads(args_str) if isinstance(args_str, str) else args_str
-                except (json.JSONDecodeError, TypeError):
-                    args = {}
-                content.append({
-                    "type": "tool_use",
-                    "id": tc.get("id", ""),
-                    "name": fn.get("name", ""),
-                    "input": args,
-                })
-            chat_messages.append({"role": "assistant", "content": content})
-        else:
-            # Convert multimodal content (image_url → image) for Anthropic
-            content = _convert_openai_content_to_anthropic(m["content"])
-            chat_messages.append({"role": m["role"], "content": content})
-    # Anthropic only accepts temperature in [0.0, 1.0] and 400s on anything above
-    # 1.0. Clamp here (in the Anthropic builder only) so presets/sliders that use
-    # the wider OpenAI 0.0-2.0 range — e.g. the shipped "Nietzsche" preset at 1.2
-    # — don't hard-break every Claude request. OpenAI's own path is left untouched.
-    if temperature is not None:
-        temperature = max(0.0, min(temperature, 1.0))
-    payload = {
-        "model": model,
-        "messages": chat_messages,
-        "max_tokens": max_tokens if max_tokens and max_tokens > 0 else 4096,
-    }
-    # Opus 4.7+ removed the sampling parameters — sending `temperature` (even 0.0)
-    # returns HTTP 400. Omit it for those models; older Claude models still take it.
-    if not _anthropic_rejects_temperature(model):
-        payload["temperature"] = temperature
-    if system_parts:
-        system_text = "\n\n".join(system_parts)
-        # Send `system` as a structured text block so we can attach a prompt-cache
-        # breakpoint. The agent loop re-sends this same large prefix every round;
-        # caching it makes Anthropic re-read it from cache (~90% cheaper, lower TTFB)
-        # instead of re-billing it. Skip caching tiny one-off prompts, where the
-        # cache-WRITE premium wouldn't pay back (no reuse). Presence of `tools`
-        # means an agentic/multi-round call, where the prefix is always reused.
-        system_block = {"type": "text", "text": system_text}
-        if tools or len(system_text) > 4000:
-            system_block["cache_control"] = {"type": "ephemeral"}
-        payload["system"] = [system_block]
-    if stream:
-        payload["stream"] = True
-    # Convert OpenAI-format tools to Anthropic format
-    if tools:
-        anthropic_tools = []
-        for t in tools:
-            if t.get("type") == "function":
-                fn = t["function"]
-                anthropic_tools.append({
-                    "name": fn["name"],
-                    "description": fn.get("description", ""),
-                    "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
-                })
-        if anthropic_tools:
-            # Cache the tool schemas too — they're stable for the whole agent run.
-            # The breakpoint caches all tool defs preceding it in the request.
-            anthropic_tools[-1]["cache_control"] = {"type": "ephemeral"}
-            payload["tools"] = anthropic_tools
-    return payload
-
-def _build_anthropic_headers(headers):
-    """Convert Bearer auth to x-api-key for Anthropic."""
-    h = {"Content-Type": "application/json", "anthropic-version": "2023-06-01"}
-    if headers:
-        for k, v in headers.items():
-            if k.lower() == "authorization" and isinstance(v, str) and v.startswith("Bearer "):
-                h["x-api-key"] = v[7:]
-            else:
-                h[k] = v
-    return h
-
-def _parse_anthropic_response(data: dict) -> str:
-    """Extract text from an Anthropic response.
-
-    The Messages API `content` is an array that can hold more than one text
-    block (e.g. text split around a tool_use block, or citation-segmented
-    text). Concatenate them all instead of returning only the first, which
-    silently dropped the rest of the reply.
-    """
-    return "".join(
-        block.get("text", "")
-        for block in data.get("content", [])
-        if isinstance(block, dict) and block.get("type") == "text"
-    )
-
-
-def _as_content_blocks(content) -> List[Dict]:
-    """Coerce a message `content` into a list of content blocks.
-
-    A list (multimodal: text + image parts) passes through; a non-empty string
-    becomes a single text block; None/empty yields no blocks. Used when merging
-    consecutive user messages so multimodal content isn't str()-ed away.
-    """
-    if isinstance(content, list):
-        return content
-    if content:
-        return [{"type": "text", "text": str(content)}]
-    return []
-
-
-def _sanitize_llm_messages(messages: List[Dict]) -> List[Dict]:
-    """Strip Odysseus-only metadata before sending messages to providers.
-
-    Per the OpenAI chat format: user/system messages must have content; a tool
-    message needs content + tool_call_id; an assistant message may carry content,
-    tool_calls, or both. The old guard required content on every message, which
-    dropped a valid assistant message that has only tool_calls — e.g. the
-    follow-up message _append_tool_results builds for a no-prose native tool call
-    (content=None, since Gemini/Ollama reject tool_calls alongside ""). Dropping
-    it leaves the tool result dangling and breaks the next round.
-    """
-    allowed = {"role", "content", "name", "tool_call_id", "tool_calls", "function_call", "reasoning_content"}
-    cleaned = []
-    for msg in messages or []:
-        if not isinstance(msg, dict):
-            continue
-        item = {k: v for k, v in msg.items() if k in allowed and v is not None}
-        role = item.get("role")
-        if not role:
-            continue
-        if role == "assistant":
-            # Re-add an explicit content=None when the message is tool-calls-only
-            # (the None was stripped above) so the provider gets the spec-correct
-            # `content: null`, not an omitted key.
-            if "content" not in item and item.get("tool_calls"):
-                item["content"] = None
-            if "content" in item or item.get("tool_calls"):
-                cleaned.append(item)
-        elif role == "tool":
-            if "content" in item and "tool_call_id" in item:
-                cleaned.append(item)
-        elif "content" in item:
-            cleaned.append(item)
-
-    # Repair tool-call adjacency before sending to any OpenAI-compatible
-    # provider. Trimming/compaction/retries can leave `role:"tool"` messages
-    # without their immediately-preceding assistant `tool_calls` parent, which
-    # DeepSeek rejects with:
-    # "Messages with role 'tool' must be a response to a preceding message with
-    # 'tool_calls'". Also strip unanswered assistant tool_calls; some providers
-    # reject those as incomplete conversations.
-    repaired: List[Dict] = []
-    i = 0
-    while i < len(cleaned):
-        msg = cleaned[i]
-        role = msg.get("role")
-
-        if role == "tool":
-            # Orphan tool result. There is no valid assistant tool_calls parent
-            # immediately before this batch, so it cannot be sent.
-            logger.debug("Dropping orphan tool message before provider request")
-            i += 1
-            continue
-
-        tool_calls = msg.get("tool_calls") if role == "assistant" else None
-        if not tool_calls:
-            repaired.append(msg)
-            i += 1
-            continue
-
-        call_ids = [
-            str(tc.get("id"))
-            for tc in tool_calls
-            if isinstance(tc, dict) and tc.get("id")
-        ]
-        expected = set(call_ids)
-        answered_ids = []
-        tool_batch = []
-        j = i + 1
-        while j < len(cleaned) and cleaned[j].get("role") == "tool":
-            tid = str(cleaned[j].get("tool_call_id") or "")
-            if tid in expected and tid not in answered_ids:
-                answered_ids.append(tid)
-                tool_batch.append(cleaned[j])
-            else:
-                logger.debug("Dropping unmatched/duplicate tool message before provider request")
-            j += 1
-
-        if not tool_batch:
-            plain = {k: v for k, v in msg.items() if k != "tool_calls"}
-            if (plain.get("content") or "").strip():
-                repaired.append(plain)
-            else:
-                logger.debug("Dropping unanswered assistant tool_calls before provider request")
-            i = j
-            continue
-
-        answered = set(answered_ids)
-        pruned_calls = [
-            tc for tc in tool_calls
-            if isinstance(tc, dict) and str(tc.get("id")) in answered
-        ]
-        fixed = dict(msg)
-        fixed["tool_calls"] = pruned_calls
-        if "content" not in fixed:
-            fixed["content"] = None
-        repaired.append(fixed)
-        repaired.extend(tool_batch)
-        if len(pruned_calls) != len(tool_calls):
-            logger.debug("Pruned unanswered assistant tool_calls before provider request")
-        i = j
-
-    # Merge consecutive user messages to satisfy strict role alternation
-    # requirements after invalid tool-call fragments have been removed.
-    merged: List[Dict] = []
-    for item in repaired:
-        if not merged:
-            merged.append(item)
-            continue
-
-        last = merged[-1]
-        if last.get("role") == "user" and item.get("role") == "user":
-            last_copy = dict(last)
-            lc = last_copy.get("content")
-            ic = item.get("content")
-            if isinstance(lc, list) or isinstance(ic, list):
-                # Preserve multimodal content blocks (e.g. an image part) by
-                # concatenating the block lists. str()-ing a list turned an
-                # image message into its Python repr and dropped the image.
-                merged_blocks = _as_content_blocks(lc) + _as_content_blocks(ic)
-                if merged_blocks:
-                    last_copy["content"] = merged_blocks
-                else:
-                    last_copy.pop("content", None)
-            else:
-                last_str = str(lc) if lc is not None else ""
-                item_str = str(ic) if ic is not None else ""
-                new_content = "\n\n".join(part for part in (last_str, item_str) if part)
-                if new_content:
-                    last_copy["content"] = new_content
-                else:
-                    last_copy.pop("content", None)
-            merged[-1] = last_copy
-        else:
-            merged.append(item)
-
-    return merged
 
 def _normalize_anthropic_url(url: str) -> str:
     """Ensure Anthropic URL points to /v1/messages."""
