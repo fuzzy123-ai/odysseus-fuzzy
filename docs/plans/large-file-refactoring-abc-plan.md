@@ -645,9 +645,19 @@ Progress:
 - R9A focused tests 2026-06-30:
   `python -m pytest tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_oauth.py tests\test_email_gmail_fetch_flags.py tests\test_email_smtp_security.py tests\test_schedule_email_offset_normalization.py -q`
   returned `48 passed, 8 warnings`.
-- Remaining R9 work: IMAP folder/UID helpers, SMTP/drafts helpers, owner/event
-  helpers and route setup boundaries. `routes/email_routes.py` is reduced to
-  3392 lines after R9A and remains above the large-file candidate threshold.
+- R9B done 2026-06-30: `routes/email_imap_helpers.py` owns IMAP folder
+  resolution, UID helpers, UID FETCH response grouping, flag storage and
+  message move/copy/delete fallback behavior. `routes.email_routes` keeps
+  legacy underscore aliases for import compatibility.
+- R9B evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_imap_helpers.py`
+  passed.
+- R9B focused tests 2026-06-30:
+  `python -m pytest tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
+  returned `71 passed, 14 warnings`.
+- Remaining R9 work: SMTP/drafts helpers, owner/event helpers and route setup
+  boundaries. `routes/email_routes.py` is reduced to 3249 lines after R9B and
+  remains above the large-file candidate threshold.
 
 ### R10: Model Routes Extraction
 

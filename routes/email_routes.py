@@ -60,6 +60,20 @@ from routes.email_formatting import (
     markdown_to_email_html as _md_to_email_html,
     sanitize_email_html as _sanitize_email_html,
 )
+from routes.email_imap_helpers import (
+    folder_name_from_list_line as _folder_name_from_list_line,
+    folder_role_from_name as _folder_role_from_name,
+    group_uid_fetch_records as _group_uid_fetch_records,
+    imap_uid_fetch as _imap_uid_fetch,
+    imap_uid_search as _imap_uid_search,
+    list_imap_folders as _list_imap_folders,
+    move_email_message as _move_email_message,
+    resolve_mail_folder as _resolve_mail_folder,
+    store_email_flag as _store_email_flag,
+    uid_bytes as _uid_bytes,
+    uid_exists as _uid_exists,
+    uid_from_fetch_meta as _uid_from_fetch_meta,
+)
 from routes.email_pollers import _start_poller
 
 logger = logging.getLogger(__name__)
@@ -164,132 +178,6 @@ def _record_email_received_events(owner: str, account_id: str | None, folder: st
         logger.debug("email_received event detection skipped", exc_info=True)
 
 
-def _folder_name_from_list_line(line) -> str | None:
-    decoded = line.decode() if isinstance(line, bytes) else str(line)
-    match = re.search(r'"([^"]*)"\s*$|(\S+)\s*$', decoded)
-    if not match:
-        return None
-    return match.group(1) or match.group(2)
-
-
-def _list_imap_folders(conn) -> tuple[list, list[str]]:
-    try:
-        status, folders = conn.list()
-        if status != "OK" or not folders:
-            return [], []
-        names = [name for name in (_folder_name_from_list_line(f) for f in folders) if name]
-        return folders, names
-    except Exception:
-        return [], []
-
-
-def _resolve_mail_folder(conn, preferred: str, role: str = "") -> str:
-    """Resolve provider-specific names such as Gmail's [Gmail]/Bin/Spam."""
-    folders, names = _list_imap_folders(conn)
-    if preferred and preferred in names:
-        return preferred
-    role_flags = {
-        "trash": ("\\Trash",),
-        "archive": ("\\Archive", "\\All"),
-        "junk": ("\\Junk",),
-    }.get(role, ())
-    for f in folders:
-        decoded = f.decode() if isinstance(f, bytes) else str(f)
-        if any(flag in decoded for flag in role_flags):
-            name = _folder_name_from_list_line(f)
-            if name:
-                return name
-    candidates = {
-        "trash": ("Trash", "[Gmail]/Trash", "[Google Mail]/Trash", "Bin", "[Gmail]/Bin", "Deleted Messages", "Deleted Items"),
-        "archive": ("Archive", "Archives", "[Gmail]/All Mail", "[Google Mail]/All Mail", "All Mail"),
-        "junk": ("Junk", "Spam", "[Gmail]/Spam", "[Google Mail]/Spam"),
-    }.get(role, ())
-    lower_map = {n.lower(): n for n in names}
-    for candidate in candidates:
-        found = lower_map.get(candidate.lower())
-        if found:
-            return found
-    return preferred
-
-
-def _folder_role_from_name(name: str) -> str:
-    lower = (name or "").lower()
-    if "trash" in lower or "bin" in lower or "deleted" in lower:
-        return "trash"
-    if "spam" in lower or "junk" in lower:
-        return "junk"
-    if "archive" in lower or "all mail" in lower:
-        return "archive"
-    return ""
-
-
-def _uid_bytes(uid: str | bytes) -> bytes:
-    return uid if isinstance(uid, bytes) else str(uid).encode()
-
-
-def _uid_exists(conn, uid: str) -> bool:
-    try:
-        status, data = conn.uid("FETCH", _uid_bytes(uid), "(UID)")
-        if status != "OK":
-            return False
-        for part in data or []:
-            meta = part[0] if isinstance(part, tuple) else part
-            meta_b = meta if isinstance(meta, bytes) else str(meta).encode()
-            if re.search(rb"\bUID\s+\d+\b", meta_b):
-                return True
-        return False
-    except Exception:
-        return False
-
-
-def _imap_uid_search(conn, criteria: str):
-    return conn.uid("SEARCH", None, criteria)
-
-
-def _imap_uid_fetch(conn, uid_set: str | bytes, query: str):
-    return conn.uid("FETCH", _uid_bytes(uid_set), query)
-
-
-def _uid_from_fetch_meta(meta_b: bytes) -> str:
-    m = re.search(rb"\bUID\s+(\d+)\b", meta_b)
-    return m.group(1).decode() if m else ""
-
-
-_FETCH_SEQ_RE = re.compile(rb"^(\d+)\s+\(")
-
-
-def _group_uid_fetch_records(msg_data) -> list:
-    """Group an imaplib UID FETCH response into per-message (meta, payload).
-
-    imaplib yields an interleaved list: ``(meta, literal)`` tuples for
-    attributes that carry a literal (``RFC822.HEADER {n}`` etc.) plus bare
-    ``bytes`` elements for everything the server sends outside a literal.
-    Where each attribute lands is server-specific: Dovecot sends FLAGS
-    *before* the header literal (so it ends up inside the tuple meta), while
-    Gmail sends FLAGS *after* it, arriving as a bare ``b' FLAGS (\\Seen))'``
-    element. Dropping bare elements therefore silently loses FLAGS on Gmail
-    and every message renders as unread/unflagged.
-
-    A tuple whose meta starts with a sequence number opens a new record;
-    every other part — continuation tuple or bare bytes — is folded into the
-    current record's meta so attribute regexes see the full meta text.
-    Plain ``b')'`` terminators get folded in too, which is harmless.
-    """
-    grouped: list = []  # list of (meta_bytes, payload_bytes_or_None)
-    for part in (msg_data or []):
-        if isinstance(part, tuple):
-            meta_b = part[0] if isinstance(part[0], (bytes, bytearray)) else str(part[0]).encode()
-            if _FETCH_SEQ_RE.match(meta_b):
-                grouped.append((meta_b, part[1]))
-            elif grouped:
-                cur_meta, cur_payload = grouped[-1]
-                grouped[-1] = (cur_meta + b" " + meta_b, cur_payload or part[1])
-        elif isinstance(part, (bytes, bytearray)) and grouped:
-            cur_meta, cur_payload = grouped[-1]
-            grouped[-1] = (cur_meta + b" " + bytes(part), cur_payload)
-    return grouped
-
-
 def _smtp_ready(cfg: dict) -> bool:
     if not cfg.get("smtp_host") or not cfg.get("smtp_user"):
         return False
@@ -328,36 +216,6 @@ def _resolve_send_config(account_id: str | None = None, owner: str = "") -> dict
     except Exception as e:
         logger.debug(f"SMTP-capable account fallback failed: {e}")
     raise ValueError("No SMTP-capable email account configured")
-
-
-def _store_email_flag(conn, uid: str, flag: str, add: bool = True) -> bool:
-    op = "+FLAGS" if add else "-FLAGS"
-    if _uid_exists(conn, uid):
-        status, _ = conn.uid("STORE", _uid_bytes(uid), op, flag)
-    else:
-        status, _ = conn.store(_uid_bytes(uid), op, flag)
-    return status == "OK"
-
-
-def _move_email_message(conn, uid: str, dest: str, role: str = "") -> bool:
-    dest = _resolve_mail_folder(conn, dest, role or _folder_role_from_name(dest))
-    if _uid_exists(conn, uid):
-        status, _ = conn.uid("MOVE", _uid_bytes(uid), _q(dest))
-        if status == "OK":
-            return True
-        status, _ = conn.uid("COPY", _uid_bytes(uid), _q(dest))
-        if status != "OK":
-            return False
-        status, _ = conn.uid("STORE", _uid_bytes(uid), "+FLAGS", "\\Deleted")
-    else:
-        status, _ = conn.copy(_uid_bytes(uid), _q(dest))
-        if status != "OK":
-            return False
-        status, _ = conn.store(_uid_bytes(uid), "+FLAGS", "\\Deleted")
-    if status == "OK":
-        conn.expunge()
-        return True
-    return False
 
 
 def setup_email_routes():

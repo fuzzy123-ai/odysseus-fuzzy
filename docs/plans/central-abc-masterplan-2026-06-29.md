@@ -712,6 +712,13 @@ Current evidence:
 - 2026-06-30 R9A focused tests passed:
   `python -m pytest tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_oauth.py tests/test_email_gmail_fetch_flags.py tests/test_email_smtp_security.py tests/test_schedule_email_offset_normalization.py -q`
   returned `48 passed, 8 warnings`.
+- 2026-06-30: L7 R9B is implemented. IMAP folder resolution, UID helpers,
+  UID FETCH response grouping, flag storage and message move/copy/delete
+  fallback behavior moved to `routes/email_imap_helpers.py`; legacy aliases
+  remain available from `routes.email_routes`.
+- 2026-06-30 R9B focused tests passed:
+  `python -m pytest tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
+  returned `71 passed, 14 warnings`.
 
 Parallel rule:
 
@@ -741,11 +748,12 @@ Slice queue:
 | L7-R8D-agent-loop-intent-routing | repo_only | Bob | Done: endpoint heuristics, admin/continuation detection and domain classification moved behind import-compatible helpers. |
 | L7-R8E-agent-loop-base-prompt-final | repo_only | Bob | Done: base/system prompt internals moved behind compatibility wrappers; `src/agent_loop.py` is below the candidate threshold. |
 | L7-R9A-email-formatting-split | repo_only | Bob | Done: email formatting/sanitizer helpers moved behind compatibility aliases. |
-| L7-R9B-email-imap-helper-split | repo_only | Bob | Next: split IMAP folder/UID fetch helpers while keeping route behavior and tests stable. |
+| L7-R9B-email-imap-helper-split | repo_only | Bob | Done: IMAP folder/UID/move helpers moved behind compatibility aliases. |
+| L7-R9C-email-smtp-drafts-split | repo_only | Bob | Next: split SMTP resolution/send/draft helpers while keeping send and schedule tests stable. |
 
 Next safe slice:
 
-- Continue L7-R9B Email IMAP Helper Split if `routes/email_routes.py` is clean.
+- Continue L7-R9C Email SMTP/Drafts Helper Split if `routes/email_routes.py` is clean.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
