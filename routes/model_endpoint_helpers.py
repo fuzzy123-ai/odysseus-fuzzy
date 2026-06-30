@@ -475,6 +475,32 @@ def _probe_model_refresh_group(
         return key, data.get("endpoint_ids") or [], None, exc
 
 
+def _build_model_local_probe_groups(
+    local_endpoints: list[tuple[str, str, Any]],
+    *,
+    refresh_key_func,
+) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for endpoint_id, base, api_key in local_endpoints:
+        key = refresh_key_func(base, api_key)
+        grouped.setdefault(
+            key,
+            {"base": base, "api_key": api_key, "endpoint_ids": []},
+        )["endpoint_ids"].append(endpoint_id)
+    return grouped
+
+
+def _fanout_model_local_probe_results(
+    groups: list[dict[str, Any]],
+    results: list[Any],
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for data, result in zip(groups, results):
+        for endpoint_id in data.get("endpoint_ids") or []:
+            out[endpoint_id] = result
+    return out
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

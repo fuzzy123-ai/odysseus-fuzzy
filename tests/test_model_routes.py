@@ -482,6 +482,53 @@ def test_probe_model_refresh_group_returns_exception_without_raising():
     assert err is error
 
 
+def test_build_model_local_probe_groups_groups_by_refresh_key():
+    from routes.model_endpoint_helpers import _build_model_local_probe_groups
+
+    groups = _build_model_local_probe_groups(
+        [
+            ("ep1", "http://localhost:11434/v1", None),
+            ("ep2", "http://localhost:11434/v1", None),
+            ("ep3", "http://local.example/v1", "secret"),
+        ],
+        refresh_key_func=lambda base, api_key: f"{base}\0{api_key or ''}",
+    )
+
+    assert groups["http://localhost:11434/v1\0"] == {
+        "base": "http://localhost:11434/v1",
+        "api_key": None,
+        "endpoint_ids": ["ep1", "ep2"],
+    }
+    assert groups["http://local.example/v1\0secret"] == {
+        "base": "http://local.example/v1",
+        "api_key": "secret",
+        "endpoint_ids": ["ep3"],
+    }
+
+
+def test_fanout_model_local_probe_results_maps_group_results_to_endpoint_ids():
+    from routes.model_endpoint_helpers import _fanout_model_local_probe_results
+
+    result_a = {"alive": True, "latency_ms": 12}
+    result_b = {"alive": False, "error": "offline"}
+
+    results = _fanout_model_local_probe_results(
+        [
+            {"endpoint_ids": ["ep1", "ep2"]},
+            {"endpoint_ids": ["ep3"]},
+        ],
+        [result_a, result_b],
+    )
+
+    assert results == {"ep1": result_a, "ep2": result_a, "ep3": result_b}
+
+
+def test_fanout_model_local_probe_results_ignores_empty_endpoint_ids():
+    from routes.model_endpoint_helpers import _fanout_model_local_probe_results
+
+    assert _fanout_model_local_probe_results([{"endpoint_ids": []}, {}], [{"alive": True}, {"alive": False}]) == {}
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

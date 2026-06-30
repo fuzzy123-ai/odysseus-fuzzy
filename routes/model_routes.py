@@ -83,6 +83,8 @@ from routes.model_endpoint_helpers import (
     _clear_model_refresh_inflight,
     _merge_model_ids,
     _build_model_refresh_groups,
+    _build_model_local_probe_groups,
+    _fanout_model_local_probe_results,
     _model_refresh_key as _refresh_key,
     _normalize_endpoint_kind,
     _normalize_model_ids,
@@ -656,10 +658,7 @@ def setup_model_routes(model_discovery):
         finally:
             db.close()
 
-        grouped: Dict[str, Dict[str, Any]] = {}
-        for ep_id, base, api_key in local_eps:
-            key = _refresh_key(base, api_key)
-            grouped.setdefault(key, {"base": base, "api_key": api_key, "endpoint_ids": []})["endpoint_ids"].append(ep_id)
+        grouped = _build_model_local_probe_groups(local_eps, refresh_key_func=_refresh_key)
 
         async def _probe_one(data: Dict[str, Any]) -> Dict[str, Any]:
             t0 = _time.time()
@@ -688,10 +687,7 @@ def setup_model_routes(model_discovery):
             *[_probe_one(data) for data in grouped.values()],
             return_exceptions=False,
         )
-        results: Dict[str, Any] = {}
-        for data, r in zip(grouped.values(), results_list):
-            for eid in data["endpoint_ids"]:
-                results[eid] = r
+        results = _fanout_model_local_probe_results(list(grouped.values()), results_list)
 
         _local_probe_cache["data"] = results
         _local_probe_cache["time"] = now
