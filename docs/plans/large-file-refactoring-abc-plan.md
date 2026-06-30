@@ -4259,6 +4259,59 @@ Completion criteria:
 - `email_server.py` loses formatting code while retaining public MCP tool names,
   account handling and monkeypatchable private function boundaries.
 
+## R11BV / L7-R12BK: LLM Provider Helper Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving provider classification, provider labels,
+  provider headers and local cache-affinity gating into a focused helper module
+  while keeping the legacy private imports available from `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_provider_helpers.py`
+- `tests/test_provider_detection.py`
+- `tests/test_provider_classification.py`
+- `tests/test_copilot.py`
+- `tests/test_cache_affinity_local_only.py`
+- `tests/test_llm_core_ollama.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BV done 2026-06-30: `_host_match`, `_detect_provider`,
+  `_is_self_hosted_openai_compatible`, `_apply_local_cache_affinity`,
+  `_provider_headers` and `_provider_label` moved to
+  `src/llm_provider_helpers.py`; `src.llm_core` imports those names so existing
+  callers and tests keep their public/private contract.
+- R11BV line count 2026-06-30: `src/llm_core.py` is 1753 lines, still in
+  warning band but reduced from 1905; `src/llm_provider_helpers.py` is below
+  the report threshold.
+- R11BV focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_provider_helpers.py`
+  passed.
+- R11BV provider/LLM checks 2026-06-30:
+  `python -m pytest tests\test_provider_detection.py tests\test_provider_classification.py tests\test_copilot.py tests\test_cache_affinity_local_only.py tests\test_llm_core_ollama.py tests\test_llm_core_temperature.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py -q`
+  returned `176 passed, 1 warning`.
+
+Completion criteria:
+
+- Provider host matching, provider detection, provider labels, Copilot
+  detection/headers and local cache-affinity tests remain green.
+- The split performs no live provider calls and does not change request
+  payload semantics.
+- `src.llm_core` keeps the existing private helper names importable for
+  compatibility while the provider-specific implementation lives in the helper.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
