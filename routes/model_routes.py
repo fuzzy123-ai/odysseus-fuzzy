@@ -52,6 +52,7 @@ from routes.model_probe_helpers import (
     should_try_models_url_after_ping as _should_try_models_url_after_ping,
 )
 from routes.model_probe_endpoint import probe_endpoint as _probe_endpoint_impl
+from routes.model_probe_ping import ping_endpoint as _ping_endpoint_impl
 from routes.model_endpoint_helpers import (
     _PROVIDER_CURATED,
     _api_key_fingerprint,
@@ -217,44 +218,24 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
 def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> Dict[str, Any]:
     """Reachability probe that does not require installed/listed models."""
     from src.endpoint_resolver import resolve_url
-    base = resolve_url(_normalize_base(base_url))
-    headers = _safe_build_headers(api_key, base)
 
-    # Ollama exposes /v1/models (OpenAI-compatible) AND native /api/version,
-    # /api/tags. Probe native paths for Ollama-style endpoints, but avoid using
-    # /models as a generic health check because large proxy catalogs can be slow.
-    ollama_root = _ollama_native_probe_root(base)
-
-    last_error: Optional[str] = None
-
-    try:
-        native_result, last_error = _probe_ollama_native_ping(
-            _ollama_native_ping_urls(ollama_root),
-            timeout=timeout,
-            http_get_func=httpx.get,
-            llm_verify_func=llm_verify,
-            ping_result_func=_ping_result_from_response,
-        )
-        if native_result:
-            return native_result
-    except Exception:
-        pass
-
-    result, base_error = _probe_base_ping_with_models_fallback(
-        base,
-        headers,
+    return _ping_endpoint_impl(
+        base_url,
+        api_key,
         timeout=timeout,
+        normalize_base_func=_normalize_base,
+        resolve_url_func=resolve_url,
+        safe_build_headers_func=_safe_build_headers,
+        ollama_native_probe_root_func=_ollama_native_probe_root,
+        ollama_native_ping_urls_func=_ollama_native_ping_urls,
+        probe_ollama_native_ping_func=_probe_ollama_native_ping,
+        probe_base_ping_with_models_fallback_func=_probe_base_ping_with_models_fallback,
         http_get_func=httpx.get,
         llm_verify_func=llm_verify,
         ping_result_func=_ping_result_from_response,
         should_try_models_url_func=_should_try_models_url_after_ping,
         safe_build_models_url_func=_safe_build_models_url,
     )
-    if result:
-        return result
-    last_error = base_error or last_error
-
-    return {"reachable": False, "status_code": None, "error": last_error}
 
 
 

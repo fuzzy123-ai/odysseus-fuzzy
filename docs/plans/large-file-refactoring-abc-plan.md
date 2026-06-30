@@ -4622,6 +4622,58 @@ Completion criteria:
 - `routes.model_routes._probe_endpoint` remains importable and patchable while
   implementation lives in `routes.model_probe_endpoint.py`.
 
+## R11CC / L7-R12BR: Model Probe Ping Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `routes/model_routes.py` by moving model reachability ping
+  orchestration into a focused helper while preserving the legacy
+  `routes.model_routes._ping_endpoint` wrapper and monkeypatch surface.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_ping.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CC done 2026-06-30: `_ping_endpoint` orchestration moved to
+  `routes/model_probe_ping.py`; `routes.model_routes._ping_endpoint` remains
+  the stable wrapper and injects current route-level dependencies so existing
+  monkeypatch tests continue to target the same surface.
+- R11CC line count 2026-06-30: `routes/model_routes.py` is 1569 lines, still in
+  warning band but reduced from 1588 after R11CB; `routes/model_probe_ping.py`
+  is 60 lines and below the report threshold.
+- R11CC focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_endpoint.py routes\model_probe_ping.py`
+  passed.
+- R11CC endpoint probing checks 2026-06-30:
+  `python -m pytest tests\test_endpoint_probing.py -q` returned
+  `37 passed, 1 warning`.
+- R11CC model-route ping checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py -q -k "ping_endpoint or model_endpoint_error_message or rewrite_loopback_for_docker or ProbeZaiCoding or SetupProbeSafety"`
+  returned `22 passed, 149 deselected, 1 warning`.
+- R11CC route regression checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py -q` returned
+  `171 passed, 1 warning`.
+
+Completion criteria:
+
+- Endpoint ping, native Ollama ping, `/models` fallback, route monkeypatch and
+  full model-route regression tests remain green.
+- The split performs no live network calls in tests and does not change ping
+  response semantics.
+- `routes.model_routes._ping_endpoint` remains importable and patchable while
+  implementation lives in `routes.model_probe_ping.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
