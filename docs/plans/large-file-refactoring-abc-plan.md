@@ -25,9 +25,9 @@ result helper split, R11AY model refresh inflight reset helper split, R11AZ
 model refresh probe helper split, R11BA model refresh cache-update helper split,
 R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
-split; tool
+split, and R11BE RAG text chunking helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route and RAG vector facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -3367,6 +3367,57 @@ Completion criteria:
   endpoint IDs, normalized base URLs and optional API keys.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
+
+### R11BE / L7-R12AT: RAG Text Chunking Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move sentence-aware RAG chunking out of `src/rag_vector.py` while preserving
+  the existing `VectorRAG._split_into_chunks()` compatibility method.
+
+Allowed paths:
+
+- `src/rag_vector.py`
+- `src/rag_text_chunking.py`
+- `tests/test_rag_text_chunking.py`
+- `tests/test_rag_vector_id_stability.py`
+- `tests/test_rag_keyword_fallback_owner.py`
+- `tests/test_rag_pdf_partial_index.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BE done 2026-06-30: sentence-aware chunking moved to
+  `split_text_into_chunks()` in `src/rag_text_chunking.py`; `VectorRAG` keeps
+  `_split_into_chunks()` as a thin wrapper so existing index and test callers
+  stay compatible.
+- Compatibility evidence: focused tests cover short text, sentence-boundary
+  splitting, overlap retention, hard-splitting long sentences and the
+  `VectorRAG` wrapper path; RAG ID stability, owner-filtered keyword fallback
+  and partial-PDF indexing checks remain green.
+- R11BE line count 2026-06-30: `src/rag_vector.py` is 754 lines in the
+  large-file report, band `monitor`, not `warning` or `candidate`; report
+  candidate count is 26.
+- R11BE focused checks 2026-06-30:
+  `python -m py_compile src\rag_vector.py src\rag_text_chunking.py` passed.
+- R11BE RAG checks 2026-06-30:
+  `python -m pytest tests\test_rag_text_chunking.py tests\test_rag_vector_id_stability.py tests\test_rag_keyword_fallback_owner.py tests\test_rag_pdf_partial_index.py --basetemp .pytest-tmp-rag-chunking -q`
+  returned `10 passed, 2 warnings`.
+
+Completion criteria:
+
+- `src/rag_vector.py` drops below warning band without changing RAG document
+  indexing semantics.
+- Sentence-aware chunking remains directly testable and the existing VectorRAG
+  private wrapper remains available for callers/tests.
+- The slice performs no live RAG rebuild, provider call, network, Telegram,
+  Nextcloud or host mutation.
 
 ### R12: Obsidian Frontend Split
 
