@@ -4054,6 +4054,55 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BR / L7-R12BG: Admin Plugin/Token Service Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move plugin and API-token admin tools out of `src/tool_domains/admin_services.py`
+  into a focused service module.
+- Keep `do_manage_plugins` and `do_manage_tokens` import-compatible through
+  `src.tool_domains.admin_services` and the existing admin facade.
+
+Allowed paths:
+
+- `src/tool_domains/admin_services.py`
+- `src/tool_domains/admin_plugin_token_services.py`
+- `tests/test_manage_plugins_confirmed_route.py`
+- `tests/test_manage_tokens_confirmed_route.py`
+- `tests/test_self_control_prompt_contract.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BR done 2026-06-30: `src/tool_domains/admin_plugin_token_services.py`
+  owns plugin route orchestration, plugin-id validation, plugin registry
+  mutations, API token route orchestration and token metadata redaction.
+  `src.tool_domains.admin_services` imports and re-exports the two tool
+  functions for compatibility.
+- R11BR line count 2026-06-30: `src/tool_domains/admin_services.py` is 708
+  lines, in monitor band and below warning band;
+  `src/tool_domains/admin_plugin_token_services.py` is below report threshold.
+- R11BR focused checks 2026-06-30:
+  `python -m py_compile src\tool_domains\admin_services.py src\tool_domains\admin_plugin_token_services.py`
+  passed.
+- R11BR admin tool checks 2026-06-30:
+  `python -m pytest tests\test_manage_plugins_confirmed_route.py tests\test_manage_tokens_confirmed_route.py tests\test_self_control_prompt_contract.py -q`
+  returned `15 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/tool_domains/admin_services.py` is below warning band without changing
+  plugin or token tool contracts.
+- Plugin confirmation gates, registry URL handling, plugin-id validation,
+  one-time token response behavior and token metadata redaction remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
