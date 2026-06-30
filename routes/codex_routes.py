@@ -5,7 +5,6 @@ reuse existing Odysseus helpers and enforce API-token scopes before touching
 user data.
 """
 
-import asyncio
 import json
 import zipfile
 from io import BytesIO
@@ -15,107 +14,32 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from src.auth_helpers import require_authenticated_request, require_user
+from src.auth_helpers import require_authenticated_request
 from src.tool_implementations import do_manage_notes
 from src.constants import COOKBOOK_STATE_FILE
-from routes._validators import validate_remote_host, validate_ssh_port
-
-
-COOKBOOK_READ_SCOPES = {"cookbook:read", "cookbook:launch"}
-COOKBOOK_LAUNCH_SCOPES = {"cookbook:launch"}
-TODO_READ_SCOPES = {"todos:read", "todos:write"}
-TODO_WRITE_SCOPES = {"todos:write"}
-EMAIL_READ_SCOPES = {"email:read", "email:draft", "email:send"}
-EMAIL_DRAFT_SCOPES = {"email:draft", "email:send"}
-EMAIL_SEND_SCOPES = {"email:send"}
-MEMORY_READ_SCOPES = {"memory:read", "memory:write"}
-MEMORY_WRITE_SCOPES = {"memory:write"}
-CALENDAR_READ_SCOPES = {"calendar:read", "calendar:write"}
-CALENDAR_WRITE_SCOPES = {"calendar:write"}
-DOCS_READ_SCOPES = {"documents:read", "documents:write"}
-DOCS_WRITE_SCOPES = {"documents:write"}
-WRITE_ACTIONS = {"add", "create", "new", "save", "remind", "update", "delete", "toggle_item", "remove", "remove_item"}
-
-
-def _ssh_prefix_for_task(task: dict) -> tuple[str, str]:
-    """Resolve a cookbook task's stored SSH target into ``(host, port_flag)``.
-
-    ``host`` is ``""`` for a local task. ``remoteHost`` / ``sshPort`` come from
-    cookbook_state.json and get interpolated into an ``ssh`` command string, so
-    validate them the same way the cookbook routes do. A tampered entry with
-    shell metacharacters in ``remoteHost`` is rejected with 400 rather than
-    injected.
-    """
-    raw_host = task.get("remoteHost")
-    raw_port = task.get("sshPort")
-    host_value = str(raw_host).strip() if raw_host is not None else None
-    port_value = str(raw_port).strip() if raw_port is not None else None
-    host = validate_remote_host(host_value or None) or ""
-    ssh_port = validate_ssh_port(port_value or None) or ""
-    port_flag = f"-p {ssh_port} " if ssh_port and ssh_port != "22" else ""
-    return host, port_flag
-
-
-async def _as_owner(request: Request, owner: str, fn, *args, **kwargs):
-    """Run an existing route handler with request.state.current_user temporarily
-    set to ``owner`` so its internal get_current_user/require_user calls see
-    the scope-gated owner (not the "api" pseudo-user the bearer middleware sets).
-    Restores the original value when done. Works for sync and async handlers."""
-    orig = getattr(request.state, "current_user", None)
-    orig_api_token = getattr(request.state, "api_token", None)
-    request.state.current_user = owner
-    request.state.api_token = False
-    try:
-        result = fn(*args, **kwargs)
-        if asyncio.iscoroutine(result):
-            result = await result
-        return result
-    finally:
-        request.state.current_user = orig
-        if orig_api_token is None:
-            try:
-                delattr(request.state, "api_token")
-            except AttributeError:
-                pass
-        else:
-            request.state.api_token = orig_api_token
-
-
-def _scope_owner(request: Request, allowed: set[str]) -> str:
-    """Return the data owner if the caller is allowed for this Codex action."""
-    if getattr(request.state, "api_token", False):
-        scopes = set(getattr(request.state, "api_token_scopes", []) or [])
-        if not scopes.intersection(allowed):
-            required = " or ".join(sorted(allowed))
-            raise HTTPException(403, f"API token missing required scope: {required}")
-        owner = getattr(request.state, "api_token_owner", None)
-        if not owner:
-            raise HTTPException(403, "API token has no owner")
-        return owner
-    return require_user(request)
-
-
-def _scope_owner_all(request: Request, required: set[str]) -> str:
-    """Return owner only when an API token has every required scope."""
-    if getattr(request.state, "api_token", False):
-        scopes = set(getattr(request.state, "api_token_scopes", []) or [])
-        missing = required - scopes
-        if missing:
-            raise HTTPException(403, f"API token missing required scope: {' and '.join(sorted(missing))}")
-        owner = getattr(request.state, "api_token_owner", None)
-        if not owner:
-            raise HTTPException(403, "API token has no owner")
-        return owner
-    return require_user(request)
-
-
-def _find_endpoint(router: APIRouter | None, method: str, path: str):
-    if router is None:
-        return None
-    for route in getattr(router, "routes", []):
-        if getattr(route, "path", "") == path and method in getattr(route, "methods", set()):
-            return route.endpoint
-    return None
+from routes._validators import validate_remote_host
+from routes.codex_helpers import (
+    CALENDAR_READ_SCOPES,
+    CALENDAR_WRITE_SCOPES,
+    COOKBOOK_LAUNCH_SCOPES,
+    COOKBOOK_READ_SCOPES,
+    DOCS_READ_SCOPES,
+    DOCS_WRITE_SCOPES,
+    EMAIL_DRAFT_SCOPES,
+    EMAIL_READ_SCOPES,
+    EMAIL_SEND_SCOPES,
+    MEMORY_READ_SCOPES,
+    MEMORY_WRITE_SCOPES,
+    TODO_READ_SCOPES,
+    TODO_WRITE_SCOPES,
+    WRITE_ACTIONS,
+    as_owner as _as_owner,
+    build_capabilities_payload,
+    find_endpoint as _find_endpoint,
+    scope_owner as _scope_owner,
+    scope_owner_all as _scope_owner_all,
+    ssh_prefix_for_task as _ssh_prefix_for_task,
+)
 
 
 def setup_codex_routes(
@@ -141,52 +65,13 @@ def setup_codex_routes(
     def capabilities(request: Request):
         token_scopes = set(getattr(request.state, "api_token_scopes", []) or [])
         has_token = bool(getattr(request.state, "api_token", False))
-        def scoped(allowed):
-            return bool(token_scopes.intersection(allowed)) if has_token else True
-        return {
-            "integration": "codex",
-            "token_scopes": sorted(token_scopes),
-            "tools": {
-                "todos": {
-                    "read": scoped(TODO_READ_SCOPES),
-                    "write": scoped(TODO_WRITE_SCOPES),
-                    "actions": ["list", "add", "update", "delete", "toggle_item"],
-                },
-                "email": {
-                    "read": scoped(EMAIL_READ_SCOPES),
-                    "draft": scoped(EMAIL_DRAFT_SCOPES),
-                    "send": scoped(EMAIL_SEND_SCOPES),
-                    "actions": ["list", "read", "draft_document", "draft", "send"],
-                },
-                "memory": {
-                    "read": scoped(MEMORY_READ_SCOPES),
-                    "write": scoped(MEMORY_WRITE_SCOPES),
-                    "actions": ["list", "add", "delete"],
-                    "available": memory_list_endpoint is not None,
-                },
-                "calendar": {
-                    "read": scoped(CALENDAR_READ_SCOPES),
-                    "write": scoped(CALENDAR_WRITE_SCOPES),
-                    "actions": ["list_events", "create_event", "delete_event"],
-                    "available": calendar_list_events is not None,
-                },
-                "documents": {
-                    "read": scoped(DOCS_READ_SCOPES),
-                    "write": scoped(DOCS_WRITE_SCOPES),
-                    "actions": ["library", "read", "create", "delete"],
-                    "available": documents_library_endpoint is not None,
-                },
-                "cookbook": {
-                    "read": scoped(COOKBOOK_READ_SCOPES),
-                    "launch": scoped(COOKBOOK_LAUNCH_SCOPES),
-                    "actions": ["tasks", "servers", "output", "serve", "stop"],
-                },
-            },
-            "safety": {
-                "email_send_requires_confirmation": True,
-                "destructive_actions_should_confirm": True,
-            },
-        }
+        return build_capabilities_payload(
+            token_scopes=token_scopes,
+            has_token=has_token,
+            memory_available=memory_list_endpoint is not None,
+            calendar_available=calendar_list_events is not None,
+            documents_available=documents_library_endpoint is not None,
+        )
 
     @router.get("/plugin.zip")
     def plugin_zip(request: Request):

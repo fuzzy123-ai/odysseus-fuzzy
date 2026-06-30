@@ -1339,6 +1339,17 @@ Current evidence:
   `python -m py_compile src\tool_domains\repo_skills.py src\tool_domains\repo_output.py`;
   `python -m pytest tests\test_repo_output_helpers.py tests\test_manage_repos_read_tool.py -q --basetemp .pytest-tmp-repo-output`
   returned `20 passed, 2 warnings`.
+- 2026-06-30: L7 R12AV is implemented. Codex API scope constants, owner-scope
+  helpers, endpoint lookup, SSH target validation helper and capabilities
+  payload construction moved from `routes/codex_routes.py` to
+  `routes/codex_helpers.py` while `codex_routes.py` keeps route registration,
+  endpoint delegation and cookbook action orchestration. The large-file report
+  places `routes/codex_routes.py` at 760 lines, band `monitor`, not `warning`
+  or `candidate`; report candidate count is 26.
+- 2026-06-30 R12AV evidence passed:
+  `python -m py_compile routes\codex_routes.py routes\codex_helpers.py`;
+  `python -m pytest tests\test_codex_helpers.py tests\test_codex_ssh_host_validation.py tests\test_api_token_user_route_gate.py -q --basetemp .pytest-tmp-codex-helpers`
+  returned `15 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1438,6 +1449,7 @@ Slice queue:
 | L7-R12AS-model-local-probe-endpoint-collection-helper-boundary | repo_only | Bob | Done: local probe endpoint collection moved behind route-compatible injected helper imports; `routes/model_routes.py` remains below candidate threshold. |
 | L7-R12AT-rag-text-chunking-helper-boundary | repo_only | Bob | Done: sentence-aware RAG chunking moved behind a compatibility wrapper; `src/rag_vector.py` is back in monitor band. |
 | L7-R12AU-repo-tool-output-helper-boundary | repo_only | Bob | Done: repo-management output formatting moved behind helper imports; `src/tool_domains/repo_skills.py` is back in monitor band. |
+| L7-R12AV-codex-helper-policy-boundary | repo_only | Bob | Done: Codex scope constants, owner-scope helpers, endpoint lookup, SSH target validation helper and capabilities payload moved behind helper imports; `routes/codex_routes.py` is back in monitor band. |
 
 Next safe slice:
 
@@ -1527,7 +1539,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AU are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AV are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

@@ -26,9 +26,11 @@ model refresh probe helper split, R11BA model refresh cache-update helper split,
 R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
 split, R11BE RAG text chunking helper split and R11BF repo tool output helper
-split; tool
+split and R11BG Codex helper policy split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, RAG vector and repo-skill facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route,
+Codex route, RAG vector and repo-skill facades are below threshold, remaining CSS/UI-safe and
+later route/plugin waves pending
 
 ## Goal
 
@@ -3469,6 +3471,58 @@ Completion criteria:
 - Output formatting is directly testable in a dedicated helper module.
 - The slice performs no live git push, provider call, network, Telegram,
   Nextcloud or host mutation.
+
+### R11BG / L7-R12AV: Codex Helper Policy Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Codex route helper/policy code out of `routes/codex_routes.py` while
+  preserving route registration and existing private compatibility aliases.
+
+Allowed paths:
+
+- `routes/codex_routes.py`
+- `routes/codex_helpers.py`
+- `tests/test_codex_helpers.py`
+- `tests/test_codex_ssh_host_validation.py`
+- `tests/test_api_token_user_route_gate.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BG done 2026-06-30: Codex API scope constants, owner-scope helpers,
+  endpoint lookup, SSH target validation helper and capabilities payload
+  construction moved to `routes/codex_helpers.py`. `routes/codex_routes.py`
+  keeps route registration, endpoint delegation and cookbook action
+  orchestration, and imports compatibility aliases for `_ssh_prefix_for_task`,
+  `_as_owner`, `_scope_owner`, `_scope_owner_all` and `_find_endpoint`.
+- Compatibility evidence: helper tests cover capability scope/availability
+  shaping and owner-scope allow/deny behavior; existing Codex SSH validation
+  and API-token route-gate tests remain green.
+- R11BG line count 2026-06-30: `routes/codex_routes.py` is 760 lines in the
+  large-file report, band `monitor`, not `warning` or `candidate`; report
+  candidate count is 26.
+- R11BG focused checks 2026-06-30:
+  `python -m py_compile routes\codex_routes.py routes\codex_helpers.py`
+  passed.
+- R11BG Codex route checks 2026-06-30:
+  `python -m pytest tests\test_codex_helpers.py tests\test_codex_ssh_host_validation.py tests\test_api_token_user_route_gate.py -q --basetemp .pytest-tmp-codex-helpers`
+  returned `15 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/codex_routes.py` drops below warning band without changing Codex API
+  scope checks, owner delegation, capabilities response shape or cookbook SSH
+  task validation.
+- Helper/policy behavior is directly testable in a dedicated helper module.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
 
 ### R12: Obsidian Frontend Split
 
