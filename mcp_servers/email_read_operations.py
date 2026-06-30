@@ -190,3 +190,112 @@ def search_emails(
         except Exception:
             pass
     return out[: max_results * len(folders)]
+
+
+def read_email(
+    *,
+    uid=None,
+    message_id=None,
+    folder: str = "INBOX",
+    account: str | None = None,
+    load_config,
+    imap_connect,
+    quote_folder,
+    bytes_func,
+    decode_header,
+    extract_text,
+    list_attachments_from_msg,
+) -> dict:
+    """Read full email content by UID or message-id."""
+    cfg = load_config(account)
+    conn = None
+    try:
+        conn = imap_connect(account)
+        conn.select(quote_folder(folder), readonly=True)
+
+        if message_id and not uid:
+            status, data = conn.uid("SEARCH", None, f'(HEADER Message-ID "{message_id}")')
+            if status != "OK" or not data[0]:
+                return {"error": f"Email not found with Message-ID: {message_id}"}
+            uid = data[0].split()[-1]
+
+        if not uid:
+            return {"error": "No UID or Message-ID provided"}
+
+        status, msg_data = conn.uid("FETCH", bytes_func(uid), "(BODY.PEEK[])")
+        if status != "OK":
+            return {"error": f"Failed to fetch email UID {uid}"}
+        if not msg_data or not msg_data[0] or not isinstance(msg_data[0], tuple) or len(msg_data[0]) < 2:
+            return {"error": f"Email not found with UID {uid}"}
+
+        raw = msg_data[0][1]
+        msg = email.message_from_bytes(raw)
+
+        subject = decode_header(msg.get("Subject", "(no subject)"))
+        sender = decode_header(msg.get("From", "unknown"))
+        date_str = msg.get("Date", "")
+        message_id_header = msg.get("Message-ID", "")
+        body = extract_text(msg)
+        attachments = list_attachments_from_msg(msg)
+
+        sender_name, sender_addr = email.utils.parseaddr(sender)
+
+        return {
+            "uid": uid.decode() if isinstance(uid, bytes) else str(uid),
+            "account": cfg.get("account_name") or cfg.get("imap_user") or "default",
+            "account_email": cfg.get("imap_user") or cfg.get("from_address") or "",
+            "account_id": cfg.get("account_id"),
+            "message_id": message_id_header,
+            "subject": subject,
+            "from": sender_name or sender_addr,
+            "from_address": sender_addr,
+            "date": date_str,
+            "body": body[:8000],
+            "attachments": attachments,
+        }
+    finally:
+        if conn:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+
+def read_email_across_accounts(
+    *,
+    uid=None,
+    message_id=None,
+    folder: str = "INBOX",
+    list_accounts_raw,
+    read_email_func,
+) -> dict:
+    rows = list_accounts_raw()
+    matches = []
+    errors = []
+    for row in rows:
+        account_selector = row.get("id") or row.get("name") or row.get("imap_user")
+        account_name = row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
+        account_email = row.get("imap_user") or row.get("from_address") or ""
+        result = read_email_func(
+            uid=uid,
+            message_id=message_id,
+            folder=folder,
+            account=account_selector,
+        )
+        if "error" in result:
+            errors.append(f"{account_name} <{account_email}>: {result['error']}")
+            continue
+        matches.append(result)
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        accounts = ", ".join(
+            f"{m.get('account')} <{m.get('account_email')}>" for m in matches
+        )
+        return {
+            "error": (
+                f"UID {uid or message_id} exists in multiple accounts: {accounts}. "
+                "Call read_email again with the account name/email."
+            )
+        }
+    return {"error": f"Email not found in any configured account. Checked: {'; '.join(errors)}"}

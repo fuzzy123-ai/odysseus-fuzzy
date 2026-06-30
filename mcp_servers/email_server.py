@@ -9,8 +9,6 @@ Connects to local Dovecot IMAP and reads from the AI summary cache.
 import asyncio
 import imaplib
 import smtplib
-import email
-import email.utils
 import json
 import sys
 import os
@@ -86,6 +84,8 @@ from mcp_servers.email_message_utils import (
 from mcp_servers.email_read_operations import (
     list_emails as list_emails_via_helper,
     list_emails_across_accounts as list_emails_across_accounts_via_helper,
+    read_email as read_email_via_helper,
+    read_email_across_accounts as read_email_across_accounts_via_helper,
     search_emails as search_emails_via_helper,
 )
 from mcp_servers.email_reply_utils import (
@@ -271,89 +271,29 @@ def _search_emails(query, folders=None, max_results=20, account=None):
 
 def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
     """Read full email content by UID or message-ID. account = mailbox selector."""
-    cfg = _load_config(account)
-    conn = None
-    try:
-        conn = _imap_connect(account)
-        conn.select(_q(folder), readonly=True)
-
-        if message_id and not uid:
-            status, data = conn.uid("SEARCH", None, f'(HEADER Message-ID "{message_id}")')
-            if status != "OK" or not data[0]:
-                return {"error": f"Email not found with Message-ID: {message_id}"}
-            uid = data[0].split()[-1]
-
-        if not uid:
-            return {"error": "No UID or Message-ID provided"}
-
-        status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
-        if status != "OK":
-            return {"error": f"Failed to fetch email UID {uid}"}
-        if not msg_data or not msg_data[0] or not isinstance(msg_data[0], tuple) or len(msg_data[0]) < 2:
-            return {"error": f"Email not found with UID {uid}"}
-
-        raw = msg_data[0][1]
-        msg = email.message_from_bytes(raw)
-
-        subject = _decode_header(msg.get("Subject", "(no subject)"))
-        sender = _decode_header(msg.get("From", "unknown"))
-        date_str = msg.get("Date", "")
-        message_id_header = msg.get("Message-ID", "")
-        body = _extract_text(msg)
-        attachments = _list_attachments_from_msg(msg)
-
-        sender_name, sender_addr = email.utils.parseaddr(sender)
-
-        return {
-            "uid": uid.decode() if isinstance(uid, bytes) else str(uid),
-            "account": cfg.get("account_name") or cfg.get("imap_user") or "default",
-            "account_email": cfg.get("imap_user") or cfg.get("from_address") or "",
-            "account_id": cfg.get("account_id"),
-            "message_id": message_id_header,
-            "subject": subject,
-            "from": sender_name or sender_addr,
-            "from_address": sender_addr,
-            "date": date_str,
-            "body": body[:8000],
-            "attachments": attachments,
-        }
-    finally:
-        if conn:
-            try: conn.logout()
-            except Exception: pass
+    return read_email_via_helper(
+        uid=uid,
+        message_id=message_id,
+        folder=folder,
+        account=account,
+        load_config=_load_config,
+        imap_connect=_imap_connect,
+        quote_folder=_q,
+        bytes_func=_b,
+        decode_header=_decode_header,
+        extract_text=_extract_text,
+        list_attachments_from_msg=_list_attachments_from_msg,
+    )
 
 
 def _read_email_across_accounts(uid=None, message_id=None, folder="INBOX"):
-    rows = _list_accounts_raw()
-    matches = []
-    errors = []
-    for row in rows:
-        account_selector = row.get("id") or row.get("name") or row.get("imap_user")
-        account_name = row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
-        account_email = row.get("imap_user") or row.get("from_address") or ""
-        result = _read_email(
-            uid=uid,
-            message_id=message_id,
-            folder=folder,
-            account=account_selector,
-        )
-        if "error" in result:
-            errors.append(f"{account_name} <{account_email}>: {result['error']}")
-            continue
-        matches.append(result)
-    if len(matches) == 1:
-        return matches[0]
-    if len(matches) > 1:
-        accounts = ", ".join(
-            f"{m.get('account')} <{m.get('account_email')}>" for m in matches
-        )
-        return {
-            "error": (
-                f"UID {uid or message_id} exists in multiple accounts: {accounts}. "
-                "Call read_email again with the account name/email."
-            )
-        }
-    return {"error": f"Email not found in any configured account. Checked: {'; '.join(errors)}"}
+    return read_email_across_accounts_via_helper(
+        uid=uid,
+        message_id=message_id,
+        folder=folder,
+        list_accounts_raw=_list_accounts_raw,
+        read_email_func=_read_email,
+    )
 
 
 def _resolve_send_config(account=None):
