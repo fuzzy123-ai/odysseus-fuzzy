@@ -671,6 +671,14 @@ Current evidence:
 - 2026-06-30 R8A focused tests passed:
   `python -m pytest tests/test_agent_loop.py tests/test_agent_loop_tool_output_truncation.py tests/test_agent_loop_logging_redaction.py tests/test_agent_rounds_exhausted.py tests/test_tool_policy.py tests/test_delegate_tool.py tests/test_tool_output_prompt_injection.py tests/test_tool_registry.py tests/test_tool_rag_contacts_domain.py tests/test_api_call_integration_routing.py tests/test_self_control_prompt_contract.py tests/test_research_report_read.py -q`
   returned `117 passed, 2 warnings`.
+- 2026-06-30: L7 R8B is implemented. Native/fenced tool-block resolution,
+  tool-result message shaping and final metrics moved to
+  `src/agent_loop_tool_mechanics.py`, while `src.agent_loop` keeps
+  import-compatible re-exports for `_resolve_tool_blocks`,
+  `_append_tool_results` and `_compute_final_metrics`.
+- 2026-06-30 R8B focused tests passed:
+  `python -m pytest tests/test_agent_loop.py tests/test_agent_loop_tool_output_truncation.py tests/test_agent_loop_logging_redaction.py tests/test_agent_rounds_exhausted.py tests/test_tool_policy.py tests/test_delegate_tool.py tests/test_tool_output_prompt_injection.py tests/test_tool_registry.py tests/test_tool_rag_contacts_domain.py tests/test_api_call_integration_routing.py tests/test_self_control_prompt_contract.py tests/test_research_report_read.py tests/test_fenced_example_not_executed_for_native_models.py tests/test_llm_core_sanitize_tool_calls.py tests/test_chat_metrics.py -q`
+  returned `140 passed, 2 warnings`.
 
 Parallel rule:
 
@@ -695,13 +703,14 @@ Slice queue:
 | L7-R7G-tool-implementations-final-facade-audit | safe_offline | Charlie | Done: `src/tool_implementations.py` is below monitor threshold. |
 | L7-R7H-admin-config-follow-up | repo_only | Bob | Done: `src/tool_domains/admin_config.py` split below candidate threshold. |
 | L7-R8A-agent-loop-prompts | repo_only | Bob | Done: prompt assembly moved to `src/agent_loop_prompts.py` with import compatibility and focused tests. |
-| L7-R8B-agent-loop-tool-mechanics | repo_only | Bob | Next: extract tool block resolution/result shaping or verifier helpers without changing streaming behavior. |
+| L7-R8B-agent-loop-tool-mechanics | repo_only | Bob | Done: tool block resolution, tool-result shaping and final metrics moved behind import-compatible helpers. |
+| L7-R8C-agent-loop-verifier-or-context | repo_only | Bob | Next: extract verifier/orchestrator helpers or retrieval/context injection without changing streaming behavior. |
 
 Next safe slice:
 
-- Continue L7-R8 Agent Loop Extraction with a second small backend slice, if
-  `src/agent_loop.py` is clean. L7-R2 CSS split should wait until visual smoke
-  coverage is available because
+- Continue L7-R8 Agent Loop Extraction with verifier/orchestrator helpers or
+  retrieval/context injection, if `src/agent_loop.py` is clean. L7-R2 CSS split
+  should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
@@ -779,7 +788,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map, R7A-R7H backend splits and R8A prompt extraction are complete; tool implementation/admin facades are below threshold, while more agent-loop slices and later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map, R7A-R7H backend splits and R8A-R8B agent-loop extractions are complete; tool implementation/admin facades are below threshold, while more agent-loop slices and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

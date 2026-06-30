@@ -559,9 +559,18 @@ Progress:
 - R8A focused tests 2026-06-30:
   `python -m pytest tests\test_agent_loop.py tests\test_agent_loop_tool_output_truncation.py tests\test_agent_loop_logging_redaction.py tests\test_agent_rounds_exhausted.py tests\test_tool_policy.py tests\test_delegate_tool.py tests\test_tool_output_prompt_injection.py tests\test_tool_registry.py tests\test_tool_rag_contacts_domain.py tests\test_api_call_integration_routing.py tests\test_self_control_prompt_contract.py tests\test_research_report_read.py -q`
   returned `117 passed, 2 warnings`.
-- Remaining R8 work: tool-loop mechanics, retrieval/context injection, metrics
-  and verifier/orchestrator helpers. `src/agent_loop.py` remains above the
-  candidate threshold after R8A.
+- R8B done 2026-06-30: `src/agent_loop_tool_mechanics.py` owns native/fenced
+  tool-block resolution, tool-result message shaping and final metrics. The
+  legacy imports from `src.agent_loop` remain compatible.
+- R8B evidence 2026-06-30:
+  `python -m py_compile src\agent_loop.py src\agent_loop_tool_mechanics.py`
+  passed.
+- R8B focused tests 2026-06-30:
+  `python -m pytest tests\test_agent_loop.py tests\test_agent_loop_tool_output_truncation.py tests\test_agent_loop_logging_redaction.py tests\test_agent_rounds_exhausted.py tests\test_tool_policy.py tests\test_delegate_tool.py tests\test_tool_output_prompt_injection.py tests\test_tool_registry.py tests\test_tool_rag_contacts_domain.py tests\test_api_call_integration_routing.py tests\test_self_control_prompt_contract.py tests\test_research_report_read.py tests\test_fenced_example_not_executed_for_native_models.py tests\test_llm_core_sanitize_tool_calls.py tests\test_chat_metrics.py -q`
+  returned `140 passed, 2 warnings`.
+- Remaining R8 work: retrieval/context injection and verifier/orchestrator
+  helpers. `src/agent_loop.py` remains above the candidate threshold after
+  R8B.
 
 ### R9: Email Routes Extraction
 

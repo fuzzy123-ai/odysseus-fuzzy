@@ -52,7 +52,12 @@ finally:
     # load parser/schema modules against the mock. Drop those soft dependencies
     # so later tests import them again with the real facade and built-in tags.
     if "src.agent_tools" in _INJECTED_IMPORT_STUBS:
-        for _mod in ("src.tool_parsing", "src.tool_schemas", "src.tool_execution"):
+        for _mod in (
+            "src.agent_loop_tool_mechanics",
+            "src.tool_parsing",
+            "src.tool_schemas",
+            "src.tool_execution",
+        ):
             sys.modules.pop(_mod, None)
             _parent_name, _, _attr = _mod.rpartition(".")
             _parent = sys.modules.get(_parent_name)
