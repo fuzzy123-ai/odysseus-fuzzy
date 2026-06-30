@@ -264,6 +264,12 @@ from src.llm_error_formatting import (
     _format_chatgpt_subscription_error as _format_chatgpt_subscription_error_impl,
     _format_upstream_error as _format_upstream_error_impl,
 )
+from src.llm_fallbacks import (
+    _dedupe_candidates,
+    _fallback_notice_event,
+    _no_model_endpoint_event,
+    _summarize_stream_error,
+)
 
 
 def _build_chatgpt_responses_payload(
@@ -553,31 +559,6 @@ def llm_call(
             error_class=error_class,
             cache_hit=cache_hit,
         )
-
-
-def _dedupe_candidates(candidates):
-    """Filter malformed entries and drop a later repeat of an already-seen
-    ``(url, model)`` route, preserving order (first occurrence wins).
-
-    The chain is the primary target followed by the configured fallbacks, so a
-    fallback that repeats the session's current model — a common misconfiguration,
-    since callers prepend the live ``(url, model)`` to ``default_model_fallbacks``
-    — would otherwise make the chain re-attempt the very route that just failed:
-    a wasted round-trip plus a spurious ``fallback`` notice for a switch that did
-    not happen. Headers are not part of the key; the first tuple (with its
-    headers) is the one kept.
-    """
-    seen = set()
-    out = []
-    for c in candidates or []:
-        if not c or not c[0] or not c[1]:
-            continue
-        key = (c[0], c[1])
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(c)
-    return out
 
 
 def llm_call_with_fallback(candidates, messages, **kwargs) -> str:
@@ -1532,24 +1513,6 @@ async def stream_llm(
         )
 
 
-def _summarize_stream_error(err_chunk: Optional[str]) -> str:
-    """Pull a short human reason out of an `event: error` SSE chunk for the
-    fallback notice. Returns a generic message if it can't be parsed."""
-    if not err_chunk:
-        return "primary model failed"
-    try:
-        for line in err_chunk.split("\n"):
-            if line.startswith("data: "):
-                j = json.loads(line[6:])
-                txt = j.get("text") or j.get("error") or ""
-                status = j.get("status")
-                msg = (f"HTTP {status}: " if status else "") + str(txt)
-                return msg[:200].strip() or "primary model failed"
-    except Exception:
-        pass
-    return "primary model failed"
-
-
 async def stream_llm_with_fallback(candidates, messages, **kwargs):
     """Wrap stream_llm with an ordered fallback chain.
 
@@ -1565,7 +1528,7 @@ async def stream_llm_with_fallback(candidates, messages, **kwargs):
     """
     cands = _dedupe_candidates(candidates)
     if not cands:
-        yield f'event: error\ndata: {json.dumps({"error": "No model endpoint configured", "status": 503})}\n\n'
+        yield _no_model_endpoint_event()
         return
 
     primary_model = cands[0][1]
@@ -1604,12 +1567,7 @@ async def stream_llm_with_fallback(candidates, messages, **kwargs):
                 # model's name (e.g. a Bedrock/Claude endpoint that 400s every
                 # request but appears fine because another model silently answered).
                 if not emitted and i > 0:
-                    yield ('data: ' + json.dumps({
-                        "type": "fallback",
-                        "selected_model": primary_model,
-                        "answered_by": model,
-                        "reason": _summarize_stream_error(last_error),
-                    }) + '\n\n')
+                    yield _fallback_notice_event(primary_model, model, last_error)
                 emitted = True
             yield chunk
         if not retried:

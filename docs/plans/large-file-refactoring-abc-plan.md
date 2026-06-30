@@ -4472,6 +4472,56 @@ Completion criteria:
 - `src.llm_core` keeps the legacy private helper names importable while the
   implementation lives in `src.llm_error_formatting.py`.
 
+## R11BZ / L7-R12BO: LLM Fallback Helper Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving fallback candidate dedupe, stream error
+  summarization and fallback notice event formatting into a focused helper while
+  preserving `src.llm_core` private helper imports and stream monkeypatch
+  contracts.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_fallbacks.py`
+- `tests/test_llm_core_fallback.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_chat_metrics.py`
+- `tests/test_kv_cache_invalidation_2927.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BZ done 2026-06-30: `_dedupe_candidates`,
+  `_summarize_stream_error`, no-endpoint SSE error formatting and fallback
+  notice event formatting moved to `src/llm_fallbacks.py`; `src.llm_core`
+  imports the private helper names so existing tests and callers remain stable.
+- R11BZ line count 2026-06-30: `src/llm_core.py` is 1577 lines, still in
+  warning band but reduced from 1617 after R11BY; `src/llm_fallbacks.py` is 55
+  lines and below the report threshold.
+- R11BZ focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_fallbacks.py`
+  passed.
+- R11BZ fallback/streaming checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_fallback.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py tests\test_chat_metrics.py tests\test_kv_cache_invalidation_2927.py -q`
+  returned `28 passed, 1 warning`.
+
+Completion criteria:
+
+- Fallback dedupe, fallback indicator, stream monkeypatch, chat metrics and AI
+  activity audit tests remain green.
+- The split performs no live provider calls and does not change the SSE event
+  contract.
+- `src.llm_core` keeps the legacy private helper names importable while helper
+  implementation lives in `src.llm_fallbacks.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
