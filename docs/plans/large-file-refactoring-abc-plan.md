@@ -1222,6 +1222,57 @@ Completion criteria:
   regression test.
 - Existing Cookbook dependency/download and helper regressions remain covered.
 
+### R11P: Core Database Migration Runner Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move idempotent startup migration implementations out of `core/database.py`
+  while preserving `core.database` as the canonical schema/model/helper facade.
+
+Allowed paths:
+
+- `core/database.py`
+- `core/database_migrations.py`
+- `src/database.py`
+- `tests/test_session_search.py`
+- `tests/test_email_schedule_helpers.py`
+- `tests/test_security_regressions.py`
+- `tests/test_caldav_bidirectional_sync.py`
+
+Current evidence:
+
+- R11P done 2026-06-30: 46 `_migrate_*` helpers moved to
+  `core/database_migrations.py`; `core.database.init_db()` now delegates to
+  `run_database_migrations()`.
+- Compatibility evidence: `core.database.__getattr__` keeps legacy private
+  migration helper access working, and the migration module refreshes context
+  from `sys.modules["core.database"]` so isolated test loads and monkeypatched
+  `DATABASE_URL` values still work.
+- R11P line count 2026-06-30: `core/database.py` is 1021 lines and
+  `core/database_migrations.py` is 1389 lines in the large-file report, both
+  band `warning`, not `candidate`; report candidate count is 27.
+- R11P focused checks 2026-06-30:
+  `python -m py_compile core\database.py core\database_migrations.py src\database.py`
+  passed.
+- R11P DB/migration test block 2026-06-30:
+  `python -m pytest tests/test_session_search.py tests/test_email_schedule_helpers.py tests/test_security_regressions.py::test_integrations_plaintext_keys_migrate_on_load tests/test_caldav_bidirectional_sync.py -q`
+  returned `22 passed, 7 warnings`.
+- R11P isolated module smoke 2026-06-30:
+  an importlib-loaded `core.database` with a temporary `DATABASE_URL` created
+  the `calendars` table successfully.
+
+Completion criteria:
+
+- `core/database.py` is below the large-file candidate threshold.
+- Startup migration order remains centralized and covered by focused tests.
+- Legacy migration helper access remains compatible for tests and emergency
+  diagnostics.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice  

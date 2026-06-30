@@ -53,7 +53,7 @@ def test_http_calendar_writes_mark_pending_and_push_after_commit():
 
 
 def test_agent_calendar_writes_share_caldav_push_path():
-    source = Path("src/tool_implementations.py").read_text()
+    source = Path("src/tool_domains/personal_workspace.py").read_text()
 
     assert "_push_caldav_event_after_commit" in source
     assert 'caldav_sync_pending="create" if cal.source == "caldav" else None' in source
@@ -65,7 +65,8 @@ def test_agent_calendar_writes_share_caldav_push_path():
 
 
 def test_database_declares_and_migrates_caldav_remote_metadata():
-    source = Path("core/database.py").read_text()
+    schema_source = Path("core/database.py").read_text()
+    migration_source = Path("core/database_migrations.py").read_text()
 
     for needle in [
         "class CalendarDeletedEvent",
@@ -73,13 +74,17 @@ def test_database_declares_and_migrates_caldav_remote_metadata():
         "remote_etag = Column(String, nullable=True)",
         "caldav_sync_pending = Column(String, nullable=True)",
         "caldav_base_url = Column(String, nullable=True)",
+    ]:
+        assert needle in schema_source
+
+    for needle in [
         "ALTER TABLE calendar_events ADD COLUMN remote_href TEXT",
         "ALTER TABLE calendar_events ADD COLUMN remote_etag TEXT",
         "ALTER TABLE calendar_events ADD COLUMN caldav_sync_pending TEXT",
         "ALTER TABLE calendars ADD COLUMN caldav_base_url TEXT",
         "_migrate_add_caldav_sync_columns()",
     ]:
-        assert needle in source
+        assert needle in migration_source
 
 
 def test_failed_remote_delete_leaves_tombstone_and_later_retry_cleans_up(tmp_path, monkeypatch):
