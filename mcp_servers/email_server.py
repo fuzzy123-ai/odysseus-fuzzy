@@ -88,6 +88,7 @@ from mcp_servers.email_read_operations import (
     read_email_across_accounts as read_email_across_accounts_via_helper,
     search_emails as search_emails_via_helper,
 )
+from mcp_servers.email_read_tool_dispatch import handle_read_tool
 from mcp_servers.email_reply_utils import (
     ai_draft_reply_to_email as ai_draft_reply_to_email_via_helper,
     draft_reply_to_email as draft_reply_to_email_via_helper,
@@ -100,19 +101,11 @@ from mcp_servers.email_smtp_connection_utils import (
     smtp_ready as _smtp_ready,
 )
 from mcp_servers.email_tool_formatting import (
-    apply_active_account_context,
     format_ai_draft_reply_response,
     format_bulk_result,
-    format_download_attachment_response,
     format_draft_email_response,
     format_draft_reply_response,
-    format_email_accounts_response,
-    format_list_emails_response,
-    format_read_email_response,
-    format_search_emails_response,
     format_sent_email_response,
-    merged_account_context_header,
-    selected_account_context_header,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -620,91 +613,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 text="Error: email MCP requires an authenticated owner when multiple email account owners are configured.",
             )]
 
-        if name == "list_email_accounts":
-            rows = _filter_accounts_for_owner(all_db_accounts)
-            return [format_email_accounts_response(rows, all_db_accounts, owner)]
-
         acct = arguments.get("account")  # consumed by all email ops
 
-        if name == "list_emails":
-            max_results = arguments.get("max_results", arguments.get("limit", 20))
-            unresponded_only = arguments.get("unresponded_only", False)
-            unread_only = arguments.get("unread_only", False)
-            # Build a header note so the LLM always knows which account was hit
-            # AND what other accounts exist. Prevents "I can see emails" →
-            # user: "I have 2 inboxes" → "which one?" loop.
-            all_accounts = _list_accounts_raw()
-            header_lines = []
-            errors = []
-            if len(all_accounts) >= 2 and not acct:
-                results, errors = _list_emails_across_accounts(
-                    folder=arguments.get("folder", "INBOX"),
-                    max_results=max_results,
-                    unresponded_only=unresponded_only,
-                    unread_only=unread_only,
-                )
-                header_lines.append(merged_account_context_header(all_accounts))
-            else:
-                results = _list_emails(
-                    folder=arguments.get("folder", "INBOX"),
-                    max_results=max_results,
-                    unresponded_only=unresponded_only,
-                    unread_only=unread_only,
-                    account=acct,
-                )
-                active_cfg = _load_config(acct)
-                apply_active_account_context(results, active_cfg)
+        read_tool_result = handle_read_tool(
+            name,
+            arguments,
+            owner=owner,
+            all_db_accounts=all_db_accounts,
+            account=acct,
+            filter_accounts_for_owner=_filter_accounts_for_owner,
+            list_accounts_raw=_list_accounts_raw,
+            load_config=_load_config,
+            list_emails=_list_emails,
+            list_emails_across_accounts=_list_emails_across_accounts,
+            download_attachment=_download_attachment,
+            search_emails=_search_emails,
+            read_email=_read_email,
+            read_email_across_accounts=_read_email_across_accounts,
+        )
+        if read_tool_result is not None:
+            return read_tool_result
 
-            if len(all_accounts) >= 2 and acct:
-                active_cfg = _load_config(acct)
-                header_lines.append(selected_account_context_header(all_accounts, active_cfg))
-            if errors:
-                header_lines.append("[EMAIL ACCOUNT ERRORS: " + "; ".join(errors) + "]\n")
-
-            return [format_list_emails_response(results, header_lines)]
-
-        elif name == "download_attachment":
-            uid = arguments.get("uid")
-            index = arguments.get("index")
-            folder = arguments.get("folder", "INBOX")
-            if uid is None or index is None:
-                return [TextContent(type="text", text="Error: uid and index are required")]
-            result = _download_attachment(uid, index, folder, account=acct)
-            if "error" in result:
-                return [TextContent(type="text", text=f"Error: {result['error']}")]
-            return [format_download_attachment_response(result)]
-
-        elif name == "search_emails":
-            q = arguments.get("query", "")
-            folders = arguments.get("folders") or None
-            max_results = arguments.get("max_results", 20)
-            try:
-                hits = _search_emails(q, folders=folders, max_results=max_results, account=acct)
-            except Exception as e:
-                return [TextContent(type="text", text=f"Search failed: {e}")]
-            return [format_search_emails_response(q, hits)]
-
-        elif name == "read_email":
-            all_accounts = _list_accounts_raw()
-            if len(all_accounts) >= 2 and not acct:
-                result = _read_email_across_accounts(
-                    uid=arguments.get("uid"),
-                    message_id=arguments.get("message_id"),
-                    folder=arguments.get("folder", "INBOX"),
-                )
-            else:
-                result = _read_email(
-                    uid=arguments.get("uid"),
-                    message_id=arguments.get("message_id"),
-                    folder=arguments.get("folder", "INBOX"),
-                    account=acct,
-                )
-            if "error" in result:
-                return [TextContent(type="text", text=f"Error: {result['error']}")]
-
-            return [format_read_email_response(result)]
-
-        elif name == "send_email":
+        if name == "send_email":
             to = arguments.get("to")
             subject = arguments.get("subject")
             body = arguments.get("body")

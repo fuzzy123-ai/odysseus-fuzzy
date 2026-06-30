@@ -5470,6 +5470,51 @@ Completion criteria:
   metadata stable.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CU / L7-R12CJ: Email MCP Read Tool Dispatch Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving read-only MCP tool dispatch
+  branches into a focused helper module, while keeping mutation/send/reply
+  orchestration in the server for a separate slice.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_read_tool_dispatch.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CU done 2026-06-30: Email MCP `list_email_accounts`,
+  `list_emails`, `download_attachment`, `search_emails` and `read_email`
+  dispatch moved to `mcp_servers/email_read_tool_dispatch.py`.
+- R11CU line count 2026-06-30: `mcp_servers/email_server.py` is 799 lines,
+  below the 801-line warning threshold; `mcp_servers/email_read_tool_dispatch.py`
+  is 115 lines and below the report threshold.
+- R11CU focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_read_tool_dispatch.py mcp_servers\email_read_operations.py`
+  passed.
+- R11CU email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py tests\test_imap_leak_fixes.py tests\test_icloud_imap_full_fetch.py -q`
+  returned `33 passed, 2 warnings`.
+
+Completion criteria:
+
+- Read-only MCP tool behavior remains stable for owner scope, account context,
+  read/search/list formatting and attachment download.
+- `mcp_servers/email_server.py` falls below the warning threshold.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
