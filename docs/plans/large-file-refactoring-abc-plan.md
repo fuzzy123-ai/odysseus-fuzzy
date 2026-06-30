@@ -899,6 +899,18 @@ Current evidence:
 - R11A Windows rerun note 2026-06-30: the same Telegram block also passed
   with `--basetemp C:\tmp\odysseus-pytest-r11a` after the default pytest temp
   root under `AppData\Local\Temp` returned `PermissionError`.
+- R11B done 2026-06-30: pure Telegram update parsing, trusted workflow
+  metadata helpers, safe workflow token/suffix validation and control-command
+  detection moved to `plugins/telegram/parsing.py`; `plugin.py` keeps
+  compatibility wrappers for existing callers.
+- R11B line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  3356 lines; `plugins/telegram/parsing.py` is 252 lines.
+- R11B focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11B Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11b-2`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -908,8 +920,8 @@ Completion criteria:
 
 Remaining work:
 
-- Parser, polling, attachment pipeline, outbound API and admin UI helpers still
-  need separate modules before R11 can be marked complete.
+- Polling, attachment pipeline, outbound API and admin UI helpers still need
+  separate modules before R11 can be marked complete.
 
 ### R12: Obsidian Frontend Split
 
