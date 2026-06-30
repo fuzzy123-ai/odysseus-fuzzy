@@ -332,6 +332,46 @@ def probe_ollama_native_ping(
     return None, last_error
 
 
+def probe_base_ping_with_models_fallback(
+    base_url: str,
+    headers: dict[str, Any],
+    *,
+    timeout: float,
+    http_get_func: Callable[..., Any],
+    llm_verify_func: Callable[[], Any],
+    ping_result_func: Callable[[Any], dict[str, Any]],
+    should_try_models_url_func: Callable[[Any], bool],
+    safe_build_models_url_func: Callable[[str], str],
+) -> tuple[dict[str, Any] | None, Optional[str]]:
+    """Probe a base model URL and optional /models fallback."""
+    try:
+        response = http_get_func(base_url, headers=headers, timeout=timeout, verify=llm_verify_func())
+        result = ping_result_func(response)
+        if result["reachable"]:
+            return result, None
+
+        status_code = result.get("status_code") or 0
+        if should_try_models_url_func(status_code):
+            models_url = safe_build_models_url_func(base_url)
+            try:
+                models_response = http_get_func(
+                    models_url,
+                    headers=headers,
+                    timeout=timeout,
+                    verify=llm_verify_func(),
+                )
+                models_result = ping_result_func(models_response)
+                if models_result["reachable"]:
+                    return models_result, result.get("error")
+            except Exception:
+                pass
+        if status_code:
+            return result, result.get("error")
+        return None, result.get("error")
+    except Exception as exc:
+        return None, str(exc)[:120]
+
+
 def ollama_tag_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
     """Extract model IDs from Ollama native /api/tags payloads."""
     return [

@@ -9,6 +9,7 @@ from routes.model_probe_helpers import (
     ollama_native_probe_root,
     ollama_tag_model_ids_from_payload,
     ping_result_from_response,
+    probe_base_ping_with_models_fallback,
     probe_ollama_native_ping,
     should_try_models_url_after_ping,
 )
@@ -210,6 +211,91 @@ def test_probe_ollama_native_ping_ignores_empty_urls():
 
     assert result is None
     assert last_error is None
+
+
+def test_probe_base_ping_with_models_fallback_returns_base_success():
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None, verify=None):
+        calls.append((url, headers, timeout, verify))
+        return _response(204)
+
+    result, last_error = probe_base_ping_with_models_fallback(
+        "https://api.example.com/v1",
+        {"Authorization": "Bearer key"},
+        timeout=1.5,
+        http_get_func=fake_get,
+        llm_verify_func=lambda: "verify-token",
+        ping_result_func=ping_result_from_response,
+        should_try_models_url_func=should_try_models_url_after_ping,
+        safe_build_models_url_func=lambda base: base.rstrip("/") + "/models",
+    )
+
+    assert result == {"reachable": True, "status_code": 204, "error": None}
+    assert last_error is None
+    assert calls == [("https://api.example.com/v1", {"Authorization": "Bearer key"}, 1.5, "verify-token")]
+
+
+def test_probe_base_ping_with_models_fallback_uses_models_url_for_non_auth_4xx():
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None, verify=None):
+        calls.append(url)
+        return _response(404 if len(calls) == 1 else 200)
+
+    result, last_error = probe_base_ping_with_models_fallback(
+        "https://api.example.com/v1",
+        {},
+        timeout=1.5,
+        http_get_func=fake_get,
+        llm_verify_func=lambda: True,
+        ping_result_func=ping_result_from_response,
+        should_try_models_url_func=should_try_models_url_after_ping,
+        safe_build_models_url_func=lambda base: base.rstrip("/") + "/models",
+    )
+
+    assert result == {"reachable": True, "status_code": 200, "error": None}
+    assert last_error == "HTTP 404"
+    assert calls == ["https://api.example.com/v1", "https://api.example.com/v1/models"]
+
+
+def test_probe_base_ping_with_models_fallback_returns_auth_failure_without_models_probe():
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None, verify=None):
+        calls.append(url)
+        return _response(401)
+
+    result, last_error = probe_base_ping_with_models_fallback(
+        "https://api.example.com/v1",
+        {},
+        timeout=1.5,
+        http_get_func=fake_get,
+        llm_verify_func=lambda: True,
+        ping_result_func=ping_result_from_response,
+        should_try_models_url_func=should_try_models_url_after_ping,
+        safe_build_models_url_func=lambda base: base.rstrip("/") + "/models",
+    )
+
+    assert result == {"reachable": False, "status_code": 401, "error": "HTTP 401"}
+    assert last_error == "HTTP 401"
+    assert calls == ["https://api.example.com/v1"]
+
+
+def test_probe_base_ping_with_models_fallback_returns_transport_error():
+    result, last_error = probe_base_ping_with_models_fallback(
+        "https://api.example.com/v1",
+        {},
+        timeout=1.5,
+        http_get_func=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("base ping failed")),
+        llm_verify_func=lambda: True,
+        ping_result_func=ping_result_from_response,
+        should_try_models_url_func=should_try_models_url_after_ping,
+        safe_build_models_url_func=lambda base: base.rstrip("/") + "/models",
+    )
+
+    assert result is None
+    assert last_error == "base ping failed"
 
 
 def test_ollama_tag_model_ids_from_payload_reads_name_or_model():

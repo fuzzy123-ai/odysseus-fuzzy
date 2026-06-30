@@ -44,6 +44,7 @@ from routes.model_probe_helpers import (
     ollama_native_probe_root as _ollama_native_probe_root,
     ollama_tag_model_ids_from_payload as _ollama_tag_model_ids_from_payload,
     ping_result_from_response as _ping_result_from_response,
+    probe_base_ping_with_models_fallback as _probe_base_ping_with_models_fallback,
     probe_ollama_native_ping as _probe_ollama_native_ping,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
@@ -283,26 +284,19 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
     except Exception:
         pass
 
-    try:
-        r = httpx.get(base, headers=headers, timeout=timeout, verify=llm_verify())
-        result = _ping_result_from_response(r)
-        if result["reachable"]:
-            return result
-        sc = result.get("status_code") or 0
-        if _should_try_models_url_after_ping(sc):
-            models_url = _safe_build_models_url(base)
-            try:
-                r2 = httpx.get(models_url, headers=headers, timeout=timeout, verify=llm_verify())
-                result2 = _ping_result_from_response(r2)
-                if result2["reachable"]:
-                    return result2
-            except Exception:
-                pass
-        if sc:
-            return result
-        last_error = result.get("error") or last_error
-    except Exception as e:
-        last_error = str(e)[:120]
+    result, base_error = _probe_base_ping_with_models_fallback(
+        base,
+        headers,
+        timeout=timeout,
+        http_get_func=httpx.get,
+        llm_verify_func=llm_verify,
+        ping_result_func=_ping_result_from_response,
+        should_try_models_url_func=_should_try_models_url_after_ping,
+        safe_build_models_url_func=_safe_build_models_url,
+    )
+    if result:
+        return result
+    last_error = base_error or last_error
 
     return {"reachable": False, "status_code": None, "error": last_error}
 
