@@ -4859,6 +4859,54 @@ Completion criteria:
 - Streaming, chat metrics and AI activity audit tests remain green.
 - The split performs no live provider calls and keeps the legacy core wrapper.
 
+## R11DB / L7-R12CQ: LLM Model Listing Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving model listing and model-id normalization
+  into a focused helper module, while keeping `list_model_ids` and
+  `normalize_model_id` importable and monkeypatchable from `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_model_listing.py`
+- `tests/test_llama_server_models_url.py`
+- `tests/test_lmstudio_models_url.py`
+- `tests/test_model_routes.py`
+- `tests/test_chat_cached_model_normalization.py`
+- `tests/test_chat_helpers.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11DB done 2026-06-30: model listing and model-id normalization moved to
+  `src/llm_model_listing.py`; `src.llm_core` keeps compatibility wrappers and
+  injects route/runtime dependencies so existing monkeypatch contracts stay
+  intact.
+- R11DB line count 2026-06-30: `src/llm_core.py` is 1437 lines, still in
+  warning band but reduced from 1457 after R11DA; `src/llm_model_listing.py`
+  is 86 lines and below the report threshold.
+- R11DB focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_model_listing.py` passed.
+- R11DB model-listing checks 2026-06-30:
+  `python -m pytest tests\test_llama_server_models_url.py tests\test_lmstudio_models_url.py tests\test_model_routes.py::test_llm_core_list_model_ids_uses_cached_configured_proxy tests\test_chat_cached_model_normalization.py tests\test_chat_helpers.py -q -k "normalize_model_id or list_model_ids or cached_model_normalization"`
+  returned `7 passed, 44 deselected, 1 warning`.
+
+Completion criteria:
+
+- LM Studio, llama-server and cached configured proxy model-list behavior
+  remain stable.
+- Chat cached-model normalization still preserves the `src.llm_core`
+  monkeypatch surface.
+- The split performs no live provider calls in tests and keeps the legacy core
+  wrappers.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

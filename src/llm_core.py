@@ -272,8 +272,10 @@ from src.llm_message_formats import (
 )
 from src.llm_model_cache import (
     _configured_cached_model_ids,
-    _model_list_base,
-    _parse_model_cache,
+)
+from src.llm_model_listing import (
+    list_model_ids as _list_model_ids_impl,
+    normalize_model_id as _normalize_model_id_impl,
 )
 from src.llm_request_policy import (
     _moonshot_rejects_custom_temperature,
@@ -293,43 +295,24 @@ def list_model_ids(
     endpoint_id: Optional[str] = None,
 ) -> List[str]:
     """List available model IDs from an endpoint."""
-    cached = _configured_cached_model_ids(base_chat_url, owner=owner, endpoint_id=endpoint_id)
-    if cached:
-        return cached
-    provider = _detect_provider(base_chat_url)
-    if provider == "anthropic":
-        return list(ANTHROPIC_MODELS)
-    try:
-        h = {}
-        if headers:
-            h.update(headers)
-        if provider == "ollama":
-            models_url = _ollama_api_root(base_chat_url) + "/tags"
-        else:
-            from src.endpoint_resolver import build_models_url
+    from src.endpoint_resolver import build_models_url
 
-            models_url = build_models_url(base_chat_url)
-        r = httpx_get_kimi_aware(models_url, h, timeout=timeout)
-        r.raise_for_status()
-        data = r.json()
-        model_ids = [m.get("id") for m in (data.get("data") or []) if m.get("id")]
-        if not model_ids:
-            model_ids = [
-                m.get("name") or m.get("model")
-                for m in (data.get("models") or [])
-                if m.get("name") or m.get("model")
-            ]
-        return model_ids
-    except Exception:
-        try:
-            if ":11434" in base_chat_url or "ollama" in base_chat_url.lower():
-                root = base_chat_url.replace("/v1/chat/completions", "").replace("/chat/completions", "").rstrip("/")
-                r = httpx.get(root + "/api/tags", timeout=timeout)
-                r.raise_for_status()
-                return [m.get("name") or m.get("model") for m in (r.json().get("models") or []) if m.get("name") or m.get("model")]
-        except Exception as e:
-            logger.warning("Failed to fetch model list from configured endpoint", exc_info=e)
-        return []
+    return _list_model_ids_impl(
+        base_chat_url,
+        timeout=timeout,
+        headers=headers,
+        owner=owner,
+        endpoint_id=endpoint_id,
+        configured_cached_model_ids_func=_configured_cached_model_ids,
+        detect_provider_func=_detect_provider,
+        anthropic_models=list(ANTHROPIC_MODELS),
+        ollama_api_root_func=_ollama_api_root,
+        build_models_url_func=build_models_url,
+        httpx_get_func=httpx_get_kimi_aware,
+        http_get_func=httpx.get,
+        logger=logger,
+    )
+
 
 def normalize_model_id(
     endpoint_url: str,
@@ -340,17 +323,14 @@ def normalize_model_id(
     endpoint_id: Optional[str] = None,
 ) -> Optional[str]:
     """Normalize a model ID to match available models."""
-    avail = list_model_ids(endpoint_url, timeout, owner=owner, endpoint_id=endpoint_id)
-    if not avail:
-        return None
-    if requested in avail:
-        return requested
-    import os as _os
-    req_base = _os.path.basename(requested.rstrip("/"))
-    for a in avail:
-        if _os.path.basename(a.rstrip("/")) == req_base:
-            return a
-    return None
+    return _normalize_model_id_impl(
+        endpoint_url,
+        requested,
+        timeout=timeout,
+        owner=owner,
+        endpoint_id=endpoint_id,
+        list_model_ids_func=list_model_ids,
+    )
 
 def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
              max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None, 
