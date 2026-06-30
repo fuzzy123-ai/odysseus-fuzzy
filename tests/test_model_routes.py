@@ -330,6 +330,69 @@ def test_apply_model_refresh_result_records_failure_and_clears_inflight():
     assert state["key"] == {"inflight": False, "fail_count": 2, "last_failure": 1234.5}
 
 
+def test_update_model_refresh_cached_models_updates_existing_endpoint():
+    from routes.model_endpoint_helpers import _update_model_refresh_cached_models
+
+    class Field:
+        def __eq__(self, other):
+            return ("eq", other)
+
+    class Endpoint:
+        id = Field()
+
+    row = SimpleNamespace(cached_models=None)
+
+    class Query:
+        def filter(self, expr):
+            self.expr = expr
+            return self
+
+        def first(self):
+            return row
+
+    class Db:
+        def __init__(self):
+            self.query_model = None
+            self.query_obj = Query()
+
+        def query(self, model):
+            self.query_model = model
+            return self.query_obj
+
+    db = Db()
+
+    changed = _update_model_refresh_cached_models(db, Endpoint, "ep1", ["llama3", "qwen3"])
+
+    assert changed is True
+    assert db.query_model is Endpoint
+    assert db.query_obj.expr == ("eq", "ep1")
+    assert json.loads(row.cached_models) == ["llama3", "qwen3"]
+
+
+def test_update_model_refresh_cached_models_ignores_missing_endpoint():
+    from routes.model_endpoint_helpers import _update_model_refresh_cached_models
+
+    class Field:
+        def __eq__(self, other):
+            return ("eq", other)
+
+    class Endpoint:
+        id = Field()
+
+    class Query:
+        def filter(self, _expr):
+            return self
+
+        def first(self):
+            return None
+
+    class Db:
+        def query(self, _model):
+            return Query()
+
+    assert _update_model_refresh_cached_models(Db(), Endpoint, "missing", ["llama3"]) is False
+
+
 def test_clear_model_refresh_inflight_resets_all_entries():
     from routes.model_endpoint_helpers import _clear_model_refresh_inflight
 

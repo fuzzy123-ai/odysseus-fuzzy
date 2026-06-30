@@ -79,6 +79,7 @@ from routes.model_endpoint_helpers import (
     _manual_refresh_timeout,
     _mark_model_refresh_groups_inflight,
     _apply_model_refresh_result,
+    _update_model_refresh_cached_models,
     _clear_model_refresh_inflight,
     _merge_model_ids,
     _build_model_refresh_groups,
@@ -466,19 +467,18 @@ def setup_model_routes(model_discovery):
                             ]
                             for fut in as_completed(futures):
                                 key, endpoint_ids, ids, err = fut.result()
-                                def _update_cached_models(ep_id: str, model_ids: list[str]) -> bool:
-                                    ep_obj = db.query(ModelEndpoint).filter(ModelEndpoint.id == ep_id).first()
-                                    if ep_obj:
-                                        ep_obj.cached_models = json.dumps(model_ids)
-                                        return True
-                                    return False
                                 if _apply_model_refresh_result(
                                     _refresh_state,
                                     key=key,
                                     endpoint_ids=endpoint_ids,
                                     ids=ids,
                                     now=_time.time(),
-                                    update_cached_models_func=_update_cached_models,
+                                    update_cached_models_func=lambda ep_id, model_ids: _update_model_refresh_cached_models(
+                                        db,
+                                        ModelEndpoint,
+                                        ep_id,
+                                        model_ids,
+                                    ),
                                 ):
                                     changed = True
                         db.commit()

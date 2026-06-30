@@ -21,8 +21,9 @@ helper split, R11AR model Ollama native ping execution helper split, R11AS
 model base ping fallback helper split, R11AT model refresh-state helper split,
 R11AU model refresh-decision helper split, R11AV model refresh group helper
 split, R11AW model refresh inflight helper split and R11AX model refresh
-result helper split, R11AY model refresh inflight reset helper split and R11AZ
-model refresh probe helper split; tool
+result helper split, R11AY model refresh inflight reset helper split, R11AZ
+model refresh probe helper split and R11BA model refresh cache-update helper
+split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -3145,6 +3146,60 @@ Completion criteria:
   configured base URL, API key and timeout fallback.
 - Probe failures are still returned as result tuples so the route can preserve
   existing failure accounting.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11BA / L7-R12AP: Model Refresh Cache-Update Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move model refresh cached-model DB update logic out of the background worker
+  closure while preserving route-owned transaction scope and model class
+  injection.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_routes.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_probe_timeouts.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BA done 2026-06-30: cached-model DB update logic moved to
+  `_update_model_refresh_cached_models()` in `routes/model_endpoint_helpers.py`.
+  `setup_model_routes()` keeps DB lifetime, transaction commit and refresh
+  orchestration, and injects the active DB session plus `ModelEndpoint`.
+- Compatibility evidence: helper tests cover updating an existing endpoint,
+  JSON model serialization and missing-endpoint no-op behavior; existing model
+  route, endpoint probing and refresh-timeout tests remain green.
+- R11BA line count 2026-06-30: `routes/model_routes.py` is 1660 lines in the
+  large-file report, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 719 lines, band `monitor`; report
+  candidate count is 26.
+- R11BA focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11BA model route checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `235 passed, 2 warnings`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with cached-model DB mutation separated from route worker orchestration.
+- Background refresh still updates only existing endpoints and leaves missing
+  endpoint IDs as no-ops for result accounting.
+- The helper stores cached model IDs as JSON exactly as before.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

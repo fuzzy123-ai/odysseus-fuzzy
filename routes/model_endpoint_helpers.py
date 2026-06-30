@@ -444,6 +444,19 @@ def _apply_model_refresh_result(
     return changed
 
 
+def _update_model_refresh_cached_models(
+    db: Any,
+    endpoint_model: Any,
+    endpoint_id: str,
+    model_ids: list[str],
+) -> bool:
+    ep_obj = db.query(endpoint_model).filter(endpoint_model.id == endpoint_id).first()
+    if not ep_obj:
+        return False
+    ep_obj.cached_models = json.dumps(model_ids)
+    return True
+
+
 def _clear_model_refresh_inflight(refresh_state: dict[str, dict[str, Any]]) -> None:
     for state in refresh_state.values():
         state["inflight"] = False
