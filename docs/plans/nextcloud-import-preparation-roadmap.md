@@ -1,6 +1,6 @@
 # Nextcloud Import Preparation Roadmap
 
-Status: safe backend path partial; live upload smoke remains operator-gated
+Status: safe backend path partial; live upload smoke remains operator-gated; P0/P1/P3 backend prep advanced
 Owner: operator + Odysseus
 Scope: `C:\Users\nkatz\Nextcloud` local synced source
 Mode: dry-run first, review-gated execution, no delete by default
@@ -43,6 +43,8 @@ Offen:
 - Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
 - Live-Smoke braucht konkrete Runtime-Env auf dem Server, dedizierten
   Nextcloud-User und explizites Operator-Go.
+- Der ZIP-Executor ist als review-gated Backend-Baustein vorhanden; ein
+  Live-run gegen echte Nextcloud-/Nutzerdateien bleibt operator-gated.
 - Delete, Move, Rename, Overwrite, Tag-Write, Sidecar-Write ausserhalb des
   Transfer-Sidecars und Memory/RaptorGraph-Live-Writes bleiben verboten oder
   separat gegated.
@@ -287,10 +289,18 @@ Der Baustein erkennt Software-Bundles aus Inventory-Metadaten und erzeugt einen 
 
 Noch nicht enthalten:
 
-- echte ZIP-Erstellung
-- Manifest ins ZIP schreiben
-- Sidecar-Datei auf Disk schreiben
+- echte ZIP-Erstellung gegen Nutzerdateien oder Nextcloud-Zielpfade
 - Review-UI/Operator-Freigabe
+
+Backend-Stand 2026-06-30:
+
+- `src/nextcloud_software_archive_executor.py` fuehrt review-gated ZIP,
+  Sidecar und Manifest-Erstellung fuer Scratch-/lokale Output-Roots aus.
+- Live-Ausfuehrung blockiert ohne `review_approved=True` und
+  `operator_live_go=True`.
+- Overwrite bleibt verboten, Originaldateien werden nicht geloescht.
+- Sidecar und Manifest enthalten nur redigierte Metadaten, keine Rohinhalte und
+  keine absoluten Source-Pfade.
 
 ### Zielverhalten
 
@@ -344,11 +354,12 @@ Optional, aber empfohlen:
 
 ### Akzeptanzkriterien
 
-- ZIP-Executor kann Dry-run und Live-run.
-- Live-run ist ohne `review_approved=True` blockiert.
-- ZIP-Executor loescht keine Originale.
-- ZIP-Executor ueberschreibt keine existierenden ZIPs.
-- Sidecar und Manifest enthalten keine Rohdateiinhalte.
+- ZIP-Executor kann Dry-run und Live-run. Backend: done fuer lokale
+  Scratch-/Output-Roots.
+- Live-run ist ohne `review_approved=True` blockiert. Backend: done.
+- ZIP-Executor loescht keine Originale. Backend: done.
+- ZIP-Executor ueberschreibt keine existierenden ZIPs. Backend: done.
+- Sidecar und Manifest enthalten keine Rohdateiinhalte. Backend: done.
 - Software-Bundles werden nicht an RAG-Textindex uebergeben.
 
 ## 9. P4 - Dokumentextraktion
@@ -678,16 +689,20 @@ Erst nach erfolgreichem Import:
 
 ## 16. Erste konkrete Arbeitsreihenfolge
 
-1. Import-Konfigurationsdatei anlegen.
-2. Scanner um Exclusions und File-Type-Metadaten erweitern.
-3. Dry-run Inventory gegen die echte Nextcloud laufen lassen.
-4. Software-Bundle-Planner gegen das Inventory laufen lassen.
-5. Report erzeugen: Software ZIP-Kandidaten, Dokumentkandidaten, Review-Kandidaten.
-6. ZIP-Executor im Dry-run bauen.
-7. ZIP-Executor mit Mini-Fixture testen.
-8. Sidecar/Manifest-Format finalisieren.
-9. Pilotimport fuer Dokumente starten.
-10. Danach erst Vollimport-Wellen planen.
+1. Import-Konfigurationsdatei anlegen. Done.
+2. Scanner um Exclusions und File-Type-Metadaten erweitern. Done.
+3. Dry-run Inventory gegen die echte Nextcloud laufen lassen. Offen,
+   live/local-source-gated.
+4. Software-Bundle-Planner gegen das Inventory laufen lassen. Done fuer
+   vorhandene Ledger/Dry-run-Pipeline.
+5. Report erzeugen: Software ZIP-Kandidaten, Dokumentkandidaten,
+   Review-Kandidaten. Done fuer Dry-run-Pipeline.
+6. ZIP-Executor im Dry-run bauen. Done.
+7. ZIP-Executor mit Mini-Fixture testen. Done.
+8. Sidecar/Manifest-Format finalisieren. Backend-MVP done; UI/Operator-Texte
+   separat.
+9. Pilotimport fuer Dokumente starten. Offen, live/local-source-gated.
+10. Danach erst Vollimport-Wellen planen. Offen.
 
 ## 17. Go/No-Go Gates
 
@@ -738,4 +753,7 @@ Erst nach erfolgreichem Import:
 
 ## 19. Aktueller naechster Schritt
 
-Als naechstes sollte die Pipeline-Konfigurationsdatei angelegt und der Scanner um Exclusions + File-Type-Metadaten erweitert werden. Danach kann ein neuer kompletter Dry-run gegen `C:\Users\nkatz\Nextcloud` laufen, ohne Inhalte zu lesen und ohne Dateien zu veraendern.
+Als naechstes sollte ein bounded Dry-run gegen die lokale Nextcloud-Quelle
+laufen, ohne Inhalte zu lesen und ohne Dateien zu veraendern. Danach koennen
+Pilotimport und Live-Upload-Smoke separat freigegeben werden. UI bleibt
+ausserhalb dieser Backend-Roadmap.
