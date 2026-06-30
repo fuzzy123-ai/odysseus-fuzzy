@@ -97,15 +97,27 @@ def load_personal_index(
                 continue
             size = os.path.getsize(p)
             ext = os.path.splitext(name)[1].lower()
+            metadata: Dict[str, Any] = {}
             if ext == ".pdf":
-                text = extract_pdf_text(p)
+                from src.pdf_extraction import extract_pdf_pages
+
+                pdf_result = extract_pdf_pages(p)
+                text = pdf_result.text
+                metadata.update(
+                    {
+                        "pdf_status": pdf_result.status,
+                        "pdf_warning_codes": list(pdf_result.warning_codes),
+                        "pdf_page_count": pdf_result.page_count,
+                        "pdf_processed_pages": pdf_result.processed_pages,
+                    }
+                )
             elif ext in MARKITDOWN_EXTS:
                 text = extract_office_text(p)
             else:
                 text = read_text_file(p)
             chunks = split_chunks(text)
             display = os.path.relpath(p, personal_dir)
-            files.append({"name": display, "path": p, "size": size, "chunks": chunks})
+            files.append({"name": display, "path": p, "size": size, "chunks": chunks, **metadata})
     return files
 
 def retrieve_personal_keyword(personal_index: List[Dict], query: str, k: int = 5) -> List[str]:

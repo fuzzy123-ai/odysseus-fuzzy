@@ -79,7 +79,7 @@ Pipelines.
 | --- | --- | --- |
 | P0 | Verträge und Budgets definieren | Done 2026-06-30: Statusmodell, Warning-Codes, Budgettypen |
 | P1 | Gemeinsamen Extractor bauen | Done 2026-06-30: Seitenweise pypdf-Extraktion mit Partial-Erfolg |
-| P2 | RAG/Personal Docs angleichen | Kein stilles Verschwinden grosser PDFs |
+| P2 | RAG/Personal Docs angleichen | Done 2026-06-30: Kein stilles Verschwinden grosser PDFs |
 | P3 | Universal Inbox/Nextcloud integrieren | Status- und Chunk-Lane bleiben rohtextfrei |
 | P4 | Chat/Document Processor umstellen | Ein Extractor statt Sonderlogik |
 | P5 | OCR/Vision-Fallback absichern | Optional, lokal-only, bounded |
@@ -356,8 +356,14 @@ Release-Definition:
 ### Slice B: Personal/RAG Fix
 
 - Done 2026-06-30: `src.personal_docs.extract_pdf_text` auf neuen Extractor umgestellt.
-- `src.rag_vector.VectorRAG.index_personal_documents` partial-aware machen.
-- Upload/Index-Rueckgaben um Diagnostics erweitern.
+- Done 2026-06-30: `src.personal_docs.load_personal_index` gibt PDF-Status,
+  Warncodes, Seitenanzahl und verarbeitete Seiten fuer PDF-Dateien zurueck.
+- Done 2026-06-30: `src.rag_vector.VectorRAG.index_personal_documents`
+  indexiert Partial-PDFs und meldet `skipped_count`, `partial_count`,
+  `review_count`, `indexed_files_count` und `warnings_by_file`.
+- Evidence 2026-06-30:
+  `python -m pytest tests/test_rag_pdf_partial_index.py tests/test_pdf_extraction.py tests/test_personal_docs_pdf_index.py tests/test_nextcloud_ingestion_integration.py tests/test_rag_manager_owner_compat.py tests/test_universal_inbox_extraction.py -q`
+  returned `36 passed, 1 warning`.
 
 ### Slice C: Universal Inbox Integration
 

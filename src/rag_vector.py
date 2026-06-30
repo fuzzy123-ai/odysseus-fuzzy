@@ -97,6 +97,26 @@ def _call_index_metadata_provider(
     }
 
 
+def _pdf_index_metadata(result) -> Dict[str, Any]:
+    warning_codes = ",".join(result.warning_codes)
+    page_numbers = [page.page_number for page in result.pages if page.text]
+    metadata: Dict[str, Any] = {
+        "pdf_status": result.status,
+        "pdf_warning_codes": warning_codes,
+    }
+    if page_numbers:
+        metadata["pdf_page_start"] = min(page_numbers)
+        metadata["pdf_page_end"] = max(page_numbers)
+    elif result.processed_pages:
+        metadata["pdf_page_start"] = 1
+        metadata["pdf_page_end"] = result.processed_pages
+    return metadata
+
+
+def _pdf_warnings_for_report(result) -> list[Dict[str, Any]]:
+    return [warning.to_dict() for warning in result.warnings]
+
+
 class VectorRAG:
     """RAG system using ChromaDB vector storage with hybrid search."""
 
@@ -529,6 +549,11 @@ class VectorRAG:
 
         indexed = 0
         failed = 0
+        skipped = 0
+        partial = 0
+        review = 0
+        indexed_files = 0
+        warnings_by_file: Dict[str, list[Dict[str, Any]]] = {}
 
         try:
             for root, _, files in os.walk(directory):
@@ -540,14 +565,36 @@ class VectorRAG:
                         continue
 
                     try:
+                        pdf_meta: Dict[str, Any] = {}
                         if ext == '.pdf':
-                            from src.personal_docs import extract_pdf_text
-                            content = extract_pdf_text(fpath)
+                            from src.pdf_extraction import (
+                                PDF_STATUS_FAILED,
+                                PDF_STATUS_METADATA_ONLY,
+                                PDF_STATUS_NEEDS_REVIEW,
+                                PDF_STATUS_PARTIAL,
+                                extract_pdf_pages,
+                            )
+
+                            pdf_result = extract_pdf_pages(fpath, owner=owner)
+                            content = pdf_result.text
+                            pdf_meta = _pdf_index_metadata(pdf_result)
+                            if pdf_result.warnings:
+                                warnings_by_file[relative_path] = _pdf_warnings_for_report(pdf_result)
+                            if pdf_result.status == PDF_STATUS_PARTIAL:
+                                partial += 1
+                            elif pdf_result.status == PDF_STATUS_NEEDS_REVIEW:
+                                review += 1
+                            elif pdf_result.status == PDF_STATUS_METADATA_ONLY:
+                                skipped += 1
+                            elif pdf_result.status == PDF_STATUS_FAILED:
+                                failed += 1
+                                continue
                         else:
                             with open(fpath, 'r', encoding='utf-8') as f:
                                 content = f.read()
 
                         if not content or not content.strip():
+                            skipped += 1
                             continue
 
                         meta = {
@@ -556,6 +603,7 @@ class VectorRAG:
                             'directory': root,
                             'type': ext,
                         }
+                        meta.update(pdf_meta)
                         meta.update(_call_index_metadata_provider(
                             metadata_provider,
                             fpath=fpath,
@@ -566,11 +614,15 @@ class VectorRAG:
                         if owner:
                             meta['owner'] = owner
 
+                        file_indexed = False
                         for i, chunk in enumerate(self._split_into_chunks(content)):
                             if self.add_document(chunk, {**meta, 'chunk_id': i}):
                                 indexed += 1
+                                file_indexed = True
                             else:
                                 failed += 1
+                        if file_indexed:
+                            indexed_files += 1
                     except Exception as e:
                         logger.error(f"index {fpath}: {e}")
                         failed += 1
@@ -579,11 +631,26 @@ class VectorRAG:
                 'success': True,
                 'indexed_count': indexed,
                 'failed_count': failed,
+                'skipped_count': skipped,
+                'partial_count': partial,
+                'review_count': review,
+                'indexed_files_count': indexed_files,
+                'warnings_by_file': warnings_by_file,
                 'message': f'Indexed {indexed} chunks from {directory}',
             }
         except Exception as e:
             logger.error(f"index_personal_documents {directory}: {e}")
-            return {'success': False, 'indexed_count': indexed, 'failed_count': failed, 'message': str(e)}
+            return {
+                'success': False,
+                'indexed_count': indexed,
+                'failed_count': failed,
+                'skipped_count': skipped,
+                'partial_count': partial,
+                'review_count': review,
+                'indexed_files_count': indexed_files,
+                'warnings_by_file': warnings_by_file,
+                'message': str(e),
+            }
 
     def remove_directory(self, directory: str) -> Dict[str, Any]:
         """Remove all chunks under ``directory`` (recursively), and nothing else.
