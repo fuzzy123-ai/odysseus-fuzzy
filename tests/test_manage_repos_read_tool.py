@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 from pathlib import Path
@@ -620,10 +621,9 @@ def test_manage_repos_schema_index_and_security_wiring():
 
 
 def test_source_keeps_manage_repos_without_free_git_shell():
-    source = Path("src/tool_implementations.py").read_text(encoding="utf-8").lower()
-    start = source.index("async def do_manage_repos")
-    end = source.index("def _skill_dump", start)
-    section = source[start:end]
+    from src.tool_implementations import do_manage_repos
+
+    section = inspect.getsource(do_manage_repos).lower()
 
     for forbidden in ("git reset", "subprocess.run"):
         assert forbidden not in section

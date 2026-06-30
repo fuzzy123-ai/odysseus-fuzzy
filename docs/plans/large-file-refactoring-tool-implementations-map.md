@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7 preparation complete
+Status: R7A/R7B implemented; remaining domain splits pending
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -108,9 +108,13 @@ private helpers together rather than slicing by line number.
    - Create `src/tool_domains/__init__.py`.
    - Move no behavior yet.
    - Add imports/re-exports in the facade only after one domain moves.
+   - Done 2026-06-30: package scaffold exists and `src.tool_implementations`
+     imports shared helpers/domains while remaining the public facade.
 2. **R7B repo and skills**
    - Move search chats, skills, recent changes and repo management.
    - Run repo and skills tests.
+   - Done 2026-06-30: moved to `src/tool_domains/repo_skills.py`; shared
+     argument parsing moved to `src/tool_domains/common.py`.
 3. **R7C personal workspace**
    - Move notes and calendar together.
    - Run calendar and notes tests.
@@ -142,6 +146,37 @@ Additional targeted tests by sub-slice:
 - Repo/skills:
   `tests/test_manage_repos_read_tool.py`,
   `tests/test_manage_skills_confirmation.py`
+
+Evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_repos_read_tool.py tests\test_manage_skills_confirmation.py -q
+```
+
+Result: `18 passed, 1 warning`.
+
+Broader R7 smoke 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+Facade/import smoke 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_implementations import do_manage_repos, do_manage_skills, do_recent_changes, do_search_chats, do_manage_tasks; from src.tool_execution import execute_tool_block; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+Large-file report evidence 2026-06-30:
+
+- `src/tool_implementations.py`: 5631 lines, still candidate.
+- `src/tool_domains/repo_skills.py`: 858 lines, warning band.
+- Next implementation slice should continue with R7C or R7D rather than
+  enlarging `repo_skills.py`.
 - Personal workspace:
   `tests/test_manage_notes_owner_gate.py`,
   `tests/test_notes_update_due_date.py`,

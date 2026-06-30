@@ -2,8 +2,8 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail and R1 CSS ownership map implemented; first code refactor
-waves still pending
+Status: R0 guardrail, R1 CSS ownership map and R7A/R7B backend split
+implemented; remaining code refactor waves pending
 
 ## Goal
 
@@ -56,6 +56,19 @@ it into that queue.
   `docs/plans/large-file-refactoring-tool-implementations-map.md`.
   `src/tool_implementations.py` was inspected structurally and left unchanged;
   the map defines a compatibility-facade split into `src/tool_domains/`.
+- 2026-06-30: R7A/R7B implemented. `src/tool_domains/common.py` contains the
+  shared tool argument parser, `src/tool_domains/repo_skills.py` contains chat
+  search, skill management, recent-change snapshots and repo management, and
+  `src/tool_implementations.py` remains the compatibility facade.
+- 2026-06-30 focused tests passed:
+  `python -m pytest tests/test_manage_repos_read_tool.py tests/test_manage_skills_confirmation.py -q`
+  returned `18 passed, 1 warning`; import smoke for `src.tool_implementations`
+  and `src.tool_execution` returned `imports ok`.
+- 2026-06-30 broader R7 smoke passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7B: `src/tool_implementations.py`
+  reduced to 5631 lines; `src/tool_domains/repo_skills.py` is 858 lines.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -369,7 +382,7 @@ Completion criteria:
 Owner: Bob  
 Class: `repo_only`  
 Mode: `worker`
-Status: `prepared`
+Status: `in_progress`
 
 Objective:
 
@@ -410,6 +423,13 @@ Preparation result:
   dependency notes, sub-slices and focused test sets.
 - R7 implementation can begin with a facade-first move without changing caller
   imports.
+
+Implementation result:
+
+- R7A and R7B are complete. Repo/skills/recent-changes/search moved behind the
+  facade, and direct callers can still import from `src.tool_implementations`.
+- Next recommended slice: R7C `personal_workspace.py` for notes/calendar, since
+  those functions are coupled and have a strong focused test set.
 
 ### R8: Agent Loop Extraction
 

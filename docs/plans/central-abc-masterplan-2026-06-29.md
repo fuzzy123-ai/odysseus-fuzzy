@@ -578,6 +578,19 @@ Current evidence:
   `docs/plans/large-file-refactoring-tool-implementations-map.md`.
   `src/tool_implementations.py` was left untouched; the next code step is a
   facade-first split into `src/tool_domains/`.
+- 2026-06-30: L7 R7A/R7B are implemented. `src/tool_domains/common.py` now
+  owns shared argument parsing, `src/tool_domains/repo_skills.py` owns
+  chat-search, skills, recent changes and repo-management tools, and
+  `src.tool_implementations` remains import-compatible.
+- 2026-06-30 focused tests passed:
+  `python -m pytest tests/test_manage_repos_read_tool.py tests/test_manage_skills_confirmation.py -q`
+  returned `18 passed, 1 warning`; import smoke returned `imports ok`.
+- 2026-06-30 broader R7 smoke passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7B: `src/tool_implementations.py` is
+  reduced to 5631 lines and remains a candidate; `src/tool_domains/repo_skills.py`
+  is 858 lines in the warning band.
 
 Parallel rule:
 
@@ -594,13 +607,15 @@ Slice queue:
 | L7-R1-css-ownership-map | repo_only | Alice | Done: `static/style.css` domains, risky selectors and target bundles are mapped before moving CSS. |
 | L7-R2-css-split | repo_only | Charlie | Deferred: split CSS only after ownership map and visual smoke path are available. |
 | L7-R7-tool-implementations-domain-map | repo_only | Bob | Done: public tool surface, direct callers, target domains and focused tests are mapped before moving code. |
-| L7-R7-tool-implementations-domain-split | repo_only | Bob | Next: split `src/tool_implementations.py` facade-first only if no active feature edits touch that file. |
+| L7-R7A/R7B-tool-implementations-repo-skills | repo_only | Bob | Done: common parser and repo/skills/recent-changes/search tools moved behind the compatibility facade. |
+| L7-R7C-tool-implementations-personal-workspace | repo_only | Bob | Next: move notes/calendar together behind the compatibility facade. |
 
 Next safe slice:
 
-- L7-R7 facade-first backend split for `src/tool_implementations.py`, if the
-  file is still clean. L7-R2 CSS split should wait until visual smoke coverage
-  is available because `static/style.css` controls shell/chat/modal cascade.
+- L7-R7C facade-first backend split for notes/calendar in
+  `src/tool_implementations.py`, if the file is still clean. L7-R2 CSS split
+  should wait until visual smoke coverage is available because
+  `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -677,7 +692,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS ownership map and R7 backend domain map are complete; code extraction waves remain, with CSS split waiting on visual smoke. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A/R7B backend split are complete; more extraction waves remain, with CSS split waiting on visual smoke. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
