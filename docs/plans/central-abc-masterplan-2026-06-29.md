@@ -395,6 +395,13 @@ Current evidence:
 - 2026-06-30 Focused tests passed:
   `python -m pytest tests/test_universal_file_io.py tests/test_universal_inbox_worker.py tests/test_universal_inbox_extraction.py tests/test_pdf_extraction.py -q`
   returned `46 passed, 1 warning`.
+- 2026-06-30: Telegram delivery prep contract added to
+  `src/universal_file_io.py`; it selects redacted `sendDocument`, `sendPhoto`
+  or `sendAudio` delivery methods from export results while keeping send
+  blocked until both the Telegram reply gate and operator live-Go are explicit.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_universal_file_io.py tests/test_universal_export.py tests/test_universal_export_executor.py tests/test_telegram_plugin.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-l5-4-1`
+  returned `92 passed, 2 warnings`.
 
 Parallel rule:
 
@@ -410,12 +417,12 @@ Slice queue:
 | L5-1-file-capability-registry | repo_only | Bob | Done: common document/media/game asset families expose conversion-relevant capabilities. |
 | L5-2-export-intent-contract | repo_only | Bob | Done: natural-language follow-ups produce redacted export intents linked to recent Inbox refs. |
 | L5-3-export-capability-plan | repo_only | Bob | Done: deterministic, redacted plans cover document, image, audio, PDF-page-image and 3D asset conversions without execution. |
-| L5-4-telegram-delivery-prep | safe_offline | Charlie | Planned: delivery contract before live sendDocument/sendPhoto/sendAudio. |
+| L5-4-telegram-delivery-prep | safe_offline | Charlie | Done: redacted Telegram delivery contract plans sendDocument/sendPhoto/sendAudio without sending and requires live gates. |
 | L5-5-live-converters | needs_live_go | Charlie | Gated: LibreOffice/Pandoc/WeasyPrint, Pillow, ffmpeg, OCR, Blender/assimp execution needs explicit operator Go and tool checks. |
 
 L5 backend status:
 
-- UFIO1-UFIO3 are backend complete for the current masterplan scope.
+- UFIO1-UFIO4 are backend complete for the current masterplan scope.
 - Live converter execution, Telegram delivery and Nextcloud export writes remain
   gated operational tracks, not blockers for safe export planning.
 
@@ -974,7 +981,7 @@ Stop or defer the active slice if:
 | L1 Nextcloud Live Write + Universal Inbox | partial, live-gated | Safe backend path is implemented and tested; bounded live upload smoke still needs operator Go plus runtime env. |
 | L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
-| L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
+| L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11J are complete; tool implementation/admin, agent-loop, email-route, model-route and Telegram plugin facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |

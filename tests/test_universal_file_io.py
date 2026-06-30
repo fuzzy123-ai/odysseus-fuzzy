@@ -6,6 +6,7 @@ from src.universal_file_io import (
     UniversalFileIOError,
     build_export_plan,
     build_file_capability_registry,
+    build_telegram_delivery_plan,
     get_file_capability,
     parse_export_intent,
     summarize_file_capabilities,
@@ -135,3 +136,61 @@ def test_source_ref_is_required():
 def test_get_file_capability_accepts_names_or_extensions():
     assert get_file_capability("report.PDF").family == "pdf"
     assert get_file_capability(".OBJ").family == "asset_3d"
+
+
+def test_telegram_delivery_plan_blocks_without_live_gates_and_redacts_refs():
+    plan = build_telegram_delivery_plan(
+        {
+            "status": "exported",
+            "target_format": "pdf",
+            "mime_type": "application/pdf",
+            "delivery_ready": True,
+            "output_path": "C:/Users/private/export.pdf",
+            "output_filename": "secret.pdf",
+        }
+    )
+    payload = plan.to_dict()
+    encoded = json.dumps(payload)
+
+    assert plan.status == "blocked"
+    assert plan.method == "sendDocument"
+    assert "telegram_reply_gate_disabled" in plan.blockers
+    assert "telegram_delivery_live_go_missing" in plan.blockers
+    assert payload["host_paths_visible"] is False
+    assert payload["filename_visible"] is False
+    assert "C:/Users" not in encoded
+    assert "secret.pdf" not in encoded
+
+
+def test_telegram_delivery_plan_selects_photo_and_audio_methods():
+    photo = build_telegram_delivery_plan(
+        {"status": "exported", "target_format": "png", "delivery_ready": True},
+        reply_gate_enabled=True,
+        operator_live_go=True,
+    )
+    audio = build_telegram_delivery_plan(
+        {"status": "exported", "target_format": "wav", "delivery_ready": True},
+        reply_gate_enabled=True,
+        operator_live_go=True,
+    )
+
+    assert photo.status == "ready"
+    assert photo.method == "sendPhoto"
+    assert photo.send_allowed is True
+    assert "image_delivery_should_use_reviewed_preview_policy" in photo.warnings
+    assert audio.status == "ready"
+    assert audio.method == "sendAudio"
+    assert audio.send_allowed is True
+    assert "audio_delivery_should_use_reviewed_media_policy" in audio.warnings
+
+
+def test_telegram_delivery_plan_requires_export_output_ready():
+    plan = build_telegram_delivery_plan(
+        {"status": "blocked", "target_format": "pdf", "delivery_ready": False},
+        reply_gate_enabled=True,
+        operator_live_go=True,
+    )
+
+    assert plan.status == "blocked"
+    assert plan.method == "sendDocument"
+    assert "export_output_not_delivery_ready" in plan.blockers

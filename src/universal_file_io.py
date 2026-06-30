@@ -123,6 +123,40 @@ class ExportPlan:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class TelegramDeliveryPlan:
+    status: str
+    method: str
+    target_format: str
+    mime_type: str
+    delivery_ready: bool
+    send_allowed: bool
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    raw_content_visible: bool = False
+    host_paths_visible: bool = False
+    filename_visible: bool = False
+    token_value_visible: bool = False
+    chat_id_value_visible: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "method": self.method,
+            "target_format": self.target_format,
+            "mime_type": self.mime_type,
+            "delivery_ready": self.delivery_ready,
+            "send_allowed": self.send_allowed,
+            "blockers": self.blockers,
+            "warnings": self.warnings,
+            "raw_content_visible": False,
+            "host_paths_visible": False,
+            "filename_visible": False,
+            "token_value_visible": False,
+            "chat_id_value_visible": False,
+        }
+
+
 def build_file_capability_registry() -> dict[str, FileCapability]:
     """Return supported source formats keyed by lowercase extension."""
 
@@ -269,6 +303,48 @@ def build_export_plan(
     )
 
 
+def build_telegram_delivery_plan(
+    export_result: Mapping[str, Any],
+    *,
+    reply_gate_enabled: bool = False,
+    operator_live_go: bool = False,
+) -> TelegramDeliveryPlan:
+    """Plan a Telegram delivery without sending files or exposing identifiers."""
+
+    payload = dict(export_result or {})
+    target = _normalize_format(str(payload.get("target_format") or ""))
+    mime_type = str(payload.get("mime_type") or _mime_type_for_target(target))
+    method = _telegram_delivery_method(target, mime_type)
+    delivery_ready = bool(payload.get("delivery_ready") and str(payload.get("status") or "") in {"exported", "ready", "sent"})
+    blockers: list[str] = []
+    warnings: list[str] = []
+
+    if not delivery_ready:
+        blockers.append("export_output_not_delivery_ready")
+    if not method:
+        blockers.append("telegram_delivery_method_unsupported")
+    if not reply_gate_enabled:
+        blockers.append("telegram_reply_gate_disabled")
+    if not operator_live_go:
+        blockers.append("telegram_delivery_live_go_missing")
+    if target in {"png", "jpg", "jpeg", "webp"}:
+        warnings.append("image_delivery_should_use_reviewed_preview_policy")
+    if target in {"mp3", "wav", "ogg", "opus", "flac", "aac", "m4a"}:
+        warnings.append("audio_delivery_should_use_reviewed_media_policy")
+
+    send_allowed = not blockers
+    return TelegramDeliveryPlan(
+        status="ready" if send_allowed else "blocked",
+        method=method,
+        target_format=target,
+        mime_type=mime_type,
+        delivery_ready=delivery_ready,
+        send_allowed=send_allowed,
+        blockers=tuple(blockers),
+        warnings=tuple(warnings),
+    )
+
+
 def _coerce_intent(value: ExportIntent | Mapping[str, Any]) -> ExportIntent:
     if isinstance(value, ExportIntent):
         return value
@@ -359,6 +435,29 @@ def _required_tool(capability: FileCapability | None, target_format: str) -> str
     if capability.family.startswith("asset_3d"):
         return "blender_or_assimp"
     return capability.default_tool
+
+
+def _telegram_delivery_method(target_format: str, mime_type: str) -> str:
+    target = _normalize_format(target_format)
+    mime = str(mime_type or "").lower()
+    if target in {"png", "jpg", "jpeg", "webp"} or mime.startswith("image/"):
+        return "sendPhoto"
+    if target in {"mp3", "wav", "ogg", "opus", "flac", "aac", "m4a"} or mime.startswith("audio/"):
+        return "sendAudio"
+    if target:
+        return "sendDocument"
+    return ""
+
+
+def _mime_type_for_target(target_format: str) -> str:
+    target = _normalize_format(target_format)
+    if target == "pdf":
+        return "application/pdf"
+    if target in {"png", "jpg", "jpeg", "webp", "tiff", "bmp"}:
+        return "image/jpeg" if target in {"jpg", "jpeg"} else f"image/{target}"
+    if target in {"mp3", "wav", "ogg", "opus", "flac", "aac", "m4a"}:
+        return "audio/mpeg" if target == "mp3" else f"audio/{target}"
+    return "application/octet-stream"
 
 
 def _plan_steps(capability: FileCapability | None, target_format: str, tool: str, local_only: bool) -> tuple[str, ...]:
