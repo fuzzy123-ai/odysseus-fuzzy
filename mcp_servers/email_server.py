@@ -61,6 +61,15 @@ from mcp_servers.email_imap_utils import (
     _q,
     _uid_fetch_rows,
 )
+from mcp_servers.email_imap_mutation_utils import (
+    archive_email as archive_email_via_helper,
+    bulk_move as bulk_move_via_helper,
+    bulk_set_flag as bulk_set_flag_via_helper,
+    delete_email as delete_email_via_helper,
+    move_message as move_message_via_helper,
+    search_uids as search_uids_via_helper,
+    set_flag as set_flag_via_helper,
+)
 from mcp_servers.email_folder_utils import (
     _detect_sent_folder,
     _folder_name_from_list_line,
@@ -799,140 +808,103 @@ def _reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None):
 
 def _set_flag(uid, folder, flag, add=True, account=None):
     """Add or remove an IMAP flag (e.g. \\Seen, \\Answered, \\Deleted)."""
-    conn = _imap_connect(account)
-    conn.select(_q(folder))
-    op = "+FLAGS" if add else "-FLAGS"
-    try:
-        status, data = conn.uid("STORE", _b(uid), op, flag)
-        if add and flag == "\\Deleted":
-            conn.expunge()
-        return status == "OK" and bool(data and data[0])
-    except Exception:
-        return False
-    finally:
-        conn.logout()
+    return set_flag_via_helper(
+        uid,
+        folder,
+        flag,
+        add=add,
+        account=account,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+    )
 
 
 def _bulk_set_flag(uids, folder, flag, add=True, account=None):
     """Add/remove an IMAP flag on MANY messages in one connection.
     `uids` is a list; we issue a single STORE over the comma-joined set
     (IMAP supports message-set syntax). Returns count attempted."""
-    if not uids:
-        return 0
-    conn = _imap_connect(account)
-    touched = []
-    try:
-        conn.select(_q(folder))
-        op = "+FLAGS" if add else "-FLAGS"
-        msg_set = ",".join(str(u) for u in uids)
-        try:
-            status, data = conn.uid("FETCH", _b(msg_set), "(UID)")
-        except Exception:
-            return 0
-        touched = _uid_fetch_rows(data)
-        if status != "OK" or not touched:
-            return 0
-        status, data = conn.uid("STORE", _b(msg_set), op, flag)
-        if add and flag == "\\Deleted":
-            conn.expunge()
-        if status != "OK":
-            return 0
-    finally:
-        conn.logout()
-    return len(touched)
+    return bulk_set_flag_via_helper(
+        uids,
+        folder,
+        flag,
+        add=add,
+        account=account,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        uid_fetch_rows_func=_uid_fetch_rows,
+    )
 
 
 def _bulk_move(uids, source_folder, dest_folder, account=None, role: str = ""):
     """Move MANY messages between folders in one connection."""
-    if not uids:
-        return 0
-    conn = _imap_connect(account)
-    moved = 0
-    try:
-        conn.select(_q(source_folder))
-        dest_folder = _resolve_folder(conn, dest_folder, role or _folder_role_from_name(dest_folder))
-        msg_set = ",".join(str(u) for u in uids)
-        try:
-            status, data = conn.uid("FETCH", _b(msg_set), "(UID)")
-        except Exception:
-            return 0
-        existing = _uid_fetch_rows(data)
-        if not existing:
-            return 0
-        moved = len(existing)
-        dest_arg = _q(dest_folder)
-        status, _ = conn.uid("MOVE", _b(msg_set), dest_arg)
-        if status != "OK":
-            # Fallback: UID copy + flag-delete + expunge
-            status, _ = conn.uid("COPY", _b(msg_set), dest_arg)
-            if status != "OK":
-                return 0
-            status, _ = conn.uid("STORE", _b(msg_set), "+FLAGS", "\\Deleted")
-            if status != "OK":
-                return 0
-            conn.expunge()
-    finally:
-        conn.logout()
-    return moved
+    return bulk_move_via_helper(
+        uids,
+        source_folder,
+        dest_folder,
+        account=account,
+        role=role,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        resolve_folder_func=_resolve_folder,
+        folder_role_from_name_func=_folder_role_from_name,
+        uid_fetch_rows_func=_uid_fetch_rows,
+    )
 
 
 def _search_uids(folder="INBOX", criteria="UNSEEN", account=None):
     """Return a list of UIDs matching an IMAP search (e.g. UNSEEN,
     ALL, ANSWERED). Used to resolve selectors like all_unread → uids."""
-    conn = _imap_connect(account)
-    try:
-        conn.select(_q(folder), readonly=True)
-        status, data = conn.uid("SEARCH", None, criteria)
-        if status != "OK" or not data or not data[0]:
-            return []
-        return data[0].split()
-    finally:
-        conn.logout()
+    return search_uids_via_helper(
+        folder=folder,
+        criteria=criteria,
+        account=account,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+    )
 
 
 def _move_message(uid, source_folder, dest_folder, account=None, role: str = ""):
     """Move a message between folders. Tries IMAP MOVE, falls back to copy+delete."""
-    conn = _imap_connect(account)
-    conn.select(_q(source_folder))
-    try:
-        dest_folder = _resolve_folder(conn, dest_folder, role or _folder_role_from_name(dest_folder))
-        try:
-            status, data = conn.uid("FETCH", _b(uid), "(UID)")
-        except Exception:
-            return False
-        existing = _uid_fetch_rows(data)
-        if status != "OK" or not existing:
-            return False
-        dest_arg = _q(dest_folder)
-        status, _ = conn.uid("MOVE", _b(uid), dest_arg)
-        if status == "OK":
-            return True
-        # Fallback: UID copy + delete
-        status, _ = conn.uid("COPY", _b(uid), dest_arg)
-        if status != "OK":
-            return False
-        status, _ = conn.uid("STORE", _b(uid), "+FLAGS", "\\Deleted")
-        if status != "OK":
-            return False
-        conn.expunge()
-        ok = True
-    finally:
-        conn.logout()
-    return ok
+    return move_message_via_helper(
+        uid,
+        source_folder,
+        dest_folder,
+        account=account,
+        role=role,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        resolve_folder_func=_resolve_folder,
+        folder_role_from_name_func=_folder_role_from_name,
+        uid_fetch_rows_func=_uid_fetch_rows,
+    )
 
 
 def _delete_email(uid, folder="INBOX", permanent=False, account=None):
     """Delete an email. By default moves to Trash; permanent=True expunges."""
-    cfg = _load_config(account)
-    if permanent:
-        return _set_flag(uid, folder, "\\Deleted", add=True, account=account)
-    return _move_message(uid, folder, cfg["trash_folder"], account=account, role="trash")
+    return delete_email_via_helper(
+        uid,
+        folder=folder,
+        permanent=permanent,
+        account=account,
+        load_config_func=_load_config,
+        set_flag_func=_set_flag,
+        move_message_func=_move_message,
+    )
 
 
 def _archive_email(uid, folder="INBOX", account=None):
     """Move an email to the archive folder."""
-    cfg = _load_config(account)
-    return _move_message(uid, folder, cfg["archive_folder"], account=account, role="archive")
+    return archive_email_via_helper(
+        uid,
+        folder=folder,
+        account=account,
+        load_config_func=_load_config,
+        move_message_func=_move_message,
+    )
 
 
 def _download_attachment(uid, index, folder="INBOX", account=None):

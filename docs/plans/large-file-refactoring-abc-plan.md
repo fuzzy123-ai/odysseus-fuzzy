@@ -5113,6 +5113,52 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and preserves the
   `_send_email` compatibility surface.
 
+## R11CM / L7-R12CB: Email MCP IMAP Mutation Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving IMAP flag, bulk flag, move,
+  delete/archive and UID-search operations into a focused helper while
+  preserving the legacy private wrapper names used by tool dispatch and tests.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_imap_mutation_utils.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CM done 2026-06-30: IMAP flag/move/delete/archive/search helpers moved to
+  `mcp_servers/email_imap_mutation_utils.py`; `mcp_servers.email_server` keeps
+  `_set_flag`, `_bulk_set_flag`, `_bulk_move`, `_search_uids`,
+  `_move_message`, `_delete_email` and `_archive_email` wrappers.
+- R11CM line count 2026-06-30: `mcp_servers/email_server.py` is 1236 lines,
+  still in warning band but reduced from 1264 after R11CL;
+  `mcp_servers/email_imap_mutation_utils.py` is 128 lines and below the report
+  threshold.
+- R11CM focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_imap_mutation_utils.py`
+  passed.
+- R11CM email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_delete_confirmation.py tests\test_imap_leak_fixes.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `31 passed, 2 warnings`.
+
+Completion criteria:
+
+- Delete/archive/bulk operations keep confirmation semantics and folder
+  fallback behavior.
+- Legacy wrappers remain available for dispatch and monkeypatch tests.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
