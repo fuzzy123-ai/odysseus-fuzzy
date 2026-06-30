@@ -5377,6 +5377,52 @@ Completion criteria:
   the per-message attachment directory.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CS / L7-R12CH: Email MCP Read Operation Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving list/search read operations
+  into a focused helper module, while keeping `_list_emails`,
+  `_list_emails_across_accounts` and `_search_emails` as compatibility wrappers.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_read_operations.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CS done 2026-06-30: Email MCP list, cross-account list and search logic
+  moved to `mcp_servers/email_read_operations.py`; `mcp_servers.email_server`
+  keeps the legacy private wrappers for compatibility.
+- R11CS line count 2026-06-30: `mcp_servers/email_server.py` is 926 lines,
+  still in warning band but reduced from 1042 after R11CR;
+  `mcp_servers/email_read_operations.py` is 192 lines and below the report
+  threshold.
+- R11CS focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_read_operations.py tests\test_icloud_imap_full_fetch.py`
+  passed.
+- R11CS email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_icloud_imap_full_fetch.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `27 passed, 2 warnings`.
+
+Completion criteria:
+
+- iCloud `RFC822.HEADER` source guard covers the relocated listing/search fetch
+  sites.
+- List/search behavior keeps account scoping, cache summaries and legacy return
+  shapes stable.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

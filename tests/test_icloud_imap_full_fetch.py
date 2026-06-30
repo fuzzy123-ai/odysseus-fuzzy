@@ -21,6 +21,7 @@ SRC = "\n".join(
     (ROOT / path).read_text(encoding="utf-8")
     for path in (
         "mcp_servers/email_server.py",
+        "mcp_servers/email_read_operations.py",
         "mcp_servers/email_attachment_utils.py",
         "mcp_servers/email_reply_utils.py",
         "mcp_servers/email_imap_mutation_utils.py",

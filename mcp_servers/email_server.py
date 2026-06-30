@@ -83,6 +83,11 @@ from mcp_servers.email_message_utils import (
     _decode_header,
     _extract_text,
 )
+from mcp_servers.email_read_operations import (
+    list_emails as list_emails_via_helper,
+    list_emails_across_accounts as list_emails_across_accounts_via_helper,
+    search_emails as search_emails_via_helper,
+)
 from mcp_servers.email_reply_utils import (
     ai_draft_reply_to_email as ai_draft_reply_to_email_via_helper,
     draft_reply_to_email as draft_reply_to_email_via_helper,
@@ -221,99 +226,30 @@ def _list_emails(folder="INBOX", max_results=20, unresponded_only=False,
     Pass unread_only=True and/or unresponded_only=True for attention scans.
     account selects mailbox (None = default).
     """
-    conn = None
-    try:
-        conn = _imap_connect(account)
-        select_status, _ = conn.select(_q(folder), readonly=True)
-        if select_status != "OK":
-            raise ValueError(f"IMAP folder not found: {folder}")
-
-        if unread_only and unresponded_only:
-            status, data = conn.uid("SEARCH", None, "(UNSEEN UNANSWERED)")
-        elif unread_only:
-            status, data = conn.uid("SEARCH", None, "(UNSEEN)")
-        elif unresponded_only:
-            # Was missing — unresponded_only=True (without unread_only) fell through
-            # to "ALL" and returned answered mail too, despite the documented
-            # "emails without replies" behaviour.
-            status, data = conn.uid("SEARCH", None, "(UNANSWERED)")
-        else:
-            # Include read too — IMAP search "ALL" returns the entire folder
-            status, data = conn.uid("SEARCH", None, "ALL")
-
-        if status != "OK" or not data[0]:
-            return []
-
-        uid_list = list(reversed(data[0].split()))[:max_results]
-        cache = _get_cached_summaries()
-        results = []
-
-        for uid in uid_list:
-            try:
-                status, msg_data = conn.uid("FETCH", uid, "(RFC822.HEADER)")
-                if status != "OK":
-                    continue
-                raw_header = msg_data[0][1]
-                msg = email.message_from_bytes(raw_header)
-
-                subject = _decode_header(msg.get("Subject", "(no subject)"))
-                sender = _decode_header(msg.get("From", "unknown"))
-                date_str = msg.get("Date", "")
-                message_id = msg.get("Message-ID", "")
-
-                # Parse sender name
-                sender_name, sender_addr = email.utils.parseaddr(sender)
-                sender_display = sender_name or sender_addr
-
-                # Check cache for summary
-                cached = cache.get(subject, {})
-                summary = cached.get("summary", "")
-
-                results.append({
-                    "uid": uid.decode(),
-                    "message_id": message_id,
-                    "subject": subject,
-                    "from": sender_display,
-                    "from_address": sender_addr,
-                    "date": date_str,
-                    "summary": summary,
-                })
-            except Exception:
-                continue
-
-        return results
-    finally:
-        if conn:
-            try: conn.logout()
-            except Exception: pass
+    return list_emails_via_helper(
+        folder=folder,
+        max_results=max_results,
+        unresponded_only=unresponded_only,
+        unread_only=unread_only,
+        account=account,
+        imap_connect=_imap_connect,
+        quote_folder=_q,
+        decode_header=_decode_header,
+        get_cached_summaries=_get_cached_summaries,
+    )
 
 
 def _list_emails_across_accounts(folder="INBOX", max_results=20,
                                  unresponded_only=False, unread_only=False):
-    rows = _list_accounts_raw()
-    combined = []
-    errors = []
-    for row in rows:
-        account_selector = row.get("id") or row.get("name") or row.get("imap_user")
-        account_name = row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
-        account_email = row.get("imap_user") or row.get("from_address") or ""
-        try:
-            account_results = _list_emails(
-                folder=folder,
-                max_results=max_results,
-                unresponded_only=unresponded_only,
-                unread_only=unread_only,
-                account=account_selector,
-            )
-            for item in account_results:
-                item["_account"] = account_name
-                item["_account_email"] = account_email
-                item["_account_id"] = row.get("id")
-            combined.extend(account_results)
-        except Exception as exc:
-            errors.append(f"{account_name} ({account_email}): {exc}")
-    combined.sort(key=_result_sort_time, reverse=True)
-    return combined[:max_results], errors
+    return list_emails_across_accounts_via_helper(
+        folder=folder,
+        max_results=max_results,
+        unresponded_only=unresponded_only,
+        unread_only=unread_only,
+        list_accounts_raw=_list_accounts_raw,
+        list_emails_func=_list_emails,
+        result_sort_time=_result_sort_time,
+    )
 
 
 def _search_emails(query, folders=None, max_results=20, account=None):
@@ -321,65 +257,16 @@ def _search_emails(query, folders=None, max_results=20, account=None):
     body TEXT. Walks multiple folders so older threads outside INBOX
     (Sent/Archive) are still findable. Returns the same shape as
     _list_emails plus an `_folder` tag."""
-    if not query or not str(query).strip():
-        return []
-    q = str(query).replace("\\", "\\\\").replace('"', '\\"')
-    # Mail clients commonly use OR FROM/SUBJECT/TEXT to match either field.
-    # IMAP SEARCH OR is binary, so we nest it.
-    search_cmd = f'(OR OR FROM "{q}" SUBJECT "{q}" TEXT "{q}")'
-    if folders is None:
-        folders = ["INBOX", "Sent", "Archive"]
-    cache = _get_cached_summaries()
-    out = []
-    conn = _imap_connect(account)
-    touched = []
-    try:
-        for folder in folders:
-            try:
-                status, _ = conn.select(_q(folder), readonly=True)
-                if status != "OK":
-                    continue
-                status, data = conn.uid("SEARCH", None, search_cmd)
-                if status != "OK" or not data or not data[0]:
-                    continue
-                uid_list = list(reversed(data[0].split()))[:max_results]
-                for uid in uid_list:
-                    try:
-                        status, msg_data = conn.uid("FETCH", uid, "(RFC822.HEADER)")
-                        if status != "OK":
-                            continue
-                        raw_header = msg_data[0][1]
-                        msg = email.message_from_bytes(raw_header)
-                        subject = _decode_header(msg.get("Subject", "(no subject)"))
-                        sender = _decode_header(msg.get("From", "unknown"))
-                        date_str = msg.get("Date", "")
-                        message_id = msg.get("Message-ID", "")
-                        to_str = _decode_header(msg.get("To", ""))
-                        cc_str = _decode_header(msg.get("Cc", ""))
-                        sender_name, sender_addr = email.utils.parseaddr(sender)
-                        sender_display = sender_name or sender_addr
-                        cached = cache.get(subject, {})
-                        out.append({
-                            "uid": uid.decode(),
-                            "message_id": message_id,
-                            "subject": subject,
-                            "from": sender_display,
-                            "from_address": sender_addr,
-                            "to": to_str,
-                            "cc": cc_str,
-                            "date": date_str,
-                            "_folder": folder,
-                            "summary": cached.get("summary", ""),
-                        })
-                    except Exception:
-                        continue
-            except Exception:
-                continue
-    finally:
-        try: conn.logout()
-        except Exception: pass
-    # Cap total across folders.
-    return out[: max_results * len(folders)]
+    return search_emails_via_helper(
+        query=query,
+        folders=folders,
+        max_results=max_results,
+        account=account,
+        imap_connect=_imap_connect,
+        quote_folder=_q,
+        decode_header=_decode_header,
+        get_cached_summaries=_get_cached_summaries,
+    )
 
 
 def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
