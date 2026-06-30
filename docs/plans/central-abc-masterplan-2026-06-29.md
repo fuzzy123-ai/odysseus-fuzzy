@@ -782,6 +782,16 @@ Current evidence:
 - 2026-06-30 R9H broader R9 smoke passed:
   `python -m pytest tests/test_email_message_shapes.py tests/test_email_runtime_cache.py tests/test_email_oauth_helpers.py tests/test_email_account_helpers.py tests/test_email_owner_events.py tests/test_email_schedule_helpers.py tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
   returned `101 passed, 24 warnings`.
+- 2026-06-30: L7 R9I is implemented. Read cached-extra hydration and warm-read
+  selection moved to `routes/email_read_helpers.py`; route code keeps IMAP read
+  fetches, mark-seen behavior, read-cache storage and background task startup.
+  `routes/email_routes.py` is now 2459 lines and remains a follow-up candidate.
+- 2026-06-30 R9I focused tests passed:
+  `python -m pytest tests/test_email_read_helpers.py tests/test_email_message_shapes.py tests/test_email_runtime_cache.py tests/test_email_owner_scope.py tests/test_email_imap_timeout.py tests/test_email_fallback_reconnect.py -q`
+  returned `31 passed, 6 warnings`.
+- 2026-06-30 R9I broader R9 smoke passed:
+  `python -m pytest tests/test_email_read_helpers.py tests/test_email_message_shapes.py tests/test_email_runtime_cache.py tests/test_email_oauth_helpers.py tests/test_email_account_helpers.py tests/test_email_owner_events.py tests/test_email_schedule_helpers.py tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
+  returned `105 passed, 24 warnings`.
 
 Parallel rule:
 
@@ -818,11 +828,12 @@ Slice queue:
 | L7-R9F-email-oauth-callback-boundary | repo_only | Bob | Done: OAuth authorize/callback support helpers moved behind route-level redirect decisions. |
 | L7-R9G-email-read-cache-boundary | repo_only | Bob | Done: runtime cache and per-owner IMAP pool moved behind route-compatible exports. |
 | L7-R9H-email-list-read-sync-boundary | repo_only | Bob | Done: common list/search/read response shaping moved behind route-compatible helpers. |
-| L7-R9I-email-list-read-fetch-boundary | repo_only | Bob | Next: split remaining list/read IMAP fetch/control flow while keeping owner, cache and email smoke tests stable. |
+| L7-R9I-email-read-extras-warm-boundary | repo_only | Bob | Done: read cached extras and warm-read selection moved behind route-compatible helpers. |
+| L7-R9J-email-list-read-fetch-boundary | repo_only | Bob | Next: split remaining list/read IMAP fetch/control flow while keeping owner, cache and email smoke tests stable. |
 
 Next safe slice:
 
-- Continue L7-R9I Email List/Read Fetch Boundary Split if `routes/email_routes.py` is clean.
+- Continue L7-R9J Email List/Read Fetch Boundary Split if `routes/email_routes.py` is clean.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
@@ -901,7 +912,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E and R9A-R9H are complete; tool implementation/admin and agent-loop facades are below threshold, while `routes/email_routes.py` still needs R9I/R9 route-setup extraction and later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E and R9A-R9I are complete; tool implementation/admin and agent-loop facades are below threshold, while `routes/email_routes.py` still needs R9J/R9 route-setup extraction and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

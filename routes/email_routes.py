@@ -98,6 +98,10 @@ from routes.email_oauth_helpers import (
     fetch_google_oauth_userinfo as _fetch_google_oauth_userinfo,
     google_oauth_redirect_uri as _google_oauth_redirect_uri,
 )
+from routes.email_read_helpers import (
+    load_read_cached_extras as _load_read_cached_extras,
+    select_recent_warm_reads as _select_recent_warm_reads,
+)
 from routes.email_runtime_cache import EmailRuntimeCache
 from routes.email_schedule_helpers import (
     approve_agent_draft_row as _approve_agent_draft_row,
@@ -733,88 +737,20 @@ def setup_email_routes():
                     f"size={len(raw)} total={_t_total*1000:.0f}ms"
                 )
 
-            # Look up cached summary, AI reply, and LLM-detected boundaries
-            # by Message-ID
-            cached_summary = None
-            cached_ai_reply = None
-            cached_boundaries = None
-            try:
-                import sqlite3 as _sql3
-                _c = _sql3.connect(SCHEDULED_DB)
-                owner_clause, owner_params = _email_cache_owner_clause(owner)
-                _row = _c.execute(
-                    f"SELECT summary FROM email_summaries WHERE message_id = ? AND {owner_clause}",
-                    (message_id.strip(), *owner_params),
-                ).fetchone()
-                if _row:
-                    cached_summary = _row[0]
-                _row2 = _c.execute(
-                    f"SELECT reply FROM email_ai_replies WHERE message_id = ? AND {owner_clause}",
-                    (message_id.strip(), *owner_params),
-                ).fetchone()
-                if _row2:
-                    cached_ai_reply = _apply_email_style_mechanics(_extract_reply(_row2[0] or ""))
-                _row3 = _c.execute(
-                    "SELECT sig_start, quote_start, turns_json FROM email_boundaries WHERE message_id = ?",
-                    (message_id.strip(),),
-                ).fetchone()
-                cached_turns = None
-                cached_sender_sig = None
-                # Look up a per-sender cached signature (built by the
-                # `learn_sender_signatures` action). Used by the renderer
-                # to fold sigs consistently from the same address.
-                try:
-                    if sender_addr:
-                        _rs = _c.execute(
-                            f"SELECT signature_text FROM sender_signatures "
-                            f"WHERE from_address = ? AND {owner_clause}",
-                            (sender_addr.lower().strip(), *owner_params),
-                        ).fetchone()
-                        if _rs and _rs[0]:
-                            cached_sender_sig = _rs[0]
-                except Exception:
-                    pass
-                if _row3:
-                    cached_boundaries = {"sig_start": _row3[0], "quote_start": _row3[1]}
-                    if _row3[2]:
-                        try:
-                            from src.email_thread_parser import THREAD_PARSER_VERSION
-                            _parsed = json.loads(_row3[2])
-                            # Versioned envelope: {"v": N, "turns": [...]}.
-                            # Anything else (bare list from older code, wrong
-                            # version) is treated as a cache miss so the
-                            # on-the-fly parser re-runs and the next write
-                            # warms the cache with the current shape.
-                            if (
-                                isinstance(_parsed, dict)
-                                and _parsed.get("v") == THREAD_PARSER_VERSION
-                                and isinstance(_parsed.get("turns"), list)
-                            ):
-                                cached_turns = _parsed["turns"]
-                        except Exception:
-                            cached_turns = None
-                _c.close()
-            except Exception:
-                pass
-
-            # If no cached turns, parse on-the-fly so the client never has
-            # to do the heavy lifting. Cheap on a 50KB body, free for short
-            # ones. The background task warms the cache for next reads.
-            if cached_turns is None:
-                try:
-                    from src.email_thread_parser import parse_thread
-                    cached_turns = parse_thread(body_html, body)
-                except Exception as _pe:
-                    logger.debug(f"thread parse on read failed: {_pe}")
-                    cached_turns = None
-
             return {
                 **response_base,
-                "cached_summary": cached_summary,
-                "cached_ai_reply": cached_ai_reply,
-                "boundaries": cached_boundaries,
-                "thread_turns": cached_turns,
-                "sender_signature": cached_sender_sig,
+                **_load_read_cached_extras(
+                    SCHEDULED_DB,
+                    owner,
+                    message_id,
+                    sender_addr,
+                    body_html,
+                    body,
+                    email_cache_owner_clause=_email_cache_owner_clause,
+                    apply_email_style_mechanics=_apply_email_style_mechanics,
+                    extract_reply=_extract_reply,
+                    logger=logger,
+                ),
             }
         except Exception as e:
             logger.error(f"Failed to read email {uid}: {e}")
@@ -855,31 +791,19 @@ def setup_email_routes():
     def _schedule_recent_email_warm(emails: list, folder: str, account_id: str | None, owner: str):
         if not emails or folder == "__scheduled__":
             return
-        now = _time.time()
-        selected = []
-        for em in emails:
-            uid = str((em or {}).get("uid") or "").strip()
-            if not uid:
-                continue
-            try:
-                epoch = float((em or {}).get("date_epoch") or 0)
-            except Exception:
-                epoch = 0
-            if epoch and now - epoch > _WARM_RECENT_SECONDS:
-                continue
-            try:
-                size = int((em or {}).get("size") or 0)
-            except Exception:
-                size = 0
-            if size > _WARM_MAX_BYTES:
-                continue
-            ck = _read_cache_key(account_id, folder, uid, owner=owner)
-            if _read_cache_get(ck) is not None or ck in _WARMING_READS:
-                continue
-            _WARMING_READS.add(ck)
-            selected.append((uid, ck))
-            if len(selected) >= _WARM_READ_LIMIT:
-                break
+        selected = _select_recent_warm_reads(
+            emails,
+            folder=folder,
+            account_id=account_id,
+            owner=owner,
+            now=_time.time(),
+            recent_seconds=_WARM_RECENT_SECONDS,
+            max_bytes=_WARM_MAX_BYTES,
+            read_limit=_WARM_READ_LIMIT,
+            read_cache_key=_read_cache_key,
+            read_cache_get=_read_cache_get,
+            warming_reads=_WARMING_READS,
+        )
         if not selected:
             return
 
