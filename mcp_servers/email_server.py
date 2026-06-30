@@ -41,6 +41,10 @@ from mcp_servers.email_account_config import (
     _resolve_account_from_rows,
     _writing_style_guidance,
 )
+from mcp_servers.email_cache_utils import (
+    _result_sort_time,
+    load_cached_summaries,
+)
 from mcp_servers.email_imap_utils import (
     _b,
     _clean_header_value,
@@ -174,23 +178,7 @@ def _imap_connect(account: str | None = None):
 
 
 def _get_cached_summaries():
-    """Read pre-computed summaries from SQLite cache."""
-    cfg = _load_config()
-    db_path = cfg["cache_db"]
-    if not os.path.exists(db_path):
-        return {}
-    try:
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute(
-            "SELECT subject, sender, summary, suggested_reply FROM email_ai"
-        ).fetchall()
-        conn.close()
-        result = {}
-        for subj, sender, summary, reply in rows:
-            result[subj] = {"sender": sender, "summary": summary, "reply": reply}
-        return result
-    except Exception:
-        return {}
+    return load_cached_summaries(_load_config)
 
 
 # ── Tool implementations ──
@@ -268,18 +256,6 @@ def _list_emails(folder="INBOX", max_results=20, unresponded_only=False,
         if conn:
             try: conn.logout()
             except Exception: pass
-
-
-def _result_sort_time(result: dict) -> datetime:
-    try:
-        parsed = email.utils.parsedate_to_datetime(result.get("date") or "")
-        if parsed:
-            if parsed.tzinfo:
-                parsed = parsed.astimezone().replace(tzinfo=None)
-            return parsed
-    except Exception:
-        pass
-    return datetime.min
 
 
 def _list_emails_across_accounts(folder="INBOX", max_results=20,

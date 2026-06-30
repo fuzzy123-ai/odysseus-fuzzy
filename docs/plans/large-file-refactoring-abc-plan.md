@@ -4820,6 +4820,54 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CG / L7-R12BV: Email MCP Cache Utils Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving AI-summary cache loading and
+  cross-account email date sorting into a focused helper while preserving the
+  legacy `_get_cached_summaries` wrapper in `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_cache_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CG done 2026-06-30: `load_cached_summaries` and `_result_sort_time` moved
+  to `mcp_servers/email_cache_utils.py`; `mcp_servers.email_server` keeps
+  `_get_cached_summaries()` as a compatibility wrapper around the injected
+  `_load_config` dependency.
+- R11CG line count 2026-06-30: `mcp_servers/email_server.py` is 1583 lines,
+  still in warning band but reduced from 1607 after R11CF;
+  `mcp_servers/email_cache_utils.py` is 41 lines and below the report
+  threshold.
+- R11CG focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_cache_utils.py`
+  passed.
+- R11CG email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_imap_mailbox_quoting.py tests\test_imap_leak_fixes.py tests\test_mcp_email_delete_confirmation.py -q`
+  returned `36 passed, 2 warnings`.
+
+Completion criteria:
+
+- Cached AI summaries remain available to list/search flows through
+  `mcp_servers.email_server._get_cached_summaries`.
+- Cross-account list sorting keeps tolerant date parsing semantics.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
