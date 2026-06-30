@@ -25,35 +25,10 @@ def _get_session_or_404(db, session_id: str, user: Optional[str]):
     return session
 
 
-def _aggregate_language_facets(lang_rows):
-    """Sum document counts per display language for the library facet.
-
-    NULL-language and explicit "text" rows share the "text" bucket (the
-    language filter treats them as one), so they must be ADDED. The old dict
-    comprehension keyed both to "text", silently overwriting one group and
-    undercounting the facet versus what the filter actually returns.
-    """
-    out = {}
-    for lang, cnt in lang_rows:
-        key = lang or "text"
-        out[key] = out.get(key, 0) + cnt
-    return out
-
-
-def _library_language_for_document(doc: Document) -> str:
-    """Return the display language used by the document library.
-
-    PDF documents are stored as markdown wrappers so the editor can preserve
-    extracted text, form fields, and annotations. The library should still
-    identify them as PDFs instead of exposing that internal wrapper format.
-    """
-    from src.pdf_form_doc import find_source_upload_id
-
-    if find_source_upload_id(doc.current_content or ""):
-        return "pdf"
-    return doc.language or "text"
-
-
+from routes.document_library_helpers import (
+    _aggregate_language_facets,
+    _library_language_for_document,
+)
 from routes.document_helpers import (
     DocumentCreate, DocumentUpdate, DocumentPatch,
     _doc_to_dict, _version_to_dict,

@@ -529,6 +529,10 @@ Current evidence:
 - 2026-06-30 Release-gate tests passed:
   `python -m pytest tests/test_universal_inbox_extraction.py tests/test_nextcloud_chunked_extraction.py tests/test_personal_docs_pdf_index.py tests/test_rag_manager_owner_compat.py tests/test_pdf_extraction.py tests/test_rag_pdf_partial_index.py tests/test_document_processor_pdf_extraction.py -q`
   returned `49 passed, 1 warning`.
+- 2026-06-30: Integration rechecked after the handoff. The source roadmap
+  `docs/plans/pdf-long-document-extraction-roadmap.md` is already represented
+  here as L6; no duplicate lane is needed. Remaining PDF operator visibility
+  belongs to L8/UI, while backend helper cleanup can continue under L7.
 
 Primary allowed paths:
 
@@ -958,6 +962,15 @@ Current evidence:
   `python -m py_compile routes\gallery_routes.py routes\gallery_remove_bg_helpers.py`;
   `python -m pytest tests\test_gallery_remove_bg_worker.py tests\test_gallery_filename_confinement.py tests\test_gallery_result_image_ssrf.py tests\test_gallery_image_endpoint_owner_scope.py -q`
   returned `20 passed, 2 skipped, 1 warning`.
+- 2026-06-30: L7 R12J is implemented. Document library language facet and PDF
+  display-language helpers moved to `routes/document_library_helpers.py` while
+  `routes/document_routes.py` keeps route-compatible imports for existing tests
+  and callers. The large-file report places `routes/document_routes.py` at
+  1710 lines, band `warning`, not `candidate`; report candidate count is 26.
+- 2026-06-30 R12J evidence passed:
+  `python -m py_compile routes\document_routes.py routes\document_library_helpers.py`;
+  `python -m pytest tests\test_document_library_language_facet.py tests\test_document_library_pdf_metadata.py -q`
+  returned `8 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1019,13 +1032,14 @@ Slice queue:
 | L7-R12G-task-scheduler-startup-boundary | repo_only | Bob | Done: startup housekeeping moved behind helper functions; `src/task_scheduler.py` is further below candidate threshold. |
 | L7-R12H-visual-report-helper-boundary | repo_only | Bob | Done: markdown/media/title helpers moved behind compatibility exports; `src/visual_report.py` is further below candidate threshold. |
 | L7-R12I-gallery-remove-bg-boundary | repo_only | Bob | Done: background-removal helpers moved behind route-compatible imports; `routes/gallery_routes.py` is further below candidate threshold. |
+| L7-R12J-document-library-helper-boundary | repo_only | Bob | Done: document library facet/PDF display helpers moved behind route-compatible imports; `routes/document_routes.py` is further below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue only on a new explicitly scoped backend
-  warning-band file, for example `routes/document_routes.py` or
-  `routes/chat_routes.py`. L7-R2 CSS split should wait until visual smoke
-  coverage is available because
+  warning-band file, for example `routes/chat_routes.py` or another route/helper
+  facade chosen from the large-file report. L7-R2 CSS split should wait until
+  visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
@@ -1104,7 +1118,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12I are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12J are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

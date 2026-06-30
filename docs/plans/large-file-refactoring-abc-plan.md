@@ -5,9 +5,10 @@ Date: 2026-06-30
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
-startup split, R11S visual-report helper split and R11T gallery remove-bg split implemented; tool
+startup split, R11S visual-report helper split, R11T gallery remove-bg split and R11U document
+library helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-and Gallery facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery and Document route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1471,6 +1472,51 @@ Completion criteria:
 - Remove-bg worker behavior, file confinement, result-image SSRF and endpoint
   owner scope regressions remain covered.
 - The slice performs no live image-worker or provider action.
+
+### R11U / L7-R12J: Document Library Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move document library display metadata helpers out of `routes/document_routes.py`
+  while preserving route-compatible private imports for existing tests and callers.
+
+Allowed paths:
+
+- `routes/document_routes.py`
+- `routes/document_library_helpers.py`
+- `tests/test_document_library_language_facet.py`
+- `tests/test_document_library_pdf_metadata.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11U done 2026-06-30: language facet aggregation and PDF-backed document
+  display-language detection moved to `routes/document_library_helpers.py`.
+- Compatibility evidence: `routes/document_routes.py` imports the moved private
+  helper names so existing imports from `routes.document_routes` still work.
+- R11U line count 2026-06-30: `routes/document_routes.py` is 1710 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11U focused checks 2026-06-30:
+  `python -m py_compile routes\document_routes.py routes\document_library_helpers.py`
+  passed.
+- R11U Document library regression tests 2026-06-30:
+  `python -m pytest tests\test_document_library_language_facet.py tests\test_document_library_pdf_metadata.py -q`
+  returned `8 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/document_routes.py` remains below the large-file candidate threshold
+  with a clearer route facade boundary.
+- Library language facet counts and PDF display-language behavior remain
+  covered by focused tests.
+- The slice performs no live document, Nextcloud or provider action.
 
 ### R12: Obsidian Frontend Split
 
