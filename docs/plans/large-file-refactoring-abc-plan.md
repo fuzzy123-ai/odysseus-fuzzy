@@ -984,6 +984,18 @@ Current evidence:
 - R11H Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11h-2`
   returned `103 passed, 2 warnings`.
+- R11I done 2026-06-30: live-capable Telegram file download, voice download,
+  gated live STT provider construction and Universal Inbox attachment spooling
+  moved to `plugins/telegram/live_pipeline.py`; `plugin.py` keeps compatibility
+  imports/wrappers and no live Telegram action is executed by the slice.
+- R11I line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  2096 lines; `plugins/telegram/live_pipeline.py` is 200 lines.
+- R11I focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\live_pipeline.py plugins\telegram\admin.py plugins\telegram\outbound.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11I Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11i-1`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -993,8 +1005,9 @@ Completion criteria:
 
 Remaining work:
 
-- Live file download/pipeline execution still needs a separate module before
-  R11 can be marked complete.
+- `plugins/telegram/plugin.py` remains just above the 2000-line candidate
+  threshold; route/tool-registration or project/export helpers need one final
+  small split before R11 can be marked complete.
 
 ### R12: Obsidian Frontend Split
 
