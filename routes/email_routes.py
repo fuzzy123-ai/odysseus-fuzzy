@@ -15,7 +15,6 @@ handlers need. The split is mechanical — no behavior change.
 import asyncio
 import os
 import sqlite3 as _sql3
-import time
 import email as email_mod
 import email.header
 import email.utils
@@ -85,6 +84,13 @@ from routes.email_owner_events import (
     email_tag_owner_aliases as _email_tag_owner_aliases_impl,
     email_tag_owner_clause_from_aliases as _email_tag_owner_clause_from_aliases,
     record_email_received_events as _record_email_received_events_impl,
+)
+from routes.email_oauth_helpers import (
+    apply_google_oauth_tokens as _apply_google_oauth_tokens,
+    build_google_oauth_authorize_url as _build_google_oauth_authorize_url,
+    exchange_google_oauth_code as _exchange_google_oauth_code,
+    fetch_google_oauth_userinfo as _fetch_google_oauth_userinfo,
+    google_oauth_redirect_uri as _google_oauth_redirect_uri,
 )
 from routes.email_schedule_helpers import (
     approve_agent_draft_row as _approve_agent_draft_row,
@@ -2655,27 +2661,17 @@ def setup_email_routes():
 
     @router.get("/oauth/google/authorize")
     async def google_oauth_authorize(account_id: str = Query(...), request: Request = None, owner: str = Depends(require_user)):
-        import urllib.parse
         _assert_owns_account(account_id, owner)
         client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
         if not client_id:
             raise HTTPException(400, "GOOGLE_OAUTH_CLIENT_ID not set — add it to .env")
-        redirect_uri = (
-            os.environ.get("GOOGLE_OAUTH_REDIRECT_URI")
-            or f"http://{request.headers.get('host', 'localhost:7000')}/api/email/oauth/google/callback"
+        redirect_uri = _google_oauth_redirect_uri(
+            configured_uri=os.environ.get("GOOGLE_OAUTH_REDIRECT_URI"),
+            request_host=request.headers.get("host", "localhost:7000"),
         )
         state = make_oauth_state(account_id, owner)
-        params = urllib.parse.urlencode({
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "response_type": "code",
-            "scope": "https://mail.google.com/ email",
-            "access_type": "offline",
-            "prompt": "consent",
-            "state": state,
-        })
         from fastapi.responses import RedirectResponse as _RR
-        return _RR(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+        return _RR(_build_google_oauth_authorize_url(client_id=client_id, redirect_uri=redirect_uri, state=state))
 
     @router.get("/oauth/google/callback")
     async def google_oauth_callback(
@@ -2684,7 +2680,6 @@ def setup_email_routes():
         error: str = Query(None),
         request: Request = None,
     ):
-        import urllib.parse
         from fastapi.responses import RedirectResponse as _RR
         if error:
             return _RR("/?section=integrations&email_oauth_error=google_error")
@@ -2697,77 +2692,32 @@ def setup_email_routes():
         owner = state_data.get("o", "")
         client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
         client_secret = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-        redirect_uri = (
-            os.environ.get("GOOGLE_OAUTH_REDIRECT_URI")
-            or f"http://{request.headers.get('host', 'localhost:7000')}/api/email/oauth/google/callback"
+        redirect_uri = _google_oauth_redirect_uri(
+            configured_uri=os.environ.get("GOOGLE_OAUTH_REDIRECT_URI"),
+            request_host=request.headers.get("host", "localhost:7000"),
         )
-        import httpx as _httpx
         try:
-            resp = _httpx.post("https://oauth2.googleapis.com/token", data={
-                "code": code,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "redirect_uri": redirect_uri,
-                "grant_type": "authorization_code",
-            }, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _exchange_google_oauth_code(
+                code=code,
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=redirect_uri,
+            )
         except Exception:
             logger.warning("Google token exchange failed")
             return _RR("/?section=integrations&email_oauth_error=token_exchange_failed")
-        access_token = data.get("access_token", "")
-        refresh_token = data.get("refresh_token", "")
-        expiry = str(int(time.time()) + data.get("expires_in", 3600))
-        # Fetch the email address from userinfo so we can auto-fill imap_user.
-        email_addr = ""
-        display_name = ""
-        try:
-            ui = _httpx.get("https://www.googleapis.com/oauth2/v1/userinfo",
-                            headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
-            if ui.is_success:
-                ui_data = ui.json()
-                email_addr = ui_data.get("email", "")
-                display_name = ui_data.get("name", "")
-        except Exception:
-            pass
-        from core.database import SessionLocal, EmailAccount
-        from src.secret_storage import encrypt as _enc
-        db = SessionLocal()
-        try:
-            row = db.query(EmailAccount).filter(EmailAccount.id == account_id).first()
-            if not row:
-                return _RR("/?section=integrations&email_oauth_error=account_not_found")
-            # SECURITY: verify the account belongs to the initiating user.
-            if owner and row.owner and row.owner != owner:
-                logger.warning("OAuth callback owner mismatch — rejecting token write")
-                return _RR("/?section=integrations&email_oauth_error=ownership_error")
-            row.oauth_provider = "google"
-            row.oauth_access_token = _enc(access_token)
-            if refresh_token:
-                row.oauth_refresh_token = _enc(refresh_token)
-            row.oauth_token_expiry = expiry
-            # Auto-fill Google IMAP/SMTP settings if not already configured.
-            if not row.imap_host:
-                row.imap_host = "imap.gmail.com"
-                row.imap_port = 993
-                row.imap_starttls = False
-            if not row.smtp_host:
-                row.smtp_host = "smtp.gmail.com"
-                row.smtp_port = 587
-            if email_addr:
-                if not row.imap_user:
-                    row.imap_user = email_addr
-                if not row.smtp_user:
-                    row.smtp_user = email_addr
-                if not row.from_address:
-                    row.from_address = email_addr
-                if not row.name or row.name == row.id:
-                    row.name = email_addr
-            if display_name and not row.display_name:
-                row.display_name = display_name
-            db.commit()
-        finally:
-            db.close()
+
+        result = _apply_google_oauth_tokens(
+            account_id=account_id,
+            owner=owner,
+            token_data=data,
+            userinfo=_fetch_google_oauth_userinfo(data.get("access_token", "")),
+        )
+        if result == "account_not_found":
+            return _RR("/?section=integrations&email_oauth_error=account_not_found")
+        if result == "ownership_error":
+            logger.warning("OAuth callback owner mismatch — rejecting token write")
+            return _RR("/?section=integrations&email_oauth_error=ownership_error")
         return _RR("/?section=integrations&email_oauth_success=1")
 
     return router

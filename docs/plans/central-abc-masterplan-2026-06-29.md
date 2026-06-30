@@ -751,6 +751,17 @@ Current evidence:
 - 2026-06-30 R9E broader R9 smoke passed:
   `python -m pytest tests/test_email_account_helpers.py tests/test_email_owner_events.py tests/test_email_schedule_helpers.py tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
   returned `87 passed, 24 warnings`.
+- 2026-06-30: L7 R9F is implemented. Google OAuth redirect URI resolution,
+  authorize URL building, token exchange, userinfo fetch and encrypted token
+  persistence with account owner guard moved to `routes/email_oauth_helpers.py`;
+  `routes.email_routes` keeps request/redirect decisions and generic error
+  redirects.
+- 2026-06-30 R9F focused tests passed:
+  `python -m pytest tests/test_email_oauth_helpers.py tests/test_email_oauth.py tests/test_email_account_helpers.py tests/test_email_imap_timeout.py -q`
+  returned `40 passed, 1 warning`.
+- 2026-06-30 R9F broader R9 smoke passed:
+  `python -m pytest tests/test_email_oauth_helpers.py tests/test_email_account_helpers.py tests/test_email_owner_events.py tests/test_email_schedule_helpers.py tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
+  returned `91 passed, 24 warnings`.
 
 Parallel rule:
 
@@ -784,11 +795,12 @@ Slice queue:
 | L7-R9C-email-smtp-drafts-split | repo_only | Bob | Done: SMTP resolution and send/draft MIME helpers moved behind compatibility aliases. |
 | L7-R9D-email-owner-event-split | repo_only | Bob | Done: owner/event/scheduled-draft data helpers moved behind compatibility wrappers. |
 | L7-R9E-email-account-config-boundary | repo_only | Bob | Done: account/config data helpers moved behind route-level owner checks and compatibility behavior. |
-| L7-R9F-email-oauth-callback-boundary | repo_only | Bob | Next: split OAuth authorize/callback support helpers while keeping token, owner and redirect tests stable. |
+| L7-R9F-email-oauth-callback-boundary | repo_only | Bob | Done: OAuth authorize/callback support helpers moved behind route-level redirect decisions. |
+| L7-R9G-email-read-cache-boundary | repo_only | Bob | Next: split read/list/cache support helpers while keeping owner, IMAP and email smoke tests stable. |
 
 Next safe slice:
 
-- Continue L7-R9F Email OAuth Callback Boundary Split if `routes/email_routes.py` is clean.
+- Continue L7-R9G Email Read/Cache Boundary Split if `routes/email_routes.py` is clean.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
