@@ -4772,6 +4772,54 @@ Completion criteria:
 - `mcp_servers.email_server` keeps the legacy private helper names importable
   while implementation lives in `mcp_servers.email_folder_utils.py`.
 
+## R11CF / L7-R12BU: Email MCP Message Utils Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving MIME header decoding and
+  message text extraction into a focused helper while preserving legacy private
+  helper imports from `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_message_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CF done 2026-06-30: `_decode_header` and `_extract_text` moved to
+  `mcp_servers/email_message_utils.py`; `mcp_servers.email_server` imports
+  those private helper names so existing tests and callers remain stable.
+- R11CF line count 2026-06-30: `mcp_servers/email_server.py` is 1607 lines,
+  still in warning band but reduced from 1660 after R11CE;
+  `mcp_servers/email_message_utils.py` is 60 lines and below the report
+  threshold.
+- R11CF focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_message_utils.py`
+  passed.
+- R11CF email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_imap_mailbox_quoting.py tests\test_imap_leak_fixes.py tests\test_mcp_email_delete_confirmation.py -q`
+  returned `36 passed, 2 warnings`.
+
+Completion criteria:
+
+- MIME header spacing and fallback decoding stay stable through the focused
+  email MCP regression tests.
+- Message text extraction remains available through
+  `mcp_servers.email_server._extract_text`.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

@@ -10,11 +10,9 @@ import asyncio
 import imaplib
 import smtplib
 import email
-import email.header
 import email.utils
 from email.message import EmailMessage
 import re
-import html
 import json
 import sqlite3
 import sys
@@ -57,6 +55,10 @@ from mcp_servers.email_folder_utils import (
     _folder_role_from_name,
     _list_folder_lines,
     _resolve_folder,
+)
+from mcp_servers.email_message_utils import (
+    _decode_header,
+    _extract_text,
 )
 from mcp_servers.email_tool_formatting import (
     apply_active_account_context,
@@ -169,61 +171,6 @@ def _imap_connect(account: str | None = None):
             pass
         raise
     return conn
-
-
-def _decode_header(raw):
-    """Decode MIME encoded header."""
-    if not raw:
-        return ""
-    try:
-        # make_header concatenates per RFC 2047: no spurious space between an
-        # encoded-word and adjacent plain text (plain runs keep their own
-        # whitespace), and whitespace between two adjacent encoded-words is
-        # dropped. The old " ".join produced "Re:  Jose" style double spaces
-        # on every non-ASCII subject or sender.
-        return str(email.header.make_header(email.header.decode_header(raw)))
-    except Exception:
-        # Malformed header or unknown charset: lossy per-part decode
-        decoded = []
-        for data, charset in email.header.decode_header(raw):
-            if isinstance(data, bytes):
-                try:
-                    decoded.append(data.decode(charset or "utf-8", errors="replace"))
-                except LookupError:
-                    decoded.append(data.decode("utf-8", errors="replace"))
-            else:
-                decoded.append(data)
-        return "".join(decoded)
-
-
-def _extract_text(msg):
-    """Extract plain text body from email message."""
-    if msg.is_multipart():
-        text_parts = []
-        for part in msg.walk():
-            ct = part.get_content_type()
-            cd = str(part.get("Content-Disposition", ""))
-            if ct == "text/plain" and "attachment" not in cd:
-                payload = part.get_payload(decode=True)
-                if payload:
-                    charset = part.get_content_charset() or "utf-8"
-                    text_parts.append(payload.decode(charset, errors="replace"))
-            elif ct == "text/html" and not text_parts and "attachment" not in cd:
-                payload = part.get_payload(decode=True)
-                if payload:
-                    charset = part.get_content_charset() or "utf-8"
-                    raw_html = payload.decode(charset, errors="replace")
-                    text = re.sub(r"<br\s*/?>", "\n", raw_html, flags=re.I)
-                    text = re.sub(r"<[^>]+>", "", text)
-                    text = html.unescape(text)
-                    text_parts.append(text.strip())
-        return "\n".join(text_parts)
-    else:
-        payload = msg.get_payload(decode=True)
-        if payload:
-            charset = msg.get_content_charset() or "utf-8"
-            return payload.decode(charset, errors="replace")
-    return ""
 
 
 def _get_cached_summaries():
