@@ -35,8 +35,8 @@ from routes.model_loopback_helpers import (
     rewrite_loopback_for_docker as _rewrite_loopback_for_docker_impl,
 )
 from routes.model_probe_helpers import (
-    is_discovery_only_provider as _is_discovery_only_provider,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
+    probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
     safe_build_models_url as _safe_build_models_url_impl,
     safe_detect_provider as _safe_detect_provider_impl,
@@ -140,68 +140,20 @@ def _resolve_probe_key(ep) -> Optional[str]:
 
 def _probe_single_model(base: str, api_key: str, model_id: str, timeout: int = 10, with_tools: bool = False) -> dict:
     """Send a realistic completion request to a single model. Returns {status, latency_ms, error?}."""
-    provider = _safe_detect_provider(base)
-    if _is_discovery_only_provider(provider):
-        return {"status": "ok", "latency_ms": 0, "skipped": True}
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Say OK"},
-    ]
-    # Simple tool definition to test tool support
-    _test_tools = [{"type": "function", "function": {"name": "test", "description": "Test tool", "parameters": {"type": "object", "properties": {}}}}] if with_tools else None
-
-    if provider == "anthropic":
-        from src.llm_core import _normalize_anthropic_url, _build_anthropic_headers, _build_anthropic_payload
-        target_url = _normalize_anthropic_url(base)
-        auth_headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        h = _build_anthropic_headers(auth_headers)
-        payload = _build_anthropic_payload(model_id, messages, 0.0, 5)
-        if _test_tools:
-            payload["tools"] = [{"name": "test", "description": "Test tool", "input_schema": {"type": "object", "properties": {}}}]
-    elif provider == "ollama":
-        from src.llm_core import _build_ollama_payload
-        target_url = build_chat_url(base)
-        h = _safe_build_headers(api_key, base)
-        h["Content-Type"] = "application/json"
-        payload = _build_ollama_payload(model_id, messages, 0.0, 5, stream=False, tools=_test_tools)
-    else:
-        target_url = build_chat_url(base)
-        h = _safe_build_headers(api_key, base)
-        h["Content-Type"] = "application/json"
-        from src.llm_core import _uses_max_completion_tokens, _restricts_temperature
-        _max_key = "max_completion_tokens" if _uses_max_completion_tokens(model_id) else "max_tokens"
-        payload = {"model": model_id, "messages": messages, _max_key: 5}
-        # Reasoning models (o1/o3/o4/gpt-5) reject an explicit temperature, so a
-        # probe that hardcodes one falsely reports a working endpoint as failing.
-        if not _restricts_temperature(model_id):
-            payload["temperature"] = 0.0
-        if _test_tools:
-            payload["tools"] = _test_tools
-
-    try:
-        t0 = _time.time()
-        r = httpx.post(target_url, headers=h, json=payload, timeout=timeout, verify=llm_verify())
-        latency = round((_time.time() - t0) * 1000)
-        if r.is_success:
-            return {"status": "ok", "latency_ms": latency}
-        else:
-            # Extract error detail from response body
-            error_msg = f"HTTP {r.status_code}"
-            try:
-                body = r.json()
-                if "error" in body:
-                    err = body["error"]
-                    if isinstance(err, dict):
-                        error_msg = err.get("message", error_msg)[:120]
-                    elif isinstance(err, str):
-                        error_msg = err[:120]
-            except Exception:
-                pass
-            return {"status": "fail", "latency_ms": latency, "error": error_msg}
-    except httpx.TimeoutException:
-        return {"status": "timeout", "latency_ms": timeout * 1000, "error": f"Timed out ({timeout}s)"}
-    except Exception as e:
-        return {"status": "fail", "error": str(e)[:80]}
+    return _probe_single_model_impl(
+        base,
+        api_key,
+        model_id,
+        timeout=timeout,
+        with_tools=with_tools,
+        safe_detect_provider_func=_safe_detect_provider,
+        safe_build_headers_func=_safe_build_headers,
+        build_chat_url_func=build_chat_url,
+        llm_verify_func=llm_verify,
+        http_post_func=httpx.post,
+        monotonic_time_func=_time.time,
+        timeout_exception_cls=httpx.TimeoutException,
+    )
 
 
 def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> List[str]:

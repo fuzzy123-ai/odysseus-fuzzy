@@ -106,3 +106,115 @@ def model_endpoint_error_message(
         return f"No models found for that provider/key. Probed {probed}. Last probe error: {error}."
 
     return f"No models found for that provider/key. Probed {probed}."
+
+
+def probe_single_model(
+    base: str,
+    api_key: str,
+    model_id: str,
+    timeout: int = 10,
+    with_tools: bool = False,
+    *,
+    safe_detect_provider_func: Callable[[str], str],
+    safe_build_headers_func: Callable[[Optional[str], str], dict],
+    build_chat_url_func: Callable[[str], str],
+    llm_verify_func: Callable[[], Any],
+    http_post_func: Callable[..., Any],
+    monotonic_time_func: Callable[[], float],
+    timeout_exception_cls: type[BaseException],
+) -> dict[str, Any]:
+    """Send a minimal completion request to verify a single model."""
+    provider = safe_detect_provider_func(base)
+    if is_discovery_only_provider(provider):
+        return {"status": "ok", "latency_ms": 0, "skipped": True}
+
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Say OK"},
+    ]
+    test_tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "test",
+                "description": "Test tool",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+    ] if with_tools else None
+
+    if provider == "anthropic":
+        from src.llm_core import (
+            _build_anthropic_headers,
+            _build_anthropic_payload,
+            _normalize_anthropic_url,
+        )
+
+        target_url = _normalize_anthropic_url(base)
+        auth_headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        headers = _build_anthropic_headers(auth_headers)
+        payload = _build_anthropic_payload(model_id, messages, 0.0, 5)
+        if test_tools:
+            payload["tools"] = [
+                {
+                    "name": "test",
+                    "description": "Test tool",
+                    "input_schema": {"type": "object", "properties": {}},
+                }
+            ]
+    elif provider == "ollama":
+        from src.llm_core import _build_ollama_payload
+
+        target_url = build_chat_url_func(base)
+        headers = safe_build_headers_func(api_key, base)
+        headers["Content-Type"] = "application/json"
+        payload = _build_ollama_payload(
+            model_id,
+            messages,
+            0.0,
+            5,
+            stream=False,
+            tools=test_tools,
+        )
+    else:
+        from src.llm_core import _restricts_temperature, _uses_max_completion_tokens
+
+        target_url = build_chat_url_func(base)
+        headers = safe_build_headers_func(api_key, base)
+        headers["Content-Type"] = "application/json"
+        max_key = "max_completion_tokens" if _uses_max_completion_tokens(model_id) else "max_tokens"
+        payload = {"model": model_id, "messages": messages, max_key: 5}
+        if not _restricts_temperature(model_id):
+            payload["temperature"] = 0.0
+        if test_tools:
+            payload["tools"] = test_tools
+
+    try:
+        t0 = monotonic_time_func()
+        response = http_post_func(
+            target_url,
+            headers=headers,
+            json=payload,
+            timeout=timeout,
+            verify=llm_verify_func(),
+        )
+        latency = round((monotonic_time_func() - t0) * 1000)
+        if response.is_success:
+            return {"status": "ok", "latency_ms": latency}
+
+        error_msg = f"HTTP {response.status_code}"
+        try:
+            body = response.json()
+            if "error" in body:
+                err = body["error"]
+                if isinstance(err, dict):
+                    error_msg = err.get("message", error_msg)[:120]
+                elif isinstance(err, str):
+                    error_msg = err[:120]
+        except Exception:
+            pass
+        return {"status": "fail", "latency_ms": latency, "error": error_msg}
+    except timeout_exception_cls:
+        return {"status": "timeout", "latency_ms": timeout * 1000, "error": f"Timed out ({timeout}s)"}
+    except Exception as exc:
+        return {"status": "fail", "error": str(exc)[:80]}

@@ -11,7 +11,7 @@ calendar format helper split, R11Y session format helper split, R11Z shell depen
 helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
 R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
 contact helper split, R11AF model ProviderAuth helper split and R11AG model
-probe-key helper split implemented; tool
+probe-key helper split and R11AH model single-probe helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2148,6 +2148,58 @@ Completion criteria:
   with probe-key resolution separated from route orchestration.
 - Probe-key resolution still forwards endpoint owner scope, returns the runtime
   key and fails closed with a warning if runtime resolution errors.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AH / L7-R12W: Model Single-Probe Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move single-model completion probe request construction, provider-specific
+  payload routing and response status mapping out of `routes/model_routes.py`
+  while preserving the route-compatible `_probe_single_model()` wrapper.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AH done 2026-06-30: single-model completion probe logic moved to
+  `probe_single_model()` in `routes/model_probe_helpers.py`. The route wrapper
+  injects provider detection, header building, chat URL building, TLS verify,
+  fakeable HTTP post, clock and timeout exception dependencies.
+- Compatibility evidence: existing endpoint-probing tests still exercise
+  success/fail/timeout status mapping, upstream error extraction, Anthropic
+  request routing, tool schema payloads and discovery-only provider skipping
+  through the route-compatible `_probe_single_model()` API.
+- R11AH line count 2026-06-30: `routes/model_routes.py` is 1750 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AH focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AH Model probe tests 2026-06-30:
+  `python -m pytest tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `180 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with completion-probe request mechanics separated from route orchestration.
+- Probe behavior remains covered for OpenAI-compatible, Ollama, Anthropic,
+  timeout, transport failure and discovery-only provider paths without live
+  provider calls.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 
