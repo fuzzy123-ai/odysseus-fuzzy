@@ -5203,6 +5203,50 @@ Completion criteria:
 - IMAP logout-on-select-failure behavior remains covered by regression tests.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CO / L7-R12CD: Email MCP Draft Reply Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving reply-draft fetch, threading
+  header and reply-all CC orchestration into `mcp_servers/email_reply_utils.py`
+  while preserving the legacy `_draft_reply_to_email` wrapper.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_reply_utils.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CO done 2026-06-30: reply-draft orchestration moved to
+  `mcp_servers/email_reply_utils.py`; `mcp_servers.email_server` keeps
+  `_draft_reply_to_email` as compatibility wrapper.
+- R11CO line count 2026-06-30: `mcp_servers/email_server.py` is 1175 lines,
+  still in warning band but reduced from 1206 after R11CN;
+  `mcp_servers/email_reply_utils.py` is 133 lines and below the report
+  threshold.
+- R11CO focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_reply_utils.py`
+  passed.
+- R11CO email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `25 passed, 2 warnings`.
+
+Completion criteria:
+
+- Draft reply threading, owner-aware reply-all filtering and draft-document
+  creation stay stable.
+- Legacy wrapper remains available for dispatch and future tests.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

@@ -81,7 +81,10 @@ from mcp_servers.email_message_utils import (
     _decode_header,
     _extract_text,
 )
-from mcp_servers.email_reply_utils import reply_to_email as reply_to_email_via_helper
+from mcp_servers.email_reply_utils import (
+    draft_reply_to_email as draft_reply_to_email_via_helper,
+    reply_to_email as reply_to_email_via_helper,
+)
 from mcp_servers.email_send_utils import send_email as send_email_via_helper
 from mcp_servers.email_smtp_connection_utils import (
     connect_smtp,
@@ -605,53 +608,19 @@ def _create_email_draft_document(
 
 def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None, title=None):
     """Create a threaded Odysseus reply draft document. Does not send."""
-    conn = _imap_connect(account)
-    conn.select(_q(folder), readonly=True)
-    status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
-    conn.logout()
-    if status != "OK" or not msg_data or not msg_data[0]:
-        return {"error": f"Failed to fetch email UID {uid}"}
-    raw = msg_data[0][1]
-    orig = email.message_from_bytes(raw)
-
-    orig_subject = _decode_header(orig.get("Subject", ""))
-    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
-    orig_message_id = orig.get("Message-ID", "")
-    orig_references = orig.get("References", "")
-    new_references = (orig_references + " " + orig_message_id).strip() if orig_references else orig_message_id
-
-    sender = _decode_header(orig.get("From", ""))
-    _, sender_addr = email.utils.parseaddr(sender)
-    to_addrs = sender_addr
-
-    cc = None
-    if reply_all:
-        cc_addrs = []
-        cfg = _load_config(account)
-        own_addrs = {
-            (cfg.get("imap_user") or "").strip().lower(),
-            (cfg.get("from_address") or "").strip().lower(),
-        }
-        for header_name in ("To", "Cc"):
-            for _, addr in email.utils.getaddresses([orig.get(header_name, "")]):
-                addr_l = (addr or "").strip().lower()
-                if addr and addr != sender_addr and addr_l not in own_addrs:
-                    cc_addrs.append(addr)
-        if cc_addrs:
-            cc = ", ".join(dict.fromkeys(cc_addrs))
-
-    return _create_email_draft_document(
-        to=to_addrs,
-        subject=reply_subject,
-        body=body,
-        title=title or reply_subject,
-        cc=cc,
-        in_reply_to=orig_message_id,
-        references=new_references,
-        source_uid=uid,
-        source_folder=folder,
+    return draft_reply_to_email_via_helper(
+        uid,
+        body,
+        folder=folder,
+        reply_all=reply_all,
         account=account,
-        source_message_id=orig_message_id,
+        title=title,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        decode_header_func=_decode_header,
+        load_config_func=_load_config,
+        create_draft_document_func=_create_email_draft_document,
     )
 
 
