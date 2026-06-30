@@ -210,6 +210,7 @@ def _apply_local_cache_affinity(payload: Dict, url: str, session_id: Optional[st
 
 
 from src.llm_chatgpt_subscription import (
+    build_chatgpt_responses_payload as _build_chatgpt_responses_payload_impl,
     chatgpt_subscription_instructions as _chatgpt_subscription_instructions,
     message_content_as_text as _message_content_as_text,
     normalize_chatgpt_subscription_url as _normalize_chatgpt_subscription_url,
@@ -234,23 +235,14 @@ def _build_chatgpt_responses_payload(
     *,
     stream: bool = False,
 ) -> Dict:
-    from src.chatgpt_subscription import build_responses_input
-
-    conversation = [msg for msg in (messages or []) if (msg.get("role") or "") != "system"]
-    payload: Dict = {
-        "model": model,
-        "instructions": _chatgpt_subscription_instructions(messages),
-        "input": build_responses_input(conversation),
-        "stream": stream,
-        "store": False,
-    }
-    if not _restricts_temperature(model):
-        payload["temperature"] = temperature
-    # ChatGPT Subscription Codex API does not support max_output_tokens —
-    # passing it returns HTTP 400 "Unsupported parameter: max_output_tokens".
-    # Do not include it in the payload.
-    return payload
-
+    return _build_chatgpt_responses_payload_impl(
+        model,
+        messages,
+        temperature,
+        max_tokens,
+        stream=stream,
+        restricts_temperature=_restricts_temperature,
+    )
 
 def _format_chatgpt_subscription_error(status_code: int, text: str) -> str:
     return _format_chatgpt_subscription_error_impl(

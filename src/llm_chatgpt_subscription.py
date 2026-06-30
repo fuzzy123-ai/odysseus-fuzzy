@@ -39,3 +39,29 @@ def chatgpt_subscription_instructions(messages: List[Dict]) -> str:
     if instructions:
         return "\n\n".join(instructions)
     return "You are a helpful AI assistant."
+
+
+def build_chatgpt_responses_payload(
+    model: str,
+    messages: List[Dict],
+    temperature: float,
+    max_tokens: int,
+    *,
+    stream: bool = False,
+    restricts_temperature,
+) -> Dict:
+    from src.chatgpt_subscription import build_responses_input
+
+    conversation = [msg for msg in (messages or []) if (msg.get("role") or "") != "system"]
+    payload: Dict = {
+        "model": model,
+        "instructions": chatgpt_subscription_instructions(messages),
+        "input": build_responses_input(conversation),
+        "stream": stream,
+        "store": False,
+    }
+    if not restricts_temperature(model):
+        payload["temperature"] = temperature
+    # ChatGPT Subscription Codex API does not support max_output_tokens.
+    # Passing it returns HTTP 400 "Unsupported parameter: max_output_tokens".
+    return payload
