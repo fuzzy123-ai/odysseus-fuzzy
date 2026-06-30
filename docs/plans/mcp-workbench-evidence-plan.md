@@ -1,8 +1,8 @@
 # MCP Workbench Evidence Plan
 
-Date: 2026-06-29
+Date: 2026-06-30
 
-Status: bootstrap lane in progress
+Status: safe bootstrap complete; Codex-side service setup remains gated
 
 Source:
 
@@ -28,12 +28,15 @@ read-only by default and auditable.
 - Focused tests on 2026-06-29 passed:
   `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
   returned `16 passed, 1 warning`.
+- Focused tests on 2026-06-30 passed:
+  `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
+  returned `16 passed, 1 warning`.
 
 ## Workbench Components
 
 | Component | Status | Purpose | Gate |
 | --- | --- | --- | --- |
-| Local Odysseus MCP endpoint | offline tests done | Verify JSON-RPC, tool policy, readiness and redacted audit. | Live activation needs operator Go. |
+| Local Odysseus MCP endpoint | offline tests done, live smoke gated | Verify JSON-RPC, tool policy, readiness and redacted audit. | Live activation needs operator Go. |
 | Codex MCP service setup | gated | Configure corresponding MCP services/connectors in this Codex environment when available. | Needs availability plus explicit Go for non-bundled/networked services. |
 | Playwright/browser evidence | planned | Capture UI flow evidence without private browser profiles or secrets. | Live browser run only against approved local target. |
 | GitHub connector/MCP | planned | Read PR, Actions, review and issue context without manual copying. | Writes need explicit visible approval. |
@@ -163,6 +166,19 @@ Blocked without separate Go:
 | L3-4-playwright-evidence-plan | done | This file defines local UI smoke targets, artifact rules and privacy gates. |
 | L3-5-github-context-policy | done | This file defines read/write boundaries for GitHub connector/MCP usage. |
 | L3-6-podman-readonly-plan | done | This file defines Podman read-only evidence and mutation gates using existing health foundations. |
+
+## Safe Bootstrap Completion
+
+The repo-only part of the MCP workbench is complete for the current masterplan:
+
+- Default MCP policy keeps high-risk tools hidden, even when `expose_all` is
+  requested.
+- Generic API passthrough remains hidden by default.
+- Owner-scoped writes, private reads and filesystem reads require explicit
+  policy flags.
+- Docker MCP remains a non-goal for this Podman/pods infrastructure.
+- Local MCP live activation, Codex-side service installation and host Podman
+  probes remain gated actions, not blockers for other safe backend lanes.
 
 ## Recommended Next Human Decision
 

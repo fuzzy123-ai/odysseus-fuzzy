@@ -278,6 +278,12 @@ Current evidence:
 - 2026-06-29 Focused tests passed:
   `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
   returned `16 passed, 1 warning`.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
+  returned `16 passed, 1 warning`.
+- 2026-06-30 Safe L3 bootstrap is complete in repo-only scope. Codex-side MCP
+  service setup, local live MCP activation and host Podman probes remain gated
+  actions; they do not block later safe backend lanes.
 
 Primary allowed paths:
 
