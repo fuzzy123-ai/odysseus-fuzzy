@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Mapping, Optional
 from urllib.parse import urlparse
 
 
@@ -218,3 +218,32 @@ def probe_single_model(
         return {"status": "timeout", "latency_ms": timeout * 1000, "error": f"Timed out ({timeout}s)"}
     except Exception as exc:
         return {"status": "fail", "error": str(exc)[:80]}
+
+
+def append_curated_probe_models(
+    base_url: str,
+    models: list[str],
+    *,
+    host_match_func: Callable[[str, str], bool],
+    match_provider_curated_func: Callable[[str, Optional[str]], Optional[str]],
+    provider_curated: Mapping[str, list[str]],
+) -> list[str]:
+    """Append endpoint-specific curated models omitted by provider /models APIs."""
+    augmented = list(models)
+    path = urlparse(base_url).path or ""
+
+    def _append_key(curated_key: Optional[str]) -> None:
+        if not curated_key:
+            return
+        for entry in provider_curated.get(curated_key, []):
+            if entry in augmented:
+                continue
+            if any(model.startswith(entry) for model in augmented):
+                continue
+            augmented.append(entry)
+
+    if host_match_func(base_url, "z.ai") and "/api/coding" in path:
+        _append_key(match_provider_curated_func(base_url, None))
+    if host_match_func(base_url, "kimi.com") and "/coding" in path:
+        _append_key(match_provider_curated_func(base_url, None))
+    return augmented

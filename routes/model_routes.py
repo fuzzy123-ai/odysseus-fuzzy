@@ -35,6 +35,7 @@ from routes.model_loopback_helpers import (
     rewrite_loopback_for_docker as _rewrite_loopback_for_docker_impl,
 )
 from routes.model_probe_helpers import (
+    append_curated_probe_models as _append_curated_probe_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
@@ -205,18 +206,13 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
         if not models:
             models = [m.get("name") or m.get("model") for m in (data.get("models") or []) if m.get("name") or m.get("model")]
         if models:
-            # Z.AI coding plan omits some working models from /models;
-            # append curated-only entries for that endpoint only.
-            if _host_match(base, "z.ai") and "/api/coding" in (urlparse(base).path or ""):
-                _ck = _match_provider_curated(base, None)
-                for _e in _PROVIDER_CURATED.get(_ck, []):
-                    if _e not in set(models) and not any(m.startswith(_e) for m in models):
-                        models.append(_e)
-            if _host_match(base, "kimi.com") and "/coding" in (urlparse(base).path or ""):
-                _ck = _match_provider_curated(base, None)
-                for _e in _PROVIDER_CURATED.get(_ck, []):
-                    if _e not in set(models) and not any(m.startswith(_e) for m in models):
-                        models.append(_e)
+            models = _append_curated_probe_models(
+                base,
+                models,
+                host_match_func=_host_match,
+                match_provider_curated_func=_match_provider_curated,
+                provider_curated=_PROVIDER_CURATED,
+            )
             return [m for m in models if _is_chat_model(m)]
     except httpx.HTTPStatusError as e:
         if api_key:

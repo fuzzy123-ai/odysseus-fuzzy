@@ -11,7 +11,8 @@ calendar format helper split, R11Y session format helper split, R11Z shell depen
 helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
 R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
 contact helper split, R11AF model ProviderAuth helper split and R11AG model
-probe-key helper split and R11AH model single-probe helper split implemented; tool
+probe-key helper split, R11AH model single-probe helper split and R11AI model
+curated-probe helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2200,6 +2201,58 @@ Completion criteria:
 - Probe behavior remains covered for OpenAI-compatible, Ollama, Anthropic,
   timeout, transport failure and discovery-only provider paths without live
   provider calls.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AI / L7-R12X: Model Curated-Probe Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move endpoint-specific curated model append behavior for Z.AI coding and
+  Kimi coding probes out of `_probe_endpoint()` while preserving the
+  route-compatible model discovery results.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AI done 2026-06-30: curated model append logic moved to
+  `append_curated_probe_models()` in `routes/model_probe_helpers.py`. The
+  route now injects host matching, curated-key matching and curated model
+  mapping dependencies.
+- Compatibility evidence: helper tests cover Z.AI coding append, prefix-variant
+  dedupe and unmatched endpoints; existing endpoint probing and model route
+  tests remain green.
+- R11AI line count 2026-06-30: `routes/model_routes.py` is 1746 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AI focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AI Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `183 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with endpoint-specific curated append behavior separated from route
+  orchestration.
+- Z.AI coding and Kimi coding probe results still append curated-only models
+  without duplicating existing or prefix-matched entries.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 
