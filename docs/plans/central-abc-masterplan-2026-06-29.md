@@ -287,13 +287,24 @@ Current evidence:
 - 2026-06-30 Safe L3 bootstrap is complete in repo-only scope. Codex-side MCP
   service setup, local live MCP activation and host Podman probes remain gated
   actions; they do not block later safe backend lanes.
+- 2026-06-30 L3-7 Podman read-only helper is implemented.
+  `src/podman_readonly_evidence.py` plans bounded `podman ps/logs/inspect/port`
+  and health-inspect commands without executing them, rejects Docker/mutating
+  actions and keeps live host probing gated.
+- 2026-06-30 L3-7 focused checks passed:
+  `python -m py_compile src\podman_readonly_evidence.py`;
+  `python -m pytest tests/test_podman_readonly_evidence.py -q` returned
+  `4 passed, 1 warning`; and the MCP policy/plugin smoke returned
+  `16 passed, 2 warnings`.
 
 Primary allowed paths:
 
 - `plugins/mcp_server/plugin.py`
 - `src/mcp_server_tool_policy.py`
 - `src/builtin_mcp.py`
+- `src/podman_readonly_evidence.py`
 - `tests/test_mcp_server_tool_policy.py`
+- `tests/test_podman_readonly_evidence.py`
 - `docs/mcp-server-runbook.md`
 - `docs/setup.md`
 - future narrow `src/podman_*` or `ops/*` read-only helper paths only after
@@ -310,6 +321,7 @@ Slice queue:
 | L3-4-playwright-evidence-plan | safe_offline | Charlie | Done: `mcp-workbench-evidence-plan.md` defines UI smoke targets, artifacts and privacy gates. |
 | L3-5-github-context-policy | safe_offline | Alice | Done: `mcp-workbench-evidence-plan.md` defines GitHub read/write boundaries. |
 | L3-6-podman-readonly-plan | repo_only | Bob | Done as plan: `mcp-workbench-evidence-plan.md` maps read-only Podman checks to existing health foundations; implementation can remain future-scoped. |
+| L3-7-podman-readonly-helper | repo_only | Bob | Done: read-only Podman evidence command planner and tests exist; no live host probe is executed. |
 
 Gates:
 
@@ -992,7 +1004,7 @@ Stop or defer the active slice if:
 
 | Lane | Status | Why not complete |
 | --- | --- | --- |
-| L3 MCP Workbench + Podman Checks | partial, gated | L3-0 through L3-2 are done offline and L3-4 through L3-6 are planned; Codex-side service setup/live smoke remains gated. |
+| L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
 | L1 Nextcloud Live Write + Universal Inbox | partial, live-gated | Safe backend path is implemented and tested; bounded live upload smoke still needs operator Go plus runtime env. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |

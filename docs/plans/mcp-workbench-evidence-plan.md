@@ -31,6 +31,16 @@ read-only by default and auditable.
 - Focused tests on 2026-06-30 passed:
   `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
   returned `16 passed, 1 warning`.
+- 2026-06-30 Podman read-only evidence helper:
+  `src/podman_readonly_evidence.py` builds bounded `podman ps`, `podman logs`,
+  `podman inspect`, `podman port` and health-inspect command plans without
+  executing them. It rejects Docker, shell-style targets and mutating actions.
+- 2026-06-30 Podman/MCP focused checks passed:
+  `python -m py_compile src\podman_readonly_evidence.py`,
+  `python -m pytest tests/test_podman_readonly_evidence.py -q` returned
+  `4 passed, 1 warning`, and
+  `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
+  returned `16 passed, 2 warnings`.
 
 ## Workbench Components
 
@@ -42,7 +52,7 @@ read-only by default and auditable.
 | GitHub connector/MCP | planned | Read PR, Actions, review and issue context without manual copying. | Writes need explicit visible approval. |
 | Docs MCPs | planned | Read current technical docs for framework/API changes. | Read-only only; no private Odysseus data. |
 | Chrome DevTools MCP | optional | Diagnose console, network and performance issues when Playwright is not enough. | Use only for concrete UI/runtime diagnosis. |
-| Podman read-only checks | planned | Inspect runtime status, ports, health and logs without restart/recreate. | Mutations remain separately gated. |
+| Podman read-only checks | repo helper ready, live probe gated | Plan bounded runtime status, ports, health and logs evidence without restart/recreate. | Host execution and mutations remain separately gated. |
 
 ## Codex MCP Service Setup Gate
 
@@ -133,6 +143,7 @@ Class: `repo_only` for models/docs, `needs_live_go` for host probes.
 Preferred existing foundations:
 
 - `src/system_health_container_runtime.py`
+- `src/podman_readonly_evidence.py`
 - `plugins/system_health_checker/runtime_adapter.py`
 - `ops/homeserver/CONTEXT.md`
 - `ops/homeserver/backup-homeserver.sh --discover`
@@ -143,6 +154,8 @@ Read-only checks:
 - `podman ps`
 - `podman logs` with bounded tail and redaction
 - `podman inspect` for selected containers
+- `podman port` for selected containers
+- `podman inspect --format "{{json .State.Health}}"` for selected containers
 - systemd user service status
 - local health endpoints
 - port/listen status
@@ -166,6 +179,7 @@ Blocked without separate Go:
 | L3-4-playwright-evidence-plan | done | This file defines local UI smoke targets, artifact rules and privacy gates. |
 | L3-5-github-context-policy | done | This file defines read/write boundaries for GitHub connector/MCP usage. |
 | L3-6-podman-readonly-plan | done | This file defines Podman read-only evidence and mutation gates using existing health foundations. |
+| L3-7-podman-readonly-helper | done | `src/podman_readonly_evidence.py` and tests provide a repo-only command planner; live execution remains gated. |
 
 ## Safe Bootstrap Completion
 
@@ -177,6 +191,8 @@ The repo-only part of the MCP workbench is complete for the current masterplan:
 - Owner-scoped writes, private reads and filesystem reads require explicit
   policy flags.
 - Docker MCP remains a non-goal for this Podman/pods infrastructure.
+- Podman read-only evidence can now be planned by code; live host execution is
+  still a separate gated probe.
 - Local MCP live activation, Codex-side service installation and host Podman
   probes remain gated actions, not blockers for other safe backend lanes.
 
