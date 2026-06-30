@@ -4,9 +4,10 @@ Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
-helper split, R11P database migration split and R11Q LLM-core provider/format split implemented; tool
-implementation/admin, agent-loop, email-route, model-route, database and LLM-core facades are below
-threshold, remaining CSS/UI-safe and later route/plugin waves pending
+helper split, R11P database migration split, R11Q LLM-core provider/format split and R11R task scheduler
+startup split implemented; tool implementation/admin, agent-loop, email-route, model-route, database,
+LLM-core and scheduler facades are below threshold, remaining CSS/UI-safe and later route/plugin waves
+pending
 
 ## Goal
 
@@ -1330,6 +1331,52 @@ Completion criteria:
 - Provider-specific helpers live in focused modules with compatibility exports.
 - Existing Kimi, Ollama, Anthropic/Mistral, sanitize and model-route behavior
   remains covered by focused tests.
+
+### R11R / L7-R12G: Task Scheduler Startup Housekeeping Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move startup-only scheduler housekeeping out of `src/task_scheduler.py` while
+  keeping `TaskScheduler.start()` as the public orchestration point.
+
+Allowed paths:
+
+- `src/task_scheduler.py`
+- `src/task_scheduler_startup.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11R done 2026-06-30: stale task-run aborts, overdue `next_run` advance,
+  default-assistant dedupe and schedule-cluster audit moved to
+  `src/task_scheduler_startup.py`.
+- Compatibility evidence: `TaskScheduler.start()` still runs the same startup
+  sequence before creating the scheduler loop and note-ping scanner.
+- R11R line count 2026-06-30: `src/task_scheduler.py` is 1888 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11R focused checks 2026-06-30:
+  `python -m py_compile src\task_scheduler.py src\task_scheduler_startup.py`
+  passed.
+- R11R restart/cancel/session-delivery test block 2026-06-30:
+  `python -m pytest tests\test_scheduler_restart_doublefire.py tests\test_scheduler_scheduled_time_validation.py tests\test_task_scheduler_cancel.py tests\test_task_scheduler_session_delivery.py -q`
+  returned `9 passed, 3 warnings`.
+- R11R adjacent scheduler/task tool test block 2026-06-30:
+  `python -m pytest tests\test_digest_windows.py tests\test_checkin_digest_owner_scope.py tests\test_task_shell_tools.py tests\test_task_session_folder.py tests\test_task_scheduler_cancel.py -q`
+  returned `15 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/task_scheduler.py` remains below the large-file candidate threshold with
+  more margin than the prior warning-band facade.
+- Restart double-fire protection remains covered by focused tests.
+- Startup housekeeping remains repo-only and performs no live external action.
 
 ### R12: Obsidian Frontend Split
 
