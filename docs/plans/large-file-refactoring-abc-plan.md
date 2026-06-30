@@ -3799,6 +3799,59 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
+## R11BM / L7-R12BB: Contacts vCard Helper Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move Contacts vCard parse/build/export helpers out of
+  `routes/contacts_routes.py` while keeping route behavior and compatibility
+  imports stable.
+- Keep CardDAV fetch/write/delete/import flows in the route module; do not run
+  live CardDAV or network operations.
+
+Allowed paths:
+
+- `routes/contacts_routes.py`
+- `routes/contacts_vcard.py`
+- `tests/test_contacts_vcard_parse.py`
+- `tests/test_contacts_import_nonstring.py`
+- `tests/test_contacts_carddav_security.py`
+- `tests/test_contacts_add_null_name.py`
+- `tests/test_carddav_password_encryption.py`
+- `tests/test_manage_contact_confirmation.py`
+- `tests/test_app_api_admin_mutation_blocklist.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BM done 2026-06-30: `routes/contacts_vcard.py` now owns vCard unescape,
+  parsing, escaping, building, VCF export and CSV export helpers.
+  `routes.contacts_routes` imports and re-exports those helper names so
+  existing tests and callers remain compatible.
+- R11BM line count 2026-06-30: `routes/contacts_routes.py` is 718 lines,
+  below monitor band; `routes/contacts_vcard.py` is 173 lines.
+- R11BM focused checks 2026-06-30:
+  `python -m py_compile routes\contacts_routes.py routes\contacts_vcard.py`
+  passed.
+- R11BM contacts checks 2026-06-30:
+  `python -m pytest tests\test_contacts_vcard_parse.py tests\test_contacts_import_nonstring.py tests\test_contacts_carddav_security.py tests\test_contacts_add_null_name.py tests\test_carddav_password_encryption.py tests\test_manage_contact_confirmation.py tests\test_app_api_admin_mutation_blocklist.py`
+  returned `165 passed, 2 warnings`.
+
+Completion criteria:
+
+- `routes/contacts_routes.py` is below monitor band without route/API behavior
+  redesign.
+- vCard parsing, non-string import handling, CardDAV URL/password safety,
+  null-name handling, manage-contact confirmation and app-api mutation
+  blocklists remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
