@@ -697,7 +697,7 @@ Current evidence:
 - 2026-06-30: L7 R8E is implemented. Base/system prompt assembly, dynamic
   active document/email context, skill-index injection and prompt-cache
   internals moved to `src/agent_loop_system_prompt.py`; `src.agent_loop` keeps
-  import-compatible wrappers and is now 1666 lines, below the large-file
+  import-compatible wrappers and is now 1678 lines, below the large-file
   candidate threshold.
 - 2026-06-30 R8E focused tests passed:
   `python -m pytest tests/test_skill_index_prompt_injection.py tests/test_user_time.py -q`
