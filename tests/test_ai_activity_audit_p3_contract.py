@@ -74,6 +74,8 @@ def test_domain_modules_label_ai_activity_surfaces():
             'prompt_type="memory_consolidate"',
             'prompt_type="calendar_classify_events"',
             'prompt_type="email_signature_extract"',
+        ],
+        ("src", "builtin_action_email_urgency.py"): [
             'prompt_type="email_urgency_classify"',
         ],
         ("src", "research_handler.py"): [

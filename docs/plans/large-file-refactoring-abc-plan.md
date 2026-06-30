@@ -1076,6 +1076,54 @@ Completion criteria:
 - Owner-scoped account monkeypatch compatibility and IMAP quoting regressions
   remain covered by focused tests.
 
+### R11M: Builtin Actions Email Urgency Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move the large email urgency scheduled-action implementation out of
+  `src/builtin_actions.py` while keeping the public registry and imports
+  compatible.
+
+Allowed paths:
+
+- `src/builtin_actions.py`
+- `src/builtin_action_email_urgency.py`
+- `src/builtin_action_types.py`
+- `tests/test_builtin_actions_*.py`
+- `tests/test_builtin_memory_consolidation.py`
+- `tests/test_consolidate_memory_explicit_drops.py`
+- `tests/test_classify_events_memory_text.py`
+- `tests/test_sender_signature_skip_roles.py`
+- `tests/test_ai_activity_audit_p3_contract.py`
+- `tests/test_task_shell_tools.py`
+- `tests/test_task_session_folder.py`
+- `tests/test_internal_api_base.py`
+
+Current evidence:
+
+- R11M done 2026-06-30: email urgency scheduled-action execution moved to
+  `src/builtin_action_email_urgency.py`; shared `TaskNoop`/`TaskDeferred`
+  types moved to `src/builtin_action_types.py`; `src/builtin_actions.py` keeps
+  the action registry and compatibility exports.
+- R11M line count 2026-06-30: `src/builtin_actions.py` is 1682 lines in the
+  large-file report, band `warning`, not `candidate`.
+- R11M focused checks 2026-06-30:
+  `python -m py_compile src\builtin_actions.py src\builtin_action_email_urgency.py src\builtin_action_types.py`
+  passed.
+- R11M Builtin Action/Audit test block 2026-06-30:
+  `python -m pytest tests/test_builtin_actions_owner_scope.py tests/test_builtin_memory_consolidation.py tests/test_consolidate_memory_explicit_drops.py tests/test_builtin_actions_nonstring.py tests/test_classify_events_memory_text.py tests/test_sender_signature_skip_roles.py tests/test_ai_activity_audit_p3_contract.py tests/test_task_shell_tools.py tests/test_task_session_folder.py tests/test_internal_api_base.py -q`
+  returned `34 passed, 6 warnings`.
+
+Completion criteria:
+
+- `src/builtin_actions.py` is below the large-file candidate threshold.
+- Email urgency owner-scoping, AI audit labels and built-in action helper
+  regressions remain covered by focused tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice  

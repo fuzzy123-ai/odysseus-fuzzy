@@ -882,6 +882,15 @@ Current evidence:
   `python -m py_compile mcp_servers\email_server.py mcp_servers\email_account_config.py mcp_servers\email_tool_schemas.py`;
   `python -m pytest tests/test_mcp_email_decode_header_spaces.py tests/test_mcp_email_delete_confirmation.py tests/test_imap_leak_fixes.py tests/test_imap_mailbox_quoting.py tests/test_icloud_imap_full_fetch.py tests/test_function_call_non_object_args.py -q`
   returned `47 passed, 3 warnings`.
+- 2026-06-30: L7 R12B is implemented. Email urgency scheduled-action
+  execution moved to `src/builtin_action_email_urgency.py`, shared built-in
+  action exception types moved to `src/builtin_action_types.py`, and
+  `src/builtin_actions.py` remains the compatibility registry at 1682 lines,
+  band `warning`, not `candidate`.
+- 2026-06-30 R12B evidence passed:
+  `python -m py_compile src\builtin_actions.py src\builtin_action_email_urgency.py src\builtin_action_types.py`;
+  `python -m pytest tests/test_builtin_actions_owner_scope.py tests/test_builtin_memory_consolidation.py tests/test_consolidate_memory_explicit_drops.py tests/test_builtin_actions_nonstring.py tests/test_classify_events_memory_text.py tests/test_sender_signature_skip_roles.py tests/test_ai_activity_audit_p3_contract.py tests/test_task_shell_tools.py tests/test_task_session_folder.py tests/test_internal_api_base.py -q`
+  returned `34 passed, 6 warnings`.
 
 Parallel rule:
 
@@ -935,11 +944,13 @@ Slice queue:
 | L7-R11J-telegram-project-intake-boundary | repo_only | Charlie | Done: Project-Intake detection, preview, review status, reply formatting and apply helpers moved to `plugins/telegram/project_intake.py`; `plugin.py` is below the candidate threshold. |
 | L7-R11K-telegram-export-boundary | repo_only | Charlie | Done: attachment export planning/execution/reply helpers moved to `plugins/telegram/export.py`; large-file report now places `plugin.py` in warning band, not candidate. |
 | L7-R12A-email-mcp-account-schema-boundary | repo_only | Bob | Done: Email MCP account/config and tool schema declarations moved behind helper modules; `mcp_servers/email_server.py` is below candidate threshold. |
+| L7-R12B-builtin-actions-email-urgency-boundary | repo_only | Bob | Done: Email urgency scheduled-action execution moved behind a helper module; `src/builtin_actions.py` is below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue with another backend candidate such as
-  `src/task_scheduler.py`, `core/database.py` or `src/builtin_actions.py`.
+  `src/task_scheduler.py`, `core/database.py`, `routes/cookbook_routes.py` or
+  `src/llm_core.py`.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
@@ -1019,7 +1030,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin and Email MCP facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K, R12A and R12B are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Email MCP and built-in action facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
