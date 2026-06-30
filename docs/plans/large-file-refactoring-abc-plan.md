@@ -3,7 +3,7 @@
 Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
-and R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J email helper splits implemented; tool implementation/admin
+and R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K email helper splits implemented; tool implementation/admin
 facades below threshold, remaining code refactor waves pending
 
 ## Goal
@@ -765,9 +765,22 @@ Progress:
 - R9J broader R9 smoke 2026-06-30:
   `python -m pytest tests\test_email_list_helpers.py tests\test_email_read_helpers.py tests\test_email_message_shapes.py tests\test_email_runtime_cache.py tests\test_email_oauth_helpers.py tests\test_email_account_helpers.py tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
   returned `111 passed, 24 warnings`.
-- Remaining R9 work: route setup boundaries and remaining list/read IMAP
-  control-flow extraction. `routes/email_routes.py` is reduced to 2383 lines
-  after R9J and remains above the large-file candidate threshold.
+- R9K done 2026-06-30: `routes/email_attachment_helpers.py` owns
+  attachment-as-document filename checks, PDF/DOCX/text document creation,
+  source-email tagging and document-session resolution. `routes.email_routes`
+  keeps IMAP fetches, attachment extraction and route handlers.
+- R9K evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_attachment_helpers.py routes\email_list_helpers.py routes\email_read_helpers.py routes\email_message_shapes.py`
+  passed.
+- R9K focused tests 2026-06-30:
+  `python -m pytest tests\test_email_attachment_helpers.py tests\test_email_list_helpers.py tests\test_email_read_helpers.py tests\test_email_message_shapes.py tests\test_email_runtime_cache.py tests\test_email_imap_helpers.py tests\test_email_imap_timeout.py tests\test_email_gmail_fetch_flags.py tests\test_email_owner_scope.py -q`
+  returned `47 passed, 6 warnings`.
+- R9K broader R9 smoke 2026-06-30:
+  `python -m pytest tests\test_email_attachment_helpers.py tests\test_email_list_helpers.py tests\test_email_read_helpers.py tests\test_email_message_shapes.py tests\test_email_runtime_cache.py tests\test_email_oauth_helpers.py tests\test_email_account_helpers.py tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
+  returned `115 passed, 24 warnings`.
+- Remaining R9 work: route setup boundaries and remaining AI/attachment/read
+  control-flow extraction. `routes/email_routes.py` is reduced to 2220 lines
+  after R9K and remains above the large-file candidate threshold.
 
 ### R10: Model Routes Extraction
 
