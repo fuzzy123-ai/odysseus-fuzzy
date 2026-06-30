@@ -1,7 +1,6 @@
 """Calendar routes — local SQLite-backed calendar CRUD."""
 
 import logging
-import re
 import uuid
 from datetime import datetime, date, timedelta
 from typing import Optional, List
@@ -14,25 +13,16 @@ from dateutil.rrule import rrulestr
 from core.database import SessionLocal, CalendarCal, CalendarDeletedEvent, CalendarEvent
 from src.auth_helpers import require_user
 from src.upload_limits import read_upload_limited, ICS_MAX_BYTES
+from routes.calendar_format_helpers import (
+    _ics_escape,
+    _ics_naive_dtstart,
+    _resolve_base_uid,
+    _safe_ics_filename,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _ics_naive_dtstart(dt):
-    """Naive value matching how import_ics STORES CalendarEvent.dtstart.
-
-    Timed tz-aware events are stored as UTC with tzinfo stripped, all-day
-    dates as midnight datetimes, naive datetimes unchanged. The ICS dedup
-    must compute the same value or a re-import never matches the stored row.
-    """
-    if isinstance(dt, datetime):
-        if dt.tzinfo is not None:
-            from datetime import timezone as _tz
-            return dt.astimezone(_tz.utc).replace(tzinfo=None)
-        return dt
-    if isinstance(dt, date):
-        return datetime(dt.year, dt.month, dt.day)
-    return dt
 
 # Single-user fallback identity. Used only when:
 #   1. The app is configured for single-user (no auth middleware), AND
@@ -83,48 +73,6 @@ def _get_or_404_event(db, uid: str, owner: str) -> CalendarEvent:
     return ev
 
 
-def _ics_escape(text: str) -> str:
-    """Escape a value for an iCalendar TEXT field (RFC 5545 §3.3.11).
-
-    Backslash, semicolon and comma are structural in TEXT values and must be
-    escaped, and newlines become a literal ``\\n``. Backslash is escaped first
-    so the escapes we add aren't re-escaped.
-    """
-    return (
-        (text or "")
-        .replace("\\", "\\\\")
-        .replace(";", "\\;")
-        .replace(",", "\\,")
-        .replace("\r\n", "\\n")
-        .replace("\n", "\\n")
-        .replace("\r", "\\n")
-    )
-
-
-def _safe_ics_filename(name: str) -> str:
-    """Return a conservative .ics filename safe for Content-Disposition."""
-    stem = name if isinstance(name, str) else ""
-    stem = re.sub(r"[^A-Za-z0-9._-]", "_", stem).strip("._-")
-    if not stem:
-        stem = "calendar"
-    return f"{stem[:128]}.ics"
-
-
-def _resolve_base_uid(uid: str) -> str:
-    """Extract the base series UID from a compound occurrence UID.
-
-    Compound UIDs have the form ``{base_uid}::{date_suffix}``.
-    For plain UIDs (no ``::``), returns the UID unchanged.
-    """
-    if not uid:
-        raise ValueError("empty uid")
-    idx = uid.find("::")
-    if idx == -1:
-        return uid       # plain UID — no suffix
-    base = uid[:idx]
-    if not base:
-        raise ValueError("malformed compound UID: missing base before ::")
-    return base
 
 
 async def _push_caldav_event_after_commit(owner: str, uid: str, action: str):

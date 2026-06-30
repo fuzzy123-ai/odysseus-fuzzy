@@ -991,6 +991,15 @@ Current evidence:
   `python -m py_compile routes\skills_routes.py routes\skills_audit_helpers.py`;
   `python -m pytest tests\test_skills_audit_helpers.py tests\test_skills_routes_nondict.py tests\test_ai_activity_audit_p3_contract.py -q`
   returned `7 passed, 1 warning`.
+- 2026-06-30: L7 R12M is implemented. Pure calendar ICS formatting helpers
+  moved to `routes/calendar_format_helpers.py` while `routes/calendar_routes.py`
+  keeps route-compatible imports for existing recurrence, ICS export and ICS
+  import tests. The large-file report places `routes/calendar_routes.py` at
+  1495 lines, band `warning`, not `candidate`; report candidate count is 26.
+- 2026-06-30 R12M evidence passed:
+  `python -m py_compile routes\calendar_routes.py routes\calendar_format_helpers.py`;
+  `python -m pytest tests\test_calendar_format_helpers.py tests\test_ics_escape.py tests\test_ics_import_dedup_tz.py tests\test_ics_export_escaping.py tests\test_calendar_recurrence.py -q`
+  returned `41 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1055,12 +1064,13 @@ Slice queue:
 | L7-R12J-document-library-helper-boundary | repo_only | Bob | Done: document library facet/PDF display helpers moved behind route-compatible imports; `routes/document_routes.py` is further below candidate threshold. |
 | L7-R12K-chat-endpoint-helper-boundary | repo_only | Bob | Done: pure chat endpoint/model-cache helpers moved behind route-compatible imports; `routes/chat_routes.py` is further below candidate threshold. |
 | L7-R12L-skills-audit-helper-boundary | repo_only | Bob | Done: pure skills audit/test policy helpers moved behind route-compatible imports; `routes/skills_routes.py` is further below candidate threshold. |
+| L7-R12M-calendar-format-helper-boundary | repo_only | Bob | Done: pure ICS formatting helpers moved behind route-compatible imports; `routes/calendar_routes.py` is further below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue only on a new explicitly scoped backend
-  warning-band file, for example `routes/calendar_routes.py`,
-  `routes/session_routes.py` or another backend route/helper facade chosen from
+  warning-band file, for example `routes/session_routes.py`,
+  `routes/shell_routes.py` or another backend route/helper facade chosen from
   the large-file report. L7-R2 CSS split should wait until visual smoke
   coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
@@ -1141,7 +1151,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12L are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12M are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

@@ -6,9 +6,10 @@ Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H back
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
-library helper split, R11V chat endpoint helper split and R11W skills audit helper split implemented; tool
+library helper split, R11V chat endpoint helper split, R11W skills audit helper split and R11X
+calendar format helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route and Skills route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route and Calendar route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1616,6 +1617,57 @@ Completion criteria:
 - AI activity audit prompt markers for skills remain visible in
   `routes/skills_routes.py`.
 - The slice performs no live provider, network or skill audit job action.
+
+### R11X / L7-R12M: Calendar Format Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure ICS/calendar formatting helpers out of `routes/calendar_routes.py`
+  while preserving route-compatible private imports for existing tests and
+  route handlers.
+
+Allowed paths:
+
+- `routes/calendar_routes.py`
+- `routes/calendar_format_helpers.py`
+- `tests/test_calendar_format_helpers.py`
+- `tests/test_ics_escape.py`
+- `tests/test_ics_import_dedup_tz.py`
+- `tests/test_ics_export_escaping.py`
+- `tests/test_calendar_recurrence.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11X done 2026-06-30: naive ICS DTSTART normalization, iCalendar TEXT
+  escaping, safe `.ics` download filename generation and compound recurrence
+  UID base resolution moved to `routes/calendar_format_helpers.py`.
+- Compatibility evidence: `routes/calendar_routes.py` imports the moved helper
+  names so existing imports from `routes.calendar_routes` and route handlers
+  continue to work.
+- R11X line count 2026-06-30: `routes/calendar_routes.py` is 1495 lines in
+  the large-file report, band `warning`, not `candidate`; report candidate
+  count is 26.
+- R11X focused checks 2026-06-30:
+  `python -m py_compile routes\calendar_routes.py routes\calendar_format_helpers.py`
+  passed.
+- R11X Calendar formatting/regression tests 2026-06-30:
+  `python -m pytest tests\test_calendar_format_helpers.py tests\test_ics_escape.py tests\test_ics_import_dedup_tz.py tests\test_ics_export_escaping.py tests\test_calendar_recurrence.py -q`
+  returned `41 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/calendar_routes.py` remains below the large-file candidate threshold
+  with pure formatting helpers separated from route orchestration.
+- ICS escaping, import deduplication and recurrence UID handling remain covered
+  by focused tests.
+- The slice performs no CalDAV live push, sync, network or route write action.
 
 ### R12: Obsidian Frontend Split
 
