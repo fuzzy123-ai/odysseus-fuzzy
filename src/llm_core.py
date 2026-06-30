@@ -6,7 +6,6 @@ import json
 import logging
 import hashlib
 import threading
-import re
 import os
 import contextvars
 from fastapi import HTTPException
@@ -337,58 +336,6 @@ def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
     if status >= 500:
         return f"{provider} is having an outage (HTTP {status})." + (f" {detail}" if detail else "")
     return f"{provider} returned HTTP {status}" + (f": {detail}" if detail else "")
-_MAX_COMPLETION_TOKENS_MODELS = {"o1", "o3", "o4", "gpt-4.5", "gpt-5"}
-
-def _uses_max_completion_tokens(model: str) -> bool:
-    """Check if a model requires max_completion_tokens instead of max_tokens."""
-    if not model:
-        return False
-    m = model.lower()
-    return any(m.startswith(p) or f"/{p}" in m for p in _MAX_COMPLETION_TOKENS_MODELS)
-
-# OpenAI reasoning models (o1, o3, o4, gpt-5 families) only accept the default
-# temperature. Sending any explicit value — even 0.0 — returns HTTP 400
-# ("Only the default (1) value is supported"). That otherwise breaks chat when a
-# preset sets a non-default temperature, and makes endpoint probing report a
-# perfectly good model as failing. For these models we omit the field and let
-# the API use its required default. (gpt-4.5 is intentionally excluded — it is
-# not a reasoning model and accepts temperature normally.)
-_FIXED_TEMPERATURE_MODELS = ("o1", "o3", "o4", "gpt-5", "kimi-for-coding")
-
-def _restricts_temperature(model: str) -> bool:
-    """Check if a model rejects any non-default temperature."""
-    if not model:
-        return False
-    m = model.lower()
-    return any(m.startswith(p) or f"/{p}" in m for p in _FIXED_TEMPERATURE_MODELS)
-
-
-# The official Moonshot API fixes temperature at 1.0 in thinking mode and 0.6
-# when thinking is explicitly disabled for Kimi K2.5/K2.6. Any other explicit
-# value returns HTTP 400. Odysseus does not currently send the `thinking` mode
-# control, so omit temperature and let Moonshot use its default thinking mode.
-# Keep the gate provider-specific: self-hosted Kimi deployments may accept
-# custom sampling values, and older Moonshot models have different defaults.
-def _moonshot_rejects_custom_temperature(provider: str, model: str) -> bool:
-    """Check if the official Moonshot API fixes temperature for this model."""
-    if provider != "moonshot" or not isinstance(model, str):
-        return False
-    model_id = model.lower().rsplit("/", 1)[-1]
-    return bool(re.match(r"^kimi-k2\.(?:5|6)(?:$|[-_:])", model_id))
-
-
-def _omit_temperature(provider: str, model: str) -> bool:
-    """Check if a request should use the provider's default temperature."""
-    return _restricts_temperature(model) or _moonshot_rejects_custom_temperature(
-        provider, model
-    )
-
-
-# Anthropic removed the sampling parameters (temperature, top_p, top_k) starting
-# with Claude Opus 4.7. On Opus 4.7 and later, sending `temperature` at all —
-# even 0.0 — returns HTTP 400. Earlier Claude models (Opus 4.6 and below, every
-# Sonnet/Haiku) still accept temperature in [0.0, 1.0], so the omission must be
-# version-gated rather than applied to all `claude-*` models.
 from src.llm_message_formats import (
     _anthropic_rejects_temperature,
     _as_content_blocks,
@@ -405,16 +352,13 @@ from src.llm_model_cache import (
     _model_list_base,
     _parse_model_cache,
 )
-
-
-def _normalize_anthropic_url(url: str) -> str:
-    """Ensure Anthropic URL points to /v1/messages."""
-    url = url.rstrip("/")
-    if url.endswith("/v1/messages"):
-        return url
-    if url.endswith("/v1"):
-        return url + "/messages"
-    return url + "/v1/messages"
+from src.llm_request_policy import (
+    _moonshot_rejects_custom_temperature,
+    _normalize_anthropic_url,
+    _omit_temperature,
+    _restricts_temperature,
+    _uses_max_completion_tokens,
+)
 
 
 def list_model_ids(

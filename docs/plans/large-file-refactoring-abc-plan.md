@@ -4370,6 +4370,59 @@ Completion criteria:
 - The split performs no live provider calls and does not persist secrets,
   endpoint credentials or provider responses.
 
+## R11BX / L7-R12BM: LLM Request Policy Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving request-shape policy helpers for token
+  parameter selection, temperature omission and Anthropic URL normalization
+  into a focused helper while keeping the legacy private names importable from
+  `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_request_policy.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_provider_classification_token_params.py`
+- `tests/test_provider_classification_errors.py`
+- `tests/test_provider_detection.py`
+- `tests/test_provider_classification.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BX done 2026-06-30: `_uses_max_completion_tokens`,
+  `_restricts_temperature`, `_moonshot_rejects_custom_temperature`,
+  `_omit_temperature` and `_normalize_anthropic_url` moved to
+  `src/llm_request_policy.py`; `src.llm_core` imports those names for
+  compatibility with existing callers/tests.
+- R11BX line count 2026-06-30: `src/llm_core.py` is 1651 lines, still in
+  warning band but reduced from 1707 after R11BW; `src/llm_request_policy.py`
+  is below the report threshold.
+- R11BX focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_request_policy.py`
+  passed.
+- R11BX request-policy/provider checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_temperature.py tests\test_provider_classification_token_params.py tests\test_provider_classification_errors.py tests\test_provider_detection.py tests\test_provider_classification.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py -q`
+  returned `149 passed, 1 warning`.
+
+Completion criteria:
+
+- Temperature gates, token parameter selection, provider error formatting,
+  provider classification and streaming/audit tests remain green.
+- The split performs no live provider calls and does not change outgoing
+  payload semantics.
+- `src.llm_core` keeps the legacy private helper names importable while policy
+  implementation lives in `src.llm_request_policy.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
