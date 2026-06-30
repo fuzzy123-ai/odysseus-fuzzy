@@ -1,6 +1,7 @@
 import sqlite3
 
 from routes.email_list_helpers import (
+    list_email_contacts_from_tags,
     list_email_rows_from_grouped_headers,
     load_email_tags_by_message_id,
     load_email_tags_by_uid,
@@ -41,7 +42,7 @@ def _headers(uid: str, message_id: str, date: str, subject: str = "Hello"):
 def _create_tag_table(db_path):
     conn = sqlite3.connect(db_path)
     conn.execute(
-        "CREATE TABLE email_tags (uid TEXT, message_id TEXT, folder TEXT, owner TEXT, tags TEXT, spam_verdict INTEGER)"
+        "CREATE TABLE email_tags (uid TEXT, message_id TEXT, folder TEXT, owner TEXT, tags TEXT, spam_verdict INTEGER, sender TEXT)"
     )
     return conn
 
@@ -55,8 +56,8 @@ def test_normalize_email_tags_maps_promo_alias_and_rejects_non_lists():
 def test_load_email_tags_by_uid_is_owner_scoped(tmp_path):
     db_path = tmp_path / "scheduled.db"
     conn = _create_tag_table(db_path)
-    conn.execute("INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?)", ("7", "", "INBOX", "alice", '["promo"]', 1))
-    conn.execute("INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?)", ("7", "", "INBOX", "bob", '["urgent"]', 0))
+    conn.execute("INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?, ?)", ("7", "", "INBOX", "alice", '["promo"]', 1, "Alice <alice@example.com>"))
+    conn.execute("INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?, ?)", ("7", "", "INBOX", "bob", '["urgent"]', 0, "Bob <bob@example.com>"))
     conn.commit()
     conn.close()
 
@@ -76,8 +77,8 @@ def test_load_email_tags_by_message_id_reads_ids_from_grouped_headers(tmp_path):
     db_path = tmp_path / "scheduled.db"
     conn = _create_tag_table(db_path)
     conn.execute(
-        "INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?)",
-        ("", "<m1@example.com>", "INBOX", "bob", '["promo"]', 1),
+        "INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("", "<m1@example.com>", "INBOX", "bob", '["promo"]', 1, "Bob <bob@example.com>"),
     )
     conn.commit()
     conn.close()
@@ -141,3 +142,67 @@ def test_search_email_row_from_fetch_data_returns_none_without_uid_or_header():
         uid_from_fetch_meta=_uid_from_meta,
         decode_header=_decode,
     ) is None
+
+
+def test_list_email_contacts_from_tags_scopes_dedupes_and_filters(tmp_path):
+    db_path = tmp_path / "scheduled.db"
+    conn = _create_tag_table(db_path)
+    conn.executemany(
+        "INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("1", "<m1>", "INBOX", "bob", "[]", 0, "Bob Beta <bob@example.com>"),
+            ("2", "<m2>", "INBOX", "bob", "[]", 0, "Alice Alpha <alice@example.com>"),
+            ("3", "<m3>", "INBOX", "bob", "[]", 0, "Duplicate <bob@example.com>"),
+            ("4", "<m4>", "INBOX", "alice", "[]", 0, "Alice Other <private@example.com>"),
+            ("5", "<m5>", "INBOX", "bob", "[]", 0, "No Address"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    result = list_email_contacts_from_tags(
+        db_path,
+        owner="bob",
+        query="ali",
+        limit=10,
+        email_tag_owner_clause=_owner_clause,
+    )
+
+    assert result == {"contacts": [{"name": "Alice Alpha", "address": "alice@example.com"}]}
+
+
+def test_list_email_contacts_from_tags_sorts_query_prefix_first(tmp_path):
+    db_path = tmp_path / "scheduled.db"
+    conn = _create_tag_table(db_path)
+    conn.executemany(
+        "INSERT INTO email_tags VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("1", "<m1>", "INBOX", "bob", "[]", 0, "Team Alpha <team-alpha@example.com>"),
+            ("2", "<m2>", "INBOX", "bob", "[]", 0, "Alice Team <alice@example.com>"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    result = list_email_contacts_from_tags(
+        db_path,
+        owner="bob",
+        query="team",
+        limit=10,
+        email_tag_owner_clause=_owner_clause,
+    )
+
+    assert result["contacts"] == [
+        {"name": "Team Alpha", "address": "team-alpha@example.com"},
+        {"name": "Alice Team", "address": "alice@example.com"},
+    ]
+
+
+def test_list_email_contacts_from_tags_returns_safe_error_on_db_failure(tmp_path):
+    result = list_email_contacts_from_tags(
+        tmp_path / "missing.db",
+        owner="bob",
+        email_tag_owner_clause=_owner_clause,
+    )
+
+    assert result == {"contacts": [], "error": "Mail operation failed"}

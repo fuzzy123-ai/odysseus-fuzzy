@@ -1066,6 +1066,16 @@ Current evidence:
   `python -m pytest tests\test_email_read_helpers.py -q` returned
   `6 passed, 1 warning`; `python -m pytest tests\test_email_owner_scope.py tests\test_email_runtime_cache.py tests\test_email_list_helpers.py -q`
   returned `21 passed, 6 warnings`.
+- 2026-06-30: L7 R12T is implemented. Email contact autocomplete SQL, sender
+  parsing, deduping, filtering and sort logic moved to
+  `routes/email_list_helpers.py` while `routes/email_routes.py` keeps the
+  endpoint wrapper and owner clause injection. The large-file report places
+  `routes/email_routes.py` at 1748 lines, band `warning`, not `candidate`;
+  report candidate count is 26.
+- 2026-06-30 R12T evidence passed:
+  `python -m py_compile routes\email_routes.py routes\email_list_helpers.py`;
+  `python -m pytest tests\test_email_list_helpers.py tests\test_email_owner_scope.py tests\test_email_runtime_cache.py -q`
+  returned `24 passed, 6 warnings`.
 
 Parallel rule:
 
@@ -1137,6 +1147,7 @@ Slice queue:
 | L7-R12Q-gallery-endpoint-helper-boundary | repo_only | Bob | Done: gallery path confinement, endpoint visibility and result-image fetch helpers moved behind route-compatible wrappers; `routes/gallery_routes.py` is further below candidate threshold. |
 | L7-R12R-model-probe-helper-boundary | repo_only | Bob | Done: provider-safe model probe support and endpoint error messaging moved behind route-compatible wrappers; `routes/model_routes.py` is further below candidate threshold. |
 | L7-R12S-email-warm-read-helper-boundary | repo_only | Bob | Done: recent-read warming scheduler moved behind a helper with route-injected cache/read dependencies; `routes/email_routes.py` is further below candidate threshold. |
+| L7-R12T-email-contact-helper-boundary | repo_only | Bob | Done: contact autocomplete SQL/parse/filter/sort logic moved behind a helper with route-injected owner scope; `routes/email_routes.py` is further below candidate threshold. |
 
 Next safe slice:
 
@@ -1224,7 +1235,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12S are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12T are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

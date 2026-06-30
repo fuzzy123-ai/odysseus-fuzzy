@@ -17,7 +17,6 @@ import os
 import sqlite3 as _sql3
 import email as email_mod
 import email.header
-import email.utils
 import smtplib
 import json
 import re
@@ -86,6 +85,7 @@ from routes.email_imap_helpers import (
     uid_from_fetch_meta as _uid_from_fetch_meta,
 )
 from routes.email_list_helpers import (
+    list_email_contacts_from_tags as _list_email_contacts_from_tags,
     list_email_rows_from_grouped_headers as _list_email_rows_from_grouped_headers,
     load_email_tags_by_message_id as _load_email_tags_by_message_id,
     load_email_tags_by_uid as _load_email_tags_by_uid,
@@ -494,39 +494,14 @@ def setup_email_routes():
         names into chips. Backed by the AI-classification cache so it's a
         cheap SQL read; people you've never received a tagged email from
         won't appear yet."""
-        ql = (q or "").strip().lower()
-        try:
-            conn = _sql3.connect(SCHEDULED_DB)
-            owner_clause, owner_params = _email_tag_owner_clause(None, owner)
-            rows = conn.execute(
-                f"SELECT sender FROM email_tags WHERE sender IS NOT NULL AND sender != '' AND {owner_clause}",
-                owner_params,
-            ).fetchall()
-            conn.close()
-            seen = {}
-            for (s,) in rows:
-                try:
-                    name, addr = email.utils.parseaddr(s or "")
-                except Exception:
-                    continue
-                if not addr:
-                    continue
-                addr_l = addr.lower()
-                if ql and ql not in (name or "").lower() and ql not in addr_l:
-                    continue
-                if addr_l in seen:
-                    continue
-                seen[addr_l] = {"name": (name or addr).strip(), "address": addr}
-            items = list(seen.values())
-            # Prefer entries whose name starts with the query, then alphabetical.
-            items.sort(key=lambda c: (
-                0 if ql and (c["name"] or "").lower().startswith(ql) else 1,
-                (c["name"] or c["address"]).lower(),
-            ))
-            return {"contacts": items[: max(1, int(limit))]}
-        except Exception as e:
-            logger.error(f"contacts list failed: {e}")
-            return {"contacts": [], "error": "Mail operation failed"}
+        return _list_email_contacts_from_tags(
+            SCHEDULED_DB,
+            owner=owner,
+            query=q,
+            limit=limit,
+            email_tag_owner_clause=_email_tag_owner_clause,
+            logger=logger,
+        )
 
     @router.get("/search")
     # Sync def: the body is blocking IMAP I/O with no awaits. As `async def` it ran

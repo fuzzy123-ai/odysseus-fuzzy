@@ -9,7 +9,8 @@ startup split, R11S visual-report helper split, R11T gallery remove-bg split, R1
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
 helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
-R11AC model probe helper split and R11AD email warm-read helper split implemented; tool
+R11AC model probe helper split, R11AD email warm-read helper split and R11AE email
+contact helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -1994,6 +1995,58 @@ Completion criteria:
 - `routes/email_routes.py` remains below the large-file candidate threshold
   with warm-read scheduling separated from route orchestration.
 - Read-cache warming selection, writeback and owner-scoped surrounding email
+  behavior remain covered by focused tests.
+- The slice performs no live email provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AE / L7-R12T: Email Contact Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move email contact autocomplete SQL, sender parsing, dedupe, filtering and
+  sorting out of `routes/email_routes.py` while preserving route-local owner
+  clause injection.
+
+Allowed paths:
+
+- `routes/email_routes.py`
+- `routes/email_list_helpers.py`
+- `tests/test_email_list_helpers.py`
+- `tests/test_email_owner_scope.py`
+- `tests/test_email_runtime_cache.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AE done 2026-06-30: contact autocomplete logic moved to
+  `list_email_contacts_from_tags()` in `routes/email_list_helpers.py`. The
+  route keeps a thin endpoint wrapper that injects `SCHEDULED_DB`, owner scope
+  and logger.
+- Compatibility evidence: the `/api/email/contacts` route keeps the same query
+  parameters and response shape. Helper tests cover owner scoping, duplicate
+  sender suppression, query filtering, prefix-first sorting and the safe DB
+  failure response.
+- R11AE line count 2026-06-30: `routes/email_routes.py` is 1748 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AE focused checks 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_list_helpers.py`
+  passed.
+- R11AE Email tests 2026-06-30:
+  `python -m pytest tests\test_email_list_helpers.py tests\test_email_owner_scope.py tests\test_email_runtime_cache.py -q`
+  returned `24 passed, 6 warnings`.
+
+Completion criteria:
+
+- `routes/email_routes.py` remains below the large-file candidate threshold
+  with contact autocomplete separated from route orchestration.
+- Contact autocomplete owner-scope, dedupe, filtering, sorting and safe error
   behavior remain covered by focused tests.
 - The slice performs no live email provider, network, Telegram, Nextcloud or
   host mutation.

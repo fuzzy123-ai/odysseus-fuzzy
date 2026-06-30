@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import email as email_mod
+import email.utils
 import json
 import sqlite3
 from collections.abc import Callable
@@ -183,3 +184,54 @@ def search_email_row_from_fetch_data(
         folder=effective_folder,
         decode_header=decode_header,
     )
+
+
+def list_email_contacts_from_tags(
+    db_path: str | Path,
+    *,
+    owner: str,
+    query: str = "",
+    limit: int = 20,
+    email_tag_owner_clause: OwnerClause,
+    parseaddr: Callable[[str], tuple[str, str]] = email.utils.parseaddr,
+    logger: Any = None,
+) -> dict[str, Any]:
+    """Return distinct sender contacts from cached email tag metadata."""
+    ql = (query or "").strip().lower()
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            owner_clause, owner_params = email_tag_owner_clause(None, owner)
+            rows = conn.execute(
+                f"SELECT sender FROM email_tags WHERE sender IS NOT NULL AND sender != '' AND {owner_clause}",
+                owner_params,
+            ).fetchall()
+        finally:
+            conn.close()
+        seen = {}
+        for (sender,) in rows:
+            try:
+                name, addr = parseaddr(sender or "")
+            except Exception:
+                continue
+            if not addr:
+                continue
+            addr_l = addr.lower()
+            if ql and ql not in (name or "").lower() and ql not in addr_l:
+                continue
+            if addr_l in seen:
+                continue
+            seen[addr_l] = {"name": (name or addr).strip(), "address": addr}
+        items = list(seen.values())
+        items.sort(key=lambda contact: (
+            0 if ql and (contact["name"] or "").lower().startswith(ql) else 1,
+            (contact["name"] or contact["address"]).lower(),
+        ))
+        return {"contacts": items[: max(1, int(limit))]}
+    except Exception as exc:
+        if logger is not None:
+            try:
+                logger.error(f"contacts list failed: {exc}")
+            except Exception:
+                pass
+        return {"contacts": [], "error": "Mail operation failed"}
