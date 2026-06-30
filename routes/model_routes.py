@@ -52,6 +52,7 @@ from routes.model_endpoint_helpers import (
     _clear_user_pref_endpoint_refs,
     _configured_ollama_base_urls,
     _curate_models,
+    _delete_orphaned_provider_auth as _delete_orphaned_provider_auth_impl,
     _default_endpoint_needs_assignment,
     _effective_endpoint_kind,
     _endpoint_kind,
@@ -102,21 +103,15 @@ def _rewrite_loopback_for_docker(base_url: str, *, container_local: bool = False
 
 # ── Curated model lists per provider ──
 def _delete_orphaned_provider_auth(db, auth_id: Optional[str], exclude_ep_id: Optional[str] = None) -> bool:
-    """Delete a ProviderAuthSession once no endpoint still references it."""
-    if not auth_id:
-        return False
     from core.database import ProviderAuthSession
-    still_referenced = db.query(ModelEndpoint.id).filter(
-        ModelEndpoint.provider_auth_id == auth_id,
-        ModelEndpoint.id != exclude_ep_id,
-    ).first()
-    if still_referenced is not None:
-        return False
-    auth_row = db.query(ProviderAuthSession).filter(ProviderAuthSession.id == auth_id).first()
-    if auth_row is None:
-        return False
-    db.delete(auth_row)
-    return True
+
+    return _delete_orphaned_provider_auth_impl(
+        db,
+        auth_id,
+        exclude_ep_id,
+        model_endpoint_model=ModelEndpoint,
+        provider_auth_model=ProviderAuthSession,
+    )
 
 
 def _safe_detect_provider(base_url: str) -> str:

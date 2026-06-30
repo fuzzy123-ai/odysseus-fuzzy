@@ -113,6 +113,30 @@ def _default_endpoint_needs_assignment(current_default_id: str, enabled_endpoint
     return current_default_id not in enabled_endpoint_ids
 
 
+def _delete_orphaned_provider_auth(
+    db,
+    auth_id: Optional[str],
+    exclude_ep_id: Optional[str] = None,
+    *,
+    model_endpoint_model: Any,
+    provider_auth_model: Any,
+) -> bool:
+    """Delete a ProviderAuthSession once no endpoint still references it."""
+    if not auth_id:
+        return False
+    still_referenced = db.query(model_endpoint_model.id).filter(
+        model_endpoint_model.provider_auth_id == auth_id,
+        model_endpoint_model.id != exclude_ep_id,
+    ).first()
+    if still_referenced is not None:
+        return False
+    auth_row = db.query(provider_auth_model).filter(provider_auth_model.id == auth_id).first()
+    if auth_row is None:
+        return False
+    db.delete(auth_row)
+    return True
+
+
 _PROVIDER_CURATED = {
     "openai": [
         "gpt-5.2", "gpt-5.2-pro", "gpt-5", "gpt-5-pro", "gpt-5-mini", "gpt-5-nano",

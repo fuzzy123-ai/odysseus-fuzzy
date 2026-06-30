@@ -9,8 +9,8 @@ startup split, R11S visual-report helper split, R11T gallery remove-bg split, R1
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
 helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
-R11AC model probe helper split, R11AD email warm-read helper split and R11AE email
-contact helper split implemented; tool
+R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
+contact helper split and R11AF model ProviderAuth helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2049,6 +2049,56 @@ Completion criteria:
 - Contact autocomplete owner-scope, dedupe, filtering, sorting and safe error
   behavior remain covered by focused tests.
 - The slice performs no live email provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AF / L7-R12U: Model ProviderAuth Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move ProviderAuth orphan cleanup out of `routes/model_routes.py` while
+  preserving the route-local database model injection and endpoint cleanup
+  behavior.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_endpoint_provider_auth_helpers.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AF done 2026-06-30: ProviderAuth orphan cleanup moved to
+  `_delete_orphaned_provider_auth()` in `routes/model_endpoint_helpers.py`.
+  `routes/model_routes.py` keeps a thin compatibility wrapper that injects
+  `ModelEndpoint` and `ProviderAuthSession`.
+- Compatibility evidence: helper tests cover referenced rows, unreferenced
+  orphan deletion and missing auth rows; the existing model-route test suite
+  remains green.
+- R11AF line count 2026-06-30: `routes/model_routes.py` is 1797 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AF focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11AF Model tests 2026-06-30:
+  `python -m pytest tests\test_model_endpoint_provider_auth_helpers.py tests\test_model_routes.py -q`
+  returned `146 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with ProviderAuth orphan cleanup separated from route orchestration.
+- ProviderAuth cleanup still skips referenced rows, deletes only true orphaned
+  sessions and handles missing auth rows safely.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 
 ### R12: Obsidian Frontend Split
