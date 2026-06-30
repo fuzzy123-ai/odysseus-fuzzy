@@ -4209,6 +4209,56 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BU / L7-R12BJ: Email MCP Response Formatting Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving pure MCP response formatting
+  helpers behind a small helper module without changing IMAP/SMTP/account
+  behavior.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_tool_formatting.py`
+- `mcp_servers/email_account_config.py`
+- `mcp_servers/email_tool_schemas.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BU done 2026-06-30: list/search/read/download/send/draft/bulk response
+  formatting moved to `mcp_servers/email_tool_formatting.py`. The MCP server
+  still owns tool dispatch, account selection and IMAP/SMTP side-effect calls.
+- R11BU line count 2026-06-30: `mcp_servers/email_server.py` is 1774 lines,
+  still in warning band but reduced from 1873; `mcp_servers/email_tool_formatting.py`
+  is below the report threshold.
+- R11BU focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_tool_formatting.py mcp_servers\email_account_config.py mcp_servers\email_tool_schemas.py`
+  passed.
+- R11BU Email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py tests\test_imap_mailbox_quoting.py tests\test_imap_leak_fixes.py tests\test_icloud_imap_full_fetch.py -q`
+  returned `38 passed, 2 warnings`.
+
+Completion criteria:
+
+- MCP email account/list/read/search/attachment/send/draft/delete regression
+  tests remain green.
+- Response formatting helpers remain pure: no IMAP/SMTP/network/provider calls
+  and no persistence of secrets or private content.
+- `email_server.py` loses formatting code while retaining public MCP tool names,
+  account handling and monkeypatchable private function boundaries.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

@@ -1497,12 +1497,14 @@ Slice queue:
 | L7-R12BG-admin-plugin-token-boundary | repo_only | Bob | Done: Plugin and API-token admin tools moved to `src/tool_domains/admin_plugin_token_services.py`; `src/tool_domains/admin_services.py` is below warning band while keeping existing tool imports stable. |
 | L7-R12BH-llm-activity-metrics-boundary | repo_only | Bob | Done: Redacted AI-activity recording and SSE metric helpers moved to `src/llm_activity_metrics.py`; `src/llm_core.py` is smaller while preserving private helper imports. |
 | L7-R12BI-task-scheduler-delivery-boundary | repo_only | Bob | Done: Scheduled-task email/MCP delivery helpers moved to `src/task_scheduler_delivery.py`; `src/task_scheduler.py` is smaller while preserving legacy wrapper methods. |
+| L7-R12BJ-email-mcp-formatting-boundary | repo_only | Bob | Done: Email MCP response formatting moved to `mcp_servers/email_tool_formatting.py`; `mcp_servers/email_server.py` is smaller while preserving dispatch/account/IMAP/SMTP boundaries. |
 
 Next safe slice:
 
 - L7 backend splits can continue only on a new explicitly scoped backend
   warning-band file, for example `routes/email_routes.py`,
-  `routes/model_routes.py`, `plugins/telegram/plugin.py` or another backend
+  `routes/model_routes.py`, `mcp_servers/email_server.py`,
+  `plugins/telegram/plugin.py` or another backend
   route/helper facade chosen from the large-file report once its hotfiles are
   quiet. L7-R2 CSS split should wait until visual smoke coverage is available
   because
@@ -1586,7 +1588,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12BI are complete; tool implementation/admin, admin plugin/token helpers, tool-schema facade, tool-execution facade, research-handler storage, notes-reminder dispatch, contacts-vCard helpers, HWFit Windows probe helpers, session serialization helpers, auth user-rename helpers, Deep Research prompt helpers, LLM activity metrics, task-scheduler delivery helpers, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12BJ are complete; tool implementation/admin, admin plugin/token helpers, tool-schema facade, tool-execution facade, research-handler storage, notes-reminder dispatch, contacts-vCard helpers, HWFit Windows probe helpers, session serialization helpers, auth user-rename helpers, Deep Research prompt helpers, LLM activity metrics, task-scheduler delivery helpers, Email MCP formatting, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are done or reduced; several backend files remain in warning band and later CSS/UI-safe waves remain gated. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

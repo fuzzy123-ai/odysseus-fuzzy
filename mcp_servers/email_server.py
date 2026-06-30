@@ -43,6 +43,21 @@ from mcp_servers.email_account_config import (
     _resolve_account_from_rows,
     _writing_style_guidance,
 )
+from mcp_servers.email_tool_formatting import (
+    apply_active_account_context,
+    format_ai_draft_reply_response,
+    format_bulk_result,
+    format_download_attachment_response,
+    format_draft_email_response,
+    format_draft_reply_response,
+    format_email_accounts_response,
+    format_list_emails_response,
+    format_read_email_response,
+    format_search_emails_response,
+    format_sent_email_response,
+    merged_account_context_header,
+    selected_account_context_header,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -1478,19 +1493,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         if name == "list_email_accounts":
             rows = _filter_accounts_for_owner(all_db_accounts)
-            if not rows:
-                if all_db_accounts and owner:
-                    return [TextContent(type="text", text="No email accounts configured for this owner.")]
-                return [TextContent(type="text", text="No email accounts configured. Legacy single-account mode active.")]
-            lines = [f"Found {len(rows)} email account(s):\n"]
-            for r in rows:
-                star = " (default)" if r.get("is_default") else ""
-                lines.append(
-                    f"- **{r['name']}**{star}\n"
-                    f"  email: {r.get('imap_user') or r.get('from_address') or '(unknown)'}\n"
-                    f"  id: {r['id']}"
-                )
-            return [TextContent(type="text", text="\n".join(lines))]
+            return [format_email_accounts_response(rows, all_db_accounts, owner)]
 
         acct = arguments.get("account")  # consumed by all email ops
 
@@ -1511,14 +1514,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     unresponded_only=unresponded_only,
                     unread_only=unread_only,
                 )
-                account_names = [
-                    f"{a.get('name') or a.get('imap_user')} <{a.get('imap_user') or a.get('from_address') or '?'}>"
-                    for a in all_accounts
-                ]
-                header_lines.append(
-                    f"[EMAIL ACCOUNT CONTEXT: No `account` was provided, so this result is merged across configured accounts: "
-                    f"{', '.join(account_names)}. Each row includes its source account.]\n"
-                )
+                header_lines.append(merged_account_context_header(all_accounts))
             else:
                 results = _list_emails(
                     folder=arguments.get("folder", "INBOX"),
@@ -1528,46 +1524,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     account=acct,
                 )
                 active_cfg = _load_config(acct)
-                if active_cfg.get("account_name") or active_cfg.get("imap_user"):
-                    for item in results:
-                        item["_account"] = active_cfg.get("account_name") or active_cfg.get("imap_user") or "default"
-                        item["_account_email"] = active_cfg.get("imap_user") or ""
+                apply_active_account_context(results, active_cfg)
 
             if len(all_accounts) >= 2 and acct:
                 active_cfg = _load_config(acct)
-                active_name = active_cfg.get("account_name") or "default"
-                active_email = active_cfg.get("imap_user") or ""
-                other = [
-                    f"{a['name']} <{a.get('imap_user') or a.get('from_address') or '?'}>"
-                    for a in all_accounts
-                    if a['id'] != active_cfg.get("account_id")
-                ]
-                header_lines.append(
-                    f"[EMAIL ACCOUNT CONTEXT: This result is ONLY from account `{active_name}` ({active_email}). "
-                    f"Other configured accounts: {', '.join(other)}. "
-                    f"If the user asks for Gmail/another inbox, call list_emails again with `account` set to that account name or email.]\n"
-                )
+                header_lines.append(selected_account_context_header(all_accounts, active_cfg))
             if errors:
                 header_lines.append("[EMAIL ACCOUNT ERRORS: " + "; ".join(errors) + "]\n")
 
-            if not results:
-                msg = "No unread/unresponded emails found."
-                if header_lines:
-                    msg = "\n".join(header_lines) + msg
-                return [TextContent(type="text", text=msg)]
-
-            lines = header_lines + [f"Found {len(results)} email(s):\n"]
-            for i, em in enumerate(results, 1):
-                line = f"{i}. **{em['subject']}**\n   From: {em['from']} ({em['from_address']})\n   Date: {em['date']}\n   UID: {em['uid']}"
-                if em.get("_account"):
-                    account_label = em.get("_account")
-                    if em.get("_account_email"):
-                        account_label += f" <{em['_account_email']}>"
-                    line += f"\n   Account: {account_label}"
-                if em.get("summary"):
-                    line += f"\n   Summary: {em['summary']}"
-                lines.append(line)
-            return [TextContent(type="text", text="\n\n".join(lines))]
+            return [format_list_emails_response(results, header_lines)]
 
         elif name == "download_attachment":
             uid = arguments.get("uid")
@@ -1578,13 +1543,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = _download_attachment(uid, index, folder, account=acct)
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
-            text = (
-                f"Attachment downloaded to: `{result['path']}`\n"
-                f"Filename: {result['filename']}\n"
-                f"Size: {result['size']} bytes\n\n"
-                f"You can now read this file using the read_file tool."
-            )
-            return [TextContent(type="text", text=text)]
+            return [format_download_attachment_response(result)]
 
         elif name == "search_emails":
             q = arguments.get("query", "")
@@ -1594,22 +1553,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 hits = _search_emails(q, folders=folders, max_results=max_results, account=acct)
             except Exception as e:
                 return [TextContent(type="text", text=f"Search failed: {e}")]
-            if not hits:
-                return [TextContent(type="text", text=f'No emails matched "{q}".')]
-            lines = [f'Found {len(hits)} email(s) matching "{q}":\n']
-            for i, em in enumerate(hits, 1):
-                lines.append(
-                    f"{i}. **{em['subject']}**\n"
-                    f"   From: {em['from']} ({em['from_address']})\n"
-                    f"   Date: {em['date']}\n"
-                    f"   Folder: {em.get('_folder', 'INBOX')}\n"
-                    f"   UID: {em['uid']}"
-                )
-                if em.get('to'):
-                    lines.append(f"   To: {em['to']}")
-                if em.get('summary'):
-                    lines.append(f"   Summary: {em['summary']}")
-            return [TextContent(type="text", text="\n".join(lines))]
+            return [format_search_emails_response(q, hits)]
 
         elif name == "read_email":
             all_accounts = _list_accounts_raw()
@@ -1629,22 +1573,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
 
-            text = (
-                f"**Subject:** {result['subject']}\n"
-                f"**From:** {result['from']} ({result['from_address']})\n"
-                f"**Date:** {result['date']}\n"
-                f"**UID:** {result['uid']}\n"
-                f"**Account:** {result.get('account', 'default')} ({result.get('account_email', '')})\n"
-                f"**Message-ID:** {result['message_id']}\n"
-            )
-            if result.get('attachments'):
-                text += f"\n**Attachments ({len(result['attachments'])}):**\n"
-                for a in result['attachments']:
-                    size_kb = a['size'] // 1024
-                    text += f"  - [{a['index']}] {a['filename']} ({a['content_type']}, {size_kb}KB)\n"
-                text += "\n_Use `download_attachment` with the UID and index to download._\n"
-            text += f"\n---\n\n{result['body']}"
-            return [TextContent(type="text", text=text)]
+            return [format_read_email_response(result)]
 
         elif name == "send_email":
             to = arguments.get("to")
@@ -1670,8 +1599,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         "Nothing has been sent yet. Review and approve it in Odysseus before delivery."
                     ),
                 )]
-            acct_note = f" (from {result['account']})" if result.get("account") else ""
-            return [TextContent(type="text", text=f"Sent email to {result['to']} with subject '{result['subject']}'{acct_note}.")]
+            return [format_sent_email_response(result)]
 
         elif name == "draft_email":
             to = arguments.get("to")
@@ -1688,15 +1616,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 bcc=arguments.get("bcc"),
                 account=acct,
             )
-            acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Created Odysseus email draft `{result['title']}` "
-                    f"(document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [format_draft_email_response(result)]
 
         elif name == "reply_to_email":
             uid = arguments.get("uid")
@@ -1734,15 +1654,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
-            acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Created Odysseus reply draft `{result['title']}` for UID {uid} "
-                    f"(document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [format_draft_reply_response(result, uid)]
 
         elif name == "ai_draft_email_reply":
             uid = arguments.get("uid")
@@ -1757,15 +1669,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
-            acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Generated AI reply and created Odysseus compose draft "
-                    f"`{result['title']}` for UID {uid} (document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [format_ai_draft_reply_response(result, uid)]
 
         elif name == "archive_email":
             uid = arguments.get("uid")
@@ -1846,10 +1750,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     return [TextContent(type="text", text=f"Unknown bulk action: {action!r}. Use mark_read/mark_unread/archive/delete/junk.")]
             except Exception as e:
                 return [TextContent(type="text", text=f"Bulk {action} failed after partial work: {e}")]
-            if changed_n <= 0:
-                return [TextContent(type="text", text=f"No matching UIDs found in {folder}; 0 of {requested_n} email(s) {verb}.")]
-            suffix = "" if changed_n == requested_n else f" ({changed_n} of {requested_n} requested UIDs matched)"
-            return [TextContent(type="text", text=f"Done — {changed_n} email(s) {verb}{suffix}.")]
+            return [format_bulk_result(changed_n, requested_n, verb, folder)]
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
