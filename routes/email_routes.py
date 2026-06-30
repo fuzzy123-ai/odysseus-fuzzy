@@ -71,6 +71,19 @@ from routes.email_imap_helpers import (
     uid_exists as _uid_exists,
     uid_from_fetch_meta as _uid_from_fetch_meta,
 )
+from routes.email_owner_events import (
+    email_tag_owner_aliases as _email_tag_owner_aliases_impl,
+    email_tag_owner_clause_from_aliases as _email_tag_owner_clause_from_aliases,
+    record_email_received_events as _record_email_received_events_impl,
+)
+from routes.email_schedule_helpers import (
+    approve_agent_draft_row as _approve_agent_draft_row,
+    cancel_agent_draft_row as _cancel_agent_draft_row,
+    cancel_scheduled_email_row as _cancel_scheduled_email_row,
+    list_pending_agent_draft_rows as _list_pending_agent_draft_rows,
+    list_scheduled_email_rows as _list_scheduled_email_rows,
+    schedule_email_row as _schedule_email_row,
+)
 from routes.email_smtp_helpers import (
     build_draft_message as _build_draft_message,
     build_outbound_email_message as _build_outbound_email_message,
@@ -83,102 +96,16 @@ logger = logging.getLogger(__name__)
 
 
 def _email_tag_owner_aliases(account_id: str | None, owner: str = "") -> list[str]:
-    aliases = [owner or ""]
-    try:
-        from core.database import SessionLocal as _SL, EmailAccount as _EA
-        db = _SL()
-        try:
-            resolved_account_id = account_id
-            if not resolved_account_id:
-                try:
-                    cfg = _get_email_config(None, owner=owner)
-                    resolved_account_id = cfg.get("account_id") or None
-                    aliases.extend([
-                        cfg.get("imap_user") or "",
-                        cfg.get("smtp_user") or "",
-                        cfg.get("from_address") or "",
-                    ])
-                except Exception as _e:
-                    logger.warning("Failed to resolve email account alias", exc_info=_e)
-                    resolved_account_id = None
-            row = db.get(_EA, resolved_account_id) if resolved_account_id else None
-            if row:
-                aliases.extend([row.owner or "", row.imap_user or "", row.from_address or ""])
-        finally:
-            db.close()
-    except Exception as _e:
-        logger.warning("Failed to load email aliases", exc_info=_e)
-    out = []
-    for a in aliases:
-        a = (a or "").strip()
-        if a not in out:
-            out.append(a)
-    return out or [""]
+    return _email_tag_owner_aliases_impl(account_id, owner)
 
 
 def _email_tag_owner_clause(account_id: str | None, owner: str = "") -> tuple[str, list[str]]:
     aliases = _email_tag_owner_aliases(account_id, owner)
-    placeholders = ",".join("?" * len(aliases))
-    # In configured multi-user mode, do not treat legacy owner='' rows as
-    # visible to everyone. Single-user/unconfigured mode keeps legacy rows.
-    if owner:
-        return f"owner IN ({placeholders})", aliases
-    return f"(owner IN ({placeholders}) OR owner IS NULL)", aliases
+    return _email_tag_owner_clause_from_aliases(aliases, owner)
 
 
 def _record_email_received_events(owner: str, account_id: str | None, folder: str, emails: list[dict]):
-    """Baseline inbox messages, then fire `email_received` for new arrivals."""
-    if not owner or (folder or "INBOX").upper() != "INBOX" or not emails:
-        return
-    try:
-        from src.event_bus import fire_event
-        account_key = (account_id or "default").strip() or "default"
-        now = datetime.utcnow().isoformat() + "Z"
-        keys = []
-        for e in emails:
-            key = (e.get("message_id") or e.get("uid") or "").strip()
-            if key and key not in keys:
-                keys.append(key)
-        if not keys:
-            return
-
-        conn = _sql3.connect(SCHEDULED_DB)
-        try:
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS email_event_seen ("
-                "owner TEXT NOT NULL, account_key TEXT NOT NULL, folder TEXT NOT NULL, "
-                "message_key TEXT NOT NULL, first_seen_at TEXT NOT NULL, "
-                "PRIMARY KEY (owner, account_key, folder, message_key))"
-            )
-            count = conn.execute(
-                "SELECT COUNT(*) FROM email_event_seen WHERE owner=? AND account_key=? AND folder=?",
-                (owner, account_key, folder),
-            ).fetchone()[0]
-            existing = set()
-            if count:
-                placeholders = ",".join("?" * len(keys))
-                rows = conn.execute(
-                    f"SELECT message_key FROM email_event_seen "
-                    f"WHERE owner=? AND account_key=? AND folder=? AND message_key IN ({placeholders})",
-                    (owner, account_key, folder, *keys),
-                ).fetchall()
-                existing = {r[0] for r in rows}
-            new_keys = [k for k in keys if k not in existing]
-            conn.executemany(
-                "INSERT OR IGNORE INTO email_event_seen "
-                "(owner, account_key, folder, message_key, first_seen_at) VALUES (?, ?, ?, ?, ?)",
-                [(owner, account_key, folder, k, now) for k in keys],
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-        if count and new_keys:
-            for _ in new_keys[:50]:
-                fire_event("email_received", owner)
-            logger.info("Fired email_received for %d new message(s)", min(len(new_keys), 50))
-    except Exception:
-        logger.debug("email_received event detection skipped", exc_info=True)
+    return _record_email_received_events_impl(owner, account_id, folder, emails, db_path=SCHEDULED_DB)
 
 
 def setup_email_routes():
@@ -1725,65 +1652,16 @@ def setup_email_routes():
     @router.post("/schedule")
     async def schedule_email(req: dict, owner: str = Depends(require_owner)):
         """Schedule an email to be sent at a specific time. ISO8601 UTC."""
-        import sqlite3
-        import uuid as _uuid
         try:
-            send_at = req.get("send_at")
-            if not send_at:
-                return {"success": False, "error": "send_at required (ISO8601 UTC)"}
             # Body-based account_id — dep can't see it, check here.
             _acct = req.get("account_id")
             if _acct:
                 _assert_owns_account(_acct, owner)
-            # Validate parseable + reject past times (the poller fires
-            # anything in the past immediately on the next tick — a
-            # 1970-dated schedule would deliver right now).
-            from datetime import datetime as _dt, timezone as _tz
-            try:
-                parsed_at = _dt.fromisoformat(send_at.replace("Z", "+00:00"))
-            except ValueError:
-                return {"success": False, "error": "send_at must be ISO8601"}
-            now_utc = _dt.now(_tz.utc) if parsed_at.tzinfo else _dt.utcnow()
-            # Tiny 30s grace so a user clicking Send right at the chosen
-            # minute doesn't trip the past-time guard.
-            if parsed_at < now_utc:
-                return {"success": False, "error": "send_at must be in the future"}
-            # Normalize to naive UTC before storing: the poller selects due
-            # rows with a lexicographic string compare against a naive
-            # datetime.utcnow().isoformat(), so storing the raw client string
-            # makes "+02:00" schedules fire hours late, negative offsets fire
-            # hours early, and a "Z" suffix compares after the fractional
-            # seconds of the poller timestamp.
-            if parsed_at.tzinfo:
-                parsed_at = parsed_at.astimezone(_tz.utc).replace(tzinfo=None)
-            send_at = parsed_at.isoformat()
-
-            sid = _uuid.uuid4().hex[:16]
-            conn = sqlite3.connect(SCHEDULED_DB)
-            conn.execute("""
-                INSERT INTO scheduled_emails
-                (id, to_addr, cc, bcc, subject, body, in_reply_to, references_hdr, attachments, send_at, created_at, status, account_id, odysseus_kind, owner)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-            """, (
-                sid,
-                req.get("to", ""),
-                req.get("cc") or None,
-                req.get("bcc") or None,
-                req.get("subject") or "",
-                req.get("body") or "",
-                req.get("in_reply_to") or None,
-                req.get("references") or None,
-                json.dumps(req.get("attachments") or []),
-                send_at,
-                datetime.utcnow().isoformat(),
-                req.get("account_id") or None,
-                req.get("odysseus_kind") or "scheduled",
-                owner or "",
-            ))
-            conn.commit()
-            conn.close()
-            logger.info(f"Scheduled email {sid} for {send_at}")
-            return {"success": True, "id": sid, "send_at": send_at}
+            result = _schedule_email_row(req, owner=owner, db_path=SCHEDULED_DB)
+            logger.info("Scheduled email %s for %s", result["id"], result["send_at"])
+            return result
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"Failed to schedule email: {e}")
             return {"success": False, "error": "Mail operation failed"}
@@ -1791,22 +1669,8 @@ def setup_email_routes():
     @router.get("/scheduled")
     async def list_scheduled(owner: str = Depends(require_owner)):
         """List all scheduled (pending) emails."""
-        import sqlite3
         try:
-            conn = sqlite3.connect(SCHEDULED_DB)
-            rows = conn.execute("""
-                SELECT id, to_addr, cc, subject, send_at, created_at, status, error
-                FROM scheduled_emails
-                WHERE status IN ('pending', 'failed') AND owner = ?
-                ORDER BY send_at ASC
-            """, (owner or "",)).fetchall()
-            conn.close()
-            return {"scheduled": [
-                {
-                    "id": r[0], "to": r[1], "cc": r[2], "subject": r[3],
-                    "send_at": r[4], "created_at": r[5], "status": r[6], "error": r[7],
-                } for r in rows
-            ]}
+            return {"scheduled": _list_scheduled_email_rows(owner=owner, db_path=SCHEDULED_DB)}
         except Exception as e:
             logger.error(f"list_scheduled failed: {e}")
             return {"scheduled": [], "error": "Mail operation failed"}
@@ -1814,15 +1678,8 @@ def setup_email_routes():
     @router.delete("/scheduled/{sid}")
     async def cancel_scheduled(sid: str, owner: str = Depends(require_owner)):
         """Cancel a scheduled email."""
-        import sqlite3
         try:
-            conn = sqlite3.connect(SCHEDULED_DB)
-            conn.execute(
-                "DELETE FROM scheduled_emails WHERE id = ? AND status = 'pending' AND owner = ?",
-                (sid, owner or ""),
-            )
-            conn.commit()
-            conn.close()
+            _cancel_scheduled_email_row(sid, owner=owner, db_path=SCHEDULED_DB)
             return {"success": True}
         except Exception as e:
             logger.error(f"cancel_scheduled {sid!r} failed: {e}")
@@ -1837,19 +1694,8 @@ def setup_email_routes():
     # cancel (status='cancelled').
     @router.get("/pending")
     async def list_pending_agent_drafts(owner: str = Depends(require_owner)):
-        import sqlite3
         try:
-            conn = sqlite3.connect(SCHEDULED_DB)
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                """SELECT id, to_addr, subject, body, created_at, account_id
-                   FROM scheduled_emails
-                   WHERE status = 'agent_draft' AND owner = ?
-                   ORDER BY created_at DESC""",
-                (owner or "",),
-            ).fetchall()
-            conn.close()
-            return {"pending": [dict(r) for r in rows]}
+            return {"pending": _list_pending_agent_draft_rows(owner=owner, db_path=SCHEDULED_DB)}
         except Exception as e:
             logger.error(f"list_pending_agent_drafts failed: {e}")
             return {"pending": [], "error": "Mail operation failed"}
@@ -1859,19 +1705,8 @@ def setup_email_routes():
         """Approve a draft staged by the agent: flip status → pending and
         backdate send_at so the scheduled-send poller picks it up
         immediately."""
-        import sqlite3
         try:
-            conn = sqlite3.connect(SCHEDULED_DB)
-            cur = conn.execute(
-                """UPDATE scheduled_emails
-                   SET status = 'pending', send_at = ?
-                   WHERE id = ? AND status = 'agent_draft' AND owner = ?""",
-                (datetime.utcnow().isoformat(), sid, owner or ""),
-            )
-            conn.commit()
-            affected = cur.rowcount
-            conn.close()
-            if not affected:
+            if not _approve_agent_draft_row(sid, owner=owner, db_path=SCHEDULED_DB):
                 return {"success": False, "error": "Draft not found or already handled"}
             return {"success": True}
         except Exception as e:
@@ -1881,18 +1716,8 @@ def setup_email_routes():
     @router.delete("/pending/{sid}")
     async def cancel_agent_draft(sid: str, owner: str = Depends(require_owner)):
         """Discard a draft the agent staged for approval."""
-        import sqlite3
         try:
-            conn = sqlite3.connect(SCHEDULED_DB)
-            cur = conn.execute(
-                """UPDATE scheduled_emails SET status = 'cancelled'
-                   WHERE id = ? AND status = 'agent_draft' AND owner = ?""",
-                (sid, owner or ""),
-            )
-            conn.commit()
-            affected = cur.rowcount
-            conn.close()
-            if not affected:
+            if not _cancel_agent_draft_row(sid, owner=owner, db_path=SCHEDULED_DB):
                 return {"success": False, "error": "Draft not found or already handled"}
             return {"success": True}
         except Exception as e:
