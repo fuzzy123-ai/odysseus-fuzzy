@@ -40,6 +40,7 @@ from mcp_servers.email_attachment_utils import (
     _extract_attachment_to_disk,
     _list_attachments_from_msg,
 )
+from mcp_servers.email_bulk_tool_utils import handle_bulk_email_tool
 from mcp_servers.email_agent_draft_utils import (
     read_agent_email_confirm_setting,
     stash_agent_draft,
@@ -1016,51 +1017,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=f"{'Marked' if ok else 'Failed to mark'} UID {uid} as {state}")]
 
         elif name == "bulk_email":
-            action = arguments.get("action", "")
-            folder = arguments.get("folder", "INBOX")
-            all_unread = bool(arguments.get("all_unread", False))
-            uids = arguments.get("uids") or []
-            if action == "delete" and (uids or all_unread) and not _confirmed(arguments.get("confirmed", False)):
-                return [_email_delete_confirmation_required(
-                    "bulk email deletion requires explicit confirmation",
-                    count=(len(uids) if not all_unread else None),
-                )]
-            if all_unread:
-                uids = _search_uids(folder, "UNSEEN", account=acct)
-            if not uids:
-                return [TextContent(type="text", text="No messages selected (pass uids or all_unread=true).")]
-            requested_n = len(uids)
-            changed_n = 0
-            try:
-                if action == "mark_read":
-                    changed_n = _bulk_set_flag(uids, folder, "\\Seen", add=True, account=acct)
-                    verb = "marked read"
-                elif action == "mark_unread":
-                    changed_n = _bulk_set_flag(uids, folder, "\\Seen", add=False, account=acct)
-                    verb = "marked unread"
-                elif action == "archive":
-                    cfg = _load_config(acct)
-                    changed_n = _bulk_move(uids, folder, cfg["archive_folder"], account=acct, role="archive")
-                    verb = "archived"
-                elif action == "junk":
-                    cfg = _load_config(acct)
-                    junk_folder = cfg.get("junk_folder") or "Junk"
-                    changed_n = _bulk_move(uids, folder, junk_folder, account=acct, role="junk")
-                    verb = "moved to Junk"
-                elif action == "delete":
-                    permanent = bool(arguments.get("permanent", False))
-                    if permanent:
-                        changed_n = _bulk_set_flag(uids, folder, "\\Deleted", add=True, account=acct)
-                        verb = "permanently deleted"
-                    else:
-                        cfg = _load_config(acct)
-                        changed_n = _bulk_move(uids, folder, cfg["trash_folder"], account=acct, role="trash")
-                        verb = "moved to Trash"
-                else:
-                    return [TextContent(type="text", text=f"Unknown bulk action: {action!r}. Use mark_read/mark_unread/archive/delete/junk.")]
-            except Exception as e:
-                return [TextContent(type="text", text=f"Bulk {action} failed after partial work: {e}")]
-            return [format_bulk_result(changed_n, requested_n, verb, folder)]
+            return handle_bulk_email_tool(
+                arguments,
+                account=acct,
+                confirmed_func=_confirmed,
+                confirmation_required_func=_email_delete_confirmation_required,
+                search_uids_func=_search_uids,
+                bulk_set_flag_func=_bulk_set_flag,
+                bulk_move_func=_bulk_move,
+                load_config_func=_load_config,
+                format_bulk_result_func=format_bulk_result,
+            )
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]

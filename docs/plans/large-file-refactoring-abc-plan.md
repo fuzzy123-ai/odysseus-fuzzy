@@ -5291,6 +5291,48 @@ Completion criteria:
 - Legacy wrapper remains available for dispatch.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CQ / L7-R12CF: Email MCP Bulk Tool Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving `bulk_email` tool dispatch,
+  confirmation checks and bulk action routing into a focused helper.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_bulk_tool_utils.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CQ done 2026-06-30: `bulk_email` dispatch moved to
+  `mcp_servers/email_bulk_tool_utils.py`; `mcp_servers.email_server.call_tool`
+  injects the legacy private helpers and formatters.
+- R11CQ line count 2026-06-30: `mcp_servers/email_server.py` is 1051 lines,
+  still in warning band but reduced from 1084 after R11CP;
+  `mcp_servers/email_bulk_tool_utils.py` is 68 lines and below the report
+  threshold.
+- R11CQ focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_bulk_tool_utils.py`
+  passed.
+- R11CQ email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_delete_confirmation.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `16 passed, 2 warnings`.
+
+Completion criteria:
+
+- Bulk delete still requires explicit confirmation before search/mutation.
+- Bulk mark/archive/delete/junk behavior and formatter output remain stable.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
