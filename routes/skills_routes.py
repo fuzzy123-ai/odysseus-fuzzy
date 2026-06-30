@@ -8,7 +8,6 @@ The on-disk format is SKILL.md (frontmatter + structured body) under
 """
 
 import logging
-import re
 from typing import List, Optional
 
 import httpx
@@ -19,6 +18,12 @@ from pydantic import BaseModel, Field
 from services.memory.skills import SkillsManager
 from src.auth_helpers import get_current_user
 from core.middleware import require_admin
+from routes.skills_audit_helpers import (
+    _audit_flag_text,
+    _audit_generic_blocker,
+    _should_check_retrieval_precision,
+    _skill_test_task,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,22 +84,6 @@ class SkillUpdateRequest(BaseModel):
     solution: Optional[str] = None
     steps: Optional[List[str]] = None
 
-
-def _skill_test_task(skill: dict) -> str:
-    """Build a self-contained test task. Many skills act ON something (a doc,
-    an email); if we just hand over the 'when to use' text the agent has nothing
-    to work on and stalls asking for input. So we tell it to create its own
-    realistic fixture first, then apply the skill end-to-end."""
-    if not isinstance(skill, dict):
-        skill = {}
-    ctx = (skill.get("when_to_use") or skill.get("description") or skill.get("name") or "").strip()
-    return (
-        "Test this skill end-to-end. FIRST, set up a small realistic scenario it "
-        "applies to — create any sample input it needs (e.g. a short document, a "
-        "note, sample data). Do NOT ask the user for input; invent a plausible "
-        "example yourself. THEN apply the skill fully to that example and show the "
-        "result. Context for when this skill is used: " + (ctx or "(general)")
-    )
 
 
 async def _eval_skill_run(skill_md: str, task: str, transcript: str,
@@ -309,30 +298,6 @@ async def _eval_skill_necessity(skill_md: str, others: list, url: str, model: st
         "redundant_with": [str(x)[:80] for x in (data.get("redundant_with") or []) if str(x).strip()][:6],
         "reason": str(data.get("reason", ""))[:200],
     }
-
-
-def _should_check_retrieval_precision(skill: dict) -> bool:
-    """Cheap prefilter for the expensive retrieval-precision judge.
-
-    Skills with broad tags like "network" or "document" are the ones most likely
-    to over-inject. Narrow command/vendor tags alone are fine.
-    """
-    broad = {
-        "arch", "arch linux", "linux", "network", "networking", "wifi",
-        "installation", "install", "system", "ssh", "document", "documents",
-        "search", "email", "calendar", "gpu", "server", "python",
-    }
-    if not isinstance(skill, dict):
-        return False
-    tags = {str(t or "").strip().lower() for t in (skill.get("tags") or [])}
-    if tags & broad:
-        return True
-    text = " ".join([
-        str(skill.get("name") or ""),
-        str(skill.get("description") or ""),
-        str(skill.get("when_to_use") or ""),
-    ]).lower()
-    return sum(1 for t in broad if t in text) >= 2
 
 
 async def _eval_skill_retrieval_precision(skill_md: str, others: list,
@@ -584,46 +549,6 @@ def _skill_duplicate_blocker(skills_manager, name: str, owner) -> Optional[str]:
         except Exception:
             pass
         return keeper_name
-    return None
-
-
-def _audit_flag_text(*parts) -> str:
-    text_parts = []
-    for part in parts:
-        if isinstance(part, dict):
-            text_parts.extend(str(v or "") for v in part.values())
-        elif isinstance(part, (list, tuple, set)):
-            text_parts.extend(str(v or "") for v in part)
-        else:
-            text_parts.append(str(part or ""))
-    return " ".join(text_parts).lower()
-
-
-def _audit_generic_blocker(skill: Optional[dict], necessity: Optional[dict],
-                           verdict_data: Optional[dict]) -> Optional[str]:
-    """Return a short reason when a generic/trivial skill must stay draft."""
-    generic_re = re.compile(
-        r"\b(too[-\s]?generic|generic|trivial|capable assistant|without a saved|"
-        r"not need|unnecessary|irrelevant)\b",
-        re.I,
-    )
-    if isinstance(necessity, dict):
-        reason = str(necessity.get("reason") or "")
-        if necessity.get("necessary") is False and generic_re.search(reason):
-            return reason or "Generic or unnecessary skill"
-
-    if isinstance(skill, dict):
-        tag_text = _audit_flag_text(skill.get("tags") or [])
-        if generic_re.search(tag_text):
-            return "Skill is tagged generic"
-
-    if isinstance(verdict_data, dict):
-        verdict_text = _audit_flag_text(
-            verdict_data.get("summary"),
-            verdict_data.get("issues") or [],
-        )
-        if generic_re.search(verdict_text):
-            return "Audit flagged the skill as generic or unnecessary"
     return None
 
 

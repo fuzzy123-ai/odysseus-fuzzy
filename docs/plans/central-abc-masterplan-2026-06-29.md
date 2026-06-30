@@ -981,6 +981,16 @@ Current evidence:
   `python -m py_compile routes\chat_routes.py routes\chat_endpoint_helpers.py`;
   `python -m pytest tests\test_chat_endpoint_helpers.py tests\test_chat_image_routing.py tests\test_session_endpoint_owner_scope.py -q`
   returned `11 passed, 1 warning`.
+- 2026-06-30: L7 R12L is implemented. Pure skills audit/test policy helpers
+  moved to `routes/skills_audit_helpers.py` while `routes/skills_routes.py`
+  keeps route-compatible imports for `builtin_actions` and existing tests. LLM
+  audit prompt hooks remain in `routes/skills_routes.py` for AI-activity
+  contract visibility. The large-file report places `routes/skills_routes.py`
+  at 1585 lines, band `warning`, not `candidate`; report candidate count is 26.
+- 2026-06-30 R12L evidence passed:
+  `python -m py_compile routes\skills_routes.py routes\skills_audit_helpers.py`;
+  `python -m pytest tests\test_skills_audit_helpers.py tests\test_skills_routes_nondict.py tests\test_ai_activity_audit_p3_contract.py -q`
+  returned `7 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1044,13 +1054,14 @@ Slice queue:
 | L7-R12I-gallery-remove-bg-boundary | repo_only | Bob | Done: background-removal helpers moved behind route-compatible imports; `routes/gallery_routes.py` is further below candidate threshold. |
 | L7-R12J-document-library-helper-boundary | repo_only | Bob | Done: document library facet/PDF display helpers moved behind route-compatible imports; `routes/document_routes.py` is further below candidate threshold. |
 | L7-R12K-chat-endpoint-helper-boundary | repo_only | Bob | Done: pure chat endpoint/model-cache helpers moved behind route-compatible imports; `routes/chat_routes.py` is further below candidate threshold. |
+| L7-R12L-skills-audit-helper-boundary | repo_only | Bob | Done: pure skills audit/test policy helpers moved behind route-compatible imports; `routes/skills_routes.py` is further below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue only on a new explicitly scoped backend
-  warning-band file, for example `routes/skills_routes.py`,
-  `routes/calendar_routes.py` or another backend route/helper facade chosen
-  from the large-file report. L7-R2 CSS split should wait until visual smoke
+  warning-band file, for example `routes/calendar_routes.py`,
+  `routes/session_routes.py` or another backend route/helper facade chosen from
+  the large-file report. L7-R2 CSS split should wait until visual smoke
   coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
@@ -1130,7 +1141,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12K are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12L are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

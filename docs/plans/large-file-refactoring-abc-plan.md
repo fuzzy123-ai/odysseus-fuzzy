@@ -6,9 +6,9 @@ Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H back
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
-library helper split and R11V chat endpoint helper split implemented; tool
+library helper split, R11V chat endpoint helper split and R11W skills audit helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route and Chat route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route and Skills route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1565,6 +1565,57 @@ Completion criteria:
 - Image endpoint routing and owner-scoped session endpoint repair remain
   covered by focused tests.
 - The slice performs no live provider, network or chat stream action.
+
+### R11W / L7-R12L: Skills Audit Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure skills audit/test policy helpers out of `routes/skills_routes.py`
+  while preserving route-compatible private imports for existing tests and
+  `src.builtin_actions`.
+
+Allowed paths:
+
+- `routes/skills_routes.py`
+- `routes/skills_audit_helpers.py`
+- `tests/test_skills_audit_helpers.py`
+- `tests/test_skills_routes_nondict.py`
+- `tests/test_ai_activity_audit_p3_contract.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11W done 2026-06-30: skill test-task generation, retrieval-precision
+  prefiltering and generic/trivial audit blocker helpers moved to
+  `routes/skills_audit_helpers.py`.
+- Compatibility evidence: `routes/skills_routes.py` imports the moved private
+  helper names so existing imports from `routes.skills_routes` continue to
+  work; LLM audit prompt hooks remain in `routes/skills_routes.py` for the
+  AI-activity audit contract.
+- R11W line count 2026-06-30: `routes/skills_routes.py` is 1585 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11W focused checks 2026-06-30:
+  `python -m py_compile routes\skills_routes.py routes\skills_audit_helpers.py`
+  passed.
+- R11W Skills audit regression tests 2026-06-30:
+  `python -m pytest tests\test_skills_audit_helpers.py tests\test_skills_routes_nondict.py tests\test_ai_activity_audit_p3_contract.py -q`
+  returned `7 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/skills_routes.py` remains below the large-file candidate threshold
+  with pure audit policy separated from route/job orchestration.
+- Existing imports from `routes.skills_routes` remain compatible.
+- AI activity audit prompt markers for skills remain visible in
+  `routes/skills_routes.py`.
+- The slice performs no live provider, network or skill audit job action.
 
 ### R12: Obsidian Frontend Split
 
