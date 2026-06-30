@@ -44,6 +44,7 @@ from routes.model_probe_helpers import (
     ollama_native_probe_root as _ollama_native_probe_root,
     ollama_tag_model_ids_from_payload as _ollama_tag_model_ids_from_payload,
     ping_result_from_response as _ping_result_from_response,
+    probe_ollama_native_ping as _probe_ollama_native_ping,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
     safe_build_models_url as _safe_build_models_url_impl,
@@ -270,15 +271,15 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
     last_error: Optional[str] = None
 
     try:
-        for ping_url in _ollama_native_ping_urls(ollama_root):
-            try:
-                r = httpx.get(ping_url, timeout=timeout, verify=llm_verify())
-                result = _ping_result_from_response(r)
-                if result["reachable"]:
-                    return result
-                last_error = result.get("error")
-            except Exception as e:
-                last_error = str(e)[:120]
+        native_result, last_error = _probe_ollama_native_ping(
+            _ollama_native_ping_urls(ollama_root),
+            timeout=timeout,
+            http_get_func=httpx.get,
+            llm_verify_func=llm_verify,
+            ping_result_func=_ping_result_from_response,
+        )
+        if native_result:
+            return native_result
     except Exception:
         pass
 

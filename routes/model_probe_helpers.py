@@ -310,6 +310,28 @@ def ollama_native_ping_urls(root_url: Optional[str]) -> list[str]:
     return [root + "/api/version", root + "/api/tags"]
 
 
+def probe_ollama_native_ping(
+    ping_urls: list[str],
+    *,
+    timeout: float,
+    http_get_func: Callable[..., Any],
+    llm_verify_func: Callable[[], Any],
+    ping_result_func: Callable[[Any], dict[str, Any]],
+) -> tuple[dict[str, Any] | None, Optional[str]]:
+    """Probe native Ollama ping URLs and return the first reachable result."""
+    last_error: Optional[str] = None
+    for ping_url in ping_urls:
+        try:
+            response = http_get_func(ping_url, timeout=timeout, verify=llm_verify_func())
+            result = ping_result_func(response)
+            if result["reachable"]:
+                return result, last_error
+            last_error = result.get("error")
+        except Exception as exc:
+            last_error = str(exc)[:120]
+    return None, last_error
+
+
 def ollama_tag_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
     """Extract model IDs from Ollama native /api/tags payloads."""
     return [

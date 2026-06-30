@@ -9,6 +9,7 @@ from routes.model_probe_helpers import (
     ollama_native_probe_root,
     ollama_tag_model_ids_from_payload,
     ping_result_from_response,
+    probe_ollama_native_ping,
     should_try_models_url_after_ping,
 )
 
@@ -156,6 +157,59 @@ def test_ollama_native_ping_urls_returns_native_version_and_tags_urls():
 def test_ollama_native_ping_urls_ignores_empty_root():
     assert ollama_native_ping_urls(None) == []
     assert ollama_native_ping_urls("") == []
+
+
+def test_probe_ollama_native_ping_returns_first_reachable_result():
+    calls = []
+
+    def fake_get(url, timeout=None, verify=None):
+        calls.append((url, timeout, verify))
+        status = 503 if len(calls) == 1 else 200
+        return _response(status)
+
+    result, last_error = probe_ollama_native_ping(
+        ["http://localhost:11434/api/version", "http://localhost:11434/api/tags"],
+        timeout=1.5,
+        http_get_func=fake_get,
+        llm_verify_func=lambda: "verify-token",
+        ping_result_func=ping_result_from_response,
+    )
+
+    assert result == {"reachable": True, "status_code": 200, "error": None}
+    assert last_error == "HTTP 503"
+    assert calls == [
+        ("http://localhost:11434/api/version", 1.5, "verify-token"),
+        ("http://localhost:11434/api/tags", 1.5, "verify-token"),
+    ]
+
+
+def test_probe_ollama_native_ping_returns_last_transport_error():
+    def fake_get(_url, timeout=None, verify=None):
+        raise RuntimeError("native ping failed with a long but safe message")
+
+    result, last_error = probe_ollama_native_ping(
+        ["http://localhost:11434/api/version"],
+        timeout=1.5,
+        http_get_func=fake_get,
+        llm_verify_func=lambda: True,
+        ping_result_func=ping_result_from_response,
+    )
+
+    assert result is None
+    assert last_error == "native ping failed with a long but safe message"
+
+
+def test_probe_ollama_native_ping_ignores_empty_urls():
+    result, last_error = probe_ollama_native_ping(
+        [],
+        timeout=1.5,
+        http_get_func=lambda *_args, **_kwargs: _response(200),
+        llm_verify_func=lambda: True,
+        ping_result_func=ping_result_from_response,
+    )
+
+    assert result is None
+    assert last_error is None
 
 
 def test_ollama_tag_model_ids_from_payload_reads_name_or_model():
