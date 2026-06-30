@@ -911,6 +911,18 @@ Current evidence:
 - R11B Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11b-2`
   returned `103 passed, 2 warnings`.
+- R11C done 2026-06-30: attachment max-byte policy, Universal Inbox review
+  reply formatting, attachment suffix/family detection and Telegram attachment
+  spool key/path/context-limit helpers moved to `plugins/telegram/attachments.py`;
+  live download and polling orchestration remain in `plugin.py`.
+- R11C line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  3245 lines; `plugins/telegram/attachments.py` is 140 lines.
+- R11C focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11C Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11c-2`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -920,8 +932,9 @@ Completion criteria:
 
 Remaining work:
 
-- Polling, attachment pipeline, outbound API and admin UI helpers still need
-  separate modules before R11 can be marked complete.
+- Polling orchestration, live file download/pipeline execution, outbound API
+  and admin UI helpers still need separate modules before R11 can be marked
+  complete.
 
 ### R12: Obsidian Frontend Split
 
