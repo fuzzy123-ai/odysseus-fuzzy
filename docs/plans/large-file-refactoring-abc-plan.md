@@ -4003,6 +4003,57 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BQ / L7-R12BF: Deep Research Prompt Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move static Deep Research prompt templates and category format overrides out
+  of `src/deep_research.py` into a focused prompt module.
+- Keep `DeepResearcher`, `current_date_context` and prompt-name imports
+  available from `src.deep_research` for compatibility.
+
+Allowed paths:
+
+- `src/deep_research.py`
+- `src/deep_research_prompts.py`
+- `tests/test_deep_research_date_context.py`
+- `tests/test_deep_research_extraction_controls.py`
+- `tests/test_deep_research_search_error.py`
+- `tests/test_deep_research_synthesis_resilience.py`
+- `tests/test_deep_research_parse_json_array_echo.py`
+- `tests/test_ai_activity_audit_p3_contract.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BQ done 2026-06-30: `src/deep_research_prompts.py` owns date-context
+  preamble generation, research plan/query/synthesis/stop/final-report prompts
+  and category-specific format overrides. `src.deep_research` imports the same
+  names and keeps the engine behavior intact.
+- R11BQ line count 2026-06-30: `src/deep_research.py` is 783 lines, in monitor
+  band and below warning band; `src/deep_research_prompts.py` is below report
+  threshold.
+- R11BQ focused checks 2026-06-30:
+  `python -m py_compile src\deep_research.py src\deep_research_prompts.py`
+  passed.
+- R11BQ Deep Research checks 2026-06-30:
+  `python -m pytest tests\test_deep_research_date_context.py tests\test_deep_research_extraction_controls.py tests\test_deep_research_search_error.py tests\test_deep_research_synthesis_resilience.py tests\test_deep_research_parse_json_array_echo.py tests\test_ai_activity_audit_p3_contract.py -q`
+  returned `23 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/deep_research.py` is below warning band without changing search,
+  extraction, synthesis or stop-decision runtime paths.
+- Deep Research date-context, parsing, search-error, synthesis-resilience and
+  AI activity audit contracts remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
