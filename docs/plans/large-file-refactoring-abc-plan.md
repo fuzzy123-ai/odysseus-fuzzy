@@ -996,6 +996,19 @@ Current evidence:
 - R11I Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11i-1`
   returned `103 passed, 2 warnings`.
+- R11J done 2026-06-30: Telegram Project-Intake detection, preview, review
+  status, reply formatting and apply helpers moved to
+  `plugins/telegram/project_intake.py`; `plugin.py` keeps compatibility
+  imports and injection points.
+- R11J line count 2026-06-30: `plugins/telegram/plugin.py` reduced to 1930
+  lines, below the large-file candidate threshold; `plugins/telegram/project_intake.py`
+  is 180 lines.
+- R11J focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\project_intake.py plugins\telegram\live_pipeline.py plugins\telegram\admin.py plugins\telegram\outbound.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11J Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11j-1`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -1005,9 +1018,8 @@ Completion criteria:
 
 Remaining work:
 
-- `plugins/telegram/plugin.py` remains just above the 2000-line candidate
-  threshold; route/tool-registration or project/export helpers need one final
-  small split before R11 can be marked complete.
+- R11 is complete for this large-file pass. `plugins/telegram/plugin.py` is
+  below the candidate threshold and live Telegram actions remain gated.
 
 ### R12: Obsidian Frontend Split
 
