@@ -694,6 +694,17 @@ Current evidence:
 - 2026-06-30 R8D focused tests passed:
   `python -m pytest tests/test_agent_loop.py tests/test_tool_support_heuristic.py tests/test_api_call_integration_routing.py tests/test_bg_job_tools.py tests/test_tool_output_prompt_injection.py tests/test_tool_rag_contacts_domain.py tests/test_agent_loop_tool_output_truncation.py tests/test_agent_loop_logging_redaction.py tests/test_agent_rounds_exhausted.py tests/test_tool_policy.py tests/test_delegate_tool.py tests/test_fenced_example_not_executed_for_native_models.py tests/test_llm_core_sanitize_tool_calls.py tests/test_chat_metrics.py tests/test_llm_core_reasoning_content_fallback.py tests/test_loop_breaker_runaway.py tests/test_plan_mode.py -q`
   returned `189 passed, 2 warnings`.
+- 2026-06-30: L7 R8E is implemented. Base/system prompt assembly, dynamic
+  active document/email context, skill-index injection and prompt-cache
+  internals moved to `src/agent_loop_system_prompt.py`; `src.agent_loop` keeps
+  import-compatible wrappers and is now 1666 lines, below the large-file
+  candidate threshold.
+- 2026-06-30 R8E focused tests passed:
+  `python -m pytest tests/test_skill_index_prompt_injection.py tests/test_user_time.py -q`
+  returned `13 passed, 13 warnings`.
+- 2026-06-30 R8E Agent Loop focused tests passed:
+  `python -m pytest tests/test_agent_loop.py tests/test_tool_registry.py tests/test_tool_rag_contacts_domain.py tests/test_api_call_integration_routing.py tests/test_self_control_prompt_contract.py tests/test_research_report_read.py tests/test_agent_loop_tool_output_truncation.py tests/test_agent_loop_logging_redaction.py tests/test_agent_rounds_exhausted.py tests/test_tool_policy.py tests/test_delegate_tool.py tests/test_tool_output_prompt_injection.py tests/test_fenced_example_not_executed_for_native_models.py tests/test_llm_core_sanitize_tool_calls.py tests/test_chat_metrics.py tests/test_llm_core_reasoning_content_fallback.py tests/test_loop_breaker_runaway.py tests/test_plan_mode.py -q`
+  returned `159 passed, 2 warnings`.
 
 Parallel rule:
 
@@ -721,13 +732,13 @@ Slice queue:
 | L7-R8B-agent-loop-tool-mechanics | repo_only | Bob | Done: tool block resolution, tool-result shaping and final metrics moved behind import-compatible helpers. |
 | L7-R8C-agent-loop-verifier-orchestration | repo_only | Bob | Done: verifier, plan/orchestrator, context-provider and reflector helpers moved behind import-compatible helpers. |
 | L7-R8D-agent-loop-intent-routing | repo_only | Bob | Done: endpoint heuristics, admin/continuation detection and domain classification moved behind import-compatible helpers. |
-| L7-R8E-agent-loop-base-prompt-final | repo_only | Bob | Next: extract base prompt/system prompt internals enough to bring `src/agent_loop.py` below candidate threshold. |
+| L7-R8E-agent-loop-base-prompt-final | repo_only | Bob | Done: base/system prompt internals moved behind compatibility wrappers; `src/agent_loop.py` is below the candidate threshold. |
+| L7-R9-email-routes-extraction | repo_only | Bob | Next: split `routes/email_routes.py` into route setup, IMAP helpers, SMTP/drafts, sanitization and owner/event helpers. |
 
 Next safe slice:
 
-- Continue L7-R8 Agent Loop Extraction with base prompt/system prompt internals,
-  if `src/agent_loop.py` is clean. L7-R2 CSS split should wait until visual
-  smoke coverage is available because
+- Continue L7-R9 Email Routes Extraction if `routes/email_routes.py` is clean.
+  L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
