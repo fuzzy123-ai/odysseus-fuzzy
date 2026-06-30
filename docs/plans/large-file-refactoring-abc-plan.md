@@ -25,9 +25,10 @@ result helper split, R11AY model refresh inflight reset helper split, R11AZ
 model refresh probe helper split, R11BA model refresh cache-update helper split,
 R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
-split, and R11BE RAG text chunking helper split; tool
+split, R11BE RAG text chunking helper split and R11BF repo tool output helper
+split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route and RAG vector facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, RAG vector and repo-skill facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -3417,6 +3418,56 @@ Completion criteria:
 - Sentence-aware chunking remains directly testable and the existing VectorRAG
   private wrapper remains available for callers/tests.
 - The slice performs no live RAG rebuild, provider call, network, Telegram,
+  Nextcloud or host mutation.
+
+### R11BF / L7-R12AU: Repo Tool Output Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move repo-management output formatting out of `src/tool_domains/repo_skills.py`
+  while preserving manage-repos dispatch, registry mutation guards and action
+  orchestration in the existing tool domain.
+
+Allowed paths:
+
+- `src/tool_domains/repo_skills.py`
+- `src/tool_domains/repo_output.py`
+- `tests/test_repo_output_helpers.py`
+- `tests/test_manage_repos_read_tool.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BF done 2026-06-30: commit, push, forge, recent-change and status output
+  formatting moved to `src/tool_domains/repo_output.py`; `repo_skills.py`
+  imports these helpers under the existing private names and keeps tool action
+  dispatch, registry mutation logic and repo policy gates.
+- Compatibility evidence: direct formatter tests cover clean/dirty status,
+  blocked/committed commit output, push target output, forge metadata output
+  and redacted repo-change memory wording; existing manage-repos read/plan
+  tests remain green.
+- R11BF line count 2026-06-30: `src/tool_domains/repo_skills.py` is 771 lines
+  in the large-file report, band `monitor`, not `warning` or `candidate`;
+  report candidate count is 26.
+- R11BF focused checks 2026-06-30:
+  `python -m py_compile src\tool_domains\repo_skills.py src\tool_domains\repo_output.py`
+  passed.
+- R11BF repo tool checks 2026-06-30:
+  `python -m pytest tests\test_repo_output_helpers.py tests\test_manage_repos_read_tool.py -q --basetemp .pytest-tmp-repo-output`
+  returned `20 passed, 2 warnings`.
+
+Completion criteria:
+
+- `src/tool_domains/repo_skills.py` drops below warning band without changing
+  manage-repos behavior or repo action gates.
+- Output formatting is directly testable in a dedicated helper module.
+- The slice performs no live git push, provider call, network, Telegram,
   Nextcloud or host mutation.
 
 ### R12: Obsidian Frontend Split
