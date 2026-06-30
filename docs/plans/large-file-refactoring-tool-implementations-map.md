@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7A/R7B/R7C/R7D/R7E implemented; remaining domain splits pending
+Status: R7A/R7B/R7C/R7D/R7E/R7F implemented; facade below threshold, admin follow-up pending
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -138,6 +138,10 @@ private helpers together rather than slicing by line number.
 6. **R7F media/research/contacts/vault**
    - Move smaller tail domains.
    - Run research/contact/vault tests.
+   - Done 2026-06-30: Gallery/research/contact tools moved to
+     `src/tool_domains/media_research_contacts.py`; Vaultwarden/Bitwarden
+     tools moved to `src/tool_domains/vault.py`; facade re-exports all public
+     tail-domain functions plus the legacy `_load_vault_config` hook.
 7. **R7G final facade audit**
    - Confirm `src/tool_implementations.py` is below the candidate threshold or
      documented as a thin compatibility facade.
@@ -311,6 +315,40 @@ listed above pass.
 - Contacts/vault:
   `tests/test_manage_contact_confirmation.py`,
   `tests/test_vault_password_not_in_argv.py`
+
+- Evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_contact_confirmation.py tests\test_manage_research_security.py tests\test_research_report_read.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `13 passed, 1 warning`.
+
+- Broader R7 smoke after R7F 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+- Facade/import smoke after R7F 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_implementations import do_api_call, do_edit_image, do_manage_research, do_trigger_research, do_resolve_contact, do_manage_contact, do_vault_search, do_vault_get, do_vault_unlock; from src.tool_execution import execute_tool_block; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+- Large-file report evidence after R7F 2026-06-30:
+  - `src/tool_implementations.py`: 152 lines, below monitor threshold.
+  - `src/tool_domains/media_research_contacts.py`: 308 lines, below monitor threshold.
+  - `src/tool_domains/vault.py`: 156 lines, below monitor threshold.
+  - `src/tool_domains/app_api.py`: 698 lines, monitor band.
+  - `src/tool_domains/cookbook_models.py`: 1213 lines, warning band.
+  - `src/tool_domains/admin_config.py`: 2369 lines, still candidate.
+  - R7 facade split is complete; next backend refactoring should split
+    `admin_config.py` into smaller admin domains.
 
 ## Stop Rules For R7
 

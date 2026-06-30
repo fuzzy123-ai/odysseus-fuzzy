@@ -2,8 +2,8 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D/R7E backend split
-implemented; remaining code refactor waves pending
+Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D/R7E/R7F backend split
+implemented; tool_implementations facade below threshold, remaining code refactor waves pending
 
 ## Goal
 
@@ -110,6 +110,21 @@ it into that queue.
   reduced to 671 lines; `src/tool_domains/app_api.py` is 698 lines and
   `src/tool_domains/cookbook_models.py` is 1213 lines. `src/tool_domains/admin_config.py`
   remains a 2369-line follow-up split candidate.
+- 2026-06-30: R7F implemented. `src/tool_domains/media_research_contacts.py`
+  contains gallery, research and contact tools; `src/tool_domains/vault.py`
+  contains Vaultwarden/Bitwarden tools. `src.tool_implementations` remains
+  import-compatible for all public tail-domain tools and legacy
+  `_load_vault_config` imports.
+- 2026-06-30 focused R7F tests passed:
+  `python -m pytest tests/test_manage_contact_confirmation.py tests/test_manage_research_security.py tests/test_research_report_read.py tests/test_vault_password_not_in_argv.py -q`
+  returned `13 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7F passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file evidence after R7F: `src/tool_implementations.py` is
+  152 lines, below monitor threshold. `src/tool_domains/media_research_contacts.py`
+  is 308 lines and `src/tool_domains/vault.py` is 156 lines. `src/tool_domains/admin_config.py`
+  remains the next R7 follow-up candidate at 2369 lines.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -475,9 +490,10 @@ Implementation result:
   callers can still import from `src.tool_implementations`.
 - R7E is complete. App API and Cookbook/model-serving tools moved behind the
   facade, and direct callers can still import from `src.tool_implementations`.
-- Next recommended slice: R7F media/research/contacts/vault tail-domain
-  extraction for facade clarity; after that, split `admin_config.py` because it
-  remains above the candidate threshold.
+- R7F is complete. Media/research/contact/vault tail tools moved behind the
+  facade, and `src/tool_implementations.py` is now below the monitor threshold.
+- Next recommended slice: split `src/tool_domains/admin_config.py` into smaller
+  admin domains because it remains above the candidate threshold.
 
 ### R8: Agent Loop Extraction
 

@@ -633,6 +633,21 @@ Current evidence:
   698 lines in the monitor band; `src/tool_domains/cookbook_models.py` is
   1213 lines in the warning band; `src/tool_domains/admin_config.py` remains
   2369 lines and needs a later follow-up split.
+- 2026-06-30: L7 R7F is implemented. `src/tool_domains/media_research_contacts.py`
+  now owns gallery, research and contact tools; `src/tool_domains/vault.py`
+  owns Vaultwarden/Bitwarden tools. `src.tool_implementations` remains
+  import-compatible for public tail-domain tools plus the legacy
+  `_load_vault_config` import hook.
+- 2026-06-30 focused R7F tests passed:
+  `python -m pytest tests/test_manage_contact_confirmation.py tests/test_manage_research_security.py tests/test_research_report_read.py tests/test_vault_password_not_in_argv.py -q`
+  returned `13 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7F passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7F: `src/tool_implementations.py` is
+  152 lines and below monitor threshold; `src/tool_domains/media_research_contacts.py`
+  is 308 lines; `src/tool_domains/vault.py` is 156 lines. The remaining R7
+  candidate is `src/tool_domains/admin_config.py` at 2369 lines.
 
 Parallel rule:
 
@@ -653,14 +668,13 @@ Slice queue:
 | L7-R7C-tool-implementations-personal-workspace | repo_only | Bob | Done: notes/calendar moved behind the compatibility facade. |
 | L7-R7D-tool-implementations-admin-config | repo_only | Bob | Done: admin/config tools moved behind the compatibility facade. |
 | L7-R7E-tool-implementations-app-api-cookbook | repo_only | Bob | Done: app API and cookbook/model-serving tools moved behind the compatibility facade. |
-| L7-R7F-tool-implementations-tail-domains | repo_only | Bob | Next: move media/research/contacts/vault tail domains behind the compatibility facade. |
+| L7-R7F-tool-implementations-tail-domains | repo_only | Bob | Done: media/research/contacts/vault tail domains moved behind the compatibility facade. |
+| L7-R7H-admin-config-follow-up | repo_only | Bob | Next: split `src/tool_domains/admin_config.py` because it remains above the candidate threshold. |
 
 Next safe slice:
 
-- L7-R7F facade-first backend split for media/research/contacts/vault tail
-  domains, if the file is still clean. After R7F, add a follow-up split for
-  `src/tool_domains/admin_config.py` because it remains above the candidate
-  threshold. L7-R2 CSS split should wait until visual smoke coverage is
+- L7-R7H follow-up split for `src/tool_domains/admin_config.py`, if the file
+  is still clean. L7-R2 CSS split should wait until visual smoke coverage is
   available because `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
@@ -738,7 +752,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7E backend splits are complete; `src/tool_implementations.py` is now down to monitor band, while tail-domain cleanup and `admin_config.py` follow-up split remain. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7F backend splits are complete; `src/tool_implementations.py` is now below monitor threshold, while `admin_config.py` follow-up split and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
