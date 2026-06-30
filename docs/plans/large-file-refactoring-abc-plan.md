@@ -5247,6 +5247,50 @@ Completion criteria:
 - Legacy wrapper remains available for dispatch and future tests.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CP / L7-R12CE: Email MCP AI Draft Reply Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving AI reply generation, endpoint
+  fallback collection and draft handoff into `mcp_servers/email_reply_utils.py`
+  while preserving `_ai_draft_reply_to_email`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_reply_utils.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CP done 2026-06-30: AI reply generation and endpoint fallback selection
+  moved to `mcp_servers/email_reply_utils.py`; `mcp_servers.email_server`
+  keeps `_ai_draft_reply_to_email` as compatibility wrapper.
+- R11CP line count 2026-06-30: `mcp_servers/email_server.py` is 1084 lines,
+  still in warning band but reduced from 1175 after R11CO;
+  `mcp_servers/email_reply_utils.py` is 246 lines and below the report
+  threshold.
+- R11CP focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_reply_utils.py`
+  passed.
+- R11CP email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `25 passed, 2 warnings`.
+
+Completion criteria:
+
+- AI reply still respects style mechanics, endpoint fallback order and
+  draft-document handoff.
+- Legacy wrapper remains available for dispatch.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

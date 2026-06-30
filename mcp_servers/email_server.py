@@ -82,6 +82,7 @@ from mcp_servers.email_message_utils import (
     _extract_text,
 )
 from mcp_servers.email_reply_utils import (
+    ai_draft_reply_to_email as ai_draft_reply_to_email_via_helper,
     draft_reply_to_email as draft_reply_to_email_via_helper,
     reply_to_email as reply_to_email_via_helper,
 )
@@ -626,106 +627,14 @@ def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=No
 
 async def _ai_draft_reply_to_email(uid, folder="INBOX", reply_all=False, account=None, title=None):
     """Generate a reply with Odysseus' AI-reply prompt/style, then create a compose doc."""
-    read_result = _read_email(uid=uid, folder=folder, account=account)
-    if "error" in read_result:
-        return read_result
-
-    to_addr = read_result.get("from_address") or email.utils.parseaddr(read_result.get("from") or "")[1]
-    subject = read_result.get("subject") or ""
-    reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
-    original_body = read_result.get("body") or ""
-    message_id = read_result.get("message_id") or ""
-
-    if not original_body.strip():
-        return {"error": "No email body available for AI reply"}
-
-    try:
-        from routes.email_helpers import (
-            _EMAIL_REPLY_SYS_PROMPT_BASE,
-            _apply_email_style_mechanics,
-            _extract_reply,
-            _load_settings,
-        )
-        from src.endpoint_resolver import (
-            resolve_endpoint,
-            resolve_utility_fallback_candidates,
-            resolve_chat_fallback_candidates,
-        )
-        from src.llm_core import llm_call_async_with_fallback
-    except Exception as exc:
-        return {"error": f"AI reply helpers unavailable: {exc}"}
-
-    settings = _load_settings()
-    style = settings.get("email_writing_style", "")
-    system_prompt = _EMAIL_REPLY_SYS_PROMPT_BASE
-    if style:
-        system_prompt += f"\n\nWRITING STYLE TO MATCH:\n{style}"
-
-    user_msg = (
-        f"Recipient: {to_addr}\nSubject: {reply_subject}\n\n"
-        f"Original email and any current draft:\n{original_body[:6000]}\n\n"
-        "Draft a reply. Return only the reply body text."
-    )
-
-    candidates = []
-    seen = set()
-
-    def _add(url, model, headers):
-        key = (url or "", model or "")
-        if not url or not model or key in seen:
-            return
-        seen.add(key)
-        candidates.append((url, model, headers))
-
-    try:
-        _add(*resolve_endpoint("utility", owner=None))
-    except Exception:
-        pass
-    try:
-        _add(*resolve_endpoint("default", owner=None))
-    except Exception:
-        pass
-    try:
-        utility_fallbacks = resolve_utility_fallback_candidates(owner=None) or []
-    except TypeError:
-        utility_fallbacks = resolve_utility_fallback_candidates() or []
-    for cand in utility_fallbacks:
-        _add(*cand)
-    try:
-        chat_fallbacks = resolve_chat_fallback_candidates(owner=None) or []
-    except TypeError:
-        chat_fallbacks = resolve_chat_fallback_candidates() or []
-    for cand in chat_fallbacks:
-        _add(*cand)
-
-    if not candidates:
-        return {"error": "No LLM endpoint configured for AI reply"}
-
-    try:
-        raw_reply = await llm_call_async_with_fallback(
-            candidates,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=0.7,
-            max_tokens=1024,
-            timeout=60,
-        )
-    except Exception as exc:
-        return {"error": f"AI reply generation failed: {exc}"}
-
-    reply = _apply_email_style_mechanics(_extract_reply(raw_reply or ""))
-    if not reply:
-        return {"error": "AI reply generation returned an empty response"}
-
-    return _draft_reply_to_email(
+    return await ai_draft_reply_to_email_via_helper(
         uid=uid,
-        body=reply,
         folder=folder,
         reply_all=reply_all,
         account=account,
-        title=title or reply_subject,
+        title=title,
+        read_email_func=_read_email,
+        draft_reply_func=_draft_reply_to_email,
     )
 
 
