@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import email
 
 from mcp_servers.email_message_utils import _decode_header
 
@@ -67,3 +68,39 @@ def _extract_attachment_to_disk(msg, index, target_dir):
             return filepath
         idx += 1
     return None
+
+
+def download_attachment_to_disk(
+    uid,
+    index,
+    *,
+    folder="INBOX",
+    account=None,
+    imap_connect_func,
+    quote_folder_func,
+    bytes_func,
+    attachments_dir,
+) -> dict:
+    """Fetch an email and extract one attachment to disk."""
+    conn = None
+    try:
+        conn = imap_connect_func(account)
+        conn.select(quote_folder_func(folder), readonly=True)
+        status, msg_data = conn.uid("FETCH", bytes_func(uid), "(BODY.PEEK[])")
+    finally:
+        if conn:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+    if status != "OK":
+        return {"error": f"Failed to fetch email UID {uid}"}
+    raw = msg_data[0][1]
+    msg = email.message_from_bytes(raw)
+
+    target_dir = os.path.join(str(attachments_dir), f"{folder}_{uid}")
+    filepath = _extract_attachment_to_disk(msg, index, target_dir)
+    if not filepath:
+        return {"error": f"Attachment index {index} not found"}
+    size = os.path.getsize(filepath)
+    return {"path": filepath, "filename": os.path.basename(filepath), "size": size}

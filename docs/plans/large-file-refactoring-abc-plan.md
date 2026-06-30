@@ -5333,6 +5333,50 @@ Completion criteria:
 - Bulk mark/archive/delete/junk behavior and formatter output remain stable.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CR / L7-R12CG: Email MCP Attachment Download Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving download-attachment fetch and
+  extraction orchestration into the existing attachment helper module, while
+  keeping `_download_attachment` as the compatibility wrapper.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_attachment_utils.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `tests/test_imap_leak_fixes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CR done 2026-06-30: attachment download fetch/extract logic moved to
+  `mcp_servers/email_attachment_utils.py`; `mcp_servers.email_server` keeps
+  `_download_attachment` as compatibility wrapper.
+- R11CR line count 2026-06-30: `mcp_servers/email_server.py` is 1042 lines,
+  still in warning band but reduced from 1051 after R11CQ;
+  `mcp_servers/email_attachment_utils.py` is 106 lines and below the report
+  threshold.
+- R11CR focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_attachment_utils.py tests\test_icloud_imap_full_fetch.py`
+  passed.
+- R11CR email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_icloud_imap_full_fetch.py -q`
+  returned `17 passed, 1 warning`.
+
+Completion criteria:
+
+- iCloud `BODY.PEEK[]` source guard still covers relocated fetch sites.
+- Download attachment still logs out on select failure and confines writes to
+  the per-message attachment directory.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

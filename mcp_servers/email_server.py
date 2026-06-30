@@ -37,6 +37,7 @@ from mcp_servers.email_account_config import (
     _writing_style_guidance,
 )
 from mcp_servers.email_attachment_utils import (
+    download_attachment_to_disk,
     _extract_attachment_to_disk,
     _list_attachments_from_msg,
 )
@@ -758,26 +759,16 @@ def _archive_email(uid, folder="INBOX", account=None):
 
 def _download_attachment(uid, index, folder="INBOX", account=None):
     """Extract a specific attachment to disk and return its local path."""
-    conn = None
-    try:
-        conn = _imap_connect(account)
-        conn.select(_q(folder), readonly=True)
-        status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
-    finally:
-        if conn:
-            try: conn.logout()
-            except Exception: pass
-    if status != "OK":
-        return {"error": f"Failed to fetch email UID {uid}"}
-    raw = msg_data[0][1]
-    msg = email.message_from_bytes(raw)
-
-    target_dir = Path(MAIL_ATTACHMENTS_DIR) / f"{folder}_{uid}"
-    filepath = _extract_attachment_to_disk(msg, index, target_dir)
-    if not filepath:
-        return {"error": f"Attachment index {index} not found"}
-    size = os.path.getsize(filepath)
-    return {"path": filepath, "filename": os.path.basename(filepath), "size": size}
+    return download_attachment_to_disk(
+        uid,
+        index,
+        folder=folder,
+        account=account,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        attachments_dir=MAIL_ATTACHMENTS_DIR,
+    )
 
 
 # ── MCP Tool Registration ──
