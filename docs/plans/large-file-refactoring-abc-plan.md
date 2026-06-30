@@ -2,7 +2,8 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail implemented; first refactor waves still pending
+Status: R0 guardrail and R1 CSS ownership map implemented; first code refactor
+waves still pending
 
 ## Goal
 
@@ -47,6 +48,10 @@ it into that queue.
   - allowlisted large files: 3
 - 2026-06-30 focused tests passed:
   `python -m pytest tests/tools -q` returned `5 passed, 1 warning`.
+- 2026-06-30: R1 CSS ownership map completed in
+  `docs/plans/large-file-refactoring-css-map.md`. `static/style.css` was
+  inspected structurally and left unchanged; R2 now has target bundles, risky
+  global selectors, split order and verification gates.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -151,6 +156,7 @@ Result:
 Owner: Alice  
 Class: `repo_only`  
 Mode: `worker`
+Status: `done`
 
 Objective:
 
@@ -171,6 +177,15 @@ Completion criteria:
 - Identify top-level CSS domains, approximate selector ranges, and proposed
   target files.
 - Mark risky global selectors, cascade dependencies, and responsive blocks.
+
+Result:
+
+- `docs/plans/large-file-refactoring-css-map.md` maps `static/style.css` into
+  target bundles for tokens/base, app shell, chat/composer, generic controls,
+  library/documents, gallery/cookbook, settings, email, notes/calendar,
+  research and PDF/workspace/diagnostics.
+- The map records cascade risks, mobile block risks, cross-domain dependencies
+  and R2 verification requirements.
 
 ### R2: Split Global CSS Bundles
 
@@ -569,7 +584,8 @@ Gate: `G1-css-visual-baseline`
 Class: `needs_design`  
 Blocks: `R2` final acceptance  
 Decision needed: choose screenshot/browser baseline coverage for the main shell.  
-Safe preparation done: CSS ownership map can be built before this gate.  
+Safe preparation done: CSS ownership map is built and records screenshot smoke
+targets.
 Risk if bypassed: cascade-preserving split may still cause subtle visual drift.  
 Next safe slice: `R3` or `R7`.
 
@@ -580,7 +596,8 @@ Decision needed: pick `document.js` frontend extraction or
 `tool_implementations.py` backend extraction as the first code slice.  
 Safe preparation done: inventory and this plan.  
 Risk if bypassed: too many simultaneous hotfiles.  
-Next safe slice: `R0`.
+Next safe slice: `R7` backend domain inventory or `R3` frontend facade
+reconnaissance; `R2` needs visual baseline coverage.
 
 Gate: `G3-parallel-agent-limit`  
 Class: `needs_design`  
@@ -595,8 +612,8 @@ Next safe slice: `R0`.
 
 Wave 0:
 
-- Charlie: `R0` guardrail/report.
-- Alice: `R1` CSS ownership map.
+- Charlie: `R0` guardrail/report. Done.
+- Alice: `R1` CSS ownership map. Done.
 - Bob: read-only reconnaissance for `R7` tool domains if desired.
 
 Wave 1:

@@ -570,6 +570,10 @@ Current evidence:
   non-allowlisted production candidates; 3 allowlisted large files.
 - 2026-06-30 Focused tests passed:
   `python -m pytest tests/tools -q` returned `5 passed, 1 warning`.
+- 2026-06-30: L7 R1 CSS ownership map is complete in
+  `docs/plans/large-file-refactoring-css-map.md`. `static/style.css` was left
+  untouched; the map defines target CSS bundles, risky global selectors, mobile
+  cascade risks, split order and R2 verification gates.
 
 Parallel rule:
 
@@ -583,14 +587,16 @@ Slice queue:
 | Slice | Class | Owner | Goal |
 | --- | --- | --- | --- |
 | L7-R0-guardrail-allowlist | repo_only | Charlie | Done: repeatable oversized-file report and allowlist are implemented and tested. |
-| L7-R1-css-ownership-map | repo_only | Alice | Next: map `static/style.css` domains, risky selectors and target bundles before moving CSS. |
+| L7-R1-css-ownership-map | repo_only | Alice | Done: `static/style.css` domains, risky selectors and target bundles are mapped before moving CSS. |
 | L7-R2-css-split | repo_only | Charlie | Deferred: split CSS only after ownership map and visual smoke path are available. |
 | L7-R7-tool-implementations-domain-split | repo_only | Bob | Later: split `src/tool_implementations.py` only if no active feature edits touch that file. |
 
 Next safe slice:
 
-- L7-R1 CSS Ownership Map. This is docs-first and can avoid touching
-  `static/style.css` while the UI/frontpage worktree remains dirty.
+- L7-R7 backend domain inventory for `src/tool_implementations.py`, docs-first
+  or narrow facade-first. L7-R2 CSS split should wait until visual smoke
+  coverage is available because `static/style.css` controls shell/chat/modal
+  cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -667,7 +673,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist is implemented and tested; R1 CSS ownership map and later extraction waves remain. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist and R1 CSS ownership map are complete; code extraction waves remain, with CSS split waiting on visual smoke. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
