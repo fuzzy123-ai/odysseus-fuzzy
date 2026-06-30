@@ -1487,6 +1487,7 @@ Slice queue:
 | L7-R12AW-tool-schema-definition-boundary | repo_only | Bob | Done: static OpenAI function schema definitions moved behind a compatibility import; `src/tool_schemas.py` is below monitor output and the new definitions module is an owned warning-band schema-data file. |
 | L7-R12AX-tool-path-confinement-boundary | repo_only | Bob | Done: agent tool path/workspace confinement helpers moved behind compatibility imports; `src/tool_path_confinement.py` is below report threshold and `src/tool_execution.py` is reduced to 927 warning-band lines. |
 | L7-R12AY-tool-control-result-boundary | repo_only | Bob | Done: ask/update-plan marker handling and result formatting moved behind compatibility imports; `src/tool_execution.py` is back in monitor band. |
+| L7-R12AZ-research-storage-boundary | repo_only | Bob | Done: Research saved-report/status/source/image helpers moved to `src/research_handler_storage.py`; `src/research_handler.py` is below monitor band while keeping the public `ResearchHandler` API stable. |
 
 Next safe slice:
 
@@ -1576,7 +1577,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AY are complete; tool implementation/admin, tool-schema facade, tool-execution facade, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AZ are complete; tool implementation/admin, tool-schema facade, tool-execution facade, research-handler storage, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

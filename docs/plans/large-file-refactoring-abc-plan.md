@@ -224,8 +224,8 @@ Recommended wave order:
 
 ### R0: Guardrail And Allowlist
 
-Owner: Charlie  
-Class: `repo_only`  
+Owner: Charlie
+Class: `repo_only`
 Mode: `worker`
 Status: `done`
 
@@ -268,8 +268,8 @@ Result:
 
 ### R1: CSS Ownership Map
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 Status: `done`
 
@@ -304,8 +304,8 @@ Result:
 
 ### R2: Split Global CSS Bundles
 
-Owner: Charlie  
-Class: `repo_only`  
+Owner: Charlie
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -344,8 +344,8 @@ Completion criteria:
 
 ### R3: Document Frontend Facade
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -380,8 +380,8 @@ Completion criteria:
 
 ### R4: Email Library Extraction
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -416,8 +416,8 @@ Completion criteria:
 
 ### R5: Settings Frontend Extraction
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -446,8 +446,8 @@ Completion criteria:
 
 ### R6: Slash Commands Extraction
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -634,8 +634,8 @@ Progress:
 
 ### R9: Email Routes Extraction
 
-Owner: Bob  
-Class: `repo_only`  
+Owner: Bob
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -825,8 +825,8 @@ Progress:
 
 ### R10: Model Routes Extraction
 
-Owner: Bob  
-Class: `repo_only`  
+Owner: Bob
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -880,8 +880,8 @@ R10 progress:
 
 ### R11: Telegram Plugin Split
 
-Owner: Charlie  
-Class: `repo_only`  
+Owner: Charlie
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -3693,10 +3693,63 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
+## R11BK / L7-R12AZ: Research Handler Storage Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move saved-report/status/source/image helpers out of `src/research_handler.py`
+  while preserving the public `ResearchHandler` API used by routes and tests.
+- Keep path confinement, owner-scoped saved report reads, report formatting and
+  fallback behavior unchanged.
+
+Allowed paths:
+
+- `src/research_handler.py`
+- `src/research_handler_storage.py`
+- `tests/test_research_handler_path_confinement.py`
+- `tests/test_research_probe_errors.py`
+- `tests/test_research_handler_sources_nondict.py`
+- `tests/test_research_handler_raw_nondict.py`
+- `tests/test_research_query_fallback.py`
+- `tests/test_research_status_avg_duration.py`
+- `tests/test_research_handler_analyzed_urls.py`
+- `tests/test_services_research_low_quality_sources.py`
+- `tests/test_research_report_read.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BK done 2026-06-30: `src/research_handler_storage.py` now owns
+  saved-report status/result/source/raw-finding access, JSON persistence,
+  visual-report image visibility helpers and report/failure formatting.
+  `ResearchHandler` inherits the mixin and keeps stable route/test entrypoints.
+- R11BK line count 2026-06-30: `src/research_handler.py` is 595 lines, below
+  monitor band; `src/research_handler_storage.py` is 407 lines.
+- R11BK focused checks 2026-06-30:
+  `python -m py_compile src\research_handler.py src\research_handler_storage.py`
+  passed.
+- R11BK research checks 2026-06-30:
+  `python -m pytest tests\test_research_handler_path_confinement.py tests\test_research_probe_errors.py tests\test_research_handler_sources_nondict.py tests\test_research_handler_raw_nondict.py tests\test_research_query_fallback.py tests\test_research_status_avg_duration.py tests\test_research_handler_analyzed_urls.py tests\test_services_research_low_quality_sources.py tests\test_research_report_read.py`
+  returned `35 passed, 1 skipped, 1 warning`.
+
+Completion criteria:
+
+- `src/research_handler.py` is below monitor band without route/API behavior
+  redesign.
+- Saved research path confinement, probe error wording, source filtering,
+  raw-finding handling, average duration and report reads remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
 ### R12: Obsidian Frontend Split
 
-Owner: Alice  
-Class: `repo_only`  
+Owner: Alice
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -3726,8 +3779,8 @@ Completion criteria:
 
 ### R13: Final Audit And Backlog
 
-Owner: Charlie  
-Class: `repo_only`  
+Owner: Charlie
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -3754,32 +3807,32 @@ Completion criteria:
 
 ## Gate Queue
 
-Gate: `G1-css-visual-baseline`  
-Class: `needs_design`  
-Blocks: `R2` final acceptance  
-Decision needed: choose screenshot/browser baseline coverage for the main shell.  
+Gate: `G1-css-visual-baseline`
+Class: `needs_design`
+Blocks: `R2` final acceptance
+Decision needed: choose screenshot/browser baseline coverage for the main shell.
 Safe preparation done: CSS ownership map is built and records screenshot smoke
 targets.
-Risk if bypassed: cascade-preserving split may still cause subtle visual drift.  
+Risk if bypassed: cascade-preserving split may still cause subtle visual drift.
 Next safe slice: `R3` or `R7`.
 
-Gate: `G2-first-code-track`  
-Class: `needs_design`  
-Blocks: choosing between frontend-first and backend-first wave after guardrails.  
+Gate: `G2-first-code-track`
+Class: `needs_design`
+Blocks: choosing between frontend-first and backend-first wave after guardrails.
 Decision needed: pick `document.js` frontend extraction or
-`tool_implementations.py` backend extraction as the first code slice.  
-Safe preparation done: inventory and this plan.  
-Risk if bypassed: too many simultaneous hotfiles.  
+`tool_implementations.py` backend extraction as the first code slice.
+Safe preparation done: inventory and this plan.
+Risk if bypassed: too many simultaneous hotfiles.
 Next safe slice: `R7` backend domain inventory or `R3` frontend facade
 reconnaissance; `R2` needs visual baseline coverage.
 
-Gate: `G3-parallel-agent-limit`  
-Class: `needs_design`  
-Blocks: ABC delegation breadth.  
+Gate: `G3-parallel-agent-limit`
+Class: `needs_design`
+Blocks: ABC delegation breadth.
 Decision needed: run 2 or 3 concurrent agents. Recommended: 2 workers plus
-Charlie integration, because CSS and major JS files are hot.  
-Safe preparation done: path-scoped slices are defined.  
-Risk if bypassed: merge conflicts and duplicated extraction work.  
+Charlie integration, because CSS and major JS files are hot.
+Safe preparation done: path-scoped slices are defined.
+Risk if bypassed: merge conflicts and duplicated extraction work.
 Next safe slice: `R0`.
 
 ## Suggested Multi-Agent Schedule
