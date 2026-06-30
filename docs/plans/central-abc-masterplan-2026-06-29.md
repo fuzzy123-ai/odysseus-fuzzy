@@ -1610,10 +1610,13 @@ Stop or defer the active slice if:
    RAG/Personal Docs, Universal Inbox/Nextcloud chunking, Document Processor
    compatibility and OCR/Vision policy gates are implemented and tested.
    Remaining PDF work is UI/operator visibility in L8.
-7. Continue safe backend progress through L7 warning-band refactoring or other
-   isolated repo-only lanes while L1/L3/L4/L5 live gates stay parked.
-8. Do not start PDF-specific live/provider/OCR or UI placement work without the
-   matching operator or UI-agent gate.
+7. Treat L7 as backend-accepted for now: `src/llm_core.py` is at 1199 lines,
+   focused checks are green, and the operator accepted a 1200-line ceiling for
+   this phase. Continue L7 only if a new backend-only hotfile is explicitly
+   selected.
+8. Do not start PDF-specific live/provider/OCR, CSS, legacy UI or v2 UI work
+   from this backend ABC track. UI placement and implementation are a separate
+   UI-owned release track.
 
 ## Current Master Status
 
@@ -1625,12 +1628,12 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; tool implementation/admin, admin plugin/token helpers, tool-schema facade, tool-execution facade, research-handler storage, notes-reminder dispatch, contacts-vCard helpers, HWFit Windows probe helpers, session serialization helpers, auth user-rename helpers, Deep Research prompt helpers, LLM activity metrics/provider/model-cache/request-policy/error-formatting/fallback/cache-key/runtime-state/host-health/response-cache/ChatGPT-payload/fallback-call/streaming-fallback/model-listing/sync-call/async-call/stream-audit/ChatGPT-stream helpers, model-probe endpoint/ping orchestration, Email MCP formatting/IMAP/folder/message/cache/attachment/SMTP connection/agent-draft/draft-document/send/IMAP-mutation/direct-reply/draft-reply/AI-reply/bulk-tool/download/read-operation/full-read/read-dispatch utils, task-scheduler delivery helpers, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are done or reduced; several backend files remain in warning band and later CSS/UI-safe waves remain gated. |
-| L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
+| L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
+| L8 UI/V2 Integration | separate UI-owned track | Backend ABC exposes contracts, diagnostics and handoff notes only; UI placement, legacy UI and v2 implementation are owned by the UI agent/user and are not backend-roadmap blockers. |
 
 Recommended next human decision:
 
 - Decide whether to run L1-6 as a bounded live upload smoke on the server. This
   requires the dedicated Nextcloud automation user, WebDAV runtime env and both
-  live-write gates. If not, continue with L2 route/policy consolidation or L4
-  graph/memory stabilization; L6 is backend-complete.
+  live-write gates. If not, continue with backend/live-gated tracks only; L6 is
+  backend-complete and L7 is parked at the accepted 1200-line backend threshold.

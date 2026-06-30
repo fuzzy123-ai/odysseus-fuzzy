@@ -31,7 +31,9 @@ and R11BI/R11BJ tool execution helper splits; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route,
 Codex route, tool-schema, RAG vector and repo-skill facades are below threshold,
-tool-execution is back in monitor band, remaining CSS/UI-safe and later route/plugin waves pending
+tool-execution is back in monitor band; L7 backend work is accepted/parked at
+the operator-approved 1200-line ceiling, and CSS/legacy/v2 UI waves are out of
+scope for this backend track
 
 ## Goal
 
@@ -44,6 +46,10 @@ Done state:
   allowlisted as data/generated/compatibility facade.
 - Files in the `801-2000` warning zone have an owner, rationale, or follow-up
   slice.
+- Operator acceptance 2026-06-30: for backend hotfiles that have already been
+  split and tested, `<=1200` lines is sufficient for this phase. Do not keep
+  grinding warning-band backend files below 800 as a release blocker unless a
+  new backend-only slice is explicitly selected.
 - The first refactoring wave is merged as small, independently testable slices.
 - `600-800` line files are accepted and only touched when adjacent work already
   requires it.
@@ -52,9 +58,11 @@ Done state:
 
 ABC mode: `Standard ABC`.
 
-Reason: this is a broad refactoring with UI, backend, route, and plugin tracks.
-It is repo-only work, but it needs slice selection and review between waves.
-Do not start an unattended runner by default. Although
+Reason: this started as a broad refactoring with UI, backend, route, and plugin
+tracks. The active accepted scope is now backend/logic only; CSS, legacy UI and
+v2 UI refactoring are parked while the operator owns UI work. It is repo-only
+work, but it needs slice selection and review between waves. Do not start an
+unattended runner by default. Although
 `docs/plans/mvp-roadmap-runner-state.json` and `scripts/mvp_roadmap_runner.py`
 exist, this is not MVP Roadmap Runner work unless the operator explicitly moves
 it into that queue.
@@ -167,6 +175,10 @@ it into that queue.
   is 31 lines, `src/tool_domains/admin_services.py` is 1015 lines in the
   warning band and `src/tool_domains/admin_settings.py` is 680 lines in the
   monitor band. No R7 tool-domain file remains above candidate threshold.
+- 2026-06-30 operator decision: L7 backend refactoring may pause when the active
+  backend files are near or below 1200 lines, focused tests/CI are clean and no
+  UI-owned paths are touched. Current `src/llm_core.py` evidence is 1199 lines,
+  so L7 is backend-accepted/parked for now.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -183,6 +195,8 @@ it into that queue.
 
 - No behavior redesign.
 - No visual redesign beyond preserving existing appearance during CSS splits.
+- No CSS, legacy UI or v2 UI refactoring while the operator/UI agent owns those
+  surfaces.
 - No live provider, Telegram, Nextcloud, backup, deploy, or network mutation.
 - No broad formatting-only churn.
 - No forced reduction of `600-800` line files.
@@ -214,11 +228,12 @@ tests or static checks around the moved boundary.
 Recommended wave order:
 
 1. Guardrails and measurement.
-2. CSS split with load-order preservation.
-3. Frontend module extraction for one UI monolith.
-4. Backend tool/route extraction.
-5. Plugin-local extraction.
-6. Final line-count audit and allowlist.
+2. Backend tool/route extraction.
+3. Plugin-local extraction.
+4. Final line-count audit and allowlist.
+
+CSS and frontend module extraction remain intentionally parked until the
+operator/UI agent reopens a UI-owned track.
 
 ## Slice Queue
 
@@ -6087,7 +6102,8 @@ Mode: `worker`
 Objective:
 
 - Re-run the oversized-file report, update the overview, and produce the next
-  backlog for remaining `801-2000` files.
+  backlog for remaining backend `801-2000` files only if a new backend-only
+  cleanup wave is requested.
 
 Allowed paths:
 
@@ -6105,6 +6121,8 @@ Completion criteria:
 
 - No unreviewed production/runtime file above 2000 lines.
 - Every remaining exception has owner and rationale.
+- Backend warning-band files near or below 1200 lines are acceptable for this
+  phase when tests/CI are clean.
 
 ## Gate Queue
 
@@ -6147,21 +6165,26 @@ Wave 0:
 
 Wave 1:
 
-- Charlie: `R2` CSS split, after `G1`.
-- Alice: `R3` document frontend extraction or `R4` email library extraction.
-- Bob: `R7` tool implementations split.
+- Bob: `R7` tool implementations split. Done.
 
 Wave 2:
 
-- Alice: `R5` settings or `R6` slash commands.
-- Bob: `R8` agent loop or `R9` email routes.
+- Bob: backend-only route/helper extraction when a hotfile is explicitly
+  selected.
 - Charlie: integration, focused test selection, line-count report update.
+
+Parked UI waves:
+
+- `R2` CSS split, `R3` document frontend extraction, `R4` email library
+  extraction, `R5` settings and `R6` slash commands stay out of this backend
+  track until the UI owner reopens them.
 
 Wave 3:
 
-- Alice: `R12` Obsidian frontend split.
-- Bob: `R10` model routes split.
-- Charlie: `R11` Telegram plugin split and `R13` final audit.
+- Bob: `R10` model routes split. Done.
+- Charlie: `R11` Telegram plugin split. Done.
+- Charlie: `R13` final backend audit only when a new backend cleanup wave is
+  explicitly requested.
 
 Parallelism rule:
 

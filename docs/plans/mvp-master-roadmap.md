@@ -22,7 +22,9 @@ Runtime-Gates + ehrliche Evidence
 
 UI-Arbeit ist fuer diese MVP-Phase kein Treiber. Bestehende UI wird nur dann
 angefasst, wenn Backend-Logik sonst nicht pruefbar oder bedienbar waere. Die
-eigentliche Gestaltung neuer Oberflaechen passiert spaeter gemeinsam.
+eigentliche Gestaltung neuer Oberflaechen passiert spaeter gemeinsam. Stand
+2026-06-30 gilt zusaetzlich: legacy UI und v2 UI sind ein separater
+UI-owned Track und werden nicht vom Backend-/ABC-Masterplan umgesetzt.
 
 ## Quellenlage
 
@@ -52,7 +54,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | 5 | Telegram Voice Pipeline | 100% / go | 7 | Voice wird von Metadata-only zu fake-tested Download/STT/Reply-Pipeline erweitert. | Download und STT bleiben default-off und separat gated; Fake-Provider-Tests und Operator-Live-Evidence belegen Download, lokalen STT, Transcript-to-Agent und Reply-Pfad. |
 | 6 | ORCA / Lens Naming & Backend Migration | 100% / go | 7 | Obsidian-zentrierte Backend-, Route-, Tool-, Env- und Datenpfad-Begriffe werden zu ORCA/Lens kompatibel gemacht, ohne harte Breaking Changes. | ORCA ist backendseitig kanonisch, Kompatibilitaetsadapter und Alias-Regeln sind getestet; Legacy-Pfade bleiben bewusst als Compatibility Layer, bis UI/Cutover spaeter live gehen. |
 | 7 | PlanRuntime / Visual Planning Logic | 100% / go | 6 | Die Roadmap-/PlanRuntime-Logik fuer Vorschlaege, Validierung, Review, Patch, Apply und Agent-Start-Gates wird stabilisiert. | Vorschlaege koennen ohne UI-Abhaengigkeit validiert, reviewed, gepatcht und sicher blockiert oder angenommen werden; kein impliziter Agent-Dispatch; Browser-Editor bleibt bewusst Teil des gemeinsamen UI-Redesigns. |
-| 8 | Release / Distribution Evidence | 100% / go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | Evidence-Go ist abgeschlossen; externes Deploy/Tag/Distribution bleibt bewusst deferred bis Version-1.0-Gate, UI-live, Ziel, Rollback und explizites Release-Go vorliegen. |
+| 8 | Release / Distribution Evidence | 100% / go | 5 | Evidence, Known Limits und Release-Sprache werden ehrlich aus Backend-/Runtime-Gates aggregiert. | Evidence-Go ist abgeschlossen; externes Deploy/Tag/Distribution bleibt bewusst deferred bis Ziel, Rollback, explizites Release-Go und separater UI-Track geklaert sind. |
 | 9 | Image Tools Worker Final Smoke | 100% / go | 3 | Der isolierte Image Tools Worker wird praktisch nachgewiesen. | Finaler Remove-BG/Image-Smoke ist dokumentiert oder klar deferred; Core-venv bleibt entkoppelt. |
 | 10 | GameDev Mount Write Smoke | 100% / go | 2 | Der optionale Schreibpfad fuer GameDev-Mounts wird eng und reversibel belegt. | Write-Smoke erfolgt nur mit explizitem Go, schreibt ein reversibles Testartefakt und leakt keine Host-Pfade. |
 
@@ -76,7 +78,8 @@ Diese Flaechen werden bewusst nicht als MVP-Blocker behandelt:
 
 Fuer das MVP reichen stabile Backend-Vertraege, API-Snapshots, Tests, redacted
 Evidence und minimale vorhandene Bedienpfade. Die eigentlichen UIs gestalten wir
-danach gemeinsam.
+danach gemeinsam. UI-live ist ein eigener Release-/UI-Track und blockiert nicht
+den Abschluss dieser Backend-MasterRoadmap.
 
 ## Aktueller Fortschritt
 
@@ -97,11 +100,13 @@ Stand: 2026-06-23
 
 Gesamtfortschritt MVP-Roadmaps: 100%
 
-Version-1.0-Gate: UI live? nein
+Backend-MasterRoadmap-Gate: erledigt. UI live: separater UI-owned Release-Track.
 
 Recommended next human decision:
 
-- Version 1.0: neue UI live schalten, bevor Version 1.0 oder externes Deploy/Tag/Distribution-Release beansprucht wird.
+- Naechste Backend-/Live-Entscheidung unabhaengig vom UI-Track treffen; UI-live
+  bleibt separate gemeinsame Folgearbeit und wird nicht in dieser Roadmap
+  umgesetzt.
 
 ## Roadmap 1 Backend Evidence
 
@@ -274,7 +279,7 @@ Aktuelle Gate-Zusammenfassung:
 | Host-agent MVP plan reviewed | go | repo_only | Debian host scope, bounded read-only snapshot method, permissions, rollback and no-secrets policy are reviewed for the MVP smoke. |
 | Local API consumer plan | go | repo_only | Snapshot contract, offline fixture shape, timeout and sanitized payload policy are reviewed. |
 | Host-agent runtime live smoke | go | needs_live_go | Debian host produced a sanitized snapshot: host reachable, Odysseus/Nextcloud services active, containers visible, load/memory/disk metrics readable. |
-| Dashboard and alert UI live | deferred | needs_design | Dashboard and alert UX are deferred to the shared UI redesign and remain covered by the global Version-1.0 UI gate. |
+| Dashboard and alert UI live | deferred | needs_design | Dashboard and alert UX are deferred to the separate UI-owned track and are not a backend-roadmap blocker. |
 
 Live-Smoke Evidence, 2026-06-23:
 
@@ -312,7 +317,7 @@ Aktuelle Gate-Zusammenfassung:
 | Gated Telegram text reply plan | go | repo_only | Reply planning remains disabled until the reply gate and reply text are present. |
 | Plugin runtime integration | go | repo_only | Telegram plugin wires the default-off offline voice pipeline through fakeable download/STT/voice agent-turn hooks. |
 | Manual live voice smoke | go | needs_live_go | Operator observed Odysseus replying to a fresh Telegram voice message with the transcript and a successful test confirmation; no transcript or raw Telegram identifiers are recorded in repo evidence. |
-| Voice UI live | deferred | needs_design | Voice UI/status controls are deferred until the shared UI redesign and remain covered by the global Version-1.0 UI gate. |
+| Voice UI live | deferred | needs_design | Voice UI/status controls are deferred to the separate UI-owned track and are not a backend-roadmap blocker. |
 
 Live-Smoke Evidence, 2026-06-23:
 
@@ -449,15 +454,15 @@ Aktuelle Gate-Zusammenfassung:
 | Release readiness pipeline | go | repo_only | Readiness pipeline aggregates snapshots, manual evidence and plugin gates. |
 | Evidence-Go closeout language | go | repo_only | Closeout language separates Evidence-Go from deploy, tag and distribution. |
 | Live phase boundary gates | go | repo_only | Provider, export/import/rebuild, host, Telegram and network actions remain separate operator gates. |
-| MVP roadmap aggregate for 1.0 | go | repo_only | Release-Pipeline liest das MVP-MasterRoadmap-Aggregat und blockiert Version 1.0, solange nicht alle zehn Roadmaps 100% sind und die neue UI live ist. |
+| MVP roadmap aggregate for backend 1.0 | go | repo_only | Release-Pipeline liest das MVP-MasterRoadmap-Aggregat; die zehn Backend-Roadmaps sind 100%, waehrend UI-live als separater Release-Track gefuehrt wird. |
 | Deploy, tag and distribution execution | deferred | needs_live_go | External deploy/tag/distribution is deliberately deferred until Version 1.0 release conditions are met. |
-| New UI live release gate | deferred | needs_design | New UI live remains deliberately deferred to the global Version 1.0 gate. |
+| New UI live release track | deferred | needs_design | New UI live remains deliberately deferred to the separate UI-owned release track. |
 
 Test Evidence, 2026-06-23:
 
 - Release/Evidence focused suite lief gruen after updating the expected MasterRoadmap aggregate to 100%.
 - Kein Deploy, Tag, Push oder Distribution wurde ausgefuehrt.
-- R8 ist damit als Evidence-/Release-Language-Feature abgeschlossen; externe Distribution bleibt durch das separate Version-1.0-UI-Gate blockiert.
+- R8 ist damit als Evidence-/Release-Language-Feature abgeschlossen; externe Distribution bleibt eine separate Release-Go-Entscheidung und der UI-live Track wird separat gefuehrt.
 
 ## Roadmap 9 Backend Evidence
 
@@ -491,7 +496,7 @@ Aktuelle Gate-Zusammenfassung:
 | UI and cookbook contract | go | repo_only | Setup/error wording is frozen for the later UI and cookbook redesign. |
 | Telegram image action readiness | go | repo_only | Telegram-Image-Actions laufen default-off ueber redacted Metadata, injizierbare Bytes und den ImageToolsWorkerClient ohne neue Core-Dependencies. |
 | Manual Remove-BG smoke | go | needs_live_go | Isolated worker venv uses Python 3.11.9 with `rembg` 2.0.76 and `onnxruntime` 1.27.0; local `/remove-background` smoke returned 200 with PNG output. |
-| Image tools UI live | deferred | needs_design | Image-worker UI/status controls are deferred to the shared UI redesign and remain part of the separate Version-1.0 UI-live gate, not the Roadmap 9 backend blocker. |
+| Image tools UI live | deferred | needs_design | Image-worker UI/status controls are deferred to the separate UI-owned track and are not the Roadmap 9 backend blocker. |
 
 Live-Smoke Evidence, 2026-06-23:
 
