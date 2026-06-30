@@ -3746,6 +3746,59 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
+## R11BL / L7-R12BA: Notes Reminder Dispatch Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move the long Notes reminder dispatch implementation out of
+  `routes/note_routes.py` without changing the public route factory or the
+  module-level `dispatch_reminder` import used by background actions.
+- Keep the fire-reminder route monkeypatchable in tests and preserve owner
+  scope for reminder synthesis endpoint resolution.
+
+Allowed paths:
+
+- `routes/note_routes.py`
+- `routes/note_reminders.py`
+- `tests/test_note_reminder_fire_scope.py`
+- `tests/test_model_helper_owner_scope.py`
+- `tests/test_ai_activity_audit_p3_contract.py`
+- `tests/test_notes_fail_closed_auth.py`
+- `tests/test_notes_update_due_date.py`
+- `tests/test_manage_notes_owner_gate.py`
+- `tests/test_calendar_reminder_minutes_parsing.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BL done 2026-06-30: `routes/note_reminders.py` now owns reminder
+  synthesis, delivery channels, notification-cache dedupe and scheduler
+  notification fanout. `routes.note_routes.dispatch_reminder` remains a
+  compatibility wrapper so direct imports and route-level monkeypatch tests
+  continue to work.
+- R11BL line count 2026-06-30: `routes/note_routes.py` is 500 lines, below
+  monitor band; `routes/note_reminders.py` is 450 lines.
+- R11BL focused checks 2026-06-30:
+  `python -m py_compile routes\note_routes.py routes\note_reminders.py`
+  passed.
+- R11BL notes/reminder checks 2026-06-30:
+  `python -m pytest tests\test_note_reminder_fire_scope.py tests\test_model_helper_owner_scope.py tests\test_ai_activity_audit_p3_contract.py tests\test_notes_fail_closed_auth.py tests\test_notes_update_due_date.py tests\test_manage_notes_owner_gate.py tests\test_calendar_reminder_minutes_parsing.py`
+  returned `32 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/note_routes.py` is below monitor band without route/API behavior
+  redesign.
+- Reminder owner scope, AI activity markers, route auth fail-closed behavior,
+  manage-notes owner gates and calendar-created note reminders remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
