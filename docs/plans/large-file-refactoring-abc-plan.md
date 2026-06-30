@@ -509,8 +509,12 @@ Implementation result:
 - R7G/R7H are complete. `src/tool_implementations.py` and
   `src/tool_domains/admin_config.py` are now compatibility facades below the
   monitor threshold.
-- Next recommended backend-safe slice: R8 Agent Loop Extraction, because CSS
-  split still waits on visual smoke coverage.
+- R8A is complete. Prompt assembly, built-in tool descriptions and domain
+  prompt rules moved to `src/agent_loop_prompts.py`; `src.agent_loop` keeps
+  compatibility imports for existing tests and callers.
+- Next recommended backend-safe slice: continue R8 Agent Loop Extraction with
+  tool-loop mechanics or verifier/orchestrator helpers, because CSS split still
+  waits on visual smoke coverage.
 
 ### R8: Agent Loop Extraction
 
@@ -526,7 +530,9 @@ Objective:
 Allowed paths:
 
 - `src/agent_loop.py`
-- `src/agent_loop/`
+- `src/agent_loop_*.py`
+- future `src/agent_loop/` only if the existing `src.agent_loop` module is
+  first converted safely without breaking imports
 - `tests/test_agent_loop*.py`
 - `tests/test_tool_policy.py`
 - `tests/test_delegate_tool.py`
@@ -541,6 +547,21 @@ Completion criteria:
 
 - Streaming public API remains stable.
 - Prompt/tool policy behavior is covered by existing tests.
+
+Progress:
+
+- R8A done 2026-06-30: `src/agent_loop_prompts.py` owns prompt assembly,
+  `TOOL_SECTIONS`, domain rules and built-in override helpers. `src.agent_loop`
+  re-exports the same names for import compatibility.
+- R8A evidence 2026-06-30:
+  `python -m py_compile src\agent_loop.py src\agent_loop_prompts.py`
+  passed.
+- R8A focused tests 2026-06-30:
+  `python -m pytest tests\test_agent_loop.py tests\test_agent_loop_tool_output_truncation.py tests\test_agent_loop_logging_redaction.py tests\test_agent_rounds_exhausted.py tests\test_tool_policy.py tests\test_delegate_tool.py tests\test_tool_output_prompt_injection.py tests\test_tool_registry.py tests\test_tool_rag_contacts_domain.py tests\test_api_call_integration_routing.py tests\test_self_control_prompt_contract.py tests\test_research_report_read.py -q`
+  returned `117 passed, 2 warnings`.
+- Remaining R8 work: tool-loop mechanics, retrieval/context injection, metrics
+  and verifier/orchestrator helpers. `src/agent_loop.py` remains above the
+  candidate threshold after R8A.
 
 ### R9: Email Routes Extraction
 

@@ -48,6 +48,16 @@ finally:
         _drop_module_if_same("src.agent_loop", _IMPORTED_AGENT_LOOP)
     for _mod, _stub in _INJECTED_IMPORT_STUBS.items():
         _drop_module_if_same(_mod, _stub)
+    # Importing src.agent_loop with a mocked src.agent_tools facade can also
+    # load parser/schema modules against the mock. Drop those soft dependencies
+    # so later tests import them again with the real facade and built-in tags.
+    if "src.agent_tools" in _INJECTED_IMPORT_STUBS:
+        for _mod in ("src.tool_parsing", "src.tool_schemas", "src.tool_execution"):
+            sys.modules.pop(_mod, None)
+            _parent_name, _, _attr = _mod.rpartition(".")
+            _parent = sys.modules.get(_parent_name)
+            if _parent is not None and hasattr(_parent, _attr):
+                delattr(_parent, _attr)
 
 
 def test_import_stubs_do_not_leak_into_later_tests():
