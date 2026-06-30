@@ -15,7 +15,7 @@ probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
 implemented, plus R11AK model Ollama ping-root helper split and R11AL model
 listing-payload helper split and R11AM model Anthropic listing helper split;
-R11AN model ping-fallback helper split; tool
+R11AN model ping-fallback helper split and R11AO model curated-fallback helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2507,6 +2507,56 @@ Completion criteria:
   with ping fallback decision logic separated from route orchestration.
 - Ping behavior remains covered for `/models` fallback on non-auth 4xx statuses
   and no fallback on auth failures, without live provider calls during tests.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AO / L7-R12AD: Model Curated Fallback Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move URL-matched curated fallback model lookup out of `_probe_endpoint()`
+  while preserving route-local logging and probe orchestration.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AO done 2026-06-30: curated fallback model lookup moved to
+  `curated_probe_fallback_models()` in `routes/model_probe_helpers.py`.
+  `_probe_endpoint()` keeps provider HTTP probing, Ollama native fallback
+  orchestration and route-local fallback logging.
+- Compatibility evidence: helper tests cover matched endpoint fallback, list
+  copy isolation, unmatched endpoint behavior and missing curated-list behavior;
+  existing endpoint probing and model route tests remain green.
+- R11AO line count 2026-06-30: `routes/model_routes.py` is 1724 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AO focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AO Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `200 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with curated fallback lookup separated from route orchestration.
+- Keyed probe failures still return no curated fallback; unkeyed URL-matched
+  endpoints can still use curated fallback models.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

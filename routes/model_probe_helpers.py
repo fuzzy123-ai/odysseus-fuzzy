@@ -249,6 +249,18 @@ def append_curated_probe_models(
     return augmented
 
 
+def curated_probe_fallback_models(
+    base_url: str,
+    *,
+    match_provider_curated_func: Callable[[str, Optional[str]], Optional[str]],
+    provider_curated: Mapping[str, list[str]],
+) -> tuple[Optional[str], list[str]]:
+    """Return URL-matched curated fallback models for endpoints without listings."""
+    curated_key = match_provider_curated_func(base_url, None)
+    fallback = provider_curated.get(curated_key) if curated_key else None
+    return curated_key, list(fallback or [])
+
+
 def ping_result_from_response(response: Any) -> dict[str, Any]:
     """Classify a model endpoint reachability probe response."""
     status_code = response.status_code

@@ -1159,6 +1159,15 @@ Current evidence:
   `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`;
   `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
   returned `197 passed, 1 warning`.
+- 2026-06-30: L7 R12AD is implemented. Curated fallback model lookup for
+  provider endpoints moved to `routes/model_probe_helpers.py` while
+  `_probe_endpoint` keeps provider orchestration and route-local logging. The
+  large-file report places `routes/model_routes.py` at 1724 lines, band
+  `warning`, not `candidate`; report candidate count is 26.
+- 2026-06-30 R12AD evidence passed:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`;
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `200 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1240,6 +1249,7 @@ Slice queue:
 | L7-R12AA-model-listing-payload-helper-boundary | repo_only | Bob | Done: OpenAI/Ollama model listing payload parsing moved behind a route-compatible helper; `routes/model_routes.py` is further below candidate threshold. |
 | L7-R12AB-model-anthropic-listing-helper-boundary | repo_only | Bob | Done: Anthropic `/v1/models` payload parsing moved behind a route-compatible helper; `routes/model_routes.py` remains below candidate threshold. |
 | L7-R12AC-model-ping-fallback-helper-boundary | repo_only | Bob | Done: ping `/models` fallback decision moved behind a route-compatible helper; `routes/model_routes.py` remains below candidate threshold. |
+| L7-R12AD-model-curated-fallback-helper-boundary | repo_only | Bob | Done: curated fallback model lookup moved behind a route-compatible helper; `routes/model_routes.py` remains below candidate threshold. |
 
 Next safe slice:
 
@@ -1327,7 +1337,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AC are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AD are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

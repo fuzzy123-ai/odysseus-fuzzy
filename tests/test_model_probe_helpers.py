@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from routes.model_probe_helpers import (
     anthropic_model_ids_from_payload,
     append_curated_probe_models,
+    curated_probe_fallback_models,
     model_ids_from_listing_payload,
     ollama_native_probe_root,
     ping_result_from_response,
@@ -56,6 +57,43 @@ def test_append_curated_probe_models_ignores_unmatched_endpoint():
     )
 
     assert result == ["custom-model"]
+
+
+def test_curated_probe_fallback_models_returns_copy_for_matched_endpoint():
+    provider_curated = {"zai-coding": ["glm-5.1", "glm-4.5-air"]}
+
+    curated_key, fallback = curated_probe_fallback_models(
+        "https://z.ai/api/coding",
+        match_provider_curated_func=_match_provider_curated,
+        provider_curated=provider_curated,
+    )
+    fallback.append("local-mutation")
+
+    assert curated_key == "zai-coding"
+    assert fallback == ["glm-5.1", "glm-4.5-air", "local-mutation"]
+    assert provider_curated["zai-coding"] == ["glm-5.1", "glm-4.5-air"]
+
+
+def test_curated_probe_fallback_models_returns_empty_for_unmatched_endpoint():
+    curated_key, fallback = curated_probe_fallback_models(
+        "https://api.example.com/v1",
+        match_provider_curated_func=lambda _base_url, _provider: None,
+        provider_curated={"zai-coding": ["glm-4.5-air"]},
+    )
+
+    assert curated_key is None
+    assert fallback == []
+
+
+def test_curated_probe_fallback_models_returns_empty_for_missing_curated_list():
+    curated_key, fallback = curated_probe_fallback_models(
+        "https://z.ai/api/coding",
+        match_provider_curated_func=_match_provider_curated,
+        provider_curated={},
+    )
+
+    assert curated_key == "zai-coding"
+    assert fallback == []
 
 
 def _response(status_code, headers=None):

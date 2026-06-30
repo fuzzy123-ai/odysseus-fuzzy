@@ -37,6 +37,7 @@ from routes.model_loopback_helpers import (
 from routes.model_probe_helpers import (
     anthropic_model_ids_from_payload as _anthropic_model_ids_from_payload,
     append_curated_probe_models as _append_curated_probe_models,
+    curated_probe_fallback_models as _curated_probe_fallback_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
     model_ids_from_listing_payload as _model_ids_from_listing_payload,
     ollama_native_probe_root as _ollama_native_probe_root,
@@ -242,11 +243,14 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
     except Exception as e:
         logger.debug(f"Ollama /api/tags probe failed for {base}: {e}")
     # Fall back to curated list if the provider has a URL-based match (e.g. z.ai has no /models endpoint)
-    curated_key = _match_provider_curated(base, None)
-    fallback = _PROVIDER_CURATED.get(curated_key) if curated_key else None
+    curated_key, fallback = _curated_probe_fallback_models(
+        base,
+        match_provider_curated_func=_match_provider_curated,
+        provider_curated=_PROVIDER_CURATED,
+    )
     if fallback:
         logger.info(f"Using curated fallback for {curated_key}: {fallback}")
-        return list(fallback)
+        return fallback
     return []
 
 
