@@ -490,6 +490,22 @@ def _build_model_local_probe_groups(
     return grouped
 
 
+def _collect_model_local_probe_endpoints(
+    endpoints: list[Any],
+    *,
+    normalize_base_func,
+    effective_kind_func,
+    classify_endpoint_func,
+) -> list[tuple[str, str, Any]]:
+    local_endpoints: list[tuple[str, str, Any]] = []
+    for ep in endpoints:
+        base = normalize_base_func(ep.base_url)
+        kind = effective_kind_func(ep, base)
+        if classify_endpoint_func(base, kind) == "local":
+            local_endpoints.append((ep.id, base, getattr(ep, "api_key", None)))
+    return local_endpoints
+
+
 def _fanout_model_local_probe_results(
     groups: list[dict[str, Any]],
     results: list[Any],

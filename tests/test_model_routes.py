@@ -506,6 +506,43 @@ def test_build_model_local_probe_groups_groups_by_refresh_key():
     }
 
 
+def test_collect_model_local_probe_endpoints_filters_local_endpoints():
+    from routes.model_endpoint_helpers import _collect_model_local_probe_endpoints
+
+    endpoints = [
+        SimpleNamespace(id="local", base_url="localhost:11434/v1", api_key=None, kind="local"),
+        SimpleNamespace(id="api", base_url="https://api.example.com/v1", api_key="secret", kind="api"),
+        SimpleNamespace(id="proxy", base_url="https://proxy.example.com/v1", api_key="proxy-key", kind="local"),
+    ]
+
+    result = _collect_model_local_probe_endpoints(
+        endpoints,
+        normalize_base_func=lambda base: "http://" + base if "://" not in base else base,
+        effective_kind_func=lambda ep, _base: ep.kind,
+        classify_endpoint_func=lambda _base, kind: "local" if kind == "local" else "api",
+    )
+
+    assert result == [
+        ("local", "http://localhost:11434/v1", None),
+        ("proxy", "https://proxy.example.com/v1", "proxy-key"),
+    ]
+
+
+def test_collect_model_local_probe_endpoints_handles_missing_api_key():
+    from routes.model_endpoint_helpers import _collect_model_local_probe_endpoints
+
+    endpoint = SimpleNamespace(id="local", base_url="http://localhost:11434/v1")
+
+    result = _collect_model_local_probe_endpoints(
+        [endpoint],
+        normalize_base_func=lambda base: base,
+        effective_kind_func=lambda _ep, _base: "auto",
+        classify_endpoint_func=lambda _base, _kind: "local",
+    )
+
+    assert result == [("local", "http://localhost:11434/v1", None)]
+
+
 def test_fanout_model_local_probe_results_maps_group_results_to_endpoint_ids():
     from routes.model_endpoint_helpers import _fanout_model_local_probe_results
 

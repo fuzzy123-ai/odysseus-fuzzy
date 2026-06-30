@@ -84,6 +84,7 @@ from routes.model_endpoint_helpers import (
     _merge_model_ids,
     _build_model_refresh_groups,
     _build_model_local_probe_groups,
+    _collect_model_local_probe_endpoints,
     _fanout_model_local_probe_results,
     _probe_model_local_group,
     _model_refresh_key as _refresh_key,
@@ -650,12 +651,12 @@ def setup_model_routes(model_discovery):
         db = SessionLocal()
         try:
             endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
-            local_eps = []
-            for ep in endpoints:
-                base = _normalize_base(ep.base_url)
-                kind = _effective_endpoint_kind(ep, base)
-                if _classify_endpoint(base, kind) == "local":
-                    local_eps.append((ep.id, base, ep.api_key))
+            local_eps = _collect_model_local_probe_endpoints(
+                endpoints,
+                normalize_base_func=_normalize_base,
+                effective_kind_func=_effective_endpoint_kind,
+                classify_endpoint_func=_classify_endpoint,
+            )
         finally:
             db.close()
 
