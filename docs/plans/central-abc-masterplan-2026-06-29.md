@@ -938,6 +938,16 @@ Current evidence:
   `python -m pytest tests\test_scheduler_restart_doublefire.py tests\test_scheduler_scheduled_time_validation.py tests\test_task_scheduler_cancel.py tests\test_task_scheduler_session_delivery.py -q`
   returned `9 passed, 3 warnings`; `python -m pytest tests\test_digest_windows.py tests\test_checkin_digest_owner_scope.py tests\test_task_shell_tools.py tests\test_task_session_folder.py tests\test_task_scheduler_cancel.py -q`
   returned `15 passed, 1 warning`.
+- 2026-06-30: L7 R12H is implemented. Visual report markdown rendering,
+  heading/TOC slugging, image injection, title extraction, icon/logo filtering
+  and inline-script JSON helpers moved to `src/visual_report_helpers.py`.
+  `src/visual_report.py` remains the template/generator facade at 1669 lines,
+  band `warning`, not `candidate`.
+- 2026-06-30 R12H evidence passed:
+  `python -m py_compile src\visual_report.py src\visual_report_helpers.py`;
+  `python -m pytest tests\test_visual_report_helpers.py -q` returned
+  `4 passed, 1 warning`; `python -m pytest tests\test_research_service.py tests\test_research_endpoint_owner_scope.py -q`
+  returned `18 passed, 1 warning`.
 
 Parallel rule:
 
@@ -997,14 +1007,14 @@ Slice queue:
 | L7-R12E-core-database-migration-boundary | repo_only | Bob | Done: startup DB migrations moved behind `core.database_migrations`; `core/database.py` is below candidate threshold. |
 | L7-R12F-llm-core-provider-format-boundary | repo_only | Bob | Done: provider-format helpers moved behind compatibility exports; `src/llm_core.py` is below candidate threshold. |
 | L7-R12G-task-scheduler-startup-boundary | repo_only | Bob | Done: startup housekeeping moved behind helper functions; `src/task_scheduler.py` is further below candidate threshold. |
+| L7-R12H-visual-report-helper-boundary | repo_only | Bob | Done: markdown/media/title helpers moved behind compatibility exports; `src/visual_report.py` is further below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue only on a new explicitly scoped backend
-  warning-band file, for example `routes/gallery_routes.py` or
-  `src/visual_report.py`. L7-R2 CSS split should wait until visual smoke
-  coverage is available because `static/style.css` controls shell/chat/modal
-  cascade.
+  warning-band file, for example `routes/gallery_routes.py`. L7-R2 CSS split
+  should wait until visual smoke coverage is available because
+  `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -1082,7 +1092,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12G are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Email MCP, built-in action, scheduler, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12H are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

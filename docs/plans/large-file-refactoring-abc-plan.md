@@ -4,10 +4,10 @@ Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
-helper split, R11P database migration split, R11Q LLM-core provider/format split and R11R task scheduler
-startup split implemented; tool implementation/admin, agent-loop, email-route, model-route, database,
-LLM-core and scheduler facades are below threshold, remaining CSS/UI-safe and later route/plugin waves
-pending
+helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
+startup split and R11S visual-report helper split implemented; tool implementation/admin, agent-loop,
+email-route, model-route, database, LLM-core, scheduler and visual-report facades are below threshold,
+remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1377,6 +1377,55 @@ Completion criteria:
   more margin than the prior warning-band facade.
 - Restart double-fire protection remains covered by focused tests.
 - Startup housekeeping remains repo-only and performs no live external action.
+
+### R11S / L7-R12H: Visual Report Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure visual-report markdown/media/title helpers out of
+  `src/visual_report.py` while preserving `src.visual_report` compatibility
+  imports and keeping the generator/template facade intact.
+
+Allowed paths:
+
+- `src/visual_report.py`
+- `src/visual_report_helpers.py`
+- `tests/test_visual_report_helpers.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11S done 2026-06-30: markdown sanitization/autolinking, heading extraction,
+  heading-id application, image injection, title extraction, icon/logo URL
+  filtering and script-safe JSON helpers moved to `src/visual_report_helpers.py`.
+- Compatibility evidence: `src/visual_report.py` imports the old private helper
+  names so existing callers can continue importing them from the facade module.
+- R11S line count 2026-06-30: `src/visual_report.py` is 1669 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11S focused checks 2026-06-30:
+  `python -m py_compile src\visual_report.py src\visual_report_helpers.py`
+  passed.
+- R11S helper regression tests 2026-06-30:
+  `python -m pytest tests\test_visual_report_helpers.py -q` returned
+  `4 passed, 1 warning`.
+- R11S adjacent research tests 2026-06-30:
+  `python -m pytest tests\test_research_service.py tests\test_research_endpoint_owner_scope.py -q`
+  returned `18 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/visual_report.py` remains below the large-file candidate threshold with
+  a clearer template/generator responsibility.
+- Untrusted markdown sanitization, TOC slugging, title extraction and icon/logo
+  filtering have focused tests.
+- No live research/provider action is required for the slice.
 
 ### R12: Obsidian Frontend Split
 
