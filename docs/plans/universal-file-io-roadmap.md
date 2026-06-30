@@ -20,6 +20,16 @@ Standard ABC, backend/logik-first. UI placement is out of scope for this slice.
   ephemeral extraction packet.
 - Reviewed inbox writes can now write native Memory plus bounded RaptorGraph
   provenance events.
+- 2026-06-30: `src/universal_file_io.py` implements the repo-only capability
+  registry, export intent contract and export capability planner. It does not
+  read files, execute converters, write Nextcloud, or deliver Telegram files.
+- 2026-06-30: Universal Inbox worker now treats parser-broken PDFs as
+  review-partial at the worker/pipeline level so malformed PDFs route to review
+  instead of hard No-Go, while the lower extraction contract still records the
+  parser failure.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_universal_file_io.py tests/test_universal_inbox_worker.py tests/test_universal_inbox_extraction.py tests/test_pdf_extraction.py -q`
+  returned `46 passed, 1 warning`.
 
 ## Non-Goals
 
@@ -35,30 +45,35 @@ Standard ABC, backend/logik-first. UI placement is out of scope for this slice.
 1. `UFIO1-file-capability-registry`
    - Class: `repo_only`
    - Owner: Bob
+   - Status: `done`
    - Goal: extend file type coverage to common document/media/game asset
      families and expose conversion-relevant capabilities.
 
 2. `UFIO2-export-intent-contract`
    - Class: `repo_only`
    - Owner: Bob
+   - Status: `done`
    - Goal: parse follow-up requests like "mach daraus ein PDF" into a redacted
      export intent referencing the recent inbox file.
 
 3. `UFIO3-export-capability-plan`
    - Class: `repo_only`
    - Owner: Bob
+   - Status: `done`
    - Goal: return safe export plans for document, image, audio, PDF page image,
      and 2D/3D asset conversions without executing external tools.
 
 4. `UFIO4-telegram-delivery-prep`
    - Class: `safe_offline`
    - Owner: Charlie
+   - Status: `planned`
    - Goal: document and test the Telegram reply/delivery contract before live
      sendDocument/sendPhoto/sendAudio execution.
 
 5. `UFIO5-live-converters`
    - Class: `needs_live_go`
    - Owner: Charlie
+   - Status: `gated`
    - Goal: enable bounded converters after operator approval and tool checks:
      LibreOffice/Pandoc/WeasyPrint, Pillow, ffmpeg, OCR, Blender/assimp.
 

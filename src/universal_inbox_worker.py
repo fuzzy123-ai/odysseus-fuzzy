@@ -127,20 +127,21 @@ def run_universal_inbox_dry_run(
             root=inbox_path,
             max_extract_bytes=worker_config.max_extract_bytes,
         )
+        worker_extraction_status = _worker_extraction_status(extraction)
         analysis_packet = build_universal_inbox_file_analysis_packet(
             {
                 **item.to_dict(),
                 "source_channel": "universal_inbox",
                 "classification": worker_config.default_classification,
                 "document_type": _infer_document_type(item.filename, worker_config.default_document_type),
-                "extraction_status": extraction.status,
+                "extraction_status": worker_extraction_status,
                 "extractor": extraction.metadata.get("extractor", ""),
             },
             text_sample=extraction.raw_text,
         )
         analysis_report = analysis_packet.to_dict()
         routing_decision = plan_universal_inbox_route(
-            _routing_item(item.to_dict(), extraction, worker_config),
+            _routing_item(item.to_dict(), extraction, worker_config, extraction_status=worker_extraction_status),
             rules=routing_rules,
         )
         memory = UniversalInboxMemoryAbstraction.from_routing_decision(
@@ -154,7 +155,7 @@ def run_universal_inbox_dry_run(
             discovery={"status": "completed", "metadata": {"adapter": "local_read_only"}},
             ledger={"status": "pending", "metadata": {"provider": "nextcloud_inbox"}},
             extraction_packet={
-                "status": extraction.status,
+                "status": worker_extraction_status,
                 "abstract": _safe_abstract(item.to_dict(), extraction, analysis_report=analysis_report),
                 "raw_packet": extraction.to_dict(),
             },
@@ -190,7 +191,7 @@ def run_universal_inbox_dry_run(
                 relative_path=item.relative_path,
                 filename=item.filename,
                 source_hash=item.sha256,
-                extraction_status=extraction.status,
+                extraction_status=worker_extraction_status,
                 routing_decision=routing_decision.to_dict(),
                 placement_plan=placement_report,
                 pipeline_report=pipeline_report,
@@ -226,9 +227,12 @@ def _routing_item(
     item: Mapping[str, Any],
     extraction: LocalExtractionPacket,
     config: UniversalInboxWorkerConfig,
+    *,
+    extraction_status: str | None = None,
 ) -> dict[str, Any]:
     document_type = _infer_document_type(item["filename"], config.default_document_type)
-    partial_extraction = extraction.status in {"partial", "metadata_only", "unsupported", "failed", "blocked"}
+    status = extraction_status or extraction.status
+    partial_extraction = status in {"partial", "metadata_only", "unsupported", "failed", "blocked"}
     confidence = config.review_confidence if partial_extraction else config.default_confidence
     return {
         "original_path": f"{config.incoming_prefix}/{item['relative_path']}",
@@ -241,6 +245,14 @@ def _routing_item(
         "mtime": item["mtime"],
         "partial_extraction": partial_extraction,
     }
+
+
+def _worker_extraction_status(extraction: LocalExtractionPacket) -> str:
+    if extraction.status == "failed" and any(
+        getattr(warning, "code", "") == "pdf_parser_failed" for warning in extraction.warnings
+    ):
+        return "partial"
+    return extraction.status
 
 
 def _infer_document_type(filename: str, fallback: str) -> str:

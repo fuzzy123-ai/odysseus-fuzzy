@@ -384,6 +384,17 @@ Current evidence:
 
 - `universal-file-io-roadmap.md` defines capability registry, export intent,
   export plans and live converter gates.
+- 2026-06-30: `src/universal_file_io.py` implements common document, PDF,
+  image, audio, video and 2D/3D asset capability planning, redacted export
+  intent parsing, and deterministic export plans without executing converters.
+- 2026-06-30: DSGVO mode forces local-only converter selection in export plans;
+  output refs are new derived refs and originals are never overwritten.
+- 2026-06-30: Universal Inbox worker maps parser-broken PDFs to review-partial
+  at orchestration level, preventing malformed PDFs from becoming hard No-Go
+  when review placement is safer.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_universal_file_io.py tests/test_universal_inbox_worker.py tests/test_universal_inbox_extraction.py tests/test_pdf_extraction.py -q`
+  returned `46 passed, 1 warning`.
 
 Parallel rule:
 
@@ -391,11 +402,22 @@ Parallel rule:
 - Live converters, Telegram file delivery and Nextcloud writes share L1 gates
   and must not bypass them.
 
-Next safe slices:
+Slice queue:
 
-- Confirm UFIO1-UFIO3 status.
-- Add converter capability registry tests.
-- Add redacted export-intent linkage to recent Inbox document context.
+| Slice | Class | Owner | Goal |
+| --- | --- | --- | --- |
+| L5-0-status-check | safe_offline | Charlie | Done: UFIO roadmap and existing Inbox capabilities reconciled. |
+| L5-1-file-capability-registry | repo_only | Bob | Done: common document/media/game asset families expose conversion-relevant capabilities. |
+| L5-2-export-intent-contract | repo_only | Bob | Done: natural-language follow-ups produce redacted export intents linked to recent Inbox refs. |
+| L5-3-export-capability-plan | repo_only | Bob | Done: deterministic, redacted plans cover document, image, audio, PDF-page-image and 3D asset conversions without execution. |
+| L5-4-telegram-delivery-prep | safe_offline | Charlie | Planned: delivery contract before live sendDocument/sendPhoto/sendAudio. |
+| L5-5-live-converters | needs_live_go | Charlie | Gated: LibreOffice/Pandoc/WeasyPrint, Pillow, ffmpeg, OCR, Blender/assimp execution needs explicit operator Go and tool checks. |
+
+L5 backend status:
+
+- UFIO1-UFIO3 are backend complete for the current masterplan scope.
+- Live converter execution, Telegram delivery and Nextcloud export writes remain
+  gated operational tracks, not blockers for safe export planning.
 
 ## Lane L6: Long PDF Extraction + RAG/Ingestion Reliability
 
