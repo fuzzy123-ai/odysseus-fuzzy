@@ -3,7 +3,7 @@
 Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
-and R9A/R9B/R9C/R9D/R9E/R9F/R9G email helper splits implemented; tool implementation/admin
+and R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H email helper splits implemented; tool implementation/admin
 facades below threshold, remaining code refactor waves pending
 
 ## Goal
@@ -724,9 +724,23 @@ Progress:
 - R9G broader R9 smoke 2026-06-30:
   `python -m pytest tests\test_email_runtime_cache.py tests\test_email_oauth_helpers.py tests\test_email_account_helpers.py tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
   returned `96 passed, 24 warnings`.
-- Remaining R9 work: route setup boundaries and list/read IMAP parsing helper
-  extraction. `routes/email_routes.py` is reduced to 2616 lines after R9G and
-  remains above the large-file candidate threshold.
+- R9H done 2026-06-30: `routes/email_message_shapes.py` owns common
+  IMAP header/list/search/read response shaping, including fetch meta
+  flag/size parsing, date normalization, attachment hints and read response
+  bases. `routes.email_routes` keeps IMAP fetches, owner checks, DB tag/cache
+  lookups and route handlers.
+- R9H evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_message_shapes.py`
+  passed.
+- R9H focused tests 2026-06-30:
+  `python -m pytest tests\test_email_message_shapes.py tests\test_email_runtime_cache.py tests\test_email_owner_scope.py tests\test_email_imap_helpers.py tests\test_email_imap_timeout.py tests\test_email_gmail_fetch_flags.py -q`
+  returned `33 passed, 6 warnings`.
+- R9H broader R9 smoke 2026-06-30:
+  `python -m pytest tests\test_email_message_shapes.py tests\test_email_runtime_cache.py tests\test_email_oauth_helpers.py tests\test_email_account_helpers.py tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
+  returned `101 passed, 24 warnings`.
+- Remaining R9 work: route setup boundaries and list/read IMAP fetch/control
+  flow extraction. `routes/email_routes.py` is reduced to 2535 lines after
+  R9H and remains above the large-file candidate threshold.
 
 ### R10: Model Routes Extraction
 

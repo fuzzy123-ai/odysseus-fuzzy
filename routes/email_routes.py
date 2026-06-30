@@ -80,6 +80,12 @@ from routes.email_imap_helpers import (
     uid_exists as _uid_exists,
     uid_from_fetch_meta as _uid_from_fetch_meta,
 )
+from routes.email_message_shapes import (
+    fetch_flags_from_meta as _fetch_flags_from_meta,
+    fetch_size_from_meta as _fetch_size_from_meta,
+    list_email_row_from_header as _list_email_row_from_header,
+    read_email_response_base as _read_email_response_base,
+)
 from routes.email_owner_events import (
     email_tag_owner_aliases as _email_tag_owner_aliases_impl,
     email_tag_owner_clause_from_aliases as _email_tag_owner_clause_from_aliases,
@@ -406,62 +412,25 @@ def setup_email_routes():
 
                 for meta_b, raw_header in grouped:
                     try:
-                        meta = meta_b.decode(errors="replace")
                         uid_num = _uid_from_fetch_meta(meta_b)
                         if not uid_num:
                             continue
-                        flag_m = re.search(r'FLAGS \(([^)]*)\)', meta)
-                        flags = flag_m.group(1) if flag_m else ""
-                        size_m = re.search(r'RFC822\.SIZE (\d+)', meta)
-                        size = int(size_m.group(1)) if size_m else 0
+                        flags = _fetch_flags_from_meta(meta_b)
+                        size = _fetch_size_from_meta(meta_b)
                         if not raw_header:
                             continue
 
                         msg = email_mod.message_from_bytes(raw_header)
-                        subject = _decode_header(msg.get("Subject", "(no subject)"))
-                        sender = _decode_header(msg.get("From", "unknown"))
-                        date_str = msg.get("Date", "")
                         message_id = msg.get("Message-ID", "")
-                        sender_name, sender_addr = email.utils.parseaddr(sender)
-                        # To/Cc — needed for the from-sender sidebar's
-                        # multi-tag filter ("emails involving ALL these
-                        # people"). Decoded raw strings; client splits.
-                        to_str = _decode_header(msg.get("To", ""))
-                        cc_str = _decode_header(msg.get("Cc", ""))
-                        parsed_date = email.utils.parsedate_to_datetime(date_str) if date_str else None
-                        # Normalise tz-naive parses to UTC so timestamp() is
-                        # deterministic across hosts.
-                        if parsed_date and parsed_date.tzinfo is None:
-                            from datetime import timezone as _tz
-                            parsed_date = parsed_date.replace(tzinfo=_tz.utc)
-                        iso_date = parsed_date.isoformat() if parsed_date else ""
-                        date_epoch = parsed_date.timestamp() if parsed_date else 0.0
-                        is_read = "\\Seen" in flags
-                        is_answered = "\\Answered" in flags
-                        is_flagged = "\\Flagged" in flags
-                        ct = msg.get("Content-Type", "")
-                        has_attachments = "multipart/mixed" in ct.lower() or "multipart/related" in ct.lower()
                         tag_entry = _tag_by_message_id.get(message_id.strip()) or _tag_by_uid.get(uid_num, {})
-                        emails.append({
-                            "uid": uid_num,
-                            "message_id": message_id.strip(),
-                            "subject": subject,
-                            "from_name": sender_name or sender_addr,
-                            "from_address": sender_addr,
-                            "to": to_str,
-                            "cc": cc_str,
-                            "date": iso_date,
-                            "date_display": date_str,
-                            "date_epoch": date_epoch,
-                            "size": size,
-                            "is_read": is_read,
-                            "is_answered": is_answered,
-                            "is_flagged": is_flagged,
-                            "flags": flags,
-                            "has_attachments": has_attachments,
-                            "tags": tag_entry.get("tags", []),
-                            "is_spam_verdict": tag_entry.get("spam", False),
-                        })
+                        emails.append(_list_email_row_from_header(
+                            uid_num,
+                            msg,
+                            flags=flags,
+                            size=size,
+                            tag_entry=tag_entry,
+                            decode_header=_decode_header,
+                        ))
                     except Exception as e:
                         logger.warning(f"Error parsing batched email entry: {e}")
                         continue
@@ -677,65 +646,28 @@ def setup_email_routes():
                             continue
                         raw_header = None
                         flags = ""
+                        stable_uid = ""
                         # Same Gmail caveat as the list route: FLAGS may
                         # arrive after the header literal, so group bare
                         # parts back into the message meta before scanning.
                         for meta_b, payload in _group_uid_fetch_records(msg_data):
                             if payload and b"RFC822.HEADER" in meta_b:
                                 raw_header = payload
-                            flag_match = re.search(rb'FLAGS \(([^)]*)\)', meta_b)
-                            if flag_match:
-                                flags = flag_match.group(1).decode(errors="replace")
+                            flags = _fetch_flags_from_meta(meta_b) or flags
+                            stable_uid = _uid_from_fetch_meta(meta_b) or stable_uid
                         if not raw_header:
                             continue
                         msg = email_mod.message_from_bytes(raw_header)
-                        subject = _decode_header(msg.get("Subject", "(no subject)"))
-                        sender = _decode_header(msg.get("From", "unknown"))
-                        date_str = msg.get("Date", "")
-                        message_id = msg.get("Message-ID", "")
-                        sender_name, sender_addr = email.utils.parseaddr(sender)
-                        to_str = _decode_header(msg.get("To", ""))
-                        cc_str = _decode_header(msg.get("Cc", ""))
-                        parsed_date = email.utils.parsedate_to_datetime(date_str) if date_str else None
-                        if parsed_date and parsed_date.tzinfo is None:
-                            from datetime import timezone as _tz
-                            parsed_date = parsed_date.replace(tzinfo=_tz.utc)
-                        iso_date = parsed_date.isoformat() if parsed_date else ""
-                        date_epoch = parsed_date.timestamp() if parsed_date else 0.0
-                        ct = msg.get("Content-Type", "")
-                        has_attachments = "multipart/mixed" in ct.lower() or "multipart/related" in ct.lower()
-
-                        stable_uid = ""
-                        for part in msg_data:
-                            if isinstance(part, tuple):
-                                meta_b = part[0] if isinstance(part[0], bytes) else str(part[0]).encode()
-                                stable_uid = _uid_from_fetch_meta(meta_b) or stable_uid
                         if not stable_uid:
                             continue
-                        emails.append({
-                            "uid": stable_uid,
-                            "message_id": message_id.strip(),
-                            "subject": subject,
-                            "from_name": sender_name or sender_addr,
-                            "from_address": sender_addr,
-                            "to": to_str,
-                            "cc": cc_str,
-                            "date": iso_date,
-                            "date_display": date_str,
-                            "date_epoch": date_epoch,
-                            "is_read": "\\Seen" in flags,
-                            "is_answered": "\\Answered" in flags,
-                            "is_flagged": "\\Flagged" in flags,
-                            "flags": flags,
-                            "has_attachments": has_attachments,
-                            # Stamp the folder so the frontend opens each
-                            # email from the folder it actually lives in
-                            # (the search may have run against All Mail
-                            # even though the caller asked for INBOX),
-                            # otherwise clicks open whatever happens to
-                            # have the same UID in INBOX → wrong email.
-                            "folder": effective_folder,
-                        })
+                        row = _list_email_row_from_header(
+                            stable_uid,
+                            msg,
+                            flags=flags,
+                            folder=effective_folder,
+                            decode_header=_decode_header,
+                        )
+                        emails.append(row)
                     except Exception as e:
                         logger.warning(f"Error parsing search result {uid}: {e}")
                         continue
@@ -769,20 +701,20 @@ def setup_email_routes():
 
             msg = email_mod.message_from_bytes(raw)
 
-            subject = _decode_header(msg.get("Subject", "(no subject)"))
-            sender = _decode_header(msg.get("From", "unknown"))
-            to = _decode_header(msg.get("To", ""))
-            cc = _decode_header(msg.get("Cc", ""))
-            date_str = msg.get("Date", "")
-            message_id = msg.get("Message-ID", "")
-            in_reply_to = msg.get("In-Reply-To", "")
-            references = msg.get("References", "")
             body = _extract_text(msg)
             body_html = _extract_html(msg)
-
-            sender_name, sender_addr = email.utils.parseaddr(sender)
-            parsed_date = email.utils.parsedate_to_datetime(date_str) if date_str else None
             attachments = _list_attachments_from_msg(msg)
+            response_base = _read_email_response_base(
+                uid,
+                folder,
+                msg,
+                body=body,
+                body_html=body_html,
+                attachments=attachments,
+                decode_header=_decode_header,
+            )
+            message_id = response_base["message_id"]
+            sender_addr = response_base["from_address"]
 
             if mark_seen:
                 # Set \Seen in a separate readwrite session so concurrent reads
@@ -877,20 +809,7 @@ def setup_email_routes():
                     cached_turns = None
 
             return {
-                "uid": uid,
-                "folder": folder,
-                "message_id": message_id.strip(),
-                "subject": subject,
-                "from_name": sender_name or sender_addr,
-                "from_address": sender_addr,
-                "to": to,
-                "cc": cc,
-                "date": parsed_date.isoformat() if parsed_date else "",
-                "in_reply_to": in_reply_to.strip(),
-                "references": references.strip(),
-                "body": body,
-                "body_html": body_html,
-                "attachments": attachments,
+                **response_base,
                 "cached_summary": cached_summary,
                 "cached_ai_reply": cached_ai_reply,
                 "boundaries": cached_boundaries,
