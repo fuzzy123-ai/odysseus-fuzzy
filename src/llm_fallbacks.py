@@ -103,3 +103,53 @@ async def llm_call_async_with_fallback(
             logger.warning(f"[fallback] {tag} {model} failed ({type(e).__name__}); trying next")
             continue
     raise last_err if last_err else http_exception_cls(503, "All fallback candidates failed")
+
+
+async def stream_llm_with_fallback(
+    candidates,
+    messages,
+    *,
+    stream_llm_func,
+    logger,
+    **kwargs,
+):
+    """Yield an SSE stream from an ordered fallback chain."""
+    cands = _dedupe_candidates(candidates)
+    if not cands:
+        yield _no_model_endpoint_event()
+        return
+
+    primary_model = cands[0][1]
+    last_error = None
+    for i, (url, model, headers) in enumerate(cands):
+        is_last = i == len(cands) - 1
+        emitted = False
+        retried = False
+        async for chunk in stream_llm_func(url, model, messages, headers=headers, **kwargs):
+            if chunk.startswith("event: error"):
+                if not emitted and not is_last:
+                    last_error = chunk
+                    retried = True
+                    if i == 0:
+                        logger.warning(f"[fallback] primary {model} failed before output; trying fallback")
+                    else:
+                        logger.warning(f"[fallback] candidate {model} failed; trying next")
+                    break
+                yield chunk
+                continue
+            if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
+                try:
+                    event_data = json.loads(chunk[6:])
+                except Exception:
+                    event_data = {}
+                if event_data.get("type") == "model_actual":
+                    yield chunk
+                    continue
+                if not emitted and i > 0:
+                    yield _fallback_notice_event(primary_model, model, last_error)
+                emitted = True
+            yield chunk
+        if not retried:
+            return
+    if last_error:
+        yield last_error

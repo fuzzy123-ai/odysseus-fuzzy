@@ -226,6 +226,7 @@ from src.llm_fallbacks import (
     _summarize_stream_error,
     llm_call_async_with_fallback as _llm_call_async_with_fallback_impl,
     llm_call_with_fallback as _llm_call_with_fallback_impl,
+    stream_llm_with_fallback as _stream_llm_with_fallback_impl,
 )
 
 
@@ -1445,64 +1446,12 @@ async def stream_llm(
 
 
 async def stream_llm_with_fallback(candidates, messages, **kwargs):
-    """Wrap stream_llm with an ordered fallback chain.
-
-    `candidates` is a list of (url, model, headers). Each is tried in order,
-    but only retried on a *pre-content* failure — i.e. an ``event: error``
-    that arrives before any assistant text / tool-call data has been yielded.
-    Once a candidate has emitted real output we never switch (that would
-    duplicate streamed tokens); a later error from that candidate passes
-    through unchanged. The dead-host cooldown in stream_llm makes repeat
-    attempts at an offline primary effectively instant.
-
-    Yields the same SSE chunk protocol as stream_llm.
-    """
-    cands = _dedupe_candidates(candidates)
-    if not cands:
-        yield _no_model_endpoint_event()
-        return
-
-    primary_model = cands[0][1]
-    last_error = None
-    for i, (url, model, headers) in enumerate(cands):
-        is_last = (i == len(cands) - 1)
-        emitted = False
-        retried = False
-        async for chunk in stream_llm(url, model, messages, headers=headers, **kwargs):
-            if chunk.startswith("event: error"):
-                if not emitted and not is_last:
-                    # Pre-content failure with fallbacks left — swallow and
-                    # move to the next candidate.
-                    last_error = chunk
-                    retried = True
-                    if i == 0:
-                        logger.warning(f"[fallback] primary {model} failed before output; trying fallback")
-                    else:
-                        logger.warning(f"[fallback] candidate {model} failed; trying next")
-                    break
-                yield chunk
-                continue
-            # Any data chunk other than the terminal [DONE] means real output.
-            if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
-                try:
-                    event_data = json.loads(chunk[6:])
-                except Exception:
-                    event_data = {}
-                if event_data.get("type") == "model_actual":
-                    yield chunk
-                    continue
-                # First real output from a NON-primary candidate: tell the client
-                # the selected model failed and another answered. Without this the
-                # fallback is invisible — a misconfigured provider looks like it
-                # works because the reply is shown under the originally selected
-                # model's name (e.g. a Bedrock/Claude endpoint that 400s every
-                # request but appears fine because another model silently answered).
-                if not emitted and i > 0:
-                    yield _fallback_notice_event(primary_model, model, last_error)
-                emitted = True
-            yield chunk
-        if not retried:
-            return  # candidate finished (success, or terminal error already sent)
-    # Every candidate failed pre-content — surface the last error.
-    if last_error:
-        yield last_error
+    """Wrap stream_llm with an ordered fallback chain."""
+    async for chunk in _stream_llm_with_fallback_impl(
+        candidates,
+        messages,
+        stream_llm_func=stream_llm,
+        logger=logger,
+        **kwargs,
+    ):
+        yield chunk
