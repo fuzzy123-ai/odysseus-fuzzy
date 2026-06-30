@@ -633,6 +633,22 @@ Completion criteria:
 - `setup_email_routes()` remains the public route entrypoint.
 - IMAP/SMTP helpers remain directly testable.
 
+Progress:
+
+- R9A done 2026-06-30: `routes/email_formatting.py` owns email HTML
+  sanitization, markdown-to-email HTML rendering, SMTP envelope recipient
+  parsing and Odysseus MIME headers. `routes.email_routes` keeps legacy
+  underscore aliases for import compatibility.
+- R9A evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_formatting.py`
+  passed.
+- R9A focused tests 2026-06-30:
+  `python -m pytest tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_oauth.py tests\test_email_gmail_fetch_flags.py tests\test_email_smtp_security.py tests\test_schedule_email_offset_normalization.py -q`
+  returned `48 passed, 8 warnings`.
+- Remaining R9 work: IMAP folder/UID helpers, SMTP/drafts helpers, owner/event
+  helpers and route setup boundaries. `routes/email_routes.py` is reduced to
+  3392 lines after R9A and remains above the large-file candidate threshold.
+
 ### R10: Model Routes Extraction
 
 Owner: Bob  
