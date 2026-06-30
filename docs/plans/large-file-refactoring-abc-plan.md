@@ -5055,6 +5055,53 @@ Completion criteria:
 - The split performs no live provider calls and does not change provider
   streaming branches.
 
+## R11DF / L7-R12CU: ChatGPT Subscription Stream Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving ChatGPT Subscription / Codex Responses
+  streaming into a focused helper module, while keeping the public
+  `stream_llm` facade and provider selection in `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_stream_chatgpt_subscription.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_chat_metrics.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11DF done 2026-06-30: ChatGPT Subscription Responses stream parsing moved
+  to `src/llm_stream_chatgpt_subscription.py`; `src.llm_core._stream_llm_impl`
+  keeps the provider branch and injects client, host-health and formatter
+  hooks.
+- R11DF line count 2026-06-30: `src/llm_core.py` is 1199 lines, still in
+  warning band but reduced from 1238 after R11DE;
+  `src/llm_stream_chatgpt_subscription.py` is 84 lines and below the report
+  threshold.
+- R11DF focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_stream_chatgpt_subscription.py`
+  passed.
+- R11DF stream checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py tests\test_chat_metrics.py -q`
+  returned `16 passed, 1 warning`.
+
+Completion criteria:
+
+- ChatGPT Subscription stream deltas, usage chunks, done events and error
+  events remain stable.
+- Existing `src.llm_core.stream_llm` imports and monkeypatch hooks remain
+  intact.
+- The split performs no live provider calls and touches no UI paths.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

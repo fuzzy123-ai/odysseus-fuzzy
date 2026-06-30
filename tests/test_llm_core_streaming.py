@@ -169,3 +169,33 @@ def test_null_arguments_delta_does_not_drop_sibling_calls(monkeypatch):
     events = _drive(monkeypatch, lines, model="gpt-4o-test")
     calls = next(e["calls"] for e in events if e.get("type") == "tool_calls")
     assert sorted(c["name"] for c in calls) == ["first", "second"], calls
+
+
+def test_chatgpt_subscription_stream_delta_usage_done(monkeypatch):
+    lines = [
+        "event: response.output_text.delta",
+        'data: {"delta":"hello"}',
+        "event: response.completed",
+        'data: {"response":{"usage":{"input_tokens":3,"output_tokens":4}}}',
+    ]
+    monkeypatch.setattr(llm_core, "_detect_provider", lambda url: "chatgpt-subscription")
+    monkeypatch.setattr(llm_core, "_get_http_client", lambda: _FakeClient(lines))
+    monkeypatch.setattr(llm_core, "_is_host_dead", lambda u: False)
+    monkeypatch.setattr(llm_core, "note_model_activity", lambda *a, **k: None)
+    monkeypatch.setattr(llm_core, "_clear_host_dead", lambda *a, **k: None)
+
+    async def run():
+        chunks = []
+        async for chunk in llm_core.stream_llm(
+            "https://chatgpt-subscription.local/v1/responses",
+            "codex-test",
+            [{"role": "user", "content": "hi"}],
+            headers={"Authorization": "Bearer test"},
+        ):
+            chunks.append(chunk)
+        return chunks
+
+    chunks = asyncio.run(run())
+    assert any('"delta": "hello"' in chunk for chunk in chunks)
+    assert any('"input_tokens": 3' in chunk and '"output_tokens": 4' in chunk for chunk in chunks)
+    assert chunks[-1] == "data: [DONE]\n\n"
