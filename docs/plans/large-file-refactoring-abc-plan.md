@@ -4103,6 +4103,57 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BS / L7-R12BH: LLM Activity Metrics Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move redacted AI-activity recording and SSE activity metric helpers out of
+  `src/llm_core.py` into a focused helper module.
+- Keep `src.llm_core` private helper names import-compatible for existing
+  stream and call wrappers.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_activity_metrics.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_llm_core_sse_no_space.py`
+- `tests/test_llm_core_usage_finish_delta.py`
+- `tests/test_llm_core_concurrency.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BS done 2026-06-30: `src/llm_activity_metrics.py` owns safe
+  AI-activity ledger recording plus SSE delta/usage/error metric parsing.
+  `src.llm_core` imports the helper functions under its existing private
+  names so stream and non-stream audit wrappers remain behavior-compatible.
+- R11BS line count 2026-06-30: `src/llm_core.py` is 1905 lines, still in
+  warning band but farther from the candidate threshold; `src/llm_activity_metrics.py`
+  is below report threshold.
+- R11BS focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_activity_metrics.py`
+  passed.
+- R11BS LLM activity/stream checks 2026-06-30:
+  `python -m pytest tests\test_ai_activity_ledger.py tests\test_llm_core_streaming.py tests\test_llm_core_sse_no_space.py tests\test_llm_core_usage_finish_delta.py tests\test_llm_core_concurrency.py -q`
+  returned `20 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/llm_core.py` loses a self-contained activity/metric block without
+  changing provider payloads, retry behavior, host cooldown behavior or cache
+  semantics.
+- AI activity redaction, cache-hit records, stream usage metrics, SSE chunk
+  handling and llm_core concurrency regression tests remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
