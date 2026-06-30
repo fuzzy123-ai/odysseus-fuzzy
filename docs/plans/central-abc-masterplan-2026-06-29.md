@@ -889,11 +889,12 @@ Slice queue:
 | L7-R11D-telegram-polling-support-boundary | repo_only | Charlie | Done: agent-turn invocation/result-shaping helpers moved to `plugins/telegram/polling.py`; no live Telegram actions. |
 | L7-R11E-telegram-polling-transport-boundary | repo_only | Charlie | Done: `getUpdates` polling transport moved to `plugins/telegram/polling.py`; no live Telegram actions. |
 | L7-R11F-telegram-polling-orchestration-boundary | repo_only | Charlie | Done: full polling cycle orchestration moved to `plugins/telegram/polling.py` behind an explicit dependency wrapper; no live Telegram actions. |
-| L7-R11G-telegram-outbound-api-boundary | repo_only | Charlie | Next if plugin scope is clean: split outbound send/document/pin/chat-action helpers without live Telegram actions. |
+| L7-R11G-telegram-outbound-api-boundary | repo_only | Charlie | Done: outbound send/document/pin/unpin/chat-action helpers moved to `plugins/telegram/outbound.py`; no live Telegram actions. |
+| L7-R11H-telegram-admin-helper-boundary | repo_only | Charlie | Next if plugin scope is clean: split admin/readiness/UI helper code without changing UI placement or design. |
 
 Next safe slice:
 
-- Continue L7-R11G Telegram outbound API boundary only if
+- Continue L7-R11H Telegram admin/helper boundary only if
   `plugins/telegram/plugin.py` and related tests are clean; otherwise choose
   the next backend-only refactor with no live Telegram actions.
   L7-R2 CSS split should wait until visual smoke coverage is available because
@@ -974,7 +975,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11F are complete; tool implementation/admin, agent-loop, email-route and model-route facades are below threshold, while Telegram outbound/admin splits and later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11G are complete; tool implementation/admin, agent-loop, email-route and model-route facades are below threshold, while Telegram admin/rest splits and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
