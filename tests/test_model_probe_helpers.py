@@ -5,6 +5,7 @@ from routes.model_probe_helpers import (
     append_curated_probe_models,
     curated_probe_fallback_models,
     model_ids_from_listing_payload,
+    ollama_native_ping_urls,
     ollama_native_probe_root,
     ollama_tag_model_ids_from_payload,
     ping_result_from_response,
@@ -143,6 +144,18 @@ def test_ollama_native_probe_root_strips_api_suffix():
 
 def test_ollama_native_probe_root_ignores_openai_style_proxy():
     assert ollama_native_probe_root("https://api.example.com/v1") is None
+
+
+def test_ollama_native_ping_urls_returns_native_version_and_tags_urls():
+    assert ollama_native_ping_urls("http://localhost:11434/") == [
+        "http://localhost:11434/api/version",
+        "http://localhost:11434/api/tags",
+    ]
+
+
+def test_ollama_native_ping_urls_ignores_empty_root():
+    assert ollama_native_ping_urls(None) == []
+    assert ollama_native_ping_urls("") == []
 
 
 def test_ollama_tag_model_ids_from_payload_reads_name_or_model():

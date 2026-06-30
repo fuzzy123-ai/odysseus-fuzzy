@@ -15,8 +15,9 @@ probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
 implemented, plus R11AK model Ollama ping-root helper split and R11AL model
 listing-payload helper split and R11AM model Anthropic listing helper split;
-R11AN model ping-fallback helper split, R11AO model curated-fallback helper split
-and R11AP model Ollama tags payload helper split; tool
+R11AN model ping-fallback helper split, R11AO model curated-fallback helper split,
+R11AP model Ollama tags payload helper split and R11AQ model Ollama ping URL
+helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2609,6 +2610,58 @@ Completion criteria:
   with Ollama tags payload parsing separated from route orchestration.
 - Ollama `/api/tags` fallback continues to accept `name` or `model` entries
   and still filters non-chat models at the route boundary.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AQ / L7-R12AF: Model Ollama Ping URL Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Ollama native ping URL planning out of `_ping_endpoint()` while
+  preserving route-owned HTTP transport, reachability classification and error
+  handling.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AQ done 2026-06-30: Ollama native ping URL planning moved to
+  `ollama_native_ping_urls()` in `routes/model_probe_helpers.py`.
+  `_ping_endpoint()` still owns the actual HTTP calls, reachability result
+  handling and fallback error tracking.
+- Compatibility evidence: helper tests cover version/tag URL ordering, trailing
+  slash normalization and empty-root behavior; existing endpoint probing and
+  model route tests remain green.
+- R11AQ line count 2026-06-30: `routes/model_routes.py` is 1725 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AQ focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AQ Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `204 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with Ollama native ping URL planning separated from route orchestration.
+- `_ping_endpoint()` continues to probe `/api/version` before `/api/tags` for
+  native Ollama endpoints and performs no generic `/models` health check unless
+  the existing fallback rules allow it.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

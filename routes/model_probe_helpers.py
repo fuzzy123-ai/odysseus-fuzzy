@@ -302,6 +302,14 @@ def ollama_native_probe_root(base_url: str) -> Optional[str]:
     return root.rstrip("/")
 
 
+def ollama_native_ping_urls(root_url: Optional[str]) -> list[str]:
+    """Return native Ollama ping URLs for a resolved Ollama root."""
+    if not root_url:
+        return []
+    root = root_url.rstrip("/")
+    return [root + "/api/version", root + "/api/tags"]
+
+
 def ollama_tag_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
     """Extract model IDs from Ollama native /api/tags payloads."""
     return [
