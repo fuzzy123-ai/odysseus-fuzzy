@@ -20,7 +20,8 @@ R11AP model Ollama tags payload helper split, R11AQ model Ollama ping URL
 helper split, R11AR model Ollama native ping execution helper split, R11AS
 model base ping fallback helper split, R11AT model refresh-state helper split,
 R11AU model refresh-decision helper split, R11AV model refresh group helper
-split and R11AW model refresh inflight helper split; tool
+split, R11AW model refresh inflight helper split and R11AX model refresh
+result helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2979,6 +2980,63 @@ Completion criteria:
   with refresh inflight marking separated from route orchestration.
 - Background refresh still marks all selected groups inflight before probing
   and preserves existing per-key state fields.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AX / L7-R12AM: Model Refresh Result Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move model refresh probe-result state/cache handling out of
+  `setup_model_routes()` while preserving DB lookup and ThreadPool
+  orchestration in the route.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_routes.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_probe_timeouts.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AX done 2026-06-30: refresh probe-result state handling moved to
+  `_apply_model_refresh_result()` in `routes/model_endpoint_helpers.py`.
+  The helper updates success/failure counters and uses a route-injected cache
+  update callback; `setup_model_routes()` keeps DB lookup and ThreadPool
+  orchestration.
+- Compatibility evidence: helper tests cover successful cache update, missing
+  endpoint callback behavior, success-state reset, failure counter increment
+  and inflight clearing; existing model route, endpoint probing and
+  refresh-timeout tests remain green.
+- R11AX line count 2026-06-30: `routes/model_routes.py` is 1658 lines in the
+  large-file report, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 688 lines, band `monitor`; report
+  candidate count is 26.
+- R11AX focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11AX model route checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `228 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with refresh probe-result state/cache handling separated from route
+  orchestration.
+- Successful refreshes still update all existing endpoint caches and reset
+  failure state; failed refreshes still increment failure counters and clear
+  inflight state.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

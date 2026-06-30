@@ -78,6 +78,7 @@ from routes.model_endpoint_helpers import (
     _match_provider_curated,
     _manual_refresh_timeout,
     _mark_model_refresh_groups_inflight,
+    _apply_model_refresh_result,
     _merge_model_ids,
     _build_model_refresh_groups,
     _model_refresh_key as _refresh_key,
@@ -462,20 +463,21 @@ def setup_model_routes(model_discovery):
                             futures = [pool.submit(_probe_one, key, data) for key, data in groups.items()]
                             for fut in as_completed(futures):
                                 key, endpoint_ids, ids, err = fut.result()
-                                st = _refresh_state.setdefault(key, {})
-                                if ids:
-                                    for ep_id in endpoint_ids:
-                                        ep_obj = db.query(ModelEndpoint).filter(ModelEndpoint.id == ep_id).first()
-                                        if ep_obj:
-                                            ep_obj.cached_models = json.dumps(ids)
-                                            changed = True
-                                    st["last_success"] = _time.time()
-                                    st["fail_count"] = 0
-                                    st.pop("last_failure", None)
-                                else:
-                                    st["last_failure"] = _time.time()
-                                    st["fail_count"] = int(st.get("fail_count") or 0) + 1
-                                st["inflight"] = False
+                                def _update_cached_models(ep_id: str, model_ids: list[str]) -> bool:
+                                    ep_obj = db.query(ModelEndpoint).filter(ModelEndpoint.id == ep_id).first()
+                                    if ep_obj:
+                                        ep_obj.cached_models = json.dumps(model_ids)
+                                        return True
+                                    return False
+                                if _apply_model_refresh_result(
+                                    _refresh_state,
+                                    key=key,
+                                    endpoint_ids=endpoint_ids,
+                                    ids=ids,
+                                    now=_time.time(),
+                                    update_cached_models_func=_update_cached_models,
+                                ):
+                                    changed = True
                         db.commit()
                 finally:
                     db.close()

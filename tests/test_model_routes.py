@@ -286,6 +286,50 @@ def test_mark_model_refresh_groups_inflight_ignores_empty_groups():
     assert state == {"existing": {"inflight": False}}
 
 
+def test_apply_model_refresh_result_updates_cache_and_success_state():
+    from routes.model_endpoint_helpers import _apply_model_refresh_result
+
+    updated = {}
+    state = {"key": {"inflight": True, "fail_count": 3, "last_failure": 100.0}}
+
+    def update_cached(ep_id, ids):
+        if ep_id != "ep1":
+            return False
+        updated[ep_id] = list(ids)
+        return True
+
+    changed = _apply_model_refresh_result(
+        state,
+        key="key",
+        endpoint_ids=["ep1", "missing"],
+        ids=["llama3", "qwen3"],
+        now=1234.5,
+        update_cached_models_func=update_cached,
+    )
+
+    assert changed is True
+    assert updated == {"ep1": ["llama3", "qwen3"]}
+    assert state["key"] == {"inflight": False, "fail_count": 0, "last_success": 1234.5}
+
+
+def test_apply_model_refresh_result_records_failure_and_clears_inflight():
+    from routes.model_endpoint_helpers import _apply_model_refresh_result
+
+    state = {"key": {"inflight": True, "fail_count": 1}}
+
+    changed = _apply_model_refresh_result(
+        state,
+        key="key",
+        endpoint_ids=["ep1"],
+        ids=None,
+        now=1234.5,
+        update_cached_models_func=lambda _ep_id, _ids: True,
+    )
+
+    assert changed is False
+    assert state["key"] == {"inflight": False, "fail_count": 2, "last_failure": 1234.5}
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

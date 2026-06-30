@@ -419,6 +419,31 @@ def _mark_model_refresh_groups_inflight(
         state["last_attempt"] = now
 
 
+def _apply_model_refresh_result(
+    refresh_state: dict[str, dict[str, Any]],
+    *,
+    key: str,
+    endpoint_ids: list[str],
+    ids: list[str] | None,
+    now: float,
+    update_cached_models_func,
+) -> bool:
+    state = refresh_state.setdefault(key, {})
+    changed = False
+    if ids:
+        for endpoint_id in endpoint_ids:
+            if update_cached_models_func(endpoint_id, ids):
+                changed = True
+        state["last_success"] = now
+        state["fail_count"] = 0
+        state.pop("last_failure", None)
+    else:
+        state["last_failure"] = now
+        state["fail_count"] = int(state.get("fail_count") or 0) + 1
+    state["inflight"] = False
+    return changed
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)
