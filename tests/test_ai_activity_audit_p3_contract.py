@@ -33,7 +33,8 @@ def test_domain_modules_label_ai_activity_surfaces():
             'prompt_type="email_urgency_classify"',
             "_audit_email_correlation(message_id)",
         ],
-        ("routes", "email_routes.py"): [
+        ("routes", "email_ai_helpers.py"): [
+            'surface="email"',
             'prompt_type="email_writing_style_extract"',
             'prompt_type="email_ai_reply"',
         ],
@@ -89,9 +90,12 @@ def test_domain_modules_label_ai_activity_surfaces():
             'surface="context_compactor"',
             'prompt_type="context_auto_compact"',
         ],
-        ("src", "agent_loop.py"): [
+        ("src", "agent_loop_orchestration.py"): [
             'surface="agent"',
             'prompt_type="agent_verifier"',
+        ],
+        ("src", "agent_loop.py"): [
+            'surface=audit_surface or "agent"',
             'prompt_type="agent_grace_synthesis"',
         ],
         ("src", "agent_tools", "model_interaction_tools.py"): [

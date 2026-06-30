@@ -196,6 +196,9 @@ Current evidence:
   consolidated as one backend lane: registered repos only, isolated worktrees,
   scope-checked exact patches, quality/review gates, fuzzy-only publish plans
   and live/provider/deploy actions held behind explicit gates.
+- 2026-06-30 reconciliation: L2 backend status was re-verified after the
+  roadmap integration pass. Focused tests returned `100 passed, 2 warnings`;
+  no safe backend slices remain open in L2.
 
 Primary allowed paths:
 
@@ -349,6 +352,11 @@ Current evidence:
 - 2026-06-30 Focused tests passed:
   `python -m pytest tests/test_ai_activity_ledger.py tests/test_ai_activity_audit_p2_contract.py tests/test_ai_activity_audit_p3_contract.py tests/test_ai_activity_diagnostics.py tests/test_agent_run_ledger.py tests/test_graph_maintenance_worker.py tests/test_graph_maintenance_review_gate.py tests/test_graph_memory_release_evidence_map.py tests/test_memory_provenance_ledger.py tests/test_universal_inbox_raptorgraph_store.py tests/test_nextcloud_raptorgraph_provenance.py -q`
   returned `72 passed, 1 warning`.
+- 2026-06-30 reconciliation: L4 focused tests were re-run after the Email and
+  Agent large-file splits. The AI activity audit P3 contract now checks the
+  current helper module boundaries (`routes/email_ai_helpers.py`,
+  `src/agent_loop_orchestration.py` and `src/agent_loop.py`) and the L4 block
+  returned `72 passed, 2 warnings`.
 
 Slice queue:
 
@@ -970,8 +978,9 @@ Stop or defer the active slice if:
    tested.
 4. Decide whether to run L1-6 bounded live upload smoke after runtime env is
    configured on the server.
-5. L2-0 and L2-1 can run in parallel if coding-agent dirty files are intentionally in
-   scope.
+5. L2 and L4 safe backend lanes are reconciled as backend-complete/live-gated.
+   Do not loop on their live/provider/deploy/rebuild gates; move to another
+   safe backend lane unless an explicit bounded live run is being executed.
 6. Run L6-0 and L6-1 before broad Nextcloud import or RAG expansion, so long
    PDFs and partial PDFs stop disappearing silently.
 7. Then choose between L2 route/policy consolidation, L5 export-plan completion
@@ -985,8 +994,8 @@ Stop or defer the active slice if:
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | partial, gated | L3-0 through L3-2 are done offline and L3-4 through L3-6 are planned; Codex-side service setup/live smoke remains gated. |
 | L1 Nextcloud Live Write + Universal Inbox | partial, live-gated | Safe backend path is implemented and tested; bounded live upload smoke still needs operator Go plus runtime env. |
-| L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
-| L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
+| L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
+| L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11K are complete; tool implementation/admin, agent-loop, email-route, model-route and Telegram plugin facades are below threshold, while later CSS/UI-safe waves remain. |
