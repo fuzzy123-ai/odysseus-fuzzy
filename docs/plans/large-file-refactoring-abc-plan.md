@@ -4868,6 +4868,56 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CH / L7-R12BW: Email MCP Attachment Utils Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving attachment metadata listing
+  and safe attachment extraction into a focused helper while preserving legacy
+  private helper imports from `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_attachment_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CH done 2026-06-30: `_list_attachments_from_msg` and
+  `_extract_attachment_to_disk` moved to
+  `mcp_servers/email_attachment_utils.py`; `mcp_servers.email_server` imports
+  those private helper names so existing callers remain stable.
+- R11CH line count 2026-06-30: `mcp_servers/email_server.py` is 1526 lines,
+  still in warning band but reduced from 1583 after R11CG;
+  `mcp_servers/email_attachment_utils.py` is 69 lines and below the report
+  threshold.
+- R11CH focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_attachment_utils.py`
+  passed.
+- R11CH email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_imap_mailbox_quoting.py tests\test_imap_leak_fixes.py tests\test_mcp_email_delete_confirmation.py tests\test_icloud_imap_full_fetch.py -q`
+  returned `38 passed, 2 warnings`.
+
+Completion criteria:
+
+- Read-email attachment metadata and download-attachment extraction continue
+  to use the same index, filename and size semantics.
+- Attachment extraction still writes only under the caller-provided target
+  directory.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
