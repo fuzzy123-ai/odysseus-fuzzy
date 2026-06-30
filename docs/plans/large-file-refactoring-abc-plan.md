@@ -3900,6 +3900,58 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BO / L7-R12BD: Session Serialization Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move SessionManager message timestamping, multimodal content parsing,
+  token-estimation, DB row hydration and context-dict shaping into a focused
+  helper module.
+- Keep legacy `core.session_manager` helper imports and private
+  `SessionManager._db_to_session*()` hooks stable for existing callers/tests.
+
+Allowed paths:
+
+- `core/session_manager.py`
+- `core/session_serialization.py`
+- `tests/test_session_manager.py`
+- `tests/test_session_concurrent.py`
+- `tests/test_session_manager_persist_guard.py`
+- `tests/test_replace_messages_multimodal.py`
+- `tests/test_truncate_message_count_regression.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BO done 2026-06-30: `core/session_serialization.py` owns timestamp
+  normalization, JSON multimodal content parsing, estimated-token caching,
+  session metadata hydration, full session hydration and context-dict shaping.
+  `core.session_manager` keeps compatibility aliases/wrappers for old imports
+  and private method callers.
+- R11BO line count 2026-06-30: `core/session_manager.py` is 739 lines, in
+  monitor band and below warning band; `core/session_serialization.py` is below
+  report threshold.
+- R11BO focused checks 2026-06-30:
+  `python -m py_compile core\session_manager.py core\session_serialization.py`
+  passed.
+- R11BO session checks 2026-06-30:
+  `python -m pytest tests\test_session_manager.py tests\test_session_concurrent.py tests\test_session_manager_persist_guard.py tests\test_replace_messages_multimodal.py tests\test_truncate_message_count_regression.py -q`
+  returned `27 passed, 10 warnings`.
+
+Completion criteria:
+
+- `core/session_manager.py` is below warning band without changing public
+  session CRUD behavior.
+- Session isolation, multimodal message replacement, persist fail-closed guard
+  and truncate count behavior remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

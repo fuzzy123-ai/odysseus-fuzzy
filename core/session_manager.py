@@ -18,6 +18,14 @@ from typing import Dict, Optional
 
 from .database import Session as DbSession, ChatMessage as DbChatMessage, Document as DbDocument, SessionLocal, utcnow_naive
 from .models import Session, ChatMessage
+from .session_serialization import (
+    db_message_to_context_dict,
+    db_to_session,
+    db_to_session_meta,
+    estimate_message_tokens_dict,
+    message_timestamp_iso,
+    parse_msg_content,
+)
 
 # Re-export singleton accessors from models for convenience
 from .models import set_session_manager_instance, get_session_manager_instance
@@ -25,44 +33,9 @@ from .models import set_session_manager_instance, get_session_manager_instance
 logger = logging.getLogger(__name__)
 
 
-def _message_timestamp_iso(value: Optional[datetime]) -> Optional[str]:
-    """Return a stable ISO timestamp for chat message metadata."""
-    if not value:
-        return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.isoformat().replace("+00:00", "Z")
-
-
-def _parse_msg_content(raw):
-    """Parse message content from DB — deserialises JSON arrays back to lists
-    (multimodal content with image/audio attachments)."""
-    if isinstance(raw, list):
-        return raw
-    if isinstance(raw, str) and raw.startswith('[{') and '"type"' in raw:
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list) and all(isinstance(p, dict) for p in parsed):
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return raw
-
-
-def _estimate_message_tokens_dict(message: dict) -> int:
-    meta = message.get("metadata")
-    if isinstance(meta, dict):
-        try:
-            cached = int(meta.get("estimated_tokens") or 0)
-        except (TypeError, ValueError):
-            cached = 0
-        if cached > 0:
-            return cached
-    from src.model_context import estimate_tokens
-    estimated = estimate_tokens([message])
-    if isinstance(meta, dict):
-        meta["estimated_tokens"] = estimated
-    return estimated
+_message_timestamp_iso = message_timestamp_iso
+_parse_msg_content = parse_msg_content
+_estimate_message_tokens_dict = estimate_message_tokens_dict
 
 
 class SessionManager:
@@ -158,103 +131,15 @@ class SessionManager:
                 last_touches.pop(session_id, None)
 
     def _db_to_session_meta(self, db_session: DbSession) -> Optional[Session]:
-        """Build a Session with empty history. `get_session` will hydrate
-        messages from the DB on first read."""
-        headers = db_session.headers
-        if isinstance(headers, str):
-            try:
-                headers = json.loads(headers)
-            except json.JSONDecodeError:
-                headers = {}
-        session = Session(
-            id=db_session.id,
-            name=db_session.name,
-            endpoint_url=db_session.endpoint_url,
-            model=db_session.model,
-            rag=db_session.rag,
-            archived=db_session.archived,
-            headers=headers,
-            history=[],
-            owner=getattr(db_session, "owner", None),
-            is_important=getattr(db_session, "is_important", False) or False,
-        )
-        session.message_count = getattr(db_session, "message_count", 0) or 0
-        return session
+        """Build a Session with empty history. `get_session` hydrates on demand."""
+        return db_to_session_meta(db_session)
 
-    def _db_to_session(self, db_session: DbSession, db) -> Optional[Session]:
+    def _db_to_session(self, db_session: DbSession, db=None) -> Optional[Session]:
         """Convert a database session to a Session object."""
-        history = []
-
-        # Try relationship first, then direct query
-        if db_session.messages:
-            for db_msg in db_session.messages:
-                meta = json.loads(db_msg.meta_data) if db_msg.meta_data else {}
-                if meta is None: meta = {}
-                meta['_db_id'] = db_msg.id
-                meta.setdefault('timestamp', _message_timestamp_iso(db_msg.timestamp))
-                history.append(ChatMessage(
-                    role=db_msg.role,
-                    content=_parse_msg_content(db_msg.content),
-                    metadata=meta,
-                ))
-        else:
-            db_messages = db.query(DbChatMessage).filter(
-                DbChatMessage.session_id == db_session.id
-            ).order_by(DbChatMessage.timestamp).all()
-
-            for db_msg in db_messages:
-                meta = json.loads(db_msg.meta_data) if db_msg.meta_data else {}
-                if meta is None: meta = {}
-                meta['_db_id'] = db_msg.id
-                meta.setdefault('timestamp', _message_timestamp_iso(db_msg.timestamp))
-                history.append(ChatMessage(
-                    role=db_msg.role,
-                    content=_parse_msg_content(db_msg.content),
-                    metadata=meta,
-                ))
-
-        if not history:
-            return None
-
-        # Parse headers
-        headers = db_session.headers
-        if isinstance(headers, str):
-            try:
-                headers = json.loads(headers)
-            except json.JSONDecodeError:
-                headers = {}
-
-        session = Session(
-            id=db_session.id,
-            name=db_session.name,
-            endpoint_url=db_session.endpoint_url,
-            model=db_session.model,
-            rag=db_session.rag,
-            archived=db_session.archived,
-            headers=headers,
-            history=history,
-            owner=getattr(db_session, 'owner', None),
-            is_important=getattr(db_session, 'is_important', False) or False,
-        )
-
-        session.message_count = getattr(db_session, 'message_count', len(history))
-        return session
+        return db_to_session(db_session, db)
 
     def _db_message_to_context_dict(self, db_msg: DbChatMessage) -> dict:
-        meta = json.loads(db_msg.meta_data) if db_msg.meta_data else {}
-        if meta is None:
-            meta = {}
-        meta['_db_id'] = db_msg.id
-        meta.setdefault('timestamp', _message_timestamp_iso(db_msg.timestamp))
-        msg = ChatMessage(
-            role=db_msg.role,
-            content=_parse_msg_content(db_msg.content),
-            metadata=meta,
-        )
-        out = msg.to_dict()
-        if isinstance(out.get("metadata"), dict):
-            out["metadata"].setdefault("estimated_tokens", _estimate_message_tokens_dict(out))
-        return out
+        return db_message_to_context_dict(db_msg)
 
     # ------------------------------------------------------------------
     # Message operations
