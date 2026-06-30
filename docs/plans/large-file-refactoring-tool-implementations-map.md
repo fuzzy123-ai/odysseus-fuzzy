@@ -1,0 +1,190 @@
+# Large File Refactoring: Tool Implementations Domain Map
+
+Date: 2026-06-30
+Status: R7 preparation complete
+Source: `src/tool_implementations.py`
+Line count observed: 6502
+
+## Goal
+
+Prepare R7 by mapping `src/tool_implementations.py` into safe backend domains
+before moving code. The implementation split should preserve every public
+`do_*` function import through `src.tool_implementations`.
+
+## Non-Goals
+
+- No tool schema changes.
+- No behavior changes.
+- No live provider, Telegram, Nextcloud, host, deploy, backup or restore
+  action.
+- No migration away from `src.tool_implementations` as the compatibility
+  import surface.
+- No edits to runtime code in this preparation slice.
+
+## Current Public Surface
+
+The following public tool functions are currently imported directly from
+`src.tool_implementations` by routes, scheduler code, tests and
+`src.tool_execution`:
+
+- `do_search_chats`
+- `do_manage_skills`
+- `do_recent_changes`
+- `do_manage_repos`
+- `do_manage_tasks`
+- `do_manage_endpoints`
+- `do_manage_mcp`
+- `do_manage_webhooks`
+- `do_manage_presets`
+- `do_manage_personal_docs`
+- `do_manage_embeddings`
+- `do_manage_assistant`
+- `do_manage_plugins`
+- `do_manage_tokens`
+- `do_manage_settings`
+- `do_api_call`
+- `do_manage_notes`
+- `do_manage_calendar`
+- `do_app_api`
+- Cookbook/model tools:
+  `do_download_model`, `do_serve_model`, `do_list_served_models`,
+  `do_stop_served_model`, `do_tail_serve_output`, `do_list_downloads`,
+  `do_cancel_download`, `do_search_hf_models`, `do_adopt_served_model`,
+  `do_list_cookbook_servers`, `do_list_serve_presets`, `do_serve_preset`,
+  `do_list_cached_models`
+- `do_edit_image`
+- `do_manage_research`
+- `do_trigger_research`
+- `do_resolve_contact`
+- `do_manage_contact`
+- `do_vault_search`
+- `do_vault_get`
+- `do_vault_unlock`
+
+R7 must keep these names import-compatible from `src.tool_implementations`
+until every caller is intentionally migrated in a later slice.
+
+## Proposed Module Layout
+
+Create `src/tool_domains/` and turn `src/tool_implementations.py` into a
+compatibility facade that re-exports the existing functions.
+
+| Order | Target module | Source range | Public functions |
+| ---: | --- | --- | --- |
+| 1 | `src/tool_domains/common.py` | 1-102, shared helpers as needed | `_parse_tool_args`, `_string_arg`, confirmation helpers, owner-safe formatting helpers |
+| 2 | `src/tool_domains/repo_skills.py` | 103-948 | `do_search_chats`, `do_manage_skills`, `do_recent_changes`, `do_manage_repos` |
+| 3 | `src/tool_domains/admin_config.py` | 949-3297 | `do_manage_tasks`, `do_manage_endpoints`, `do_manage_mcp`, `do_manage_webhooks`, `do_manage_presets`, `do_manage_personal_docs`, `do_manage_embeddings`, `do_manage_assistant`, `do_manage_plugins`, `do_manage_tokens`, `do_manage_settings` |
+| 4 | `src/tool_domains/personal_workspace.py` | 3335-4120 | `do_manage_notes`, `do_manage_calendar` |
+| 5 | `src/tool_domains/app_api.py` | 4121-4919 | `_internal_headers`, API blocklists, `do_app_api`, cookbook shared helpers used by model-serving tools |
+| 6 | `src/tool_domains/cookbook_models.py` | 4920-5989 | model download/serve/list/stop/tail/search/adopt/preset/cache tools |
+| 7 | `src/tool_domains/media_research_contacts.py` | 5991-6325 | `do_edit_image`, `do_manage_research`, `do_trigger_research`, `do_resolve_contact`, `do_manage_contact` |
+| 8 | `src/tool_domains/vault.py` | 6326-6502 | Vaultwarden/Bitwarden helpers and `do_vault_*` tools |
+
+Exact line ranges are advisory. Move complete functions and their nearest
+private helpers together rather than slicing by line number.
+
+## Dependency Notes
+
+- `src.tool_execution` imports many public functions from
+  `src.tool_implementations`; the facade must satisfy those imports throughout
+  R7.
+- `routes/codex_routes.py`, `routes/email_pollers.py`,
+  `src/task_scheduler.py` and `src/teacher_escalation.py` import selected
+  functions directly; avoid changing those imports in the first split wave.
+- Cookbook/model-serving code uses internal app calls through
+  `core.constants.internal_api_base()` and `_internal_headers`. Keep this
+  internal API helper in exactly one domain module to avoid duplicate auth
+  behavior.
+- `do_manage_notes` and `do_manage_calendar` call each other and should move
+  together.
+- Admin/config tools share confirmation patterns and route error shaping. Extract
+  a helper only when it preserves exact response text and test expectations.
+- Vault tools may interact with external CLIs at runtime; R7 must not execute
+  live CLI calls while refactoring.
+
+## Recommended R7 Sub-Slices
+
+1. **R7A facade scaffold**
+   - Create `src/tool_domains/__init__.py`.
+   - Move no behavior yet.
+   - Add imports/re-exports in the facade only after one domain moves.
+2. **R7B repo and skills**
+   - Move search chats, skills, recent changes and repo management.
+   - Run repo and skills tests.
+3. **R7C personal workspace**
+   - Move notes and calendar together.
+   - Run calendar and notes tests.
+4. **R7D admin/config**
+   - Move endpoints, MCP, webhooks, presets, personal docs, embeddings,
+     assistant, plugins, tokens and settings.
+   - Run manage_* confirmation and settings tests.
+5. **R7E app API + cookbook models**
+   - Move internal API/blocklist helpers and model-serving tools.
+   - Run app_api and cookbook validation tests.
+6. **R7F media/research/contacts/vault**
+   - Move smaller tail domains.
+   - Run research/contact/vault tests.
+7. **R7G final facade audit**
+   - Confirm `src/tool_implementations.py` is below the candidate threshold or
+     documented as a thin compatibility facade.
+   - Re-run the large file report.
+
+## Focused Test Sets
+
+Base R7 smoke:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py
+```
+
+Additional targeted tests by sub-slice:
+
+- Repo/skills:
+  `tests/test_manage_repos_read_tool.py`,
+  `tests/test_manage_skills_confirmation.py`
+- Personal workspace:
+  `tests/test_manage_notes_owner_gate.py`,
+  `tests/test_notes_update_due_date.py`,
+  `tests/test_calendar_batch_events.py`,
+  `tests/test_calendar_list_range_aliases.py`,
+  `tests/test_calendar_owner_scope.py`,
+  `tests/test_calendar_update_event_tz.py`,
+  `tests/test_calendar_reminder_minutes_parsing.py`,
+  `tests/test_calendar_rrule.py`,
+  `tests/test_manage_calendar_confirmation.py`
+- Admin/config:
+  `tests/test_manage_mcp_command_allowlist.py`,
+  `tests/test_manage_mcp_confirmation.py`,
+  `tests/test_manage_mcp_route_parity.py`,
+  `tests/test_manage_personal_docs_confirmed_route.py`,
+  `tests/test_manage_settings_service_v2.py`,
+  `tests/test_manage_settings_token_budget.py`,
+  `tests/test_manage_tokens_confirmed_route.py`
+- App API/cookbook:
+  `tests/test_app_api_admin_mutation_blocklist.py`,
+  `tests/test_review_regressions.py`,
+  `tests/test_cookbook_agent_tool_ssh_validation.py`
+- Contacts/vault:
+  `tests/test_manage_contact_confirmation.py`,
+  `tests/test_vault_password_not_in_argv.py`
+
+## Stop Rules For R7
+
+Stop or defer an implementation sub-slice if:
+
+- A move requires changing public tool names or tool schemas.
+- A caller must be migrated broadly to make the split work.
+- Focused tests fail outside the moved domain.
+- The move would execute live provider/network/CLI/host operations.
+- Secrets, tokens, contact details, chat IDs, private document text or raw
+  provider output would be persisted.
+- `src/tool_implementations.py` has unrelated edits.
+
+## Acceptance For R7
+
+- `src.tool_implementations` remains the public import facade.
+- Each moved domain lives under `src/tool_domains/`.
+- Public `do_*` names remain stable.
+- Focused tests for each moved domain pass.
+- `scripts/large_file_report.py` shows `src/tool_implementations.py` reduced
+  below 2000 lines or intentionally documented as a thin compatibility facade.

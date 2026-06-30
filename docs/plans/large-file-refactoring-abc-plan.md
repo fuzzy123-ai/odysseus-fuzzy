@@ -52,6 +52,10 @@ it into that queue.
   `docs/plans/large-file-refactoring-css-map.md`. `static/style.css` was
   inspected structurally and left unchanged; R2 now has target bundles, risky
   global selectors, split order and verification gates.
+- 2026-06-30: R7 preparation completed in
+  `docs/plans/large-file-refactoring-tool-implementations-map.md`.
+  `src/tool_implementations.py` was inspected structurally and left unchanged;
+  the map defines a compatibility-facade split into `src/tool_domains/`.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -365,6 +369,7 @@ Completion criteria:
 Owner: Bob  
 Class: `repo_only`  
 Mode: `worker`
+Status: `prepared`
 
 Objective:
 
@@ -379,11 +384,12 @@ Allowed paths:
 
 Suggested domain order:
 
-1. Repo management.
-2. Settings/endpoints.
-3. Tasks/calendar/notes.
-4. Cookbook/model serving.
-5. Research/vault/contact.
+1. Facade scaffold under `src/tool_domains/`.
+2. Repo and skills.
+3. Notes/calendar personal workspace.
+4. Admin/config tools.
+5. App API and cookbook/model serving.
+6. Media, research, contacts and vault.
 
 Tests:
 
@@ -396,6 +402,14 @@ Completion criteria:
 - `src/tool_implementations.py` remains import-compatible.
 - Each extracted domain has focused tests or existing tests covering it.
 - No tool schema changes unless explicitly planned.
+
+Preparation result:
+
+- `docs/plans/large-file-refactoring-tool-implementations-map.md` records the
+  current public `do_*` surface, direct import callers, proposed modules,
+  dependency notes, sub-slices and focused test sets.
+- R7 implementation can begin with a facade-first move without changing caller
+  imports.
 
 ### R8: Agent Loop Extraction
 
@@ -615,6 +629,7 @@ Wave 0:
 - Charlie: `R0` guardrail/report. Done.
 - Alice: `R1` CSS ownership map. Done.
 - Bob: read-only reconnaissance for `R7` tool domains if desired.
+- Bob: `R7` tool-domain reconnaissance. Done.
 
 Wave 1:
 
