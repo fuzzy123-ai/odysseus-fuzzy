@@ -4,289 +4,23 @@ import asyncio
 import json
 import logging
 import re
-import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable, Dict, Tuple
 
 from core.auth import RESERVED_USERNAMES
-
+from src.task_scheduler_helpers import (
+    HOUSEKEEPING_DEFAULTS,
+    RETIRED_HOUSEKEEPING_ACTIONS,
+    TASK_DEFAULT_SHELL_TOOLS,
+    _cached,
+    _checkin_calendar_events,
+    _digest_windows,
+    _resolve_task_timezone,
+    _utcnow,
+    compose_task_relevant_tools,
+    compute_next_run,
+)
 logger = logging.getLogger(__name__)
-
-
-def _utcnow() -> datetime:
-    """Return naive UTC for task DB fields without using deprecated APIs."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-# Shell/file tools a scheduled task's agent should be offered by default,
-# mirroring the chat agent (where these are on unless a privilege or global
-# setting turns them off). The RAG tool selector + ASSISTANT_ALWAYS_AVAILABLE
-# never include bash/python, so on a host with an empty/degraded tool-embedding
-# index a task could not run shell or Python even for an admin owner. Offering
-# them here is safe: stream_agent_loop's blocked_tools_for_owner() still strips
-# this whole group for non-admin multi-user owners, and only admits it for
-# admins and single-user (AUTH_ENABLED=false) deployments.
-TASK_DEFAULT_SHELL_TOOLS = frozenset({
-    "bash", "python", "read_file", "write_file", "edit_file",
-    "grep", "glob", "ls", "get_workspace",
-})
-
-
-def compose_task_relevant_tools(rag_tools, assistant_always, disabled_tools):
-    """Compose the relevant-tools set offered to a scheduled task's agent.
-
-    Unions the RAG-retrieved tools, the assistant's always-available set, and
-    the default shell/file group, then removes anything the task's crew
-    explicitly disabled via its `enabled_tools` allowlist. Per-owner admin
-    gating is applied later by stream_agent_loop (blocked_tools_for_owner).
-    """
-    tools = set(rag_tools) | set(assistant_always) | set(TASK_DEFAULT_SHELL_TOOLS)
-    if disabled_tools:
-        tools -= set(disabled_tools)
-    return tools
-
-
-# ── Shared TTL cache (singleflight) ────────────────────────────────────────
-# Multiple scheduled tasks firing in the same minute often need the same
-# external data (Miniflux unreads, MCP tool snapshots, etc.). This cache
-# deduplicates those fetches — in-flight requests for the same key await the
-# same underlying coroutine, and completed results are reused until TTL expiry.
-_shared_cache: Dict[Tuple, Tuple[float, Any]] = {}
-_shared_cache_pending: Dict[Tuple, asyncio.Future] = {}
-_shared_cache_lock = asyncio.Lock()
-
-
-async def _cached(key: Tuple, ttl: float, fetch: Callable[[], Awaitable[Any]]) -> Any:
-    """Return a cached result for `key` if fresh, else call `fetch()` and store.
-
-    Concurrent callers for the same missing key share one `fetch()` call.
-    Exceptions propagate to every waiter and do not poison the cache.
-    """
-    now = time.monotonic()
-    async with _shared_cache_lock:
-        entry = _shared_cache.get(key)
-        if entry and entry[0] > now:
-            return entry[1]
-        fut = _shared_cache_pending.get(key)
-        if fut is not None:
-            pending = fut
-            owner = False
-        else:
-            loop = asyncio.get_running_loop()
-            fut = loop.create_future()
-            _shared_cache_pending[key] = fut
-            pending = fut
-            owner = True
-    if not owner:
-        return await pending
-    try:
-        val = await fetch()
-        async with _shared_cache_lock:
-            _shared_cache[key] = (time.monotonic() + ttl, val)
-            _shared_cache_pending.pop(key, None)
-        pending.set_result(val)
-        return val
-    except Exception as e:
-        async with _shared_cache_lock:
-            _shared_cache_pending.pop(key, None)
-        pending.set_exception(e)
-        raise
-
-
-def compute_next_run(schedule: str, scheduled_time: str,
-                     scheduled_day: int = None,
-                     scheduled_date: datetime = None,
-                     after: datetime = None,
-                     cron_expression: str = None,
-                     tz_name: str = None) -> datetime | None:
-    """Compute the next run datetime (stored as naive UTC) based on schedule type.
-
-    If `tz_name` is provided (IANA zone, e.g. "America/New_York"), `scheduled_time` /
-    `scheduled_day` are interpreted as local wall-clock time in that zone and
-    the result is converted to naive UTC for DB storage. If `tz_name` is None,
-    the legacy behavior (`scheduled_time` interpreted as naive-UTC wall clock)
-    is preserved so existing tasks don't shift.
-    """
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:
-        ZoneInfo = None
-
-    tz = None
-    if tz_name and ZoneInfo is not None:
-        try:
-            tz = ZoneInfo(tz_name)
-        except Exception:
-            tz = None
-
-    # "now" used for comparisons. When tz is set we work entirely in local tz
-    # and convert to UTC at the end. Otherwise we use naive UTC (legacy).
-    if tz is not None:
-        now_utc = after or _utcnow()
-        if now_utc.tzinfo is None:
-            now_utc = now_utc.replace(tzinfo=timezone.utc)
-        now = now_utc.astimezone(tz)
-    else:
-        now = after or _utcnow()
-
-    def _to_utc_naive(dt: datetime) -> datetime:
-        """Convert a tz-aware datetime to naive UTC for DB storage."""
-        if dt.tzinfo is None:
-            return dt
-        return dt.astimezone(timezone.utc).replace(tzinfo=None)
-
-    if schedule == "cron" and cron_expression:
-        try:
-            from croniter import croniter
-            cron = croniter(cron_expression, now)
-            nxt = cron.get_next(datetime)
-            if tz is not None and nxt.tzinfo is None:
-                nxt = nxt.replace(tzinfo=tz)
-            return _to_utc_naive(nxt) if tz is not None else nxt
-        except Exception as e:
-            logger.warning(f"Invalid cron expression '{cron_expression}': {e}")
-            return None
-
-    if schedule == "once":
-        if scheduled_date and scheduled_date > (_to_utc_naive(now) if tz is not None else now):
-            return scheduled_date
-        return None
-
-    if not scheduled_time:
-        return None
-
-    # Parse HH:MM — fail closed on malformed input (no colon, non-numeric,
-    # out-of-range) the same way an invalid cron expression does above, so a
-    # bad value like "9" or "9am" returns None instead of raising IndexError/
-    # ValueError out of the create route (a 500) or the scheduler loop.
-    parts = scheduled_time.split(":")
-    try:
-        hour, minute = int(parts[0]), int(parts[1])
-        if not (0 <= hour <= 23 and 0 <= minute <= 59):
-            raise ValueError("hour/minute out of range")
-    except (ValueError, IndexError):
-        logger.warning(f"Invalid scheduled_time '{scheduled_time}'")
-        return None
-
-    if schedule == "daily":
-        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if candidate <= now:
-            candidate += timedelta(days=1)
-        return _to_utc_naive(candidate) if tz is not None else candidate
-
-    if schedule == "weekly":
-        day = scheduled_day if scheduled_day is not None else 0  # 0=Monday
-        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        days_ahead = day - candidate.weekday()
-        if days_ahead < 0 or (days_ahead == 0 and candidate <= now):
-            days_ahead += 7
-        candidate += timedelta(days=days_ahead)
-        return _to_utc_naive(candidate) if tz is not None else candidate
-
-    if schedule == "monthly":
-        day = scheduled_day if scheduled_day is not None else 1
-        try:
-            candidate = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
-        except ValueError:
-            # Short month: clamp to its last day (mirrors the next-month
-            # clamp below) instead of silently skipping the whole month.
-            if now.month == 12:
-                last = now.replace(year=now.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                last = now.replace(month=now.month + 1, day=1) - timedelta(days=1)
-            candidate = last.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if candidate <= now:
-            if now.month == 12:
-                next_month = now.replace(year=now.year + 1, month=1, day=1)
-            else:
-                next_month = now.replace(month=now.month + 1, day=1)
-            try:
-                candidate = next_month.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
-            except ValueError:
-                if next_month.month == 12:
-                    last = next_month.replace(year=next_month.year + 1, month=1, day=1) - timedelta(days=1)
-                else:
-                    last = next_month.replace(month=next_month.month + 1, day=1) - timedelta(days=1)
-                candidate = last.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        return _to_utc_naive(candidate) if tz is not None else candidate
-
-    return None
-
-
-def _resolve_task_timezone(db, task) -> str | None:
-    """Look up the IANA timezone name for a task via its linked CrewMember, if any."""
-    if not getattr(task, "crew_member_id", None):
-        return None
-    try:
-        from core.database import CrewMember
-        cm = db.query(CrewMember).filter(CrewMember.id == task.crew_member_id).first()
-        if cm and cm.timezone:
-            return cm.timezone
-    except Exception:
-        pass
-    return None
-
-
-# Built-in "housekeeping" tasks seeded for every owner, keyed by action.
-# These are the canonical defaults — used both to seed and to revert a
-# built-in task the user has altered. schedule "daily" uses scheduled_time;
-# "cron" uses cron_expression.
-HOUSEKEEPING_DEFAULTS = {
-    "tidy_sessions":        {"name": "Chat Sessions Tidy",       "trigger_type": "event", "trigger_event": "session_created", "trigger_count": 5, "schedule": None, "scheduled_time": None, "cron_expression": None, "legacy_names": ["Tidy Chat Sessions"]},
-    "tidy_documents":       {"name": "Documents Tidy",           "trigger_type": "event", "trigger_event": "document_created", "trigger_count": 5, "schedule": None, "scheduled_time": None, "cron_expression": None, "legacy_names": ["Tidy Documents"]},
-    "consolidate_memory":   {"name": "Memory Tidy",              "trigger_type": "event", "trigger_event": "memory_added", "trigger_count": 5, "schedule": None, "scheduled_time": None, "cron_expression": None, "legacy_names": ["Tidy Memory"]},
-    "tidy_research":        {"name": "Research Tidy",            "trigger_type": "event", "trigger_event": "research_completed", "trigger_count": 5, "schedule": None, "scheduled_time": None, "cron_expression": None, "legacy_names": ["Tidy Research"]},
-    "summarize_emails":     {"name": "Email (Summary)",          "schedule": "cron",  "scheduled_time": None,    "cron_expression": "0 */2 * * *", "ship_paused": True, "legacy_names": ["Tidy Email (Summary)"]},
-    "draft_email_replies":  {"name": "Email AI Auto Reply",      "schedule": "cron",  "scheduled_time": None,    "cron_expression": "0 */2 * * *", "ship_paused": True, "legacy_names": ["Tidy Email (Replies)", "AI Auto Reply"]},
-    "extract_email_events": {"name": "Email Calendar Events",    "schedule": "cron",  "scheduled_time": None,    "cron_expression": "0 */1 * * *", "ship_paused": True, "legacy_names": ["Email → Calendar Events"]},
-    "classify_events":      {"name": "Calendar Classify Events", "schedule": "cron",  "scheduled_time": None,    "cron_expression": "0 6,18 * * *", "ship_paused": True, "legacy_names": ["Classify Calendar Events"]},
-    "check_email_urgency":   {"name": "Email Tags",               "schedule": "cron",  "scheduled_time": None,    "cron_expression": "0 * * * *", "ship_paused": True, "old_cron_expressions": ["*/15 * * * *"], "legacy_names": ["Email Triage", "Urgent Email"]},
-    "audit_skills":          {"name": "Skills Audit",             "trigger_type": "event", "trigger_event": "skill_added", "trigger_count": 5, "schedule": None, "scheduled_time": None, "cron_expression": None, "legacy_names": ["Audit Skills"]},
-}
-
-RETIRED_HOUSEKEEPING_ACTIONS = frozenset({
-    "tidy_calendar",
-    "tidy_email_inbox",
-    "mark_email_boundaries",
-})
-
-
-def _digest_windows(now):
-    """(label, start, end) buckets for the calendar check-in digest.
-
-    The windows are contiguous so no event is dropped between buckets — an
-    earlier version started the 30-day window at now+8d while the week window
-    ended at now+7d, so events ~7-8 days out fell into no bucket.
-    """
-    return [
-        ("today_tomorrow", now, now + timedelta(days=2)),
-        ("this_week", now + timedelta(days=2), now + timedelta(days=7)),
-        ("next_30_days", now + timedelta(days=7), now + timedelta(days=30)),
-    ]
-
-
-def _checkin_calendar_events(db, owner, start, end):
-    """Calendar events in [start, end] for ONE owner, for the check-in digest.
-
-    Ownership lives on CalendarCal.owner; events inherit it via calendar_id.
-    The digest query had no owner scope, so it pulled EVERY user's events into
-    one user's check-in (a cross-tenant leak of summaries/locations). Scope it
-    by joining CalendarCal, mirroring routes/calendar_routes.list_events.
-    """
-    from core.database import CalendarEvent as _CE, CalendarCal as _CC
-    return (
-        db.query(_CE)
-        .join(_CC, _CE.calendar_id == _CC.id)
-        .filter(
-            _CC.owner == owner,
-            _CE.dtstart >= start,
-            _CE.dtstart <= end,
-            _CE.status != "cancelled",
-        )
-        .order_by(_CE.dtstart)
-        .all()
-    )
 
 
 class TaskScheduler:
@@ -1090,30 +824,6 @@ class TaskScheduler:
             logger.error(f"Action '{task.action}' failed: {e}")
             return str(e), False
 
-    # ── Check-in source discovery ──
-    # Pattern-based: if an MCP server has a tool matching a pattern, it becomes
-    # a check-in source. Add new patterns here to support new integrations —
-    # no code changes needed elsewhere.
-    CHECKIN_MCP_PATTERNS = [
-        {"detect": "list_emails",   "section": "Email",    "tool": "list_emails",
-         "args": {"mailbox": "INBOX", "limit": 10, "unread_only": True},
-         "label_from_identity": True,
-         "formatter": "_format_email_output"},
-        {"detect": "search_emails", "section": "Email",    "tool": "search_emails",
-         "args": {"query": "is:unread", "limit": 10},
-         "label_from_identity": True,
-         "formatter": "_format_email_output"},
-        {"detect": "get_feed",      "section": "RSS",      "tool": "get_feed",
-         "args": {},
-         "label_from_identity": False},
-        {"detect": "list_feeds",    "section": "RSS",      "tool": "list_feeds",
-         "args": {},
-         "label_from_identity": False},
-        {"detect": "list_messages", "section": "Messages", "tool": "list_messages",
-         "args": {"limit": 10},
-         "label_from_identity": True},
-    ]
-
     @staticmethod
     def _format_email_output(raw: str) -> str:
         """Clean up raw MCP email list output into readable format."""
@@ -1130,7 +840,7 @@ class TaskScheduler:
             if "page" in line.lower() and "/" in line:
                 continue
             # Parse: [1778] Re: Subject From: Name | Date
-            m = _re.match(r'\[?\d+\]?\s*(?:↩️\s*|📎\s*|🔵\s*|⭐\s*)?(.+?)(?:\s*From:\s*(.+?))?(?:\s*\|\s*(\S+))?$', line)
+            m = _re.match(r'\[?\d+\]?\s*(?:↩\s*|📎\s*|🔵\s*|\s*)?(.+?)(?:\s*From:\s*(.+?))?(?:\s*\|\s*(\S+))?$', line)
             if m:
                 subject = m.group(1).strip().rstrip('|').strip()
                 sender = (m.group(2) or "").strip().rstrip('|').strip()
@@ -1140,7 +850,7 @@ class TaskScheduler:
                     lines.append(f"- {subject}")
             elif line.startswith("[") or line.startswith("-"):
                 # Generic cleanup
-                cleaned = _re.sub(r'^\[?\d+\]?\s*(?:↩️\s*|📎\s*)?', '', line.lstrip('- '))
+                cleaned = _re.sub(r'^\[?\d+\]?\s*(?:↩\s*|📎\s*)?', '', line.lstrip('- '))
                 if cleaned.strip():
                     lines.append(f"- {cleaned.strip()}")
         if not lines:
@@ -1150,184 +860,11 @@ class TaskScheduler:
     async def _execute_checkin(self, task, crew, db, session_id: str,
                                endpoint_url: str, model: str,
                                run_id: str | None = None) -> str:
-        """Gather raw data from all integrations, hand it to the LLM to write the check-in."""
-        from src.tool_implementations import do_manage_notes
-        from src.tool_utils import get_mcp_manager
+        from src.task_scheduler_checkin import execute_checkin
 
-        tz_name = _resolve_task_timezone(db, task)
-        try:
-            if tz_name:
-                from zoneinfo import ZoneInfo
-                from datetime import timezone, timedelta
-                now = _utcnow().replace(tzinfo=timezone.utc).astimezone(ZoneInfo(tz_name))
-            else:
-                from datetime import timedelta
-                now = _utcnow()
-            time_str = now.strftime("%A, %B %d %Y, %H:%M")
-        except Exception:
-            from datetime import timedelta
-            now = _utcnow()
-            time_str = now.strftime("%H:%M UTC")
-
-        raw = {}
-
-        # Calendar: today+tomorrow, this week, month ahead
-        # Pull directly from DB so we can include event_type and importance.
-        try:
-            from core.database import SessionLocal as _SL, CalendarEvent as _CE
-            _db = _SL()
-            try:
-                for label, start, end in _digest_windows(now):
-                    # Strip timezone for naive DB comparison
-                    _s = start.replace(tzinfo=None) if start.tzinfo else start
-                    _e = end.replace(tzinfo=None) if end.tzinfo else end
-                    evs = _checkin_calendar_events(_db, task.owner, _s, _e)
-                    if not evs:
-                        continue
-                    # Group by importance for richer output
-                    by_imp = {"critical": [], "high": [], "normal": [], "low": []}
-                    for ev in evs:
-                        imp = (ev.importance or "normal").lower()
-                        by_imp.setdefault(imp, []).append(ev)
-                    lines = []
-                    for tier in ("critical", "high", "normal", "low"):
-                        items = by_imp.get(tier, [])
-                        if not items:
-                            continue
-                        marker = {"critical": "[!!]", "high": "[!]", "normal": "  ", "low": " ·"}[tier]
-                        for ev in items:
-                            t = ev.dtstart.strftime("%a %b %d %H:%M")
-                            tag = f" ({ev.event_type})" if ev.event_type else ""
-                            loc = f" @ {ev.location}" if ev.location else ""
-                            lines.append(f"{marker} {t} — {ev.summary}{tag}{loc}")
-                    if lines:
-                        raw[f"calendar_{label}"] = "\n".join(lines)
-            finally:
-                _db.close()
-        except Exception as e:
-            raw["calendar"] = f"Error: {e}"
-
-        # Notes/Tasks
-        try:
-            r = await do_manage_notes(json.dumps({"action": "list"}), owner=task.owner)
-            raw["notes_tasks"] = r.get("results") or r.get("response") or "No notes"
-        except Exception as e:
-            raw["notes_tasks"] = f"Error: {e}"
-
-        # Auto-discover API integrations (Miniflux RSS, etc.).
-        try:
-            import httpx
-            from src.integrations import load_integrations
-            for integ in load_integrations():
-                if not integ.get("enabled"):
-                    continue
-                preset = integ.get("preset", "")
-                base_url = integ.get("base_url", "").rstrip("/")
-                api_key = integ.get("api_key", "")
-                if not base_url:
-                    continue
-
-                # Build auth headers
-                headers = {}
-                if integ.get("auth_type") == "header" and api_key:
-                    headers[integ.get("auth_header", "X-Auth-Token")] = api_key
-                elif integ.get("auth_type") == "bearer" and api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
-
-                # Miniflux: fetch unread entries (cached 3 min across tasks)
-                if preset == "miniflux":
-                    async def _fetch_miniflux(_base=base_url, _headers=dict(headers)):
-                        async with httpx.AsyncClient(timeout=10) as client:
-                            resp = await client.get(
-                                f"{_base}/v1/entries",
-                                params={"status": "unread", "limit": 15, "order": "published_at", "direction": "desc"},
-                                headers=_headers,
-                            )
-                            if resp.status_code != 200:
-                                return None
-                            entries = resp.json().get("entries", []) or []
-                            if not entries:
-                                return None
-                            lines = []
-                            for e in entries[:15]:
-                                title = e.get("title", "?")
-                                feed = (e.get("feed") or {}).get("title", "?")
-                                url = e.get("url", "")
-                                lines.append(f"- [{feed}] {title} — {url}")
-                            return "\n".join(lines)
-                    try:
-                        val = await _cached(("miniflux_unread", base_url), 180, _fetch_miniflux)
-                        if val:
-                            raw["rss_miniflux_unread"] = val
-                    except Exception as e:
-                        logger.warning(f"Miniflux fetch failed: {e}")
-        except Exception as e:
-            logger.warning(f"Integrations discovery failed: {e}")
-
-        # Auto-discover MCP sources
-        mcp = get_mcp_manager()
-        if mcp:
-            discovered = set()
-            for server_id, tools in mcp._tools.items():
-                if mcp.is_builtin(server_id):
-                    continue
-                conn = mcp._connections.get(server_id, {})
-                if conn.get("status") != "connected":
-                    continue
-                identity = conn.get("identity", "")
-                tool_names = {t["name"] for t in tools}
-                for pattern in self.CHECKIN_MCP_PATTERNS:
-                    if pattern["detect"] not in tool_names:
-                        continue
-                    key = f"{pattern['section']}_{server_id}"
-                    if key in discovered:
-                        continue
-                    discovered.add(key)
-                    label = f"{pattern['section']} ({identity})" if identity else pattern["section"]
-                    qualified = f"mcp__{server_id}__{pattern['tool']}"
-                    args = dict(pattern.get("args", {}))
-                    args["account"] = "default"
-                    try:
-                        # Cache 3 min: different scheduled tasks firing at the
-                        # same minute share the same MCP snapshot.
-                        async def _call_mcp(_q=qualified, _args=args):
-                            return await mcp.call_tool(_q, _args)
-                        cache_key = ("mcp_snapshot", qualified, json.dumps(args, sort_keys=True))
-                        result = await _cached(cache_key, 180, _call_mcp)
-                        if result.get("exit_code", 0) != 0:
-                            continue
-                        content = result.get("stdout") or result.get("output") or ""
-                        if content.strip():
-                            raw[label] = content[:3000]
-                    except Exception:
-                        pass
-
-        # Build the data dump and hand it to the LLM
-        data_dump = f"Current time: {time_str}\n\n"
-        for key, val in raw.items():
-            data_dump += f"--- {key} ---\n{val}\n\n"
-
-        context = (
-            data_dump +
-            f"---\n\n{task.prompt}\n\n"
-            "Write the check-in. YOU decide what matters, what to skip, how to format. "
-            "Only show future events. Calendar events are pre-tagged with importance: "
-            "[!!] critical, [!] high, plain = normal, ' ·' = low. "
-            "GROUP your output by importance — lead with critical/high, then normal, "
-            "skip low entirely unless explicitly relevant. Mention event type (work/health/travel/etc) "
-            "where it adds context (e.g. 'leave 1h early for travel'). "
-            "Flag anything coming up that needs prep (birthdays, deadlines, holidays). "
-            "Use tools to take action if needed. Keep it concise — no raw data dumps."
+        return await execute_checkin(
+            self, task, crew, db, session_id, endpoint_url, model, run_id=run_id
         )
-
-        return await self._run_agent_loop(
-            endpoint_url, model, task, session_id,
-            system_prompt=(crew.personality or "").strip() if crew else None,
-            disabled_tools=None, relevant_tools=None,
-            override_user_message=context,
-            run_id=run_id,
-        )
-
     async def _execute_llm_task(self, task, db, run_id: str | None = None) -> str:
         """Execute an LLM task with full tool access via the agent loop."""
         from core.database import Session as DbSession, ChatMessage, CrewMember

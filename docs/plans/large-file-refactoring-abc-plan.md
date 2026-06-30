@@ -1124,6 +1124,55 @@ Completion criteria:
 - Email urgency owner-scoping, AI audit labels and built-in action helper
   regressions remain covered by focused tests.
 
+### R11N: Task Scheduler Helper And Check-in Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move scheduler timing/default/cache helpers and assistant check-in execution
+  out of `src/task_scheduler.py` while preserving private helper imports used
+  by existing routes and regression tests.
+
+Allowed paths:
+
+- `src/task_scheduler.py`
+- `src/task_scheduler_helpers.py`
+- `src/task_scheduler_checkin.py`
+- `tests/test_compute_next_run_monthly_clamp.py`
+- `tests/test_scheduler_scheduled_time_validation.py`
+- `tests/test_digest_windows.py`
+- `tests/test_checkin_digest_owner_scope.py`
+- `tests/test_task_shell_tools.py`
+- `tests/test_task_session_folder.py`
+- `tests/test_scheduler_restart_doublefire.py`
+- `tests/test_task_scheduler_cancel.py`
+- `tests/test_task_scheduler_session_delivery.py`
+
+Current evidence:
+
+- R11N done 2026-06-30: timing/default/cache helpers moved to
+  `src/task_scheduler_helpers.py`; assistant check-in execution and MCP source
+  patterns moved to `src/task_scheduler_checkin.py`; `src/task_scheduler.py`
+  keeps the scheduler class and compatibility imports.
+- R11N line count 2026-06-30: `src/task_scheduler.py` is 1998 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 29.
+- R11N focused checks 2026-06-30:
+  `python -m py_compile src\task_scheduler.py src\task_scheduler_helpers.py src\task_scheduler_checkin.py`
+  passed.
+- R11N Scheduler test block 2026-06-30:
+  `python -m pytest tests/test_compute_next_run_monthly_clamp.py tests/test_scheduler_scheduled_time_validation.py tests/test_digest_windows.py tests/test_checkin_digest_owner_scope.py tests/test_task_shell_tools.py tests/test_task_session_folder.py tests/test_scheduler_restart_doublefire.py tests/test_task_scheduler_cancel.py tests/test_task_scheduler_session_delivery.py -q`
+  returned `32 passed, 4 warnings`.
+
+Completion criteria:
+
+- `src/task_scheduler.py` is below the large-file candidate threshold.
+- Scheduling math, check-in calendar scoping, task shell-tool gating and
+  scheduler restart/cancel/session regressions remain covered by focused tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice  
