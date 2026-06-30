@@ -947,6 +947,18 @@ Current evidence:
 - R11E Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11e-1`
   returned `103 passed, 2 warnings`.
+- R11F done 2026-06-30: full polling cycle orchestration moved to
+  `run_telegram_polling_cycle_impl` in `plugins/telegram/polling.py`; the
+  public `plugin.py` function is now a compatibility wrapper that injects
+  explicit plugin-side dependencies and gates.
+- R11F line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  2867 lines; `plugins/telegram/polling.py` is 483 lines.
+- R11F focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11F Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11f-1`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -956,9 +968,8 @@ Completion criteria:
 
 Remaining work:
 
-- Full polling orchestration, live file download/pipeline execution, outbound
-  API and admin UI helpers still need separate modules before R11 can be marked
-  complete.
+- Live file download/pipeline execution, outbound API and admin UI helpers
+  still need separate modules before R11 can be marked complete.
 
 ### R12: Obsidian Frontend Split
 

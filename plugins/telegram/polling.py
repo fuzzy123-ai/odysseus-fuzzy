@@ -6,12 +6,20 @@ It must not call Telegram, mutate settings, or persist raw chat identifiers.
 
 from __future__ import annotations
 
+from pathlib import Path
 import asyncio
 import json
 import os
 import urllib.parse
 import urllib.request
 from typing import Any, Callable
+
+from plugins.telegram.stores import (
+    TelegramInboxStore,
+    TelegramPollingStateStore,
+    TelegramPrivacyPinStore,
+    TelegramSessionBridgeStore,
+)
 
 
 def _run_agent_turn(
@@ -141,3 +149,335 @@ def fetch_telegram_updates(offset: int) -> list[dict[str, Any]]:
     if not isinstance(result, list):
         raise ValueError("telegram getUpdates returned an invalid result")
     return result
+
+
+def run_telegram_polling_cycle_impl(
+    *,
+    data_dir: str | Path,
+    fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
+    session_creator: Callable[..., Any] | None = None,
+    agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
+    voice_stt_provider: Callable[[str], str] | None = None,
+    voice_bytes_provider: Callable[..., bytes] | None = None,
+    image_bytes_provider: Callable[[str], bytes] | None = None,
+    attachment_bytes_provider: Callable[..., bytes] | None = None,
+    image_worker_client: Any | None = None,
+    reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None = None,
+    document_reply_handler: Callable[[str, str, str, str, int | None], dict[str, Any]] | None = None,
+    memory_manager: Any | None = None,
+    memory_vector: Any | None = None,
+    memory_owner: str | None = None,
+    project_registry_path: str | Path | None = None,
+    polling_enabled: Callable[[str], bool],
+    parse_update: Callable[[dict[str, Any]], dict[str, Any]],
+    control_command: Callable[[dict[str, Any]], str],
+    handle_control_command: Callable[..., dict[str, Any] | None],
+    build_live_voice_stt_provider: Callable[..., Callable[[str], str] | None],
+    run_voice_pipeline: Callable[..., tuple[Any | None, dict[str, Any] | None]],
+    run_image_action: Callable[..., Any],
+    run_attachment_pipeline: Callable[..., dict[str, Any] | None],
+    attachment_spool_key: Callable[[dict[str, Any]], str],
+    attachment_family: Callable[[dict[str, Any]], str],
+    attachment_suffix: Callable[[dict[str, Any]], str],
+    format_attachment_reply: Callable[[dict[str, Any]], str],
+    execute_attachment_export: Callable[..., dict[str, Any] | None],
+    format_attachment_export_reply: Callable[[dict[str, Any]], str],
+    build_project_intake_preview: Callable[..., dict[str, Any] | None],
+    format_project_intake_reply: Callable[[dict[str, Any]], str],
+    build_recent_attachment_context: Callable[..., dict[str, Any] | None],
+    build_agent_bridge_request: Callable[..., dict[str, Any]],
+    send_typing_indicator: Callable[..., Any],
+) -> dict[str, Any]:
+    store = TelegramInboxStore(data_dir)
+    polling = TelegramPollingStateStore(data_dir)
+    sessions = TelegramSessionBridgeStore(data_dir)
+    privacy_pins = TelegramPrivacyPinStore(data_dir)
+    if not polling_enabled("TELEGRAM_POLLING_ENABLED"):
+        polling.record(status="polling_disabled", offset=polling.get_offset())
+        return {"ok": False, "status": "polling_disabled", "processed": 0, "offset": polling.get_offset()}
+    loader = fetch_updates or fetch_telegram_updates
+    offset = polling.get_offset()
+    processed = 0
+    invalid = 0
+    agent_turns = 0
+    replies = 0
+    pending_retries = 0
+    control_commands = 0
+    hold_offset_for_retry = False
+    last_update_id = offset - 1 if offset else 0
+    try:
+        updates = loader(offset)
+    except Exception as exc:
+        polling.record(status="poll_failed", offset=offset, error=str(exc)[:240])
+        return {"ok": False, "status": "poll_failed", "processed": 0, "offset": offset, "error": str(exc)}
+    for update in updates:
+        last_update_id = max(last_update_id, int(update.get("update_id") or 0))
+        try:
+            message = parse_update(update)
+        except ValueError as exc:
+            invalid += 1
+            store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
+            continue
+        stored = store.append_inbound(message)
+        should_process = bool(stored["stored"]) or bool(stored.get("retry_pending_voice"))
+        if should_process:
+            control_result = handle_control_command(
+                control_command(stored["message"]),
+                message=stored["message"],
+                raw_chat_id=str(message.get("chat_id") or ""),
+                sessions=sessions,
+                session_creator=session_creator,
+                reply_handler=reply_handler,
+                store=store,
+                pin_store=privacy_pins,
+                memory_manager=memory_manager,
+                memory_vector=memory_vector,
+                memory_owner=memory_owner,
+                project_registry_path=project_registry_path,
+            )
+            if control_result is not None:
+                control_commands += 1
+                if control_result.get("reply") is not None:
+                    replies += 1
+                store.append_event(
+                    kind="control_command",
+                    status=str(control_result.get("status") or "handled"),
+                    chat_id=str(message.get("chat_id") or ""),
+                    session_id=str((control_result.get("binding") or {}).get("session_id") or ""),
+                    command=str(control_result.get("command") or ""),
+                )
+                processed += 1
+                continue
+            message_voice_stt_provider = voice_stt_provider or build_live_voice_stt_provider(
+                message,
+                voice_bytes_provider=voice_bytes_provider,
+            )
+            voice_agent_turn, _voice_pipeline = run_voice_pipeline(
+                stored["message"],
+                stt_provider=message_voice_stt_provider,
+            )
+            run_image_action(
+                stored["message"],
+                enabled=polling_enabled("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
+                image_bytes_provider=image_bytes_provider,
+                worker_client=image_worker_client,
+            )
+            inbox_attachment = run_attachment_pipeline(
+                message,
+                data_dir=data_dir,
+                file_bytes_provider=attachment_bytes_provider,
+            )
+            if inbox_attachment is not None:
+                spool_key = attachment_spool_key(stored["message"])
+                refreshed = store.update_inbound_status(
+                    stored["message"],
+                    universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
+                    intake_status="universal_inbox_processed"
+                    if inbox_attachment.get("status") == "processed"
+                    else str(inbox_attachment.get("status") or "failed"),
+                )
+                if refreshed is not None:
+                    stored["message"] = refreshed
+                store.append_event(
+                    kind="universal_inbox_attachment",
+                    status=str(inbox_attachment.get("status") or "failed"),
+                    chat_id=str(message.get("chat_id") or ""),
+                    update_id=message.get("update_id"),
+                    message_id=message.get("message_id"),
+                    universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+                    memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
+                    attachment_family=attachment_family(stored["message"]),
+                    attachment_suffix=attachment_suffix(stored["message"]),
+                    discovered_count=int(inbox_attachment.get("discovered_count") or 0),
+                    processable_count=int(inbox_attachment.get("processable_count") or 0),
+                    spool_key=spool_key,
+                    raw_content_visible=False,
+                    raw_identifiers_visible=False,
+                    filename_visible=False,
+                )
+                if reply_handler is not None:
+                    reply_handler(
+                        str(message.get("chat_id") or ""),
+                        format_attachment_reply(inbox_attachment),
+                        message.get("message_id"),
+                    )
+                    replies += 1
+            if _voice_pipeline is not None:
+                stt_status = str((_voice_pipeline.get("stt") or {}).get("status") or "")
+                stt_reason = str((_voice_pipeline.get("stt") or {}).get("reason") or "")
+                if voice_agent_turn is not None and voice_agent_turn.ready_for_agent:
+                    refreshed = store.update_inbound_status(
+                        stored["message"],
+                        transcript_status="transcribed",
+                        voice_status="transcribed",
+                        intake_status="ready",
+                    )
+                    if refreshed is not None:
+                        stored["message"] = refreshed
+                elif stt_status == "pending_stt" or stt_reason in {"stt_provider_failed", "empty_transcript"}:
+                    pending_retries += 1
+                    hold_offset_for_retry = True
+                    store.append_event(
+                        kind="voice_retry",
+                        status="pending_stt_retry_scheduled",
+                        chat_id=str(message.get("chat_id") or ""),
+                        update_id=message.get("update_id"),
+                        message_id=message.get("message_id"),
+                    )
+            if stored["message"].get("kind") == "text":
+                export_plan = execute_attachment_export(
+                    data_dir=data_dir,
+                    store=store,
+                    chat_id=str(message.get("chat_id") or ""),
+                    text=str(stored["message"].get("text") or ""),
+                )
+                if export_plan is not None:
+                    store.append_event(
+                        kind="universal_inbox_export_plan",
+                        status=str(export_plan.get("status") or "blocked"),
+                        chat_id=str(message.get("chat_id") or ""),
+                        update_id=message.get("update_id"),
+                        message_id=message.get("message_id"),
+                        target_format=str(export_plan.get("target_format") or ""),
+                        action=str(export_plan.get("action") or ""),
+                        required_tool=str(export_plan.get("required_tool") or ""),
+                        bytes_written=int(export_plan.get("bytes_written") or 0),
+                        delivery_ready=bool(export_plan.get("delivery_ready")),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                        filename_visible=False,
+                    )
+                    if str(export_plan.get("status") or "") == "exported" and document_reply_handler is not None:
+                        try:
+                            document_sent = document_reply_handler(
+                                str(message.get("chat_id") or ""),
+                                str(export_plan.get("output_path") or ""),
+                                str(export_plan.get("output_filename") or "telegram-export.pdf"),
+                                format_attachment_export_reply({**export_plan, "status": "sent"}),
+                                message.get("message_id"),
+                            )
+                            delivered = bool(document_sent.get("ok", True))
+                            export_plan = {
+                                **export_plan,
+                                "status": "sent" if delivered else "exported",
+                                "document_delivery": _public_reply_result(document_sent),
+                            }
+                            store.append_event(
+                                kind="universal_inbox_export_delivery",
+                                status="sent" if delivered else "failed",
+                                chat_id=str(message.get("chat_id") or ""),
+                                update_id=message.get("update_id"),
+                                message_id=message.get("message_id"),
+                                target_format=str(export_plan.get("target_format") or ""),
+                                bytes_written=int(export_plan.get("bytes_written") or 0),
+                                raw_content_visible=False,
+                                raw_identifiers_visible=False,
+                                filename_visible=False,
+                                host_paths_visible=False,
+                            )
+                            replies += 1
+                        except Exception as exc:
+                            export_plan = {**export_plan, "status": "exported", "reason": f"document_delivery_failed:{str(exc)[:80]}"}
+                    if reply_handler is not None:
+                        if str(export_plan.get("status") or "") != "sent":
+                            reply_handler(
+                                str(message.get("chat_id") or ""),
+                                format_attachment_export_reply(export_plan),
+                                message.get("message_id"),
+                            )
+                            replies += 1
+                    processed += 1
+                    continue
+                project_intake = build_project_intake_preview(
+                    data_dir=data_dir,
+                    store=store,
+                    sessions=sessions,
+                    chat_id=str(message.get("chat_id") or ""),
+                    text=str(stored["message"].get("text") or ""),
+                    source_message_id=message.get("message_id"),
+                    project_registry_path=project_registry_path,
+                )
+                if project_intake is not None:
+                    if reply_handler is not None:
+                        reply_handler(
+                            str(message.get("chat_id") or ""),
+                            format_project_intake_reply(project_intake),
+                            message.get("message_id"),
+                        )
+                        replies += 1
+                    processed += 1
+                    continue
+            recent_attachment_context = build_recent_attachment_context(
+                data_dir=data_dir,
+                store=store,
+                chat_id=str(message.get("chat_id") or ""),
+            ) if stored["message"].get("kind") == "text" else None
+            bridge = build_agent_bridge_request(
+                stored["message"],
+                raw_chat_id=str(message.get("chat_id") or ""),
+                voice_agent_turn=voice_agent_turn,
+                recent_attachment_context=recent_attachment_context,
+            )
+            if bridge["ready_for_agent"]:
+                binding = sessions.bind_chat(
+                    chat_id=bridge["chat_id"],
+                    session_alias=bridge["session_alias"],
+                    recommended_session_name=bridge["recommended_session_name"],
+                    creator=session_creator,
+                )
+                bridge = build_agent_bridge_request(
+                    stored["message"],
+                    session_binding=binding,
+                    raw_chat_id=str(message.get("chat_id") or ""),
+                    voice_agent_turn=voice_agent_turn,
+                    recent_attachment_context=recent_attachment_context,
+                )
+                store.append_event(
+                    kind="session_bridge",
+                    status="bound" if binding.get("session_id") else "pending_bridge",
+                    chat_id=bridge["chat_id"],
+                    session_id=binding.get("session_id") or "",
+                )
+                send_typing_indicator(bridge["chat_id"], store=store)
+                agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+                if agent_turn is not None:
+                    agent_turns += 1
+                    store.append_event(
+                        kind="agent_turn",
+                        status=str(agent_turn.get("status") or "accepted"),
+                        chat_id=bridge["chat_id"],
+                        session_id=bridge.get("session_id") or "",
+                        reply_text_present=bool(agent_turn.get("reply_text_present")),
+                    )
+                    reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+                    if reply_text and reply_handler is not None:
+                        reply_handler(
+                            bridge["chat_id"],
+                            reply_text,
+                            bridge.get("source_message_id"),
+                        )
+                        replies += 1
+            processed += 1
+    next_offset = offset if hold_offset_for_retry else (last_update_id + 1 if last_update_id else offset)
+    polling.record(
+        status="poll_ok",
+        offset=next_offset,
+        processed=processed,
+        invalid=invalid,
+        agent_turns=agent_turns,
+        replies=replies,
+        pending_retries=pending_retries,
+        control_commands=control_commands,
+        last_update_id=last_update_id,
+    )
+    return {
+        "ok": True,
+        "status": "poll_ok",
+        "processed": processed,
+        "invalid": invalid,
+        "agent_turns": agent_turns,
+        "replies": replies,
+        "pending_retries": pending_retries,
+        "control_commands": control_commands,
+        "offset": next_offset,
+    }
