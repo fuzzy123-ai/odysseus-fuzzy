@@ -10,6 +10,9 @@ from src.pdf_extraction import (
     PDF_STATUS_PARTIAL,
     PDF_WARNING_CHAR_LIMIT_EXCEEDED,
     PDF_WARNING_OCR_REQUIRED,
+    PDF_WARNING_OCR_BLOCKED_BY_POLICY,
+    PDF_WARNING_OCR_BUDGET_EXCEEDED,
+    PDF_WARNING_OCR_FAILED,
     PDF_WARNING_PAGE_EXTRACT_FAILED,
     PDF_WARNING_PAGE_LIMIT_EXCEEDED,
     PDF_WARNING_PARSER_FAILED,
@@ -38,6 +41,9 @@ def test_status_and_warning_contracts_are_stable():
         "pdf_page_extract_failed",
         "pdf_text_empty",
         "pdf_ocr_required",
+        "pdf_ocr_blocked_by_policy",
+        "pdf_ocr_budget_exceeded",
+        "pdf_ocr_failed",
         "pdf_parser_failed",
     }.issubset(PDF_WARNING_CODES)
 
@@ -70,6 +76,95 @@ def test_blank_pdf_needs_review_instead_of_empty_success(tmp_path):
     assert result.text == ""
     assert PDF_WARNING_TEXT_EMPTY in result.warning_codes
     assert PDF_WARNING_OCR_REQUIRED in result.warning_codes
+
+
+def test_scanned_pdf_with_mock_ocr_extracts_text(tmp_path):
+    pdf_path = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+    calls = []
+
+    def fake_ocr(path, page_number, context):
+        calls.append((path, page_number, context))
+        return "OCR text from local model"
+
+    result = extract_pdf_pages(
+        pdf_path,
+        PdfExtractionBudget(ocr_enabled=True, ocr_max_pages=1),
+        policy_context={"local_only": True},
+        ocr_adapter=fake_ocr,
+    )
+
+    assert result.status == PDF_STATUS_COMPLETED
+    assert result.text == "OCR text from local model"
+    assert result.metadata["ocr_pages_processed"] == 1
+    assert calls == [(pdf_path, 1, {"local_only": True, "max_images_per_page": 0})]
+
+
+def test_scanned_pdf_ocr_policy_block_happens_before_adapter(tmp_path):
+    pdf_path = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+
+    def forbidden_ocr(_path, _page_number, _context):
+        raise AssertionError("OCR adapter must not be called when policy blocks external OCR")
+
+    result = extract_pdf_pages(
+        pdf_path,
+        PdfExtractionBudget(ocr_enabled=True, ocr_max_pages=1),
+        policy_context={"local_only": True, "external_ocr_requested": True},
+        ocr_adapter=forbidden_ocr,
+    )
+
+    assert result.status == PDF_STATUS_NEEDS_REVIEW
+    assert PDF_WARNING_OCR_BLOCKED_BY_POLICY in result.warning_codes
+    assert result.metadata["ocr_pages_processed"] == 0
+
+
+def test_scanned_pdf_ocr_budget_blocks_adapter(tmp_path):
+    pdf_path = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+
+    def forbidden_ocr(_path, _page_number, _context):
+        raise AssertionError("OCR adapter must not be called when OCR budget is exhausted")
+
+    result = extract_pdf_pages(
+        pdf_path,
+        PdfExtractionBudget(ocr_enabled=True, ocr_max_pages=0),
+        ocr_adapter=forbidden_ocr,
+    )
+
+    assert result.status == PDF_STATUS_NEEDS_REVIEW
+    assert PDF_WARNING_OCR_BUDGET_EXCEEDED in result.warning_codes
+    assert result.metadata["ocr_pages_processed"] == 0
+
+
+def test_scanned_pdf_ocr_adapter_failure_is_reviewable(tmp_path):
+    pdf_path = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+
+    def failing_ocr(_path, _page_number, _context):
+        raise RuntimeError("local ocr failed")
+
+    result = extract_pdf_pages(
+        pdf_path,
+        PdfExtractionBudget(ocr_enabled=True, ocr_max_pages=1),
+        ocr_adapter=failing_ocr,
+    )
+
+    assert result.status == PDF_STATUS_NEEDS_REVIEW
+    assert PDF_WARNING_OCR_FAILED in result.warning_codes
+    assert result.metadata["ocr_pages_processed"] == 1
 
 
 def test_invalid_pdf_returns_failed_parser_status(tmp_path):

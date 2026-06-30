@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 import time
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 
 PDF_STATUS_COMPLETED = "completed"
@@ -27,6 +27,7 @@ PDF_WARNING_TEXT_EMPTY = "pdf_text_empty"
 PDF_WARNING_OCR_REQUIRED = "pdf_ocr_required"
 PDF_WARNING_OCR_BLOCKED_BY_POLICY = "pdf_ocr_blocked_by_policy"
 PDF_WARNING_OCR_BUDGET_EXCEEDED = "pdf_ocr_budget_exceeded"
+PDF_WARNING_OCR_FAILED = "pdf_ocr_failed"
 PDF_WARNING_PARSER_FAILED = "pdf_parser_failed"
 PDF_WARNING_ENCRYPTED = "pdf_encrypted"
 PDF_WARNING_PARTIAL_TEXT = "pdf_partial_text"
@@ -51,6 +52,7 @@ PDF_WARNING_CODES = frozenset(
         PDF_WARNING_OCR_REQUIRED,
         PDF_WARNING_OCR_BLOCKED_BY_POLICY,
         PDF_WARNING_OCR_BUDGET_EXCEEDED,
+        PDF_WARNING_OCR_FAILED,
         PDF_WARNING_PARSER_FAILED,
         PDF_WARNING_ENCRYPTED,
         PDF_WARNING_PARTIAL_TEXT,
@@ -140,6 +142,7 @@ def extract_pdf_pages(
     *,
     owner: str | None = None,
     policy_context: Mapping[str, Any] | None = None,
+    ocr_adapter: Callable[[Path, int, Mapping[str, Any]], str] | None = None,
 ) -> PdfExtractionResult:
     """Extract PDF text page by page with explicit partial/failure status."""
 
@@ -151,6 +154,7 @@ def extract_pdf_pages(
         "ocr_enabled": bool(budget.ocr_enabled),
         "ocr_max_pages": budget.ocr_max_pages,
         "max_images_per_page": budget.max_images_per_page,
+        "ocr_pages_processed": 0,
     }
 
     try:
@@ -211,6 +215,7 @@ def extract_pdf_pages(
 
     chars_remaining = max(0, budget.max_chars)
     stopped_for_budget = False
+    ocr_pages_processed = 0
     for index in range(pages_to_process):
         if budget.max_seconds >= 0 and (time.monotonic() - start) > budget.max_seconds:
             warnings.append(PdfExtractionWarning(PDF_WARNING_PARTIAL_TEXT, detail="max_seconds_exceeded"))
@@ -236,6 +241,22 @@ def extract_pdf_pages(
             continue
 
         text = _normalize_pdf_text(raw_text)
+        if not text:
+            ocr_text, ocr_warnings, ocr_used = _try_ocr_page(
+                source,
+                page_number,
+                budget=budget,
+                policy_context=policy_context,
+                ocr_adapter=ocr_adapter,
+                ocr_pages_processed=ocr_pages_processed,
+            )
+            if ocr_used:
+                ocr_pages_processed += 1
+            if ocr_warnings:
+                warnings.extend(ocr_warnings)
+                page_warnings.extend(ocr_warnings)
+            if ocr_text:
+                text = _normalize_pdf_text(ocr_text)
         if text and len(text) > budget.max_chars_per_page:
             text = text[: budget.max_chars_per_page].rstrip()
             warning = PdfExtractionWarning(
@@ -291,7 +312,7 @@ def extract_pdf_pages(
         char_count=char_count,
         warnings=tuple(_dedupe_warnings(warnings)),
         pages=tuple(pages),
-        metadata=metadata,
+        metadata={**metadata, "ocr_pages_processed": ocr_pages_processed},
     )
 
 
@@ -305,6 +326,37 @@ def extract_pdf_text(
     """Compatibility helper returning only extracted runtime text."""
 
     return extract_pdf_pages(path, budget, owner=owner, policy_context=policy_context).text
+
+
+def _try_ocr_page(
+    source: Path,
+    page_number: int,
+    *,
+    budget: PdfExtractionBudget,
+    policy_context: Mapping[str, Any] | None,
+    ocr_adapter: Callable[[Path, int, Mapping[str, Any]], str] | None,
+    ocr_pages_processed: int,
+) -> tuple[str, list[PdfExtractionWarning], bool]:
+    if not budget.ocr_enabled:
+        return "", [], False
+    if policy_context and policy_context.get("local_only") and policy_context.get("external_ocr_requested"):
+        return "", [PdfExtractionWarning(PDF_WARNING_OCR_BLOCKED_BY_POLICY, page_number=page_number)], False
+    if ocr_pages_processed >= max(0, budget.ocr_max_pages):
+        return "", [PdfExtractionWarning(PDF_WARNING_OCR_BUDGET_EXCEEDED, page_number=page_number)], False
+    if ocr_adapter is None:
+        return "", [PdfExtractionWarning(PDF_WARNING_OCR_REQUIRED, page_number=page_number)], False
+    try:
+        text = ocr_adapter(
+            source,
+            page_number,
+            {
+                "local_only": bool(policy_context.get("local_only")) if policy_context else False,
+                "max_images_per_page": budget.max_images_per_page,
+            },
+        )
+    except Exception as exc:
+        return "", [PdfExtractionWarning(PDF_WARNING_OCR_FAILED, page_number=page_number, detail=type(exc).__name__)], True
+    return str(text or ""), [], True
 
 
 def _failed(
