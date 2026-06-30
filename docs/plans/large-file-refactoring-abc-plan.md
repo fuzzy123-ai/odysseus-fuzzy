@@ -4570,6 +4570,53 @@ Completion criteria:
 - `src.llm_core` keeps `_get_cache_key` importable while implementation lives
   in `src.llm_cache_key.py`.
 
+## R11CV / L7-R12CK: LLM Runtime State Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving runtime timeout builders, shared HTTP
+  client creation and model-activity timestamp helpers into a focused helper,
+  while keeping `src.llm_core` wrapper names importable and monkeypatchable.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_runtime_state.py`
+- `tests/test_llm_core_connect_timeout.py`
+- `tests/test_llm_core_concurrency.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_llm_core_sse_no_space.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_chat_metrics.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CV done 2026-06-30: LLM connect/read timeout construction, shared
+  `httpx.AsyncClient` creation and model-activity timestamp helpers moved to
+  `src/llm_runtime_state.py`; `src.llm_core` keeps the existing wrapper names.
+- R11CV line count 2026-06-30: `src/llm_core.py` is 1547 lines, still in
+  warning band but reduced from 1561 after R11CA; `src/llm_runtime_state.py`
+  is 59 lines and below the report threshold.
+- R11CV focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_runtime_state.py`
+  passed.
+- R11CV runtime/streaming checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_connect_timeout.py tests\test_llm_core_concurrency.py tests\test_llm_core_streaming.py tests\test_llm_core_sse_no_space.py tests\test_ai_activity_ledger.py tests\test_chat_metrics.py -q`
+  returned `25 passed, 1 warning`.
+
+Completion criteria:
+
+- Connect-timeout configurability, concurrency guards, stream monkeypatch
+  contracts, chat metrics and AI activity audit tests remain green.
+- The split performs no live provider calls and keeps `llm_core` wrappers
+  available for existing tests and callers.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

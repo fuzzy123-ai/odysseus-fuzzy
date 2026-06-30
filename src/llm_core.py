@@ -34,12 +34,12 @@ class LLMConfig:
 
 def _call_timeout(read_timeout) -> httpx.Timeout:
     """Per-request timeout for non-streaming LLM calls (connect from config)."""
-    return httpx.Timeout(connect=LLMConfig.CONNECT_TIMEOUT, read=float(read_timeout), write=10.0, pool=5.0)
+    return _call_timeout_impl(LLMConfig.CONNECT_TIMEOUT, read_timeout)
 
 
 def _stream_timeout(read_timeout) -> httpx.Timeout:
     """Per-request timeout for streaming LLM calls (connect from config)."""
-    return httpx.Timeout(connect=LLMConfig.CONNECT_TIMEOUT, read=float(read_timeout), write=30.0, pool=5.0)
+    return _stream_timeout_impl(LLMConfig.CONNECT_TIMEOUT, read_timeout)
 
 _response_cache = {}
 
@@ -63,8 +63,6 @@ _host_fails: Dict[str, int] = {}
 # Without the lock the get()+1+set on _host_fails is a read-modify-write that
 # loses failure counts under concurrent connect errors (issue #659).
 _host_health_lock = threading.Lock()
-_model_activity: Dict[str, float] = {}
-
 from src.llm_stream_events import (
     _HarmonyStreamRouter,
     _HARMONY_MARKER_RE,
@@ -80,26 +78,26 @@ from src.llm_activity_metrics import (
     sse_activity_usage as _sse_activity_usage,
 )
 from src.llm_cache_key import _get_cache_key
+from src.llm_runtime_state import (
+    call_timeout as _call_timeout_impl,
+    get_shared_http_client,
+    note_model_activity as _note_model_activity_impl,
+    same_model_identity as _same_model_identity_impl,
+    seconds_since_model_activity as _seconds_since_model_activity_impl,
+    stream_timeout as _stream_timeout_impl,
+)
 
-
-def _model_activity_key(url: str, model: str) -> str:
-    return f"{(url or '').strip()}|{(model or '').strip()}"
 
 def _same_model_identity(left: str, right: str) -> bool:
-    return (left or "").strip().lower() == (right or "").strip().lower()
+    return _same_model_identity_impl(left, right)
 
 def note_model_activity(url: str, model: str):
     """Record that a real upstream request used this endpoint/model."""
-    if not url or not model:
-        return
-    _model_activity[_model_activity_key(url, model)] = time.time()
+    _note_model_activity_impl(url, model)
 
 def seconds_since_model_activity(url: str, model: str) -> Optional[float]:
     """Seconds since the endpoint/model was last used in this process."""
-    ts = _model_activity.get(_model_activity_key(url, model))
-    if not ts:
-        return None
-    return max(0.0, time.time() - ts)
+    return _seconds_since_model_activity_impl(url, model)
 
 def _host_key(url: str) -> str:
     from urllib.parse import urlsplit
@@ -138,21 +136,9 @@ def _clear_host_dead(url: str) -> None:
         _host_fails.pop(key, None)
 
 
-# Shared async HTTP client. Reusing one client keeps connections warm:
-# repeat calls to api.anthropic.com / api.openai.com / openrouter skip the
-# 100-500ms TCP+TLS handshake. Lazy init so we bind to the running event loop.
-_http_client: Optional[httpx.AsyncClient] = None
-_http_limits = httpx.Limits(max_connections=100, max_keepalive_connections=30, keepalive_expiry=30.0)
-
 def _get_http_client() -> httpx.AsyncClient:
     """Return process-wide AsyncClient. Per-request timeout is passed at call time."""
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        from src.tls_overrides import llm_verify
-        _http_client = httpx.AsyncClient(
-            limits=_http_limits, http2=False, verify=llm_verify(),
-        )
-    return _http_client
+    return get_shared_http_client()
 
 def _get_cached_response(cache_key: str) -> Optional[str]:
     """Get cached response if it exists."""
