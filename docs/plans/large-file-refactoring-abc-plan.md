@@ -2,8 +2,9 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
-implemented; tool implementation/admin facades below threshold, remaining code refactor waves pending
+Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
+and R9A/R9B/R9C email helper splits implemented; tool implementation/admin
+facades below threshold, remaining code refactor waves pending
 
 ## Goal
 
@@ -655,8 +656,21 @@ Progress:
 - R9B focused tests 2026-06-30:
   `python -m pytest tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
   returned `71 passed, 14 warnings`.
-- Remaining R9 work: SMTP/drafts helpers, owner/event helpers and route setup
-  boundaries. `routes/email_routes.py` is reduced to 3249 lines after R9B and
+- R9C done 2026-06-30: `routes/email_smtp_helpers.py` owns SMTP readiness,
+  outbound account resolution fallback, outbound MIME message building and
+  draft MIME message building. `routes.email_routes` keeps legacy underscore
+  aliases for import compatibility.
+- R9C evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_smtp_helpers.py`
+  passed.
+- R9C focused tests 2026-06-30:
+  `python -m pytest tests\test_email_smtp_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_oauth.py tests\test_email_smtp_security.py tests\test_schedule_email_offset_normalization.py tests\test_email_owner_scope.py -q`
+  returned `59 passed, 16 warnings`.
+- R9C broader R9 smoke 2026-06-30:
+  `python -m pytest tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
+  returned `76 passed, 17 warnings`.
+- Remaining R9 work: owner/event helpers and route setup boundaries.
+  `routes/email_routes.py` is reduced to 3162 lines after R9C and
   remains above the large-file candidate threshold.
 
 ### R10: Model Routes Extraction

@@ -719,6 +719,16 @@ Current evidence:
 - 2026-06-30 R9B focused tests passed:
   `python -m pytest tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
   returned `71 passed, 14 warnings`.
+- 2026-06-30: L7 R9C is implemented. SMTP readiness, outbound account
+  resolution fallback, outbound MIME message building and draft MIME message
+  building moved to `routes/email_smtp_helpers.py`; legacy aliases remain
+  available from `routes.email_routes`.
+- 2026-06-30 R9C focused tests passed:
+  `python -m pytest tests/test_email_smtp_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_oauth.py tests/test_email_smtp_security.py tests/test_schedule_email_offset_normalization.py tests/test_email_owner_scope.py -q`
+  returned `59 passed, 16 warnings`.
+- 2026-06-30 R9C broader R9 smoke passed:
+  `python -m pytest tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
+  returned `76 passed, 17 warnings`.
 
 Parallel rule:
 
@@ -749,11 +759,12 @@ Slice queue:
 | L7-R8E-agent-loop-base-prompt-final | repo_only | Bob | Done: base/system prompt internals moved behind compatibility wrappers; `src/agent_loop.py` is below the candidate threshold. |
 | L7-R9A-email-formatting-split | repo_only | Bob | Done: email formatting/sanitizer helpers moved behind compatibility aliases. |
 | L7-R9B-email-imap-helper-split | repo_only | Bob | Done: IMAP folder/UID/move helpers moved behind compatibility aliases. |
-| L7-R9C-email-smtp-drafts-split | repo_only | Bob | Next: split SMTP resolution/send/draft helpers while keeping send and schedule tests stable. |
+| L7-R9C-email-smtp-drafts-split | repo_only | Bob | Done: SMTP resolution and send/draft MIME helpers moved behind compatibility aliases. |
+| L7-R9D-email-owner-event-split | repo_only | Bob | Next: split owner/event/scheduled-draft helpers while keeping owner-scope and schedule tests stable. |
 
 Next safe slice:
 
-- Continue L7-R9C Email SMTP/Drafts Helper Split if `routes/email_routes.py` is clean.
+- Continue L7-R9D Email Owner/Event Helper Split if `routes/email_routes.py` is clean.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 

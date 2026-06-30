@@ -27,9 +27,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
 from fastapi import APIRouter, Query, UploadFile, File, BackgroundTasks, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 from src.constants import DATA_DIR
@@ -73,6 +70,12 @@ from routes.email_imap_helpers import (
     uid_bytes as _uid_bytes,
     uid_exists as _uid_exists,
     uid_from_fetch_meta as _uid_from_fetch_meta,
+)
+from routes.email_smtp_helpers import (
+    build_draft_message as _build_draft_message,
+    build_outbound_email_message as _build_outbound_email_message,
+    resolve_send_config as _resolve_send_config,
+    smtp_ready as _smtp_ready,
 )
 from routes.email_pollers import _start_poller
 
@@ -176,46 +179,6 @@ def _record_email_received_events(owner: str, account_id: str | None, folder: st
             logger.info("Fired email_received for %d new message(s)", min(len(new_keys), 50))
     except Exception:
         logger.debug("email_received event detection skipped", exc_info=True)
-
-
-def _smtp_ready(cfg: dict) -> bool:
-    if not cfg.get("smtp_host") or not cfg.get("smtp_user"):
-        return False
-    return bool(cfg.get("smtp_password") or cfg.get("oauth_provider"))
-
-
-def _resolve_send_config(account_id: str | None = None, owner: str = "") -> dict:
-    """Resolve an account for outbound SMTP.
-
-    If the caller explicitly picked an account, use only that account and
-    return a clear error when it cannot send. If no account was picked and
-    the default is receive-only, fall back to the first SMTP-capable account
-    owned by the same user.
-    """
-    cfg = _get_email_config(account_id, owner=owner)
-    if _smtp_ready(cfg):
-        return cfg
-    if account_id:
-        raise ValueError(f"Email account {cfg.get('account_name') or account_id} has no SMTP configured")
-    try:
-        from core.database import SessionLocal as _SL, EmailAccount as _EA
-        from sqlalchemy import and_, or_
-        db = _SL()
-        try:
-            q = db.query(_EA).filter(_EA.enabled == True)  # noqa: E712
-            if owner:
-                unowned = or_(_EA.owner == None, _EA.owner == "")  # noqa: E711
-                same_mailbox = or_(_EA.imap_user == owner, _EA.from_address == owner)
-                q = q.filter(or_(_EA.owner == owner, and_(unowned, same_mailbox)))
-            for row in q.order_by(_EA.is_default.desc(), _EA.created_at.asc()).all():
-                trial = _get_email_config(account_id=row.id, owner=owner)
-                if _smtp_ready(trial):
-                    return trial
-        finally:
-            db.close()
-    except Exception as e:
-        logger.debug(f"SMTP-capable account fallback failed: {e}")
-    raise ValueError("No SMTP-capable email account configured")
 
 
 def setup_email_routes():
@@ -1739,34 +1702,21 @@ def setup_email_routes():
         someone else's SMTP creds + From-address.
         """
         cfg = _resolve_send_config(account_id, owner=owner)
-        has_atts = bool(attachments)
-        if has_atts:
-            outer = MIMEMultipart("mixed")
-            body_container = MIMEMultipart("alternative")
-        else:
-            outer = MIMEMultipart("alternative")
-            body_container = outer
-
-        outer["From"] = email.utils.formataddr((cfg.get("display_name") or "", cfg["from_address"]))
-        outer["To"] = to
-        if cc:
-            outer["Cc"] = cc
-        outer["Subject"] = subject or ""
-        outer["Date"] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
-        _apply_odysseus_headers(outer, odysseus_kind or "scheduled", odysseus_ref)
-        if in_reply_to:
-            outer["In-Reply-To"] = in_reply_to
-        if references:
-            outer["References"] = references
-
-        body_container.attach(MIMEText(body or "", "plain", "utf-8"))
-        body_container.attach(MIMEText(_md_to_email_html(body or ""), "html", "utf-8"))
-
-        if has_atts:
-            outer.attach(body_container)
+        outer, recipients = _build_outbound_email_message(
+            cfg,
+            to=to,
+            cc=cc,
+            bcc=bcc,
+            subject=subject or "",
+            body=body or "",
+            attachments=attachments,
+            in_reply_to=in_reply_to,
+            references=references,
+            odysseus_kind=odysseus_kind or "scheduled",
+            odysseus_ref=odysseus_ref,
+        )
+        if attachments:
             _attach_compose_uploads(outer, attachments)
-
-        recipients = _envelope_recipients(to, cc, bcc)
 
         _send_smtp_message(cfg, cfg["from_address"], recipients, outer.as_string())
 
@@ -2012,49 +1962,23 @@ def setup_email_routes():
             logger.warning(f"No SMTP-capable account resolved: {e}")
             return {"success": False, "error": str(e) or "No SMTP-capable email account configured"}
 
-        # Use 'mixed' if we have attachments, 'alternative' otherwise
-        has_attachments = bool(req.attachments)
         logger.info(f"Sending email to {req.to}: subject={req.subject!r}, attachments={req.attachments}")
-        if has_attachments:
-            outer = MIMEMultipart("mixed")
-            body_container = MIMEMultipart("alternative")
-        else:
-            outer = MIMEMultipart("alternative")
-            body_container = outer
-
-        outer["From"] = email.utils.formataddr((cfg.get("display_name") or "", cfg["from_address"]))
-        outer["To"] = req.to
-        if req.cc:
-            outer["Cc"] = req.cc
-        outer["Subject"] = req.subject
-        outer["Date"] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
-        outer["Message-ID"] = email.utils.make_msgid(domain="odysseus.local")
-
-        if req.in_reply_to:
-            outer["In-Reply-To"] = req.in_reply_to
-        if req.references:
-            outer["References"] = req.references
-        if req.odysseus_kind:
-            _apply_odysseus_headers(outer, req.odysseus_kind)
-
-        # Plain + HTML body. Escape user content so a `<script>` or
-        # `<img onerror=...>` paste in compose doesn't end up as live HTML
-        # in the recipient's MUA.
-        body_container.attach(MIMEText(req.body, "plain", "utf-8"))
-        # HTML part: prefer the WYSIWYG composer's HTML (sanitized via allowlist);
-        # otherwise render the markdown body. Both routes escape untrusted text,
-        # so neither can introduce live script/handlers.
-        _html_part = (_sanitize_email_html(req.body_html) if req.body_html else None) \
-            or _md_to_email_html(req.body)
-        body_container.attach(MIMEText(_html_part, "html", "utf-8"))
-
-        if has_attachments:
-            outer.attach(body_container)
+        outer, recipients = _build_outbound_email_message(
+            cfg,
+            to=req.to,
+            cc=req.cc,
+            bcc=req.bcc,
+            subject=req.subject,
+            body=req.body,
+            body_html=req.body_html,
+            attachments=req.attachments,
+            in_reply_to=req.in_reply_to,
+            references=req.references,
+            odysseus_kind=req.odysseus_kind,
+            include_message_id=True,
+        )
+        if req.attachments:
             _attach_compose_uploads(outer, req.attachments)
-
-        # Build recipient list (parse the address grammar so display names with
-        # commas don't get split into broken envelope addresses)
-        recipients = _envelope_recipients(req.to, req.cc, req.bcc)
 
         # Serialize what the background task needs so the request object can be GC'd
         outer_bytes = outer.as_bytes()
@@ -2195,28 +2119,17 @@ def setup_email_routes():
             _assert_owns_account(req.account_id, owner)
         cfg = _get_email_config(req.account_id, owner=owner)
 
-        # Multipart plain+HTML when the WYSIWYG composer supplied HTML, so a
-        # reopened draft keeps its formatting; plain MIMEText otherwise.
-        _draft_html = _sanitize_email_html(req.body_html) if req.body_html else None
-        if _draft_html:
-            msg = MIMEMultipart("alternative")
-            msg.attach(MIMEText(req.body, "plain", "utf-8"))
-            msg.attach(MIMEText(_draft_html, "html", "utf-8"))
-        else:
-            msg = MIMEText(req.body, "plain", "utf-8")
-        msg["From"] = email.utils.formataddr((cfg.get("display_name") or "", cfg["from_address"]))
-        msg["To"] = req.to
-        if req.cc:
-            msg["Cc"] = req.cc
-        if req.bcc:
-            msg["Bcc"] = req.bcc
-        msg["Subject"] = req.subject
-        msg["Date"] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
-
-        if req.in_reply_to:
-            msg["In-Reply-To"] = req.in_reply_to
-        if req.references:
-            msg["References"] = req.references
+        msg = _build_draft_message(
+            cfg,
+            to=req.to,
+            cc=req.cc,
+            bcc=req.bcc,
+            subject=req.subject,
+            body=req.body,
+            body_html=req.body_html,
+            in_reply_to=req.in_reply_to,
+            references=req.references,
+        )
 
         _draft_acct = req.account_id
 
