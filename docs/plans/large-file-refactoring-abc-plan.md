@@ -3952,6 +3952,57 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BP / L7-R12BE: Auth User Rename Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move auth user-rename owner-reference migrations out of
+  `routes/auth_routes.py` into a focused helper while keeping route behavior,
+  rollback semantics and test monkeypatch hooks stable.
+- Keep login, signup, token, settings and integration route behavior unchanged.
+
+Allowed paths:
+
+- `routes/auth_routes.py`
+- `routes/auth_user_rename.py`
+- `tests/test_rename_user_owner_sync.py`
+- `tests/test_rename_user_token_cache.py`
+- `tests/test_set_admin.py`
+- `tests/test_reserved_username_admin_escalation.py`
+- `tests/test_delete_user_invalidates_token_cache.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BP done 2026-06-30: `routes/auth_user_rename.py` owns SQL owner-row
+  migration, rollback after SQL migration failure, preferences, research,
+  memory, upload, personal RAG, skill owner, session-cache and API-token-cache
+  rename side effects. `routes.auth_routes` keeps the route validation and
+  passes its legacy-patchable path constants into the helper.
+- R11BP line count 2026-06-30: `routes/auth_routes.py` is 688 lines, in
+  monitor band and below warning band; `routes/auth_user_rename.py` is below
+  report threshold.
+- R11BP focused checks 2026-06-30:
+  `python -m py_compile routes\auth_routes.py routes\auth_user_rename.py`
+  passed.
+- R11BP auth/rename checks 2026-06-30:
+  `python -m pytest tests\test_rename_user_owner_sync.py tests\test_rename_user_token_cache.py tests\test_set_admin.py tests\test_reserved_username_admin_escalation.py tests\test_delete_user_invalidates_token_cache.py -q`
+  returned `66 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/auth_routes.py` is below warning band without changing auth route
+  contracts.
+- User rename owner migration, rollback, token-cache invalidation, set-admin
+  and reserved-username regression tests remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
