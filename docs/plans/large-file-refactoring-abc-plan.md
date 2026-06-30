@@ -4423,6 +4423,55 @@ Completion criteria:
 - `src.llm_core` keeps the legacy private helper names importable while policy
   implementation lives in `src.llm_request_policy.py`.
 
+## R11BY / L7-R12BN: LLM Error Formatting Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving provider-aware upstream error-message
+  formatting and ChatGPT Subscription error mapping into a focused helper while
+  keeping the legacy private names importable from `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_error_formatting.py`
+- `tests/test_provider_classification_errors.py`
+- `tests/test_provider_classification.py`
+- `tests/test_provider_detection.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BY done 2026-06-30: `_format_upstream_error` and
+  `_format_chatgpt_subscription_error` moved to `src/llm_error_formatting.py`;
+  `src.llm_core` keeps compatibility wrappers so existing private imports and
+  provider-label monkeypatch contracts remain stable.
+- R11BY line count 2026-06-30: `src/llm_core.py` is 1617 lines, still in
+  warning band but reduced from 1651 after R11BX; `src/llm_error_formatting.py`
+  is 65 lines and below the report threshold.
+- R11BY focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_error_formatting.py`
+  passed.
+- R11BY provider/error/streaming checks 2026-06-30:
+  `python -m pytest tests\test_provider_classification_errors.py tests\test_provider_classification.py tests\test_provider_detection.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py -q`
+  returned `89 passed, 1 warning`.
+
+Completion criteria:
+
+- Provider error formatting, provider classification, streaming and AI activity
+  audit tests remain green.
+- The split performs no live provider calls, does not persist provider
+  responses and does not change user-facing error text.
+- `src.llm_core` keeps the legacy private helper names importable while the
+  implementation lives in `src.llm_error_formatting.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

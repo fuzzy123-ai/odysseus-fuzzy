@@ -260,6 +260,10 @@ from src.llm_chatgpt_subscription import (
     message_content_as_text as _message_content_as_text,
     normalize_chatgpt_subscription_url as _normalize_chatgpt_subscription_url,
 )
+from src.llm_error_formatting import (
+    _format_chatgpt_subscription_error as _format_chatgpt_subscription_error_impl,
+    _format_upstream_error as _format_upstream_error_impl,
+)
 
 
 def _build_chatgpt_responses_payload(
@@ -289,53 +293,17 @@ def _build_chatgpt_responses_payload(
 
 
 def _format_chatgpt_subscription_error(status_code: int, text: str) -> str:
-    if status_code in (401, 403):
-        return "ChatGPT Subscription credentials expired or were rejected. Reconnect the provider."
-    if status_code == 429:
-        return "ChatGPT Subscription quota or rate limit was reached. Retry after the upstream limit resets."
-    return _format_upstream_error(status_code, text, "https://chatgpt.com/backend-api/codex")
+    return _format_chatgpt_subscription_error_impl(
+        status_code,
+        text,
+        upstream_formatter=_format_upstream_error,
+    )
 
 
 def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
-    """Turn an upstream HTTP error into a user-readable sentence.
+    return _format_upstream_error_impl(status, body, url, provider_label_func=_provider_label)
 
-    Auth failures (401/403) become 'xAI rejected the API key' etc., so the UI
-    stops showing raw JSON like '{"error":{"message":"User not found."}}'.
-    """
-    if isinstance(body, bytes):
-        try:
-            body = body.decode("utf-8", errors="replace")
-        except Exception:
-            body = str(body)
-    provider = _provider_label(url)
-    # Try to pull a message out of the body
-    detail = ""
-    try:
-        j = json.loads(body) if body else {}
-        if isinstance(j, dict):
-            err = j.get("error") or j
-            if isinstance(err, dict):
-                detail = (err.get("message") or err.get("detail") or "").strip()
-            elif isinstance(err, str):
-                detail = err.strip()
-    except Exception:
-        detail = (body or "").strip()[:240]
 
-    if status in (401, 403):
-        msg = f"{provider} rejected the API key"
-        if status == 403:
-            msg = f"{provider} denied access (403)"
-        if detail:
-            msg += f" — {detail}"
-        msg += ". Check Model Endpoints → {} and re-paste the key.".format(provider)
-        return msg
-    if status == 404:
-        return f"{provider} returned 404 — check the base URL and model name." + (f" ({detail})" if detail else "")
-    if status == 429:
-        return f"{provider} rate-limited the request (429)." + (f" {detail}" if detail else "")
-    if status >= 500:
-        return f"{provider} is having an outage (HTTP {status})." + (f" {detail}" if detail else "")
-    return f"{provider} returned HTTP {status}" + (f": {detail}" if detail else "")
 from src.llm_message_formats import (
     _anthropic_rejects_temperature,
     _as_content_blocks,
