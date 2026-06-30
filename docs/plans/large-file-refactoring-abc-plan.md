@@ -8,7 +8,8 @@ helper split, R11P database migration split, R11Q LLM-core provider/format split
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
-helper split, R11AA model loopback helper split and R11AB gallery endpoint helper split implemented; tool
+helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split and
+R11AC model probe helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -1889,6 +1890,59 @@ Completion criteria:
   adjacent Gallery route behavior remain covered by focused tests.
 - The slice performs no live image endpoint request, provider call, network
   action, Telegram, Nextcloud or host mutation.
+
+### R11AC / L7-R12R: Model Probe Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move provider-safe probe support helpers and endpoint troubleshooting text out
+  of `routes/model_routes.py` while preserving route-compatible private
+  wrappers and existing monkeypatch behavior for endpoint probing tests.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AC done 2026-06-30: provider-safe detection, model-list URL building,
+  auth-header building, discovery-only provider classification and endpoint
+  error-message formatting moved to `routes/model_probe_helpers.py`.
+- Compatibility evidence: `routes/model_routes.py` still exports
+  `_safe_detect_provider`, `_safe_build_models_url`, `_safe_build_headers`,
+  `_is_discovery_only_provider` and `_model_endpoint_error_message`. The route
+  wrappers inject the current route-level detection, URL/header builders and
+  logger, so existing tests can keep monkeypatching `routes.model_routes`.
+- R11AC line count 2026-06-30: `routes/model_routes.py` is 1802 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AC focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AC Model probing tests 2026-06-30:
+  `python -m pytest tests\test_endpoint_probing.py -q` returned
+  `37 passed, 1 warning`; `python -m pytest tests\test_model_routes.py -q`
+  returned `143 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with provider-safe probe support and endpoint troubleshooting helpers
+  separated from route orchestration.
+- Endpoint probing, ping classification, model-list fallback and error message
+  behavior remain covered by focused tests.
+- The slice performs no live endpoint probe, provider call, network action,
+  Telegram, Nextcloud or host mutation.
 
 ### R12: Obsidian Frontend Split
 

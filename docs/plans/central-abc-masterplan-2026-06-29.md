@@ -1043,6 +1043,18 @@ Current evidence:
   `python -m pytest tests\test_gallery_filename_confinement.py tests\test_gallery_result_image_ssrf.py tests\test_gallery_image_endpoint_owner_scope.py tests\test_gallery_endpoint_matching.py -q`
   returned `15 passed, 2 skipped, 1 warning`; `python -m pytest tests\test_gallery_remove_bg_worker.py tests\test_gallery_delete_file_ordering.py tests\test_gallery_album_owner_scope.py tests\test_gallery_null_user_routes.py -q`
   returned `16 passed, 1 warning`.
+- 2026-06-30: L7 R12R is implemented. Model provider-safe detection, model-list
+  URL/header builders, discovery-only provider classification and endpoint
+  troubleshooting messages moved to `routes/model_probe_helpers.py` while
+  `routes/model_routes.py` keeps route-compatible wrappers for existing probe
+  tests and monkeypatch behavior. The large-file report places
+  `routes/model_routes.py` at 1802 lines, band `warning`, not `candidate`;
+  report candidate count is 26.
+- 2026-06-30 R12R evidence passed:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`;
+  `python -m pytest tests\test_endpoint_probing.py -q` returned
+  `37 passed, 1 warning`; `python -m pytest tests\test_model_routes.py -q`
+  returned `143 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1112,6 +1124,7 @@ Slice queue:
 | L7-R12O-shell-dependency-helper-boundary | repo_only | Bob | Done: shell/Cookbook dependency, SSH argv and probe-script helpers moved behind route-compatible imports; `routes/shell_routes.py` is further below candidate threshold. |
 | L7-R12P-model-loopback-helper-boundary | repo_only | Bob | Done: model endpoint Docker/loopback rewrite helpers moved behind route-compatible wrappers; `routes/model_routes.py` is further below candidate threshold. |
 | L7-R12Q-gallery-endpoint-helper-boundary | repo_only | Bob | Done: gallery path confinement, endpoint visibility and result-image fetch helpers moved behind route-compatible wrappers; `routes/gallery_routes.py` is further below candidate threshold. |
+| L7-R12R-model-probe-helper-boundary | repo_only | Bob | Done: provider-safe model probe support and endpoint error messaging moved behind route-compatible wrappers; `routes/model_routes.py` is further below candidate threshold. |
 
 Next safe slice:
 
@@ -1199,7 +1212,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12Q are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12R are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

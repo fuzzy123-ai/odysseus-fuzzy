@@ -34,6 +34,13 @@ from routes.model_loopback_helpers import (
     _docker_host_gateway_reachable,
     rewrite_loopback_for_docker as _rewrite_loopback_for_docker_impl,
 )
+from routes.model_probe_helpers import (
+    is_discovery_only_provider as _is_discovery_only_provider,
+    model_endpoint_error_message as _model_endpoint_error_message_impl,
+    safe_build_headers as _safe_build_headers_impl,
+    safe_build_models_url as _safe_build_models_url_impl,
+    safe_detect_provider as _safe_detect_provider_impl,
+)
 from routes.model_endpoint_helpers import (
     _PROVIDER_CURATED,
     _api_key_fingerprint,
@@ -113,36 +120,15 @@ def _delete_orphaned_provider_auth(db, auth_id: Optional[str], exclude_ep_id: Op
 
 
 def _safe_detect_provider(base_url: str) -> str:
-    """Best-effort provider detection that must not break endpoint probing."""
-    try:
-        return _detect_provider(base_url)
-    except Exception as exc:
-        logger.debug("Provider detection failed for %s: %s", base_url, exc)
-        return ""
+    return _safe_detect_provider_impl(base_url, detect_provider_func=_detect_provider, logger=logger)
 
 
 def _safe_build_models_url(base_url: str) -> str:
-    """Build a /models URL without letting optional provider imports break probes."""
-    try:
-        return build_models_url(base_url)
-    except ValueError:
-        raise
-    except Exception as exc:
-        logger.debug("Model URL detection failed for %s: %s", base_url, exc)
-        return f"{(base_url or '').rstrip('/')}/models"
+    return _safe_build_models_url_impl(base_url, build_models_url_func=build_models_url, logger=logger)
 
 
 def _safe_build_headers(api_key: Optional[str], base_url: str) -> dict:
-    """Build auth headers without letting optional provider imports break probes."""
-    try:
-        return build_headers(api_key, base_url)
-    except Exception as exc:
-        logger.debug("Header detection failed for %s: %s", base_url, exc)
-        return {"Authorization": f"Bearer {api_key}"} if api_key else {}
-
-
-def _is_discovery_only_provider(provider: str) -> bool:
-    return provider == "chatgpt-subscription"
+    return _safe_build_headers_impl(api_key, base_url, build_headers_func=build_headers, logger=logger)
 
 
 def _resolve_probe_key(ep) -> Optional[str]:
@@ -399,64 +385,7 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
 
 
 def _model_endpoint_error_message(base_url: str, ping: Dict[str, Any] = None) -> str:
-    """Return a provider-aware error message for failed endpoint probes.
-
-    Surfaces the URL we actually probed and, when the endpoint looks like
-    LM Studio (port 1234 or hostname match), adds a hint about loading a
-    model and confirming the Developer Server is running. The user previously
-    saw a generic "No models found for that provider/key" with no way to
-    tell whether the URL was wrong, the server was down, or the server was
-    reachable but had no model loaded (issue #25).
-    """
-    ping = ping or {}
-    error = ping.get("error")
-    from src.endpoint_resolver import build_models_url
-    try:
-        probed = build_models_url(base_url) or base_url
-    except Exception:
-        probed = base_url
-    parsed = urlparse(base_url)
-    host = (parsed.hostname or "").lower()
-    is_ollama = parsed.port == 11434 or "ollama" in host or "ollama" in base_url.lower()
-    is_lmstudio = (
-        parsed.port == 1234
-        or "lmstudio" in host
-        or "lm-studio" in host
-        or "lm_studio" in host
-    )
-
-    if is_lmstudio:
-        parts = [
-            "LM Studio is reachable, but no models were reported.",
-            f"Probed {probed}.",
-        ]
-        if error:
-            parts.append(f"Last probe error: {error}.")
-        parts.append(
-            "Open LM Studio, load at least one model, and confirm the "
-            "Developer Server is running on port 1234."
-        )
-        parts.append(
-            "Base URL should be http://localhost:1234/v1 (native) or "
-            "http://host.docker.internal:1234/v1 (Docker)."
-        )
-        return " ".join(parts)
-
-    if is_ollama:
-        parts = ["No Ollama models found for that endpoint."]
-        parts.append(f"Probed {probed}.")
-        if error:
-            parts.append(f"Last probe error: {error}.")
-        parts.append("Check that Ollama is running and that the base URL is correct.")
-        parts.append("For native/local installs, use http://localhost:11434/v1.")
-        parts.append("For Docker, use http://host.docker.internal:11434/v1 when Ollama runs on the host.")
-        parts.append("Run `ollama list` to confirm at least one model is installed.")
-        return " ".join(parts)
-
-    if error:
-        return f"No models found for that provider/key. Probed {probed}. Last probe error: {error}."
-
-    return f"No models found for that provider/key. Probed {probed}."
+    return _model_endpoint_error_message_impl(base_url, ping, build_models_url_func=build_models_url)
 
 
 def setup_model_routes(model_discovery):
