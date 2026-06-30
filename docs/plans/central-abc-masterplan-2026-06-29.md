@@ -1427,12 +1427,14 @@ Stop or defer the active slice if:
 5. L2 and L4 safe backend lanes are reconciled as backend-complete/live-gated.
    Do not loop on their live/provider/deploy/rebuild gates; move to another
    safe backend lane unless an explicit bounded live run is being executed.
-6. Run L6-0 and L6-1 before broad Nextcloud import or RAG expansion, so long
-   PDFs and partial PDFs stop disappearing silently.
-7. Then choose between L2 route/policy consolidation, L5 export-plan completion
-   or L4 graph/memory stabilization.
-8. Start L7 refactoring only after feature hotfiles are quiet and L6 has either
-   landed or explicitly deferred.
+6. L6 is now integrated and backend-complete: long/partial PDF extraction,
+   RAG/Personal Docs, Universal Inbox/Nextcloud chunking, Document Processor
+   compatibility and OCR/Vision policy gates are implemented and tested.
+   Remaining PDF work is UI/operator visibility in L8.
+7. Continue safe backend progress through L7 warning-band refactoring or other
+   isolated repo-only lanes while L1/L3/L4/L5 live gates stay parked.
+8. Do not start PDF-specific live/provider/OCR or UI placement work without the
+   matching operator or UI-agent gate.
 
 ## Current Master Status
 
