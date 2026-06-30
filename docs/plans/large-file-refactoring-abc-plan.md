@@ -923,6 +923,19 @@ Current evidence:
 - R11C Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11c-2`
   returned `103 passed, 2 warnings`.
+- R11D done 2026-06-30: polling/route support helpers for agent-turn
+  invocation, async agent-turn invocation, public agent/reply result shaping,
+  Telegram reply message-id extraction and failure replies moved to
+  `plugins/telegram/polling.py`; DSGVO pin sync and full polling orchestration
+  remain in `plugin.py` because they still coordinate plugin-side effects.
+- R11D line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  3145 lines; `plugins/telegram/polling.py` is 119 lines.
+- R11D focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11D Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11d-2`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
@@ -932,8 +945,8 @@ Completion criteria:
 
 Remaining work:
 
-- Polling orchestration, live file download/pipeline execution, outbound API
-  and admin UI helpers still need separate modules before R11 can be marked
+- Full polling orchestration, live file download/pipeline execution, outbound
+  API and admin UI helpers still need separate modules before R11 can be marked
   complete.
 
 ### R12: Obsidian Frontend Split
