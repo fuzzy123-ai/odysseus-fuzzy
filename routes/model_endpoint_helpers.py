@@ -384,6 +384,30 @@ def _should_refresh_endpoint_with_state(
     return True, info
 
 
+def _build_model_refresh_groups(
+    endpoints: list[Any],
+    now: float,
+    refresh_state: dict[str, dict[str, Any]],
+    *,
+    force: bool = False,
+) -> dict[str, dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for ep in endpoints:
+        ok, info = _should_refresh_endpoint_with_state(ep, now, refresh_state, force=force)
+        if not ok:
+            continue
+        groups.setdefault(
+            info["key"],
+            {
+                "base": info["base"],
+                "api_key": info["api_key"],
+                "timeout": info["timeout"],
+                "endpoint_ids": [],
+            },
+        )["endpoint_ids"].append(info["id"])
+    return groups
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

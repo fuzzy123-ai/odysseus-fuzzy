@@ -18,8 +18,9 @@ listing-payload helper split and R11AM model Anthropic listing helper split;
 R11AN model ping-fallback helper split, R11AO model curated-fallback helper split,
 R11AP model Ollama tags payload helper split, R11AQ model Ollama ping URL
 helper split, R11AR model Ollama native ping execution helper split, R11AS
-model base ping fallback helper split, R11AT model refresh-state helper split
-and R11AU model refresh-decision helper split; tool
+model base ping fallback helper split, R11AT model refresh-state helper split,
+R11AU model refresh-decision helper split and R11AV model refresh group helper
+split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2873,6 +2874,59 @@ Completion criteria:
   with refresh-decision logic separated from route orchestration.
 - Background refresh behavior keeps duplicate-probe prevention, manual/forced
   semantics, failure cooldown and cached-model freshness checks.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AV / L7-R12AK: Model Refresh Group Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move model refresh group-building out of `setup_model_routes()` while
+  preserving DB/thread/probe execution orchestration in the route.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_routes.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_probe_timeouts.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AV done 2026-06-30: refreshable endpoint grouping moved to
+  `_build_model_refresh_groups()` in `routes/model_endpoint_helpers.py`.
+  `setup_model_routes()` keeps DB reads/writes, inflight-state mutation,
+  ThreadPool execution and cache invalidation.
+- Compatibility evidence: helper tests cover grouping endpoints by base/key,
+  timeout/category preservation, manual endpoint skipping, inflight skipping
+  and force behavior; existing model route, endpoint probing and
+  refresh-timeout tests remain green.
+- R11AV line count 2026-06-30: `routes/model_routes.py` is 1659 lines in the
+  large-file report, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 652 lines, band `monitor`; report
+  candidate count is 26.
+- R11AV focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11AV model route checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `224 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with refresh group-building separated from route orchestration.
+- Background refresh still groups endpoints sharing the same base/key and skips
+  endpoints blocked by mode, inflight state, cooldown or fresh cache.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

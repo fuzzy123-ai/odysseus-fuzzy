@@ -230,6 +230,37 @@ def test_should_refresh_endpoint_with_state_skips_fresh_cached_models():
     assert ok is False
 
 
+def test_build_model_refresh_groups_groups_endpoints_by_base_and_key():
+    from routes.model_endpoint_helpers import _build_model_refresh_groups
+
+    endpoints = [
+        _refresh_endpoint(id="ep1"),
+        _refresh_endpoint(id="ep2"),
+        _refresh_endpoint(id="ep3", base_url="https://api.example.com/v1", endpoint_kind="api", api_key="key"),
+    ]
+
+    groups = _build_model_refresh_groups(endpoints, 1000.0, {})
+
+    assert groups["http://localhost:11434/v1\x00"]["endpoint_ids"] == ["ep1", "ep2"]
+    assert groups["http://localhost:11434/v1\x00"]["timeout"] == 10.0
+    assert groups["https://api.example.com/v1\x00key"]["endpoint_ids"] == ["ep3"]
+    assert groups["https://api.example.com/v1\x00key"]["timeout"] == 2.0
+
+
+def test_build_model_refresh_groups_skips_blocked_endpoints():
+    from routes.model_endpoint_helpers import _build_model_refresh_groups, _model_refresh_key
+
+    manual = _refresh_endpoint(id="manual", model_refresh_mode="manual")
+    inflight = _refresh_endpoint(id="inflight", api_key="secret")
+    state = {_model_refresh_key("http://localhost:11434/v1", "secret"): {"inflight": True}}
+
+    groups = _build_model_refresh_groups([manual, inflight], 1000.0, state)
+    forced = _build_model_refresh_groups([manual], 1000.0, state, force=True)
+
+    assert groups == {}
+    assert forced["http://localhost:11434/v1\x00"]["endpoint_ids"] == ["manual"]
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

@@ -78,6 +78,7 @@ from routes.model_endpoint_helpers import (
     _match_provider_curated,
     _manual_refresh_timeout,
     _merge_model_ids,
+    _build_model_refresh_groups,
     _model_refresh_key as _refresh_key,
     _normalize_endpoint_kind,
     _normalize_model_ids,
@@ -85,7 +86,6 @@ from routes.model_endpoint_helpers import (
     _parse_model_list,
     _parse_positive_int,
     _resolve_probe_key as _resolve_probe_key_impl,
-    _should_refresh_endpoint_with_state as _should_refresh_endpoint_impl,
     _speech_settings_using_endpoint,
     _truthy,
     _visible_models,
@@ -426,8 +426,6 @@ def setup_model_routes(model_discovery):
     # providers a cooldown after failures.
     _refresh_state: Dict[str, Dict[str, Any]] = {}
     _refresh_inflight = {"v": False}  # coarse single-flight guard
-    def _should_refresh_endpoint(ep: Any, now: float, force: bool = False) -> tuple[bool, Dict[str, Any]]:
-        return _should_refresh_endpoint_impl(ep, now, _refresh_state, force=force)
 
     def _refresh_caches_bg(force: bool = False):
         """Background thread: safely refresh model caches with per-base single-flight.
@@ -448,17 +446,7 @@ def setup_model_routes(model_discovery):
                 try:
                     endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
                     now = _time.time()
-                    groups: Dict[str, Dict[str, Any]] = {}
-                    for ep in endpoints:
-                        ok, info = _should_refresh_endpoint(ep, now, force=force)
-                        if not ok:
-                            continue
-                        groups.setdefault(info["key"], {
-                            "base": info["base"],
-                            "api_key": info["api_key"],
-                            "timeout": info["timeout"],
-                            "endpoint_ids": [],
-                        })["endpoint_ids"].append(info["id"])
+                    groups = _build_model_refresh_groups(endpoints, now, _refresh_state, force=force)
 
                     for key in groups:
                         st = _refresh_state.setdefault(key, {})
