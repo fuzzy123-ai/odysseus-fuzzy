@@ -5,9 +5,9 @@ Date: 2026-06-30
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
-startup split and R11S visual-report helper split implemented; tool implementation/admin, agent-loop,
-email-route, model-route, database, LLM-core, scheduler and visual-report facades are below threshold,
-remaining CSS/UI-safe and later route/plugin waves pending
+startup split, R11S visual-report helper split and R11T gallery remove-bg split implemented; tool
+implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
+and Gallery facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1426,6 +1426,51 @@ Completion criteria:
 - Untrusted markdown sanitization, TOC slugging, title extraction and icon/logo
   filtering have focused tests.
 - No live research/provider action is required for the slice.
+
+### R11T / L7-R12I: Gallery Remove-BG Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move background-removal helper logic out of `routes/gallery_routes.py` while
+  preserving route-level imports for existing tests and monkeypatches.
+
+Allowed paths:
+
+- `routes/gallery_routes.py`
+- `routes/gallery_remove_bg_helpers.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11T done 2026-06-30: base64 payload decoding, worker error/status mapping,
+  legacy fallback decision logic and the local legacy remove-bg implementation
+  moved to `routes/gallery_remove_bg_helpers.py`.
+- Compatibility evidence: `routes/gallery_routes.py` imports the moved helper
+  names so route tests can still monkeypatch `_legacy_remove_background_response`
+  and validate route behavior through `setup_gallery_routes()`.
+- R11T line count 2026-06-30: `routes/gallery_routes.py` is 1880 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11T focused checks 2026-06-30:
+  `python -m py_compile routes\gallery_routes.py routes\gallery_remove_bg_helpers.py`
+  passed.
+- R11T Gallery regression tests 2026-06-30:
+  `python -m pytest tests\test_gallery_remove_bg_worker.py tests\test_gallery_filename_confinement.py tests\test_gallery_result_image_ssrf.py tests\test_gallery_image_endpoint_owner_scope.py -q`
+  returned `20 passed, 2 skipped, 1 warning`.
+
+Completion criteria:
+
+- `routes/gallery_routes.py` remains below the large-file candidate threshold
+  with more margin than before the slice.
+- Remove-bg worker behavior, file confinement, result-image SSRF and endpoint
+  owner scope regressions remain covered.
+- The slice performs no live image-worker or provider action.
 
 ### R12: Obsidian Frontend Split
 
