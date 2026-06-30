@@ -10,7 +10,8 @@ library helper split, R11V chat endpoint helper split, R11W skills audit helper 
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
 helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
 R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
-contact helper split and R11AF model ProviderAuth helper split implemented; tool
+contact helper split, R11AF model ProviderAuth helper split and R11AG model
+probe-key helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2098,6 +2099,55 @@ Completion criteria:
   with ProviderAuth orphan cleanup separated from route orchestration.
 - ProviderAuth cleanup still skips referenced rows, deletes only true orphaned
   sessions and handles missing auth rows safely.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AG / L7-R12V: Model Probe-Key Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move endpoint probe-key runtime resolution out of `routes/model_routes.py`
+  while preserving route-local resolver imports and logging behavior.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_endpoint_probe_key_helpers.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AG done 2026-06-30: probe-key resolution moved to
+  `_resolve_probe_key()` in `routes/model_endpoint_helpers.py`.
+  `routes/model_routes.py` keeps a thin compatibility wrapper that injects
+  `resolve_endpoint_runtime` and logger.
+- Compatibility evidence: helper tests cover owner forwarding, runtime key
+  return, warning logging and safe `None` fallback on resolver failures; the
+  existing model-route test suite remains green.
+- R11AG line count 2026-06-30: `routes/model_routes.py` is 1798 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AG focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11AG Model tests 2026-06-30:
+  `python -m pytest tests\test_model_endpoint_probe_key_helpers.py tests\test_model_routes.py -q`
+  returned `145 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with probe-key resolution separated from route orchestration.
+- Probe-key resolution still forwards endpoint owner scope, returns the runtime
+  key and fails closed with a warning if runtime resolution errors.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

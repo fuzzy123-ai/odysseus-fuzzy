@@ -137,6 +137,21 @@ def _delete_orphaned_provider_auth(
     return True
 
 
+def _resolve_probe_key(
+    ep: Any,
+    *,
+    resolve_endpoint_runtime_func,
+    logger,
+) -> Optional[str]:
+    """Resolve the API key/bearer token used for endpoint probes."""
+    try:
+        _base, key = resolve_endpoint_runtime_func(ep, owner=getattr(ep, "owner", None))
+        return key
+    except Exception as exc:
+        logger.warning("Probe key resolution failed for %s: %s", getattr(ep, "id", "?"), exc)
+        return None
+
+
 _PROVIDER_CURATED = {
     "openai": [
         "gpt-5.2", "gpt-5.2-pro", "gpt-5", "gpt-5-pro", "gpt-5-mini", "gpt-5-nano",

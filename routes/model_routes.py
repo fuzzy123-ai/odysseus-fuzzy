@@ -72,6 +72,7 @@ from routes.model_endpoint_helpers import (
     _normalize_refresh_mode,
     _parse_model_list,
     _parse_positive_int,
+    _resolve_probe_key as _resolve_probe_key_impl,
     _speech_settings_using_endpoint,
     _truthy,
     _visible_models,
@@ -128,13 +129,13 @@ def _safe_build_headers(api_key: Optional[str], base_url: str) -> dict:
 
 def _resolve_probe_key(ep) -> Optional[str]:
     """API key/bearer to probe an endpoint with."""
-    try:
-        from src.endpoint_resolver import resolve_endpoint_runtime
-        _base, key = resolve_endpoint_runtime(ep, owner=getattr(ep, "owner", None))
-        return key
-    except Exception as exc:
-        logger.warning("Probe key resolution failed for %s: %s", getattr(ep, "id", "?"), exc)
-        return None
+    from src.endpoint_resolver import resolve_endpoint_runtime
+
+    return _resolve_probe_key_impl(
+        ep,
+        resolve_endpoint_runtime_func=resolve_endpoint_runtime,
+        logger=logger,
+    )
 
 
 def _probe_single_model(base: str, api_key: str, model_id: str, timeout: int = 10, with_tools: bool = False) -> dict:
