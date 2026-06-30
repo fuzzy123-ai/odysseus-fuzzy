@@ -6,6 +6,7 @@ from routes.model_probe_helpers import (
     model_ids_from_listing_payload,
     ollama_native_probe_root,
     ping_result_from_response,
+    should_try_models_url_after_ping,
 )
 
 
@@ -129,3 +130,16 @@ def test_anthropic_model_ids_from_payload_reads_data_ids():
 
 def test_anthropic_model_ids_from_payload_returns_empty_for_unknown_shape():
     assert anthropic_model_ids_from_payload({"models": [{"id": "ignored"}]}) == []
+
+
+def test_should_try_models_url_after_ping_allows_non_auth_4xx():
+    assert should_try_models_url_after_ping(400) is True
+    assert should_try_models_url_after_ping(404) is True
+
+
+def test_should_try_models_url_after_ping_blocks_auth_and_non_4xx():
+    assert should_try_models_url_after_ping(401) is False
+    assert should_try_models_url_after_ping(403) is False
+    assert should_try_models_url_after_ping(500) is False
+    assert should_try_models_url_after_ping(None) is False
+    assert should_try_models_url_after_ping("not-a-code") is False

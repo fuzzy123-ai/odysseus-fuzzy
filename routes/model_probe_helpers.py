@@ -305,3 +305,12 @@ def model_ids_from_listing_payload(data: Mapping[str, Any]) -> list[str]:
 def anthropic_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
     """Extract model IDs from Anthropic's /v1/models response payload."""
     return [item.get("id") for item in (data.get("data") or []) if item.get("id")]
+
+
+def should_try_models_url_after_ping(status_code: Any) -> bool:
+    """Whether ping should try the /models URL after a non-reachable base response."""
+    try:
+        code = int(status_code or 0)
+    except (TypeError, ValueError):
+        return False
+    return 400 <= code < 500 and code not in (401, 403)

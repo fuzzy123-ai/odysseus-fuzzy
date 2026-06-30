@@ -45,6 +45,7 @@ from routes.model_probe_helpers import (
     safe_build_headers as _safe_build_headers_impl,
     safe_build_models_url as _safe_build_models_url_impl,
     safe_detect_provider as _safe_detect_provider_impl,
+    should_try_models_url_after_ping as _should_try_models_url_after_ping,
 )
 from routes.model_endpoint_helpers import (
     _PROVIDER_CURATED,
@@ -282,7 +283,7 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
         if result["reachable"]:
             return result
         sc = result.get("status_code") or 0
-        if 400 <= sc < 500 and sc not in (401, 403):
+        if _should_try_models_url_after_ping(sc):
             models_url = _safe_build_models_url(base)
             try:
                 r2 = httpx.get(models_url, headers=headers, timeout=timeout, verify=llm_verify())

@@ -15,7 +15,7 @@ probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
 implemented, plus R11AK model Ollama ping-root helper split and R11AL model
 listing-payload helper split and R11AM model Anthropic listing helper split;
-tool
+R11AN model ping-fallback helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2457,6 +2457,56 @@ Completion criteria:
   with Anthropic listing response parsing separated from route orchestration.
 - Anthropic listing success and fallback behavior remain covered without live
   provider calls during tests.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AN / L7-R12AC: Model Ping Fallback Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move the decision for trying `/models` after a non-reachable base ping out of
+  `_ping_endpoint()` while preserving route-compatible ping behavior.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AN done 2026-06-30: ping fallback decision logic moved to
+  `should_try_models_url_after_ping()` in `routes/model_probe_helpers.py`.
+  `_ping_endpoint()` keeps HTTP orchestration and delegates the 4xx/auth-status
+  decision to the helper.
+- Compatibility evidence: helper tests cover allowed non-auth 4xx statuses and
+  blocked auth/non-4xx/invalid statuses; existing endpoint probing and model
+  route tests remain green.
+- R11AN line count 2026-06-30: `routes/model_routes.py` is 1720 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AN focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AN Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `197 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with ping fallback decision logic separated from route orchestration.
+- Ping behavior remains covered for `/models` fallback on non-auth 4xx statuses
+  and no fallback on auth failures, without live provider calls during tests.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 
