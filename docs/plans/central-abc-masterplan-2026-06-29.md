@@ -849,6 +849,11 @@ Current evidence:
   `python -m pytest tests/test_review_regressions.py -k "not webhook_tool" -q`
   returned `27 passed, 1 deselected, 1 warning`. Full `test_review_regressions.py`
   still has a Webhook/tool validation failure outside the model-route slice.
+- 2026-06-30: L7 R11K is implemented. Telegram attachment export planning,
+  local execution and reply formatting moved to `plugins/telegram/export.py`.
+  `plugins/telegram/plugin.py` is 1888 lines in the large-file report, band
+  `warning`, not `candidate`; the Telegram test block returned `103 passed,
+  2 warnings`.
 
 Parallel rule:
 
@@ -900,6 +905,7 @@ Slice queue:
 | L7-R11H-telegram-admin-helper-boundary | repo_only | Charlie | Done: admin/readiness helpers and existing plugin app HTML moved to `plugins/telegram/admin.py`; no UI redesign. |
 | L7-R11I-telegram-live-file-pipeline-boundary | repo_only | Charlie | Done: live-capable file download, voice download/STT provider and Universal Inbox attachment spooling moved to `plugins/telegram/live_pipeline.py`; no live Telegram actions. |
 | L7-R11J-telegram-project-intake-boundary | repo_only | Charlie | Done: Project-Intake detection, preview, review status, reply formatting and apply helpers moved to `plugins/telegram/project_intake.py`; `plugin.py` is below the candidate threshold. |
+| L7-R11K-telegram-export-boundary | repo_only | Charlie | Done: attachment export planning/execution/reply helpers moved to `plugins/telegram/export.py`; large-file report now places `plugin.py` in warning band, not candidate. |
 
 Next safe slice:
 
@@ -983,7 +989,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11J are complete; tool implementation/admin, agent-loop, email-route, model-route and Telegram plugin facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11K are complete; tool implementation/admin, agent-loop, email-route, model-route and Telegram plugin facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

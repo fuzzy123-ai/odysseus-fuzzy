@@ -1009,11 +1009,24 @@ Current evidence:
 - R11J Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11j-1`
   returned `103 passed, 2 warnings`.
+- R11K done 2026-06-30: Telegram attachment export planning, local execution
+  and user-facing export replies moved to `plugins/telegram/export.py`;
+  `plugin.py` keeps compatibility imports and no live Telegram send action is
+  executed by the slice.
+- R11K report evidence 2026-06-30: `plugins/telegram/plugin.py` is 1888 lines
+  in `scripts.large_file_report.build_report(...)`, band `warning`, not
+  `candidate`; total candidate count is 32.
+- R11K focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\export.py plugins\telegram\project_intake.py plugins\telegram\live_pipeline.py plugins\telegram\admin.py plugins\telegram\outbound.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11K Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r13-telegram-export-1`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 
-- Stores, parser, polling, attachment pipeline, outbound API, and admin UI
-  helpers are separate modules.
+- Stores, parser, polling, attachment pipeline, outbound API, admin, project
+  intake and attachment-export helpers are separate modules.
 - Live actions remain mocked or dry-run only.
 
 Remaining work:
