@@ -1373,6 +1373,17 @@ Current evidence:
   `python -m py_compile src\tool_execution.py src\tool_path_confinement.py`;
   `python -m pytest tests\test_tool_path_confinement.py tests\test_workspace_confine.py tests\test_mount_points.py -q --basetemp C:\tmp\pytest-tool-path-split-focus`
   returned `58 passed, 2 skipped, 2 warnings`.
+- 2026-06-30: L7 R12AY is implemented. Pure UI-control marker handling for
+  `ask_user` and `update_plan` moved to `src/tool_control_markers.py`, and
+  tool-result formatting moved to `src/tool_result_formatting.py`.
+  `src/tool_execution.py` keeps the public compatibility imports and the core
+  dispatcher surface. The large-file report places `src/tool_execution.py` at
+  800 lines, band `monitor`, not `warning` or `candidate`; both new helper
+  modules are below report threshold; report candidate count is 26.
+- 2026-06-30 R12AY evidence passed:
+  `python -m py_compile src\tool_execution.py src\tool_control_markers.py src\tool_result_formatting.py`;
+  `python -m pytest tests\test_ask_user_tool.py tests\test_update_plan_tool.py tests\test_tool_registry.py tests\test_tool_policy.py tests\test_delegate_tool.py tests\test_tool_output_prompt_injection.py -q --basetemp C:\tmp\pytest-tool-exec-marker-split`
+  returned `48 passed, 2 warnings`.
 
 Parallel rule:
 
@@ -1475,6 +1486,7 @@ Slice queue:
 | L7-R12AV-codex-helper-policy-boundary | repo_only | Bob | Done: Codex scope constants, owner-scope helpers, endpoint lookup, SSH target validation helper and capabilities payload moved behind helper imports; `routes/codex_routes.py` is back in monitor band. |
 | L7-R12AW-tool-schema-definition-boundary | repo_only | Bob | Done: static OpenAI function schema definitions moved behind a compatibility import; `src/tool_schemas.py` is below monitor output and the new definitions module is an owned warning-band schema-data file. |
 | L7-R12AX-tool-path-confinement-boundary | repo_only | Bob | Done: agent tool path/workspace confinement helpers moved behind compatibility imports; `src/tool_path_confinement.py` is below report threshold and `src/tool_execution.py` is reduced to 927 warning-band lines. |
+| L7-R12AY-tool-control-result-boundary | repo_only | Bob | Done: ask/update-plan marker handling and result formatting moved behind compatibility imports; `src/tool_execution.py` is back in monitor band. |
 
 Next safe slice:
 
@@ -1564,7 +1576,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AX are complete; tool implementation/admin, tool-schema facade, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold; tool-execution path confinement is split but the dispatcher facade remains warning-band, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AY are complete; tool implementation/admin, tool-schema facade, tool-execution facade, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

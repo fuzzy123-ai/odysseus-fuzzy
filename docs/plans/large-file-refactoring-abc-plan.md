@@ -27,12 +27,11 @@ R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
 split, R11BE RAG text chunking helper split and R11BF repo tool output helper
 split, R11BG Codex helper policy split, R11BH tool schema definition split
-and R11BI tool path confinement split; tool
+and R11BI/R11BJ tool execution helper splits; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route,
 Codex route, tool-schema, RAG vector and repo-skill facades are below threshold,
-tool-execution path confinement is split, remaining CSS/UI-safe and later
-route/plugin waves pending
+tool-execution is back in monitor band, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -3636,6 +3635,61 @@ Completion criteria:
   read/write/edit/grep/ls confinement behavior.
 - Existing private imports from `src.tool_execution` remain available for
   tests and compatibility callers.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11BJ / L7-R12AY: Tool Control Marker And Result Formatting Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure UI-control marker parsing and tool result formatting out of
+  `src/tool_execution.py` while preserving the public compatibility imports
+  used by the agent loop and existing tests.
+
+Allowed paths:
+
+- `src/tool_execution.py`
+- `src/tool_control_markers.py`
+- `src/tool_result_formatting.py`
+- `tests/test_ask_user_tool.py`
+- `tests/test_update_plan_tool.py`
+- `tests/test_tool_registry.py`
+- `tests/test_tool_policy.py`
+- `tests/test_delegate_tool.py`
+- `tests/test_tool_output_prompt_injection.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BJ done 2026-06-30: `ask_user` and `update_plan` marker parsing moved to
+  `src/tool_control_markers.py`; `format_tool_result()` moved to
+  `src/tool_result_formatting.py`. `src/tool_execution.py` imports those
+  helpers so existing `from src.tool_execution import format_tool_result`
+  callers remain compatible.
+- Compatibility evidence: ask-user, update-plan, plugin registry,
+  tool-policy, delegate and non-native tool-output wrapping tests remain green.
+- R11BJ line count 2026-06-30: `src/tool_execution.py` is 800 lines in the
+  large-file report, band `monitor`, not `warning` or `candidate`;
+  `src/tool_control_markers.py` and `src/tool_result_formatting.py` are below
+  report threshold; report candidate count is 26.
+- R11BJ focused checks 2026-06-30:
+  `python -m py_compile src\tool_execution.py src\tool_control_markers.py src\tool_result_formatting.py`
+  passed.
+- R11BJ marker/formatter checks 2026-06-30:
+  `python -m pytest tests\test_ask_user_tool.py tests\test_update_plan_tool.py tests\test_tool_registry.py tests\test_tool_policy.py tests\test_delegate_tool.py tests\test_tool_output_prompt_injection.py -q --basetemp C:\tmp\pytest-tool-exec-marker-split`
+  returned `48 passed, 2 warnings`.
+
+Completion criteria:
+
+- `src/tool_execution.py` returns to monitor band without changing marker
+  payloads, result formatting or agent-loop compatibility imports.
+- Pure control-marker parsing and result formatting are independently testable.
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 

@@ -17,8 +17,6 @@ import sys
 import time
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
-
-
 from src.tool_security import is_public_blocked_tool, owner_is_admin_or_single_user
 from src.tool_policy import ToolPolicy
 from src.constants import MAX_OUTPUT_CHARS, MAX_READ_CHARS, MAX_DIFF_LINES
@@ -36,6 +34,8 @@ from src.tool_path_confinement import (
     get_active_workspace,
     vet_workspace,
 )
+from src.tool_control_markers import handle_ask_user_marker, handle_update_plan_marker
+from src.tool_result_formatting import format_tool_result
 
 
 def get_mcp_manager():
@@ -506,44 +506,14 @@ async def _execute_tool_block_impl(
     # into an `ask_user` SSE event and then ENDS the turn, so the chat waits for
     # the user's selection (their choice arrives as the next message).
     if tool == "ask_user":
-        question, options, multi = "", [], False
-        raw = (content or "").strip()
-        try:
-            parsed = json.loads(raw) if raw else {}
-        except (ValueError, TypeError):
-            parsed = {}
-        if isinstance(parsed, dict):
-            question = str(parsed.get("question", "")).strip()
-            multi = bool(parsed.get("multi") or parsed.get("multiSelect"))
-            for opt in (parsed.get("options") or []):
-                if isinstance(opt, dict):
-                    label = str(opt.get("label", "")).strip()
-                    descr = str(opt.get("description", "")).strip()
-                elif isinstance(opt, str):
-                    label, descr = opt.strip(), ""
-                else:
-                    continue
-                if label:
-                    options.append({"label": label, "description": descr})
-        else:
-            question = raw
-        if not question or len(options) < 2:
-            return "ask_user: invalid", {
-                "error": (
-                    "ask_user needs a non-empty `question` and at least 2 `options` "
-                    "(each an object with a `label`, optional `description`)."
-                ),
-                "exit_code": 1,
-            }
-        options = options[:6]  # keep the choice list sane
-        desc = f"ask_user: {question[:80]}"
-        labels = ", ".join(o["label"] for o in options)
-        result = {
-            "ask_user": {"question": question, "options": options, "multi": multi},
-            "output": f"Asked the user: {question}\nOptions: {labels}\nAwaiting their selection.",
-            "exit_code": 0,
-        }
-        logger.info("Tool executed: %s (%d options, multi=%s)", desc, len(options), multi)
+        desc, result = handle_ask_user_marker(content)
+        payload = result.get("ask_user") or {}
+        logger.info(
+            "Tool executed: %s (%d options, multi=%s)",
+            desc,
+            len(payload.get("options") or []),
+            bool(payload.get("multi")),
+        )
         return desc, result
 
     # update_plan: the agent writes back to the active plan — tick an item done
@@ -552,32 +522,7 @@ async def _execute_tool_block_impl(
     # `plan_update` SSE event; the frontend replaces the stored plan and refreshes
     # the docked plan window. Does NOT end the turn.
     if tool == "update_plan":
-        import json as _json
-        raw = (content or "").strip()
-        plan = ""
-        try:
-            parsed = _json.loads(raw) if raw else {}
-        except (ValueError, TypeError):
-            parsed = {}
-        if isinstance(parsed, dict) and parsed.get("plan"):
-            plan = str(parsed.get("plan", "")).strip()
-        else:
-            # Plain-string call (raw checklist) or JSON without a usable `plan`.
-            plan = raw
-        if not plan:
-            return "update_plan: invalid", {
-                "error": "update_plan needs a non-empty `plan` (the full updated checklist as markdown).",
-                "exit_code": 1,
-            }
-        plan = plan[:8192]
-        done = plan.count("- [x]") + plan.count("- [X]")
-        total = done + plan.count("- [ ]")
-        desc = f"update_plan: {done}/{total} done" if total else "update_plan"
-        result = {
-            "plan_update": {"plan": plan},
-            "output": f"Plan updated ({done}/{total} steps complete)." if total else "Plan updated.",
-            "exit_code": 0,
-        }
+        desc, result = handle_update_plan_marker(content)
         logger.info("Tool executed: %s", desc)
         return desc, result
 
@@ -852,76 +797,4 @@ async def _execute_tool_block_impl(
     logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
     return desc, result
 
-
-# ---------------------------------------------------------------------------
-# Result formatting
-# ---------------------------------------------------------------------------
-
 # Keys handled by the dedicated branches below — never echo them as raw JSON.
-_FORMATTER_HANDLED_KEYS = {
-    "stdout", "stderr", "exit_code", "content", "size",
-    "response", "results", "session_id", "name", "model", "session_name",
-    "success", "path", "action", "title", "doc_id", "version", "applied",
-    "error", "output",
-}
-
-
-def format_tool_result(description: str, result: Dict) -> str:
-    """Format a tool result into text for feeding back to the LLM."""
-    parts = [f"### {description}"]
-
-    if "stdout" in result:
-        if result["stdout"]:
-            parts.append(f"**stdout:**\n```\n{result['stdout']}\n```")
-        if result["stderr"]:
-            parts.append(f"**stderr:**\n```\n{result['stderr']}\n```")
-        parts.append(f"**exit_code:** {result.get('exit_code', 'unknown')}")
-    elif "output" in result:
-        # bash / python canonical result shape: {"output": ..., "exit_code": ...}
-        parts.append(f"```\n{result['output']}\n```")
-        if result.get("exit_code") not in (0, None):
-            parts.append(f"**exit_code:** {result['exit_code']}")
-    elif "content" in result:
-        parts.append(f"**content ({result.get('size', '?')} chars):**\n```\n{result['content']}\n```")
-    elif "response" in result:
-        model = result.get("model", result.get("session_name", ""))
-        if model:
-            parts.append(f"**{model} responded:**\n{result['response']}")
-        else:
-            parts.append(result["response"])
-    elif "results" in result:
-        parts.append(result["results"])
-    elif "session_id" in result and "name" in result:
-        parts.append(f"Session created: **{result['name']}** (id: `{result['session_id']}`, model: {result.get('model', 'unknown')})")
-    elif "success" in result:
-        if result["success"]:
-            parts.append(f"File written: {result['path']} ({result['size']} bytes)")
-        else:
-            parts.append(f"Error: {result.get('error', 'unknown')}")
-    elif "action" in result:
-        action = result["action"]
-        if action == "create":
-            parts.append(f"Document created: \"{result.get('title', '')}\" (id: {result['doc_id']}, v{result['version']})")
-        elif action == "update":
-            parts.append(f"Document updated: \"{result.get('title', '')}\" (v{result['version']})")
-        elif action == "edit":
-            parts.append(f'Document edited: "{result.get("title", "")}" (v{result.get("version", "?")}, {result.get("applied", 0)} edit(s) applied)')
-    elif "error" in result:
-        parts.append(f"**Error:** {result['error']}")
-
-    # Surface any additional structured payload (events, tasks, notes, calendars,
-    # documents, attachments, etc.) that the dedicated branches above don't show.
-    # Without this, tools that return {"response": "...", "events": [...]} would
-    # silently drop the events list and the model would only see the summary line.
-    extra = {k: v for k, v in result.items() if k not in _FORMATTER_HANDLED_KEYS}
-    if extra:
-        try:
-            extra_json = json.dumps(extra, indent=2, default=str, ensure_ascii=False)
-            # Cap to avoid blowing the context window on huge payloads.
-            if len(extra_json) > 8000:
-                extra_json = extra_json[:8000] + f"\n... (truncated, {len(extra_json)} chars total)"
-            parts.append(f"**data:**\n```json\n{extra_json}\n```")
-        except (TypeError, ValueError):
-            pass
-
-    return "\n".join(parts)
