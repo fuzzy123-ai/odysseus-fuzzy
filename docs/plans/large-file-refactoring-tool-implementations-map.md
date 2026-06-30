@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7A/R7B/R7C/R7D/R7E/R7F implemented; facade below threshold, admin follow-up pending
+Status: R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H implemented; tool facade and admin follow-up below candidate threshold
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -146,6 +146,15 @@ private helpers together rather than slicing by line number.
    - Confirm `src/tool_implementations.py` is below the candidate threshold or
      documented as a thin compatibility facade.
    - Re-run the large file report.
+   - Done 2026-06-30: `src/tool_implementations.py` is 152 lines and below
+     monitor threshold after R7F.
+8. **R7H admin/config follow-up split**
+   - Split `src/tool_domains/admin_config.py` into smaller admin modules after
+     the first facade split leaves it above candidate threshold.
+   - Done 2026-06-30: `admin_config.py` is now a 31-line compatibility
+     facade, with concrete implementations in `admin_runtime.py`,
+     `admin_mcp.py`, `admin_services.py`, `admin_settings.py` and shared
+     loopback helpers in `admin_common.py`.
 
 ## Focused Test Sets
 
@@ -349,6 +358,39 @@ Result: `imports ok`.
   - `src/tool_domains/admin_config.py`: 2369 lines, still candidate.
   - R7 facade split is complete; next backend refactoring should split
     `admin_config.py` into smaller admin domains.
+
+- Evidence 2026-06-30 after R7H:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_tasks_confirmation.py tests\test_manage_endpoints_route_parity.py tests\test_manage_mcp_command_allowlist.py tests\test_manage_mcp_confirmation.py tests\test_manage_mcp_route_parity.py tests\test_mcp_reconnect_args.py tests\test_manage_webhooks_confirmed_route.py tests\test_manage_presets_confirmed_route.py tests\test_manage_personal_docs_confirmed_route.py tests\test_manage_embeddings_confirmed_route.py tests\test_manage_assistant_confirmed_route.py tests\test_manage_plugins_confirmed_route.py tests\test_manage_tokens_confirmed_route.py tests\test_manage_settings_service_v2.py tests\test_manage_settings_token_budget.py -q
+```
+
+Result: `115 passed, 1 warning`.
+
+- Broader R7 smoke after R7H 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+- Facade/import smoke after R7H 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_domains.admin_config import do_manage_tasks, do_manage_endpoints, do_manage_mcp, do_manage_webhooks, do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_tokens, do_manage_settings, _validate_mcp_command, _manage_settings_v2; from src.tool_implementations import do_manage_mcp, do_manage_settings; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+- Large-file report evidence after R7H 2026-06-30:
+  - `src/tool_domains/admin_config.py`: 31 lines, below monitor threshold.
+  - `src/tool_domains/admin_common.py`: 12 lines, below monitor threshold.
+  - `src/tool_domains/admin_runtime.py`: 335 lines, below monitor threshold.
+  - `src/tool_domains/admin_mcp.py`: 292 lines, below monitor threshold.
+  - `src/tool_domains/admin_settings.py`: 680 lines, monitor band.
+  - `src/tool_domains/admin_services.py`: 1015 lines, warning band.
+  - No R7 tool-domain file remains above candidate threshold.
 
 ## Stop Rules For R7
 

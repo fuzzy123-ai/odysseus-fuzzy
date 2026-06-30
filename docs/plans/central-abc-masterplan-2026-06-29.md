@@ -648,6 +648,21 @@ Current evidence:
   152 lines and below monitor threshold; `src/tool_domains/media_research_contacts.py`
   is 308 lines; `src/tool_domains/vault.py` is 156 lines. The remaining R7
   candidate is `src/tool_domains/admin_config.py` at 2369 lines.
+- 2026-06-30: L7 R7H is implemented. `src/tool_domains/admin_config.py` is
+  now a 31-line compatibility facade; concrete admin implementations moved to
+  `src/tool_domains/admin_runtime.py`, `src/tool_domains/admin_mcp.py`,
+  `src/tool_domains/admin_services.py`, `src/tool_domains/admin_settings.py`
+  and shared loopback helpers in `src/tool_domains/admin_common.py`.
+- 2026-06-30 focused Admin/Config tests after R7H passed:
+  `python -m pytest tests/test_manage_tasks_confirmation.py tests/test_manage_endpoints_route_parity.py tests/test_manage_mcp_command_allowlist.py tests/test_manage_mcp_confirmation.py tests/test_manage_mcp_route_parity.py tests/test_mcp_reconnect_args.py tests/test_manage_webhooks_confirmed_route.py tests/test_manage_presets_confirmed_route.py tests/test_manage_personal_docs_confirmed_route.py tests/test_manage_embeddings_confirmed_route.py tests/test_manage_assistant_confirmed_route.py tests/test_manage_plugins_confirmed_route.py tests/test_manage_tokens_confirmed_route.py tests/test_manage_settings_service_v2.py tests/test_manage_settings_token_budget.py -q`
+  returned `115 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7H passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7H: no R7 tool-domain file remains
+  above candidate threshold. `src/tool_domains/admin_services.py` is 1015
+  lines in warning band; `src/tool_domains/admin_settings.py` is 680 lines in
+  monitor band.
 
 Parallel rule:
 
@@ -669,13 +684,15 @@ Slice queue:
 | L7-R7D-tool-implementations-admin-config | repo_only | Bob | Done: admin/config tools moved behind the compatibility facade. |
 | L7-R7E-tool-implementations-app-api-cookbook | repo_only | Bob | Done: app API and cookbook/model-serving tools moved behind the compatibility facade. |
 | L7-R7F-tool-implementations-tail-domains | repo_only | Bob | Done: media/research/contacts/vault tail domains moved behind the compatibility facade. |
-| L7-R7H-admin-config-follow-up | repo_only | Bob | Next: split `src/tool_domains/admin_config.py` because it remains above the candidate threshold. |
+| L7-R7G-tool-implementations-final-facade-audit | safe_offline | Charlie | Done: `src/tool_implementations.py` is below monitor threshold. |
+| L7-R7H-admin-config-follow-up | repo_only | Bob | Done: `src/tool_domains/admin_config.py` split below candidate threshold. |
+| L7-R8-agent-loop-extraction | repo_only | Bob | Next: split `src/agent_loop.py` into smaller runtime modules without behavior redesign. |
 
 Next safe slice:
 
-- L7-R7H follow-up split for `src/tool_domains/admin_config.py`, if the file
-  is still clean. L7-R2 CSS split should wait until visual smoke coverage is
-  available because `static/style.css` controls shell/chat/modal cascade.
+- L7-R8 Agent Loop Extraction, if `src/agent_loop.py` is clean. L7-R2 CSS
+  split should wait until visual smoke coverage is available because
+  `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -752,7 +769,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7F backend splits are complete; `src/tool_implementations.py` is now below monitor threshold, while `admin_config.py` follow-up split and later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7H backend splits are complete; tool implementation/admin facades are below threshold, while agent-loop and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

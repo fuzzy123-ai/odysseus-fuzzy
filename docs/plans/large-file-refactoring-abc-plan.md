@@ -2,8 +2,8 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D/R7E/R7F backend split
-implemented; tool_implementations facade below threshold, remaining code refactor waves pending
+Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
+implemented; tool implementation/admin facades below threshold, remaining code refactor waves pending
 
 ## Goal
 
@@ -125,6 +125,20 @@ it into that queue.
   152 lines, below monitor threshold. `src/tool_domains/media_research_contacts.py`
   is 308 lines and `src/tool_domains/vault.py` is 156 lines. `src/tool_domains/admin_config.py`
   remains the next R7 follow-up candidate at 2369 lines.
+- 2026-06-30: R7H implemented. `src/tool_domains/admin_config.py` is now a
+  compatibility facade; admin implementations moved to `admin_runtime.py`,
+  `admin_mcp.py`, `admin_services.py`, `admin_settings.py` and shared
+  loopback helpers in `admin_common.py`.
+- 2026-06-30 focused Admin/Config tests after R7H passed:
+  `python -m pytest tests/test_manage_tasks_confirmation.py tests/test_manage_endpoints_route_parity.py tests/test_manage_mcp_command_allowlist.py tests/test_manage_mcp_confirmation.py tests/test_manage_mcp_route_parity.py tests/test_mcp_reconnect_args.py tests/test_manage_webhooks_confirmed_route.py tests/test_manage_presets_confirmed_route.py tests/test_manage_personal_docs_confirmed_route.py tests/test_manage_embeddings_confirmed_route.py tests/test_manage_assistant_confirmed_route.py tests/test_manage_plugins_confirmed_route.py tests/test_manage_tokens_confirmed_route.py tests/test_manage_settings_service_v2.py tests/test_manage_settings_token_budget.py -q`
+  returned `115 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7H passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file evidence after R7H: `src/tool_domains/admin_config.py`
+  is 31 lines, `src/tool_domains/admin_services.py` is 1015 lines in the
+  warning band and `src/tool_domains/admin_settings.py` is 680 lines in the
+  monitor band. No R7 tool-domain file remains above candidate threshold.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -492,8 +506,11 @@ Implementation result:
   facade, and direct callers can still import from `src.tool_implementations`.
 - R7F is complete. Media/research/contact/vault tail tools moved behind the
   facade, and `src/tool_implementations.py` is now below the monitor threshold.
-- Next recommended slice: split `src/tool_domains/admin_config.py` into smaller
-  admin domains because it remains above the candidate threshold.
+- R7G/R7H are complete. `src/tool_implementations.py` and
+  `src/tool_domains/admin_config.py` are now compatibility facades below the
+  monitor threshold.
+- Next recommended backend-safe slice: R8 Agent Loop Extraction, because CSS
+  split still waits on visual smoke coverage.
 
 ### R8: Agent Loop Extraction
 
