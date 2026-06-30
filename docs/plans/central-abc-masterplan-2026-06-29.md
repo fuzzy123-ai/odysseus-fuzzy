@@ -427,6 +427,15 @@ Odysseus handles long, partially broken, image-heavy and oversized PDFs as a
 normal backend case across chat attachments, document viewer, Personal
 Docs/RAG, Universal Inbox and Nextcloud ingestion.
 
+Masterplan integration:
+
+- Source roadmap `docs/plans/pdf-long-document-extraction-roadmap.md` is now
+  explicitly integrated here as Lane L6.
+- L6 is backend-complete for the current ABC scope. Follow-up visibility for
+  review reasons, re-extract actions and operator controls belongs to L8/UI.
+- L1 and L5 may depend on L6 status/warning contracts instead of reimplementing
+  PDF parsing behavior.
+
 Why this is high priority:
 
 - Nextcloud import will inevitably encounter large PDFs, scans, invoices,

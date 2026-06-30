@@ -1,10 +1,31 @@
 # PDF Long Document Extraction Roadmap
 
-Status: active
+Status: integrated into `docs/plans/central-abc-masterplan-2026-06-29.md` as Lane L6; backend complete, UI/operator visibility follow-up tracked in L8
 Owner: operator + Odysseus
 Date: 2026-06-29
 Scope: PDF extraction for chat attachments, document viewer, Personal Docs/RAG,
 Universal Inbox, and Nextcloud ingestion
+
+## 0. Masterplan-Integration
+
+Diese Roadmap ist im aktuellen Central ABC Masterplan als Lane L6
+`Long PDF Extraction + RAG/Ingestion Reliability` integriert.
+
+Backend-Stand:
+
+- L6-0 bis L6-6 sind umgesetzt und regressionsgetestet.
+- Der gemeinsame PDF-Extractor ist die verbindliche Backend-Schnittstelle fuer
+  Personal Docs/RAG, Universal Inbox, Nextcloud Chunking und Document Processor.
+- OCR/Vision ist optional, budgetiert und policy-gated vorbereitet.
+- Offene Produkt-/UI-Sichtbarkeit wie Review-Hinweise, Re-Extract-Aktionen und
+  Operator-Oberflaechen gehoeren zur UI/V2-Lane L8, nicht mehr zum L6-Backend.
+
+Naechster Masterplan-Bezug:
+
+- L1 nutzt L6 als Grundlage fuer Nextcloud/Inbox-Dateiimport.
+- L5 nutzt L6 als Grundlage fuer spaetere PDF-Export-/Konvertierungsplaene.
+- L8 muss die vorhandenen Status- und Warning-Codes sichtbar machen, ohne
+  Rohtexte oder private Dokumentauszuege in UI/Logs zu persistieren.
 
 ## 1. Ausgangslage
 
