@@ -186,6 +186,16 @@ Current evidence:
   while visual UI and provider repo creation remain gated.
 - `coding-agent-backend-handoff.md` says backend foundation is implemented and
   UI integration is pending.
+- 2026-06-30: L2 state check verified the Coding Agent backend, route and test
+  files as an in-scope addition. `app.py` registers the router under
+  `/api/coding-agent`; the diff only adds this route registration.
+- 2026-06-30: Focused L2 verification passed:
+  `python -m pytest tests/test_coding_agent_backend.py tests/test_repo_registry.py tests/test_repo_git_adapter.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_repo_routes.py tests/test_manage_repos_read_tool.py tests/test_server_project_runner.py tests/test_server_project_registry.py tests/test_server_project_routes.py -q`
+  returned `100 passed, 1 warning`.
+- 2026-06-30: Coding Agent, Repo Control and Project Runner contracts are now
+  consolidated as one backend lane: registered repos only, isolated worktrees,
+  scope-checked exact patches, quality/review gates, fuzzy-only publish plans
+  and live/provider/deploy actions held behind explicit gates.
 
 Primary allowed paths:
 
@@ -204,17 +214,24 @@ Slice queue:
 
 | Slice | Class | Owner | Goal |
 | --- | --- | --- | --- |
-| L2-0-state-check | safe_offline | Charlie | Verify current dirty/untracked coding-agent files and focused tests. |
-| L2-1-contract-consolidation | repo_only | Alice | Merge Coding Agent, Repo Control and Project Runner into one backend contract index. |
-| L2-2-route-consistency | repo_only | Bob | Ensure route registration, admin gates and response shapes are consistent. |
-| L2-3-repo-policy-link | repo_only | Bob | Connect project runner repo policy with general Repo Control rules. |
-| L2-4-ui-handoff | repo_only | Alice | Produce a UI-agent handoff with no visual placement decisions. |
+| L2-0-state-check | safe_offline | Charlie | Done: current Coding Agent files are in scope and focused tests pass. |
+| L2-1-contract-consolidation | repo_only | Alice | Done: Coding Agent, Repo Control and Project Runner are documented as one backend contract lane. |
+| L2-2-route-consistency | repo_only | Bob | Done: `/api/coding-agent` is registered, admin-protected and route-tested. |
+| L2-3-repo-policy-link | repo_only | Bob | Done: Coding Agent worktree/publish gates reuse RepoRegistry permissions and fuzzy-only push policy. |
+| L2-4-ui-handoff | repo_only | Alice | Done: UI-agent handoff lists required states/actions without deciding layout or placement. |
 
 Gates:
 
 - Provider repo creation needs explicit operator Go.
 - Deploy/Cloudflare tunnel needs explicit exposure Go.
 - Production project execution on server needs host/deploy Go.
+
+L2 backend status:
+
+- Backend complete for the current masterplan scope.
+- UI/v2 project-cockpit integration, provider repository creation, live server
+  execution and Cloudflare exposure remain gated follow-up tracks, not blockers
+  for the safe backend lane.
 
 ## Bootstrap Lane L3: MCP Workbench + Podman Read-only Checks
 

@@ -652,6 +652,10 @@ app.include_router(setup_server_project_routes())
 from routes.repo_routes import setup_repo_routes
 app.include_router(setup_repo_routes())
 
+# Coding Agent backend
+from routes.coding_agent_routes import setup_coding_agent_routes
+app.include_router(setup_coding_agent_routes())
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))
