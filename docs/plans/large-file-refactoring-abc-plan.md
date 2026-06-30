@@ -2,7 +2,7 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map and R7A/R7B backend split
+Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C backend split
 implemented; remaining code refactor waves pending
 
 ## Goal
@@ -69,6 +69,18 @@ it into that queue.
   returned `188 passed, 1 warning`.
 - 2026-06-30 large-file report after R7B: `src/tool_implementations.py`
   reduced to 5631 lines; `src/tool_domains/repo_skills.py` is 858 lines.
+- 2026-06-30: R7C implemented. `src/tool_domains/personal_workspace.py`
+  contains notes and calendar tools, while `src.tool_implementations` remains
+  import-compatible for `do_manage_notes` and `do_manage_calendar`.
+- 2026-06-30 focused tests passed:
+  `python -m pytest tests/test_manage_notes_owner_gate.py tests/test_notes_update_due_date.py tests/test_calendar_batch_events.py tests/test_calendar_list_range_aliases.py tests/test_calendar_owner_scope.py tests/test_calendar_update_event_tz.py tests/test_calendar_reminder_minutes_parsing.py tests/test_calendar_rrule.py tests/test_manage_calendar_confirmation.py -q`
+  returned `33 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7C passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7C: `src/tool_implementations.py`
+  reduced to 4854 lines; `src/tool_domains/personal_workspace.py` is 798
+  lines.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -428,8 +440,11 @@ Implementation result:
 
 - R7A and R7B are complete. Repo/skills/recent-changes/search moved behind the
   facade, and direct callers can still import from `src.tool_implementations`.
-- Next recommended slice: R7C `personal_workspace.py` for notes/calendar, since
-  those functions are coupled and have a strong focused test set.
+- R7C is complete. Notes/calendar moved behind the facade, and direct callers
+  can still import from `src.tool_implementations`.
+- Next recommended slice: R7D `admin_config.py`, because settings/endpoints/MCP
+  tools are the next large contiguous domain; keep it facade-first and test by
+  confirmation/settings/MCP suites.
 
 ### R8: Agent Loop Extraction
 

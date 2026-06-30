@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7A/R7B implemented; remaining domain splits pending
+Status: R7A/R7B/R7C implemented; remaining domain splits pending
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -118,6 +118,9 @@ private helpers together rather than slicing by line number.
 3. **R7C personal workspace**
    - Move notes and calendar together.
    - Run calendar and notes tests.
+   - Done 2026-06-30: moved to
+     `src/tool_domains/personal_workspace.py`; `src.tool_implementations`
+     still re-exports `do_manage_notes` and `do_manage_calendar`.
 4. **R7D admin/config**
    - Move endpoints, MCP, webhooks, presets, personal docs, embeddings,
      assistant, plugins, tokens and settings.
@@ -187,6 +190,37 @@ Large-file report evidence 2026-06-30:
   `tests/test_calendar_reminder_minutes_parsing.py`,
   `tests/test_calendar_rrule.py`,
   `tests/test_manage_calendar_confirmation.py`
+
+Evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_notes_owner_gate.py tests\test_notes_update_due_date.py tests\test_calendar_batch_events.py tests\test_calendar_list_range_aliases.py tests\test_calendar_owner_scope.py tests\test_calendar_update_event_tz.py tests\test_calendar_reminder_minutes_parsing.py tests\test_calendar_rrule.py tests\test_manage_calendar_confirmation.py -q
+```
+
+Result: `33 passed, 1 warning`.
+
+Broader R7 smoke after R7C 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+Facade/import smoke after R7C 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_implementations import do_manage_notes, do_manage_calendar, do_manage_repos; from src.tool_execution import execute_tool_block; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+Large-file report evidence after R7C 2026-06-30:
+
+- `src/tool_implementations.py`: 4854 lines, still candidate.
+- `src/tool_domains/personal_workspace.py`: 798 lines, monitor band.
+- Next implementation slice should continue with R7D admin/config or R7E
+  app_api/cookbook, depending on hotfile safety.
 - Admin/config:
   `tests/test_manage_mcp_command_allowlist.py`,
   `tests/test_manage_mcp_confirmation.py`,
