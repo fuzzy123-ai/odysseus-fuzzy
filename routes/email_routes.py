@@ -80,12 +80,13 @@ from routes.email_imap_helpers import (
     uid_exists as _uid_exists,
     uid_from_fetch_meta as _uid_from_fetch_meta,
 )
-from routes.email_message_shapes import (
-    fetch_flags_from_meta as _fetch_flags_from_meta,
-    fetch_size_from_meta as _fetch_size_from_meta,
-    list_email_row_from_header as _list_email_row_from_header,
-    read_email_response_base as _read_email_response_base,
+from routes.email_list_helpers import (
+    list_email_rows_from_grouped_headers as _list_email_rows_from_grouped_headers,
+    load_email_tags_by_message_id as _load_email_tags_by_message_id,
+    load_email_tags_by_uid as _load_email_tags_by_uid,
+    search_email_row_from_fetch_data as _search_email_row_from_fetch_data,
 )
+from routes.email_message_shapes import read_email_response_base as _read_email_response_base
 from routes.email_owner_events import (
     email_tag_owner_aliases as _email_tag_owner_aliases_impl,
     email_tag_owner_clause_from_aliases as _email_tag_owner_clause_from_aliases,
@@ -332,30 +333,15 @@ def setup_email_routes():
                 uid_list = uid_list[offset:offset + limit]
 
             # Preload tag rows once — keyed by uid (as str) for the emails we'll render
-            _tag_by_uid = {}
-            try:
-                import sqlite3 as _sql3
-                _c = _sql3.connect(SCHEDULED_DB)
-                _uid_strs = [u.decode() for u in uid_list]
-                if _uid_strs:
-                    placeholders = ",".join("?" * len(_uid_strs))
-                    _owner_clause, _owner_params = _email_tag_owner_clause(account_id, owner)
-                    rows = _c.execute(
-                        f"SELECT uid, tags, spam_verdict FROM email_tags "
-                        f"WHERE folder=? AND {_owner_clause} AND uid IN ({placeholders})",
-                        [folder, *_owner_params, *_uid_strs],
-                    ).fetchall()
-                    for r in rows:
-                        try:
-                            tg = json.loads(r[1] or "[]")
-                        except Exception:
-                            tg = []
-                        if isinstance(tg, list):
-                            tg = ["marketing" if str(t).strip().lower().replace("_", "-") == "promo" else t for t in tg]
-                        _tag_by_uid[r[0]] = {"tags": tg, "spam": bool(r[2])}
-                _c.close()
-            except Exception as e:
-                logger.warning(f"Tag preload failed: {e}")
+            _tag_by_uid = _load_email_tags_by_uid(
+                SCHEDULED_DB,
+                folder=folder,
+                account_id=account_id,
+                owner=owner,
+                uid_list=uid_list,
+                email_tag_owner_clause=_email_tag_owner_clause,
+                logger=logger,
+            )
 
             # Batch fetch ALL requested UIDs in a single IMAP round-trip.
             # Per-UID fetch was the dominant cost — N round-trips × (~5-20ms
@@ -379,70 +365,23 @@ def setup_email_routes():
                     conn.logout()
                     return {"emails": [], "total": total, "folder": folder, "offset": offset}
 
-                _tag_by_message_id = {}
-                try:
-                    header_ids = []
-                    for _, raw_header in grouped:
-                        if not raw_header:
-                            continue
-                        mid = (email_mod.message_from_bytes(raw_header).get("Message-ID", "") or "").strip()
-                        if mid:
-                            header_ids.append(mid)
-                    if header_ids:
-                        import sqlite3 as _sql3m
-                        _cm = _sql3m.connect(SCHEDULED_DB)
-                        _owner_clause_m, _owner_params_m = _email_tag_owner_clause(account_id, owner)
-                        _mid_ph = ",".join("?" * len(header_ids))
-                        rows_m = _cm.execute(
-                            f"SELECT message_id, tags, spam_verdict FROM email_tags "
-                            f"WHERE folder=? AND {_owner_clause_m} "
-                            f"AND message_id IN ({_mid_ph})",
-                            [folder, *_owner_params_m, *header_ids],
-                        ).fetchall()
-                        _cm.close()
-                        for mid, tags_raw, spam_raw in rows_m:
-                            try:
-                                tags = json.loads(tags_raw or "[]")
-                            except Exception:
-                                tags = []
-                            if isinstance(tags, list):
-                                tags = ["marketing" if str(t).strip().lower().replace("_", "-") == "promo" else t for t in tags]
-                            _tag_by_message_id[(mid or "").strip()] = {
-                                "tags": tags if isinstance(tags, list) else [],
-                                "spam": bool(spam_raw),
-                            }
-                except Exception as e:
-                    logger.warning(f"Message-ID tag preload failed: {e}")
-
-                for meta_b, raw_header in grouped:
-                    try:
-                        uid_num = _uid_from_fetch_meta(meta_b)
-                        if not uid_num:
-                            continue
-                        flags = _fetch_flags_from_meta(meta_b)
-                        size = _fetch_size_from_meta(meta_b)
-                        if not raw_header:
-                            continue
-
-                        msg = email_mod.message_from_bytes(raw_header)
-                        message_id = msg.get("Message-ID", "")
-                        tag_entry = _tag_by_message_id.get(message_id.strip()) or _tag_by_uid.get(uid_num, {})
-                        emails.append(_list_email_row_from_header(
-                            uid_num,
-                            msg,
-                            flags=flags,
-                            size=size,
-                            tag_entry=tag_entry,
-                            decode_header=_decode_header,
-                        ))
-                    except Exception as e:
-                        logger.warning(f"Error parsing batched email entry: {e}")
-                        continue
-                # IMAP returns batched results in seq-set order, not the
-                # newest-first order we want. Sort by the parsed UTC epoch
-                # so cross-timezone dates compare chronologically (ISO-string
-                # sort had `+02:00` beating `+00:00` at the same local time).
-                emails.sort(key=lambda x: x.get("date_epoch") or 0.0, reverse=True)
+                _tag_by_message_id = _load_email_tags_by_message_id(
+                    SCHEDULED_DB,
+                    folder=folder,
+                    account_id=account_id,
+                    owner=owner,
+                    grouped=grouped,
+                    email_tag_owner_clause=_email_tag_owner_clause,
+                    logger=logger,
+                )
+                emails = _list_email_rows_from_grouped_headers(
+                    grouped,
+                    tag_by_uid=_tag_by_uid,
+                    tag_by_message_id=_tag_by_message_id,
+                    uid_from_fetch_meta=_uid_from_fetch_meta,
+                    decode_header=_decode_header,
+                    logger=logger,
+                )
 
             if has_attachments_only:
                 emails = [e for e in emails if e.get("has_attachments")]
@@ -648,30 +587,15 @@ def setup_email_routes():
                         status, msg_data = _imap_uid_fetch(conn, uid, "(UID FLAGS RFC822.HEADER)")
                         if status != "OK":
                             continue
-                        raw_header = None
-                        flags = ""
-                        stable_uid = ""
-                        # Same Gmail caveat as the list route: FLAGS may
-                        # arrive after the header literal, so group bare
-                        # parts back into the message meta before scanning.
-                        for meta_b, payload in _group_uid_fetch_records(msg_data):
-                            if payload and b"RFC822.HEADER" in meta_b:
-                                raw_header = payload
-                            flags = _fetch_flags_from_meta(meta_b) or flags
-                            stable_uid = _uid_from_fetch_meta(meta_b) or stable_uid
-                        if not raw_header:
-                            continue
-                        msg = email_mod.message_from_bytes(raw_header)
-                        if not stable_uid:
-                            continue
-                        row = _list_email_row_from_header(
-                            stable_uid,
-                            msg,
-                            flags=flags,
-                            folder=effective_folder,
+                        row = _search_email_row_from_fetch_data(
+                            msg_data,
+                            effective_folder=effective_folder,
+                            group_uid_fetch_records=_group_uid_fetch_records,
+                            uid_from_fetch_meta=_uid_from_fetch_meta,
                             decode_header=_decode_header,
                         )
-                        emails.append(row)
+                        if row:
+                            emails.append(row)
                     except Exception as e:
                         logger.warning(f"Error parsing search result {uid}: {e}")
                         continue
