@@ -4768,6 +4768,52 @@ Completion criteria:
   remain green.
 - The split performs no live provider calls and keeps the legacy core wrapper.
 
+## R11CZ / L7-R12CO: LLM Fallback Call Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving sync and async fallback call
+  orchestration into `src/llm_fallbacks.py`, while keeping
+  `llm_call_with_fallback` and `llm_call_async_with_fallback` importable from
+  `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_fallbacks.py`
+- `tests/test_llm_core_fallback.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_chat_metrics.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CZ done 2026-06-30: sync and async fallback call orchestration moved to
+  `src/llm_fallbacks.py`; `src.llm_core` keeps the compatibility wrappers and
+  injects `llm_call` / `llm_call_async` so existing monkeypatch contracts stay
+  intact.
+- R11CZ line count 2026-06-30: `src/llm_core.py` is 1508 lines, still in
+  warning band but reduced from 1523 after R11CY; `src/llm_fallbacks.py` is
+  105 lines and below the report threshold.
+- R11CZ focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_fallbacks.py` passed.
+- R11CZ fallback/ledger checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_fallback.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py tests\test_chat_metrics.py -q`
+  returned `20 passed, 1 warning`.
+
+Completion criteria:
+
+- Fallback ordering, no-endpoint errors and final exception behavior remain
+  unchanged.
+- Streaming, chat metrics and AI activity audit tests remain green.
+- The split performs no live provider calls and keeps the legacy core wrappers.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

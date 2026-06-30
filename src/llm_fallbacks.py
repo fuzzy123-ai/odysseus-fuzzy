@@ -53,3 +53,53 @@ def _fallback_notice_event(primary_model: str, answered_by: str, last_error: Opt
         )
         + "\n\n"
     )
+
+
+def llm_call_with_fallback(
+    candidates,
+    messages,
+    *,
+    llm_call_func,
+    http_exception_cls,
+    logger,
+    **kwargs,
+) -> str:
+    """Run a sync LLM call against an ordered fallback chain."""
+    cands = _dedupe_candidates(candidates)
+    if not cands:
+        raise http_exception_cls(503, "No model endpoint configured")
+    last_err = None
+    for i, (url, model, headers) in enumerate(cands):
+        try:
+            return llm_call_func(url, model, messages, headers=headers, **kwargs)
+        except Exception as e:
+            last_err = e
+            tag = "primary" if i == 0 else "candidate"
+            logger.warning(f"[fallback] {tag} {model} failed ({type(e).__name__}); trying next")
+            continue
+    raise last_err if last_err else http_exception_cls(503, "All fallback candidates failed")
+
+
+async def llm_call_async_with_fallback(
+    candidates,
+    messages,
+    *,
+    llm_call_async_func,
+    http_exception_cls,
+    logger,
+    **kwargs,
+) -> str:
+    """Run an async LLM call against an ordered fallback chain."""
+    cands = _dedupe_candidates(candidates)
+    if not cands:
+        raise http_exception_cls(503, "No model endpoint configured")
+    last_err = None
+    for i, (url, model, headers) in enumerate(cands):
+        try:
+            return await llm_call_async_func(url, model, messages, headers=headers, **kwargs)
+        except Exception as e:
+            last_err = e
+            tag = "primary" if i == 0 else "candidate"
+            logger.warning(f"[fallback] {tag} {model} failed ({type(e).__name__}); trying next")
+            continue
+    raise last_err if last_err else http_exception_cls(503, "All fallback candidates failed")
