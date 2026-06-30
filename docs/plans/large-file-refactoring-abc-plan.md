@@ -451,8 +451,8 @@ Completion criteria:
 
 ### R7: Tool Implementations Domain Split
 
-Owner: Bob  
-Class: `repo_only`  
+Owner: Bob
+Class: `repo_only`
 Mode: `worker`
 Status: `in_progress`
 
@@ -520,8 +520,8 @@ Implementation result:
 
 ### R8: Agent Loop Extraction
 
-Owner: Bob  
-Class: `repo_only`  
+Owner: Bob
+Class: `repo_only`
 Mode: `worker`
 
 Objective:
@@ -1033,6 +1033,48 @@ Remaining work:
 
 - R11 is complete for this large-file pass. `plugins/telegram/plugin.py` is
   below the candidate threshold and live Telegram actions remain gated.
+
+### R11L: Email MCP Account And Schema Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Split `mcp_servers/email_server.py` so account/config resolution and tool
+  schema declarations live outside the MCP tool execution monolith.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_account_config.py`
+- `mcp_servers/email_tool_schemas.py`
+- `tests/test_mcp_email_*.py`
+- `tests/test_imap_*.py`
+- `tests/test_icloud_imap_full_fetch.py`
+- `tests/test_function_call_non_object_args.py`
+
+Current evidence:
+
+- R11L done 2026-06-30: account/owner/config helpers moved to
+  `mcp_servers/email_account_config.py`, tool schema declarations moved to
+  `mcp_servers/email_tool_schemas.py`, and `mcp_servers/email_server.py` now
+  keeps the compatibility wrapper plus IMAP/SMTP/tool-call execution.
+- R11L line count 2026-06-30: `mcp_servers/email_server.py` is 1873 lines in
+  the large-file report, band `warning`, not `candidate`.
+- R11L focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_account_config.py mcp_servers\email_tool_schemas.py`
+  passed.
+- R11L Email MCP/IMAP test block 2026-06-30:
+  `python -m pytest tests/test_mcp_email_decode_header_spaces.py tests/test_mcp_email_delete_confirmation.py tests/test_imap_leak_fixes.py tests/test_imap_mailbox_quoting.py tests/test_icloud_imap_full_fetch.py tests/test_function_call_non_object_args.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-email-mcp-split-2`
+  returned `47 passed, 3 warnings`.
+
+Completion criteria:
+
+- `mcp_servers/email_server.py` is below the large-file candidate threshold.
+- Owner-scoped account monkeypatch compatibility and IMAP quoting regressions
+  remain covered by focused tests.
 
 ### R12: Obsidian Frontend Split
 

@@ -874,6 +874,14 @@ Current evidence:
   `plugins/telegram/plugin.py` is 1888 lines in the large-file report, band
   `warning`, not `candidate`; the Telegram test block returned `103 passed,
   2 warnings`.
+- 2026-06-30: L7 R12A is implemented. Email MCP account/config helpers moved
+  to `mcp_servers/email_account_config.py` and tool schema declarations moved
+  to `mcp_servers/email_tool_schemas.py`; `mcp_servers/email_server.py` is
+  1873 lines in the large-file report, band `warning`, not `candidate`.
+- 2026-06-30 R12A evidence passed:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_account_config.py mcp_servers\email_tool_schemas.py`;
+  `python -m pytest tests/test_mcp_email_decode_header_spaces.py tests/test_mcp_email_delete_confirmation.py tests/test_imap_leak_fixes.py tests/test_imap_mailbox_quoting.py tests/test_icloud_imap_full_fetch.py tests/test_function_call_non_object_args.py -q`
+  returned `47 passed, 3 warnings`.
 
 Parallel rule:
 
@@ -926,13 +934,14 @@ Slice queue:
 | L7-R11I-telegram-live-file-pipeline-boundary | repo_only | Charlie | Done: live-capable file download, voice download/STT provider and Universal Inbox attachment spooling moved to `plugins/telegram/live_pipeline.py`; no live Telegram actions. |
 | L7-R11J-telegram-project-intake-boundary | repo_only | Charlie | Done: Project-Intake detection, preview, review status, reply formatting and apply helpers moved to `plugins/telegram/project_intake.py`; `plugin.py` is below the candidate threshold. |
 | L7-R11K-telegram-export-boundary | repo_only | Charlie | Done: attachment export planning/execution/reply helpers moved to `plugins/telegram/export.py`; large-file report now places `plugin.py` in warning band, not candidate. |
+| L7-R12A-email-mcp-account-schema-boundary | repo_only | Bob | Done: Email MCP account/config and tool schema declarations moved behind helper modules; `mcp_servers/email_server.py` is below candidate threshold. |
 
 Next safe slice:
 
-- R11 Telegram split is complete. Continue with L2 route/policy consolidation
-  or L4 graph/memory stabilization if staying backend-first; L7-R2 CSS split
-  should wait until visual smoke coverage is available because `static/style.css`
-  controls shell/chat/modal cascade.
+- L7 backend splits can continue with another backend candidate such as
+  `src/task_scheduler.py`, `core/database.py` or `src/builtin_actions.py`.
+  L7-R2 CSS split should wait until visual smoke coverage is available because
+  `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -1010,7 +1019,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A and R11A-R11K are complete; tool implementation/admin, agent-loop, email-route, model-route and Telegram plugin facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin and Email MCP facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

@@ -23,11 +23,26 @@ import os.path
 from pathlib import Path
 from datetime import datetime, timedelta
 import uuid
-from contextvars import ContextVar
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
+
+from mcp_servers import email_account_config as _email_account_config
+from mcp_servers.email_account_config import (
+    _ACCOUNT_CACHE,
+    _CURRENT_OWNER,
+    _MCP_OWNER_ARG,
+    _current_owner,
+    _default_document_owner,
+    _filter_accounts_for_owner,
+    _list_accounts_raw,
+    _load_config as _load_config_from_account_config,
+    _mcp_owner_required,
+    _read_accounts_from_db,
+    _resolve_account_from_rows,
+    _writing_style_guidance,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -54,11 +69,6 @@ def _uid_fetch_rows(data) -> list:
 # Callers can pass `account=` (match by name, user, or id) to pick a specific
 # inbox; None resolves to the default row. Falls back to env vars / settings.json
 # flat keys when no DB row matches (legacy single-account behaviour).
-
-_ACCOUNT_CACHE: dict = {}  # key = normalized account selector -> config dict
-_MCP_OWNER_ARG = "_odysseus_owner"
-_CURRENT_OWNER: ContextVar[str | None] = ContextVar("email_mcp_owner", default=None)
-
 
 def _confirmed(value) -> bool:
     if isinstance(value, bool):
@@ -90,270 +100,44 @@ def _clean_header_value(value) -> str:
     return re.sub(r"[\r\n]+[ \t]*", " ", str(value)).strip()
 
 
-def _db_path() -> Path:
-    return Path(APP_DB)
-
-
-def _current_owner() -> str:
-    owner = _CURRENT_OWNER.get()
-    return str(owner or "").strip()
-
-
-def _account_visible_to_owner(row: dict, owner: str) -> bool:
-    row_owner = str(row.get("owner") or "").strip()
-    if row_owner == owner:
-        return True
-    if row_owner:
-        return False
-    # Legacy ownerless accounts are only visible to a scoped caller when the
-    # mailbox itself matches the owner, mirroring the HTTP email route fallback.
-    owner_l = owner.lower()
-    return owner_l in {
-        str(row.get("imap_user") or "").strip().lower(),
-        str(row.get("from_address") or "").strip().lower(),
-    }
-
-
-def _filter_accounts_for_owner(rows: list[dict]) -> list[dict]:
-    owner = _current_owner()
-    if owner:
-        return [r for r in rows if _account_visible_to_owner(r, owner)]
-
-    owners = {str(r.get("owner") or "").strip() for r in rows if str(r.get("owner") or "").strip()}
-    if len(owners) > 1:
-        return []
-    return rows
-
-
-def _mcp_owner_required(rows: list[dict] | None = None) -> bool:
-    if _current_owner():
-        return False
-    rows = rows if rows is not None else _read_accounts_from_db()
-    owners = {str(r.get("owner") or "").strip() for r in rows if str(r.get("owner") or "").strip()}
-    return len(owners) > 1
-
-
-def _load_email_writing_style() -> str:
-    """Return the existing Settings > Email > Writing Style value."""
-    try:
-        settings_path = DATA_DIR / "settings.json"
-        if not settings_path.exists():
-            return ""
-        settings = json.loads(settings_path.read_text(encoding="utf-8"))
-        return str(settings.get("email_writing_style") or "").strip()
-    except Exception:
-        return ""
-
-
-def _writing_style_guidance() -> str:
-    style = _load_email_writing_style()
-    if not style:
-        return (
-            "No saved writing style is configured in Settings > Email > Writing Style. "
-            "Use a concise, natural tone and do not invent facts."
-        )
-    return (
-        "Use this saved writing style from Settings > Email > Writing Style when "
-        "drafting the body. It overrides generic tone guidance:\n"
-        f"{style}"
-    )
-
-
-def _default_document_owner() -> str | None:
-    """Best-effort owner for MCP-created documents.
-
-    MCP stdio tools do not receive the browser request's authenticated user,
-    but the document library is owner-filtered. Stamp drafts to the configured
-    single/default admin so assistant-created email drafts are visible.
-    """
-    owner = os.environ.get("ODYSSEUS_DOCUMENT_OWNER", "").strip()
-    if owner:
-        return owner
-    try:
-        auth_path = DATA_DIR / "auth.json"
-        if not auth_path.exists():
-            return None
-        users = (json.loads(auth_path.read_text(encoding="utf-8")).get("users") or {})
-        if not isinstance(users, dict) or not users:
-            return None
-        admins = [name for name, data in users.items() if isinstance(data, dict) and data.get("is_admin")]
-        if len(admins) == 1:
-            return admins[0]
-        if len(users) == 1:
-            return next(iter(users))
-        return admins[0] if admins else next(iter(users))
-    except Exception:
-        return None
+def _sync_email_account_config_paths() -> None:
+    _email_account_config.APP_DB = APP_DB
+    _email_account_config._SETTINGS_FILE = _SETTINGS_FILE
+    _email_account_config.DATA_DIR = DATA_DIR
 
 
 def _read_accounts_from_db() -> list:
-    """Return all enabled email account rows. Empty list if missing. Never raises."""
-    path = _db_path()
-    if not path.exists():
-        return []
-    try:
-        conn = sqlite3.connect(str(path))
-        conn.row_factory = sqlite3.Row
-        columns = {r[1] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()}
-        owner_select = "owner" if "owner" in columns else "NULL AS owner"
-        smtp_security_select = "smtp_security" if "smtp_security" in columns else "'' AS smtp_security"
-        rows = conn.execute(f"""
-            SELECT id, {owner_select}, name, is_default, enabled,
-                   imap_host, imap_port, imap_user, imap_password, imap_starttls,
-                   smtp_host, smtp_port, {smtp_security_select}, smtp_user, smtp_password, from_address
-            FROM email_accounts WHERE enabled = 1
-            ORDER BY is_default DESC, created_at ASC
-        """).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
-    except sqlite3.OperationalError:
-        return []
-    except Exception:
-        return []
+    _sync_email_account_config_paths()
+    return _email_account_config._read_accounts_from_db()
 
 
 def _list_accounts_raw() -> list:
-    """Return owner-visible email account rows for the active MCP call."""
-    return _filter_accounts_for_owner(_read_accounts_from_db())
+    _sync_email_account_config_paths()
+    return _email_account_config._list_accounts_raw()
 
 
-def _resolve_account_from_rows(rows: list[dict], selector: str | None) -> dict | None:
-    """Given a selector (None = default, or a name/user/id string), return the
-    matching row or None. Matching is case-insensitive substring on name +
-    imap_user + from_address, plus exact id match."""
-    if not rows:
-        return None
-    if not selector:
-        for r in rows:
-            if r.get("is_default"):
-                return r
-        return rows[0]
-    sel = selector.strip().lower()
-    # Exact id match first
-    for r in rows:
-        if r["id"] == selector:
-            return r
-    for r in rows:
-        fields = [r.get("name") or "", r.get("imap_user") or "", r.get("from_address") or ""]
-        if any(sel in (f or "").lower() for f in fields):
-            return r
-    try:
-        from difflib import get_close_matches
-        candidates = []
-        by_candidate = {}
-        for r in rows:
-            for field in (r.get("name"), r.get("imap_user"), r.get("from_address")):
-                if field:
-                    val = str(field).lower()
-                    candidates.append(val)
-                    by_candidate[val] = r
-        close = get_close_matches(sel, candidates, n=1, cutoff=0.72)
-        if close:
-            return by_candidate.get(close[0])
-    except Exception:
-        pass
-    return None
+def _filter_accounts_for_owner(rows: list[dict]) -> list[dict]:
+    return _email_account_config._filter_accounts_for_owner(rows)
 
 
-def _resolve_account(selector: str | None) -> dict | None:
-    return _resolve_account_from_rows(_list_accounts_raw(), selector)
+def _mcp_owner_required(rows: list[dict] | None = None) -> bool:
+    _sync_email_account_config_paths()
+    return _email_account_config._mcp_owner_required(rows)
+
+
+def _writing_style_guidance() -> str:
+    _sync_email_account_config_paths()
+    return _email_account_config._writing_style_guidance()
+
+
+def _default_document_owner() -> str | None:
+    _sync_email_account_config_paths()
+    return _email_account_config._default_document_owner()
 
 
 def _load_config(account: str | None = None) -> dict:
-    """Return the full config dict for the requested account (or default).
-
-    Resolution order per-field:
-      1. email_accounts row (selected by `account` or default)
-      2. env vars + settings.json flat keys (legacy)
-      3. hardcoded fallbacks (localhost:31143 etc.)
-    """
-    cache_key = (_current_owner(), (account or "").strip().lower() or "__default__")
-    if cache_key in _ACCOUNT_CACHE:
-        return _ACCOUNT_CACHE[cache_key]
-
-    cfg = {
-        "imap_host": os.environ.get("IMAP_HOST", "localhost"),
-        "imap_port": int(os.environ.get("IMAP_PORT", "31143")),
-        "imap_user": os.environ.get("IMAP_USER", ""),
-        "imap_password": os.environ.get("IMAP_PASSWORD", ""),
-        "imap_ssl": os.environ.get("IMAP_SSL", "false").lower() == "true",
-        "imap_starttls": os.environ.get("IMAP_STARTTLS", "true").lower() == "true",
-        "smtp_host": os.environ.get("SMTP_HOST", ""),
-        "smtp_port": int(os.environ.get("SMTP_PORT", "465")),
-        "smtp_security": os.environ.get("SMTP_SECURITY", ""),
-        "smtp_user": os.environ.get("SMTP_USER", ""),
-        "smtp_password": os.environ.get("SMTP_PASSWORD", ""),
-        "smtp_starttls": os.environ.get("SMTP_STARTTLS", "false").lower() == "true",
-        "smtp_ssl": os.environ.get("SMTP_SSL", "true").lower() == "true",
-        "from_address": os.environ.get("EMAIL_FROM", ""),
-        "archive_folder": os.environ.get("ARCHIVE_FOLDER", "Archive"),
-        "trash_folder": os.environ.get("TRASH_FOLDER", "Trash"),
-        "cache_db": os.environ.get(
-            "EMAIL_CACHE_DB",
-            EMAIL_CACHE_DB,
-        ),
-        "account_id": None,
-        "account_name": None,
-    }
-
-    raw_rows = _read_accounts_from_db()
-    rows = _filter_accounts_for_owner(raw_rows)
-    row = _resolve_account_from_rows(rows, account)
-    if _current_owner() and raw_rows and not rows:
-        raise ValueError("No email account is configured for the authenticated owner")
-    if account and rows and not row:
-        available = ", ".join(
-            f"{r.get('name') or r.get('imap_user')} <{r.get('imap_user') or r.get('from_address') or '?'}>"
-            for r in rows
-        )
-        raise ValueError(f"Email account not found for selector {account!r}. Available accounts: {available}")
-    if row:
-        cfg["account_id"] = row["id"]
-        cfg["account_name"] = row["name"]
-        cfg["imap_host"] = row["imap_host"] or cfg["imap_host"]
-        cfg["imap_port"] = int(row["imap_port"] or cfg["imap_port"])
-        cfg["imap_user"] = row["imap_user"] or cfg["imap_user"]
-        # Passwords in email_accounts are stored encrypted via
-        # src.secret_storage.encrypt — decrypt before handing to IMAP
-        # (same path email_helpers.py:369 uses). Falling back to the raw
-        # ciphertext is what produced AUTHENTICATIONFAILED previously.
-        try:
-            from src.secret_storage import decrypt as _decrypt
-        except Exception:
-            _decrypt = lambda v: v  # noqa: E731
-        cfg["imap_password"] = _decrypt(row["imap_password"]) if row["imap_password"] else cfg["imap_password"]
-        cfg["imap_starttls"] = bool(row["imap_starttls"])
-        # The email_accounts table stores STARTTLS but not an explicit IMAP SSL
-        # flag. Port 993 is implicit TLS for IMAP providers like Gmail.
-        cfg["imap_ssl"] = int(cfg["imap_port"]) == 993 and not cfg["imap_starttls"]
-        cfg["smtp_host"] = row["smtp_host"] or cfg["smtp_host"]
-        cfg["smtp_port"] = int(row["smtp_port"] or cfg["smtp_port"])
-        cfg["smtp_security"] = row["smtp_security"] or cfg["smtp_security"] or ("starttls" if int(cfg["smtp_port"]) == 587 else "ssl")
-        cfg["smtp_user"] = row["smtp_user"] or cfg["smtp_user"]
-        cfg["smtp_password"] = _decrypt(row["smtp_password"]) if row["smtp_password"] else cfg["smtp_password"]
-        cfg["from_address"] = row["from_address"] or row["imap_user"] or cfg["from_address"]
-    else:
-        # Legacy fallback: settings.json flat keys
-        try:
-            settings_path = Path(_SETTINGS_FILE)
-            if settings_path.exists():
-                settings = json.loads(settings_path.read_text(encoding="utf-8"))
-                for key in (
-                    "imap_host", "imap_port", "imap_user", "imap_password",
-                    "smtp_host", "smtp_port", "smtp_user", "smtp_password",
-                    "from_address", "archive_folder", "trash_folder",
-                ):
-                    if settings.get(key) not in (None, ""):
-                        cfg[key] = int(settings[key]) if key.endswith("_port") else settings[key]
-        except Exception:
-            pass
-
-    if not cfg["from_address"]:
-        cfg["from_address"] = cfg["imap_user"]
-
-    _ACCOUNT_CACHE[cache_key] = cfg
-    return cfg
-
+    _sync_email_account_config_paths()
+    return _load_config_from_account_config(account)
 
 # ── IMAP helpers ──
 
@@ -1675,335 +1459,9 @@ def _download_attachment(uid, index, folder="INBOX", account=None):
 
 @server.list_tools()
 async def list_tools() -> list[Tool]:
-    # The user may have multiple IMAP accounts configured. Every tool accepts an
-    # optional `account` param — match by name (e.g. "work"), email address,
-    # or account id. Leave it out to use the default account.
-    ACCOUNT_PROP = {
-        "account": {
-            "type": "string",
-            "description": "Which email account to use (name, email, or id). "
-                           "Omit to use the default account. Use list_email_accounts to discover available accounts.",
-        },
-    }
-    return [
-        Tool(
-            name="list_email_accounts",
-            description=(
-                "List the email accounts configured in Odysseus. Returns each account's "
-                "name, email address, and whether it's the default. Use this first when "
-                "the user asks about a specific inbox by name (e.g. 'check work')."
-            ),
-            inputSchema={"type": "object", "properties": {}, "required": []},
-        ),
-        Tool(
-            name="list_emails",
-            description=(
-                "List unread or unresponded emails from the inbox. "
-                "Returns subject, sender, date, and cached AI summary for each. "
-                "Use this to check what emails need attention. "
-                "Pass `account` to scan a non-default mailbox."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "folder": {
-                        "type": "string",
-                        "description": "IMAP folder to check (default: INBOX)",
-                        "default": "INBOX",
-                    },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "Maximum number of emails to return (default: 20)",
-                        "default": 20,
-                    },
-                    "unresponded_only": {
-                        "type": "boolean",
-                        "description": "Only show emails without replies (default: false)",
-                        "default": False,
-                    },
-                    "unread_only": {
-                        "type": "boolean",
-                        "description": "Only show unread emails. Default false so latest/all inbox requests match normal mail clients.",
-                        "default": False,
-                    },
-                    **ACCOUNT_PROP,
-                },
-                "required": [],
-            },
-        ),
-        Tool(
-            name="download_attachment",
-            description=(
-                "Download an email attachment to the local disk so you can read it. "
-                "Returns the local file path which you can then read with read_file. "
-                "Use this when you need to review a document, spreadsheet, or other "
-                "file attached to an email."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "index": {"type": "integer", "description": "Attachment index (from read_email's attachments list)"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid", "index"],
-            },
-        ),
-        Tool(
-            name="send_email",
-            description=(
-                "Send a new email via SMTP. Provide recipient(s), subject, and body. "
-                "This sends immediately; for normal assistant-written email, prefer "
-                "draft_email so the user can review and send from Odysseus. "
-                "For replying to an existing thread, use reply_to_email instead. "
-                "Pass `account` to send from a non-default mailbox."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "to": {"type": "string", "description": "Recipient email address(es), comma-separated"},
-                    "subject": {"type": "string", "description": "Email subject line"},
-                    "body": {"type": "string", "description": "Plain text body"},
-                    "cc": {"type": "string", "description": "CC address(es), comma-separated (optional)"},
-                    "bcc": {"type": "string", "description": "BCC address(es), comma-separated (optional)"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["to", "subject", "body"],
-            },
-        ),
-        Tool(
-            name="draft_email",
-            description=(
-                "Create a new Odysseus email compose draft document. This DOES NOT send. "
-                "Use this as the default way to write an email for the user: it opens "
-                "a reviewable email document with To/Cc/Bcc/Subject/body, and the user "
-                "can edit or press Send in Odysseus. "
-                f"{_writing_style_guidance()}"
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "to": {"type": "string", "description": "Recipient email address(es), comma-separated"},
-                    "subject": {"type": "string", "description": "Email subject line"},
-                    "body": {"type": "string", "description": "Draft body"},
-                    "cc": {"type": "string", "description": "CC address(es), comma-separated (optional)"},
-                    "bcc": {"type": "string", "description": "BCC address(es), comma-separated (optional)"},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["to", "subject", "body"],
-            },
-        ),
-        Tool(
-            name="reply_to_email",
-            description=(
-                "Reply to an existing email by UID. This sends immediately; for normal "
-                "assistant-written replies, prefer draft_email_reply so the user can "
-                "review and send from Odysseus. Automatically threads the reply with "
-                "In-Reply-To and References headers, prefixes 'Re:' on the subject, and "
-                "uses the original sender as the recipient. Set reply_all=true to also CC "
-                "the original To/Cc recipients. For follow-up 'reply ...' requests, use "
-                "the exact UID from the latest list_emails/read_email result; never invent UID 1."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
-                    "body": {"type": "string", "description": "Reply body text"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid", "body"],
-            },
-        ),
-        Tool(
-            name="draft_email_reply",
-            description=(
-                "Create an Odysseus email reply draft document for an existing email UID. "
-                "This DOES NOT send. It threads the draft with In-Reply-To/References, "
-                "prefills the recipient and subject, and stores source email metadata so "
-                "the user can review and send from the normal email composer. "
-                f"{_writing_style_guidance()}"
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
-                    "body": {"type": "string", "description": "Draft reply body text"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid", "body"],
-            },
-        ),
-        Tool(
-            name="ai_draft_email_reply",
-            description=(
-                "Generate an AI reply using Odysseus' existing AI Reply behavior, "
-                "including Settings > Email > Writing Style, then create an email "
-                "compose document for review. This DOES NOT send and does NOT save "
-                "to the mailbox Drafts folder. Use this when the user asks you to "
-                "write or draft a reply to an email without dictating the exact body."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid"],
-            },
-        ),
-        Tool(
-            name="archive_email",
-            description="Move an email out of the inbox into the Archive folder. Use after handling an email you want to keep but no longer need in the inbox.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "folder": {"type": "string", "description": "Source folder (default: INBOX)", "default": "INBOX"},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid"],
-            },
-        ),
-        Tool(
-            name="delete_email",
-            description=(
-                "Delete an email. By default moves it to the Trash folder; pass "
-                "permanent=true to expunge immediately. permanent=true requires "
-                "explicit user confirmation and confirmed=true."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "folder": {"type": "string", "description": "Source folder (default: INBOX)", "default": "INBOX"},
-                    "permanent": {"type": "boolean", "description": "Hard-delete instead of move to Trash", "default": False},
-                    "confirmed": {"type": "boolean", "description": "Required only for permanent=true after explicit user confirmation", "default": False},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid"],
-            },
-        ),
-        Tool(
-            name="mark_email_read",
-            description="Mark an email as read (\\Seen flag) or unread (read=false).",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {"type": "string", "description": "Email UID"},
-                    "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
-                    "read": {"type": "boolean", "description": "True to mark read, false to mark unread", "default": True},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["uid"],
-            },
-        ),
-        Tool(
-            name="bulk_email",
-            description=(
-                "Perform one action on MANY emails at once — the efficient way to "
-                "'mark all as read', 'archive these', 'delete all spam', etc. Select "
-                "messages either by an explicit `uids` list OR by `all_unread: true` "
-                "(operates on every unread message in the folder). Far better than "
-                "calling mark_email_read / archive_email once per message."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["mark_read", "mark_unread", "archive", "delete", "junk"],
-                        "description": "What to do to every selected message.",
-                    },
-                    "uids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Explicit list of UIDs. Omit if using all_unread.",
-                    },
-                    "all_unread": {
-                        "type": "boolean",
-                        "description": "Operate on ALL unread messages in the folder (ignores uids).",
-                        "default": False,
-                    },
-                    "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
-                    "permanent": {"type": "boolean", "description": "For delete: expunge instead of moving to Trash.", "default": False},
-                    "confirmed": {"type": "boolean", "description": "Required for action=delete after explicit user confirmation.", "default": False},
-                    **ACCOUNT_PROP,
-                },
-                "required": ["action"],
-            },
-        ),
-        Tool(
-            name="search_emails",
-            description=(
-                "Search emails by free-text query (sender, subject, or body). "
-                "Walks INBOX + Sent + Archive by default so older threads are findable, "
-                "not just recent unread. Use this whenever the user names a person or "
-                "topic that isn't in the most recent inbox slice — e.g. 'Sara Sotheby's', "
-                "'invoice from EY', 'last email about the property'. Returns matching "
-                "emails with their UIDs so you can read_email or reply_to_email."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Free-text query. Matches FROM, SUBJECT, and body TEXT.",
-                    },
-                    "folders": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Folders to search (default: INBOX, Sent, Archive)",
-                    },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "Max results per folder (default: 20)",
-                        "default": 20,
-                    },
-                    **ACCOUNT_PROP,
-                },
-                "required": ["query"],
-            },
-        ),
-        Tool(
-            name="read_email",
-            description=(
-                "Read the full content of a specific email. "
-                "Provide either the UID (from list_emails) or a Message-ID. "
-                "Returns the subject, sender, date, and full body text."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "uid": {
-                        "type": "string",
-                        "description": "Email UID from list_emails results",
-                    },
-                    "message_id": {
-                        "type": "string",
-                        "description": "RFC Message-ID header value",
-                    },
-                    "folder": {
-                        "type": "string",
-                        "description": "IMAP folder (default: INBOX)",
-                        "default": "INBOX",
-                    },
-                    **ACCOUNT_PROP,
-                },
-                "required": [],
-            },
-        ),
-    ]
+    from mcp_servers.email_tool_schemas import build_email_tools
 
+    return build_email_tools(_writing_style_guidance)
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
