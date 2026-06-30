@@ -4957,6 +4957,56 @@ Completion criteria:
 - The split performs no live provider calls in tests and keeps the public
   `llm_call` audit facade.
 
+## R11DD / L7-R12CS: LLM Async Call Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving asynchronous request orchestration into a
+  focused helper module, while keeping `_llm_call_async_impl` and the public
+  `llm_call_async` audit facade in `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_async_call.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_chat_metrics.py`
+- `tests/test_llm_core_ollama.py`
+- `tests/test_llm_core_reasoning_content_fallback.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_llm_core_concurrency.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11DD done 2026-06-30: async payload/request/retry/response orchestration
+  moved to `src/llm_async_call.py`; `src.llm_core._llm_call_async_impl` keeps
+  the compatibility wrapper and injects cache, provider, stream, retry,
+  dead-host, payload and HTTP hooks.
+- R11DD line count 2026-06-30: `src/llm_core.py` is 1270 lines, still in
+  warning band but reduced from 1382 after R11DC; `src/llm_async_call.py` is
+  235 lines and below the report threshold.
+- R11DD focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_async_call.py` passed.
+- R11DD async-call checks 2026-06-30:
+  `python -m pytest tests\test_ai_activity_ledger.py tests\test_llm_core_streaming.py tests\test_chat_metrics.py tests\test_llm_core_ollama.py tests\test_llm_core_reasoning_content_fallback.py tests\test_llm_core_temperature.py tests\test_llm_core_concurrency.py -q`
+  returned `75 passed, 1 warning`.
+
+Completion criteria:
+
+- Async retry, dead-host cooldown, ChatGPT Subscription collection, Ollama
+  payloads, reasoning-content fallback, streaming metrics and AI activity
+  audit behavior remain stable.
+- Existing `src.llm_core` imports and monkeypatch hooks remain intact.
+- The split performs no live provider calls in tests and keeps the public
+  `llm_call_async` audit facade.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

@@ -77,6 +77,7 @@ from src.llm_activity_metrics import (
     sse_activity_error_class as _sse_activity_error_class,
     sse_activity_usage as _sse_activity_usage,
 )
+from src.llm_async_call import llm_call_async_impl as _llm_call_async_impl_helper
 from src.llm_cache_key import _get_cache_key
 from src.llm_runtime_state import (
     call_timeout as _call_timeout_impl,
@@ -470,168 +471,55 @@ async def _llm_call_async_impl(
     prompt_type: Optional[str] = None,
     session_id: Optional[str] = None,
 ) -> str:
-    """Asynchronous LLM call using httpx with connection pooling, timeout, retry logic, and performance logging."""
-    provider = _detect_provider(url)
-    messages_copy = _sanitize_llm_messages(messages)
-
-    # Consolidate multiple system messages into one at the start.
-    sys_parts = []
-    non_sys = []
-    for m in messages_copy:
-        if m.get("role") == "system":
-            sys_parts.append(m.get('content') or '')
-        else:
-            non_sys.append(m)
-    if sys_parts:
-        messages_copy = [{"role": "system", "content": "\n\n".join(sys_parts)}] + non_sys
-    else:
-        messages_copy = non_sys
-
-    cache_key = _get_cache_key(url, model, messages_copy, temperature, max_tokens)
-    cached_response = _get_cached_response(cache_key)
-    if cached_response:
-        logger.debug(f"Returning cached response for key: {cache_key}")
-        return cached_response
-
-    if provider == "chatgpt-subscription":
-        # ChatGPT/Codex requires streamed Responses requests even for callers
-        # that want a plain string (auto-title, memory extraction, etc.).
-        # Reuse stream_llm's validated Codex SSE path and collect deltas.
-        parts: List[str] = []
-        async for chunk in stream_llm(
-            url,
-            model,
-            messages_copy,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            headers=headers,
-            timeout=timeout,
-        ):
-            event_is_error = False
-            for line in str(chunk).splitlines():
-                if line.startswith("event:"):
-                    event_is_error = line[6:].strip() == "error"
-                    continue
-                if not line.startswith("data:"):
-                    continue
-                raw = line[5:].strip()
-                if not raw:
-                    continue
-                if raw == "[DONE]":
-                    response = "".join(parts)
-                    _set_cached_response(cache_key, response)
-                    return response
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-                if event_is_error or data.get("error") or (data.get("status") and data.get("text")):
-                    status = int(data.get("status") or 502)
-                    text = data.get("text") or data.get("error") or "ChatGPT Subscription request failed"
-                    raise HTTPException(status, text)
-                delta = data.get("delta")
-                if isinstance(delta, str):
-                    parts.append(delta)
-        response = "".join(parts)
-        _set_cached_response(cache_key, response)
-        return response
-
-    if provider == "anthropic":
-        target_url = _normalize_anthropic_url(url)
-        h = _build_anthropic_headers(headers)
-        payload = _build_anthropic_payload(model, messages_copy, temperature, max_tokens)
-    elif provider == "ollama":
-        target_url = _normalize_ollama_url(url)
-        h = {"Content-Type": "application/json"}
-        if headers:
-            h.update(headers)
-        payload = _build_ollama_payload(
-            model, messages_copy, temperature, max_tokens,
-            stream=False, num_ctx=get_context_length(url, model),
-        )
-    else:
-        target_url = url
-        h = _provider_headers(provider, headers)
-        if provider == "copilot":
-            from src.copilot import apply_request_headers
-            apply_request_headers(h, messages_copy)
-        payload = {
-            "model": model,
-            "messages": messages_copy,
-            "temperature": temperature,
-        }
-        if _omit_temperature(provider, model):
-            payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
-            tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
-        # Suppress thinking for qwen3/gemma4 on Ollama /v1 — same as stream_llm.
-        if _is_ollama_openai_compat_url(url) and _supports_thinking(model):
-            payload["think"] = False
-        if provider == "mistral" and _supports_thinking(model):
-            payload["reasoning_effort"] = _MISTRAL_REASONING_EFFORT
-        _apply_local_cache_affinity(payload, url, session_id)
-
-    if _is_host_dead(target_url):
-        raise HTTPException(503, f"Upstream {_host_key(target_url)} marked unreachable (cooldown active)")
-
-    call_timeout = _call_timeout(timeout)
-    attempt = 0
-    while attempt < max_retries:
-        attempt += 1
-        start = time.time()
-        try:
-            note_model_activity(target_url, model)
-            client = _get_http_client()
-            r = await httpx_post_kimi_aware_async(client, target_url, h, json=payload, timeout=call_timeout)
-            duration = time.time() - start
-            if not r.is_success:
-                friendly = _format_upstream_error(r.status_code, r.text, target_url)
-                logger.warning(
-                    f"LLM async call to {target_url} failed in {duration:.2f}s "
-                    f"(attempt {attempt}): HTTP {r.status_code} {friendly}"
-                )
-                if r.status_code in (429, 502, 503, 504) and attempt < max_retries:
-                    await asyncio.sleep(LLMConfig.RETRY_DELAY)
-                    continue
-                raise HTTPException(r.status_code, friendly)
-            logger.info(f"LLM async call to {target_url} succeeded in {duration:.2f}s (attempt {attempt})")
-            _clear_host_dead(target_url)
-            data = r.json()
-            try:
-                if provider == "anthropic":
-                    response = _parse_anthropic_response(data)
-                elif provider == "ollama":
-                    response = _parse_ollama_response(data)
-                else:
-                    msg = data["choices"][0]["message"]
-                    content = msg.get("content")
-                    if isinstance(content, list):
-                        text_part, thinking_part = _normalize_mistral_content(content)
-                        response = ((thinking_part + "\n\n") if thinking_part else "") + (text_part or "")
-                        if not response:
-                            response = msg.get("reasoning_content") or ""
-                    else:
-                        response = content or msg.get("reasoning_content") or ""
-                _set_cached_response(cache_key, response)
-                return response
-            except Exception:
-                raise HTTPException(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
-        except (httpx.ConnectError, httpx.ConnectTimeout) as e:
-            _cooled = _mark_host_dead(target_url)
-            duration = time.time() - start
-            _tail = f" — host cooled for {DEAD_HOST_COOLDOWN:.0f}s" if _cooled else " — transient, will retry"
-            logger.warning(f"LLM async connect to {target_url} failed after {duration:.2f}s: {e}{_tail}")
-            if _cooled or attempt >= max_retries:
-                raise HTTPException(503, f"Cannot reach {_host_key(target_url)}: {e}")
-            await asyncio.sleep(LLMConfig.RETRY_DELAY)
-        except (httpx.RequestError, httpx.HTTPStatusError) as e:
-            duration = time.time() - start
-            logger.warning(f"LLM async call attempt {attempt} failed after {duration:.2f}s: {e}")
-            if attempt >= max_retries:
-                raise HTTPException(502, f"POST {target_url} failed after {max_retries} attempts: {e}")
-            await asyncio.sleep(LLMConfig.RETRY_DELAY)
-
+    """Async LLM call with connection pooling, timeout, retry and logging."""
+    return await _llm_call_async_impl_helper(
+        url,
+        model,
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        headers=headers,
+        timeout=timeout,
+        max_retries=max_retries,
+        session_id=session_id,
+        retry_delay=LLMConfig.RETRY_DELAY,
+        dead_host_cooldown=DEAD_HOST_COOLDOWN,
+        http_exception_cls=HTTPException,
+        connect_error_classes=(httpx.ConnectError, httpx.ConnectTimeout),
+        request_error_classes=(httpx.RequestError, httpx.HTTPStatusError),
+        logger=logger,
+        detect_provider_func=_detect_provider,
+        sanitize_messages_func=_sanitize_llm_messages,
+        get_cache_key_func=_get_cache_key,
+        get_cached_response_func=_get_cached_response,
+        set_cached_response_func=_set_cached_response,
+        stream_llm_func=stream_llm,
+        normalize_anthropic_url_func=_normalize_anthropic_url,
+        build_anthropic_headers_func=_build_anthropic_headers,
+        build_anthropic_payload_func=_build_anthropic_payload,
+        normalize_ollama_url_func=_normalize_ollama_url,
+        build_ollama_payload_func=_build_ollama_payload,
+        get_context_length_func=get_context_length,
+        provider_headers_func=_provider_headers,
+        omit_temperature_func=_omit_temperature,
+        uses_max_completion_tokens_func=_uses_max_completion_tokens,
+        is_ollama_openai_compat_url_func=_is_ollama_openai_compat_url,
+        supports_thinking_func=_supports_thinking,
+        mistral_reasoning_effort=_MISTRAL_REASONING_EFFORT,
+        apply_local_cache_affinity_func=_apply_local_cache_affinity,
+        is_host_dead_func=_is_host_dead,
+        host_key_func=_host_key,
+        call_timeout_func=_call_timeout,
+        note_model_activity_func=note_model_activity,
+        get_http_client_func=_get_http_client,
+        httpx_post_async_func=httpx_post_kimi_aware_async,
+        format_upstream_error_func=_format_upstream_error,
+        clear_host_dead_func=_clear_host_dead,
+        parse_anthropic_response_func=_parse_anthropic_response,
+        parse_ollama_response_func=_parse_ollama_response,
+        normalize_mistral_content_func=_normalize_mistral_content,
+        mark_host_dead_func=_mark_host_dead,
+    )
 
 async def llm_call_async(
     url: str,
