@@ -827,6 +827,21 @@ Current evidence:
 - 2026-06-30 R9L broader R9 smoke passed:
   `python -m pytest tests/test_email_ai_helpers.py tests/test_email_attachment_helpers.py tests/test_email_list_helpers.py tests/test_email_read_helpers.py tests/test_email_message_shapes.py tests/test_email_runtime_cache.py tests/test_email_oauth_helpers.py tests/test_email_account_helpers.py tests/test_email_owner_events.py tests/test_email_schedule_helpers.py tests/test_email_smtp_helpers.py tests/test_email_imap_helpers.py tests/test_email_formatting.py tests/test_email_envelope_recipients.py tests/test_email_imap_timeout.py tests/test_email_oauth.py tests/test_email_owner_scope.py tests/test_schedule_email_offset_normalization.py tests/test_email_polly_imap_leak.py tests/test_email_smtp_security.py tests/test_email_gmail_fetch_flags.py tests/test_email_fallback_reconnect.py -q`
   returned `120 passed, 26 warnings`.
+- 2026-06-30: L7 R10A is implemented. Endpoint setting cleanup, provider
+  curation, refresh/timeout normalization, model-list parsing, visible model
+  merging, endpoint classification and Ollama bootstrap helpers moved to
+  `routes/model_endpoint_helpers.py`; route code keeps handlers and the
+  live probe/ping functions. `routes/model_routes.py` is now 1933 lines and
+  below the large-file candidate threshold.
+- 2026-06-30 R10A evidence passed:
+  `python -m py_compile routes/model_routes.py routes/model_endpoint_helpers.py`.
+- 2026-06-30 R10A focused tests passed:
+  `python -m pytest tests/test_model_routes.py tests/test_endpoint_probing.py tests/test_model_helper_owner_scope.py tests/test_model_probe_timeouts.py tests/test_model_discovery_status.py tests/test_endpoint_resolver.py tests/test_provider_endpoints.py tests/test_provider_detection.py tests/test_provider_classification.py tests/test_manage_endpoints_route_parity.py tests/test_endpoint_owner_scope_followup.py tests/test_resolve_endpoint_fallbacks.py tests/test_secure_model_routing.py tests/test_chat_cached_model_normalization.py tests/test_new_chat_model_preference.py -q`
+  returned `395 passed, 1 warning`.
+- 2026-06-30 R10A review-regression model subset passed:
+  `python -m pytest tests/test_review_regressions.py -k "not webhook_tool" -q`
+  returned `27 passed, 1 deselected, 1 warning`. Full `test_review_regressions.py`
+  still has a Webhook/tool validation failure outside the model-route slice.
 
 Parallel rule:
 
@@ -867,12 +882,14 @@ Slice queue:
 | L7-R9J-email-list-read-fetch-boundary | repo_only | Bob | Done: list/search tag hydration and grouped-header row shaping moved behind route-compatible helpers. |
 | L7-R9K-email-attachment-doc-boundary | repo_only | Bob | Done: attachment-as-document conversion moved behind route-compatible helpers. |
 | L7-R9L-email-ai-route-boundary | repo_only | Bob | Done: email writing-style, summary and AI-reply flow moved behind route-compatible helpers. |
-| L7-R10-model-routes-extraction | repo_only | Bob | Next: split `routes/model_routes.py` discovery/probing/auth cleanup while preserving API behavior. |
+| L7-R10-model-routes-extraction | repo_only | Bob | Done: endpoint cleanup, curation, normalization and classification moved behind route-compatible helpers. |
+| L7-R11-telegram-plugin-split | repo_only | Charlie | Next if plugin scope is clean: split Telegram plugin internals without live Telegram actions. |
 
 Next safe slice:
 
-- Continue L7-R10 Model Routes Extraction now that `routes/email_routes.py` is
-  below the large-file threshold.
+- Continue L7-R11 Telegram Plugin Split only if `plugins/telegram/plugin.py`
+  and related tests are clean; otherwise choose the next backend-only refactor
+  with no live Telegram actions.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
@@ -951,7 +968,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E and R9A-R9L are complete; tool implementation/admin, agent-loop and email-route facades are below threshold, while model-route extraction and later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L and R10A are complete; tool implementation/admin, agent-loop, email-route and model-route facades are below threshold, while Telegram/plugin and later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

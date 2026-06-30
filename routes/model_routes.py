@@ -4,8 +4,6 @@ import os
 import re
 import uuid
 import json
-import hashlib
-import ipaddress
 import socket
 import time as _time
 import logging
@@ -29,116 +27,42 @@ from src.endpoint_resolver import (
     build_headers,
 )
 from src.auth_helpers import _auth_disabled, effective_user, owner_filter
-
-logger = logging.getLogger(__name__)
-
-_SPEECH_ENDPOINT_SETTINGS = (
-    ("tts_provider", "tts_model", "tts-1", "Text to Speech"),
-    ("stt_provider", "stt_model", "base", "Speech to Text"),
+from routes.model_endpoint_helpers import (
+    _PROVIDER_CURATED,
+    _api_key_fingerprint,
+    _auto_ollama_endpoint_id,
+    _cached_model_ids,
+    _classify_endpoint,
+    _clear_endpoint_settings_for_endpoint,
+    _clear_speech_settings_for_endpoint,
+    _clear_user_pref_endpoint_refs,
+    _configured_ollama_base_urls,
+    _curate_models,
+    _default_endpoint_needs_assignment,
+    _effective_endpoint_kind,
+    _endpoint_kind,
+    _endpoint_refresh_interval,
+    _endpoint_refresh_mode,
+    _endpoint_refresh_timeout,
+    _endpoint_settings_using_endpoint,
+    _explicit_model_list_timeout,
+    _hidden_model_ids,
+    _is_chat_model,
+    _is_ollama_base,
+    _match_provider_curated,
+    _manual_refresh_timeout,
+    _merge_model_ids,
+    _normalize_endpoint_kind,
+    _normalize_model_ids,
+    _normalize_refresh_mode,
+    _parse_model_list,
+    _parse_positive_int,
+    _speech_settings_using_endpoint,
+    _truthy,
+    _visible_models,
 )
 
-_ENDPOINT_SETTING_FIELDS = {
-    "default_endpoint_id":  ("default_model",  "Default Model"),
-    "utility_endpoint_id":  ("utility_model",   "Utility Model"),
-    "research_endpoint_id": ("research_model",  "Deep Research"),
-    "task_endpoint_id":     ("task_model",       "Background Tasks"),
-}
-
-_ENDPOINT_FALLBACK_FIELDS = {
-    "default_model_fallbacks": "Default Model Fallbacks",
-    "utility_model_fallbacks": "Utility Model Fallbacks",
-    "vision_model_fallbacks":  "Vision Model Fallbacks",
-}
-
-
-def _speech_settings_using_endpoint(settings: dict, ep_id: str) -> list:
-    """Return speech settings that reference a model endpoint."""
-    endpoint_ref = f"endpoint:{ep_id}"
-    return [
-        label
-        for provider_key, _, _, label in _SPEECH_ENDPOINT_SETTINGS
-        if (settings.get(provider_key) or "") == endpoint_ref
-    ]
-
-
-def _clear_speech_settings_for_endpoint(settings: dict, ep_id: str) -> list:
-    """Reset speech settings that reference a model endpoint."""
-    endpoint_ref = f"endpoint:{ep_id}"
-    cleared = []
-    for provider_key, model_key, default_model, label in _SPEECH_ENDPOINT_SETTINGS:
-        if (settings.get(provider_key) or "") == endpoint_ref:
-            settings[provider_key] = "disabled"
-            settings[model_key] = default_model
-            cleared.append(label)
-    return cleared
-
-
-def _endpoint_settings_using_endpoint(settings: dict, ep_id: str, *, include_speech: bool = False) -> list:
-    """Return labels for settings and fallback chains that reference an endpoint."""
-    affected = []
-    for ep_key, (_, label) in _ENDPOINT_SETTING_FIELDS.items():
-        if (settings.get(ep_key) or "") == ep_id:
-            affected.append(label)
-    for fallback_key, label in _ENDPOINT_FALLBACK_FIELDS.items():
-        chain = settings.get(fallback_key) or []
-        if any(isinstance(entry, dict) and (entry.get("endpoint_id") or "") == ep_id for entry in chain):
-            affected.append(label)
-    if include_speech:
-        affected.extend(_speech_settings_using_endpoint(settings, ep_id))
-    return affected
-
-
-def _clear_endpoint_settings_for_endpoint(settings: dict, ep_id: str, *, include_speech: bool = False) -> list:
-    """Remove an endpoint from direct settings and model fallback chains."""
-    cleared = []
-    for ep_key, (model_key, label) in _ENDPOINT_SETTING_FIELDS.items():
-        if (settings.get(ep_key) or "") == ep_id:
-            settings[ep_key] = ""
-            settings[model_key] = ""
-            cleared.append(label)
-    for fallback_key, label in _ENDPOINT_FALLBACK_FIELDS.items():
-        chain = settings.get(fallback_key)
-        if not isinstance(chain, list):
-            continue
-        kept = [
-            entry for entry in chain
-            if not (isinstance(entry, dict) and (entry.get("endpoint_id") or "") == ep_id)
-        ]
-        if len(kept) != len(chain):
-            settings[fallback_key] = kept
-            cleared.append(label)
-    if include_speech:
-        cleared.extend(_clear_speech_settings_for_endpoint(settings, ep_id))
-    return cleared
-
-
-def _clear_user_pref_endpoint_refs(all_prefs: dict, ep_id: str) -> int:
-    """Remove endpoint references from scoped or legacy-flat user preferences."""
-    if not isinstance(all_prefs, dict):
-        return 0
-    users = all_prefs.get("_users")
-    pref_sets = users.values() if isinstance(users, dict) else [all_prefs]
-    cleared_users = 0
-    for prefs in pref_sets:
-        if isinstance(prefs, dict) and _clear_endpoint_settings_for_endpoint(prefs, ep_id):
-            cleared_users += 1
-    return cleared_users
-
-
-def _default_endpoint_needs_assignment(current_default_id: str, enabled_endpoint_ids) -> bool:
-    """Whether the global default chat endpoint should be (re)assigned.
-
-    True when nothing is configured yet, or the configured default no longer
-    resolves to an enabled endpoint (e.g. the user disabled it). Without the
-    second case, adding a new endpoint after disabling the previous default
-    leaves `default_endpoint_id` pointing at the disabled endpoint, so features
-    that read the raw setting (Memory → Tidy) fail with "No default model
-    configured" even though an enabled endpoint exists. See #3586.
-    """
-    if not current_default_id:
-        return True
-    return current_default_id not in enabled_endpoint_ids
-
+logger = logging.getLogger(__name__)
 
 # Loopback hosts a user might type for a local model server (LM Studio,
 # llama.cpp, vLLM, …). Inside Docker these point at the *container*, not the
@@ -230,309 +154,6 @@ def _rewrite_loopback_for_docker(base_url: str, *, container_local: bool = False
 
 
 # ── Curated model lists per provider ──
-# For cloud providers that return 100+ models, only show these by default.
-# A model ID matches if it starts with or equals a curated entry.
-_PROVIDER_CURATED = {
-    "openai": [
-        "gpt-5.2", "gpt-5.2-pro", "gpt-5", "gpt-5-pro", "gpt-5-mini", "gpt-5-nano",
-        "gpt-4o", "gpt-4o-mini", "o3", "o4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
-        "gpt-image-1.5", "gpt-image-1", "dall-e-3", "tts-1", "whisper-1",
-    ],
-    "anthropic": [
-        "claude-sonnet-4", "claude-opus-4", "claude-haiku-4",
-        "claude-sonnet-4-5", "claude-haiku-3-5",
-    ],
-    "zai": [
-        "glm-5", "glm-5.1", "glm-5v-turbo", "glm-4.7", "glm-4.7-flash",
-        "glm-4.6", "glm-4.6v",
-        "glm-4.5", "glm-4.5v", "glm-4.5-air", "glm-4.5-flash",
-    ],
-    "zai-coding": [
-        "glm-5.1", "glm-5v-turbo", "glm-5-turbo", "glm-4.7", "glm-4.5-air",
-    ],
-    "kimi-code": [
-        "kimi-for-coding",
-    ],
-    "deepseek": [
-        "deepseek-chat", "deepseek-reasoner",
-    ],
-    "groq": [
-        "openai/gpt-oss-120b", "openai/gpt-oss-20b",
-        "groq/compound", "groq/compound-mini",
-        "llama-3.1-8b-instant",
-        "llama-3.3-70b-versatile",
-        "llama-4-scout-17b-16e-instruct",
-        "llama-4-maverick-17b-128e-instruct",
-    ],
-    "mistral": [
-        "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest",
-    ],
-    "together": [
-        "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-        "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
-        "deepseek-ai/DeepSeek-R1",
-        "Qwen/Qwen2.5-72B-Instruct-Turbo",
-    ],
-    "fireworks": [
-        "accounts/fireworks/models/llama4-scout-instruct-basic",
-        "accounts/fireworks/models/llama4-maverick-instruct-basic",
-        "accounts/fireworks/models/deepseek-r1",
-    ],
-    "google": [
-        "gemini-3.5", "gemini-3.1", "gemini-3",
-        "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash",
-    ],
-    "xai": [
-        "grok-4.3", "grok-4", "grok-4-fast", "grok-3", "grok-3-fast",
-    ],
-}
-
-# Map hostnames → curated-list keys for providers whose _detect_provider()
-# returns a generic value (e.g. "openai") but deserve their own curated list.
-# "openrouter" is a sentinel meaning "no curation — show all models as curated".
-# Entries are matched by hostname equality or subdomain suffix (via _host_match),
-# so e.g. "deepseek.com" covers api.deepseek.com without matching the substring
-# inside an unrelated URL.
-_HOST_TO_CURATED = (
-    ("z.ai", "zai"),
-    ("deepseek.com", "deepseek"),
-    ("groq.com", "groq"),
-    ("mistral.ai", "mistral"),
-    ("together.xyz", "together"),
-    ("together.ai", "together"),
-    ("fireworks.ai", "fireworks"),
-    ("googleapis.com", "google"),
-    ("x.ai", "xai"),
-    ("nvidia.com", "nvidia"),
-    ("openrouter.ai", "openrouter"),
-    ("ollama.com", "ollama"),
-)
-
-
-def _match_provider_curated(base_url: str, provider: str) -> str:
-    """Return the curated-list key for a given endpoint.
-
-    Checks path-based overrides first (for hosts serving multiple plans),
-    then matches the base URL's hostname against known providers, and
-    finally falls back to the raw provider string from _detect_provider().
-    """
-    # Path-based overrides for hosts that serve multiple curated lists.
-    parsed = urlparse(base_url)
-    if _host_match(base_url, "z.ai") and "/api/coding" in (parsed.path or ""):
-        return "zai-coding"
-    if _host_match(base_url, "kimi.com") and "/coding" in (parsed.path or ""):
-        return "kimi-code"
-    for domain, key in _HOST_TO_CURATED:
-        if _host_match(base_url, domain):
-            return key
-    return provider
-
-
-def _curate_models(model_ids, provider):
-    """Partition model_ids into (curated, extra) based on provider's curated list.
-    If no curated list exists for the provider, returns (model_ids, [])."""
-    if provider == "openrouter":
-        return model_ids, []
-    curated_list = _PROVIDER_CURATED.get(provider)
-    if not curated_list:
-        return model_ids, []
-    curated = []
-    extra = []
-    def _best_match_idx(mid):
-        """Return index of the longest matching curated entry, or -1."""
-        best_i, best_len = -1, 0
-        for i, entry in enumerate(curated_list):
-            if (mid == entry or mid.startswith(entry)) and len(entry) > best_len:
-                best_i, best_len = i, len(entry)
-        return best_i
-
-    for mid in model_ids:
-        if _best_match_idx(mid) >= 0:
-            curated.append(mid)
-        else:
-            extra.append(mid)
-    # Sort curated models by their priority order in the curated list
-    curated.sort(key=lambda mid: (_best_match_idx(mid), mid))
-    return curated, extra
-
-
-def _truthy(value: str | None) -> bool:
-    return (value or "").strip().lower() in ("true", "1", "yes", "on")
-
-
-_ENDPOINT_KINDS = {"auto", "local", "api", "proxy"}
-_REFRESH_MODES = {"auto", "manual", "disabled"}
-
-
-def _normalize_endpoint_kind(value: Any) -> str:
-    kind = str(value or "auto").strip().lower()
-    return kind if kind in _ENDPOINT_KINDS else "auto"
-
-
-def _normalize_refresh_mode(value: Any, endpoint_kind: str = "auto") -> str:
-    mode = str(value or "").strip().lower()
-    kind = _normalize_endpoint_kind(endpoint_kind)
-    if mode in ("manual", "disabled"):
-        return mode
-    if mode == "auto" and kind != "proxy":
-        return "auto"
-    # Proxies default to manual cached-first behavior. Normal local/API
-    # endpoints keep automatic bounded refreshes.
-    return "manual" if kind == "proxy" else "auto"
-
-
-def _endpoint_kind(ep: Any) -> str:
-    return _normalize_endpoint_kind(getattr(ep, "endpoint_kind", None))
-
-
-def _endpoint_refresh_mode(ep: Any, endpoint_kind: str | None = None) -> str:
-    return _normalize_refresh_mode(getattr(ep, "model_refresh_mode", None), endpoint_kind or _endpoint_kind(ep))
-
-
-def _endpoint_refresh_interval(ep: Any, category: str) -> float:
-    raw = getattr(ep, "model_refresh_interval", None)
-    try:
-        val = int(raw) if raw is not None else 0
-    except Exception:
-        val = 0
-    if val > 0:
-        return float(max(30, val))
-    return 60.0 if category == "local" else 3600.0
-
-
-def _endpoint_refresh_timeout(ep: Any, category: str) -> float:
-    raw = getattr(ep, "model_refresh_timeout", None)
-    try:
-        val = int(raw) if raw is not None else 0
-    except Exception:
-        val = 0
-    if val > 0:
-        return float(max(1, min(60, val)))
-    return 10.0 if category == "local" else 2.0
-
-
-def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
-    """Timeout for explicit user-triggered model-list refreshes.
-
-    Background refreshes stay short. A manual refresh is the one path where a
-    large proxy may legitimately need 15-30s to aggregate its catalog.
-    """
-    requested_val = _parse_positive_int(requested, minimum=1, maximum=60)
-    if requested_val is not None:
-        return float(requested_val)
-    stored = _parse_positive_int(getattr(ep, "model_refresh_timeout", None), minimum=1, maximum=60)
-    if category == "local":
-        return float(stored) if stored is not None else _endpoint_refresh_timeout(ep, category)
-    return float(max(stored or 30, 30))
-
-
-def _parse_model_list(raw: Any) -> List[str]:
-    """Return a sanitized list of model ids from JSON/list/comma text."""
-    if raw is None:
-        return []
-    value = raw
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return []
-        try:
-            parsed = json.loads(text)
-            if isinstance(parsed, list):
-                value = parsed
-            else:
-                value = re.split(r"[\n,]+", text)
-        except Exception:
-            value = re.split(r"[\n,]+", text)
-    if not isinstance(value, list):
-        return []
-    out = []
-    seen = set()
-    for item in value:
-        mid = str(item or "").strip()
-        if not mid or mid in seen:
-            continue
-        seen.add(mid)
-        out.append(mid)
-    return out
-
-
-def _parse_positive_int(raw: Any, *, minimum: int = 1, maximum: int = 86400) -> Optional[int]:
-    try:
-        val = int(str(raw).strip())
-    except Exception:
-        return None
-    if val < minimum:
-        return None
-    return min(val, maximum)
-
-
-def _explicit_model_list_timeout(base_url: str, endpoint_kind: str = "auto", requested: Any = None) -> float:
-    """Timeout for explicit user-triggered model-list fetches during setup."""
-    requested_val = _parse_positive_int(requested, minimum=1, maximum=60)
-    if requested_val is not None:
-        return float(requested_val)
-    kind = _normalize_endpoint_kind(endpoint_kind)
-    category = _classify_endpoint(base_url, kind)
-    if kind in ("api", "proxy") or category == "api":
-        return 30.0
-    return 15.0 if category == "local" else (3.0 if _is_ollama_base(base_url) else 2.0)
-
-
-def _cached_model_ids(ep: Any) -> List[str]:
-    return _parse_model_list(getattr(ep, "cached_models", None))
-
-
-def _hidden_model_ids(ep: Any) -> set:
-    return set(_parse_model_list(getattr(ep, "hidden_models", None)))
-
-
-def _is_ollama_base(base_url: str) -> bool:
-    try:
-        parsed = urlparse(base_url)
-        host = (parsed.hostname or "").lower()
-        return parsed.port == 11434 or "ollama" in host
-    except Exception:
-        return "ollama" in (base_url or "").lower()
-
-
-# Prefixes/substrings for models that are NOT chat-completions-capable
-_NON_CHAT_PREFIXES = (
-    "dall-e", "tts-", "whisper", "text-embedding", "embedding",
-    "davinci", "babbage", "moderation", "omni-moderation",
-    "sora", "gpt-image", "chatgpt-image",
-    # embedding / retrieval / non-chat models (common across providers)
-    "snowflake/arctic-embed", "nvidia/nv-embed", "embed",
-)
-_NON_CHAT_CONTAINS = (
-    "-realtime", "-transcribe", "-tts", "-codex",
-    "codex-", "content-safety", "-safety", "-reward", "nvclip",
-    "kosmos", "fuyu", "deplot", "vila", "neva",
-    "gliner", "riva", "-parse", "-embedqa", "-nemoretriever",
-    "topic-control", "calibration",
-    "ai-synthetic-video", "cosmos-reason2",
-    "bge", "llama-guard",
-)
-_NON_CHAT_EXACT_PREFIXES = (
-    "gpt-audio",  # gpt-audio, gpt-audio-mini etc. (not gpt-4o-audio-preview which is chat)
-    "gpt-3.5-turbo-instruct",  # legacy OpenAI completions model
-)
-
-
-def _is_chat_model(model_id: str) -> bool:
-    """Return True if the model ID looks like a chat/completions-capable model."""
-    mid = model_id.lower()
-    for prefix in _NON_CHAT_PREFIXES:
-        if mid.startswith(prefix):
-            return False
-    for prefix in _NON_CHAT_EXACT_PREFIXES:
-        if mid.startswith(prefix):
-            return False
-    for substr in _NON_CHAT_CONTAINS:
-        if substr in mid:
-            return False
-    return True
-
-
 def _delete_orphaned_provider_auth(db, auth_id: Optional[str], exclude_ep_id: Optional[str] = None) -> bool:
     """Delete a ProviderAuthSession once no endpoint still references it."""
     if not auth_id:
@@ -659,58 +280,6 @@ def _probe_single_model(base: str, api_key: str, model_id: str, timeout: int = 1
         return {"status": "timeout", "latency_ms": timeout * 1000, "error": f"Timed out ({timeout}s)"}
     except Exception as e:
         return {"status": "fail", "error": str(e)[:80]}
-
-
-# Hostnames / IP prefixes that indicate a local endpoint
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
-_PRIVATE_NETWORKS = (
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-)
-_TAILSCALE_CGNAT = ipaddress.ip_network("100.64.0.0/10")
-
-
-def _local_ip_literal(host: str) -> bool:
-    try:
-        ip = ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    return any(ip in network for network in _PRIVATE_NETWORKS) or ip in _TAILSCALE_CGNAT
-
-
-def _classify_endpoint(base_url: str, endpoint_kind: str = "auto") -> str:
-    """Return 'local' if the endpoint URL points to a private/local address, else 'api'.
-    Includes the Tailscale CGNAT range (100.64.0.0/10) so tailnet-hosted
-    servers (e.g. Cookbook serve endpoints) get reachability-probed too."""
-    kind = _normalize_endpoint_kind(endpoint_kind)
-    if kind == "local":
-        return "local"
-    if kind in ("api", "proxy"):
-        return "api"
-    try:
-        host = urlparse(base_url).hostname or ""
-        if host in _LOCAL_HOSTS or _local_ip_literal(host):
-            return "local"
-    except Exception:
-        pass
-    return "api"
-
-
-def _effective_endpoint_kind(ep: Any, base_url: str) -> str:
-    """Return explicit kind, with a legacy proxy heuristic for keyed /v1 URLs."""
-    kind = _endpoint_kind(ep)
-    if kind != "auto":
-        return kind
-    if getattr(ep, "api_key", None) and not _is_ollama_base(base_url):
-        try:
-            path = (urlparse(base_url).path or "").rstrip("/")
-            if path.endswith("/v1") or "/openai" in path:
-                return "proxy"
-        except Exception:
-            pass
-    return "auto"
-
 
 
 def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> List[str]:
@@ -865,23 +434,12 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
         pass
 
     try:
-        parsed = urlparse(base)
-        prefer_models_first = (parsed.path or "").rstrip("/").endswith("/v1")
-        if prefer_models_first:
-            try:
-                r0 = httpx.get(_safe_build_models_url(base), headers=headers, timeout=timeout, verify=llm_verify())
-                result0 = _result_from_response(r0)
-                if result0["reachable"]:
-                    return result0
-                last_error = result0.get("error")
-            except Exception as e:
-                last_error = str(e)[:120]
         r = httpx.get(base, headers=headers, timeout=timeout, verify=llm_verify())
         result = _result_from_response(r)
         if result["reachable"]:
             return result
         sc = result.get("status_code") or 0
-        if 400 <= sc < 500 and sc not in (401, 403) and not prefer_models_first:
+        if 400 <= sc < 500 and sc not in (401, 403):
             models_url = _safe_build_models_url(base)
             try:
                 r2 = httpx.get(models_url, headers=headers, timeout=timeout, verify=llm_verify())
@@ -959,104 +517,6 @@ def _model_endpoint_error_message(base_url: str, ping: Dict[str, Any] = None) ->
         return f"No models found for that provider/key. Probed {probed}. Last probe error: {error}."
 
     return f"No models found for that provider/key. Probed {probed}."
-
-
-def _normalize_model_ids(value):
-    """Coerce a model-ID input into a clean, ordered list of strings.
-
-    Accepts a list, a JSON-encoded list string, or a comma/newline separated
-    string (handy for form or backend API input). Trims whitespace, drops
-    empty and non-string values, and de-duplicates preserving first-seen order.
-    """
-    if value is None:
-        return []
-    items = value
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return []
-        try:
-            parsed = json.loads(text)
-        except Exception:
-            parsed = None
-        items = parsed if isinstance(parsed, list) else re.split(r"[,\n]", text)
-    if not isinstance(items, list):
-        return []
-    out, seen = [], set()
-    for item in items:
-        if not isinstance(item, str):
-            continue
-        s = item.strip()
-        if not s or s in seen:
-            continue
-        seen.add(s)
-        out.append(s)
-    return out
-
-
-def _merge_model_ids(*lists):
-    """Concatenate model-ID lists, de-duplicating and preserving order."""
-    out, seen = [], set()
-    for ids in lists:
-        for m in (ids or []):
-            if not isinstance(m, str) or m in seen:
-                continue
-            seen.add(m)
-            out.append(m)
-    return out
-
-
-def _visible_models(cached_models, hidden_models, pinned_models=None):
-    """Merge cached + pinned model IDs, then filter out hidden ones.
-
-    Pinned IDs are admin-entered and may not appear in cached_models (e.g.
-    cloud deployment IDs the provider does not list in /v1/models). Returns an
-    ordered, de-duplicated list of visible IDs.
-    """
-    # Normalize each input so JSON strings, lists, comma/newline strings, and
-    # malformed strings are all handled without raising.
-    merged = _merge_model_ids(
-        _normalize_model_ids(cached_models),
-        _normalize_model_ids(pinned_models),
-    )
-    if not hidden_models:
-        return merged
-    hidden = set(_normalize_model_ids(hidden_models))
-    return [m for m in merged if m not in hidden]
-
-
-def _api_key_fingerprint(api_key: Optional[str]) -> str:
-    """Stable, non-secret label for distinguishing same-URL credentials."""
-    key = (api_key or "").strip()
-    if not key:
-        return ""
-    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:8]
-
-
-def _configured_ollama_base_urls() -> List[str]:
-    """Ollama bases configured for this Odysseus runtime.
-
-    The compose install ships an internal ``ollama`` service. Discovering that
-    the service has models is not enough for the UI: the model picker reads
-    saved ModelEndpoint rows via /api/models. These bases are therefore used to
-    bootstrap a real endpoint row when the runtime has a configured Ollama.
-    """
-    urls: List[str] = []
-    for env_name in ("OLLAMA_BASE_URL", "OLLAMA_URL"):
-        raw = (os.getenv(env_name) or "").strip()
-        if not raw:
-            continue
-        if "://" not in raw:
-            raw = "http://" + raw
-        base = _normalize_base(raw)
-        if base and base not in urls:
-            urls.append(base)
-    return urls
-
-
-def _auto_ollama_endpoint_id(base_url: str) -> str:
-    digest = hashlib.sha1(base_url.encode("utf-8")).hexdigest()[:10]
-    return f"ollama-{digest}"
 
 
 def setup_model_routes(model_discovery):

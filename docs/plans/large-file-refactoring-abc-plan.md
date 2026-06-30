@@ -2,9 +2,10 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
-and R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits implemented; tool implementation/admin,
-agent-loop and email-route facades are below threshold, remaining CSS/UI-safe refactor waves pending
+Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
+R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits and R10A model endpoint
+helper split implemented; tool implementation/admin, agent-loop, email-route and model-route facades are below
+threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -810,7 +811,7 @@ Objective:
 Allowed paths:
 
 - `routes/model_routes.py`
-- `routes/models/`
+- `routes/model_endpoint_helpers.py`
 - `tests/test_model_*.py`
 - `tests/test_endpoint_probing.py`
 - `tests/test_review_regressions.py`
@@ -825,6 +826,31 @@ Completion criteria:
 
 - Route setup and helper imports used by tests remain stable.
 - No live endpoint probing is introduced.
+
+R10 progress:
+
+- R10A done 2026-06-30: `routes/model_endpoint_helpers.py` owns endpoint
+  setting cleanup, provider curation, refresh/timeout normalization, model-list
+  parsing, visible model merging, endpoint classification and Ollama bootstrap
+  ID/base helpers. `routes/model_routes.py` keeps route handlers plus live
+  probe/ping functions whose tests monkeypatch module-level HTTP helpers.
+  `routes/model_routes.py` is reduced to 1933 lines after R10A and is below
+  the large-file candidate threshold.
+- R10A evidence 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R10A focused tests 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_endpoint_probing.py tests\test_model_helper_owner_scope.py tests\test_model_probe_timeouts.py tests\test_model_discovery_status.py tests\test_endpoint_resolver.py tests\test_provider_endpoints.py tests\test_provider_detection.py tests\test_provider_classification.py tests\test_manage_endpoints_route_parity.py tests\test_endpoint_owner_scope_followup.py tests\test_resolve_endpoint_fallbacks.py tests\test_secure_model_routing.py tests\test_chat_cached_model_normalization.py tests\test_new_chat_model_preference.py -q`
+  returned `395 passed, 1 warning`.
+- R10A review-regression model subset 2026-06-30:
+  `python -m pytest tests\test_review_regressions.py -k "not webhook_tool" -q`
+  returned `27 passed, 1 deselected, 1 warning`. The deselected full-file
+  failure is a Webhook/tool validation regression outside the model-route
+  slice.
+- R10A adjacent JS checks 2026-06-30: `tests\test_local_endpoint_js.py`,
+  `tests\test_local_endpoint_api_key_js.py` and `tests\test_match_model_key_js.py`
+  are not used as R10 gates in this Windows run because they fail before app
+  assertions on Node/stdin encoding or Windows ESM `C:` import handling.
 
 ### R11: Telegram Plugin Split
 
