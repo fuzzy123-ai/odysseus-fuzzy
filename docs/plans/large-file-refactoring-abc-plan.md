@@ -13,7 +13,8 @@ R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
 contact helper split, R11AF model ProviderAuth helper split and R11AG model
 probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
-implemented, plus R11AK model Ollama ping-root helper split; tool
+implemented, plus R11AK model Ollama ping-root helper split and R11AL model
+listing-payload helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2355,6 +2356,56 @@ Completion criteria:
   with Ollama URL detection separated from route orchestration.
 - Ollama native probes still hit `/api/version` and `/api/tags` through the
   same route-level HTTP path, without live provider calls during tests.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AL / L7-R12AA: Model Listing Payload Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move OpenAI-compatible and Ollama-style model listing payload parsing out of
+  `_probe_endpoint()` while preserving route-compatible discovery results.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AL done 2026-06-30: model listing payload parsing moved to
+  `model_ids_from_listing_payload()` in `routes/model_probe_helpers.py`.
+  `_probe_endpoint()` now delegates OpenAI `data[].id` and Ollama
+  `models[].name/model` extraction to the helper.
+- Compatibility evidence: helper tests cover OpenAI data IDs, Ollama
+  name/model fields and unknown shapes; existing endpoint probing and model
+  route tests remain green.
+- R11AL line count 2026-06-30: `routes/model_routes.py` is 1718 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AL focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AL Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `193 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with listing payload parsing separated from route orchestration.
+- OpenAI-compatible and Ollama-style listing responses still resolve to the
+  same model ID arrays without live provider calls during tests.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

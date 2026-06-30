@@ -37,6 +37,7 @@ from routes.model_loopback_helpers import (
 from routes.model_probe_helpers import (
     append_curated_probe_models as _append_curated_probe_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
+    model_ids_from_listing_payload as _model_ids_from_listing_payload,
     ollama_native_probe_root as _ollama_native_probe_root,
     ping_result_from_response as _ping_result_from_response,
     probe_single_model as _probe_single_model_impl,
@@ -202,11 +203,7 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
         r = httpx_get_kimi_aware(url, headers, timeout=timeout, verify=llm_verify())
         r.raise_for_status()
         data = r.json()
-        # OpenAI format: {"data": [{"id": "model-name"}]}
-        models = [m.get("id") for m in (data.get("data") or []) if m.get("id")]
-        # Ollama format: {"models": [{"name": "model-name"}]}
-        if not models:
-            models = [m.get("name") or m.get("model") for m in (data.get("models") or []) if m.get("name") or m.get("model")]
+        models = _model_ids_from_listing_payload(data)
         if models:
             models = _append_curated_probe_models(
                 base,

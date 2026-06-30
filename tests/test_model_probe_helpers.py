@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from routes.model_probe_helpers import (
     append_curated_probe_models,
+    model_ids_from_listing_payload,
     ollama_native_probe_root,
     ping_result_from_response,
 )
@@ -101,3 +102,19 @@ def test_ollama_native_probe_root_strips_api_suffix():
 
 def test_ollama_native_probe_root_ignores_openai_style_proxy():
     assert ollama_native_probe_root("https://api.example.com/v1") is None
+
+
+def test_model_ids_from_listing_payload_reads_openai_data_ids():
+    assert model_ids_from_listing_payload({
+        "data": [{"id": "gpt-4o"}, {"id": ""}, {"name": "ignored"}],
+    }) == ["gpt-4o"]
+
+
+def test_model_ids_from_listing_payload_reads_ollama_name_or_model():
+    assert model_ids_from_listing_payload({
+        "models": [{"name": "llama3:8b"}, {"model": "qwen3:4b"}, {"id": "ignored"}],
+    }) == ["llama3:8b", "qwen3:4b"]
+
+
+def test_model_ids_from_listing_payload_returns_empty_for_unknown_shape():
+    assert model_ids_from_listing_payload({"items": [{"id": "ignored"}]}) == []
