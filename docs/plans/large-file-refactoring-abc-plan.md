@@ -13,7 +13,7 @@ R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
 contact helper split, R11AF model ProviderAuth helper split and R11AG model
 probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
-implemented; tool
+implemented, plus R11AK model Ollama ping-root helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2305,6 +2305,56 @@ Completion criteria:
 - Ping behavior remains covered for success, auth/error statuses, redirects,
   Odysseus-login redirect traps, transport failures and Ollama native fallback
   without live provider calls.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AK / L7-R12Z: Model Ollama Ping-Root Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Ollama native ping probe root detection out of `_ping_endpoint()` while
+  preserving the route-compatible HTTP probing sequence.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AK done 2026-06-30: Ollama native probe URL detection moved to
+  `ollama_native_probe_root()` in `routes/model_probe_helpers.py`.
+  `_ping_endpoint()` now receives either a root URL for `/api/version` and
+  `/api/tags` probes or `None` for non-Ollama endpoints.
+- Compatibility evidence: helper tests cover default Ollama port detection,
+  `/v1` and `/api` suffix stripping, and non-Ollama proxy skip behavior;
+  existing endpoint probing and model route tests remain green.
+- R11AK line count 2026-06-30: `routes/model_routes.py` is 1721 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AK focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AK Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `190 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with Ollama URL detection separated from route orchestration.
+- Ollama native probes still hit `/api/version` and `/api/tags` through the
+  same route-level HTTP path, without live provider calls during tests.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

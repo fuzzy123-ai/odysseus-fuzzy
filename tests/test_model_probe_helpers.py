@@ -1,6 +1,10 @@
 from types import SimpleNamespace
 
-from routes.model_probe_helpers import append_curated_probe_models, ping_result_from_response
+from routes.model_probe_helpers import (
+    append_curated_probe_models,
+    ollama_native_probe_root,
+    ping_result_from_response,
+)
 
 
 def _host_match(base_url, domain):
@@ -85,3 +89,15 @@ def test_ping_result_from_response_reports_http_error():
         "status_code": 503,
         "error": "HTTP 503",
     }
+
+
+def test_ollama_native_probe_root_detects_default_port_and_strips_v1():
+    assert ollama_native_probe_root("http://localhost:11434/v1") == "http://localhost:11434"
+
+
+def test_ollama_native_probe_root_strips_api_suffix():
+    assert ollama_native_probe_root("https://ollama.example.com/api") == "https://ollama.example.com"
+
+
+def test_ollama_native_probe_root_ignores_openai_style_proxy():
+    assert ollama_native_probe_root("https://api.example.com/v1") is None

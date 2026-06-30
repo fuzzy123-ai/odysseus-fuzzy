@@ -276,3 +276,15 @@ def ping_result_from_response(response: Any) -> dict[str, Any]:
         "status_code": status_code,
         "error": f"HTTP {status_code}",
     }
+
+
+def ollama_native_probe_root(base_url: str) -> Optional[str]:
+    """Return the native Ollama root URL for endpoints that should get native probes."""
+    parsed = urlparse(base_url)
+    if parsed.port != 11434 and "ollama" not in (parsed.hostname or "").lower():
+        return None
+    root = base_url
+    for suffix in ("/v1", "/api"):
+        if root.endswith(suffix):
+            return root[: -len(suffix)].rstrip("/")
+    return root.rstrip("/")

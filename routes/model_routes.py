@@ -37,6 +37,7 @@ from routes.model_loopback_helpers import (
 from routes.model_probe_helpers import (
     append_curated_probe_models as _append_curated_probe_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
+    ollama_native_probe_root as _ollama_native_probe_root,
     ping_result_from_response as _ping_result_from_response,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
@@ -259,24 +260,15 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
     # Ollama exposes /v1/models (OpenAI-compatible) AND native /api/version,
     # /api/tags. Probe native paths for Ollama-style endpoints, but avoid using
     # /models as a generic health check because large proxy catalogs can be slow.
-    parsed_base = urlparse(base)
-    looks_like_ollama = (
-        parsed_base.port == 11434
-        or "ollama" in (parsed_base.hostname or "").lower()
-    )
+    ollama_root = _ollama_native_probe_root(base)
 
     last_error: Optional[str] = None
 
     try:
-        if looks_like_ollama:
-            root = base
-            for suffix in ("/v1", "/api"):
-                if root.endswith(suffix):
-                    root = root[: -len(suffix)].rstrip("/")
-                    break
+        if ollama_root:
             for path in ("/api/version", "/api/tags"):
                 try:
-                    r = httpx.get(root + path, timeout=timeout, verify=llm_verify())
+                    r = httpx.get(ollama_root + path, timeout=timeout, verify=llm_verify())
                     result = _ping_result_from_response(r)
                     if result["reachable"]:
                         return result
