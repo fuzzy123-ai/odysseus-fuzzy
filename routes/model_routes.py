@@ -79,6 +79,7 @@ from routes.model_endpoint_helpers import (
     _manual_refresh_timeout,
     _mark_model_refresh_groups_inflight,
     _apply_model_refresh_result,
+    _clear_model_refresh_inflight,
     _merge_model_ids,
     _build_model_refresh_groups,
     _model_refresh_key as _refresh_key,
@@ -486,8 +487,7 @@ def setup_model_routes(model_discovery):
             except Exception as e:
                 logger.warning('Background endpoint refresh failed: %s', e)
             finally:
-                for st in _refresh_state.values():
-                    st["inflight"] = False
+                _clear_model_refresh_inflight(_refresh_state)
                 _refresh_inflight["v"] = False
         threading.Thread(target=_do, daemon=True).start()
 

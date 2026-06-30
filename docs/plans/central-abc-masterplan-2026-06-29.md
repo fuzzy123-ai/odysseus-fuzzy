@@ -1255,6 +1255,16 @@ Current evidence:
   `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`;
   `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
   returned `228 passed, 1 warning`.
+- 2026-06-30: L7 R12AN is implemented. Model refresh inflight reset logic
+  moved to `routes/model_endpoint_helpers.py` while `routes/model_routes.py`
+  keeps background worker finalization. The large-file report places
+  `routes/model_routes.py` at 1658 lines, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 693 lines, band `monitor`; report
+  candidate count is 26.
+- 2026-06-30 R12AN evidence passed:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`;
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `230 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1346,6 +1356,7 @@ Slice queue:
 | L7-R12AK-model-refresh-group-helper-boundary | repo_only | Bob | Done: refresh group-building moved behind route-compatible helper imports; `routes/model_routes.py` remains below candidate threshold. |
 | L7-R12AL-model-refresh-inflight-helper-boundary | repo_only | Bob | Done: refresh group inflight marker logic moved behind route-compatible helper imports; `routes/model_routes.py` remains below candidate threshold. |
 | L7-R12AM-model-refresh-result-helper-boundary | repo_only | Bob | Done: refresh probe-result state/cache handling moved behind a route-compatible helper callback; `routes/model_routes.py` remains below candidate threshold. |
+| L7-R12AN-model-refresh-inflight-reset-helper-boundary | repo_only | Bob | Done: refresh inflight reset logic moved behind route-compatible helper imports; `routes/model_routes.py` remains below candidate threshold. |
 
 Next safe slice:
 
@@ -1433,7 +1444,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AM are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AN are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database and LLM-core facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

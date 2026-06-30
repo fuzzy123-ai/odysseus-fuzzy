@@ -330,6 +330,32 @@ def test_apply_model_refresh_result_records_failure_and_clears_inflight():
     assert state["key"] == {"inflight": False, "fail_count": 2, "last_failure": 1234.5}
 
 
+def test_clear_model_refresh_inflight_resets_all_entries():
+    from routes.model_endpoint_helpers import _clear_model_refresh_inflight
+
+    state = {
+        "a": {"inflight": True, "fail_count": 1},
+        "b": {"inflight": False, "last_success": 10.0},
+    }
+
+    _clear_model_refresh_inflight(state)
+
+    assert state == {
+        "a": {"inflight": False, "fail_count": 1},
+        "b": {"inflight": False, "last_success": 10.0},
+    }
+
+
+def test_clear_model_refresh_inflight_ignores_empty_state():
+    from routes.model_endpoint_helpers import _clear_model_refresh_inflight
+
+    state = {}
+
+    _clear_model_refresh_inflight(state)
+
+    assert state == {}
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

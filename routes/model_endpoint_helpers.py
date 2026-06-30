@@ -444,6 +444,11 @@ def _apply_model_refresh_result(
     return changed
 
 
+def _clear_model_refresh_inflight(refresh_state: dict[str, dict[str, Any]]) -> None:
+    for state in refresh_state.values():
+        state["inflight"] = False
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)
