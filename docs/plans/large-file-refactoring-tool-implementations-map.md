@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7A/R7B/R7C implemented; remaining domain splits pending
+Status: R7A/R7B/R7C/R7D implemented; remaining domain splits pending
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -125,6 +125,9 @@ private helpers together rather than slicing by line number.
    - Move endpoints, MCP, webhooks, presets, personal docs, embeddings,
      assistant, plugins, tokens and settings.
    - Run manage_* confirmation and settings tests.
+   - Done 2026-06-30: moved to `src/tool_domains/admin_config.py`;
+     `src.tool_implementations` still re-exports the public `do_manage_*`
+     functions and the legacy `_validate_mcp_command` test/import hook.
 5. **R7E app API + cookbook models**
    - Move internal API/blocklist helpers and model-serving tools.
    - Run app_api and cookbook validation tests.
@@ -229,6 +232,38 @@ Large-file report evidence after R7C 2026-06-30:
   `tests/test_manage_settings_service_v2.py`,
   `tests/test_manage_settings_token_budget.py`,
   `tests/test_manage_tokens_confirmed_route.py`
+- Evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_manage_tasks_confirmation.py tests\test_manage_endpoints_route_parity.py tests\test_manage_mcp_command_allowlist.py tests\test_manage_mcp_confirmation.py tests\test_manage_mcp_route_parity.py tests\test_mcp_reconnect_args.py tests\test_manage_webhooks_confirmed_route.py tests\test_manage_presets_confirmed_route.py tests\test_manage_personal_docs_confirmed_route.py tests\test_manage_embeddings_confirmed_route.py tests\test_manage_assistant_confirmed_route.py tests\test_manage_plugins_confirmed_route.py tests\test_manage_tokens_confirmed_route.py tests\test_manage_settings_service_v2.py tests\test_manage_settings_token_budget.py -q
+```
+
+Result: `115 passed, 1 warning`.
+
+- Broader R7 smoke after R7D 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+- Facade/import smoke after R7D 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_implementations import do_manage_tasks, do_manage_endpoints, do_manage_mcp, do_manage_settings, do_api_call, do_manage_calendar; from src.tool_execution import execute_tool_block; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+- Large-file report evidence after R7D 2026-06-30:
+  - `src/tool_implementations.py`: 2527 lines, still candidate.
+  - `src/tool_domains/admin_config.py`: 2369 lines, new candidate.
+  - `src/tool_domains/repo_skills.py`: 858 lines, warning band.
+  - `src/tool_domains/personal_workspace.py`: 798 lines, monitor band.
+  - Next implementation slice should continue with R7E app API/cookbook and
+    then split or slim `admin_config.py` in a follow-up if it remains above
+    threshold.
 - App API/cookbook:
   `tests/test_app_api_admin_mutation_blocklist.py`,
   `tests/test_review_regressions.py`,

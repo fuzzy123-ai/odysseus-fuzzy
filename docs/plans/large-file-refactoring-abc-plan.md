@@ -2,7 +2,7 @@
 
 Date: 2026-06-30
 
-Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C backend split
+Status: R0 guardrail, R1 CSS ownership map and R7A/R7B/R7C/R7D backend split
 implemented; remaining code refactor waves pending
 
 ## Goal
@@ -81,6 +81,20 @@ it into that queue.
 - 2026-06-30 large-file report after R7C: `src/tool_implementations.py`
   reduced to 4854 lines; `src/tool_domains/personal_workspace.py` is 798
   lines.
+- 2026-06-30: R7D implemented. `src/tool_domains/admin_config.py` contains
+  task, endpoint, MCP, webhook, preset, personal-docs, embeddings, assistant,
+  plugins, tokens and settings tools, while `src.tool_implementations` remains
+  import-compatible for those tools and the legacy `_validate_mcp_command`
+  import hook.
+- 2026-06-30 focused Admin/Config tests passed:
+  `python -m pytest tests/test_manage_tasks_confirmation.py tests/test_manage_endpoints_route_parity.py tests/test_manage_mcp_command_allowlist.py tests/test_manage_mcp_confirmation.py tests/test_manage_mcp_route_parity.py tests/test_mcp_reconnect_args.py tests/test_manage_webhooks_confirmed_route.py tests/test_manage_presets_confirmed_route.py tests/test_manage_personal_docs_confirmed_route.py tests/test_manage_embeddings_confirmed_route.py tests/test_manage_assistant_confirmed_route.py tests/test_manage_plugins_confirmed_route.py tests/test_manage_tokens_confirmed_route.py tests/test_manage_settings_service_v2.py tests/test_manage_settings_token_budget.py -q`
+  returned `115 passed, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7D passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7D: `src/tool_implementations.py`
+  reduced to 2527 lines; `src/tool_domains/admin_config.py` is 2369 lines
+  and remains a follow-up split candidate.
 - Largest hotspots:
   - `static/style.css` at 37219 lines.
   - `static/js/document.js` at 9248 lines.
@@ -442,9 +456,11 @@ Implementation result:
   facade, and direct callers can still import from `src.tool_implementations`.
 - R7C is complete. Notes/calendar moved behind the facade, and direct callers
   can still import from `src.tool_implementations`.
-- Next recommended slice: R7D `admin_config.py`, because settings/endpoints/MCP
-  tools are the next large contiguous domain; keep it facade-first and test by
-  confirmation/settings/MCP suites.
+- R7D is complete. Admin/config tools moved behind the facade, and direct
+  callers can still import from `src.tool_implementations`.
+- Next recommended slice: R7E `app_api.py` plus cookbook model-serving tools,
+  because `src/tool_implementations.py` is still just above the candidate
+  threshold and the app-api/cookbook block is the next contiguous domain.
 
 ### R8: Agent Loop Extraction
 
