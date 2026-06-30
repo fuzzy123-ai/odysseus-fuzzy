@@ -10,7 +10,7 @@ import logging
 import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Form, Query, Body, Request, Response
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
@@ -27,6 +27,13 @@ from src.endpoint_resolver import (
     build_headers,
 )
 from src.auth_helpers import _auth_disabled, effective_user, owner_filter
+from routes.model_loopback_helpers import (
+    _ANY_BIND_HOSTS,
+    _LOOPBACK_HOSTS,
+    _container_loopback_reachable,
+    _docker_host_gateway_reachable,
+    rewrite_loopback_for_docker as _rewrite_loopback_for_docker_impl,
+)
 from routes.model_endpoint_helpers import (
     _PROVIDER_CURATED,
     _api_key_fingerprint,
@@ -64,58 +71,6 @@ from routes.model_endpoint_helpers import (
 
 logger = logging.getLogger(__name__)
 
-# Loopback hosts a user might type for a local model server (LM Studio,
-# llama.cpp, vLLM, …). Inside Docker these point at the *container*, not the
-# host the server actually runs on.
-_ANY_BIND_HOSTS = {"0.0.0.0", "::"}
-_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", *_ANY_BIND_HOSTS}
-
-
-def _docker_host_gateway_reachable() -> bool:
-    """True when we run inside a container whose host is reachable via
-    ``host.docker.internal`` (compose maps it to ``host-gateway``). Returns
-    False on native installs and on container setups without the mapping, so
-    the loopback rewrite below stays a no-op there."""
-    in_container = os.path.exists("/.dockerenv")
-    if not in_container:
-        try:
-            with open("/proc/1/cgroup", encoding="utf-8") as fh:
-                in_container = any(t in fh.read() for t in ("docker", "containerd", "kubepods"))
-        except OSError:
-            in_container = False
-    if not in_container:
-        return False
-    try:
-        socket.getaddrinfo("host.docker.internal", None)
-        return True
-    except OSError:
-        return False
-
-def _container_loopback_reachable(base_url: str, timeout: float = 0.2) -> bool:
-    """True when the requested loopback host:port is already reachable from
-    inside the current container.
-
-    This distinguishes "a model server running alongside Odysseus in the same
-    container" from "a model server running on the Docker host". Only the
-    latter should be rewritten to host.docker.internal.
-    """
-    try:
-        parsed = urlparse(base_url)
-    except Exception:
-        return False
-    host = (parsed.hostname or "").lower()
-    port = parsed.port
-    if host not in _LOOPBACK_HOSTS or not port:
-        return False
-    probe_host = "::1" if host == "::1" else "127.0.0.1"
-    family = socket.AF_INET6 if probe_host == "::1" else socket.AF_INET
-    try:
-        with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
-            sock.connect((probe_host, port))
-        return True
-    except OSError:
-        return False
 
 
 def _rewrite_loopback_for_docker(base_url: str, *, container_local: bool = False) -> str:
@@ -130,27 +85,12 @@ def _rewrite_loopback_for_docker(base_url: str, *, container_local: bool = False
     must remain container-local. In that mode, normalize a bind address such as
     0.0.0.0 to a connectable loopback host, but do not jump to the Docker host.
     """
-    try:
-        parsed = urlparse(base_url)
-    except Exception:
-        return base_url
-    host = (parsed.hostname or "").lower()
-    if host not in _LOOPBACK_HOSTS:
-        return base_url
-    if container_local:
-        if host in _ANY_BIND_HOSTS:
-            netloc = "127.0.0.1" + (f":{parsed.port}" if parsed.port else "")
-            return urlunparse(parsed._replace(netloc=netloc))
-        return base_url
-    if host in _ANY_BIND_HOSTS and not _docker_host_gateway_reachable():
-        netloc = "127.0.0.1" + (f":{parsed.port}" if parsed.port else "")
-        return urlunparse(parsed._replace(netloc=netloc))
-    if _container_loopback_reachable(base_url):
-        return base_url
-    if not _docker_host_gateway_reachable():
-        return base_url
-    netloc = "host.docker.internal" + (f":{parsed.port}" if parsed.port else "")
-    return urlunparse(parsed._replace(netloc=netloc))
+    return _rewrite_loopback_for_docker_impl(
+        base_url,
+        container_local=container_local,
+        docker_host_gateway_reachable=_docker_host_gateway_reachable,
+        container_loopback_reachable=_container_loopback_reachable,
+    )
 
 
 # ── Curated model lists per provider ──
