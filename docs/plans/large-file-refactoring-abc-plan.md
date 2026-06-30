@@ -4154,6 +4154,61 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud, SSH
   or host mutation.
 
+## R11BT / L7-R12BI: Task Scheduler Delivery Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move scheduled-task delivery helpers out of `src/task_scheduler.py` into a
+  focused helper module.
+- Keep `TaskScheduler._format_email_output`, `_is_email_output_target` and
+  `_deliver_via_mcp` as compatible wrappers for check-in config and existing
+  callers.
+
+Allowed paths:
+
+- `src/task_scheduler.py`
+- `src/task_scheduler_delivery.py`
+- `tests/test_task_scheduler_delivery.py`
+- `tests/test_task_shell_tools.py`
+- `tests/test_task_session_folder.py`
+- `tests/test_task_scheduler_session_delivery.py`
+- `tests/test_task_scheduler_cancel.py`
+- `tests/test_task_chain_owner_scope.py`
+- `tests/test_checkin_digest_owner_scope.py`
+- `tests/test_ai_activity_audit_p2_contract.py`
+- `tests/test_aux_llm_owner_scope.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BT done 2026-06-30: `src/task_scheduler_delivery.py` owns MCP email-list
+  output formatting, email-output target detection and MCP delivery argument
+  construction/logging. `TaskScheduler` keeps thin wrapper methods with the
+  legacy names used by check-in config and tests.
+- R11BT line count 2026-06-30: `src/task_scheduler.py` is 1789 lines, still in
+  warning band but reduced from 1888; `src/task_scheduler_delivery.py` is below
+  report threshold.
+- R11BT focused checks 2026-06-30:
+  `python -m py_compile src\task_scheduler.py src\task_scheduler_delivery.py`
+  passed.
+- R11BT scheduler/delivery checks 2026-06-30:
+  `python -m pytest tests\test_task_scheduler_delivery.py tests\test_task_shell_tools.py tests\test_task_session_folder.py tests\test_task_scheduler_session_delivery.py tests\test_task_scheduler_cancel.py tests\test_task_chain_owner_scope.py tests\test_checkin_digest_owner_scope.py tests\test_ai_activity_audit_p2_contract.py tests\test_aux_llm_owner_scope.py -q`
+  returned `30 passed, 1 warning`.
+
+Completion criteria:
+
+- Scheduled task session delivery, check-in email formatting, MCP delivery,
+  owner scoping, cancellation and shell-tool policy tests remain green.
+- The scheduler class loses delivery formatting/MCP helper code while keeping
+  public/private method compatibility for existing callers.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

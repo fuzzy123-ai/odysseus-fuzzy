@@ -3,7 +3,6 @@
 import asyncio
 import json
 import logging
-import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -718,36 +717,9 @@ class TaskScheduler:
 
     @staticmethod
     def _format_email_output(raw: str) -> str:
-        """Clean up raw MCP email list output into readable format."""
-        import re as _re
-        lines = []
-        for line in raw.split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            # Skip header lines like "📬 [INBOX] 856 emails..."
-            if line.startswith(("\U0001f4ec", "📬", "No emails", "---", "Page ")):
-                continue
-            # Skip "more pages available" etc
-            if "page" in line.lower() and "/" in line:
-                continue
-            # Parse: [1778] Re: Subject From: Name | Date
-            m = _re.match(r'\[?\d+\]?\s*(?:↩\s*|📎\s*|🔵\s*|\s*)?(.+?)(?:\s*From:\s*(.+?))?(?:\s*\|\s*(\S+))?$', line)
-            if m:
-                subject = m.group(1).strip().rstrip('|').strip()
-                sender = (m.group(2) or "").strip().rstrip('|').strip()
-                if sender:
-                    lines.append(f"- {sender} — {subject}")
-                else:
-                    lines.append(f"- {subject}")
-            elif line.startswith("[") or line.startswith("-"):
-                # Generic cleanup
-                cleaned = _re.sub(r'^\[?\d+\]?\s*(?:↩\s*|📎\s*)?', '', line.lstrip('- '))
-                if cleaned.strip():
-                    lines.append(f"- {cleaned.strip()}")
-        if not lines:
-            return "No unread emails"
-        return "\n".join(lines[:10])
+        from src.task_scheduler_delivery import format_email_output
+
+        return format_email_output(raw)
 
     async def _execute_checkin(self, task, crew, db, session_id: str,
                                endpoint_url: str, model: str,
@@ -1054,12 +1026,9 @@ class TaskScheduler:
 
     @staticmethod
     def _is_email_output_target(output: str) -> bool:
-        target = (output or "").strip()
-        if target in {"email", "email:self"}:
-            return True
-        if target.startswith("email:"):
-            return True
-        return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", target))
+        from src.task_scheduler_delivery import is_email_output_target
+
+        return is_email_output_target(output)
 
     async def _deliver_via_email(self, output: str, task, result: str):
         """Send task output through the app's configured SMTP account.
@@ -1424,77 +1393,9 @@ class TaskScheduler:
         return None, None
 
     async def _deliver_via_mcp(self, tool_name: str, task, result: str):
-        """Send the task result via an MCP tool (e.g. Gmail send).
+        from src.task_scheduler_delivery import deliver_via_mcp
 
-        Resolves a recipient (so email-style tools have a 'to') by trying the
-        configured From address first (the `daily_brief` pattern — email
-        yourself) then falling back to the task owner. Common recipient field
-        names (to / recipient / email / address) are all populated so we don't
-        have to special-case each tool's schema; the MCP tool ignores keys it
-        doesn't recognise.
-        """
-        from src.tool_utils import get_mcp_manager
-        mcp = get_mcp_manager()
-        if not mcp:
-            logger.warning(f"Task {task.id}: MCP manager not available for delivery")
-            return
-
-        # Resolve recipient — prefer the configured email From (the established
-        # "email yourself" pattern from daily_brief), fall back to task.owner.
-        # `_get_email_config()` is the single source of truth that handles both
-        # the legacy `email_from` setting and the per-account DB rows.
-        recipient = None
-        try:
-            from routes.email_helpers import _get_email_config
-            cfg = _get_email_config() or {}
-            recipient = cfg.get("from_address") or None
-        except Exception as _e:
-            logger.debug(f"_deliver_via_mcp: email config lookup failed: {_e}")
-        if not recipient and task.owner and "@" in str(task.owner):
-            recipient = task.owner
-
-        args = {
-            "subject": f"[Task] {task.name}",
-            "body": result,
-            "headers": {
-                "X-Odysseus-Origin": "odysseus-ui",
-                "X-Odysseus-Kind": "task",
-                "X-Odysseus-Ref": str(task.id),
-            },
-        }
-        if recipient:
-            # Cover the common field names so we work across MCP servers (Gmail,
-            # generic SMTP, Slack DMs, etc.) without having to hard-code each.
-            args["to"] = recipient
-            args["recipient"] = recipient
-            args["email"] = recipient
-            args["address"] = recipient
-        else:
-            logger.warning(
-                f"Task {task.id}: no recipient resolved for MCP delivery via {tool_name} — "
-                "set an email From address in Settings or give the task an owner email."
-            )
-        try:
-            mcp_result = await mcp.call_tool(tool_name, args)
-            stderr = mcp_result.get("stderr", "")
-            stdout = mcp_result.get("stdout", "")
-            body_len = len(result or "")
-            exit_code = mcp_result.get("exit_code", 0)
-            if exit_code != 0:
-                logger.warning(
-                    f"Task {task.id} MCP delivery FAILED via {tool_name}: "
-                    f"exit={exit_code} stderr={stderr[:400]!r} stdout={stdout[:400]!r}"
-                )
-            else:
-                # Include the MCP tool's own stdout (e.g. email_server returns
-                # "Sent email to ... with subject ...") + the body size so a
-                # silent SMTP failure is easier to spot in the logs.
-                logger.info(
-                    f"Task {task.id} delivered via MCP tool {tool_name} "
-                    f"(recipient_set={bool(recipient)}, body={body_len}b, reply={stdout[:200]!r})"
-                )
-        except Exception as e:
-            logger.error(f"Task {task.id} MCP delivery failed: {e}")
+        await deliver_via_mcp(tool_name, task, result)
 
     async def run_task_now(self, task_id: str, *, force: bool = False):
         """Manually trigger a task execution."""
