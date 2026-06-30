@@ -31,6 +31,16 @@ from src.optional_deps import patch_realesrgan_torchvision_compat
 from routes.gallery_helpers import (
     GalleryPatch, _extract_exif, _image_to_dict, _owner_filter, _human_size,
 )
+from routes.gallery_endpoint_helpers import (
+    current_user_is_admin as _current_user_is_admin_impl,
+    fetch_result_image_b64 as _fetch_result_image_b64,
+    first_visible_image_endpoint as _first_visible_image_endpoint_impl,
+    gallery_image_path as _gallery_image_path_impl,
+    normalize_image_endpoint_base as _normalize_image_endpoint_base,
+    sanitize_gallery_filename as _sanitize_gallery_filename,
+    visible_image_endpoint_for_base as _visible_image_endpoint_for_base_impl,
+    visible_image_endpoint_query as _visible_image_endpoint_query_impl,
+)
 from routes.gallery_remove_bg_helpers import (
     _decode_image_payload,
     _legacy_remove_background_response,
@@ -43,110 +53,42 @@ logger = logging.getLogger(__name__)
 
 
 def _current_user_is_admin(request: Request, user: str | None) -> bool:
-    if not user:
-        return False
-    auth_mgr = getattr(request.app.state, "auth_manager", None)
-    is_admin = getattr(auth_mgr, "is_admin", None)
-    if not callable(is_admin):
-        return False
-    try:
-        return bool(is_admin(user))
-    except Exception:
-        return False
-
-
-def _sanitize_gallery_filename(filename: str) -> str:
-    """Return a local filename safe to join under generated_images."""
-    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", Path(str(filename or "")).name)[:128]
-    if not safe_name or safe_name in {".", ".."}:
-        safe_name = uuid.uuid4().hex[:12]
-    return safe_name
+    return _current_user_is_admin_impl(request, user)
 
 
 GALLERY_IMAGE_DIR = Path(GENERATED_IMAGES_DIR)
 
 
 def _gallery_image_path(filename: str) -> Path:
-    """Resolve a stored gallery filename without leaving generated_images."""
-    if not isinstance(filename, str):
-        raise HTTPException(400, "Unsafe gallery filename")
-    safe_name = _sanitize_gallery_filename(filename)
-    original = str(filename or "")
-    root = GALLERY_IMAGE_DIR.resolve()
-    path = (GALLERY_IMAGE_DIR / safe_name).resolve()
-    try:
-        if os.path.commonpath([str(root), str(path)]) != str(root):
-            raise ValueError
-    except Exception:
-        raise HTTPException(400, "Unsafe gallery filename")
-    if safe_name != original:
-        raise HTTPException(400, "Unsafe gallery filename")
-    return path
-
-
-def _normalize_image_endpoint_base(url: str) -> str:
-    base = (url or "").strip().rstrip("/")
-    if base.endswith("/v1"):
-        base = base[:-3].rstrip("/")
-    return base
+    return _gallery_image_path_impl(filename, GALLERY_IMAGE_DIR)
 
 
 def _visible_image_endpoint_query(db, owner: str | None):
-    from src.auth_helpers import owner_filter
-    q = db.query(ModelEndpoint).filter(
-        ModelEndpoint.model_type == "image",
-        ModelEndpoint.is_enabled == True,  # noqa: E712
+    return _visible_image_endpoint_query_impl(
+        db,
+        owner,
+        model_endpoint=ModelEndpoint,
+        owner_filter_func=owner_filter,
     )
-    return owner_filter(q, ModelEndpoint, owner)
 
 
 def _first_visible_image_endpoint(db, owner: str | None):
-    endpoints = _visible_image_endpoint_query(db, owner).all()
-    if owner:
-        for ep in endpoints:
-            if getattr(ep, "owner", None) == owner:
-                return ep
-    return endpoints[0] if endpoints else None
+    return _first_visible_image_endpoint_impl(
+        db,
+        owner,
+        model_endpoint=ModelEndpoint,
+        owner_filter_func=owner_filter,
+    )
 
 
 def _visible_image_endpoint_for_base(db, base: str, owner: str | None):
-    target = _normalize_image_endpoint_base(base)
-    if not target:
-        return None
-    fallback = None
-    for ep in _visible_image_endpoint_query(db, owner).all():
-        if _normalize_image_endpoint_base(getattr(ep, "base_url", "")) == target:
-            if owner and getattr(ep, "owner", None) == owner:
-                return ep
-            if fallback is None:
-                fallback = ep
-    return fallback
-
-
-async def _fetch_result_image_b64(url: str) -> Optional[str]:
-    """Fetch an image URL returned in an upstream response body, base64-encoded
-    (or None on a non-200).
-
-    The URL comes from the diffusion/OpenAI server's response, not from our own
-    config, so a malicious or compromised endpoint could otherwise steer this
-    fetch at an internal or cloud-metadata address. Validate it the same way the
-    client-supplied endpoint is validated before the first request.
-    """
-    import base64
-    import httpx
-    from src.url_safety import check_outbound_url
-
-    ok, reason = check_outbound_url(
-        url,
-        block_private=os.getenv("IMAGE_BLOCK_PRIVATE_IPS", "false").lower() == "true",
+    return _visible_image_endpoint_for_base_impl(
+        db,
+        base,
+        owner,
+        model_endpoint=ModelEndpoint,
+        owner_filter_func=owner_filter,
     )
-    if not ok:
-        raise HTTPException(502, f"Upstream returned an unsafe image URL: {reason}")
-    async with httpx.AsyncClient(timeout=60) as c2:
-        ir = await c2.get(url)
-        if ir.status_code == 200:
-            return base64.b64encode(ir.content).decode()
-    return None
 
 
 def setup_gallery_routes() -> APIRouter:

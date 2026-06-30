@@ -8,7 +8,7 @@ helper split, R11P database migration split, R11Q LLM-core provider/format split
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
-helper split and R11AA model loopback helper split implemented; tool
+helper split, R11AA model loopback helper split and R11AB gallery endpoint helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -1825,6 +1825,70 @@ Completion criteria:
   remain covered by focused tests.
 - The slice performs no live endpoint probe, provider call, network action,
   Telegram, Nextcloud or host mutation.
+
+### R11AB / L7-R12Q: Gallery Endpoint Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move gallery filename/path confinement, image endpoint visibility and
+  upstream result-image fetch helpers out of `routes/gallery_routes.py` while
+  preserving route-compatible private imports and monkeypatch behavior used by
+  existing Gallery tests.
+
+Allowed paths:
+
+- `routes/gallery_routes.py`
+- `routes/gallery_endpoint_helpers.py`
+- `tests/test_gallery_filename_confinement.py`
+- `tests/test_gallery_result_image_ssrf.py`
+- `tests/test_gallery_image_endpoint_owner_scope.py`
+- `tests/test_gallery_endpoint_matching.py`
+- `tests/test_gallery_remove_bg_worker.py`
+- `tests/test_gallery_delete_file_ordering.py`
+- `tests/test_gallery_album_owner_scope.py`
+- `tests/test_gallery_null_user_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AB done 2026-06-30: filename sanitization, generated-image path
+  confinement, image endpoint base normalization, owner-scoped endpoint lookup
+  and result-image URL fetching moved to `routes/gallery_endpoint_helpers.py`.
+- Compatibility evidence: `routes/gallery_routes.py` still exports
+  `_sanitize_gallery_filename`, `_gallery_image_path`,
+  `_normalize_image_endpoint_base`, `_first_visible_image_endpoint`,
+  `_visible_image_endpoint_for_base` and `_fetch_result_image_b64`. The route
+  wrappers inject the route module's current `GALLERY_IMAGE_DIR`,
+  `ModelEndpoint` and `owner_filter`, so existing tests can keep monkeypatching
+  `routes.gallery_routes`.
+- R11AB line count 2026-06-30: `routes/gallery_routes.py` is 1822 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AB focused checks 2026-06-30:
+  `python -m py_compile routes\gallery_routes.py routes\gallery_endpoint_helpers.py`
+  passed.
+- R11AB Gallery route tests 2026-06-30:
+  `python -m pytest tests\test_gallery_filename_confinement.py tests\test_gallery_result_image_ssrf.py tests\test_gallery_image_endpoint_owner_scope.py tests\test_gallery_endpoint_matching.py -q`
+  returned `15 passed, 2 skipped, 1 warning`.
+- R11AB import/route-adjacent Gallery tests 2026-06-30:
+  `python -m pytest tests\test_gallery_remove_bg_worker.py tests\test_gallery_delete_file_ordering.py tests\test_gallery_album_owner_scope.py tests\test_gallery_null_user_routes.py -q`
+  returned `16 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/gallery_routes.py` remains below the large-file candidate threshold
+  with path, endpoint and result-fetch helpers separated from route
+  orchestration.
+- Path confinement, endpoint owner scope, result-image SSRF handling and
+  adjacent Gallery route behavior remain covered by focused tests.
+- The slice performs no live image endpoint request, provider call, network
+  action, Telegram, Nextcloud or host mutation.
 
 ### R12: Obsidian Frontend Split
 
