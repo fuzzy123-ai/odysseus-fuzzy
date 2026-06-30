@@ -144,7 +144,7 @@ def extract_universal_inbox_content(
     elif suffix == DOCX_SUFFIX:
         raw_text, warning = _read_docx(path, normalized_relative_path)
     elif suffix == PDF_SUFFIX:
-        raw_text, warning = _read_pdf(path, normalized_relative_path)
+        return _read_pdf_packet(path, normalized_relative_path, base_metadata)
     else:
         return _metadata_only_packet(
             normalized_relative_path,
@@ -338,18 +338,57 @@ def _read_docx(
     return "\n".join(paragraphs), None
 
 
-def _read_pdf(
+def _read_pdf_packet(
     path: Path,
     relative_path: str,
-) -> tuple[str, UniversalInboxExtractionWarning | None]:
+    base_metadata: Mapping[str, Any],
+) -> UniversalInboxExtractionPacket:
     try:
-        from src.personal_docs import extract_pdf_text
+        from src.pdf_extraction import extract_pdf_pages
     except Exception:
-        return "", UniversalInboxExtractionWarning("pdf_extractor_unavailable", relative_path)
-    raw_text = extract_pdf_text(str(path)).strip()
-    if not raw_text:
-        return "", UniversalInboxExtractionWarning("pdf_text_empty", relative_path)
-    return raw_text, None
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=PDF_SUFFIX,
+            status="failed",
+            metadata={**base_metadata, "extractor": "pypdf_page_stream"},
+            warnings=(UniversalInboxExtractionWarning("pdf_extractor_unavailable", relative_path),),
+        )
+
+    result = extract_pdf_pages(path)
+    raw_text = result.text
+    warnings = tuple(_map_pdf_warning(warning, relative_path) for warning in result.warnings)
+    return UniversalInboxExtractionPacket(
+        relative_path=relative_path,
+        suffix=PDF_SUFFIX,
+        status=result.status,
+        raw_text=raw_text,
+        metadata={
+            **base_metadata,
+            "extractor": result.metadata.get("extractor") or "pypdf_page_stream",
+            "char_count": len(raw_text),
+            "line_count": len(raw_text.splitlines()),
+            "pdf_status": result.status,
+            "pdf_page_count": result.page_count,
+            "pdf_processed_pages": result.processed_pages,
+            "pdf_warning_codes": tuple(result.warning_codes),
+        },
+        warnings=warnings,
+    )
+
+
+def _map_pdf_warning(warning: Any, relative_path: str) -> UniversalInboxExtractionWarning:
+    parts = []
+    page_number = getattr(warning, "page_number", None)
+    detail = getattr(warning, "detail", "")
+    if page_number is not None:
+        parts.append(f"page={page_number}")
+    if detail:
+        parts.append(str(detail))
+    return UniversalInboxExtractionWarning(
+        str(getattr(warning, "code", "pdf_warning")),
+        relative_path,
+        ":".join(parts),
+    )
 
 
 def _normalize_relative_path(value: Any) -> str:

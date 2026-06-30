@@ -2,11 +2,13 @@ import json
 import zipfile
 
 import pytest
+from pypdf import PdfWriter
 
 from src.universal_inbox_extraction import (
     UniversalInboxExtractionError,
     extract_universal_inbox_content,
 )
+from src.universal_export_executor import _write_simple_text_pdf
 
 
 def test_text_extraction_packet_is_ephemeral_and_report_excludes_raw_text(tmp_path):
@@ -67,30 +69,86 @@ def test_docx_best_effort_extracts_document_xml_text(tmp_path):
     assert "First paragraph" not in json.dumps(packet.to_dict(), sort_keys=True)
 
 
-def test_pdf_extracts_runtime_text_with_pypdf_adapter(tmp_path, monkeypatch):
+def test_pdf_extracts_runtime_text_with_pypdf_adapter(tmp_path):
     source = tmp_path / "file.pdf"
-    source.write_bytes(b"%PDF-1.4\nprivate bytes")
-    monkeypatch.setattr("src.personal_docs.extract_pdf_text", lambda _path: "Invoice text from PDF")
+    _write_simple_text_pdf("Invoice text from PDF", source)
 
     packet = extract_universal_inbox_content(source, relative_path="file.pdf")
 
     assert packet.status == "completed"
     assert packet.raw_text == "Invoice text from PDF"
     assert packet.warnings == ()
-    assert packet.to_dict()["metadata"]["extractor"] == "pypdf"
+    assert packet.to_dict()["metadata"]["extractor"] == "pypdf_page_stream"
+    assert packet.to_dict()["metadata"]["pdf_status"] == "completed"
     assert "Invoice text from PDF" not in json.dumps(packet.to_dict(), sort_keys=True)
 
 
-def test_pdf_without_extractable_text_needs_review(tmp_path, monkeypatch):
+def test_pdf_without_extractable_text_needs_review(tmp_path):
     source = tmp_path / "scan.pdf"
-    source.write_bytes(b"%PDF-1.4\nprivate bytes")
-    monkeypatch.setattr("src.personal_docs.extract_pdf_text", lambda _path: "")
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with source.open("wb") as handle:
+        writer.write(handle)
 
     packet = extract_universal_inbox_content(source, relative_path="scan.pdf")
 
-    assert packet.status == "partial"
+    assert packet.status == "needs_review"
     assert packet.raw_text == ""
-    assert packet.warnings[0].code == "pdf_text_empty"
+    assert [warning.code for warning in packet.warnings] == ["pdf_text_empty", "pdf_ocr_required"]
+    assert packet.to_dict()["metadata"]["pdf_status"] == "needs_review"
+
+
+def test_partial_pdf_maps_shared_warning_metadata(tmp_path, monkeypatch):
+    source = tmp_path / "partial.pdf"
+    source.write_bytes(b"%PDF-1.4 fake")
+
+    class FakePage:
+        def __init__(self, text=None, exc=None):
+            self.text = text
+            self.exc = exc
+
+        def extract_text(self):
+            if self.exc:
+                raise self.exc
+            return self.text
+
+    class FakeReader:
+        is_encrypted = False
+
+        def __init__(self, _path):
+            self.pages = [FakePage("first"), FakePage(exc=ValueError("bad")), FakePage("third")]
+
+    monkeypatch.setattr("pypdf.PdfReader", FakeReader)
+
+    packet = extract_universal_inbox_content(source, relative_path="partial.pdf")
+
+    assert packet.status == "partial"
+    assert "first" in packet.raw_text
+    assert "third" in packet.raw_text
+    assert [warning.code for warning in packet.warnings] == ["pdf_page_extract_failed", "pdf_partial_text"]
+    assert packet.warnings[0].detail == "page=2:ValueError"
+    assert packet.to_dict()["metadata"]["pdf_warning_codes"] == (
+        "pdf_page_extract_failed",
+        "pdf_partial_text",
+    )
+    assert "first" not in json.dumps(packet.to_dict(), sort_keys=True)
+
+
+def test_failed_pdf_maps_parser_status(tmp_path, monkeypatch):
+    source = tmp_path / "broken.pdf"
+    source.write_bytes(b"%PDF-1.4 fake")
+
+    class FakeReader:
+        def __init__(self, _path):
+            raise ValueError("not parseable")
+
+    monkeypatch.setattr("pypdf.PdfReader", FakeReader)
+
+    packet = extract_universal_inbox_content(source, relative_path="broken.pdf")
+
+    assert packet.status == "failed"
+    assert packet.raw_text == ""
+    assert [warning.code for warning in packet.warnings] == ["pdf_parser_failed"]
 
 
 def test_size_limit_returns_metadata_only_without_raw_text(tmp_path):

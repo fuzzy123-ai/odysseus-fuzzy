@@ -80,7 +80,7 @@ Pipelines.
 | P0 | Verträge und Budgets definieren | Done 2026-06-30: Statusmodell, Warning-Codes, Budgettypen |
 | P1 | Gemeinsamen Extractor bauen | Done 2026-06-30: Seitenweise pypdf-Extraktion mit Partial-Erfolg |
 | P2 | RAG/Personal Docs angleichen | Done 2026-06-30: Kein stilles Verschwinden grosser PDFs |
-| P3 | Universal Inbox/Nextcloud integrieren | Status- und Chunk-Lane bleiben rohtextfrei |
+| P3 | Universal Inbox/Nextcloud integrieren | Done 2026-06-30: Status- und Chunk-Lane bleiben rohtextfrei |
 | P4 | Chat/Document Processor umstellen | Ein Extractor statt Sonderlogik |
 | P5 | OCR/Vision-Fallback absichern | Optional, lokal-only, bounded |
 | P6 | UI/Operator-Sichtbarkeit herstellen | Review-Gruende und Re-Extract-Aktionen sichtbar |
@@ -367,9 +367,14 @@ Release-Definition:
 
 ### Slice C: Universal Inbox Integration
 
-- `_read_pdf` auf neuen Extractor umstellen.
-- Status-/Warning-Mapping testen.
-- Nextcloud Chunk-Lane unveraendert rohtextfrei validieren.
+- Done 2026-06-30: `_read_pdf`/PDF-Packet-Pfad auf neuen Extractor umgestellt.
+- Done 2026-06-30: Status-/Warning-Mapping getestet fuer completed,
+  partial, needs_review und failed PDFs.
+- Done 2026-06-30: Nextcloud Chunk-Lane bleibt rohtextfrei und uebernimmt
+  PDF-Warning-Codes.
+- Evidence 2026-06-30:
+  `python -m pytest tests/test_universal_inbox_extraction.py tests/test_nextcloud_chunked_extraction.py tests/test_pdf_extraction.py tests/test_rag_pdf_partial_index.py tests/test_personal_docs_pdf_index.py -q`
+  returned `40 passed, 1 warning`.
 
 ### Slice D: Document Processor Wrapper
 

@@ -78,6 +78,34 @@ def test_chunked_extraction_persists_only_hash_refs_and_is_resumable(tmp_path):
     assert "changed runtime body" not in encoded_ledger
 
 
+def test_chunked_extraction_preserves_pdf_status_warnings_without_raw_text(tmp_path):
+    ledger_path = tmp_path / "events.jsonl"
+    item = _item("docs/partial.pdf")
+    _seed_transfer(ledger_path, item)
+
+    result = plan_nextcloud_chunked_extraction(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        documents=[
+            RuntimeExtractionDocument.create(
+                item,
+                runtime_text="partial pdf text should stay runtime only",
+                extractor="pypdf_page_stream",
+                warning_codes=("pdf_page_extract_failed", "pdf_partial_text"),
+            )
+        ],
+        max_chunk_chars=20,
+    )
+    latest = AppendOnlyBigDataLedger(ledger_path).latest_state()
+    extraction = latest[(item.item_id, "extraction")]
+    encoded_ledger = ledger_path.read_text(encoding="utf-8")
+
+    assert result.completed == 1
+    assert extraction.metadata["extractor"] == "pypdf_page_stream"
+    assert extraction.metadata["warning_codes"] == ["pdf_page_extract_failed", "pdf_partial_text"]
+    assert "partial pdf text" not in encoded_ledger
+
+
 def test_chunked_extraction_records_retryable_state_without_raw_content(tmp_path):
     ledger_path = tmp_path / "events.jsonl"
     item = _item("notes/retry.md")
