@@ -900,6 +900,18 @@ Current evidence:
   `python -m py_compile src\task_scheduler.py src\task_scheduler_helpers.py src\task_scheduler_checkin.py`;
   `python -m pytest tests/test_compute_next_run_monthly_clamp.py tests/test_scheduler_scheduled_time_validation.py tests/test_digest_windows.py tests/test_checkin_digest_owner_scope.py tests/test_task_shell_tools.py tests/test_task_session_folder.py tests/test_scheduler_restart_doublefire.py tests/test_task_scheduler_cancel.py tests/test_task_scheduler_session_delivery.py -q`
   returned `32 passed, 4 warnings`.
+- 2026-06-30: L7 R12D is implemented. Cookbook GPU/state/process/task-status
+  tail routes moved to `routes/cookbook_tail_routes.py`, while
+  `routes/cookbook_routes.py` remains the public route setup facade.
+  `routes/cookbook_routes.py` is now 1763 lines and
+  `routes/cookbook_tail_routes.py` is 1467 lines; both are in the `warning`
+  band, not `candidate`.
+- 2026-06-30 R12D evidence passed:
+  `python -m py_compile routes\cookbook_routes.py routes\cookbook_tail_routes.py`;
+  `python -m pytest tests/test_cookbook_remote_windows_diffusers.py tests/test_cookbook_dependency_completion_regression.py tests/test_cookbook_deps_recipes.py tests/test_cookbook_helpers.py -q`
+  returned `76 passed, 1 skipped, 1 warning`; the focused
+  `test_review_regressions.py` cookbook/App-API subset returned `1 passed,
+  27 deselected, 1 warning`.
 
 Parallel rule:
 
@@ -955,11 +967,12 @@ Slice queue:
 | L7-R12A-email-mcp-account-schema-boundary | repo_only | Bob | Done: Email MCP account/config and tool schema declarations moved behind helper modules; `mcp_servers/email_server.py` is below candidate threshold. |
 | L7-R12B-builtin-actions-email-urgency-boundary | repo_only | Bob | Done: Email urgency scheduled-action execution moved behind a helper module; `src/builtin_actions.py` is below candidate threshold. |
 | L7-R12C-task-scheduler-helper-checkin-boundary | repo_only | Bob | Done: Scheduler timing/default/cache helpers and assistant check-in execution moved behind helper modules; `src/task_scheduler.py` is below candidate threshold. |
+| L7-R12D-cookbook-tail-routes-boundary | repo_only | Bob | Done: Cookbook tail routes moved behind a route registrar; `routes/cookbook_routes.py` is below candidate threshold. |
 
 Next safe slice:
 
 - L7 backend splits can continue with another backend candidate such as
-  `core/database.py`, `routes/cookbook_routes.py` or `src/llm_core.py`.
+  `core/database.py` or `src/llm_core.py`.
   L7-R2 CSS split should wait until visual smoke coverage is available because
   `static/style.css` controls shell/chat/modal cascade.
 
@@ -1039,7 +1052,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12C are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Email MCP, built-in action and scheduler facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12D are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Email MCP, built-in action, scheduler and Cookbook route facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

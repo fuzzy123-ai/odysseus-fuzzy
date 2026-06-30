@@ -9,7 +9,7 @@ def _read(rel_path: str) -> str:
 
 
 def test_backend_status_treats_download_exit_zero_as_completed():
-    source = _read("routes/cookbook_routes.py")
+    source = _read("routes/cookbook_tail_routes.py")
 
     assert "exit_match = re.search(r\"=== process exited with code\\s+(-?\\d+)\"" in source
     assert "elif has_exit and task_type == \"download\":" in source

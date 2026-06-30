@@ -30,6 +30,21 @@ def _admin_request() -> Request:
     return request
 
 
+def test_cookbook_tail_routes_stay_registered():
+    router = cookbook_routes.setup_cookbook_routes()
+    registered = {
+        (route.path, method)
+        for route in router.routes
+        for method in getattr(route, "methods", set())
+    }
+
+    assert ("/api/cookbook/gpus", "GET") in registered
+    assert ("/api/cookbook/kill-pid", "POST") in registered
+    assert ("/api/cookbook/state", "GET") in registered
+    assert ("/api/cookbook/state", "POST") in registered
+    assert ("/api/cookbook/tasks/status", "GET") in registered
+
+
 @pytest.mark.asyncio
 async def test_remote_windows_diffusers_is_rejected_before_runner_launch(monkeypatch):
     monkeypatch.setattr(cookbook_routes, "require_admin", lambda request: None)

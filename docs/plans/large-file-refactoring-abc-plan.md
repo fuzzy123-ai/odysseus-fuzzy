@@ -1173,6 +1173,55 @@ Completion criteria:
 - Scheduling math, check-in calendar scoping, task shell-tool gating and
   scheduler restart/cancel/session regressions remain covered by focused tests.
 
+### R11O: Cookbook Tail Routes Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Cookbook tail endpoints for GPU probing, state, process control and
+  task status behind a route registrar while preserving
+  `routes.cookbook_routes.setup_cookbook_routes()` as the public facade.
+
+Allowed paths:
+
+- `routes/cookbook_routes.py`
+- `routes/cookbook_tail_routes.py`
+- `tests/test_cookbook_remote_windows_diffusers.py`
+- `tests/test_cookbook_dependency_completion_regression.py`
+- `tests/test_cookbook_deps_recipes.py`
+- `tests/test_cookbook_helpers.py`
+- `tests/test_review_regressions.py`
+
+Current evidence:
+
+- R11O done 2026-06-30: Cookbook GPU/state/process/task-status tail routes
+  moved to `routes/cookbook_tail_routes.py`; `routes/cookbook_routes.py` keeps
+  setup, download and serve route registration plus the compatibility call to
+  `register_cookbook_tail_routes`.
+- R11O line count 2026-06-30: `routes/cookbook_routes.py` is 1763 lines and
+  `routes/cookbook_tail_routes.py` is 1467 lines in the large-file report,
+  both band `warning`, not `candidate`; report candidate count is 28.
+- R11O focused checks 2026-06-30:
+  `python -m py_compile routes\cookbook_routes.py routes\cookbook_tail_routes.py`
+  passed.
+- R11O Cookbook test block 2026-06-30:
+  `python -m pytest tests/test_cookbook_remote_windows_diffusers.py tests/test_cookbook_dependency_completion_regression.py tests/test_cookbook_deps_recipes.py tests/test_cookbook_helpers.py -q`
+  returned `76 passed, 1 skipped, 1 warning`.
+- R11O review-regression subset 2026-06-30:
+  `python -m pytest tests/test_review_regressions.py -k "app_api_endpoint_discovery_hides_cookbook or kill_pid or gpus" -q`
+  returned `1 passed, 27 deselected, 1 warning`.
+
+Completion criteria:
+
+- `routes/cookbook_routes.py` is below the large-file candidate threshold.
+- Tail route registration remains covered by a direct router-registration
+  regression test.
+- Existing Cookbook dependency/download and helper regressions remain covered.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice  
