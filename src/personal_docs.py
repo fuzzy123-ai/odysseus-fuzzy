@@ -12,18 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def extract_pdf_text(file_path: str) -> str:
-    """Extract text from a PDF file using pypdf (permissive, BSD)."""
-    try:
-        from pypdf import PdfReader
-        reader = PdfReader(file_path)
-        text = "".join((page.extract_text() or "") for page in reader.pages)
-        return text
-    except ImportError:
-        logger.warning("pypdf not installed, cannot extract PDF text")
-        return ""
-    except Exception as e:
-        logger.error(f"Failed to extract PDF text from {file_path}: {e}")
-        return ""
+    """Extract text from a PDF file using the shared budgeted extractor."""
+    from src.pdf_extraction import extract_pdf_text as _extract_pdf_text
+
+    return _extract_pdf_text(file_path)
 
 
 def extract_office_text(file_path: str) -> str:

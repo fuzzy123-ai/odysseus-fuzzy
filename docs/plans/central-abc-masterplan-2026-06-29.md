@@ -25,6 +25,7 @@ Primary sources:
 - `docs/plans/workflow-skills-universal-inbox-handoff.md`
 - `docs/plans/workflow-skills-universal-inbox-roadmap.md`
 - `docs/plans/universal-file-io-roadmap.md`
+- `docs/plans/pdf-long-document-extraction-roadmap.md`
 - `docs/plans/dsgvo-security-gate-roadmap.md`
 - `docs/plans/coding-agent-backend-handoff.md`
 - `docs/plans/repo-control-roadmap.md`
@@ -84,8 +85,9 @@ Run at most three active implementation lanes at the same time.
 | L2 Coding Agent + Repo Control + Project Runner | P1 | Yes | Mostly isolated backend/project-control surface. |
 | L4 Memory/RaptorGraph Stabilization | P1/P2 | Limited | Safe when scoped away from active Inbox memory-write files. |
 | L5 Universal File IO / Export Plans | P1/P2 | Limited | Safe offline plans can run; live converters/delivery need gates. |
-| L6 Large File Refactoring | P2 | Carefully | Broad hotfiles; start only after P0 path is stable or on disjoint files. |
-| L7 UI/V2 Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions. |
+| L6 Long PDF Extraction + RAG/Ingestion Reliability | P1 | Limited | Cross-cutting backend reliability for Inbox, Nextcloud import, Personal Docs/RAG and chat PDF flows. |
+| L7 Large File Refactoring | P2 | Carefully | Broad hotfiles; start only after P0 path is stable or on disjoint files. |
+| L8 UI/V2 Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions. |
 
 Integration rule:
 
@@ -348,7 +350,100 @@ Next safe slices:
 - Add converter capability registry tests.
 - Add redacted export-intent linkage to recent Inbox document context.
 
-## Lane L6: Large File Refactoring
+## Lane L6: Long PDF Extraction + RAG/Ingestion Reliability
+
+Goal:
+
+Odysseus handles long, partially broken, image-heavy and oversized PDFs as a
+normal backend case across chat attachments, document viewer, Personal
+Docs/RAG, Universal Inbox and Nextcloud ingestion.
+
+Why this is high priority:
+
+- Nextcloud import will inevitably encounter large PDFs, scans, invoices,
+  contracts and mixed text/image documents.
+- The current risk is silent loss: PDFs can appear accepted while no usable RAG
+  chunks or review reason are produced.
+- This lane strengthens L1 without requiring live writes, because most work is
+  repo-only extraction, status mapping and regression tests.
+
+Primary source doc:
+
+- `docs/plans/pdf-long-document-extraction-roadmap.md`
+
+Done state:
+
+- A shared `src/pdf_extraction.py` contract provides page-wise, budgeted PDF
+  extraction with explicit statuses: `completed`, `partial`, `metadata_only`,
+  `needs_review`, `failed`.
+- `src.personal_docs.extract_pdf_text`, RAG indexing, Universal Inbox,
+  Nextcloud chunking and document processor flows use the same extraction
+  semantics or compatibility wrappers.
+- Partial PDFs produce usable chunks plus warning metadata instead of silently
+  disappearing.
+- Oversized PDFs remain metadata-only/review-gated where policy requires it.
+- OCR/Vision fallback is optional, bounded and policy-aware; sensitive or
+  local-only contexts must not send page images to external providers.
+- Ledgers and reports store status, hashes, warning codes, chunk refs and
+  review reasons only, never full extracted PDF text.
+
+Current evidence:
+
+- 2026-06-30: `src/pdf_extraction.py` provides the shared PDF contract,
+  budget defaults, rawtext-free `to_dict()` reports and page-wise `pypdf`
+  extraction.
+- 2026-06-30: `src.personal_docs.extract_pdf_text` now delegates to the shared
+  extractor as a compatibility wrapper.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_pdf_extraction.py tests/test_personal_docs_pdf_index.py tests/test_universal_inbox_extraction.py -q`
+  returned `27 passed, 1 warning`.
+
+Primary allowed paths:
+
+- `src/pdf_extraction.py`
+- `src/personal_docs.py`
+- `src/rag_vector.py`
+- `src/rag_manager.py`
+- `src/universal_inbox_extraction.py`
+- `src/nextcloud_chunked_extraction.py`
+- `src/document_processor.py`
+- `routes/*document*`
+- `tests/test_pdf_extraction.py`
+- `tests/test_rag_pdf_partial_index.py`
+- `tests/test_document_processor_pdf_extraction.py`
+- `tests/test_personal_docs_pdf_index.py`
+- `tests/test_universal_inbox_extraction.py`
+- `tests/test_nextcloud_chunked_extraction.py`
+- `docs/plans/pdf-long-document-extraction-roadmap.md`
+
+Slice queue:
+
+| Slice | Class | Owner | Goal |
+| --- | --- | --- | --- |
+| L6-0-contract-and-budget | repo_only | Alice | Done: shared PDF status/warning/budget contract and rawtext-free reports are implemented and tested. |
+| L6-1-pagewise-pypdf-extractor | repo_only | Bob | Done: page-wise `pypdf` extraction handles partial success, failed/empty classification and deterministic budget stops. |
+| L6-2-personal-rag-integration | repo_only | Bob | Make Personal Docs/RAG partial-aware and report failed/skipped/review PDFs with warning metadata. |
+| L6-3-inbox-nextcloud-integration | repo_only | Bob | Map PDF statuses into Universal Inbox and Nextcloud chunk lanes without persisting raw extracted text. |
+| L6-4-document-processor-wrapper | repo_only | Alice | Preserve chat/document viewer output markers while routing PDF handling through the shared extractor. |
+| L6-5-ocr-vision-policy-gate | repo_only, provider-gated | Charlie | Add optional OCR/Vision hooks only behind local-only/security policy and hard budgets. |
+| L6-6-release-gates | safe_offline | Charlie | Run focused regression suite and record remaining manual smoke scenarios. |
+
+Parallel rule:
+
+- L6 can run in parallel with L2/L3 docs or isolated backend work.
+- L6 must serialize with L1 if both touch `src/universal_inbox_extraction.py`,
+  `src/nextcloud_chunked_extraction.py` or shared memory/write-intent paths.
+- L6 must run before broad L7 refactoring touches the same files.
+
+Gates:
+
+- External OCR/Vision provider use needs explicit policy clearance and bounded
+  operator Go.
+- Sensitive/local-only PDFs may only use local processing.
+- UI review placement belongs to the UI agent; backend may expose status and
+  reason contracts only.
+
+## Lane L7: Large File Refactoring
 
 Goal:
 
@@ -374,7 +469,7 @@ Next safe slices:
 - R1 CSS Ownership Map.
 - Later: `src/tool_implementations.py` domain split only if no active edits.
 
-## Lane L7: UI/V2 Integration
+## Lane L8: UI/V2 Integration
 
 Goal:
 
@@ -432,9 +527,12 @@ Stop or defer the active slice if:
    configured on the server.
 5. L2-0 and L2-1 can run in parallel if coding-agent dirty files are intentionally in
    scope.
-6. Then choose between L2 route/policy consolidation, L5 export-plan completion
+6. Run L6-0 and L6-1 before broad Nextcloud import or RAG expansion, so long
+   PDFs and partial PDFs stop disappearing silently.
+7. Then choose between L2 route/policy consolidation, L5 export-plan completion
    or L4 graph/memory stabilization.
-7. Start L6 refactoring only after feature hotfiles are quiet.
+8. Start L7 refactoring only after feature hotfiles are quiet and L6 has either
+   landed or explicitly deferred.
 
 ## Current Master Status
 
@@ -445,12 +543,15 @@ Stop or defer the active slice if:
 | L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
-| L6 Large File Refactoring | open | Plan exists; no refactor wave should start before hotfiles are quiet. |
-| L7 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
+| L6 Long PDF Extraction + RAG/Ingestion Reliability | partial | L6-0/L6-1 are implemented and tested; RAG, Inbox/Nextcloud status mapping, document processor wrapper and OCR policy hooks remain. |
+| L7 Large File Refactoring | open | Plan exists; no refactor wave should start before hotfiles are quiet and PDF/inbox hotfiles are settled. |
+| L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
 
 - Decide whether to run L1-6 as a bounded live upload smoke on the server. This
   requires the dedicated Nextcloud automation user, WebDAV runtime env and both
-  live-write gates. If not, continue with L2 route/policy consolidation or L5
-  export-plan completion.
+  live-write gates. If not, continue with L6-2 so partial/failed PDFs are
+  visible in Personal Docs/RAG before the next large Nextcloud import wave, or
+  choose L2 route/policy consolidation if project-runner work is higher
+  priority.
