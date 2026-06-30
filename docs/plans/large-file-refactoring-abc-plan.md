@@ -3,7 +3,7 @@
 Date: 2026-06-30
 
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split
-and R9A/R9B/R9C/R9D email helper splits implemented; tool implementation/admin
+and R9A/R9B/R9C/R9D/R9E email helper splits implemented; tool implementation/admin
 facades below threshold, remaining code refactor waves pending
 
 ## Goal
@@ -684,8 +684,22 @@ Progress:
 - R9D broader R9 smoke 2026-06-30:
   `python -m pytest tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
   returned `83 passed, 24 warnings`.
-- Remaining R9 work: route setup boundaries and account/config route helper
-  extraction. `routes/email_routes.py` is reduced to 2987 lines after R9D and
+- R9E done 2026-06-30: `routes/email_account_helpers.py` owns masked config
+  responses, default-account config persistence, account inventory, account
+  CRUD, per-owner default promotion and saved-account test-body hydration.
+  `routes.email_routes` keeps account route signatures, owner checks,
+  live IMAP/SMTP test behavior and OAuth route flow.
+- R9E evidence 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_account_helpers.py`
+  passed.
+- R9E focused tests 2026-06-30:
+  `python -m pytest tests\test_email_account_helpers.py tests\test_email_oauth.py tests\test_email_imap_timeout.py -q`
+  returned `36 passed, 1 warning`.
+- R9E broader R9 smoke 2026-06-30:
+  `python -m pytest tests\test_email_account_helpers.py tests\test_email_owner_events.py tests\test_email_schedule_helpers.py tests\test_email_smtp_helpers.py tests\test_email_imap_helpers.py tests\test_email_formatting.py tests\test_email_envelope_recipients.py tests\test_email_imap_timeout.py tests\test_email_oauth.py tests\test_email_owner_scope.py tests\test_schedule_email_offset_normalization.py tests\test_email_polly_imap_leak.py tests\test_email_smtp_security.py tests\test_email_gmail_fetch_flags.py tests\test_email_fallback_reconnect.py -q`
+  returned `87 passed, 24 warnings`.
+- Remaining R9 work: route setup boundaries and OAuth callback helper
+  extraction. `routes/email_routes.py` is reduced to 2773 lines after R9E and
   remains above the large-file candidate threshold.
 
 ### R10: Model Routes Extraction
