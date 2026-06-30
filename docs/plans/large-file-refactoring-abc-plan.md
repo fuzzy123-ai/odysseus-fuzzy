@@ -879,11 +879,37 @@ Tests:
 C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py
 ```
 
+Current evidence:
+
+- R11A done 2026-06-30: redacted Telegram handle helpers, draft-id creation,
+  sanitized persisted messages and JSON stores moved to
+  `plugins/telegram/stores.py`; `plugins/telegram/plugin.py` keeps
+  compatibility exports for existing tests and callers.
+- R11A line count 2026-06-30: `plugins/telegram/plugin.py` reduced from 4105
+  to 3576 lines; `plugins/telegram/stores.py` is 582 lines.
+- R11A also keeps recent PDF attachment context usable when the generic Inbox
+  extractor returns metadata only by falling back to the existing
+  `src.personal_docs.extract_pdf_text` hook at runtime.
+- R11A focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\stores.py`
+  passed.
+- R11A Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q`
+  returned `103 passed, 1 warning`.
+- R11A Windows rerun note 2026-06-30: the same Telegram block also passed
+  with `--basetemp C:\tmp\odysseus-pytest-r11a` after the default pytest temp
+  root under `AppData\Local\Temp` returned `PermissionError`.
+
 Completion criteria:
 
 - Stores, parser, polling, attachment pipeline, outbound API, and admin UI
   helpers are separate modules.
 - Live actions remain mocked or dry-run only.
+
+Remaining work:
+
+- Parser, polling, attachment pipeline, outbound API and admin UI helpers still
+  need separate modules before R11 can be marked complete.
 
 ### R12: Obsidian Frontend Split
 
