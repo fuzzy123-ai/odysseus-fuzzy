@@ -409,6 +409,12 @@ Current evidence:
 - 2026-06-30 Focused tests passed:
   `python -m pytest tests/test_universal_inbox_extraction.py tests/test_nextcloud_chunked_extraction.py tests/test_pdf_extraction.py tests/test_rag_pdf_partial_index.py tests/test_personal_docs_pdf_index.py -q`
   returned `40 passed, 1 warning`.
+- 2026-06-30: `src.document_processor._process_pdf` now wraps the shared
+  extractor while preserving chat/document markers, parser-failure handling and
+  inline truncation behavior. OCR/Vision fallback remains deferred to L6-5.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_document_processor_pdf_extraction.py tests/test_build_user_content_pdf_marker.py tests/test_vision_owner_scope.py tests/test_pdf_extraction.py tests/test_universal_inbox_extraction.py tests/test_nextcloud_chunked_extraction.py tests/test_rag_pdf_partial_index.py tests/test_personal_docs_pdf_index.py -q`
+  returned `50 passed, 1 warning`.
 
 Primary allowed paths:
 
@@ -436,7 +442,7 @@ Slice queue:
 | L6-1-pagewise-pypdf-extractor | repo_only | Bob | Done: page-wise `pypdf` extraction handles partial success, failed/empty classification and deterministic budget stops. |
 | L6-2-personal-rag-integration | repo_only | Bob | Done: Personal Docs/RAG are partial-aware and report failed/skipped/review PDFs with warning metadata. |
 | L6-3-inbox-nextcloud-integration | repo_only | Bob | Done: PDF statuses are mapped into Universal Inbox and Nextcloud chunk lanes without persisting raw extracted text. |
-| L6-4-document-processor-wrapper | repo_only | Alice | Preserve chat/document viewer output markers while routing PDF handling through the shared extractor. |
+| L6-4-document-processor-wrapper | repo_only | Alice | Done: chat/document viewer output markers are preserved while PDF handling routes through the shared extractor. |
 | L6-5-ocr-vision-policy-gate | repo_only, provider-gated | Charlie | Add optional OCR/Vision hooks only behind local-only/security policy and hard budgets. |
 | L6-6-release-gates | safe_offline | Charlie | Run focused regression suite and record remaining manual smoke scenarios. |
 
@@ -555,7 +561,7 @@ Stop or defer the active slice if:
 | L2 Coding Agent + Repo Control + Project Runner | partial | Backend pieces exist, but contracts need consolidation and UI handoff remains. |
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
-| L6 Long PDF Extraction + RAG/Ingestion Reliability | partial | L6-0 through L6-3 are implemented and tested; document processor wrapper, OCR policy hooks and release gates remain. |
+| L6 Long PDF Extraction + RAG/Ingestion Reliability | partial | L6-0 through L6-4 are implemented and tested; OCR policy hooks and release gates remain. |
 | L7 Large File Refactoring | open | Plan exists; no refactor wave should start before hotfiles are quiet and PDF/inbox hotfiles are settled. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
@@ -563,6 +569,6 @@ Recommended next human decision:
 
 - Decide whether to run L1-6 as a bounded live upload smoke on the server. This
   requires the dedicated Nextcloud automation user, WebDAV runtime env and both
-  live-write gates. If not, continue with L6-4 so chat/document PDF handling
-  uses the same extractor contract as Inbox/RAG, or choose L2 route/policy
+  live-write gates. If not, continue with L6-5 so optional OCR/Vision stays
+  bounded and privacy-gated, or choose L2 route/policy
   consolidation if project-runner work is higher priority.

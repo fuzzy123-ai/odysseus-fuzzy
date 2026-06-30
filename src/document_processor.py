@@ -196,50 +196,36 @@ def _process_text_file(path: str) -> str:
 
 
 def _process_pdf(path: str, owner: str | None = None) -> str:
-    """Process PDF file with text extraction (pypdf). Uses VL model for image-heavy pages."""
-    try:
-        from pypdf import PdfReader
-        pdf_text = ""
-        reader = PdfReader(path)
+    """Process PDF file for chat/document inline use via the shared extractor."""
+    from src.pdf_extraction import (
+        PDF_STATUS_FAILED,
+        PDF_STATUS_METADATA_ONLY,
+        PDF_STATUS_NEEDS_REVIEW,
+        extract_pdf_pages,
+    )
 
-        for page_num, page in enumerate(reader.pages):
-            page_text = (page.extract_text() or "").strip()
-            if page_text:
-                pdf_text += f"\n\n[Page {page_num + 1} text]:\n{page_text}"
+    result = extract_pdf_pages(path, owner=owner)
+    if result.status == PDF_STATUS_FAILED:
+        detail = result.warnings[0].detail if result.warnings else "pdf_parser_failed"
+        return f"\n\n[PDF processing failed: {detail}]"
+    if result.status == PDF_STATUS_METADATA_ONLY:
+        return "\n\n[PDF processed as metadata only]"
 
-            # For pages with images but little text, try VL model
-            try:
-                images = list(page.images)
-            except Exception:
-                images = []
-            if images and len(page_text) < 50:
-                for img_index, img in enumerate(images[:3]):  # cap at 3 images per page
-                    try:
-                        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                            temp_img_path = tmp.name
-                        try:
-                            img.image.save(temp_img_path, "PNG")  # pypdf -> PIL image
-                            ocr_text = analyze_image_with_vl(temp_img_path, owner=owner)
-                            if ocr_text and "unavailable" not in ocr_text.lower():
-                                pdf_text += f"\n\n[Page {page_num + 1} image {img_index + 1} text]: {ocr_text}"
-                        finally:
-                            try:
-                                os.unlink(temp_img_path)
-                            except OSError:
-                                pass
-                    except Exception as e:
-                        logger.warning(f"Failed to analyze image in PDF: {e}")
-                        continue
+    pdf_parts: list[str] = []
+    for page in result.pages:
+        if page.text:
+            pdf_parts.append(f"\n\n[Page {page.page_number} text]:\n{page.text}")
+        for warning in page.warnings:
+            pdf_parts.append(f"\n\n[Page {page.page_number} warning]: {warning.code}")
 
-        if pdf_text:
-            if len(pdf_text) > 15000:
-                pdf_text = pdf_text[:15000] + "\n[PDF content truncated]"
-            return f"\n\n[PDF content]:{pdf_text}"
-        else:
-            return "\n\n[PDF processed but no readable content found]"
-
-    except Exception as e:
-        return f"\n\n[PDF processing failed: {str(e)}]"
+    pdf_text = "".join(pdf_parts)
+    if pdf_text:
+        if len(pdf_text) > 15000:
+            pdf_text = pdf_text[:15000] + "\n[PDF content truncated]"
+        return f"\n\n[PDF content]:{pdf_text}"
+    if result.status == PDF_STATUS_NEEDS_REVIEW:
+        return "\n\n[PDF processed but no readable content found]"
+    return "\n\n[PDF processed but no readable content found]"
 
 
 def _truncate_inline(text: str, limit: int = 15000) -> tuple[str, str]:

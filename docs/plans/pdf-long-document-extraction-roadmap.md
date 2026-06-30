@@ -81,7 +81,7 @@ Pipelines.
 | P1 | Gemeinsamen Extractor bauen | Done 2026-06-30: Seitenweise pypdf-Extraktion mit Partial-Erfolg |
 | P2 | RAG/Personal Docs angleichen | Done 2026-06-30: Kein stilles Verschwinden grosser PDFs |
 | P3 | Universal Inbox/Nextcloud integrieren | Done 2026-06-30: Status- und Chunk-Lane bleiben rohtextfrei |
-| P4 | Chat/Document Processor umstellen | Ein Extractor statt Sonderlogik |
+| P4 | Chat/Document Processor umstellen | Done 2026-06-30: Ein Extractor statt Sonderlogik |
 | P5 | OCR/Vision-Fallback absichern | Optional, lokal-only, bounded |
 | P6 | UI/Operator-Sichtbarkeit herstellen | Review-Gruende und Re-Extract-Aktionen sichtbar |
 | P7 | Tests und Release-Gates | Regressionen fuer grosse/kaputte/scanned PDFs |
@@ -378,9 +378,13 @@ Release-Definition:
 
 ### Slice D: Document Processor Wrapper
 
-- `_process_pdf` auf Extractor-Ergebnis abbilden.
-- Bestehende Chat- und Document-Marker erhalten.
-- Re-Extract endpoint pruefen.
+- Done 2026-06-30: `_process_pdf` auf Extractor-Ergebnis abgebildet.
+- Done 2026-06-30: Bestehende Chat- und Document-Marker erhalten.
+- Done 2026-06-30: Re-Extract-Kompatibilitaet ueber bestehende
+  `_process_pdf`-Call-Sites abgesichert; OCR/Vision bleibt L6-5.
+- Evidence 2026-06-30:
+  `python -m pytest tests/test_document_processor_pdf_extraction.py tests/test_build_user_content_pdf_marker.py tests/test_vision_owner_scope.py tests/test_pdf_extraction.py tests/test_universal_inbox_extraction.py tests/test_nextcloud_chunked_extraction.py tests/test_rag_pdf_partial_index.py tests/test_personal_docs_pdf_index.py -q`
+  returned `50 passed, 1 warning`.
 
 ### Slice E: OCR/Vision
 
