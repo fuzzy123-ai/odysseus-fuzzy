@@ -4570,6 +4570,58 @@ Completion criteria:
 - `src.llm_core` keeps `_get_cache_key` importable while implementation lives
   in `src.llm_cache_key.py`.
 
+## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `routes/model_routes.py` by moving model-list endpoint probe
+  orchestration into a focused helper while preserving the legacy
+  `routes.model_routes._probe_endpoint` wrapper and monkeypatch surface.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_endpoint.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CB done 2026-06-30: `_probe_endpoint` orchestration moved to
+  `routes/model_probe_endpoint.py`; `routes.model_routes._probe_endpoint`
+  remains the stable wrapper and injects current route-level dependencies so
+  existing monkeypatch tests continue to target the same surface.
+- R11CB line count 2026-06-30: `routes/model_routes.py` is 1588 lines, still in
+  warning band but reduced from 1643 in the earlier R11BD evidence;
+  `routes/model_probe_endpoint.py` is 117 lines and below the report threshold.
+- R11CB focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_endpoint.py`
+  passed.
+- R11CB probe checks 2026-06-30:
+  `python -m pytest tests\test_endpoint_probing.py -q` returned
+  `37 passed, 1 warning`.
+- R11CB model-route probe checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py -q -k "ProbeZaiCoding or SetupProbeSafety or probe_endpoint or ping_endpoint or model_endpoint_error_message or rewrite_loopback_for_docker"`
+  returned `24 passed, 147 deselected, 1 warning`.
+- R11CB route regression checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py -q` returned
+  `171 passed, 1 warning`.
+
+Completion criteria:
+
+- Endpoint probing, curated fallback, native Ollama fallback, Anthropic fallback
+  and model-route monkeypatch tests remain green.
+- The split performs no live network calls in tests and does not change probe
+  response semantics.
+- `routes.model_routes._probe_endpoint` remains importable and patchable while
+  implementation lives in `routes.model_probe_endpoint.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

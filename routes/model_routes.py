@@ -10,7 +10,6 @@ import logging
 import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Form, Query, Body, Request, Response
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
@@ -52,6 +51,7 @@ from routes.model_probe_helpers import (
     safe_detect_provider as _safe_detect_provider_impl,
     should_try_models_url_after_ping as _should_try_models_url_after_ping,
 )
+from routes.model_probe_endpoint import probe_endpoint as _probe_endpoint_impl
 from routes.model_endpoint_helpers import (
     _PROVIDER_CURATED,
     _api_key_fingerprint,
@@ -183,90 +183,35 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
     For Anthropic, queries their /v1/models API, falling back to hardcoded list."""
     from src.endpoint_resolver import resolve_url
     from src.llm_core import httpx_get_kimi_aware
-    base = resolve_url(_normalize_base(base_url))
-    provider = _safe_detect_provider(base)
-    if provider == "chatgpt-subscription":
-        from src.chatgpt_subscription import fetch_available_models
-        if api_key:
-            return fetch_available_models(api_key, timeout=timeout)
-        return []
-    if provider == "anthropic":
-        # Try Anthropic's /v1/models endpoint first
-        url = _safe_build_models_url(base)
-        headers = {"anthropic-version": "2023-06-01"}
-        if api_key:
-            headers["x-api-key"] = api_key
-        try:
-            r = httpx.get(url, headers=headers, timeout=timeout, verify=llm_verify())
-            r.raise_for_status()
-            data = r.json()
-            models = _anthropic_model_ids_from_payload(data)
-            if models:
-                return models
-        except httpx.HTTPStatusError as e:
-            if api_key:
-                status = e.response.status_code if e.response is not None else "unknown"
-                logger.warning(f"Anthropic /v1/models failed with API key: HTTP {status}")
-                return []
-            logger.warning(f"Anthropic /v1/models failed, using hardcoded list: {e}")
-        except Exception as e:
-            if api_key:
-                logger.warning(f"Anthropic /v1/models failed with API key: {e}")
-                return []
-            logger.warning(f"Anthropic /v1/models failed, using hardcoded list: {e}")
-        return list(ANTHROPIC_MODELS)
-    url = _safe_build_models_url(base)
-    headers = _safe_build_headers(api_key, base)
-    try:
-        r = httpx_get_kimi_aware(url, headers, timeout=timeout, verify=llm_verify())
-        r.raise_for_status()
-        data = r.json()
-        models = _model_ids_from_listing_payload(data)
-        if models:
-            models = _append_curated_probe_models(
-                base,
-                models,
-                host_match_func=_host_match,
-                match_provider_curated_func=_match_provider_curated,
-                provider_curated=_PROVIDER_CURATED,
-            )
-            return [m for m in models if _is_chat_model(m)]
-    except httpx.HTTPStatusError as e:
-        if api_key:
-            status = e.response.status_code if e.response is not None else "unknown"
-            logger.warning("Failed to probe %s with API key: HTTP %s", _redact_url_for_log(url), status)
-            return []
-        logger.warning("Failed to probe %s: %s", _redact_url_for_log(url), e)
-    except Exception as e:
-        if api_key:
-            logger.warning("Failed to probe %s with API key: %s", _redact_url_for_log(url), e)
-            return []
-        logger.warning("Failed to probe %s: %s", _redact_url_for_log(url), e)
+    from src.chatgpt_subscription import fetch_available_models
 
-    # Older Ollama builds and some proxies expose native /api/tags even when
-    # the OpenAI-compatible /v1/models path is unavailable.
-    try:
-        parsed = urlparse(base)
-        if parsed.port == 11434 or "ollama" in (parsed.hostname or "").lower():
-            root = base[:-3].rstrip("/") if base.endswith("/v1") else base
-            r = httpx.get(root + "/api/tags", timeout=timeout, verify=llm_verify())
-            r.raise_for_status()
-            data = r.json()
-            models = _ollama_tag_model_ids_from_payload(data)
-            if models:
-                return [m for m in models if _is_chat_model(m)]
-    except Exception as e:
-        logger.debug(f"Ollama /api/tags probe failed for {base}: {e}")
-    # Fall back to curated list if the provider has a URL-based match (e.g. z.ai has no /models endpoint)
-    curated_key, fallback = _curated_probe_fallback_models(
-        base,
+    return _probe_endpoint_impl(
+        base_url,
+        api_key,
+        timeout=timeout,
+        normalize_base_func=_normalize_base,
+        resolve_url_func=resolve_url,
+        safe_detect_provider_func=_safe_detect_provider,
+        chatgpt_fetch_available_models_func=fetch_available_models,
+        anthropic_models=list(ANTHROPIC_MODELS),
+        safe_build_models_url_func=_safe_build_models_url,
+        safe_build_headers_func=_safe_build_headers,
+        http_get_func=httpx.get,
+        httpx_get_kimi_aware_func=httpx_get_kimi_aware,
+        http_status_error_cls=httpx.HTTPStatusError,
+        llm_verify_func=llm_verify,
+        logger=logger,
+        redact_url_func=_redact_url_for_log,
+        anthropic_model_ids_from_payload_func=_anthropic_model_ids_from_payload,
+        model_ids_from_listing_payload_func=_model_ids_from_listing_payload,
+        append_curated_probe_models_func=_append_curated_probe_models,
+        host_match_func=_host_match,
         match_provider_curated_func=_match_provider_curated,
         provider_curated=_PROVIDER_CURATED,
+        is_chat_model_func=_is_chat_model,
+        ollama_tag_model_ids_from_payload_func=_ollama_tag_model_ids_from_payload,
+        curated_probe_fallback_models_func=_curated_probe_fallback_models,
     )
-    if fallback:
-        logger.info(f"Using curated fallback for {curated_key}: {fallback}")
-        return fallback
-    return []
 
 
 def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> Dict[str, Any]:
