@@ -37,6 +37,7 @@ from routes.model_loopback_helpers import (
 from routes.model_probe_helpers import (
     append_curated_probe_models as _append_curated_probe_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
+    ping_result_from_response as _ping_result_from_response,
     probe_single_model as _probe_single_model_impl,
     safe_build_headers as _safe_build_headers_impl,
     safe_build_models_url as _safe_build_models_url_impl,
@@ -264,24 +265,6 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
         or "ollama" in (parsed_base.hostname or "").lower()
     )
 
-    def _result_from_response(r) -> Dict[str, Any]:
-        if 300 <= r.status_code < 400:
-            loc = r.headers.get("location", "")
-            if loc.startswith("/login") or "/login" in loc:
-                return {
-                    "reachable": False,
-                    "status_code": r.status_code,
-                    "error": "That is Odysseus, not a model server. Use the Ollama URL, usually http://host.docker.internal:11434/v1 in Docker.",
-                }
-            return {"reachable": False, "status_code": r.status_code, "error": f"HTTP {r.status_code} redirect"}
-        if 200 <= r.status_code < 300:
-            return {
-                "reachable": True,
-                "status_code": r.status_code,
-                "error": None,
-            }
-        return {"reachable": False, "status_code": r.status_code, "error": f"HTTP {r.status_code}"}
-
     last_error: Optional[str] = None
 
     try:
@@ -294,7 +277,7 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
             for path in ("/api/version", "/api/tags"):
                 try:
                     r = httpx.get(root + path, timeout=timeout, verify=llm_verify())
-                    result = _result_from_response(r)
+                    result = _ping_result_from_response(r)
                     if result["reachable"]:
                         return result
                     last_error = result.get("error")
@@ -305,7 +288,7 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
 
     try:
         r = httpx.get(base, headers=headers, timeout=timeout, verify=llm_verify())
-        result = _result_from_response(r)
+        result = _ping_result_from_response(r)
         if result["reachable"]:
             return result
         sc = result.get("status_code") or 0
@@ -313,7 +296,7 @@ def _ping_endpoint(base_url: str, api_key: str = None, timeout: float = 1.5) -> 
             models_url = _safe_build_models_url(base)
             try:
                 r2 = httpx.get(models_url, headers=headers, timeout=timeout, verify=llm_verify())
-                result2 = _result_from_response(r2)
+                result2 = _ping_result_from_response(r2)
                 if result2["reachable"]:
                     return result2
             except Exception:

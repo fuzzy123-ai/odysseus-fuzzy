@@ -1,4 +1,6 @@
-from routes.model_probe_helpers import append_curated_probe_models
+from types import SimpleNamespace
+
+from routes.model_probe_helpers import append_curated_probe_models, ping_result_from_response
 
 
 def _host_match(base_url, domain):
@@ -47,3 +49,39 @@ def test_append_curated_probe_models_ignores_unmatched_endpoint():
     )
 
     assert result == ["custom-model"]
+
+
+def _response(status_code, headers=None):
+    return SimpleNamespace(status_code=status_code, headers=headers or {})
+
+
+def test_ping_result_from_response_reports_success():
+    assert ping_result_from_response(_response(204)) == {
+        "reachable": True,
+        "status_code": 204,
+        "error": None,
+    }
+
+
+def test_ping_result_from_response_detects_odysseus_login_redirect():
+    result = ping_result_from_response(_response(302, {"location": "/login?next=/"}))
+
+    assert result["reachable"] is False
+    assert result["status_code"] == 302
+    assert "not a model server" in result["error"]
+
+
+def test_ping_result_from_response_reports_generic_redirect():
+    assert ping_result_from_response(_response(301, {"location": "https://elsewhere.example/"})) == {
+        "reachable": False,
+        "status_code": 301,
+        "error": "HTTP 301 redirect",
+    }
+
+
+def test_ping_result_from_response_reports_http_error():
+    assert ping_result_from_response(_response(503)) == {
+        "reachable": False,
+        "status_code": 503,
+        "error": "HTTP 503",
+    }

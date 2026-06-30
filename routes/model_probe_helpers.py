@@ -247,3 +247,32 @@ def append_curated_probe_models(
     if host_match_func(base_url, "kimi.com") and "/coding" in path:
         _append_key(match_provider_curated_func(base_url, None))
     return augmented
+
+
+def ping_result_from_response(response: Any) -> dict[str, Any]:
+    """Classify a model endpoint reachability probe response."""
+    status_code = response.status_code
+    if 300 <= status_code < 400:
+        location = response.headers.get("location", "")
+        if location.startswith("/login") or "/login" in location:
+            return {
+                "reachable": False,
+                "status_code": status_code,
+                "error": "That is Odysseus, not a model server. Use the Ollama URL, usually http://host.docker.internal:11434/v1 in Docker.",
+            }
+        return {
+            "reachable": False,
+            "status_code": status_code,
+            "error": f"HTTP {status_code} redirect",
+        }
+    if 200 <= status_code < 300:
+        return {
+            "reachable": True,
+            "status_code": status_code,
+            "error": None,
+        }
+    return {
+        "reachable": False,
+        "status_code": status_code,
+        "error": f"HTTP {status_code}",
+    }

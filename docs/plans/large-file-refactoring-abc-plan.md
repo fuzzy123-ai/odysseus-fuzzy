@@ -12,7 +12,8 @@ helper split, R11AA model loopback helper split, R11AB gallery endpoint helper s
 R11AC model probe helper split, R11AD email warm-read helper split, R11AE email
 contact helper split, R11AF model ProviderAuth helper split and R11AG model
 probe-key helper split, R11AH model single-probe helper split and R11AI model
-curated-probe helper split implemented; tool
+curated-probe helper split and R11AJ model ping-result helper split
+implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2253,6 +2254,57 @@ Completion criteria:
   orchestration.
 - Z.AI coding and Kimi coding probe results still append curated-only models
   without duplicating existing or prefix-matched entries.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AJ / L7-R12Y: Model Ping Result Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move ping response reachability classification out of `_ping_endpoint()` while
+  preserving the route-compatible probe strategy and status results.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AJ done 2026-06-30: HTTP response classification moved to
+  `ping_result_from_response()` in `routes/model_probe_helpers.py`.
+  `_ping_endpoint()` now keeps HTTP probing, Ollama native fallback and models
+  URL fallback orchestration, delegating response shaping to the helper.
+- Compatibility evidence: helper tests cover 2xx success, Odysseus login
+  redirect detection, generic redirects and HTTP errors; existing endpoint
+  probing and model route tests remain green.
+- R11AJ line count 2026-06-30: `routes/model_routes.py` is 1729 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AJ focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AJ Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `187 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with ping response classification separated from route orchestration.
+- Ping behavior remains covered for success, auth/error statuses, redirects,
+  Odysseus-login redirect traps, transport failures and Ollama native fallback
+  without live provider calls.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 
