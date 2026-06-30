@@ -4965,6 +4965,56 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CJ / L7-R12BY: Email MCP Agent Draft Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving agent email confirmation and
+  pending-draft storage/schema handling into a focused helper while preserving
+  the legacy `_read_agent_email_confirm_setting` and `_stash_agent_draft`
+  wrappers for monkeypatch compatibility.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_agent_draft_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_email_owner_scope.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CJ done 2026-06-30: `read_agent_email_confirm_setting` and
+  `stash_agent_draft` moved to `mcp_servers/email_agent_draft_utils.py`;
+  `mcp_servers.email_server` keeps the legacy wrappers so existing call sites
+  and tests keep their private monkeypatch surface.
+- R11CJ line count 2026-06-30: `mcp_servers/email_server.py` is 1423 lines,
+  still in warning band but reduced from 1482 after R11CI;
+  `mcp_servers/email_agent_draft_utils.py` is 133 lines and below the report
+  threshold.
+- R11CJ focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_agent_draft_utils.py`
+  passed.
+- R11CJ email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py tests\test_imap_leak_fixes.py tests\test_email_owner_scope.py -q`
+  returned `41 passed, 7 warnings`.
+
+Completion criteria:
+
+- Agent-initiated send/reply still defaults to pending approval instead of
+  direct SMTP delivery.
+- Pending agent drafts keep owner scope, status, account id and response
+  payload semantics.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
