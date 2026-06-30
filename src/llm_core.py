@@ -260,6 +260,7 @@ def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
 
 
 from src.llm_message_formats import (
+    _MISTRAL_REASONING_EFFORT,
     _anthropic_rejects_temperature,
     _as_content_blocks,
     _build_anthropic_headers,
@@ -284,6 +285,7 @@ from src.llm_request_policy import (
     _restricts_temperature,
     _uses_max_completion_tokens,
 )
+from src.llm_sync_call import llm_call_impl as _llm_call_impl_helper
 
 
 def list_model_ids(
@@ -333,98 +335,41 @@ def normalize_model_id(
     )
 
 def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
-             max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None, 
+             max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None,
              timeout: int = LLMConfig.DEFAULT_TIMEOUT, prompt_type: Optional[str] = None) -> str:
     """Synchronous LLM call with optional prompt type enhancement."""
-    h = _provider_headers(_detect_provider(url))
-    # Tolerate headers that arrive as a JSON string (some sessions stored them
-    # double-encoded) — otherwise h.update() throws "dictionary update sequence
-    # element #0 has length 1; 2 is required".
-    if isinstance(headers, str):
-        try:
-            headers = json.loads(headers)
-        except Exception:
-            headers = None
-    if isinstance(headers, dict):
-        h.update(headers)
-
-    messages_copy = _sanitize_llm_messages(messages)
-
-    # Consolidate multiple system messages into one at the start.
-    sys_parts = []
-    non_sys = []
-    for m in messages_copy:
-        if m.get("role") == "system":
-            sys_parts.append(m.get('content') or '')
-        else:
-            non_sys.append(m)
-    if sys_parts:
-        messages_copy = [{"role": "system", "content": "\n\n".join(sys_parts)}] + non_sys
-    else:
-        messages_copy = non_sys
-
-    provider = _detect_provider(url)
-    cache_key = _get_cache_key(url, model, messages_copy, temperature, max_tokens)
-    cached_response = _get_cached_response(cache_key)
-    if cached_response:
-        logger.debug(f"Returning cached response for key: {cache_key}")
-        return cached_response
-
-    if provider == "anthropic":
-        target_url = _normalize_anthropic_url(url)
-        h = _build_anthropic_headers(headers)
-        payload = _build_anthropic_payload(model, messages_copy, temperature, max_tokens)
-    elif provider == "ollama":
-        target_url = _normalize_ollama_url(url)
-        payload = _build_ollama_payload(
-            model, messages_copy, temperature, max_tokens,
-            stream=False, num_ctx=get_context_length(url, model),
-        )
-    else:
-        target_url = url
-        if provider == "copilot":
-            from src.copilot import apply_request_headers
-            apply_request_headers(h, messages_copy)
-        payload = {
-            "model": model,
-            "messages": messages_copy,
-            "temperature": temperature,
-        }
-        if _omit_temperature(provider, model):
-            payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
-            tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
-        if provider == "mistral" and _supports_thinking(model):
-            payload["reasoning_effort"] = _MISTRAL_REASONING_EFFORT
-    try:
-        note_model_activity(target_url, model)
-        r = httpx_post_kimi_aware(target_url, h, json=payload, timeout=timeout)
-    except Exception as e:
-        raise HTTPException(502, f"POST {target_url} failed: {e}")
-    if not r.is_success:
-        raise HTTPException(502, f"Upstream {target_url} -> {r.status_code}: {r.text}")
-    data = r.json()
-    try:
-        if provider == "anthropic":
-            response = _parse_anthropic_response(data)
-        elif provider == "ollama":
-            response = _parse_ollama_response(data)
-        else:
-            msg = data["choices"][0]["message"]
-            content = msg.get("content")
-            if isinstance(content, list):
-                text_part, thinking_part = _normalize_mistral_content(content)
-                response = ((thinking_part + "\n\n") if thinking_part else "") + (text_part or "")
-                if not response:
-                    response = msg.get("reasoning_content") or ""
-            else:
-                response = content or msg.get("reasoning_content") or ""
-        _set_cached_response(cache_key, response)
-        return response
-    except Exception:
-        raise HTTPException(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
-
+    return _llm_call_impl_helper(
+        url,
+        model,
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        headers=headers,
+        timeout=timeout,
+        http_exception_cls=HTTPException,
+        logger=logger,
+        provider_headers_func=_provider_headers,
+        detect_provider_func=_detect_provider,
+        sanitize_messages_func=_sanitize_llm_messages,
+        get_cache_key_func=_get_cache_key,
+        get_cached_response_func=_get_cached_response,
+        set_cached_response_func=_set_cached_response,
+        normalize_anthropic_url_func=_normalize_anthropic_url,
+        build_anthropic_headers_func=_build_anthropic_headers,
+        build_anthropic_payload_func=_build_anthropic_payload,
+        normalize_ollama_url_func=_normalize_ollama_url,
+        build_ollama_payload_func=_build_ollama_payload,
+        get_context_length_func=get_context_length,
+        omit_temperature_func=_omit_temperature,
+        uses_max_completion_tokens_func=_uses_max_completion_tokens,
+        supports_thinking_func=_supports_thinking,
+        mistral_reasoning_effort=_MISTRAL_REASONING_EFFORT,
+        note_model_activity_func=note_model_activity,
+        httpx_post_func=httpx_post_kimi_aware,
+        parse_anthropic_response_func=_parse_anthropic_response,
+        parse_ollama_response_func=_parse_ollama_response,
+        normalize_mistral_content_func=_normalize_mistral_content,
+    )
 
 def llm_call(
     url: str,

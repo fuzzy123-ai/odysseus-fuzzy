@@ -4907,6 +4907,56 @@ Completion criteria:
 - The split performs no live provider calls in tests and keeps the legacy core
   wrappers.
 
+## R11DC / L7-R12CR: LLM Sync Call Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving synchronous request orchestration into a
+  focused helper module, while keeping `_llm_call_impl` and the public
+  `llm_call` audit facade in `src.llm_core`.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_sync_call.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_provider_detection.py`
+- `tests/test_provider_classification.py`
+- `tests/test_provider_classification_errors.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_concurrency.py`
+- `tests/test_llm_core_ollama.py`
+- `tests/test_lmstudio_models_url.py`
+- `tests/test_llama_server_models_url.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11DC done 2026-06-30: synchronous payload/request/response orchestration
+  moved to `src/llm_sync_call.py`; `src.llm_core._llm_call_impl` keeps the
+  compatibility wrapper and injects cache, provider, payload and HTTP hooks.
+- R11DC line count 2026-06-30: `src/llm_core.py` is 1382 lines, still in
+  warning band but reduced from 1437 after R11DB; `src/llm_sync_call.py` is
+  140 lines and below the report threshold.
+- R11DC focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_sync_call.py` passed.
+- R11DC sync-call checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_temperature.py tests\test_provider_detection.py tests\test_provider_classification.py tests\test_provider_classification_errors.py tests\test_ai_activity_ledger.py tests\test_llm_core_concurrency.py tests\test_llm_core_ollama.py tests\test_lmstudio_models_url.py tests\test_llama_server_models_url.py -q`
+  returned `153 passed, 1 warning`.
+
+Completion criteria:
+
+- Temperature/token policy, provider detection/classification, Ollama payloads,
+  cache concurrency and AI activity audit behavior remain stable.
+- Existing `src.llm_core` imports and monkeypatch hooks remain intact.
+- The split performs no live provider calls in tests and keeps the public
+  `llm_call` audit facade.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob
