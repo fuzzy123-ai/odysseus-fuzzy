@@ -6,10 +6,10 @@ Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H back
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
-library helper split, R11V chat endpoint helper split, R11W skills audit helper split and R11X
-calendar format helper split implemented; tool
+library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
+calendar format helper split and R11Y session format helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route, Skills route and Calendar route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route, Calendar route and Session route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1668,6 +1668,59 @@ Completion criteria:
 - ICS escaping, import deduplication and recurrence UID handling remain covered
   by focused tests.
 - The slice performs no CalDAV live push, sync, network or route write action.
+
+### R11Y / L7-R12N: Session Format Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure session export, status-message and message-coercion helpers out of
+  `routes/session_routes.py` while preserving route-compatible private imports
+  for session, history and blind-compare tests.
+
+Allowed paths:
+
+- `routes/session_routes.py`
+- `routes/session_format_helpers.py`
+- `routes/history_routes.py`
+- `tests/test_session_export_filename.py`
+- `tests/test_session_export_nonstring_content.py`
+- `tests/test_session_endpoint_owner_scope.py`
+- `tests/test_blind_compare_redaction.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11Y done 2026-06-30: conservative export filename sanitization,
+  blind-compare public-model redaction, Telegram source-channel detection,
+  readiness/memory attention status messages and message-content coercion moved
+  to `routes/session_format_helpers.py`.
+- Compatibility evidence: `routes/session_routes.py` imports the moved helper
+  names under the existing private names so imports from `routes.session_routes`
+  and route handlers continue to work.
+- R11Y line count 2026-06-30: `routes/session_routes.py` is 1381 lines in
+  the large-file report, band `warning`, not `candidate`; report candidate
+  count is 26.
+- R11Y focused checks 2026-06-30:
+  `python -m py_compile routes\session_routes.py routes\session_format_helpers.py routes\history_routes.py`
+  passed.
+- R11Y Session formatting/regression tests 2026-06-30:
+  `python -m pytest tests\test_session_export_filename.py tests\test_session_export_nonstring_content.py tests\test_session_endpoint_owner_scope.py tests\test_blind_compare_redaction.py -q`
+  returned `15 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/session_routes.py` remains below the large-file candidate threshold
+  with pure formatting/status helpers separated from route orchestration.
+- Session export, endpoint owner-scope and blind-compare model redaction remain
+  covered by focused tests.
+- The slice performs no live provider, Telegram, Nextcloud, network or route
+  write action.
 
 ### R12: Obsidian Frontend Split
 
