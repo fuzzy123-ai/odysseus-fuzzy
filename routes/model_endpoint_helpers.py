@@ -336,6 +336,54 @@ def _model_refresh_failure_delay(fails: int, *, base: float = 300.0, maximum: fl
     return min(base * (2 ** max(0, count - 1)), maximum)
 
 
+def _should_refresh_endpoint_with_state(
+    ep: Any,
+    now: float,
+    refresh_state: dict[str, dict[str, Any]],
+    *,
+    force: bool = False,
+) -> tuple[bool, dict[str, Any]]:
+    base = _normalize_base(getattr(ep, "base_url", "") or "")
+    kind = _effective_endpoint_kind(ep, base)
+    category = _classify_endpoint(base, kind)
+    mode = _endpoint_refresh_mode(ep, kind)
+    cached = _cached_model_ids(ep)
+    key = _model_refresh_key(base, getattr(ep, "api_key", None))
+    state = refresh_state.get(key, {})
+
+    info = {
+        "id": getattr(ep, "id", ""),
+        "base": base,
+        "api_key": getattr(ep, "api_key", None),
+        "kind": kind,
+        "category": category,
+        "mode": mode,
+        "key": key,
+        "timeout": _endpoint_refresh_timeout(ep, category),
+    }
+    if not base:
+        return False, info
+    if state.get("inflight"):
+        return False, info
+    if mode in ("manual", "disabled") and not force:
+        return False, info
+    fails = int(state.get("fail_count") or 0)
+    if fails and not force:
+        last_failure = float(state.get("last_failure") or 0.0)
+        if now - last_failure < _model_refresh_failure_delay(fails):
+            return False, info
+    if cached and not force:
+        interval = _endpoint_refresh_interval(ep, category)
+        last_good = (
+            float(state.get("last_success") or 0.0)
+            or _timestamp_seconds(getattr(ep, "updated_at", None))
+            or _timestamp_seconds(getattr(ep, "created_at", None))
+        )
+        if last_good and now - last_good < interval:
+            return False, info
+    return True, info
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

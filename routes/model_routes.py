@@ -78,7 +78,6 @@ from routes.model_endpoint_helpers import (
     _match_provider_curated,
     _manual_refresh_timeout,
     _merge_model_ids,
-    _model_refresh_failure_delay as _failure_delay,
     _model_refresh_key as _refresh_key,
     _normalize_endpoint_kind,
     _normalize_model_ids,
@@ -86,8 +85,8 @@ from routes.model_endpoint_helpers import (
     _parse_model_list,
     _parse_positive_int,
     _resolve_probe_key as _resolve_probe_key_impl,
+    _should_refresh_endpoint_with_state as _should_refresh_endpoint_impl,
     _speech_settings_using_endpoint,
-    _timestamp_seconds as _ts,
     _truthy,
     _visible_models,
 )
@@ -428,41 +427,7 @@ def setup_model_routes(model_discovery):
     _refresh_state: Dict[str, Dict[str, Any]] = {}
     _refresh_inflight = {"v": False}  # coarse single-flight guard
     def _should_refresh_endpoint(ep: Any, now: float, force: bool = False) -> tuple[bool, Dict[str, Any]]:
-        base = _normalize_base(getattr(ep, "base_url", "") or "")
-        kind = _effective_endpoint_kind(ep, base)
-        category = _classify_endpoint(base, kind)
-        mode = _endpoint_refresh_mode(ep, kind)
-        cached = _cached_model_ids(ep)
-        key = _refresh_key(base, getattr(ep, "api_key", None))
-        state = _refresh_state.get(key, {})
-
-        info = {
-            "id": getattr(ep, "id", ""),
-            "base": base,
-            "api_key": getattr(ep, "api_key", None),
-            "kind": kind,
-            "category": category,
-            "mode": mode,
-            "key": key,
-            "timeout": _endpoint_refresh_timeout(ep, category),
-        }
-        if not base:
-            return False, info
-        if state.get("inflight"):
-            return False, info
-        if mode in ("manual", "disabled") and not force:
-            return False, info
-        fails = int(state.get("fail_count") or 0)
-        if fails and not force:
-            last_failure = float(state.get("last_failure") or 0.0)
-            if now - last_failure < _failure_delay(fails):
-                return False, info
-        if cached and not force:
-            interval = _endpoint_refresh_interval(ep, category)
-            last_good = float(state.get("last_success") or 0.0) or _ts(getattr(ep, "updated_at", None)) or _ts(getattr(ep, "created_at", None))
-            if last_good and now - last_good < interval:
-                return False, info
-        return True, info
+        return _should_refresh_endpoint_impl(ep, now, _refresh_state, force=force)
 
     def _refresh_caches_bg(force: bool = False):
         """Background thread: safely refresh model caches with per-base single-flight.

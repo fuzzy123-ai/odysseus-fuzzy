@@ -153,6 +153,83 @@ def test_model_refresh_failure_delay_uses_exponential_backoff_with_cap():
     assert _model_refresh_failure_delay("bad") == 0.0
 
 
+def _refresh_endpoint(**overrides):
+    data = {
+        "id": "ep1",
+        "base_url": "http://localhost:11434/v1",
+        "api_key": None,
+        "endpoint_kind": "local",
+        "model_refresh_mode": "auto",
+        "model_refresh_interval": None,
+        "model_refresh_timeout": None,
+        "cached_models": None,
+        "updated_at": None,
+        "created_at": None,
+    }
+    data.update(overrides)
+    return SimpleNamespace(**data)
+
+
+def test_should_refresh_endpoint_with_state_allows_auto_endpoint_without_cache():
+    from routes.model_endpoint_helpers import _should_refresh_endpoint_with_state
+
+    ok, info = _should_refresh_endpoint_with_state(_refresh_endpoint(), 1000.0, {})
+
+    assert ok is True
+    assert info["id"] == "ep1"
+    assert info["category"] == "local"
+    assert info["timeout"] == 10.0
+
+
+def test_should_refresh_endpoint_with_state_skips_manual_unless_forced():
+    from routes.model_endpoint_helpers import _should_refresh_endpoint_with_state
+
+    ep = _refresh_endpoint(model_refresh_mode="manual")
+
+    ok, _info = _should_refresh_endpoint_with_state(ep, 1000.0, {}, force=False)
+    forced, _forced_info = _should_refresh_endpoint_with_state(ep, 1000.0, {}, force=True)
+
+    assert ok is False
+    assert forced is True
+
+
+def test_should_refresh_endpoint_with_state_skips_inflight_key():
+    from routes.model_endpoint_helpers import _model_refresh_key, _should_refresh_endpoint_with_state
+
+    ep = _refresh_endpoint(api_key="secret")
+    state = {_model_refresh_key("http://localhost:11434/v1", "secret"): {"inflight": True}}
+
+    ok, _info = _should_refresh_endpoint_with_state(ep, 1000.0, state)
+
+    assert ok is False
+
+
+def test_should_refresh_endpoint_with_state_respects_failure_cooldown():
+    from routes.model_endpoint_helpers import _model_refresh_key, _should_refresh_endpoint_with_state
+
+    ep = _refresh_endpoint()
+    state = {_model_refresh_key("http://localhost:11434/v1", None): {"fail_count": 1, "last_failure": 900.0}}
+
+    ok, _info = _should_refresh_endpoint_with_state(ep, 1000.0, state, force=False)
+    forced, _forced_info = _should_refresh_endpoint_with_state(ep, 1000.0, state, force=True)
+
+    assert ok is False
+    assert forced is True
+
+
+def test_should_refresh_endpoint_with_state_skips_fresh_cached_models():
+    from routes.model_endpoint_helpers import _should_refresh_endpoint_with_state
+
+    ep = _refresh_endpoint(
+        cached_models='["llama3"]',
+        updated_at=SimpleNamespace(timestamp=lambda: 970.0),
+    )
+
+    ok, _info = _should_refresh_endpoint_with_state(ep, 1000.0, {})
+
+    assert ok is False
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {
