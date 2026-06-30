@@ -449,6 +449,19 @@ def _clear_model_refresh_inflight(refresh_state: dict[str, dict[str, Any]]) -> N
         state["inflight"] = False
 
 
+def _probe_model_refresh_group(
+    key: str,
+    data: dict[str, Any],
+    *,
+    probe_endpoint_func,
+) -> tuple[str, list[str], list[str] | None, Any]:
+    try:
+        ids = probe_endpoint_func(data["base"], data.get("api_key"), timeout=data.get("timeout") or 2)
+        return key, data.get("endpoint_ids") or [], ids, None
+    except Exception as exc:
+        return key, data.get("endpoint_ids") or [], None, exc
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

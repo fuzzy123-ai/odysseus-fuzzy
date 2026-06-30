@@ -21,7 +21,8 @@ helper split, R11AR model Ollama native ping execution helper split, R11AS
 model base ping fallback helper split, R11AT model refresh-state helper split,
 R11AU model refresh-decision helper split, R11AV model refresh group helper
 split, R11AW model refresh inflight helper split and R11AX model refresh
-result helper split and R11AY model refresh inflight reset helper split; tool
+result helper split, R11AY model refresh inflight reset helper split and R11AZ
+model refresh probe helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -3089,6 +3090,61 @@ Completion criteria:
   with refresh inflight reset logic separated from route worker finalization.
 - Background refresh still clears all per-key inflight flags when the worker
   exits, without losing other state fields.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AZ / L7-R12AO: Model Refresh Probe Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move model refresh group probe execution out of the background worker closure
+  while preserving route-owned ThreadPool orchestration and probe dependency
+  injection.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_routes.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_probe_timeouts.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AZ done 2026-06-30: refresh group probe execution moved to
+  `_probe_model_refresh_group()` in `routes/model_endpoint_helpers.py`.
+  `setup_model_routes()` keeps ThreadPool scheduling and passes the existing
+  `_probe_endpoint` dependency into the helper.
+- Compatibility evidence: helper tests cover successful IDs with endpoint IDs,
+  default timeout fallback and exception capture without raising; existing
+  model route, endpoint probing and refresh-timeout tests remain green.
+- R11AZ line count 2026-06-30: `routes/model_routes.py` is 1660 lines in the
+  large-file report, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 706 lines, band `monitor`; report
+  candidate count is 26.
+- R11AZ focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11AZ model route checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `233 passed, 2 warnings`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with refresh group probe execution separated from route worker orchestration.
+- Background refresh still invokes the same endpoint probe function with the
+  configured base URL, API key and timeout fallback.
+- Probe failures are still returned as result tuples so the route can preserve
+  existing failure accounting.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

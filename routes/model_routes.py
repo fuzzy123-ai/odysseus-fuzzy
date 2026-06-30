@@ -88,6 +88,7 @@ from routes.model_endpoint_helpers import (
     _normalize_refresh_mode,
     _parse_model_list,
     _parse_positive_int,
+    _probe_model_refresh_group,
     _resolve_probe_key as _resolve_probe_key_impl,
     _speech_settings_using_endpoint,
     _truthy,
@@ -452,16 +453,17 @@ def setup_model_routes(model_discovery):
                     groups = _build_model_refresh_groups(endpoints, now, _refresh_state, force=force)
                     _mark_model_refresh_groups_inflight(_refresh_state, groups, now)
 
-                    def _probe_one(key: str, data: Dict[str, Any]):
-                        try:
-                            ids = _probe_endpoint(data["base"], data.get("api_key"), timeout=data.get("timeout") or 2)
-                            return key, data["endpoint_ids"], ids, None
-                        except Exception as e:
-                            return key, data["endpoint_ids"], None, e
-
                     if groups:
                         with ThreadPoolExecutor(max_workers=min(4, len(groups))) as pool:
-                            futures = [pool.submit(_probe_one, key, data) for key, data in groups.items()]
+                            futures = [
+                                pool.submit(
+                                    _probe_model_refresh_group,
+                                    key,
+                                    data,
+                                    probe_endpoint_func=_probe_endpoint,
+                                )
+                                for key, data in groups.items()
+                            ]
                             for fut in as_completed(futures):
                                 key, endpoint_ids, ids, err = fut.result()
                                 def _update_cached_models(ep_id: str, model_ids: list[str]) -> bool:

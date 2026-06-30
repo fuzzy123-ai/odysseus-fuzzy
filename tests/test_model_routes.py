@@ -356,6 +356,69 @@ def test_clear_model_refresh_inflight_ignores_empty_state():
     assert state == {}
 
 
+def test_probe_model_refresh_group_returns_ids_and_endpoint_ids():
+    from routes.model_endpoint_helpers import _probe_model_refresh_group
+
+    calls = []
+
+    def probe(base_url, api_key=None, timeout=2):
+        calls.append((base_url, api_key, timeout))
+        return ["llama3", "qwen3"]
+
+    result = _probe_model_refresh_group(
+        "key",
+        {
+            "base": "http://localhost:11434/v1",
+            "api_key": "secret",
+            "timeout": 7,
+            "endpoint_ids": ["ep1", "ep2"],
+        },
+        probe_endpoint_func=probe,
+    )
+
+    assert result == ("key", ["ep1", "ep2"], ["llama3", "qwen3"], None)
+    assert calls == [("http://localhost:11434/v1", "secret", 7)]
+
+
+def test_probe_model_refresh_group_uses_default_timeout():
+    from routes.model_endpoint_helpers import _probe_model_refresh_group
+
+    seen = {}
+
+    def probe(_base_url, _api_key=None, timeout=2):
+        seen["timeout"] = timeout
+        return []
+
+    result = _probe_model_refresh_group(
+        "key",
+        {"base": "http://localhost:11434/v1", "timeout": None, "endpoint_ids": ["ep1"]},
+        probe_endpoint_func=probe,
+    )
+
+    assert result == ("key", ["ep1"], [], None)
+    assert seen == {"timeout": 2}
+
+
+def test_probe_model_refresh_group_returns_exception_without_raising():
+    from routes.model_endpoint_helpers import _probe_model_refresh_group
+
+    error = RuntimeError("offline")
+
+    def probe(*_args, **_kwargs):
+        raise error
+
+    key, endpoint_ids, ids, err = _probe_model_refresh_group(
+        "key",
+        {"base": "http://localhost:11434/v1", "endpoint_ids": ["ep1"]},
+        probe_endpoint_func=probe,
+    )
+
+    assert key == "key"
+    assert endpoint_ids == ["ep1"]
+    assert ids is None
+    assert err is error
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {
