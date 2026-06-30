@@ -7,9 +7,10 @@ R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model 
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
-calendar format helper split and R11Y session format helper split implemented; tool
+calendar format helper split, R11Y session format helper split and R11Z shell dependency
+helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery, Document route, Chat route, Skills route, Calendar route and Session route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1721,6 +1722,58 @@ Completion criteria:
   covered by focused tests.
 - The slice performs no live provider, Telegram, Nextcloud, network or route
   write action.
+
+### R11Z / L7-R12O: Shell Dependency Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure Shell/Cookbook dependency detection, SSH argv validation and probe
+  script helpers out of `routes/shell_routes.py` while preserving
+  route-compatible private imports for existing shell and Cookbook tests.
+
+Allowed paths:
+
+- `routes/shell_routes.py`
+- `routes/shell_dependency_helpers.py`
+- `tests/test_shell_routes.py`
+- `tests/test_cookbook_package_detection.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11Z done 2026-06-30: Docker-row applicability, remote SSH argv validation,
+  venv activation prefix validation, package distribution-name mapping,
+  dependency probe status shaping, pip-update availability and remote probe
+  script generation moved to `routes/shell_dependency_helpers.py`.
+- Compatibility evidence: `routes/shell_routes.py` imports the moved helper
+  names under the existing private names so route handlers and tests importing
+  from `routes.shell_routes` continue to work. The optional dependency import
+  wrapper remains local because existing tests monkeypatch
+  `routes.shell_routes.prepare_optional_dependency_import`.
+- R11Z line count 2026-06-30: `routes/shell_routes.py` is 1074 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11Z focused checks 2026-06-30:
+  `python -m py_compile routes\shell_routes.py routes\shell_dependency_helpers.py`
+  passed.
+- R11Z Shell/Cookbook regression tests 2026-06-30:
+  `python -m pytest tests\test_shell_routes.py tests\test_cookbook_package_detection.py -q`
+  returned `73 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/shell_routes.py` remains below the large-file candidate threshold
+  with pure dependency/probe helpers separated from route orchestration.
+- Shell security helpers, dependency status behavior and package distribution
+  mapping remain covered by focused tests.
+- The slice performs no live shell execution, SSH command, provider call,
+  Telegram, Nextcloud, network or host mutation.
 
 ### R12: Obsidian Frontend Split
 
