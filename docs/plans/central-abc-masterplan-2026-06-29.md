@@ -617,6 +617,22 @@ Current evidence:
 - 2026-06-30 large-file report after R7D: `src/tool_implementations.py` is
   reduced to 2527 lines and remains a candidate; `src/tool_domains/admin_config.py`
   is 2369 lines and remains a follow-up split candidate.
+- 2026-06-30: L7 R7E is implemented. `src/tool_domains/app_api.py` now owns
+  the generic App API bridge, App API blocklists and shared loopback helpers;
+  `src/tool_domains/cookbook_models.py` owns Cookbook/model-serving tools.
+  `src.tool_implementations` remains import-compatible for public App API and
+  Cookbook tools plus legacy `_APP_API_BLOCKLIST_*` imports.
+- 2026-06-30 focused R7E tests passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_review_regressions.py::test_app_api_blocks_shell_routes_before_loopback tests/test_review_regressions.py::test_app_api_blocks_cookbook_host_control_routes_before_loopback tests/test_review_regressions.py::test_app_api_endpoint_discovery_hides_shell_routes tests/test_review_regressions.py::test_app_api_endpoint_discovery_hides_cookbook_host_control_routes tests/test_cookbook_agent_tool_ssh_validation.py tests/test_mount_points.py -q`
+  returned `173 passed, 1 skipped, 1 warning`.
+- 2026-06-30 broader R7 smoke after R7E passed:
+  `python -m pytest tests/test_app_api_admin_mutation_blocklist.py tests/test_manage_repos_read_tool.py tests/test_manage_settings_service_v2.py tests/test_calendar_batch_events.py tests/test_cookbook_agent_tool_ssh_validation.py tests/test_owned_document_query.py tests/test_vault_password_not_in_argv.py -q`
+  returned `188 passed, 1 warning`.
+- 2026-06-30 large-file report after R7E: `src/tool_implementations.py` is
+  reduced to 671 lines in the monitor band; `src/tool_domains/app_api.py` is
+  698 lines in the monitor band; `src/tool_domains/cookbook_models.py` is
+  1213 lines in the warning band; `src/tool_domains/admin_config.py` remains
+  2369 lines and needs a later follow-up split.
 
 Parallel rule:
 
@@ -636,14 +652,16 @@ Slice queue:
 | L7-R7A/R7B-tool-implementations-repo-skills | repo_only | Bob | Done: common parser and repo/skills/recent-changes/search tools moved behind the compatibility facade. |
 | L7-R7C-tool-implementations-personal-workspace | repo_only | Bob | Done: notes/calendar moved behind the compatibility facade. |
 | L7-R7D-tool-implementations-admin-config | repo_only | Bob | Done: admin/config tools moved behind the compatibility facade. |
-| L7-R7E-tool-implementations-app-api-cookbook | repo_only | Bob | Next: move app API and cookbook/model-serving tools behind the compatibility facade. |
+| L7-R7E-tool-implementations-app-api-cookbook | repo_only | Bob | Done: app API and cookbook/model-serving tools moved behind the compatibility facade. |
+| L7-R7F-tool-implementations-tail-domains | repo_only | Bob | Next: move media/research/contacts/vault tail domains behind the compatibility facade. |
 
 Next safe slice:
 
-- L7-R7E facade-first backend split for app API and cookbook/model-serving
-  tools in `src/tool_implementations.py`, if the file is still clean. L7-R2
-  CSS split should wait until visual smoke coverage is available because
-  `static/style.css` controls shell/chat/modal cascade.
+- L7-R7F facade-first backend split for media/research/contacts/vault tail
+  domains, if the file is still clean. After R7F, add a follow-up split for
+  `src/tool_domains/admin_config.py` because it remains above the candidate
+  threshold. L7-R2 CSS split should wait until visual smoke coverage is
+  available because `static/style.css` controls shell/chat/modal cascade.
 
 ## Lane L8: UI/V2 Integration
 
@@ -720,7 +738,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7D backend splits are complete; more extraction waves remain, with CSS split waiting on visual smoke. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist, R1 CSS map, R7 domain map and R7A-R7E backend splits are complete; `src/tool_implementations.py` is now down to monitor band, while tail-domain cleanup and `admin_config.py` follow-up split remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

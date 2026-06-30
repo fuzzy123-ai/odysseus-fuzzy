@@ -1,7 +1,7 @@
 # Large File Refactoring: Tool Implementations Domain Map
 
 Date: 2026-06-30
-Status: R7A/R7B/R7C/R7D implemented; remaining domain splits pending
+Status: R7A/R7B/R7C/R7D/R7E implemented; remaining domain splits pending
 Source: `src/tool_implementations.py`
 Line count observed: 6502
 
@@ -131,6 +131,10 @@ private helpers together rather than slicing by line number.
 5. **R7E app API + cookbook models**
    - Move internal API/blocklist helpers and model-serving tools.
    - Run app_api and cookbook validation tests.
+   - Done 2026-06-30: `do_app_api`, App API blocklists and shared loopback
+     helpers moved to `src/tool_domains/app_api.py`; Cookbook/model-serving
+     tools moved to `src/tool_domains/cookbook_models.py`; facade re-exports
+     public tool functions plus legacy `_APP_API_BLOCKLIST_*` imports.
 6. **R7F media/research/contacts/vault**
    - Move smaller tail domains.
    - Run research/contact/vault tests.
@@ -268,6 +272,42 @@ Result: `imports ok`.
   `tests/test_app_api_admin_mutation_blocklist.py`,
   `tests/test_review_regressions.py`,
   `tests/test_cookbook_agent_tool_ssh_validation.py`
+- Evidence 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_review_regressions.py::test_app_api_blocks_shell_routes_before_loopback tests\test_review_regressions.py::test_app_api_blocks_cookbook_host_control_routes_before_loopback tests\test_review_regressions.py::test_app_api_endpoint_discovery_hides_shell_routes tests\test_review_regressions.py::test_app_api_endpoint_discovery_hides_cookbook_host_control_routes tests\test_cookbook_agent_tool_ssh_validation.py tests\test_mount_points.py -q
+```
+
+Result: `173 passed, 1 skipped, 1 warning`.
+
+- Broader R7 smoke after R7E 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_app_api_admin_mutation_blocklist.py tests\test_manage_repos_read_tool.py tests\test_manage_settings_service_v2.py tests\test_calendar_batch_events.py tests\test_cookbook_agent_tool_ssh_validation.py tests\test_owned_document_query.py tests\test_vault_password_not_in_argv.py -q
+```
+
+Result: `188 passed, 1 warning`.
+
+- Facade/import smoke after R7E 2026-06-30:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -c "from src.tool_implementations import do_app_api, do_download_model, do_serve_model, do_list_served_models, do_stop_served_model, do_tail_serve_output, do_list_downloads, do_cancel_download, do_search_hf_models, do_adopt_served_model, do_list_cookbook_servers, do_list_serve_presets, do_serve_preset, do_list_cached_models, _APP_API_BLOCKLIST_PREFIXES; from src.tool_execution import execute_tool_block; print('imports ok')"
+```
+
+Result: `imports ok`.
+
+- Large-file report evidence after R7E 2026-06-30:
+  - `src/tool_implementations.py`: 671 lines, monitor band.
+  - `src/tool_domains/app_api.py`: 698 lines, monitor band.
+  - `src/tool_domains/cookbook_models.py`: 1213 lines, warning band.
+  - `src/tool_domains/admin_config.py`: 2369 lines, still candidate.
+  - R7 can continue with R7F tail-domain extraction for facade clarity, while
+    `admin_config.py` needs a later follow-up split to leave the candidate band.
+
+Note: the full `tests/test_review_regressions.py` file still contains
+unrelated pre-existing failures around `routes.model_routes` import stubs and
+webhook test module isolation. The R7E-relevant App API/Cookbook node IDs
+listed above pass.
 - Contacts/vault:
   `tests/test_manage_contact_confirmation.py`,
   `tests/test_vault_password_not_in_argv.py`
