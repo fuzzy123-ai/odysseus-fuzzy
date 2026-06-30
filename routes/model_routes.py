@@ -77,6 +77,7 @@ from routes.model_endpoint_helpers import (
     _is_ollama_base,
     _match_provider_curated,
     _manual_refresh_timeout,
+    _mark_model_refresh_groups_inflight,
     _merge_model_ids,
     _build_model_refresh_groups,
     _model_refresh_key as _refresh_key,
@@ -447,11 +448,7 @@ def setup_model_routes(model_discovery):
                     endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
                     now = _time.time()
                     groups = _build_model_refresh_groups(endpoints, now, _refresh_state, force=force)
-
-                    for key in groups:
-                        st = _refresh_state.setdefault(key, {})
-                        st["inflight"] = True
-                        st["last_attempt"] = now
+                    _mark_model_refresh_groups_inflight(_refresh_state, groups, now)
 
                     def _probe_one(key: str, data: Dict[str, Any]):
                         try:

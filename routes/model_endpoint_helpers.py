@@ -408,6 +408,17 @@ def _build_model_refresh_groups(
     return groups
 
 
+def _mark_model_refresh_groups_inflight(
+    refresh_state: dict[str, dict[str, Any]],
+    groups: dict[str, dict[str, Any]],
+    now: float,
+) -> None:
+    for key in groups:
+        state = refresh_state.setdefault(key, {})
+        state["inflight"] = True
+        state["last_attempt"] = now
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

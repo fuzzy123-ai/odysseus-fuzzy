@@ -261,6 +261,31 @@ def test_build_model_refresh_groups_skips_blocked_endpoints():
     assert forced["http://localhost:11434/v1\x00"]["endpoint_ids"] == ["manual"]
 
 
+def test_mark_model_refresh_groups_inflight_sets_attempt_for_each_group():
+    from routes.model_endpoint_helpers import _mark_model_refresh_groups_inflight
+
+    state = {"existing": {"fail_count": 2}}
+    groups = {
+        "existing": {"endpoint_ids": ["ep1"]},
+        "new": {"endpoint_ids": ["ep2"]},
+    }
+
+    _mark_model_refresh_groups_inflight(state, groups, 1234.5)
+
+    assert state["existing"] == {"fail_count": 2, "inflight": True, "last_attempt": 1234.5}
+    assert state["new"] == {"inflight": True, "last_attempt": 1234.5}
+
+
+def test_mark_model_refresh_groups_inflight_ignores_empty_groups():
+    from routes.model_endpoint_helpers import _mark_model_refresh_groups_inflight
+
+    state = {"existing": {"inflight": False}}
+
+    _mark_model_refresh_groups_inflight(state, {}, 1234.5)
+
+    assert state == {"existing": {"inflight": False}}
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {
