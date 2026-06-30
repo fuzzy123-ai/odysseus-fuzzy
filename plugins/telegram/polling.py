@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import urllib.parse
+import urllib.request
 from typing import Any, Callable
 
 
@@ -117,3 +120,24 @@ def _agent_failure_reply(agent_turn: dict[str, Any] | None) -> str:
         "Ich habe deine Nachricht erhalten und arbeite, aber das Sprachmodell "
         "konnte gerade nicht antworten. Bitte prüfe den Modell-Zugang in Odysseus."
     )
+
+def fetch_telegram_updates(offset: int) -> list[dict[str, Any]]:
+    token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    params: dict[str, Any] = {
+        "timeout": 0,
+        "limit": 50,
+        "allowed_updates": json.dumps(["message"]),
+    }
+    if offset:
+        params["offset"] = int(offset)
+    url = f"https://api.telegram.org/bot{token}/getUpdates?{urllib.parse.urlencode(params)}"
+    with urllib.request.urlopen(url, timeout=20) as response:  # nosec: token-gated Telegram API endpoint
+        payload = json.loads(response.read().decode("utf-8"))
+    if not payload.get("ok"):
+        raise ValueError(str(payload.get("description") or "telegram getUpdates failed"))
+    result = payload.get("result") or []
+    if not isinstance(result, list):
+        raise ValueError("telegram getUpdates returned an invalid result")
+    return result

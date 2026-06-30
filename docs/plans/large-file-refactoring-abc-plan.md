@@ -936,6 +936,17 @@ Current evidence:
 - R11D Telegram test block 2026-06-30:
   `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11d-2`
   returned `103 passed, 2 warnings`.
+- R11E done 2026-06-30: Telegram `getUpdates` polling transport moved to
+  `plugins/telegram/polling.py`; the helper remains gated by callers and is not
+  invoked by tests without an explicit fake or runtime call.
+- R11E line count 2026-06-30: `plugins/telegram/plugin.py` reduced further to
+  3124 lines; `plugins/telegram/polling.py` is 143 lines.
+- R11E focused checks 2026-06-30:
+  `python -m py_compile plugins\telegram\plugin.py plugins\telegram\polling.py plugins\telegram\attachments.py plugins\telegram\parsing.py plugins\telegram\stores.py`
+  passed.
+- R11E Telegram test block 2026-06-30:
+  `python -m pytest tests\test_telegram_plugin.py tests\test_telegram_voice_pipeline.py tests\test_telegram_voice_boundary.py tests\test_telegram_text_boundary.py tests\test_telegram_release_boundary.py tests\test_telegram_offline_smoke_plan.py tests\test_telegram_image_actions.py tests\test_telegram_formatting.py -q --basetemp C:\Users\nkatz\odysseus\.tmp\pytest-r11e-1`
+  returned `103 passed, 2 warnings`.
 
 Completion criteria:
 

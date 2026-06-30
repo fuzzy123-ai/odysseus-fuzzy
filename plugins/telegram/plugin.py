@@ -198,6 +198,7 @@ from plugins.telegram.polling import (
     _reply_result_telegram_message_id,
     _run_agent_turn,
     _run_agent_turn_async,
+    fetch_telegram_updates,
 )
 from plugins.telegram.parsing import (
     _safe_workflow_suffix,
@@ -2006,28 +2007,6 @@ def run_telegram_polling_cycle(
         "control_commands": control_commands,
         "offset": next_offset,
     }
-
-
-def fetch_telegram_updates(offset: int) -> list[dict[str, Any]]:
-    token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
-    if not token:
-        raise ValueError("telegram token is missing")
-    params: dict[str, Any] = {
-        "timeout": 0,
-        "limit": 50,
-        "allowed_updates": json.dumps(["message"]),
-    }
-    if offset:
-        params["offset"] = int(offset)
-    url = f"https://api.telegram.org/bot{token}/getUpdates?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=20) as response:  # nosec: token-gated Telegram API endpoint
-        payload = json.loads(response.read().decode("utf-8"))
-    if not payload.get("ok"):
-        raise ValueError(str(payload.get("description") or "telegram getUpdates failed"))
-    result = payload.get("result") or []
-    if not isinstance(result, list):
-        raise ValueError("telegram getUpdates returned an invalid result")
-    return result
 
 
 def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
