@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from routes.model_probe_helpers import (
+    anthropic_model_ids_from_payload,
     append_curated_probe_models,
     model_ids_from_listing_payload,
     ollama_native_probe_root,
@@ -118,3 +119,13 @@ def test_model_ids_from_listing_payload_reads_ollama_name_or_model():
 
 def test_model_ids_from_listing_payload_returns_empty_for_unknown_shape():
     assert model_ids_from_listing_payload({"items": [{"id": "ignored"}]}) == []
+
+
+def test_anthropic_model_ids_from_payload_reads_data_ids():
+    assert anthropic_model_ids_from_payload({
+        "data": [{"id": "claude-sonnet-4-5"}, {"name": "ignored"}, {"id": ""}],
+    }) == ["claude-sonnet-4-5"]
+
+
+def test_anthropic_model_ids_from_payload_returns_empty_for_unknown_shape():
+    assert anthropic_model_ids_from_payload({"models": [{"id": "ignored"}]}) == []

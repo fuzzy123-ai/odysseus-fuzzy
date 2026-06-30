@@ -14,7 +14,8 @@ contact helper split, R11AF model ProviderAuth helper split and R11AG model
 probe-key helper split, R11AH model single-probe helper split and R11AI model
 curated-probe helper split and R11AJ model ping-result helper split
 implemented, plus R11AK model Ollama ping-root helper split and R11AL model
-listing-payload helper split; tool
+listing-payload helper split and R11AM model Anthropic listing helper split;
+tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -2406,6 +2407,56 @@ Completion criteria:
   with listing payload parsing separated from route orchestration.
 - OpenAI-compatible and Ollama-style listing responses still resolve to the
   same model ID arrays without live provider calls during tests.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11AM / L7-R12AB: Model Anthropic Listing Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move Anthropic `/v1/models` response parsing out of `_probe_endpoint()` while
+  preserving route-compatible provider fallback behavior.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_probe_helpers.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_routes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AM done 2026-06-30: Anthropic model listing payload parsing moved to
+  `anthropic_model_ids_from_payload()` in `routes/model_probe_helpers.py`.
+  `_probe_endpoint()` keeps Anthropic HTTP/fallback orchestration and delegates
+  response extraction to the helper.
+- Compatibility evidence: helper tests cover valid Anthropic `data[].id`
+  extraction and unknown shapes; existing endpoint probing and model route
+  tests remain green.
+- R11AM line count 2026-06-30: `routes/model_routes.py` is 1719 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AM focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_probe_helpers.py`
+  passed.
+- R11AM Model probe tests 2026-06-30:
+  `python -m pytest tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_routes.py -q`
+  returned `195 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with Anthropic listing response parsing separated from route orchestration.
+- Anthropic listing success and fallback behavior remain covered without live
+  provider calls during tests.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

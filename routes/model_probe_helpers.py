@@ -300,3 +300,8 @@ def model_ids_from_listing_payload(data: Mapping[str, Any]) -> list[str]:
         for item in (data.get("models") or [])
         if item.get("name") or item.get("model")
     ]
+
+
+def anthropic_model_ids_from_payload(data: Mapping[str, Any]) -> list[str]:
+    """Extract model IDs from Anthropic's /v1/models response payload."""
+    return [item.get("id") for item in (data.get("data") or []) if item.get("id")]

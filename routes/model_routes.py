@@ -35,6 +35,7 @@ from routes.model_loopback_helpers import (
     rewrite_loopback_for_docker as _rewrite_loopback_for_docker_impl,
 )
 from routes.model_probe_helpers import (
+    anthropic_model_ids_from_payload as _anthropic_model_ids_from_payload,
     append_curated_probe_models as _append_curated_probe_models,
     model_endpoint_error_message as _model_endpoint_error_message_impl,
     model_ids_from_listing_payload as _model_ids_from_listing_payload,
@@ -182,7 +183,7 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> Lis
             r = httpx.get(url, headers=headers, timeout=timeout, verify=llm_verify())
             r.raise_for_status()
             data = r.json()
-            models = [m.get("id") for m in (data.get("data") or []) if m.get("id")]
+            models = _anthropic_model_ids_from_payload(data)
             if models:
                 return models
         except httpx.HTTPStatusError as e:
