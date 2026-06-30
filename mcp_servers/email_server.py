@@ -68,6 +68,11 @@ from mcp_servers.email_message_utils import (
     _decode_header,
     _extract_text,
 )
+from mcp_servers.email_smtp_connection_utils import (
+    connect_smtp,
+    resolve_send_config,
+    smtp_ready as _smtp_ready,
+)
 from mcp_servers.email_tool_formatting import (
     apply_active_account_context,
     format_ai_draft_reply_response,
@@ -443,73 +448,24 @@ def _read_email_across_accounts(uid=None, message_id=None, folder="INBOX"):
     return {"error": f"Email not found in any configured account. Checked: {'; '.join(errors)}"}
 
 
-def _smtp_ready(cfg: dict) -> bool:
-    return bool(cfg.get("smtp_host") and cfg.get("smtp_user") and cfg.get("smtp_password"))
-
-
 def _resolve_send_config(account=None):
-    cfg = _load_config(account)
-    if _smtp_ready(cfg):
-        return account, cfg
-    if account:
-        raise ValueError(f"Email account {cfg.get('account_name') or account} has no SMTP configured")
-    for row in _list_accounts_raw():
-        selector = row.get("id") or row.get("name") or row.get("imap_user")
-        trial = _load_config(selector)
-        if _smtp_ready(trial):
-            return selector, trial
-    raise ValueError("No SMTP-capable email account configured")
+    return resolve_send_config(
+        account,
+        load_config=_load_config,
+        list_accounts_raw=_list_accounts_raw,
+        smtp_ready_func=_smtp_ready,
+    )
 
 
 def _smtp_connect(account=None, cfg=None):
-    """Connect to SMTP server, returns logged-in connection."""
-    cfg = cfg or _load_config(account)
-    if not _smtp_ready(cfg):
-        raise ValueError(f"Email account {cfg.get('account_name') or account or 'default'} has no SMTP configured")
-    port = int(cfg.get("smtp_port") or 465)
-    security = str(cfg.get("smtp_security") or "").strip().lower()
-    if security not in {"ssl", "starttls", "none"}:
-        security = "starttls" if port == 587 else "ssl"
-    if security == "starttls":
-        conn = smtplib.SMTP(
-            cfg["smtp_host"],
-            port,
-            timeout=EMAIL_SOCKET_TIMEOUT,
-        )
-        try:
-            conn.starttls()
-        except Exception:
-            # Don't leak the open plain socket on a rejected STARTTLS. SMTP has
-            # no shutdown(); close() is the low-level socket close (no QUIT). (#3174)
-            try:
-                conn.close()
-            except Exception:
-                pass
-            raise
-    elif security == "ssl":
-        conn = smtplib.SMTP_SSL(
-            cfg["smtp_host"],
-            port,
-            timeout=EMAIL_SOCKET_TIMEOUT,
-        )
-    else:
-        conn = smtplib.SMTP(
-            cfg["smtp_host"],
-            port,
-            timeout=EMAIL_SOCKET_TIMEOUT,
-        )
-    if cfg["smtp_user"] and cfg["smtp_password"]:
-        try:
-            conn.login(cfg["smtp_user"], cfg["smtp_password"])
-        except Exception:
-            # A failed login otherwise orphans the connected socket; close it
-            # before propagating (SMTP has no shutdown(); close() = socket close). (#3174)
-            try:
-                conn.close()
-            except Exception:
-                pass
-            raise
-    return conn
+    return connect_smtp(
+        account,
+        cfg=cfg,
+        load_config=_load_config,
+        smtp_ready_func=_smtp_ready,
+        smtp_module=smtplib,
+        timeout=EMAIL_SOCKET_TIMEOUT,
+    )
 
 
 def _read_agent_email_confirm_setting() -> bool:

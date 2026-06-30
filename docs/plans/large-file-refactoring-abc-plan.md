@@ -4918,6 +4918,53 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CI / L7-R12BX: Email MCP SMTP Connection Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving SMTP readiness, send-config
+  resolution and SMTP connection lifecycle handling into a focused helper while
+  preserving legacy wrappers in `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_smtp_connection_utils.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CI done 2026-06-30: `smtp_ready`, `resolve_send_config` and
+  `connect_smtp` moved to `mcp_servers/email_smtp_connection_utils.py`;
+  `mcp_servers.email_server` keeps `_smtp_ready`, `_resolve_send_config` and
+  `_smtp_connect` wrappers so existing monkeypatch tests remain stable.
+- R11CI line count 2026-06-30: `mcp_servers/email_server.py` is 1482 lines,
+  still in warning band but reduced from 1526 after R11CH;
+  `mcp_servers/email_smtp_connection_utils.py` is 88 lines and below the
+  report threshold.
+- R11CI focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_smtp_connection_utils.py`
+  passed.
+- R11CI email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py -q`
+  returned `31 passed, 2 warnings`.
+
+Completion criteria:
+
+- SMTP connect/login/starttls failure paths still close sockets exactly once.
+- MCP `send_email` still uses the compatibility `_resolve_send_config` and
+  `_smtp_connect` wrappers.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
