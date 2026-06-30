@@ -4617,6 +4617,61 @@ Completion criteria:
 - The split performs no live provider calls and keeps `llm_core` wrappers
   available for existing tests and callers.
 
+## R11CW / L7-R12CL: LLM Host Health Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving host cooldown keying, dead-host checks,
+  failure-count increments and cooldown clearing into the runtime-state helper,
+  while keeping `src.llm_core` globals and wrappers available for tests and
+  monkeypatch contracts.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_runtime_state.py`
+- `tests/test_llm_core_concurrency.py`
+- `tests/test_llm_core_connect_timeout.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_llm_core_sse_no_space.py`
+- `tests/test_llm_core_usage_finish_delta.py`
+- `tests/test_chat_metrics.py`
+- `tests/test_llm_core_ollama.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CW done 2026-06-30: host keying, dead-host lookup, failure-count
+  increment/cooldown activation and clear logic moved to
+  `src/llm_runtime_state.py`; `src.llm_core` keeps `_host_key`,
+  `_is_host_dead`, `_mark_host_dead`, `_clear_host_dead`, `_dead_hosts`,
+  `_host_fails` and `_HOST_FAIL_THRESHOLD` available for compatibility.
+- R11CW line count 2026-06-30: `src/llm_core.py` is 1538 lines, still in
+  warning band but reduced from 1547 after R11CV; `src/llm_runtime_state.py`
+  is 104 lines and below the report threshold.
+- R11CW focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_runtime_state.py`
+  passed.
+- R11CW runtime/streaming checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_concurrency.py tests\test_llm_core_connect_timeout.py tests\test_llm_core_streaming.py tests\test_llm_core_sse_no_space.py tests\test_llm_core_usage_finish_delta.py tests\test_chat_metrics.py -q`
+  returned `25 passed, 1 warning`.
+- R11CW Ollama streaming checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_ollama.py -q`
+  returned `12 passed, 1 warning`.
+
+Completion criteria:
+
+- Host-cooldown concurrency tests keep exercising `src.llm_core` globals.
+- Stream monkeypatch contracts, Ollama host-dead path, chat metrics and timeout
+  tests remain green.
+- The split performs no live provider calls and does not change cooldown
+  semantics.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

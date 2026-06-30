@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from typing import Optional
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -57,3 +58,47 @@ def get_shared_http_client() -> httpx.AsyncClient:
             verify=llm_verify(),
         )
     return _http_client
+
+
+def host_key(url: str) -> str:
+    parsed = urlsplit(url)
+    return f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else url
+
+
+def is_host_dead(url: str, dead_hosts: dict[str, float], lock) -> bool:
+    key = host_key(url)
+    with lock:
+        exp = dead_hosts.get(key)
+        if exp is None:
+            return False
+        if time.time() >= exp:
+            dead_hosts.pop(key, None)
+            return False
+        return True
+
+
+def mark_host_dead(
+    url: str,
+    host_fails: dict[str, int],
+    dead_hosts: dict[str, float],
+    lock,
+    *,
+    fail_threshold: int,
+    cooldown_seconds: float,
+) -> bool:
+    """Record a connect failure and return True only after cooldown activates."""
+    key = host_key(url)
+    with lock:
+        count = host_fails.get(key, 0) + 1
+        host_fails[key] = count
+        if count >= fail_threshold:
+            dead_hosts[key] = time.time() + cooldown_seconds
+            return True
+        return False
+
+
+def clear_host_dead(url: str, host_fails: dict[str, int], dead_hosts: dict[str, float], lock) -> None:
+    key = host_key(url)
+    with lock:
+        dead_hosts.pop(key, None)
+        host_fails.pop(key, None)

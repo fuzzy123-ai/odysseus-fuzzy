@@ -80,7 +80,11 @@ from src.llm_activity_metrics import (
 from src.llm_cache_key import _get_cache_key
 from src.llm_runtime_state import (
     call_timeout as _call_timeout_impl,
+    clear_host_dead as _clear_host_dead_impl,
     get_shared_http_client,
+    host_key as _host_key_impl,
+    is_host_dead as _is_host_dead_impl,
+    mark_host_dead as _mark_host_dead_impl,
     note_model_activity as _note_model_activity_impl,
     same_model_identity as _same_model_identity_impl,
     seconds_since_model_activity as _seconds_since_model_activity_impl,
@@ -100,40 +104,27 @@ def seconds_since_model_activity(url: str, model: str) -> Optional[float]:
     return _seconds_since_model_activity_impl(url, model)
 
 def _host_key(url: str) -> str:
-    from urllib.parse import urlsplit
-    s = urlsplit(url)
-    return f"{s.scheme}://{s.netloc}" if s.scheme and s.netloc else url
+    return _host_key_impl(url)
 
 def _is_host_dead(url: str) -> bool:
-    key = _host_key(url)
-    with _host_health_lock:
-        exp = _dead_hosts.get(key)
-        if exp is None:
-            return False
-        if time.time() >= exp:
-            _dead_hosts.pop(key, None)
-            return False
-        return True
+    return _is_host_dead_impl(url, _dead_hosts, _host_health_lock)
 
 def _mark_host_dead(url: str) -> bool:
     """Record a connect failure. Only actually cools the host after
     _HOST_FAIL_THRESHOLD consecutive failures. Returns True if the host
     is now cooled (so callers can log accurately), False if it's still
     within its allowed-failure grace."""
-    key = _host_key(url)
-    with _host_health_lock:
-        n = _host_fails.get(key, 0) + 1
-        _host_fails[key] = n
-        if n >= _HOST_FAIL_THRESHOLD:
-            _dead_hosts[key] = time.time() + DEAD_HOST_COOLDOWN
-            return True
-        return False
+    return _mark_host_dead_impl(
+        url,
+        _host_fails,
+        _dead_hosts,
+        _host_health_lock,
+        fail_threshold=_HOST_FAIL_THRESHOLD,
+        cooldown_seconds=DEAD_HOST_COOLDOWN,
+    )
 
 def _clear_host_dead(url: str) -> None:
-    key = _host_key(url)
-    with _host_health_lock:
-        _dead_hosts.pop(key, None)
-        _host_fails.pop(key, None)
+    _clear_host_dead_impl(url, _host_fails, _dead_hosts, _host_health_lock)
 
 
 def _get_http_client() -> httpx.AsyncClient:
