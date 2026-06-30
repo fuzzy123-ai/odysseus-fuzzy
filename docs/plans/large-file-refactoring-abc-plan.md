@@ -4674,6 +4674,55 @@ Completion criteria:
 - `routes.model_routes._ping_endpoint` remains importable and patchable while
   implementation lives in `routes.model_probe_ping.py`.
 
+## R11CD / L7-R12BS: Email MCP IMAP Utils Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving small IMAP byte/quote helpers,
+  UID-row filtering, confirmation parsing and safe email-header unfolding into
+  a focused helper while preserving legacy private helper imports from
+  `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_imap_utils.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_imap_leak_fixes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CD done 2026-06-30: `_b`, `_q`, `_uid_fetch_rows`, `_confirmed`,
+  `_email_delete_confirmation_required` and `_clean_header_value` moved to
+  `mcp_servers/email_imap_utils.py`; `mcp_servers.email_server` imports those
+  private helper names so existing tests and callers remain stable.
+- R11CD line count 2026-06-30: `mcp_servers/email_server.py` is 1740 lines,
+  still in warning band but reduced from 1774 after R11BU;
+  `mcp_servers/email_imap_utils.py` is 55 lines and below the report threshold.
+- R11CD focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_imap_utils.py`
+  passed.
+- R11CD email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_mailbox_quoting.py tests\test_mcp_email_delete_confirmation.py tests\test_mcp_email_decode_header_spaces.py tests\test_imap_leak_fixes.py -q`
+  returned `36 passed, 2 warnings`.
+
+Completion criteria:
+
+- IMAP mailbox quoting, delete confirmation, safe header unfolding and IMAP leak
+  regression tests remain green.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+- `mcp_servers.email_server` keeps the legacy private helper names importable
+  while implementation lives in `mcp_servers.email_imap_utils.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

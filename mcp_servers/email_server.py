@@ -43,6 +43,14 @@ from mcp_servers.email_account_config import (
     _resolve_account_from_rows,
     _writing_style_guidance,
 )
+from mcp_servers.email_imap_utils import (
+    _b,
+    _clean_header_value,
+    _confirmed,
+    _email_delete_confirmation_required,
+    _q,
+    _uid_fetch_rows,
+)
 from mcp_servers.email_tool_formatting import (
     apply_active_account_context,
     format_ai_draft_reply_response,
@@ -67,53 +75,11 @@ from src.constants import DATA_DIR as _DATA_DIR, APP_DB, EMAIL_CACHE_DB, SETTING
 DATA_DIR = Path(_DATA_DIR)
 
 
-def _b(value) -> bytes:
-    return str(value).encode()
-
-
-def _q(name: str) -> str:
-    """Quote an IMAP mailbox name for commands that take mailbox args."""
-    return '"' + (name or "").replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def _uid_fetch_rows(data) -> list:
-    return [d for d in (data or []) if isinstance(d, bytes) and b"UID " in d]
-
 # ── Config ──
 # Multi-account aware. Accounts live in data/app.db :: email_accounts.
 # Callers can pass `account=` (match by name, user, or id) to pick a specific
 # inbox; None resolves to the default row. Falls back to env vars / settings.json
 # flat keys when no DB row matches (legacy single-account behaviour).
-
-def _confirmed(value) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return value == 1
-    if isinstance(value, str):
-        return value.strip().lower() in {"true", "1", "yes", "y", "on", "confirmed"}
-    return False
-
-
-def _email_delete_confirmation_required(reason: str, *, uid: str | None = None, count: int | None = None) -> TextContent:
-    target = f" UID {uid}" if uid else ""
-    if count is not None:
-        target = f" {count} email(s)"
-    return TextContent(
-        type="text",
-        text=(
-            f"Confirmation required: {reason}{target}. "
-            "Repeat the tool call with confirmed=true after explicit user confirmation."
-        ),
-    )
-
-
-def _clean_header_value(value) -> str:
-    """EmailMessage rejects CR/LF in assigned header values; unfold safely."""
-    if value is None:
-        return ""
-    return re.sub(r"[\r\n]+[ \t]*", " ", str(value)).strip()
-
 
 def _sync_email_account_config_paths() -> None:
     _email_account_config.APP_DB = APP_DB
