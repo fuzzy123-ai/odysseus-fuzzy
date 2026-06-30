@@ -5159,6 +5159,50 @@ Completion criteria:
 - Legacy wrappers remain available for dispatch and monkeypatch tests.
 - The split performs no live IMAP/SMTP calls in tests.
 
+## R11CN / L7-R12CC: Email MCP Direct Reply Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving direct reply orchestration into
+  a focused helper while preserving the legacy `_reply_to_email` wrapper and
+  its monkeypatchable dependencies.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_reply_utils.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CN done 2026-06-30: direct reply fetch/header/threading/send orchestration
+  moved to `mcp_servers/email_reply_utils.py`; `mcp_servers.email_server`
+  keeps `_reply_to_email` as compatibility wrapper.
+- R11CN line count 2026-06-30: `mcp_servers/email_server.py` is 1206 lines,
+  still in warning band but reduced from 1236 after R11CM;
+  `mcp_servers/email_reply_utils.py` is 67 lines and below the report
+  threshold.
+- R11CN focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_reply_utils.py`
+  passed.
+- R11CN email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_leak_fixes.py tests\test_mcp_email_decode_header_spaces.py -q`
+  returned `25 passed, 2 warnings`.
+
+Completion criteria:
+
+- Reply threading headers, reply-all CC selection and send-wrapper usage remain
+  stable.
+- IMAP logout-on-select-failure behavior remains covered by regression tests.
+- The split performs no live IMAP/SMTP calls in tests.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

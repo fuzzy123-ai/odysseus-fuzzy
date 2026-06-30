@@ -81,6 +81,7 @@ from mcp_servers.email_message_utils import (
     _decode_header,
     _extract_text,
 )
+from mcp_servers.email_reply_utils import reply_to_email as reply_to_email_via_helper
 from mcp_servers.email_send_utils import send_email as send_email_via_helper
 from mcp_servers.email_smtp_connection_utils import (
     connect_smtp,
@@ -761,48 +762,17 @@ async def _ai_draft_reply_to_email(uid, folder="INBOX", reply_all=False, account
 
 def _reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None):
     """Reply to an existing email by UID. Threads via In-Reply-To/References."""
-    conn = None
-    try:
-        conn = _imap_connect(account)
-        conn.select(_q(folder), readonly=True)
-        status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
-    finally:
-        if conn:
-            try: conn.logout()
-            except Exception: pass
-    if status != "OK" or not msg_data or not msg_data[0]:
-        return {"error": f"Failed to fetch email UID {uid}"}
-    raw = msg_data[0][1]
-    orig = email.message_from_bytes(raw)
-
-    orig_subject = _decode_header(orig.get("Subject", ""))
-    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
-    orig_message_id = orig.get("Message-ID", "")
-    orig_references = orig.get("References", "")
-    new_references = (orig_references + " " + orig_message_id).strip() if orig_references else orig_message_id
-
-    sender = _decode_header(orig.get("From", ""))
-    _, sender_addr = email.utils.parseaddr(sender)
-    to_addrs = sender_addr
-
-    cc = None
-    if reply_all:
-        cc_addrs = []
-        for header_name in ("To", "Cc"):
-            for _, addr in email.utils.getaddresses([orig.get(header_name, "")]):
-                if addr and addr != sender_addr:
-                    cc_addrs.append(addr)
-        if cc_addrs:
-            cc = ", ".join(cc_addrs)
-
-    return _send_email(
-        to=to_addrs,
-        subject=reply_subject,
-        body=body,
-        in_reply_to=orig_message_id,
-        references=new_references,
-        cc=cc,
+    return reply_to_email_via_helper(
+        uid,
+        body,
+        folder=folder,
+        reply_all=reply_all,
         account=account,
+        imap_connect_func=_imap_connect,
+        quote_folder_func=_q,
+        bytes_func=_b,
+        decode_header_func=_decode_header,
+        send_email_func=_send_email,
     )
 
 
