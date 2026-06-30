@@ -82,12 +82,14 @@ from src.llm_runtime_state import (
     call_timeout as _call_timeout_impl,
     clear_host_dead as _clear_host_dead_impl,
     get_shared_http_client,
+    get_cached_response as _get_cached_response_impl,
     host_key as _host_key_impl,
     is_host_dead as _is_host_dead_impl,
     mark_host_dead as _mark_host_dead_impl,
     note_model_activity as _note_model_activity_impl,
     same_model_identity as _same_model_identity_impl,
     seconds_since_model_activity as _seconds_since_model_activity_impl,
+    set_cached_response as _set_cached_response_impl,
     stream_timeout as _stream_timeout_impl,
 )
 
@@ -133,20 +135,11 @@ def _get_http_client() -> httpx.AsyncClient:
 
 def _get_cached_response(cache_key: str) -> Optional[str]:
     """Get cached response if it exists."""
-    response = _response_cache.get(cache_key)
-    _ai_activity_cache_hit.set(response is not None)
-    return response
+    return _get_cached_response_impl(_response_cache, cache_key, _ai_activity_cache_hit.set)
 
 def _set_cached_response(cache_key: str, response: str) -> None:
     """Store response in cache."""
-    if len(_response_cache) > 128:
-        keys_to_remove = list(_response_cache.keys())[:64]
-        for key in keys_to_remove:
-            # pop(), not del: another thread (sync llm_call runs in FastAPI's
-            # threadpool) may have already evicted the same snapshotted key,
-            # and del would raise KeyError mid-eviction (issue #659).
-            _response_cache.pop(key, None)
-    _response_cache[cache_key] = response
+    _set_cached_response_impl(_response_cache, cache_key, response)
 
 # ── Anthropic native API adapter ──
 

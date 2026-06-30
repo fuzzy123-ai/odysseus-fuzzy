@@ -4672,6 +4672,54 @@ Completion criteria:
 - The split performs no live provider calls and does not change cooldown
   semantics.
 
+## R11CX / L7-R12CM: LLM Response Cache Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving response-cache get/set/eviction logic into
+  the runtime-state helper, while keeping the `_response_cache` object and
+  wrapper functions in `src.llm_core` for existing tests and monkeypatch
+  contracts.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_runtime_state.py`
+- `tests/test_llm_core_concurrency.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_llm_core_fallback.py`
+- `tests/test_llm_core_streaming.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CX done 2026-06-30: response-cache lookup, cache-hit marker update and
+  bounded eviction/store logic moved to `src/llm_runtime_state.py`;
+  `src.llm_core` keeps `_response_cache`, `_get_cached_response` and
+  `_set_cached_response` wrappers for compatibility.
+- R11CX line count 2026-06-30: `src/llm_core.py` is 1531 lines, still in
+  warning band but reduced from 1538 after R11CW; `src/llm_runtime_state.py`
+  is 120 lines and below the report threshold.
+- R11CX focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_runtime_state.py`
+  passed.
+- R11CX cache/LLM checks 2026-06-30:
+  `python -m pytest tests\test_llm_core_concurrency.py tests\test_ai_activity_ledger.py tests\test_llm_core_temperature.py tests\test_llm_core_fallback.py tests\test_llm_core_streaming.py -q`
+  returned `58 passed, 1 warning`.
+
+Completion criteria:
+
+- Cache-hit audit, cache eviction concurrency, temperature payload, fallback
+  and streaming tests remain green.
+- The split performs no live provider calls and keeps caller-owned cache state
+  in `src.llm_core` for existing tests.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob

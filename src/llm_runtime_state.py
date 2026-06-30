@@ -102,3 +102,19 @@ def clear_host_dead(url: str, host_fails: dict[str, int], dead_hosts: dict[str, 
     with lock:
         dead_hosts.pop(key, None)
         host_fails.pop(key, None)
+
+
+def get_cached_response(cache: dict, cache_key: str, cache_hit_setter) -> Optional[str]:
+    """Return cached response and update the caller-owned cache-hit marker."""
+    response = cache.get(cache_key)
+    cache_hit_setter(response is not None)
+    return response
+
+
+def set_cached_response(cache: dict, cache_key: str, response: str, *, max_size: int = 128, evict_count: int = 64) -> None:
+    """Store response while tolerating concurrent eviction of snapshotted keys."""
+    if len(cache) > max_size:
+        keys_to_remove = list(cache.keys())[:evict_count]
+        for key in keys_to_remove:
+            cache.pop(key, None)
+    cache[cache_key] = response
