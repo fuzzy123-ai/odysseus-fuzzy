@@ -21,9 +21,9 @@ def _host_match(url: str, *domains: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in domains)
 
 
-def _detect_provider(url: str) -> str:
+def _detect_provider(url: str, *, is_ollama_native_url_func=_is_ollama_native_url) -> str:
     """Detect the API provider from a configured endpoint URL."""
-    if _is_ollama_native_url(url):
+    if is_ollama_native_url_func(url):
         return "ollama"
     if _host_match(url, "anthropic.com"):
         return "anthropic"
@@ -82,7 +82,7 @@ def _provider_headers(provider: str, headers: Optional[Dict] = None) -> Dict[str
     return h
 
 
-def _provider_label(url: str) -> str:
+def _provider_label(url: str, *, is_ollama_native_url_func=_is_ollama_native_url) -> str:
     """Human-friendly provider name for error messages."""
     if not url:
         return "provider"
@@ -126,7 +126,7 @@ def _provider_label(url: str) -> str:
                 return "Kimi Code"
         except Exception:
             pass
-    if _is_ollama_native_url(url):
+    if is_ollama_native_url_func(url):
         return "Ollama"
     try:
         host = (urlparse(url).hostname or "").lower()

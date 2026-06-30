@@ -4312,6 +4312,64 @@ Completion criteria:
 - `src.llm_core` keeps the existing private helper names importable for
   compatibility while the provider-specific implementation lives in the helper.
 
+## R11BW / L7-R12BL: LLM Model Cache Helper Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving configured model-cache base normalization
+  and cache parsing into a focused helper while keeping `list_model_ids()` and
+  `normalize_model_id()` in `src.llm_core` for existing monkeypatch contracts.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_model_cache.py`
+- `src/llm_provider_helpers.py`
+- `tests/test_llama_server_models_url.py`
+- `tests/test_lmstudio_models_url.py`
+- `tests/test_model_routes.py`
+- `tests/test_provider_detection.py`
+- `tests/test_provider_classification.py`
+- `tests/test_copilot.py`
+- `tests/test_cache_affinity_local_only.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_ai_activity_ledger.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BW done 2026-06-30: `_model_list_base`, `_parse_model_cache` and
+  `_configured_cached_model_ids` moved to `src/llm_model_cache.py`; `src.llm_core`
+  imports those names so existing tests can still monkeypatch the legacy
+  private names.
+- R11BW compatibility fix 2026-06-30: `src.llm_core` now wraps provider
+  detection/cache-affinity helpers so tests and callers that monkeypatch
+  `_is_ollama_native_url` on `src.llm_core` keep working after the provider
+  helper split.
+- R11BW line count 2026-06-30: `src/llm_core.py` is 1707 lines, still in
+  warning band but reduced from 1753 after R11BV; `src/llm_model_cache.py` is
+  below the report threshold.
+- R11BW focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_model_cache.py src\llm_provider_helpers.py`
+  passed.
+- R11BW model-list/provider checks 2026-06-30:
+  `python -m pytest tests\test_llama_server_models_url.py tests\test_lmstudio_models_url.py tests\test_model_routes.py::test_llm_core_list_model_ids_uses_cached_configured_proxy tests\test_provider_detection.py tests\test_provider_classification.py tests\test_copilot.py tests\test_cache_affinity_local_only.py tests\test_llm_core_streaming.py tests\test_ai_activity_ledger.py -q`
+  returned `138 passed, 1 warning`.
+
+Completion criteria:
+
+- Model-list URL selection, cached configured model fallback, provider
+  detection, Copilot detection and local cache-affinity tests remain green.
+- `list_model_ids()` stays in `src.llm_core` so existing monkeypatches and
+  callers retain their contract.
+- The split performs no live provider calls and does not persist secrets,
+  endpoint credentials or provider responses.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

@@ -210,12 +210,10 @@ from src.llm_ollama import (
 
 
 from src.llm_provider_helpers import (
-    _apply_local_cache_affinity,
-    _detect_provider,
+    _detect_provider as _detect_provider_impl,
     _host_match,
-    _is_self_hosted_openai_compatible,
     _provider_headers,
-    _provider_label,
+    _provider_label as _provider_label_impl,
 )
 
 from src.llm_kimi_code import (
@@ -232,6 +230,30 @@ from src.llm_kimi_code import (
     httpx_post_kimi_aware,
     httpx_post_kimi_aware_async,
 )
+
+
+def _detect_provider(url: str) -> str:
+    return _detect_provider_impl(url, is_ollama_native_url_func=_is_ollama_native_url)
+
+
+def _provider_label(url: str) -> str:
+    return _provider_label_impl(url, is_ollama_native_url_func=_is_ollama_native_url)
+
+
+def _is_self_hosted_openai_compatible(url: str) -> bool:
+    if _detect_provider(url) != "openai" or _host_match(url, "openai.com"):
+        return False
+    from src.model_context import is_local_endpoint
+    return is_local_endpoint(url)
+
+
+def _apply_local_cache_affinity(payload: Dict, url: str, session_id: Optional[str]) -> None:
+    if not session_id:
+        return
+    if not _is_self_hosted_openai_compatible(url):
+        return
+    payload.setdefault("session_id", str(session_id))
+    payload.setdefault("cache_prompt", True)
 
 
 from src.llm_chatgpt_subscription import (
@@ -378,6 +400,11 @@ from src.llm_message_formats import (
     _sanitize_llm_messages,
     _supports_thinking,
 )
+from src.llm_model_cache import (
+    _configured_cached_model_ids,
+    _model_list_base,
+    _parse_model_cache,
+)
 
 
 def _normalize_anthropic_url(url: str) -> str:
@@ -388,79 +415,6 @@ def _normalize_anthropic_url(url: str) -> str:
     if url.endswith("/v1"):
         return url + "/messages"
     return url + "/v1/messages"
-
-
-def _model_list_base(url: str) -> str:
-    """Normalize model/chat URLs to the configured endpoint base."""
-    base = (url or "").strip().rstrip("/")
-    for suffix in ("/models", "/chat/completions", "/completions", "/v1/messages", "/responses"):
-        if base.endswith(suffix):
-            base = base[: -len(suffix)].rstrip("/")
-    for suffix in ("/chat", "/tags", "/generate"):
-        if base.endswith("/api" + suffix):
-            base = base[: -len(suffix)].rstrip("/")
-    return base
-
-
-def _parse_model_cache(raw) -> List[str]:
-    if not raw:
-        return []
-    try:
-        models = json.loads(raw) if isinstance(raw, str) else raw
-    except Exception:
-        return []
-    if not isinstance(models, list):
-        return []
-    out = []
-    seen = set()
-    for item in models:
-        mid = str(item or "").strip()
-        if not mid or mid in seen:
-            continue
-        out.append(mid)
-        seen.add(mid)
-    return out
-
-
-def _configured_cached_model_ids(
-    endpoint_url: str,
-    *,
-    owner: Optional[str] = None,
-    endpoint_id: Optional[str] = None,
-) -> List[str]:
-    """Return cached models for a configured endpoint matching endpoint_url."""
-    target = _model_list_base(endpoint_url)
-    if not target:
-        return []
-    try:
-        from src.database import SessionLocal, ModelEndpoint
-    except Exception:
-        return []
-    db = SessionLocal()
-    try:
-        q = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True)
-        if endpoint_id:
-            q = q.filter(ModelEndpoint.id == endpoint_id)
-        if owner:
-            from src.auth_helpers import owner_filter
-            q = owner_filter(q, ModelEndpoint, owner)
-        rows = q.all()
-        for ep in rows:
-            if _model_list_base(getattr(ep, "base_url", "")) != target:
-                continue
-            models = _parse_model_cache(getattr(ep, "cached_models", None) or getattr(ep, "models", None))
-            if not models:
-                continue
-            hidden = set(_parse_model_cache(getattr(ep, "hidden_models", None)))
-            return [m for m in models if m not in hidden]
-    except Exception:
-        return []
-    finally:
-        try:
-            db.close()
-        except Exception:
-            pass
-    return []
 
 
 def list_model_ids(
