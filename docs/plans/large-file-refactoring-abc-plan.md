@@ -5,10 +5,10 @@ Date: 2026-06-30
 Status: R0 guardrail, R1 CSS ownership map, R7A/R7B/R7C/R7D/R7E/R7F/R7G/R7H backend split,
 R9A/R9B/R9C/R9D/R9E/R9F/R9G/R9H/R9I/R9J/R9K/R9L email helper splits, R10A model endpoint
 helper split, R11P database migration split, R11Q LLM-core provider/format split, R11R task scheduler
-startup split, R11S visual-report helper split, R11T gallery remove-bg split and R11U document
-library helper split implemented; tool
+startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
+library helper split and R11V chat endpoint helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
-Gallery and Document route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
+Gallery, Document route and Chat route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -1517,6 +1517,54 @@ Completion criteria:
 - Library language facet counts and PDF display-language behavior remain
   covered by focused tests.
 - The slice performs no live document, Nextcloud or provider action.
+
+### R11V / L7-R12K: Chat Endpoint Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move pure chat endpoint URL/model-cache helpers out of `routes/chat_routes.py`
+  while preserving route-compatible imports and keeping DB/owner-scoped logic in
+  the route module.
+
+Allowed paths:
+
+- `routes/chat_routes.py`
+- `routes/chat_endpoint_helpers.py`
+- `tests/test_chat_endpoint_helpers.py`
+- `tests/test_chat_image_routing.py`
+- `tests/test_session_endpoint_owner_scope.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11V done 2026-06-30: session URL matching, endpoint model-cache checks and
+  image-model prefix detection moved to `routes/chat_endpoint_helpers.py`.
+- Compatibility evidence: `routes/chat_routes.py` imports the moved private
+  helper names so existing route behavior, owner-scoped endpoint recovery and
+  image-session monkeypatch tests continue to use the route module as before.
+- R11V line count 2026-06-30: `routes/chat_routes.py` is 1631 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11V focused checks 2026-06-30:
+  `python -m py_compile routes\chat_routes.py routes\chat_endpoint_helpers.py`
+  passed.
+- R11V Chat endpoint regression tests 2026-06-30:
+  `python -m pytest tests\test_chat_endpoint_helpers.py tests\test_chat_image_routing.py tests\test_session_endpoint_owner_scope.py -q`
+  returned `11 passed, 1 warning`.
+
+Completion criteria:
+
+- `routes/chat_routes.py` remains below the large-file candidate threshold with
+  pure endpoint helpers separated from route orchestration.
+- Image endpoint routing and owner-scoped session endpoint repair remain
+  covered by focused tests.
+- The slice performs no live provider, network or chat stream action.
 
 ### R12: Obsidian Frontend Split
 

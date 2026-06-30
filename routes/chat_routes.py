@@ -20,7 +20,6 @@ from src import agent_run_ledger, agent_runs
 from src.mission_status import summarize_mission
 from src.model_context import estimate_tokens
 from src.chat_helpers import coerce_message_and_session
-from src.endpoint_resolver import normalize_base as _normalize_base, build_chat_url
 from src.session_search import search_session_messages
 from src.prompt_security import untrusted_context_message
 from core.exceptions import SessionNotFoundError
@@ -33,6 +32,11 @@ from core.database import Document as DBDocument, ModelEndpoint
 from core.log_safety import redact_url
 from routes.research_routes import _resolve_research_endpoint
 from routes.model_routes import _visible_models
+from routes.chat_endpoint_helpers import (
+    _endpoint_cache_contains_model,
+    _is_image_model_name,
+    _session_url_matches_endpoint,
+)
 from routes.chat_helpers import (
     resolve_session_auth,
     build_chat_context,
@@ -48,7 +52,6 @@ logger = logging.getLogger(__name__)
 
 # Track active streams for partial-save safety net
 _active_streams: Dict[str, dict] = {}
-_IMAGE_MODEL_PREFIXES = ("gpt-image", "dall-e", "chatgpt-image")
 
 
 def _stream_set(session_id: str, **fields) -> None:
@@ -91,19 +94,6 @@ def _resolve_request_workspace(request, raw_value) -> tuple:
     return workspace, (requested if not workspace else "")
 
 
-def _session_url_matches_endpoint(session_url: str, endpoint_base: str) -> bool:
-    if not session_url or not endpoint_base:
-        return False
-    sess = session_url.rstrip("/")
-    base = _normalize_base(endpoint_base).rstrip("/")
-    variants = {
-        base,
-        base + "/chat/completions",
-        build_chat_url(base).rstrip("/"),
-    }
-    return sess in variants or sess.startswith(base + "/")
-
-
 def _clear_orphaned_session_endpoint(sess, owner: str | None = None) -> bool:
     """Clear a session model if its endpoint was deleted from ModelEndpoint."""
     if not getattr(sess, "endpoint_url", ""):
@@ -136,26 +126,6 @@ def _clear_orphaned_session_endpoint(sess, owner: str | None = None) -> bool:
         db.close()
 
 
-def _endpoint_cache_contains_model(endpoint, model: str) -> bool:
-    """Return True when a populated endpoint model cache includes ``model``.
-
-    Empty/malformed caches are treated as unknown rather than a negative match
-    so older image endpoints without cached models still work.
-    """
-    raw = getattr(endpoint, "cached_models", None)
-    if not raw:
-        return True
-    try:
-        models = json.loads(raw) if isinstance(raw, str) else raw
-    except Exception as e:
-        logger.warning("Failed to parse cached models list, treating as containing model", exc_info=e)
-        return True
-    if not isinstance(models, list) or not models:
-        return True
-    wanted = (model or "").strip()
-    return wanted in {str(item).strip() for item in models}
-
-
 def _is_image_generation_session(sess, owner: str | None = None) -> bool:
     """Whether this chat session should bypass text chat and generate images.
 
@@ -166,7 +136,7 @@ def _is_image_generation_session(sess, owner: str | None = None) -> bool:
     models into the image-generation path.
     """
     model = (getattr(sess, "model", "") or "").strip()
-    if any(model.lower().startswith(prefix) for prefix in _IMAGE_MODEL_PREFIXES):
+    if _is_image_model_name(model):
         return True
 
     endpoint_url = (getattr(sess, "endpoint_url", "") or "").strip()
