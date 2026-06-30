@@ -27,7 +27,7 @@ def _assigned_value(tree, name):
 
 
 def _schema_tool_names():
-    src = open(os.path.join(ROOT, "src", "tool_schemas.py"), encoding="utf-8").read()
+    src = open(os.path.join(ROOT, "src", "tool_schema_definitions.py"), encoding="utf-8").read()
     value = _assigned_value(ast.parse(src), "FUNCTION_TOOL_SCHEMAS")
     return {item["function"]["name"] for item in ast.literal_eval(value)}
 

@@ -1350,6 +1350,18 @@ Current evidence:
   `python -m py_compile routes\codex_routes.py routes\codex_helpers.py`;
   `python -m pytest tests\test_codex_helpers.py tests\test_codex_ssh_host_validation.py tests\test_api_token_user_route_gate.py -q --basetemp .pytest-tmp-codex-helpers`
   returned `15 passed, 1 warning`.
+- 2026-06-30: L7 R12AW is implemented. The static
+  `FUNCTION_TOOL_SCHEMAS` list moved from `src/tool_schemas.py` to
+  `src/tool_schema_definitions.py`, while `src/tool_schemas.py` remains the
+  public compatibility facade for schema access, dynamic registry merging and
+  native function-call conversion. The large-file report no longer lists
+  `src/tool_schemas.py` in monitor/warning/candidate output; the new pure
+  definitions module is 1483 lines, band `warning`, and is intentionally owned
+  as schema data rather than route/runtime logic. Report candidate count is 26.
+- 2026-06-30 R12AW evidence passed:
+  `python -m py_compile src\tool_schemas.py src\tool_schema_definitions.py`;
+  `python -m pytest tests\test_tool_registry.py tests\test_tool_index_schema_parity.py tests\test_ask_user_tool.py tests\test_function_call_non_object_args.py tests\test_unknown_tool_calls.py tests\test_plan_mode.py tests\test_task_shell_tools.py -q --basetemp .pytest-tmp-tool-schema-split`
+  returned `51 passed, 1 warning`.
 
 Parallel rule:
 
@@ -1450,6 +1462,7 @@ Slice queue:
 | L7-R12AT-rag-text-chunking-helper-boundary | repo_only | Bob | Done: sentence-aware RAG chunking moved behind a compatibility wrapper; `src/rag_vector.py` is back in monitor band. |
 | L7-R12AU-repo-tool-output-helper-boundary | repo_only | Bob | Done: repo-management output formatting moved behind helper imports; `src/tool_domains/repo_skills.py` is back in monitor band. |
 | L7-R12AV-codex-helper-policy-boundary | repo_only | Bob | Done: Codex scope constants, owner-scope helpers, endpoint lookup, SSH target validation helper and capabilities payload moved behind helper imports; `routes/codex_routes.py` is back in monitor band. |
+| L7-R12AW-tool-schema-definition-boundary | repo_only | Bob | Done: static OpenAI function schema definitions moved behind a compatibility import; `src/tool_schemas.py` is below monitor output and the new definitions module is an owned warning-band schema-data file. |
 
 Next safe slice:
 
@@ -1539,7 +1552,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AV are complete; tool implementation/admin, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12AW are complete; tool implementation/admin, tool-schema facade, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:

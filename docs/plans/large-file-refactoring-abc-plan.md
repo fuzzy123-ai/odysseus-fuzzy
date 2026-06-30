@@ -26,11 +26,11 @@ model refresh probe helper split, R11BA model refresh cache-update helper split,
 R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
 split, R11BE RAG text chunking helper split and R11BF repo tool output helper
-split and R11BG Codex helper policy split; tool
+split, R11BG Codex helper policy split and R11BH tool schema definition split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route,
-Codex route, RAG vector and repo-skill facades are below threshold, remaining CSS/UI-safe and
-later route/plugin waves pending
+Codex route, tool-schema, RAG vector and repo-skill facades are below threshold,
+remaining CSS/UI-safe and later route/plugin waves pending
 
 ## Goal
 
@@ -3521,6 +3521,64 @@ Completion criteria:
   scope checks, owner delegation, capabilities response shape or cookbook SSH
   task validation.
 - Helper/policy behavior is directly testable in a dedicated helper module.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11BH / L7-R12AW: Tool Schema Definition Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move the large static OpenAI-compatible function schema list out of
+  `src/tool_schemas.py` while preserving the public `FUNCTION_TOOL_SCHEMAS`
+  import and function-call conversion behavior.
+
+Allowed paths:
+
+- `src/tool_schemas.py`
+- `src/tool_schema_definitions.py`
+- `tests/test_tool_index_schema_parity.py`
+- `tests/test_tool_registry.py`
+- `tests/test_ask_user_tool.py`
+- `tests/test_function_call_non_object_args.py`
+- `tests/test_unknown_tool_calls.py`
+- `tests/test_plan_mode.py`
+- `tests/test_task_shell_tools.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BH done 2026-06-30: `FUNCTION_TOOL_SCHEMAS` moved to
+  `src/tool_schema_definitions.py`; `src/tool_schemas.py` imports and re-exports
+  the same list object so existing callers and `src.tool_registry` mutations
+  continue to work through the compatibility facade.
+- Compatibility evidence: tool registry tests still prove dynamic plugin schema
+  registration/unregistration mutates the public `FUNCTION_TOOL_SCHEMAS`; the
+  schema/index parity test now reads the literal schema source from the
+  definitions module.
+- R11BH line count 2026-06-30: `src/tool_schemas.py` is below the large-file
+  report monitor output; `src/tool_schema_definitions.py` is 1483 lines in the
+  large-file report, band `warning`, not `candidate`. The definitions module is
+  intentionally owned as static schema data with no runtime conversion logic;
+  report candidate count is 26.
+- R11BH focused checks 2026-06-30:
+  `python -m py_compile src\tool_schemas.py src\tool_schema_definitions.py`
+  passed.
+- R11BH tool schema checks 2026-06-30:
+  `python -m pytest tests\test_tool_registry.py tests\test_tool_index_schema_parity.py tests\test_ask_user_tool.py tests\test_function_call_non_object_args.py tests\test_unknown_tool_calls.py tests\test_plan_mode.py tests\test_task_shell_tools.py -q --basetemp .pytest-tmp-tool-schema-split`
+  returned `51 passed, 1 warning`.
+
+Completion criteria:
+
+- `src/tool_schemas.py` becomes a small compatibility facade for schema access,
+  dynamic registry merging and native function-call conversion.
+- The static schema list remains directly parseable for parity tests and owned
+  as schema data in the large-file plan.
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
