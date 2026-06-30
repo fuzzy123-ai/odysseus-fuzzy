@@ -1,8 +1,10 @@
 import json
 import sqlite3
+import asyncio
 
 from routes.email_read_helpers import (
     load_read_cached_extras,
+    schedule_recent_email_warm,
     select_recent_warm_reads,
 )
 from src.email_thread_parser import THREAD_PARSER_VERSION
@@ -138,3 +140,71 @@ def test_select_recent_warm_reads_skips_scheduled_folder():
 
     assert selected == []
     assert warming == set()
+
+
+def test_schedule_recent_email_warm_reads_and_clears_warming_set():
+    warming = set()
+    cached = {}
+    created = []
+
+    def cache_key(_account_id, _folder, uid, *, owner=""):
+        return f"ck-{owner}-{uid}"
+
+    async def fake_to_thread(func, *args):
+        return func(*args)
+
+    def fake_read(uid, folder, account_id, owner, mark_seen):
+        assert (uid, folder, account_id, owner, mark_seen) == ("fresh", "INBOX", "acct", "bob", False)
+        return {"uid": uid, "body": "warm"}
+
+    scheduled = schedule_recent_email_warm(
+        [{"uid": "fresh", "date_epoch": 1000, "size": 1}],
+        folder="INBOX",
+        account_id="acct",
+        owner="bob",
+        recent_seconds=50,
+        max_bytes=10,
+        read_limit=1,
+        read_cache_key=cache_key,
+        read_cache_get=lambda key: cached.get(key),
+        read_cache_put=lambda key, value: cached.__setitem__(key, value),
+        read_email_sync=fake_read,
+        warming_reads=warming,
+        now=lambda: 1000,
+        create_task=lambda coro: created.append(coro),
+        to_thread=fake_to_thread,
+        sleep=lambda _seconds: asyncio.sleep(0),
+    )
+
+    assert scheduled is True
+    assert len(created) == 1
+    assert warming == {"ck-bob-fresh"}
+
+    asyncio.run(created[0])
+
+    assert cached == {"ck-bob-fresh": {"uid": "fresh", "body": "warm"}}
+    assert warming == set()
+
+
+def test_schedule_recent_email_warm_noops_without_selected_reads():
+    created = []
+
+    scheduled = schedule_recent_email_warm(
+        [{"uid": "fresh", "date_epoch": 1000, "size": 1}],
+        folder="__scheduled__",
+        account_id=None,
+        owner="bob",
+        recent_seconds=50,
+        max_bytes=10,
+        read_limit=1,
+        read_cache_key=lambda *_args, **_kwargs: "ck",
+        read_cache_get=lambda _key: None,
+        read_cache_put=lambda _key, _value: None,
+        read_email_sync=lambda *_args: {"ok": True},
+        warming_reads=set(),
+        now=lambda: 1000,
+        create_task=lambda coro: created.append(coro),
+    )
+
+    assert scheduled is False
+    assert created == []

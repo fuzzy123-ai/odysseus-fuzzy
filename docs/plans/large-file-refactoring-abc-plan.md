@@ -8,8 +8,8 @@ helper split, R11P database migration split, R11Q LLM-core provider/format split
 startup split, R11S visual-report helper split, R11T gallery remove-bg split, R11U document
 library helper split, R11V chat endpoint helper split, R11W skills audit helper split, R11X
 calendar format helper split, R11Y session format helper split, R11Z shell dependency
-helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split and
-R11AC model probe helper split implemented; tool
+helper split, R11AA model loopback helper split, R11AB gallery endpoint helper split,
+R11AC model probe helper split and R11AD email warm-read helper split implemented; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -1943,6 +1943,60 @@ Completion criteria:
   behavior remain covered by focused tests.
 - The slice performs no live endpoint probe, provider call, network action,
   Telegram, Nextcloud or host mutation.
+
+### R11AD / L7-R12S: Email Warm-Read Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move email recent-read warming scheduling out of the `routes/email_routes.py`
+  closure while preserving route-local cache, IMAP read and asyncio dependency
+  injection.
+
+Allowed paths:
+
+- `routes/email_routes.py`
+- `routes/email_read_helpers.py`
+- `tests/test_email_read_helpers.py`
+- `tests/test_email_owner_scope.py`
+- `tests/test_email_runtime_cache.py`
+- `tests/test_email_list_helpers.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11AD done 2026-06-30: recent-read warming task selection/execution moved to
+  `schedule_recent_email_warm()` in `routes/email_read_helpers.py`. The route
+  keeps a thin closure wrapper that injects read-cache key/get/put functions,
+  the synchronous email reader, the warming set and asyncio primitives.
+- Compatibility evidence: existing route behavior still uses the same
+  `_schedule_recent_email_warm()` call sites for cached and fresh list results,
+  while helper tests now cover scheduling, cache writeback and warming-set
+  cleanup.
+- R11AD line count 2026-06-30: `routes/email_routes.py` is 1773 lines in the
+  large-file report, band `warning`, not `candidate`; report candidate count
+  is 26.
+- R11AD focused checks 2026-06-30:
+  `python -m py_compile routes\email_routes.py routes\email_read_helpers.py`
+  passed.
+- R11AD Email tests 2026-06-30:
+  `python -m pytest tests\test_email_read_helpers.py -q` returned
+  `6 passed, 1 warning`; `python -m pytest tests\test_email_owner_scope.py tests\test_email_runtime_cache.py tests\test_email_list_helpers.py -q`
+  returned `21 passed, 6 warnings`.
+
+Completion criteria:
+
+- `routes/email_routes.py` remains below the large-file candidate threshold
+  with warm-read scheduling separated from route orchestration.
+- Read-cache warming selection, writeback and owner-scoped surrounding email
+  behavior remain covered by focused tests.
+- The slice performs no live email provider, network, Telegram, Nextcloud or
+  host mutation.
 
 ### R12: Obsidian Frontend Split
 

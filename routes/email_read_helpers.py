@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
+import time
 from collections.abc import Callable, MutableSet
 from pathlib import Path
 from typing import Any
@@ -158,3 +160,67 @@ def select_recent_warm_reads(
         if len(selected) >= read_limit:
             break
     return selected
+
+
+def schedule_recent_email_warm(
+    emails: list[dict[str, Any]],
+    *,
+    folder: str,
+    account_id: str | None,
+    owner: str,
+    recent_seconds: int,
+    max_bytes: int,
+    read_limit: int,
+    read_cache_key: Callable[..., str],
+    read_cache_get: Callable[[str], Any],
+    read_cache_put: Callable[[str, Any], Any],
+    read_email_sync: Callable[[str, str, str | None, str, bool], dict[str, Any]],
+    warming_reads: MutableSet[str],
+    now: Callable[[], float] = time.time,
+    create_task: Callable[[Any], Any] = asyncio.create_task,
+    to_thread: Callable[..., Any] = asyncio.to_thread,
+    sleep: Callable[[float], Any] = asyncio.sleep,
+    logger: Any = None,
+) -> bool:
+    selected = select_recent_warm_reads(
+        emails,
+        folder=folder,
+        account_id=account_id,
+        owner=owner,
+        now=now(),
+        recent_seconds=recent_seconds,
+        max_bytes=max_bytes,
+        read_limit=read_limit,
+        read_cache_key=read_cache_key,
+        read_cache_get=read_cache_get,
+        warming_reads=warming_reads,
+    )
+    if not selected:
+        return False
+
+    async def _warm() -> None:
+        for uid, ck in selected:
+            if read_cache_get(ck) is not None:
+                warming_reads.discard(ck)
+                continue
+            try:
+                result = await to_thread(read_email_sync, uid, folder, account_id, owner, False)
+                if result and not result.get("error"):
+                    read_cache_put(ck, result)
+            except Exception as exc:
+                if logger is not None:
+                    try:
+                        logger.debug(f"email read warm skipped uid={uid}: {exc}")
+                    except Exception:
+                        pass
+            finally:
+                warming_reads.discard(ck)
+                await sleep(0.05)
+
+    coro = _warm()
+    try:
+        create_task(coro)
+        return True
+    except RuntimeError:
+        coro.close()
+        return False

@@ -106,7 +106,7 @@ from routes.email_oauth_helpers import (
 )
 from routes.email_read_helpers import (
     load_read_cached_extras as _load_read_cached_extras,
-    select_recent_warm_reads as _select_recent_warm_reads,
+    schedule_recent_email_warm as _schedule_recent_email_warm_impl,
 )
 from routes.email_runtime_cache import EmailRuntimeCache
 from routes.email_schedule_helpers import (
@@ -718,43 +718,25 @@ def setup_email_routes():
         return result
 
     def _schedule_recent_email_warm(emails: list, folder: str, account_id: str | None, owner: str):
-        if not emails or folder == "__scheduled__":
-            return
-        selected = _select_recent_warm_reads(
+        _schedule_recent_email_warm_impl(
             emails,
             folder=folder,
             account_id=account_id,
             owner=owner,
-            now=_time.time(),
             recent_seconds=_WARM_RECENT_SECONDS,
             max_bytes=_WARM_MAX_BYTES,
             read_limit=_WARM_READ_LIMIT,
             read_cache_key=_read_cache_key,
             read_cache_get=_read_cache_get,
+            read_cache_put=_read_cache_put,
+            read_email_sync=_read_email_sync,
             warming_reads=_WARMING_READS,
+            now=_time.time,
+            create_task=_asyncio.create_task,
+            to_thread=_asyncio.to_thread,
+            sleep=_asyncio.sleep,
+            logger=logger,
         )
-        if not selected:
-            return
-
-        async def _warm():
-            for uid, ck in selected:
-                if _read_cache_get(ck) is not None:
-                    _WARMING_READS.discard(ck)
-                    continue
-                try:
-                    result = await _asyncio.to_thread(_read_email_sync, uid, folder, account_id, owner, False)
-                    if result and not result.get("error"):
-                        _read_cache_put(ck, result)
-                except Exception as e:
-                    logger.debug(f"email read warm skipped uid={uid}: {e}")
-                finally:
-                    _WARMING_READS.discard(ck)
-                    await _asyncio.sleep(0.05)
-
-        try:
-            _asyncio.create_task(_warm())
-        except RuntimeError:
-            pass
 
     @router.get("/attachments/{uid}")
     async def list_attachments(uid: str, folder: str = Query("INBOX"), account_id: str | None = Query(None), owner: str = Depends(require_owner)):
