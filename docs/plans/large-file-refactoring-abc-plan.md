@@ -4522,6 +4522,54 @@ Completion criteria:
 - `src.llm_core` keeps the legacy private helper names importable while helper
   implementation lives in `src.llm_fallbacks.py`.
 
+## R11CA / L7-R12BP: LLM Cache-Key Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving deterministic response cache-key
+  generation into a focused helper while preserving `src.llm_core` private
+  helper import and cache-hit behavior.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_cache_key.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_temperature.py`
+- `tests/test_llm_core_fallback.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_provider_classification_errors.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CA done 2026-06-30: `_get_cache_key` moved to
+  `src/llm_cache_key.py`; `src.llm_core` imports the private helper name so
+  existing cache-hit paths and private imports remain stable.
+- R11CA line count 2026-06-30: `src/llm_core.py` is 1561 lines, still in
+  warning band but reduced from 1577 after R11BZ; `src/llm_cache_key.py` is 30
+  lines and below the report threshold.
+- R11CA focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_cache_key.py src\llm_fallbacks.py`
+  passed.
+- R11CA cache/provider checks 2026-06-30:
+  `python -m pytest tests\test_ai_activity_ledger.py tests\test_llm_core_temperature.py tests\test_llm_core_fallback.py tests\test_llm_core_streaming.py tests\test_provider_classification_errors.py -q`
+  returned `66 passed, 1 warning`.
+
+Completion criteria:
+
+- Cache-hit audit, sync payload, fallback, streaming and provider error tests
+  remain green.
+- The split performs no live provider calls and does not change cache-key input
+  semantics.
+- `src.llm_core` keeps `_get_cache_key` importable while implementation lives
+  in `src.llm_cache_key.py`.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
