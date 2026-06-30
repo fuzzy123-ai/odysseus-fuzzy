@@ -126,6 +126,33 @@ def test_endpoint_cleanup_removes_primary_and_fallback_references():
     assert settings["stt_model"] == "base"
 
 
+def test_model_refresh_key_trims_base_url_and_includes_key():
+    from routes.model_endpoint_helpers import _model_refresh_key
+
+    assert _model_refresh_key("https://api.example.com/v1/", "secret") == "https://api.example.com/v1\x00secret"
+    assert _model_refresh_key("https://api.example.com/v1", None) == "https://api.example.com/v1\x00"
+
+
+def test_timestamp_seconds_handles_timestamp_objects_and_invalid_values():
+    from routes.model_endpoint_helpers import _timestamp_seconds
+
+    value = SimpleNamespace(timestamp=lambda: 123.5)
+
+    assert _timestamp_seconds(value) == 123.5
+    assert _timestamp_seconds(None) == 0.0
+    assert _timestamp_seconds(SimpleNamespace(timestamp=lambda: (_ for _ in ()).throw(RuntimeError("bad")))) == 0.0
+
+
+def test_model_refresh_failure_delay_uses_exponential_backoff_with_cap():
+    from routes.model_endpoint_helpers import _model_refresh_failure_delay
+
+    assert _model_refresh_failure_delay(0) == 0.0
+    assert _model_refresh_failure_delay(1) == 300.0
+    assert _model_refresh_failure_delay(2) == 600.0
+    assert _model_refresh_failure_delay(20) == 3600.0
+    assert _model_refresh_failure_delay("bad") == 0.0
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

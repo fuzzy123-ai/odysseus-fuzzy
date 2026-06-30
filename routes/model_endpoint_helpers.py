@@ -315,6 +315,27 @@ def _endpoint_refresh_timeout(ep: Any, category: str) -> float:
     return 10.0 if category == "local" else 2.0
 
 
+def _model_refresh_key(base: str, api_key: Optional[str]) -> str:
+    return f"{(base or '').rstrip('/')}\x00{api_key or ''}"
+
+
+def _timestamp_seconds(value: Any) -> float:
+    try:
+        return float(value.timestamp()) if value else 0.0
+    except Exception:
+        return 0.0
+
+
+def _model_refresh_failure_delay(fails: int, *, base: float = 300.0, maximum: float = 3600.0) -> float:
+    try:
+        count = int(fails or 0)
+    except Exception:
+        count = 0
+    if count <= 0:
+        return 0.0
+    return min(base * (2 ** max(0, count - 1)), maximum)
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)

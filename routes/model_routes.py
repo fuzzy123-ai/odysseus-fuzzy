@@ -78,6 +78,8 @@ from routes.model_endpoint_helpers import (
     _match_provider_curated,
     _manual_refresh_timeout,
     _merge_model_ids,
+    _model_refresh_failure_delay as _failure_delay,
+    _model_refresh_key as _refresh_key,
     _normalize_endpoint_kind,
     _normalize_model_ids,
     _normalize_refresh_mode,
@@ -85,6 +87,7 @@ from routes.model_endpoint_helpers import (
     _parse_positive_int,
     _resolve_probe_key as _resolve_probe_key_impl,
     _speech_settings_using_endpoint,
+    _timestamp_seconds as _ts,
     _truthy,
     _visible_models,
 )
@@ -424,23 +427,6 @@ def setup_model_routes(model_discovery):
     # providers a cooldown after failures.
     _refresh_state: Dict[str, Dict[str, Any]] = {}
     _refresh_inflight = {"v": False}  # coarse single-flight guard
-    _REFRESH_FAILURE_BASE = 300.0
-    _REFRESH_FAILURE_MAX = 3600.0
-
-    def _refresh_key(base: str, api_key: Optional[str]) -> str:
-        return f"{base.rstrip('/')}\x00{api_key or ''}"
-
-    def _ts(value: Any) -> float:
-        try:
-            return float(value.timestamp()) if value else 0.0
-        except Exception:
-            return 0.0
-
-    def _failure_delay(fails: int) -> float:
-        if fails <= 0:
-            return 0.0
-        return min(_REFRESH_FAILURE_BASE * (2 ** max(0, fails - 1)), _REFRESH_FAILURE_MAX)
-
     def _should_refresh_endpoint(ep: Any, now: float, force: bool = False) -> tuple[bool, Dict[str, Any]]:
         base = _normalize_base(getattr(ep, "base_url", "") or "")
         kind = _effective_endpoint_kind(ep, base)
