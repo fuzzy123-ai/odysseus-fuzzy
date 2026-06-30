@@ -85,6 +85,7 @@ from routes.model_endpoint_helpers import (
     _build_model_refresh_groups,
     _build_model_local_probe_groups,
     _fanout_model_local_probe_results,
+    _probe_model_local_group,
     _model_refresh_key as _refresh_key,
     _normalize_endpoint_kind,
     _normalize_model_ids,
@@ -660,31 +661,16 @@ def setup_model_routes(model_discovery):
 
         grouped = _build_model_local_probe_groups(local_eps, refresh_key_func=_refresh_key)
 
-        async def _probe_one(data: Dict[str, Any]) -> Dict[str, Any]:
-            t0 = _time.time()
-            try:
-                import asyncio as _asyncio
-                # Bumped 1.5s → 3.5s. The previous 1.5s budget was clipping
-                # local vLLM endpoints on Tailscale links where the model
-                # server is still loading (Qwen3.5-122B takes 2–3 min to
-                # warm); /v1/models can take 500–2500 ms on a busy box,
-                # which pushed _ping_endpoint's full path-discovery sweep
-                # past the cap and marked the row offline despite the
-                # user actively chatting with it.
-                ping = await _asyncio.to_thread(_ping_endpoint, data["base"], data.get("api_key"), 3.5)
-                lat = round((_time.time() - t0) * 1000)
-                return {
-                    "alive": bool(ping.get("reachable")),
-                    "latency_ms": lat,
-                    "status_code": ping.get("status_code"),
-                    "error": ping.get("error"),
-                }
-            except Exception as e:
-                return {"alive": False, "latency_ms": None, "status_code": None, "error": str(e)[:120]}
-
         import asyncio as _asyncio
         results_list = await _asyncio.gather(
-            *[_probe_one(data) for data in grouped.values()],
+            *[
+                _probe_model_local_group(
+                    data,
+                    ping_endpoint_func=_ping_endpoint,
+                    time_func=_time.time,
+                )
+                for data in grouped.values()
+            ],
             return_exceptions=False,
         )
         results = _fanout_model_local_probe_results(list(grouped.values()), results_list)

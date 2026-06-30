@@ -23,7 +23,8 @@ R11AU model refresh-decision helper split, R11AV model refresh group helper
 split, R11AW model refresh inflight helper split and R11AX model refresh
 result helper split, R11AY model refresh inflight reset helper split, R11AZ
 model refresh probe helper split, R11BA model refresh cache-update helper split
-and R11BB model local-probe grouping helper split; tool
+R11BB model local-probe grouping helper split and R11BC model local-probe
+execution helper split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route and Shell route facades are below threshold, remaining CSS/UI-safe and later route/plugin waves pending
 
@@ -3255,6 +3256,61 @@ Completion criteria:
   with local probe grouping/fanout separated from route orchestration.
 - Probe-local still groups identical base/API-key endpoints into one ping and
   fans the result back out to every endpoint ID in the group.
+- The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11BC / L7-R12AR: Model Local-Probe Execution Helper Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move local model endpoint ping execution and result shaping out of the
+  probe-local route while preserving route-owned auth, endpoint filtering,
+  cache TTL and gather/fanout orchestration.
+
+Allowed paths:
+
+- `routes/model_routes.py`
+- `routes/model_endpoint_helpers.py`
+- `tests/test_model_routes.py`
+- `tests/test_model_probe_helpers.py`
+- `tests/test_endpoint_probing.py`
+- `tests/test_model_probe_timeouts.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BC done 2026-06-30: local probe execution moved to async
+  `_probe_model_local_group()` in `routes/model_endpoint_helpers.py`, with
+  route-compatible injection for ping function, clock and optional thread-hop
+  function. `probe_local_endpoints()` keeps admin auth, local endpoint
+  filtering, cache TTL, async gather and fanout.
+- Compatibility evidence: helper tests cover reachable ping result shaping,
+  latency calculation, timeout argument preservation and truncated exception
+  reporting; existing model route, endpoint probing and refresh-timeout tests
+  remain green.
+- R11BC line count 2026-06-30: `routes/model_routes.py` is 1642 lines in the
+  large-file report, band `warning`, not `candidate`;
+  `routes/model_endpoint_helpers.py` is 781 lines, band `monitor`; report
+  candidate count is 26.
+- R11BC focused checks 2026-06-30:
+  `python -m py_compile routes\model_routes.py routes\model_endpoint_helpers.py`
+  passed.
+- R11BC model route checks 2026-06-30:
+  `python -m pytest tests\test_model_routes.py tests\test_model_probe_helpers.py tests\test_endpoint_probing.py tests\test_model_probe_timeouts.py -q`
+  returned `240 passed, 2 warnings`.
+
+Completion criteria:
+
+- `routes/model_routes.py` remains below the large-file candidate threshold
+  with local probe execution/result shaping separated from route orchestration.
+- Probe-local still uses the same 3.5-second local ping budget and returns the
+  same alive/latency/status/error payload shape.
 - The slice performs no live endpoint/provider, network, Telegram, Nextcloud or
   host mutation.
 

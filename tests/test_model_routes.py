@@ -529,6 +529,53 @@ def test_fanout_model_local_probe_results_ignores_empty_endpoint_ids():
     assert _fanout_model_local_probe_results([{"endpoint_ids": []}, {}], [{"alive": True}, {"alive": False}]) == {}
 
 
+def test_probe_model_local_group_returns_reachability_result():
+    from routes.model_endpoint_helpers import _probe_model_local_group
+
+    calls = []
+    times = iter([10.0, 10.123])
+
+    def ping_endpoint(base_url, api_key=None, timeout=3.5):
+        calls.append((base_url, api_key, timeout))
+        return {"reachable": True, "status_code": 200, "error": None}
+
+    async def to_thread(func, *args):
+        return func(*args)
+
+    result = asyncio.run(
+        _probe_model_local_group(
+            {"base": "http://localhost:11434/v1", "api_key": "secret"},
+            ping_endpoint_func=ping_endpoint,
+            time_func=lambda: next(times),
+            to_thread_func=to_thread,
+        )
+    )
+
+    assert result == {"alive": True, "latency_ms": 123, "status_code": 200, "error": None}
+    assert calls == [("http://localhost:11434/v1", "secret", 3.5)]
+
+
+def test_probe_model_local_group_returns_truncated_error():
+    from routes.model_endpoint_helpers import _probe_model_local_group
+
+    async def failing_to_thread(*_args):
+        raise RuntimeError("x" * 200)
+
+    result = asyncio.run(
+        _probe_model_local_group(
+            {"base": "http://localhost:11434/v1"},
+            ping_endpoint_func=lambda *_args: {},
+            time_func=lambda: 10.0,
+            to_thread_func=failing_to_thread,
+        )
+    )
+
+    assert result["alive"] is False
+    assert result["latency_ms"] is None
+    assert result["status_code"] is None
+    assert result["error"] == ("x" * 120)
+
+
 def test_endpoint_cleanup_updates_scoped_and_legacy_user_prefs():
     scoped = {
         "_users": {

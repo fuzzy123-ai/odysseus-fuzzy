@@ -501,6 +501,42 @@ def _fanout_model_local_probe_results(
     return out
 
 
+async def _probe_model_local_group(
+    data: dict[str, Any],
+    *,
+    ping_endpoint_func,
+    time_func,
+    to_thread_func=None,
+    timeout: float = 3.5,
+) -> dict[str, Any]:
+    t0 = time_func()
+    try:
+        if to_thread_func is None:
+            import asyncio
+
+            to_thread_func = asyncio.to_thread
+        ping = await to_thread_func(
+            ping_endpoint_func,
+            data["base"],
+            data.get("api_key"),
+            timeout,
+        )
+        latency_ms = round((time_func() - t0) * 1000)
+        return {
+            "alive": bool(ping.get("reachable")),
+            "latency_ms": latency_ms,
+            "status_code": ping.get("status_code"),
+            "error": ping.get("error"),
+        }
+    except Exception as exc:
+        return {
+            "alive": False,
+            "latency_ms": None,
+            "status_code": None,
+            "error": str(exc)[:120],
+        }
+
+
 def _manual_refresh_timeout(ep: Any, category: str, requested: Any = None) -> float:
     """Timeout for explicit user-triggered model-list refreshes."""
     requested_val = _parse_positive_int(requested, minimum=1, maximum=60)
