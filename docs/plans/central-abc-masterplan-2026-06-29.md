@@ -337,16 +337,40 @@ Primary source docs:
 - `docs/plans/memory-read-write-tabs-contract.md`
 - `docs/plans/odysseus-lens-ui-memory-interaction.md`
 
+Current evidence:
+
+- 2026-06-30: L4 readiness check found existing repo-only foundations for AI
+  activity ledger, agent-run ledger, graph maintenance worker, graph review
+  gate, graph-memory release evidence map, Memory Provenance Ledger,
+  Universal Inbox RaptorGraph store and Nextcloud/RaptorGraph provenance.
+- 2026-06-30: Memory Provenance Ledger coverage now explicitly includes
+  `memory_user_interaction` events with model and agent stamps, while keeping
+  `raw_content_visible=false` and rejecting unsafe payloads.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/test_ai_activity_ledger.py tests/test_ai_activity_audit_p2_contract.py tests/test_ai_activity_audit_p3_contract.py tests/test_ai_activity_diagnostics.py tests/test_agent_run_ledger.py tests/test_graph_maintenance_worker.py tests/test_graph_maintenance_review_gate.py tests/test_graph_memory_release_evidence_map.py tests/test_memory_provenance_ledger.py tests/test_universal_inbox_raptorgraph_store.py tests/test_nextcloud_raptorgraph_provenance.py -q`
+  returned `72 passed, 1 warning`.
+
+Slice queue:
+
+| Slice | Class | Owner | Goal |
+| --- | --- | --- | --- |
+| L4-0-readiness-reconcile | safe_offline | Charlie | Done: current RaptorGraph/Memory readiness evidence is reconciled from existing contracts and tests. |
+| L4-1-ai-activity-audit | repo_only | Bob | Done: AI activity ledger, diagnostics and agent-run linkage are covered by focused tests. |
+| L4-2-graph-maintenance-evidence | repo_only | Bob | Done: graph maintenance worker, review gate and release evidence map are bounded, review-first and truth-write-disabled. |
+| L4-3-memory-provenance-events | repo_only | Bob | Done: maintenance, retrieval, RaptorGraph mutation, write intent and user-interaction provenance events are redacted and queryable. |
+| L4-4-live-graph-writes | needs_live_go | Charlie | Gated: reviewed Memory Write Intent may write to live/native memory or graph stores only after explicit live operator Go. |
+| L4-5-rebuild/fullbuild/runtime-migration | needs_live_go | Charlie | Gated: live graph rebuild, RAPTOR fullbuild, Postgres migration or accelerator setup remain separate operator decisions. |
+
 Parallel rule:
 
 - Do not edit active Universal Inbox memory-write files while L1 is running
   unless Charlie serializes the slice.
 
-Next safe slices:
+L4 backend status:
 
-- Reconcile current RaptorGraph readiness evidence.
-- Verify AI activity and graph maintenance logs cover graph rebuild/write paths.
-- Keep live graph writes behind reviewed Memory Write Intent.
+- Backend/audit readiness is complete for the current masterplan scope.
+- Live graph writes, rebuild/fullbuild, runtime migration and accelerator setup
+  remain gated operational tracks, not blockers for the safe backend lane.
 
 ## Lane L5: Universal File IO / Export Plans
 
