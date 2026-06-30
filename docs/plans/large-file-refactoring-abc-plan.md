@@ -5015,6 +5015,56 @@ Completion criteria:
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
 
+## R11CK / L7-R12BZ: Email MCP Draft Document Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving email draft-document content
+  building, reply-body merge and Odysseus document creation into a focused
+  helper while preserving the legacy `_build_email_document_content`,
+  `_merge_email_reply_body` and `_create_email_draft_document` wrappers.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_draft_document_utils.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_imap_leak_fixes.py`
+- `tests/test_email_owner_scope.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CK done 2026-06-30: `build_email_document_content`,
+  `merge_email_reply_body` and `create_email_draft_document` moved to
+  `mcp_servers/email_draft_document_utils.py`; `mcp_servers.email_server`
+  keeps compatibility wrappers for existing private call sites.
+- R11CK line count 2026-06-30: `mcp_servers/email_server.py` is 1314 lines,
+  still in warning band but reduced from 1423 after R11CJ;
+  `mcp_servers/email_draft_document_utils.py` is 195 lines and below the
+  report threshold.
+- R11CK focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_agent_draft_utils.py mcp_servers\email_draft_document_utils.py`
+  passed.
+- R11CK email MCP checks 2026-06-30:
+  `python -m pytest tests\test_mcp_email_decode_header_spaces.py tests\test_mcp_email_delete_confirmation.py tests\test_imap_leak_fixes.py tests\test_email_owner_scope.py -q`
+  returned `41 passed, 7 warnings`.
+
+Completion criteria:
+
+- `draft_email`, `draft_email_reply` and `ai_draft_email_reply` still create or
+  update Odysseus documents rather than sending email.
+- Draft documents keep owner scope, account metadata, source message metadata
+  and reply-thread merge semantics.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice
