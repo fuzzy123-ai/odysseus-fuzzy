@@ -551,6 +551,16 @@ Current evidence:
   2000 lines.
 - `large-file-refactoring-abc-plan.md` recommends R0 guardrail/allowlist and
   R1 CSS ownership map first.
+- 2026-06-30: L7 R0 is implemented. `scripts/large_file_report.py` produces an
+  advisory JSON/Markdown report using the agreed bands `600-800`, `801-2000`
+  and `>2000`, distinguishes source-like from production/runtime files, and
+  marks generated/minified/planning artifacts as allowlisted without hiding
+  them.
+- 2026-06-30 current report summary: source-like 49 monitor, 81 warning, 42
+  candidate; production/runtime 36 monitor, 54 warning, 39 candidate; 37
+  non-allowlisted production candidates; 3 allowlisted large files.
+- 2026-06-30 Focused tests passed:
+  `python -m pytest tests/tools -q` returned `5 passed, 1 warning`.
 
 Parallel rule:
 
@@ -559,11 +569,19 @@ Parallel rule:
 - Avoid `app.py`, active Inbox files, Telegram plugin and Project Runner files
   until their feature slices are committed.
 
-Next safe slices:
+Slice queue:
 
-- R0 Guardrail/Allowlist.
-- R1 CSS Ownership Map.
-- Later: `src/tool_implementations.py` domain split only if no active edits.
+| Slice | Class | Owner | Goal |
+| --- | --- | --- | --- |
+| L7-R0-guardrail-allowlist | repo_only | Charlie | Done: repeatable oversized-file report and allowlist are implemented and tested. |
+| L7-R1-css-ownership-map | repo_only | Alice | Next: map `static/style.css` domains, risky selectors and target bundles before moving CSS. |
+| L7-R2-css-split | repo_only | Charlie | Deferred: split CSS only after ownership map and visual smoke path are available. |
+| L7-R7-tool-implementations-domain-split | repo_only | Bob | Later: split `src/tool_implementations.py` only if no active feature edits touch that file. |
+
+Next safe slice:
+
+- L7-R1 CSS Ownership Map. This is docs-first and can avoid touching
+  `static/style.css` while the UI/frontpage worktree remains dirty.
 
 ## Lane L8: UI/V2 Integration
 
@@ -640,7 +658,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | partial | Core memory work exists, but graph maintenance/audit/readiness needs reconciliation. |
 | L5 Universal File IO | partial | Safe export plans exist as roadmap; live converters/delivery are gated. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | open | Plan exists; no refactor wave should start before hotfiles are quiet and PDF/inbox hotfiles are settled. |
+| L7 Large File Refactoring | partial | R0 guardrail/allowlist is implemented and tested; R1 CSS ownership map and later extraction waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
