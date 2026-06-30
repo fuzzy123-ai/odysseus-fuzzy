@@ -3852,6 +3852,54 @@ Completion criteria:
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
+## R11BN / L7-R12BC: HWFit Windows Probe Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Move Windows PowerShell/WMI hardware probing out of
+  `services/hwfit/hardware.py` while keeping the legacy `_detect_windows()`
+  test hook and `detect_system()` result shape stable.
+- Keep local and remote hardware detection behavior unchanged; do not run live
+  SSH probes or host mutations.
+
+Allowed paths:
+
+- `services/hwfit/hardware.py`
+- `services/hwfit/hardware_windows.py`
+- `tests/test_hwfit_windows.py`
+- `tests/test_hwfit_remote_validation.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BN done 2026-06-30: `services/hwfit/hardware_windows.py` owns the
+  Windows PowerShell script, encoded-command SSH wrapper, JSON shaping and GPU
+  group shaping. `services.hwfit.hardware._detect_windows()` remains a thin
+  compatibility wrapper using injected `_run` and CPU-arch normalization.
+- R11BN line count 2026-06-30: `services/hwfit/hardware.py` is 772 lines,
+  in monitor band and below warning band; `services/hwfit/hardware_windows.py`
+  is below report threshold.
+- R11BN focused checks 2026-06-30:
+  `python -m py_compile services\hwfit\hardware.py services\hwfit\hardware_windows.py`
+  passed.
+- R11BN HWFit Windows/remote checks 2026-06-30:
+  `python -m pytest tests\test_hwfit_windows.py tests\test_hwfit_remote_validation.py -q`
+  returned `19 passed, 1 warning`.
+
+Completion criteria:
+
+- `services/hwfit/hardware.py` is below warning band without redesigning HWFit
+  route/API behavior.
+- Remote Windows encoded-command handling and route remote-validation tests
+  remain green.
+- The slice performs no live provider call, network, Telegram, Nextcloud, SSH
+  or host mutation.
+
 ### R12: Obsidian Frontend Split
 
 Owner: Alice

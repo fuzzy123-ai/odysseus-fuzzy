@@ -1490,6 +1490,7 @@ Slice queue:
 | L7-R12AZ-research-storage-boundary | repo_only | Bob | Done: Research saved-report/status/source/image helpers moved to `src/research_handler_storage.py`; `src/research_handler.py` is below monitor band while keeping the public `ResearchHandler` API stable. |
 | L7-R12BA-note-reminder-boundary | repo_only | Bob | Done: Notes reminder dispatch moved to `routes/note_reminders.py`; `routes/note_routes.py` is below monitor band while preserving direct `dispatch_reminder` imports and route monkeypatch hooks. |
 | L7-R12BB-contacts-vcard-boundary | repo_only | Bob | Done: Contacts vCard parsing/build/export helpers moved to `routes/contacts_vcard.py`; `routes/contacts_routes.py` is below monitor band while keeping compatibility imports for existing tests/tools. |
+| L7-R12BC-hwfit-windows-probe-boundary | repo_only | Bob | Done: HWFit Windows PowerShell/WMI probing moved to `services/hwfit/hardware_windows.py`; `services/hwfit/hardware.py` is below warning band while keeping the legacy `_detect_windows()` hook stable. |
 
 Next safe slice:
 
@@ -1579,7 +1580,7 @@ Stop or defer the active slice if:
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
-| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12BB are complete; tool implementation/admin, tool-schema facade, tool-execution facade, research-handler storage, notes-reminder dispatch, contacts-vCard helpers, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
+| L7 Large File Refactoring | partial | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12BC are complete; tool implementation/admin, tool-schema facade, tool-execution facade, research-handler storage, notes-reminder dispatch, contacts-vCard helpers, HWFit Windows probe helpers, agent-loop, email-route, model-route, Telegram plugin, Gallery route, Document route, Chat route, Skills route, Calendar route, Session route, Shell route, Codex route, Email MCP, built-in action, scheduler, visual-report, Cookbook route, database, LLM-core, RAG vector and repo-skill facades are below threshold, while later CSS/UI-safe waves remain. |
 | L8 UI/V2 Integration | gated | UI agent owns placement; backend must deliver stable contracts first. |
 
 Recommended next human decision:
