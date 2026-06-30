@@ -26,11 +26,13 @@ model refresh probe helper split, R11BA model refresh cache-update helper split,
 R11BB model local-probe grouping helper split, R11BC model local-probe
 execution helper split and R11BD model local-probe endpoint collection helper
 split, R11BE RAG text chunking helper split and R11BF repo tool output helper
-split, R11BG Codex helper policy split and R11BH tool schema definition split; tool
+split, R11BG Codex helper policy split, R11BH tool schema definition split
+and R11BI tool path confinement split; tool
 implementation/admin, agent-loop, email-route, model-route, database, LLM-core, scheduler, visual-report
 Gallery, Document route, Chat route, Skills route, Calendar route, Session route, Shell route,
 Codex route, tool-schema, RAG vector and repo-skill facades are below threshold,
-remaining CSS/UI-safe and later route/plugin waves pending
+tool-execution path confinement is split, remaining CSS/UI-safe and later
+route/plugin waves pending
 
 ## Goal
 
@@ -3579,6 +3581,61 @@ Completion criteria:
   dynamic registry merging and native function-call conversion.
 - The static schema list remains directly parseable for parity tests and owned
   as schema data in the large-file plan.
+- The slice performs no live provider call, network, Telegram, Nextcloud or
+  host mutation.
+
+### R11BI / L7-R12AX: Tool Path Confinement Split
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+Status: `done`
+
+Objective:
+
+- Move agent tool path/workspace confinement helpers out of
+  `src/tool_execution.py` while preserving the existing private import surface
+  used by tests and file/code-navigation tools.
+
+Allowed paths:
+
+- `src/tool_execution.py`
+- `src/tool_path_confinement.py`
+- `tests/test_tool_path_confinement.py`
+- `tests/test_workspace_confine.py`
+- `tests/test_mount_points.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11BI done 2026-06-30: `_AGENT_WORKDIR`, `_active_workspace`,
+  `_is_sensitive_path`, `_tool_path_roots`, `_resolve_tool_path`,
+  `_resolve_tool_path_in_workspace`, `_resolve_search_root`, `agent_cwd`,
+  `get_active_workspace` and `vet_workspace` moved to
+  `src/tool_path_confinement.py`. `src/tool_execution.py` re-imports those
+  names for compatibility and keeps MCP dispatch, native tool execution and
+  result formatting.
+- Compatibility evidence: path-confinement, workspace confinement and mount
+  tests remain green. The extracted `_is_sensitive_path` now normalizes both
+  slash styles before splitting, preserving the deny-list behavior for mixed
+  Windows/POSIX-style paths.
+- R11BI line count 2026-06-30: `src/tool_execution.py` is 927 lines in the
+  large-file report, band `warning`, not `candidate`; `src/tool_path_confinement.py`
+  is below report threshold; report candidate count is 26.
+- R11BI focused checks 2026-06-30:
+  `python -m py_compile src\tool_execution.py src\tool_path_confinement.py`
+  passed.
+- R11BI path/workspace checks 2026-06-30:
+  `python -m pytest tests\test_tool_path_confinement.py tests\test_workspace_confine.py tests\test_mount_points.py -q --basetemp C:\tmp\pytest-tool-path-split-focus`
+  returned `58 passed, 2 skipped, 2 warnings`.
+
+Completion criteria:
+
+- Path/workspace confinement helpers are directly testable without changing
+  read/write/edit/grep/ls confinement behavior.
+- Existing private imports from `src.tool_execution` remain available for
+  tests and compatibility callers.
 - The slice performs no live provider call, network, Telegram, Nextcloud or
   host mutation.
 
