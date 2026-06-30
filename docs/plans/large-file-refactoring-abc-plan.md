@@ -4720,8 +4720,57 @@ Completion criteria:
   regression tests remain green.
 - The split performs no live IMAP/SMTP calls in tests and does not change tool
   response text.
+
+## R11CE / L7-R12BT: Email MCP Folder Utils Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `mcp_servers/email_server.py` by moving IMAP folder discovery,
+  provider-specific folder resolution and folder role classification into a
+  focused helper while preserving legacy private helper imports from
+  `mcp_servers.email_server`.
+
+Allowed paths:
+
+- `mcp_servers/email_server.py`
+- `mcp_servers/email_folder_utils.py`
+- `tests/test_imap_mailbox_quoting.py`
+- `tests/test_mcp_email_delete_confirmation.py`
+- `tests/test_mcp_email_decode_header_spaces.py`
+- `tests/test_imap_leak_fixes.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11CE done 2026-06-30: `_detect_sent_folder`,
+  `_folder_name_from_list_line`, `_list_folder_lines`, `_resolve_folder` and
+  `_folder_role_from_name` moved to `mcp_servers/email_folder_utils.py`;
+  `mcp_servers.email_server` imports those private helper names so existing
+  callers and tests remain stable.
+- R11CE line count 2026-06-30: `mcp_servers/email_server.py` is 1660 lines,
+  still in warning band but reduced from 1740 after R11CD;
+  `mcp_servers/email_folder_utils.py` is 80 lines and below the report
+  threshold.
+- R11CE focused checks 2026-06-30:
+  `python -m py_compile mcp_servers\email_server.py mcp_servers\email_folder_utils.py`
+  passed.
+- R11CE email MCP checks 2026-06-30:
+  `python -m pytest tests\test_imap_mailbox_quoting.py tests\test_mcp_email_delete_confirmation.py tests\test_mcp_email_decode_header_spaces.py tests\test_imap_leak_fixes.py -q`
+  returned `36 passed, 2 warnings`.
+
+Completion criteria:
+
+- IMAP sent-folder detection, provider folder resolution and mailbox quoting
+  behavior stay stable through the focused email MCP regression tests.
+- The split performs no live IMAP/SMTP calls in tests and does not change tool
+  response text.
 - `mcp_servers.email_server` keeps the legacy private helper names importable
-  while implementation lives in `mcp_servers.email_imap_utils.py`.
+  while implementation lives in `mcp_servers.email_folder_utils.py`.
 
 ### R12: Obsidian Frontend Split
 

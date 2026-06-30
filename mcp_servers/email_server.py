@@ -51,6 +51,13 @@ from mcp_servers.email_imap_utils import (
     _q,
     _uid_fetch_rows,
 )
+from mcp_servers.email_folder_utils import (
+    _detect_sent_folder,
+    _folder_name_from_list_line,
+    _folder_role_from_name,
+    _list_folder_lines,
+    _resolve_folder,
+)
 from mcp_servers.email_tool_formatting import (
     apply_active_account_context,
     format_ai_draft_reply_response,
@@ -162,93 +169,6 @@ def _imap_connect(account: str | None = None):
             pass
         raise
     return conn
-
-
-def _detect_sent_folder(conn):
-    """Find the account's Sent folder name; fall back to 'Sent'."""
-    candidates = ("Sent", "[Gmail]/Sent Mail", "Sent Mail", "Sent Items", "INBOX.Sent")
-    try:
-        status, folders = conn.list()
-        if status != "OK" or not folders:
-            return "Sent"
-        names = []
-        for f in folders:
-            decoded = f.decode() if isinstance(f, bytes) else str(f)
-            m = re.search(r'"([^"]*)"\s*$|(\S+)\s*$', decoded)
-            if m:
-                names.append(m.group(1) or m.group(2))
-        for f in folders:
-            decoded = f.decode() if isinstance(f, bytes) else str(f)
-            if r"\Sent" in decoded:
-                m = re.search(r'"([^"]*)"\s*$|(\S+)\s*$', decoded)
-                if m:
-                    return m.group(1) or m.group(2)
-        for c in candidates:
-            if c in names:
-                return c
-    except Exception:
-        pass
-    return "Sent"
-
-
-def _folder_name_from_list_line(line) -> str | None:
-    decoded = line.decode() if isinstance(line, bytes) else str(line)
-    m = re.search(r'"([^"]*)"\s*$|(\S+)\s*$', decoded)
-    if not m:
-        return None
-    return m.group(1) or m.group(2)
-
-
-def _list_folder_lines(conn) -> list:
-    try:
-        status, folders = conn.list()
-        if status != "OK" or not folders:
-            return []
-        return folders
-    except Exception:
-        return []
-
-
-def _resolve_folder(conn, preferred: str, role: str) -> str:
-    """Resolve provider-specific folder names like Gmail's [Gmail]/Trash."""
-    folders = _list_folder_lines(conn)
-    names = [name for name in (_folder_name_from_list_line(f) for f in folders) if name]
-    if preferred and preferred in names:
-        return preferred
-
-    role_flags = {
-        "trash": ("\\Trash",),
-        "archive": ("\\Archive", "\\All"),
-        "junk": ("\\Junk",),
-    }.get(role, ())
-    for f in folders:
-        decoded = f.decode() if isinstance(f, bytes) else str(f)
-        if any(flag in decoded for flag in role_flags):
-            name = _folder_name_from_list_line(f)
-            if name:
-                return name
-
-    candidates = {
-        "trash": ("Trash", "[Gmail]/Trash", "[Google Mail]/Trash", "Bin", "Deleted Messages", "Deleted Items"),
-        "archive": ("Archive", "Archives", "[Gmail]/All Mail", "[Google Mail]/All Mail"),
-        "junk": ("Junk", "Spam", "[Gmail]/Spam", "[Google Mail]/Spam"),
-    }.get(role, ())
-    lower_map = {n.lower(): n for n in names}
-    for candidate in candidates:
-        if candidate.lower() in lower_map:
-            return lower_map[candidate.lower()]
-    return preferred
-
-
-def _folder_role_from_name(name: str) -> str:
-    lower = (name or "").lower()
-    if "trash" in lower or "bin" in lower or "deleted" in lower:
-        return "trash"
-    if "junk" in lower or "spam" in lower:
-        return "junk"
-    if "archive" in lower or "all mail" in lower:
-        return "archive"
-    return ""
 
 
 def _decode_header(raw):
