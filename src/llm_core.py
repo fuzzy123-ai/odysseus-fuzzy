@@ -93,6 +93,7 @@ from src.llm_runtime_state import (
     set_cached_response as _set_cached_response_impl,
     stream_timeout as _stream_timeout_impl,
 )
+from src.llm_stream_audit import stream_llm_with_activity as _stream_llm_with_activity_impl
 
 
 def _same_model_identity(left: str, right: str) -> bool:
@@ -1199,64 +1200,31 @@ async def stream_llm(
     doc_id: Optional[str] = None,
 ):
     """Stream LLM responses and record redacted activity metadata."""
-
-    start = time.time()
-    output_chars = 0
-    input_tokens = None
-    output_tokens = None
-    status = "success"
-    error_class = None
-    try:
-        async for chunk in _stream_llm_impl(
-            url,
-            model,
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            headers=headers,
-            timeout=timeout,
-            prompt_type=prompt_type,
-            tools=tools,
-            session_id=session_id,
-        ):
-            output_chars += _sse_activity_delta_chars(chunk)
-            usage_in, usage_out = _sse_activity_usage(chunk)
-            if usage_in is not None:
-                input_tokens = usage_in
-            if usage_out is not None:
-                output_tokens = usage_out
-            chunk_error = _sse_activity_error_class(chunk)
-            if chunk_error:
-                status = "error"
-                error_class = chunk_error
-            yield chunk
-    except Exception as exc:
-        status = "error"
-        error_class = type(exc).__name__
-        raise
-    finally:
-        _record_ai_activity_safe(
-            owner=owner,
-            surface=surface,
-            correlation_id=correlation_id,
-            session_id=session_id,
-            task_id=task_id,
-            doc_id=doc_id,
-            prompt_type=prompt_type or "stream_llm",
-            provider=_detect_provider(url),
-            endpoint_url=url,
-            model=model,
-            messages=messages,
-            output_chars=output_chars,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            duration_ms=int((time.time() - start) * 1000),
-            status=status,
-            error_class=error_class,
-            cache_hit=False,
-            side_effects=("stream",),
-        )
-
+    async for chunk in _stream_llm_with_activity_impl(
+        url,
+        model,
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        headers=headers,
+        timeout=timeout,
+        prompt_type=prompt_type,
+        tools=tools,
+        session_id=session_id,
+        owner=owner,
+        surface=surface,
+        correlation_id=correlation_id,
+        task_id=task_id,
+        doc_id=doc_id,
+        stream_impl_func=_stream_llm_impl,
+        delta_chars_func=_sse_activity_delta_chars,
+        usage_func=_sse_activity_usage,
+        error_class_func=_sse_activity_error_class,
+        record_activity_func=_record_ai_activity_safe,
+        detect_provider_func=_detect_provider,
+        time_func=time.time,
+    ):
+        yield chunk
 
 async def stream_llm_with_fallback(candidates, messages, **kwargs):
     """Wrap stream_llm with an ordered fallback chain."""

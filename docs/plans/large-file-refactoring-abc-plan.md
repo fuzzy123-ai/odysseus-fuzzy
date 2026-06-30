@@ -5007,6 +5007,54 @@ Completion criteria:
 - The split performs no live provider calls in tests and keeps the public
   `llm_call_async` audit facade.
 
+## R11DE / L7-R12CT: LLM Stream Audit Boundary
+
+Owner: Bob
+Class: `repo_only`
+Mode: `worker`
+
+Objective:
+
+- Reduce `src/llm_core.py` by moving redacted streaming activity accounting
+  into a focused helper module, while keeping `stream_llm` importable from
+  `src.llm_core` and leaving provider stream handling unchanged.
+
+Allowed paths:
+
+- `src/llm_core.py`
+- `src/llm_stream_audit.py`
+- `tests/test_ai_activity_ledger.py`
+- `tests/test_llm_core_streaming.py`
+- `tests/test_chat_metrics.py`
+- `tests/test_llm_core_ollama.py`
+- `tests/test_llm_core_fallback.py`
+- `docs/plans/central-abc-masterplan-2026-06-29.md`
+- `docs/plans/large-file-refactoring-abc-plan.md`
+
+Current evidence:
+
+- R11DE done 2026-06-30: redacted stream activity accounting moved to
+  `src/llm_stream_audit.py`; `src.llm_core.stream_llm` keeps the compatibility
+  wrapper and injects the stream implementation, SSE metric helpers, provider
+  detection and activity recorder.
+- R11DE line count 2026-06-30: `src/llm_core.py` is 1238 lines, still in
+  warning band but reduced from 1270 after R11DD; `src/llm_stream_audit.py`
+  is 89 lines and below the report threshold.
+- R11DE focused checks 2026-06-30:
+  `python -m py_compile src\llm_core.py src\llm_stream_audit.py` passed.
+- R11DE stream-audit checks 2026-06-30:
+  `python -m pytest tests\test_ai_activity_ledger.py tests\test_llm_core_streaming.py tests\test_chat_metrics.py tests\test_llm_core_ollama.py tests\test_llm_core_fallback.py -q`
+  returned `32 passed, 1 warning`.
+
+Completion criteria:
+
+- Stream chunk pass-through, usage accounting, error classification, AI
+  activity logging, chat metrics and fallback stream behavior remain stable.
+- Existing `src.llm_core.stream_llm` imports and monkeypatch hooks remain
+  intact.
+- The split performs no live provider calls and does not change provider
+  streaming branches.
+
 ## R11CB / L7-R12BQ: Model Probe Endpoint Boundary
 
 Owner: Bob
