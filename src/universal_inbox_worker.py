@@ -19,6 +19,12 @@ from src.universal_inbox_extraction import (
     extract_universal_inbox_content,
 )
 from src.universal_inbox_analysis import build_universal_inbox_file_analysis_packet
+from src.maintenance_model_policy import (
+    MaintenanceWorkload,
+    default_maintenance_model_profile,
+    maintenance_model_profile_from_settings,
+    plan_maintenance_model_route,
+)
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
 from src.universal_inbox_memory_write_intent import build_universal_inbox_memory_write_intent
 from src.universal_inbox_pipeline import build_universal_inbox_pipeline_run
@@ -55,6 +61,7 @@ class UniversalInboxWorkerItemReport:
     source_hash: str
     extraction_status: str
     routing_decision: Mapping[str, Any]
+    maintenance_route: Mapping[str, Any]
     placement_plan: Mapping[str, Any]
     pipeline_report: Mapping[str, Any]
 
@@ -65,6 +72,7 @@ class UniversalInboxWorkerItemReport:
             "source_hash": self.source_hash,
             "extraction_status": self.extraction_status,
             "routing_decision": dict(self.routing_decision),
+            "maintenance_route": dict(self.maintenance_route),
             "placement_plan": dict(self.placement_plan),
             "pipeline_report": dict(self.pipeline_report),
         }
@@ -77,6 +85,7 @@ class UniversalInboxWorkerDryRunReport:
     discovery: Mapping[str, Any]
     review_reasons: tuple[str, ...]
     no_go_reasons: tuple[str, ...]
+    maintenance_model: Mapping[str, Any]
     schema: str = WORKER_SCHEMA
     dry_run: bool = True
     writes_performed: bool = False
@@ -96,6 +105,7 @@ class UniversalInboxWorkerDryRunReport:
             "host_paths_visible": self.host_paths_visible,
             "raw_content_visible": self.raw_content_visible,
             "item_count": self.item_count,
+            "maintenance_model": dict(self.maintenance_model),
             "discovery": dict(self.discovery),
             "review_reasons": self.review_reasons,
             "no_go_reasons": self.no_go_reasons,
@@ -108,10 +118,12 @@ def run_universal_inbox_dry_run(
     *,
     config: UniversalInboxWorkerConfig | None = None,
     rules: UniversalInboxRoutingRules | Mapping[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
 ) -> UniversalInboxWorkerDryRunReport:
     """Run the local-sync Universal Inbox pipeline in mutation-free dry-run mode."""
 
     worker_config = config or UniversalInboxWorkerConfig()
+    maintenance_profile = maintenance_model_profile_from_settings(settings) if settings else default_maintenance_model_profile()
     routing_rules = _coerce_rules(rules)
     discovery = discover_universal_inbox_local(
         inbox_path,
@@ -140,6 +152,22 @@ def run_universal_inbox_dry_run(
             text_sample=extraction.raw_text,
         )
         analysis_report = analysis_packet.to_dict()
+        maintenance_route = plan_maintenance_model_route(
+            workload=MaintenanceWorkload.INBOX_TRIAGE,
+            classification=analysis_report["policy"]["classification"],
+            dsgvo_mode=bool(analysis_report["policy"].get("dsgvo_mode")),
+            input_chars=len(extraction.raw_text or ""),
+            chunk_count=1,
+            source_ref_count=1,
+            confidence=worker_config.review_confidence if worker_extraction_status != "completed" else worker_config.default_confidence,
+            extraction_status=worker_extraction_status,
+            api_escalation_allowed=bool(analysis_report["policy"].get("api_model_allowed")),
+            profile=maintenance_profile,
+        )
+        maintenance_report = maintenance_route.to_dict()
+        analysis_metadata = dict(analysis_report.get("metadata") or {})
+        analysis_metadata["maintenance_route"] = maintenance_report
+        analysis_report = {**analysis_report, "metadata": analysis_metadata}
         routing_decision = plan_universal_inbox_route(
             _routing_item(item.to_dict(), extraction, worker_config, extraction_status=worker_extraction_status),
             rules=routing_rules,
@@ -163,7 +191,8 @@ def run_universal_inbox_dry_run(
                 "status": analysis_report["status"],
                 "reasons": analysis_report["policy"]["review_reasons"] or analysis_report["policy"]["no_go_reasons"],
                 "metadata": {
-                    "mode": "deterministic_policy",
+                    "mode": "maintenance_model_policy",
+                    "maintenance_model": maintenance_report,
                     "classification": analysis_report["policy"]["classification"],
                     "local_only_required": analysis_report["policy"]["local_only_required"],
                     "api_model_allowed": analysis_report["policy"]["api_model_allowed"],
@@ -193,6 +222,7 @@ def run_universal_inbox_dry_run(
                 source_hash=item.sha256,
                 extraction_status=worker_extraction_status,
                 routing_decision=routing_decision.to_dict(),
+                maintenance_route=maintenance_report,
                 placement_plan=placement_report,
                 pipeline_report=pipeline_report,
             )
@@ -210,6 +240,7 @@ def run_universal_inbox_dry_run(
         discovery=discovery.to_dict(),
         review_reasons=tuple(dict.fromkeys(review_reasons)),
         no_go_reasons=tuple(dict.fromkeys(no_go_reasons)),
+        maintenance_model=maintenance_profile.to_dict(),
     )
 
 

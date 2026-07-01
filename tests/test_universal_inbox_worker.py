@@ -52,7 +52,11 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert payload["host_paths_visible"] is False
     assert payload["raw_content_visible"] is False
     assert payload["item_count"] == 1
+    assert payload["maintenance_model"]["model_ref"] == "gemma4:e4b"
+    assert payload["maintenance_model"]["token_budget"] == 1200
     assert payload["items"][0]["placement_plan"]["operation"] == "copy"
+    assert payload["items"][0]["maintenance_route"]["action"] == "stay_on_maintenance_model"
+    assert payload["items"][0]["maintenance_route"]["raw_content_allowed"] is False
     assert payload["items"][0]["placement_plan"]["delete_original"] is False
     assert payload["items"][0]["placement_plan"]["overwrite_existing"] is False
     memory_event = payload["items"][0]["pipeline_report"]["memory_abstraction_event"]
@@ -108,6 +112,8 @@ def test_worker_dry_run_routes_partial_pdf_to_review(tmp_path):
 
     assert payload["status"] == "partial"
     assert payload["items"][0]["extraction_status"] == "partial"
+    assert payload["items"][0]["maintenance_route"]["action"] == "route_to_review"
+    assert payload["items"][0]["maintenance_route"]["review_required"] is True
     assert "partial_extraction" in payload["items"][0]["routing_decision"]["review_reasons"]
     assert payload["items"][0]["placement_plan"]["status"] == "review"
     assert payload["no_go_reasons"] == ()
@@ -126,3 +132,29 @@ def test_worker_dry_run_discovery_warnings_make_partial_without_no_go(tmp_path):
     assert payload["item_count"] == 1
     assert payload["discovery"]["warnings"][0]["code"] == "temporary_file_ignored"
     assert payload["no_go_reasons"] == ()
+
+
+def test_worker_dry_run_uses_maintenance_settings_without_ui(tmp_path):
+    inbox = tmp_path / "Incoming"
+    inbox.mkdir()
+    (inbox / "reference.md").write_text("# Safe derived context\nNo raw persistence.", encoding="utf-8")
+
+    report = run_universal_inbox_dry_run(
+        inbox,
+        rules=TEST_RULES,
+        settings={
+            "maintenance_model_ref": "gemma4:e4b",
+            "maintenance_model_provider": "local_ollama",
+            "maintenance_model_token_budget": 900,
+            "maintenance_model_max_input_chars": 4800,
+        },
+    )
+    payload = report.to_dict()
+
+    assert payload["maintenance_model"]["model_ref"] == "gemma4:e4b"
+    assert payload["maintenance_model"]["token_budget"] == 900
+    assert payload["items"][0]["maintenance_route"]["token_budget"] == 900
+    intent_route = payload["items"][0]["pipeline_report"]["memory_write_intent"]["memory_records"][0]["metadata"]["maintenance_route"]
+    assert intent_route["model_ref"] == "gemma4:e4b"
+    assert intent_route["token_budget"] == 900
+    assert intent_route["raw_content_allowed"] is False

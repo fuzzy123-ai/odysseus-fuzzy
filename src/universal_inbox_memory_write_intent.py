@@ -80,6 +80,7 @@ def build_universal_inbox_memory_write_intent(
     if not isinstance(policy, Mapping):
         raise UniversalInboxMemoryWriteIntentError("analysis policy is required")
     author_stamp = _analysis_author_stamp(analysis_payload)
+    maintenance_route = _analysis_maintenance_route(analysis_payload)
 
     blocked = int(memory_event.get("blocked_field_count") or 0)
     if blocked:
@@ -88,6 +89,7 @@ def build_universal_inbox_memory_write_intent(
             memory_event=memory_event,
             policy=policy,
             author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
         )
     if str(policy.get("status") or "") == "no_go":
         return _blocked_intent(
@@ -95,6 +97,7 @@ def build_universal_inbox_memory_write_intent(
             memory_event=memory_event,
             policy=policy,
             author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
         )
     if not bool(policy.get("memory_write_allowed")) or not bool(policy.get("raptor_write_allowed")):
         return _review_intent(
@@ -102,14 +105,16 @@ def build_universal_inbox_memory_write_intent(
             memory_event=memory_event,
             policy=policy,
             author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
         )
 
-    record = _build_memory_record(memory_event, policy, author_stamp=author_stamp)
+    record = _build_memory_record(memory_event, policy, author_stamp=author_stamp, maintenance_route=maintenance_route)
     raptor_event = _build_raptorgraph_write_event(
         memory_event,
         policy,
         memory_record_ids=(record["memory_id"],),
         author_stamp=author_stamp,
+        maintenance_route=maintenance_route,
     )
     return UniversalInboxMemoryWriteIntent(
         status="ready",
@@ -126,6 +131,7 @@ def _blocked_intent(
     memory_event: Mapping[str, Any],
     policy: Mapping[str, Any],
     author_stamp: Mapping[str, Any] | None = None,
+    maintenance_route: Mapping[str, Any] | None = None,
 ) -> UniversalInboxMemoryWriteIntent:
     return UniversalInboxMemoryWriteIntent(
         status="blocked",
@@ -136,6 +142,7 @@ def _blocked_intent(
             policy,
             memory_record_ids=(),
             author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
         ),
         analysis_policy=dict(policy),
     )
@@ -147,6 +154,7 @@ def _review_intent(
     memory_event: Mapping[str, Any],
     policy: Mapping[str, Any],
     author_stamp: Mapping[str, Any] | None = None,
+    maintenance_route: Mapping[str, Any] | None = None,
 ) -> UniversalInboxMemoryWriteIntent:
     return UniversalInboxMemoryWriteIntent(
         status="review",
@@ -157,6 +165,7 @@ def _review_intent(
             policy,
             memory_record_ids=(),
             author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
         ),
         analysis_policy=dict(policy),
     )
@@ -167,6 +176,7 @@ def _build_memory_record(
     policy: Mapping[str, Any],
     *,
     author_stamp: Mapping[str, Any] | None = None,
+    maintenance_route: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_hash = str(memory_event.get("source_hash") or "")
     if not re.fullmatch(r"(?:sha256:)?[0-9a-fA-F]{32,128}", source_hash):
@@ -194,6 +204,7 @@ def _build_memory_record(
             "local_only": bool(policy.get("local_only_required")),
             "dsgvo_mode": bool(policy.get("dsgvo_mode")),
             "author_stamp": dict(author_stamp or {}),
+            "maintenance_route": dict(maintenance_route or {}),
         },
     }
 
@@ -204,6 +215,7 @@ def _build_raptorgraph_write_event(
     *,
     memory_record_ids: tuple[str, ...],
     author_stamp: Mapping[str, Any] | None = None,
+    maintenance_route: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     status = "ready" if memory_record_ids else ("blocked" if policy.get("status") == "no_go" else "review")
     return {
@@ -222,6 +234,7 @@ def _build_raptorgraph_write_event(
         "no_go_reasons": tuple(policy.get("no_go_reasons") or ()),
         "raw_content_stored": False,
         "author_stamp": dict(author_stamp or {}),
+        "maintenance_route": dict(maintenance_route or {}),
     }
 
 
@@ -229,6 +242,28 @@ def _analysis_author_stamp(analysis_payload: Mapping[str, Any]) -> Mapping[str, 
     metadata = analysis_payload.get("metadata") if isinstance(analysis_payload.get("metadata"), Mapping) else {}
     stamp = metadata.get("author_stamp") if isinstance(metadata, Mapping) else None
     return stamp if isinstance(stamp, Mapping) else {}
+
+
+def _analysis_maintenance_route(analysis_payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    metadata = analysis_payload.get("metadata") if isinstance(analysis_payload.get("metadata"), Mapping) else {}
+    route = metadata.get("maintenance_route") if isinstance(metadata, Mapping) else None
+    if not isinstance(route, Mapping):
+        return {}
+    return {
+        "schema": str(route.get("schema") or ""),
+        "workload": str(route.get("workload") or ""),
+        "action": str(route.get("action") or ""),
+        "model_ref": str(route.get("model_ref") or ""),
+        "provider": str(route.get("provider") or ""),
+        "local_only_required": bool(route.get("local_only_required")),
+        "api_escalation_allowed": bool(route.get("api_escalation_allowed")),
+        "review_required": bool(route.get("review_required")),
+        "reason": str(route.get("reason") or ""),
+        "token_budget": int(route.get("token_budget") or 0),
+        "max_input_chars": int(route.get("max_input_chars") or 0),
+        "raw_content_allowed": False,
+        "truth_write_allowed": False,
+    }
 
 
 def _memory_text(memory_event: Mapping[str, Any], *, classification: str, document_type: str) -> str:

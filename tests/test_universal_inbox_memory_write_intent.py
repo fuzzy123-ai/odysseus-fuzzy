@@ -69,6 +69,49 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert "PRIVATE RAW TEXT" not in encoded
 
 
+def test_ready_intent_carries_redacted_maintenance_route_to_raptor_event():
+    memory = UniversalInboxMemoryAbstraction.from_mapping(
+        BASE_MEMORY,
+        abstract={
+            "summary": "User received a reference document for project planning.",
+            "topics": ["project", "planning"],
+            "source_material_stored": False,
+        },
+    )
+    analysis = _analysis().to_dict()
+    analysis["metadata"] = {
+        **analysis["metadata"],
+        "maintenance_route": {
+            "schema": "odysseus.maintenance_model_policy.v1",
+            "workload": "inbox_triage",
+            "action": "stay_on_maintenance_model",
+            "model_ref": "gemma4:e4b",
+            "provider": "local_ollama",
+            "local_only_required": False,
+            "api_escalation_allowed": True,
+            "review_required": False,
+            "reason": "maintenance_model_default",
+            "token_budget": 1200,
+            "max_input_chars": 6000,
+            "raw_content_allowed": True,
+            "truth_write_allowed": True,
+            "raw_text": "PRIVATE RAW TEXT",
+        },
+    }
+
+    payload = build_universal_inbox_memory_write_intent(memory=memory, analysis=analysis).to_dict()
+    record_route = payload["memory_records"][0]["metadata"]["maintenance_route"]
+    raptor_route = payload["raptorgraph_event"]["maintenance_route"]
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert record_route["model_ref"] == "gemma4:e4b"
+    assert record_route["token_budget"] == 1200
+    assert record_route["raw_content_allowed"] is False
+    assert record_route["truth_write_allowed"] is False
+    assert raptor_route == record_route
+    assert "PRIVATE RAW TEXT" not in encoded
+
+
 def test_sensitive_analysis_requires_review_and_creates_no_records():
     memory = UniversalInboxMemoryAbstraction.from_mapping(
         BASE_MEMORY,

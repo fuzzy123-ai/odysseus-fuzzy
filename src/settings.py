@@ -164,6 +164,15 @@ DEFAULT_SETTINGS = {
     "memory.graph_extract_model": "default",
     "memory.global_synthesis_model": "default",
     "memory.embedding_model": "",
+    "maintenance_model_ref": "gemma4:e4b",
+    "maintenance_model_provider": "local_ollama",
+    "maintenance_model_fallback_ref": "api-review-model",
+    "maintenance_model_token_budget": 1200,
+    "maintenance_model_max_input_chars": 6000,
+    "maintenance_model_chunk_budget": 4,
+    "maintenance_model_source_ref_budget": 4,
+    "maintenance_model_latency_budget_ms": 45000,
+    "maintenance_model_api_fallback_enabled": False,
     "teacher_model": "",
     "teacher_enabled": False,
     # Skills: minimum self-reported confidence for an auto-written (LLM-authored)
@@ -289,6 +298,10 @@ _PER_USER_KEYS = {
     "memory.router_model", "memory.answer_model", "memory.answer_fallback_models",
     "memory.summarize_model", "memory.graph_extract_model",
     "memory.global_synthesis_model", "memory.embedding_model",
+    "maintenance_model_ref", "maintenance_model_provider", "maintenance_model_fallback_ref",
+    "maintenance_model_token_budget", "maintenance_model_max_input_chars",
+    "maintenance_model_chunk_budget", "maintenance_model_source_ref_budget",
+    "maintenance_model_latency_budget_ms", "maintenance_model_api_fallback_enabled",
 }
 
 

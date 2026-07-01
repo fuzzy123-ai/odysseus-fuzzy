@@ -170,6 +170,7 @@ _CATEGORY_PREFIXES: tuple[tuple[str, str], ...] = (
     ("vision_", "vision"),
     ("image_", "image"),
     ("memory.", "memory"),
+    ("maintenance_", "memory"),
     ("tts_", "speech"),
     ("stt_", "speech"),
     ("search_", "search"),
