@@ -24,9 +24,16 @@ def memory_triage_enum_instruction() -> str:
         "classification is one of public, private, sensitive, secret; "
         "document_type is one of project, invoice, worksheet, transient, reference; "
         "memory_write_intent_status is one of ready, review, blocked, skipped. "
+        "Use document_type=project for durable Odysseus decisions, roadmaps, "
+        "server operations, deployment/runtime notes, Podman/Docker choices, "
+        "repositories, architecture, tooling, or workflow rules. "
         "local_only_required means policy-required local-only, not merely that "
         "processing happens on a local model. api_escalation_allowed is false "
-        "only when DSGVO/sensitive/secret policy requires local-only processing."
+        "only when DSGVO/sensitive/secret policy requires local-only processing. "
+        "When should_remember is true, recall_answer must be a short, redacted "
+        "abstract with enough non-sensitive terms for later recall; for sensitive "
+        "review cases, never include raw content, but still state the safe topic "
+        "and that review is required."
     )
 
 
@@ -69,7 +76,7 @@ def normalize_memory_document_type(
 ) -> str:
     haystack = " ".join(str(part or "").strip().lower() for part in (value, case_id, text))
     token = _safe_token(value, "")
-    if token in DOCUMENT_TYPE_VALUES:
+    if token in ("project", "invoice", "worksheet", "transient"):
         return token
     if any(hint in haystack for hint in ("invoice", "rechnung", "billing", "financial", "bill")):
         return "invoice"
@@ -94,6 +101,8 @@ def normalize_memory_document_type(
         )
     ):
         return "project"
+    if token == "reference":
+        return token
     return token or fallback
 
 

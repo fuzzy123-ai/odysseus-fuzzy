@@ -11,6 +11,7 @@ def test_memory_triage_contract_normalizes_gemma_style_labels():
     assert normalize_memory_classification("Technical Procedure Update") == "private"
     assert normalize_memory_classification("Financial/Billing") == "sensitive"
     assert normalize_memory_classification("Ephemeral Interaction") == "public"
+    assert normalize_memory_document_type("reference", text="Podman statt Docker auf dem Debian Server") == "project"
     assert normalize_memory_document_type("Operational Directive", text="Podman statt Docker") == "project"
     assert normalize_memory_document_type("Invoice Fragment") == "invoice"
     assert normalize_memory_write_intent_status("Confirmed") == "ready"
@@ -24,6 +25,8 @@ def test_enum_instruction_pins_values_for_local_model_prompts():
     assert "public, private, sensitive, secret" in text
     assert "project, invoice, worksheet, transient, reference" in text
     assert "ready, review, blocked, skipped" in text
+    assert "Podman/Docker choices" in text
+    assert "recall_answer must be a short, redacted abstract" in text
 
 
 def test_universal_inbox_analysis_maps_podman_decision_to_project():

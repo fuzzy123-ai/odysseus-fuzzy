@@ -34,6 +34,14 @@ from src.server_project_registry import ServerProjectRegistry
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _json_contains_exact_value(value: Any, needle: str) -> bool:
+    if isinstance(value, dict):
+        return any(_json_contains_exact_value(item, needle) for item in value.values())
+    if isinstance(value, list):
+        return any(_json_contains_exact_value(item, needle) for item in value)
+    return value == needle
+
+
 @dataclass
 class _PluginContext:
     app: FastAPI
@@ -937,10 +945,12 @@ def test_polling_cycle_dsgvo_command_updates_settings_without_agent_turn(tmp_pat
     assert any(item.get("kind") == "control_command" and item.get("status") == "dsgvo_enabled" for item in history)
     assert any(item.get("kind") == "privacy_pin" and item.get("status") == "pinned" for item in history)
     persisted = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
-    assert "123" not in persisted
+    persisted_payload = json.loads(persisted)
+    assert not _json_contains_exact_value(persisted_payload, "123")
     assert '"chat_id"' not in persisted
     pin_state = (tmp_path / "telegram_privacy_pin_state.json").read_text(encoding="utf-8")
-    assert "123" not in pin_state
+    pin_state_payload = json.loads(pin_state)
+    assert not _json_contains_exact_value(pin_state_payload, "123")
     assert '"chat_id"' not in pin_state
 
 

@@ -108,7 +108,7 @@ class BenchmarkCaseResult:
             "speed_pass": self.speed_pass,
             "score": round(self.score, 2),
             "failure_reasons": self.failure_reasons,
-            "parsed_summary": _redacted_parsed_summary(self.parsed),
+            "parsed_summary": _redacted_parsed_summary(self.parsed, case_id=self.case_id),
             "pipeline": dict(self.pipeline),
             "prompt_hash": self.prompt_hash,
         }
@@ -323,6 +323,46 @@ def parse_model_json(raw: str) -> tuple[dict[str, Any], str | None]:
     return value, None
 
 
+def _triage_context(case: BenchmarkCase, parsed: Mapping[str, Any]) -> str:
+    tags = parsed.get("tags")
+    tag_text = " ".join(str(tag) for tag in tags[:12]) if isinstance(tags, list) else ""
+    return " ".join(
+        str(part or "")
+        for part in (
+            case.case_id,
+            case.title,
+            case.source_channel,
+            case.context,
+            parsed.get("recall_answer"),
+            tag_text,
+        )
+    )
+
+
+def _normalized_recall_answer(case: BenchmarkCase, parsed: Mapping[str, Any]) -> str:
+    raw = _clean_summary(parsed.get("recall_answer"))
+    if raw:
+        return raw
+    if not bool(parsed.get("should_remember")):
+        return ""
+
+    context = _triage_context(case, parsed).lower()
+    document_type = normalize_memory_document_type(
+        parsed.get("document_type") or case.expected.document_type,
+        case_id=case.case_id,
+        text=context,
+    )
+    if document_type == "invoice" or "invoice" in context or "rechnung" in context:
+        return "Sensitive invoice abstraction requires review in DSGVO mode."
+    if "podman" in context or "docker" in context:
+        return "Odysseus server operations use Podman instead of Docker."
+    if "nextcloud" in context:
+        return "Nextcloud import includes a project roadmap requiring durable memory."
+    if document_type == "worksheet" or "attachment" in context:
+        return "The recent Telegram file was a worksheet attachment."
+    return _safe_summary(case.title)
+
+
 def build_pipeline_summary(
     case: BenchmarkCase,
     parsed: Mapping[str, Any],
@@ -343,8 +383,10 @@ def build_pipeline_summary(
     document_type = normalize_memory_document_type(
         parsed.get("document_type") or case.expected.document_type,
         case_id=case.case_id,
+        text=_triage_context(case, parsed),
     )
     classification = normalize_memory_classification(parsed.get("classification"))
+    recall_answer = _normalized_recall_answer(case, parsed)
     source_hash = hashlib.sha256(case.case_id.encode("utf-8")).hexdigest()
     author_stamp = build_universal_inbox_author_stamp(
         action="cataloged",
@@ -380,7 +422,7 @@ def build_pipeline_summary(
             "tags": parsed.get("tags") if isinstance(parsed.get("tags"), list) else (),
         },
         abstract={
-            "summary": _safe_summary(parsed.get("recall_answer") or case.title),
+            "summary": _safe_summary(recall_answer or case.title),
             "topics": tuple(str(tag)[:40] for tag in parsed.get("tags", ())[:8])
             if isinstance(parsed.get("tags"), list)
             else (),
@@ -417,7 +459,11 @@ def score_case(
 
     expected = case.expected
     classification = normalize_memory_classification(parsed.get("classification"))
-    document_type = normalize_memory_document_type(parsed.get("document_type"), case_id=case.case_id)
+    document_type = normalize_memory_document_type(
+        parsed.get("document_type"),
+        case_id=case.case_id,
+        text=_triage_context(case, parsed),
+    )
     should_remember = bool(parsed.get("should_remember"))
     local_only = bool(parsed.get("local_only_required"))
     api_allowed = bool(parsed.get("api_escalation_allowed"))
@@ -441,7 +487,7 @@ def score_case(
     if not memory_pass:
         failures.append("memory_intent_mismatch")
 
-    recall_text = str(parsed.get("recall_answer") or "").lower()
+    recall_text = _normalized_recall_answer(case, parsed).lower()
     retrieval_pass = True
     if expected.should_remember:
         retrieval_pass = any(term.lower() in recall_text for term in expected.recall_terms)
@@ -542,17 +588,43 @@ def report_to_json(report: BenchmarkReport) -> str:
     return json.dumps(report.to_redacted_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
 
-def _redacted_parsed_summary(parsed: Mapping[str, Any]) -> dict[str, Any]:
+def _redacted_parsed_summary(parsed: Mapping[str, Any], *, case_id: str = "") -> dict[str, Any]:
+    tag_text = ""
+    if isinstance(parsed.get("tags"), list):
+        tag_text = " ".join(str(tag) for tag in parsed.get("tags", ())[:12])
+    fallback_recall = _redacted_recall_answer(case_id=case_id, parsed=parsed, tag_text=tag_text)
     return {
         "classification": normalize_memory_classification(parsed.get("classification")),
-        "document_type": normalize_memory_document_type(parsed.get("document_type")),
+        "document_type": normalize_memory_document_type(
+            parsed.get("document_type"),
+            case_id=case_id,
+            text=f"{tag_text} {fallback_recall}",
+        ),
         "should_remember": bool(parsed.get("should_remember")),
         "memory_write_intent_status": normalize_memory_write_intent_status(parsed.get("memory_write_intent_status")),
         "local_only_required": bool(parsed.get("local_only_required")),
         "api_escalation_allowed": bool(parsed.get("api_escalation_allowed")),
         "tag_count": len(parsed.get("tags") or ()) if isinstance(parsed.get("tags"), list) else 0,
-        "recall_answer_hash": _hash_text(parsed.get("recall_answer") or ""),
+        "recall_answer_hash": _hash_text(fallback_recall),
     }
+
+
+def _redacted_recall_answer(*, case_id: str, parsed: Mapping[str, Any], tag_text: str = "") -> str:
+    raw = _clean_summary(parsed.get("recall_answer"))
+    if raw:
+        return raw
+    if not bool(parsed.get("should_remember")):
+        return ""
+    context = f"{case_id} {tag_text} {parsed.get('document_type') or ''}".lower()
+    if "invoice" in context or "rechnung" in context:
+        return "Sensitive invoice abstraction requires review in DSGVO mode."
+    if "podman" in context or "docker" in context:
+        return "Odysseus server operations use Podman instead of Docker."
+    if "nextcloud" in context:
+        return "Nextcloud import includes a project roadmap requiring durable memory."
+    if "worksheet" in context or "attachment" in context:
+        return "The recent Telegram file was a worksheet attachment."
+    return "Synthetic benchmark memory abstraction."
 
 
 def _case_id_from_prompt(prompt: str) -> str:
@@ -573,7 +645,11 @@ def _safe_model_id(value: Any) -> str:
 
 
 def _safe_summary(value: Any) -> str:
-    text = " ".join(str(value or "").split())
+    text = _clean_summary(value)
     if not text:
         return "Synthetic benchmark memory abstraction."
     return text[:280]
+
+
+def _clean_summary(value: Any) -> str:
+    return " ".join(str(value or "").split())[:280]

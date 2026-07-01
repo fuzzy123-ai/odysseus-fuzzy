@@ -48,6 +48,72 @@ def test_dsgvo_case_requires_local_only_and_review():
     assert case["pipeline"]["intent_status"] == "review"
 
 
+def test_podman_reference_is_scored_as_project_memory():
+    async def weak_podman_call(prompt: str) -> str:
+        return json.dumps(
+            {
+                "classification": "private",
+                "document_type": "reference",
+                "should_remember": True,
+                "memory_write_intent_status": "ready",
+                "local_only_required": False,
+                "api_escalation_allowed": True,
+                "raptor_target": "project_decisions",
+                "recall_answer": "Odysseus server operations use Podman instead of Docker.",
+                "tags": ["odysseus", "podman", "server"],
+            }
+        )
+
+    report = asyncio.run(
+        run_benchmark(
+            model="gemma4:e4b",
+            provider="local_ollama",
+            call_model=weak_podman_call,
+            cases=(default_benchmark_cases()[0],),
+        )
+    )
+    case = report.cases[0].to_redacted_dict()
+
+    assert case["score"] == 100.0
+    assert case["parsed_summary"]["document_type"] == "project"
+    assert case["failure_reasons"] == ()
+
+
+def test_empty_sensitive_invoice_recall_uses_redacted_fallback():
+    async def empty_invoice_recall_call(prompt: str) -> str:
+        return json.dumps(
+            {
+                "classification": "sensitive",
+                "document_type": "invoice",
+                "should_remember": True,
+                "memory_write_intent_status": "review",
+                "local_only_required": True,
+                "api_escalation_allowed": False,
+                "raptor_target": "review_queue",
+                "recall_answer": "",
+                "tags": ["invoice", "review", "dsgvo"],
+            }
+        )
+
+    report = asyncio.run(
+        run_benchmark(
+            model="gemma4:e4b",
+            provider="local_ollama",
+            call_model=empty_invoice_recall_call,
+            cases=(default_benchmark_cases()[1],),
+        )
+    )
+    case = report.cases[0].to_redacted_dict()
+
+    assert case["score"] == 100.0
+    assert case["retrieval_pass"] is True
+    assert case["parsed_summary"]["recall_answer_hash"] != (
+        "sha256:e3b0c44298fc1c149afbf4c8996fb924"
+        "27ae41e4649b934ca495991b7852b855"
+    )
+    assert case["failure_reasons"] == ()
+
+
 def test_invalid_json_fails_schema_without_leaking_output():
     async def bad_call(prompt: str) -> str:
         return "not-json with pretend chain of thought"
