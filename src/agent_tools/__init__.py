@@ -149,3 +149,10 @@ from src.tool_implementations import (  # noqa: E402, F401
     do_manage_settings,
     do_api_call,
 )
+
+try:
+    from src.sensitive_local_worker import register_sensitive_local_worker_tool
+
+    register_sensitive_local_worker_tool()
+except Exception as exc:
+    logger.warning("sensitive local worker tool registration skipped: %s", exc)

@@ -108,6 +108,7 @@ ORCHESTRATOR_MODE_ALLOWED_TOOLS = {
     "web_fetch",
     "search_chats",
     "list_models",
+    "sensitive_local_analysis",
 }
 
 
