@@ -98,6 +98,28 @@ def _model_needs_visible_reasoning_scrub(model: str) -> bool:
     return "deepseek-v" in m or "deepseek-flash" in m
 
 
+_FINAL_ONLY_GUARD = (
+    "Return only the final user-facing answer. Do not include hidden reasoning, "
+    "analysis, planning notes, or explanations about how you interpret the request."
+)
+
+
+def _apply_visible_reasoning_guard(messages: List[Dict], model: str) -> List[Dict]:
+    """Add a narrow anti-reasoning instruction for models known to leak it."""
+    if not _model_needs_visible_reasoning_scrub(model):
+        return messages
+    guarded = [dict(message) for message in messages]
+    if guarded and guarded[0].get("role") == "system":
+        first = dict(guarded[0])
+        first["content"] = "\n\n".join(
+            part for part in (str(first.get("content") or ""), _FINAL_ONLY_GUARD) if part
+        )
+        guarded[0] = first
+    else:
+        guarded.insert(0, {"role": "system", "content": _FINAL_ONLY_GUARD})
+    return guarded
+
+
 def _strip_visible_reasoning_preamble(text: str, model: str) -> str:
     if not text:
         return ""

@@ -77,6 +77,7 @@ async def llm_call_async_impl(
     logger,
     detect_provider_func: Callable[[str], str],
     sanitize_messages_func: Callable[[list[dict]], list[dict]],
+    visible_reasoning_guard_func: Callable[[list[dict], str], list[dict]],
     get_cache_key_func: Callable[..., str],
     get_cached_response_func: Callable[[str], Optional[str]],
     set_cached_response_func: Callable[[str, str], None],
@@ -110,7 +111,10 @@ async def llm_call_async_impl(
 ) -> str:
     """Async LLM call with connection pooling, timeout, retry and logging."""
     provider = detect_provider_func(url)
-    messages_copy = _merge_system_messages(sanitize_messages_func(messages))
+    messages_copy = visible_reasoning_guard_func(
+        _merge_system_messages(sanitize_messages_func(messages)),
+        model,
+    )
 
     cache_key = get_cache_key_func(url, model, messages_copy, temperature, max_tokens)
     cached_response = get_cached_response_func(cache_key)

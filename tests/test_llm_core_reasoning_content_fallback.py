@@ -124,6 +124,43 @@ def test_deepseek_v_flash_suppresses_reasoning_only_output(monkeypatch):
     assert result == ""
 
 
+def test_deepseek_v_flash_payload_adds_final_only_guard(monkeypatch):
+    llm_core._response_cache.clear()
+    seen = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        seen["json"] = json
+        return _sync_response(_openai_msg("Final answer"))
+
+    monkeypatch.setattr(llm_core.httpx, "post", fake_post)
+    result = llm_core.llm_call(
+        "https://api.deepseek.com/v1/chat/completions",
+        "deepseek-v4-flash",
+        [{"role": "user", "content": "hi"}],
+    )
+    assert result == "Final answer"
+    assert seen["json"]["messages"][0]["role"] == "system"
+    assert "Return only the final user-facing answer" in seen["json"]["messages"][0]["content"]
+
+
+def test_normal_openai_payload_does_not_add_final_only_guard(monkeypatch):
+    llm_core._response_cache.clear()
+    seen = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        seen["json"] = json
+        return _sync_response(_openai_msg("Final answer"))
+
+    monkeypatch.setattr(llm_core.httpx, "post", fake_post)
+    result = llm_core.llm_call(
+        "https://api.openai.com/v1/chat/completions",
+        "gpt-4o",
+        [{"role": "user", "content": "hi"}],
+    )
+    assert result == "Final answer"
+    assert seen["json"]["messages"][0]["role"] == "user"
+
+
 # ---------------------------------------------------------------------------
 # Streaming agent path tests (4 and 5)
 # These import and test _empty_response_fallback — the real production helper

@@ -267,6 +267,7 @@ def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
 from src.llm_message_formats import (
     _MISTRAL_REASONING_EFFORT,
     _anthropic_rejects_temperature,
+    _apply_visible_reasoning_guard,
     _as_content_blocks,
     _build_anthropic_headers,
     _build_anthropic_payload,
@@ -357,6 +358,7 @@ def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: floa
         provider_headers_func=_provider_headers,
         detect_provider_func=_detect_provider,
         sanitize_messages_func=_sanitize_llm_messages,
+        visible_reasoning_guard_func=_apply_visible_reasoning_guard,
         get_cache_key_func=_get_cache_key,
         get_cached_response_func=_get_cached_response,
         set_cached_response_func=_set_cached_response,
@@ -496,6 +498,7 @@ async def _llm_call_async_impl(
         logger=logger,
         detect_provider_func=_detect_provider,
         sanitize_messages_func=_sanitize_llm_messages,
+        visible_reasoning_guard_func=_apply_visible_reasoning_guard,
         get_cache_key_func=_get_cache_key,
         get_cached_response_func=_get_cached_response,
         set_cached_response_func=_set_cached_response,
