@@ -171,6 +171,44 @@ def test_build_ollama_payload_omits_default_context_fallback():
     assert "num_ctx" not in payload.get("options", {})
 
 
+def test_build_ollama_payload_can_disable_thinking():
+    payload = llm_core._build_ollama_payload(
+        "gemma4:e4b",
+        [{"role": "user", "content": "x"}],
+        temperature=0.1,
+        max_tokens=100,
+        think=False,
+    )
+
+    assert payload["think"] is False
+
+
+def test_llm_call_disables_thinking_for_native_ollama_thinking_model(monkeypatch):
+    seen = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        seen["json"] = json
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200,
+            request=request,
+            json={"message": {"content": "OK"}, "done": True},
+        )
+
+    monkeypatch.setattr(llm_core.httpx, "post", fake_post)
+
+    result = llm_core.llm_call(
+        "http://ollama:11434/api",
+        "gemma4:e4b",
+        [{"role": "user", "content": "Say OK"}],
+        temperature=0.2,
+        max_tokens=7,
+    )
+
+    assert result == "OK"
+    assert seen["json"]["think"] is False
+
+
 def test_llm_call_threads_discovered_num_ctx(monkeypatch):
     """When get_context_length returns a real, large value, it ends up
     in the outgoing Ollama request as options.num_ctx (issue #909)."""

@@ -90,6 +90,7 @@ def llm_call_impl(
             max_tokens,
             stream=False,
             num_ctx=get_context_length_func(url, model),
+            think=False if supports_thinking_func(model) else None,
         )
     else:
         target_url = url

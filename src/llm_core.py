@@ -632,7 +632,10 @@ async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperatu
             h.update(headers)
         payload = _build_ollama_payload(
             model, messages_copy, temperature, max_tokens,
-            stream=True, tools=tools, num_ctx=get_context_length(url, model),
+            stream=True,
+            tools=tools,
+            num_ctx=get_context_length(url, model),
+            think=False if _supports_thinking(model) else None,
         )
     elif provider == "chatgpt-subscription":
         target_url = _normalize_chatgpt_subscription_url(url)

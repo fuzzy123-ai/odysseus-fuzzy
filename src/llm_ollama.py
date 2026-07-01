@@ -148,6 +148,7 @@ def _build_ollama_payload(
     stream: bool = False,
     tools: Optional[List[Dict]] = None,
     num_ctx: Optional[int] = None,
+    think: Optional[bool] = None,
 ) -> Dict:
     """Build the JSON payload for Ollama's /api/chat endpoint."""
     payload: Dict = {
@@ -164,6 +165,8 @@ def _build_ollama_payload(
         options["num_ctx"] = num_ctx
     if options:
         payload["options"] = options
+    if think is not None:
+        payload["think"] = bool(think)
     if tools:
         payload["tools"] = tools
     return payload
