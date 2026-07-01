@@ -31,12 +31,13 @@ from src.rag_text_chunking import (
     build_chunk_metadata,
     split_structured_text_into_chunks,
 )
+from src.markitdown_runtime import MARKITDOWN_EXTS
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_FILE_EXTENSIONS: Set[str] = {
     '.txt', '.md', '.py', '.json', '.yaml', '.yml',
-    '.csv', '.html', '.css', '.js', '.pdf'
+    '.csv', '.html', '.css', '.js', '.pdf', *MARKITDOWN_EXTS,
 }
 
 _PROTECTED_INDEX_METADATA_KEYS = {"source", "filename", "directory", "type", "owner", "chunk_id"}
@@ -100,6 +101,26 @@ def _call_index_metadata_provider(
         for key, value in extra.items()
         if str(key) not in _PROTECTED_INDEX_METADATA_KEYS
     }
+
+
+def _extract_indexable_text(fpath: str, ext: str, *, owner: Optional[str] = None) -> tuple[str, Dict[str, Any], list[Dict[str, Any]], str]:
+    """Extract text plus metadata for the RAG indexer."""
+
+    if ext == ".pdf":
+        from src.pdf_extraction import extract_pdf_pages
+
+        pdf_result = extract_pdf_pages(fpath, owner=owner)
+        pdf_meta = _pdf_index_metadata(pdf_result)
+        warnings = _pdf_warnings_for_report(pdf_result) if pdf_result.warnings else []
+        return pdf_result.text, pdf_meta, warnings, pdf_result.status
+
+    if ext in MARKITDOWN_EXTS:
+        from src.personal_docs import extract_office_text
+
+        return extract_office_text(fpath), {}, [], "completed"
+
+    with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+        return f.read(), {}, [], "completed"
 
 
 def _pdf_index_metadata(result) -> Dict[str, Any]:
@@ -570,33 +591,30 @@ class VectorRAG:
                         continue
 
                     try:
-                        pdf_meta: Dict[str, Any] = {}
-                        if ext == '.pdf':
+                        content, index_meta, index_warnings, index_status = _extract_indexable_text(
+                            fpath,
+                            ext,
+                            owner=owner,
+                        )
+                        if index_warnings:
+                            warnings_by_file[relative_path] = index_warnings
+                        if ext == ".pdf":
                             from src.pdf_extraction import (
                                 PDF_STATUS_FAILED,
                                 PDF_STATUS_METADATA_ONLY,
                                 PDF_STATUS_NEEDS_REVIEW,
                                 PDF_STATUS_PARTIAL,
-                                extract_pdf_pages,
                             )
 
-                            pdf_result = extract_pdf_pages(fpath, owner=owner)
-                            content = pdf_result.text
-                            pdf_meta = _pdf_index_metadata(pdf_result)
-                            if pdf_result.warnings:
-                                warnings_by_file[relative_path] = _pdf_warnings_for_report(pdf_result)
-                            if pdf_result.status == PDF_STATUS_PARTIAL:
+                            if index_status == PDF_STATUS_PARTIAL:
                                 partial += 1
-                            elif pdf_result.status == PDF_STATUS_NEEDS_REVIEW:
+                            elif index_status == PDF_STATUS_NEEDS_REVIEW:
                                 review += 1
-                            elif pdf_result.status == PDF_STATUS_METADATA_ONLY:
+                            elif index_status == PDF_STATUS_METADATA_ONLY:
                                 skipped += 1
-                            elif pdf_result.status == PDF_STATUS_FAILED:
+                            elif index_status == PDF_STATUS_FAILED:
                                 failed += 1
                                 continue
-                        else:
-                            with open(fpath, 'r', encoding='utf-8') as f:
-                                content = f.read()
 
                         if not content or not content.strip():
                             skipped += 1
@@ -609,7 +627,7 @@ class VectorRAG:
                             'type': ext,
                             'source_version': f"size:{os.path.getsize(fpath)}:mtime:{int(os.path.getmtime(fpath))}",
                         }
-                        meta.update(pdf_meta)
+                        meta.update(index_meta)
                         meta.update(_call_index_metadata_provider(
                             metadata_provider,
                             fpath=fpath,
