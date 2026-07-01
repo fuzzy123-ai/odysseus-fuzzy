@@ -7,6 +7,7 @@ from typing import List, Dict, Set, Any, Tuple
 from dataclasses import dataclass
 
 from src.markitdown_runtime import MARKITDOWN_EXTS
+from src.rag_text_chunking import split_structured_text_into_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -59,23 +60,8 @@ def read_text_file(path: str) -> str:
         return ""
 
 def split_chunks(text: str, size: int = config.CHUNK_SIZE, overlap: int = config.CHUNK_OVERLAP) -> List[str]:
-    """Split text into overlapping chunks."""
-    text = text.strip()
-    if not text:
-        return []
-    chunks = []
-    i = 0
-    n = len(text)
-    while i < n:
-        j = min(i + size, n)
-        chunks.append(text[i:j])
-        if j >= n:
-            # Reached the end. Without this, the next start (j - overlap) is
-            # still > i, so the loop appended one extra chunk duplicating the
-            # last `overlap` chars of the text.
-            break
-        i = j - overlap if j - overlap > i else j
-    return chunks
+    """Split text into overlapping chunks using the shared structured splitter."""
+    return split_structured_text_into_chunks(text, chunk_size=size, overlap=overlap)
 
 def tokenize(s: str) -> Set[str]:
     """Tokenize string into words, excluding stop words."""

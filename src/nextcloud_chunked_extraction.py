@@ -20,9 +20,11 @@ from src.bigdata_ledger_contract import (
     BigDataLedgerRecord,
 )
 from src.nextcloud_ingestion_integration import classify_nextcloud_ingestion_path
+from src.token_budget import count_text_tokens
 
 
 _SAFE_LABEL_RE = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,79}$")
+CHUNK_REF_SPLITTER_VERSION = "nextcloud_chunk_refs_v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +33,10 @@ class ExtractionChunkRef:
     start: int
     end: int
     chars: int
+    budget_start_est: int
+    budget_end_est: int
     digest: str
+    splitter_version: str = CHUNK_REF_SPLITTER_VERSION
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,7 +44,10 @@ class ExtractionChunkRef:
             "start": self.start,
             "end": self.end,
             "chars": self.chars,
+            "budget_start_est": self.budget_start_est,
+            "budget_end_est": self.budget_end_est,
             "digest": self.digest,
+            "splitter_version": self.splitter_version,
         }
 
 
@@ -118,12 +126,15 @@ def build_extraction_chunk_refs(
     for start in range(0, len(text), max_chunk_chars):
         end = min(start + max_chunk_chars, len(text))
         chunk = text[start:end]
+        budget_start = count_text_tokens(text[:start])
         refs.append(
             ExtractionChunkRef(
                 chunk_index=len(refs),
                 start=start,
                 end=end,
                 chars=len(chunk),
+                budget_start_est=budget_start,
+                budget_end_est=budget_start + count_text_tokens(chunk),
                 digest=hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
             )
         )
@@ -272,6 +283,9 @@ def _build_record(
             "chunk_count": len(chunk_refs),
             "persisted_ref_count": len(persisted_refs),
             "total_chars": len(document.runtime_text),
+            "total_budget_units_est": count_text_tokens(document.runtime_text),
+            "source_hash": "sha256:" + hashlib.sha256(document.runtime_text.encode("utf-8")).hexdigest(),
+            "splitter_version": CHUNK_REF_SPLITTER_VERSION,
             "truncated": truncated,
             "chunk_refs": tuple(ref.to_dict() for ref in persisted_refs),
         },

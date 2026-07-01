@@ -35,6 +35,8 @@ def test_chunk_refs_are_deterministic_and_do_not_return_bodies():
 
     assert [ref.to_dict()["chars"] for ref in refs] == [2, 2, 2]
     assert [ref.to_dict()["start"] for ref in refs] == [0, 2, 4]
+    assert refs[0].to_dict()["splitter_version"] == "nextcloud_chunk_refs_v2"
+    assert refs[1].to_dict()["budget_start_est"] >= refs[0].to_dict()["budget_start_est"]
     assert all("ab" not in json.dumps(ref.to_dict(), sort_keys=True) for ref in refs)
 
 
@@ -73,6 +75,9 @@ def test_chunked_extraction_persists_only_hash_refs_and_is_resumable(tmp_path):
     assert extraction.metadata["runtime_only"] is True
     assert extraction.metadata["chunk_count"] == 4
     assert extraction.metadata["persisted_ref_count"] == 4
+    assert extraction.metadata["splitter_version"] == "nextcloud_chunk_refs_v2"
+    assert extraction.metadata["source_hash"].startswith("sha256:")
+    assert extraction.metadata["total_budget_units_est"] > 0
     assert extraction.metadata["warning_codes"] == ["encoding_fallback_used"]
     assert "alpha secret body" not in encoded_ledger
     assert "changed runtime body" not in encoded_ledger

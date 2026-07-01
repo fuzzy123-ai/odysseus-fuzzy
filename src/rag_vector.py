@@ -25,7 +25,7 @@ from src.embedding_lanes import (
     migrate_legacy_collection,
     query_lanes,
 )
-from src.rag_text_chunking import split_text_into_chunks
+from src.rag_text_chunking import build_chunk_metadata, split_structured_text_into_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -602,6 +602,7 @@ class VectorRAG:
                             'filename': fname,
                             'directory': root,
                             'type': ext,
+                            'source_version': f"size:{os.path.getsize(fpath)}:mtime:{int(os.path.getmtime(fpath))}",
                         }
                         meta.update(pdf_meta)
                         meta.update(_call_index_metadata_provider(
@@ -615,8 +616,11 @@ class VectorRAG:
                             meta['owner'] = owner
 
                         file_indexed = False
-                        for i, chunk in enumerate(self._split_into_chunks(content)):
-                            if self.add_document(chunk, {**meta, 'chunk_id': i}):
+                        chunks = self._split_into_chunks(content)
+                        chunk_metadata = build_chunk_metadata(content, chunks)
+                        for i, chunk in enumerate(chunks):
+                            provenance = chunk_metadata[i].to_dict() if i < len(chunk_metadata) else {}
+                            if self.add_document(chunk, {**meta, **provenance, 'chunk_id': i}):
                                 indexed += 1
                                 file_indexed = True
                             else:
@@ -718,7 +722,7 @@ class VectorRAG:
     def _split_into_chunks(
         self, text: str, chunk_size: int = 1000, overlap: int = 200
     ) -> List[str]:
-        return split_text_into_chunks(text, chunk_size=chunk_size, overlap=overlap)
+        return split_structured_text_into_chunks(text, chunk_size=chunk_size, overlap=overlap)
 
     # ------------------------------------------------------------------
     # Delete by metadata

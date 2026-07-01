@@ -10,7 +10,7 @@ Integrationsrisiko.
 
 ## Leitentscheidung
 
-Das MVP besteht aus den Prioritaeten 1-10. Die Punkte 11 und 12 bleiben
+Das MVP besteht aus den Prioritaeten 1-10. Die Punkte 11 bis 13 bleiben
 Post-MVP-Ideen und werden erst relevant, wenn der Kern stabil laeuft.
 
 MVP heisst hier:
@@ -64,6 +64,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | ---: | --- | --- | --- |
 | 11 | GitHub Issue Intelligence | design-ready | Neues Feature mit Sync, Persistence, Embeddings, UI und MCP-Gates. Wertvoll, aber nicht noetig, um den Odysseus-Kern zusammenzubringen. |
 | 12 | Qdrant/Kuzu/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. |
+| 13 | RAG Memory Tokenization und Semantic Chunking | design-ready | Detailplan: `docs/plans/rag-memory-tokenization-roadmap.md`. Erst token-, struktur- und provenance-bewusstes Chunking stabilisieren; Brownian/Random-Walk bleibt spaeterer Research-Slice, nicht Startpunkt. |
 
 ## UI-Gestaltung Spaeter
 
@@ -632,4 +633,4 @@ Das MVP ist erreicht, wenn:
 - Homeserver Health, Telegram, Image Worker und GameDev Mounts als echte
   Backend-/Betriebspfade eingeordnet sind.
 - UI-Neugestaltung als eigener gemeinsamer Folgeblock vorbereitet ist.
-- Post-MVP-Ideen 11 und 12 nicht mehr mit MVP-Arbeit konkurrieren.
+- Post-MVP-Ideen 11 bis 13 nicht mehr mit MVP-Arbeit konkurrieren.
