@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.nextcloud_import_config import load_nextcloud_import_config
 from src.nextcloud_import_report import build_nextcloud_import_dry_run_report
+from src.nextcloud_document_pilot_import import append_nextcloud_document_pilot_plan
 from src.nextcloud_resumable_scanner import run_nextcloud_scanner_dry_run
 from src.nextcloud_software_archives import plan_nextcloud_software_archive_metadata
 
@@ -48,6 +49,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-software-plan",
         action="store_true",
         help="Do not append dry-run software archive analysis records.",
+    )
+    parser.add_argument(
+        "--skip-document-pilot",
+        action="store_true",
+        help="Do not append a bounded dry-run document pilot plan.",
+    )
+    parser.add_argument("--pilot-id", default="pilot-documents", help="Safe label for the document pilot plan.")
+    parser.add_argument("--pilot-batch-limit", type=int, default=100, help="Maximum documents in the pilot plan.")
+    parser.add_argument(
+        "--include-private-pilot-documents",
+        action="store_true",
+        help="Include local-only/private document candidates in the pilot plan as review-required items.",
     )
     parser.add_argument("--max-samples", type=int, default=10, help="Maximum sample paths in reports.")
     parser.add_argument("--format", choices=("json", "markdown"), default="json", help="Output format.")
@@ -84,6 +97,17 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         )
         software_payload = software_result.to_dict()
 
+    document_pilot_payload: dict[str, Any] | None = None
+    if not args.skip_document_pilot:
+        document_pilot_result = append_nextcloud_document_pilot_plan(
+            ledger_path=ledger_path,
+            source_id=source_id,
+            pilot_id=args.pilot_id,
+            batch_limit=args.pilot_batch_limit,
+            include_private=bool(args.include_private_pilot_documents),
+        )
+        document_pilot_payload = document_pilot_result.to_dict()
+
     report = build_nextcloud_import_dry_run_report(
         ledger_path=ledger_path,
         source_id=source_id,
@@ -96,6 +120,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         "source_id": source_id,
         "scan": scan_payload,
         "software_archives": software_payload,
+        "document_pilot": document_pilot_payload,
         "report": report.to_dict(),
         "private_content_visible": False,
         "secret_values_visible": False,
@@ -126,6 +151,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     report = payload["report"]
     scan = payload.get("scan") or {}
     software = payload.get("software_archives") or {}
+    document_pilot = ((payload.get("document_pilot") or {}).get("plan") or {})
     lines = [
         "# Nextcloud Import Pipeline Dry-run",
         "",
@@ -137,6 +163,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         f"- Review candidates: `{report['review_candidates']}`",
         f"- Long paths: `{report['long_path_count']}`",
         f"- Software plans appended: `{software.get('planned', 'skipped')}`",
+        f"- Document pilot selected: `{document_pilot.get('selected_count', 'skipped')}`",
         "",
         "Private contents and secret values are intentionally not included.",
     ]

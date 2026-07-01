@@ -36,6 +36,7 @@ def test_cli_pipeline_scans_plans_and_reports_without_raw_content(tmp_path, caps
     assert payload["scan"]["scanned"] == 4
     assert payload["scan"]["excluded"] == 1
     assert payload["software_archives"]["planned"] == 1
+    assert payload["document_pilot"]["plan"]["selected_count"] == 1
     assert payload["report"]["inventory_total"] == 3
     assert payload["report"]["document_candidates"] == 1
     assert payload["report"]["software_archive_candidates"] == 1
@@ -97,6 +98,10 @@ def _args(**overrides):
         "scan_profile": "full",
         "skip_scan": False,
         "skip_software_plan": False,
+        "skip_document_pilot": False,
+        "pilot_id": "pilot-documents",
+        "pilot_batch_limit": 100,
+        "include_private_pilot_documents": False,
         "max_samples": 10,
         "format": "json",
     }
