@@ -69,6 +69,11 @@ produce that answer.
   maintenance path for voice transcript summaries and recent-attachment
   follow-ups. Reports persist hashes and safe refs only; runtime packets carry
   bounded excerpts and must not be persisted.
+- `src/gemma_maintenance_comparison.py` and
+  `scripts/gemma_maintenance_comparison.py` provide the redacted Gemma4 E4B vs
+  DeepSeek maintenance comparison harness. The default mode is synthetic and
+  offline; live Gemma/DeepSeek calls require explicit CLI flags and still write
+  only aggregate/redacted metrics.
 
 ## Target Architecture
 
@@ -109,7 +114,7 @@ produce that answer.
 | G4O-7 Memory/Raptor Optimization | done | repo_only | Bob | Make Gemma produce candidate facts, not truth | Raptor candidates include provenance, confidence, contradiction hints, and require backend gate |
 | G4O-8 Voice/Telegram Local Path | done | repo_only | Bob | Voice transcript and Telegram file follow-up stay efficient under DSGVO | Backend contract provides bounded local packets and safe recent-attachment refs without editing Telegram hotfiles |
 | G4O-9 Benchmark Runner Upgrade | done | safe_offline | Charlie | Extend `scripts/gemma_memory_benchmark.py` for efficiency | Adds latency, JSON-valid-rate, retry count, local-only gate, and chunk score |
-| G4O-10 DeepSeek Comparison Harness | deferred | needs_live_go | Charlie | Compare Gemma E4B vs DeepSeek flash on maintenance tasks | Deferred until explicit API-comparison Go; repo benchmark metrics are ready |
+| G4O-10 DeepSeek Comparison Harness | done | needs_live_go | Charlie | Compare Gemma E4B vs DeepSeek flash on maintenance tasks | Redacted comparison harness and CLI are implemented; fixture comparison passes; real provider run remains explicit-live only |
 | G4O-11 Cookbook Control Contract | done | repo_only | Alice/Bob | Ensure manual control maps to backend state | Serve/stop/adopt/status actions are represented as backend contracts, no UI implementation |
 | G4O-12 Debian Live Smoke | deferred | needs_live_go | Charlie | Prove real server performance | Deferred until explicit Debian/Ollama live-smoke Go; Cookbook control contract is ready |
 
@@ -156,7 +161,7 @@ Safe preparation done: Backend control contracts can be built without UI.
 
 Last update: 2026-07-01
 
-- Completed: G4O-1, G4O-2, G4O-3, G4O-4, G4O-5, G4O-6, G4O-7, G4O-8, G4O-9, G4O-11.
+- Completed: G4O-1, G4O-2, G4O-3, G4O-4, G4O-5, G4O-6, G4O-7, G4O-8, G4O-9, G4O-10, G4O-11.
 - Verification: `python -m pytest tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_universal_inbox_worker.py tests/test_gemma_memory_benchmark.py -q`
   passed with 23 tests.
 - Verification: `python -m pytest tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_gemma_memory_benchmark.py -q`
@@ -169,10 +174,16 @@ Last update: 2026-07-01
   passed with 40 tests.
 - Verification: `python -m pytest tests/test_gemma4_telegram_local_path.py tests/test_gemma4_cookbook_control.py tests/test_gemma_memory_benchmark.py tests/test_universal_inbox_memory_write_intent.py tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py -q`
   passed with 44 tests.
+- Verification: `python -m pytest tests/test_gemma_maintenance_comparison.py tests/test_gemma4_telegram_local_path.py tests/test_gemma4_cookbook_control.py tests/test_gemma_memory_benchmark.py tests/test_universal_inbox_memory_write_intent.py tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py -q`
+  passed with 47 tests.
+- Verification: `python scripts/gemma_maintenance_comparison.py` passed in
+  synthetic/offline mode with `status=passed`, `winner=tie`,
+  `json_valid_rate=100%`, and `local_only_gate_pass_rate=100%`.
 - Parallel-thread guard: Telegram bot and direct model-processing hotfiles were
   intentionally not edited; `G4O-8` was closed via a disjoint backend contract.
-- Remaining live gates: G4O-10 and G4O-12 are deferred until explicit,
-  bounded operator Go for API comparison and Debian/Ollama smoke.
+- Remaining live gate: G4O-12 is deferred until explicit, bounded operator Go
+  for Debian/Ollama smoke. A real G4O-10 provider run is now available via
+  explicit CLI flags but is not required for repo completion.
 
 ## Quality Gates
 
@@ -219,4 +230,6 @@ Last update: 2026-07-01
 - DeepSeek can orchestrate sensitive workflows only through redacted local worker
   outputs.
 - Benchmarks provide redacted efficiency evidence.
-- Live gates G4O-10/G4O-12 are explicitly deferred until operator Go.
+- G4O-10 has a redacted comparison harness; real provider calls are explicit CLI
+  actions only.
+- Live gate G4O-12 is explicitly deferred until operator Go.
