@@ -23,6 +23,12 @@ def test_deterministic_benchmark_passes_without_raw_material():
 
     assert payload["status"] == "passed"
     assert payload["score"] == 100.0
+    assert payload["metrics"]["json_valid_rate"] == 100.0
+    assert payload["metrics"]["retry_count_total"] == 0
+    assert payload["metrics"]["local_only_gate_pass_rate"] == 100.0
+    assert payload["metrics"]["avg_chunk_score"] >= 85.0
+    assert payload["cases"][0]["retry_count"] == 0
+    assert payload["cases"][0]["chunk_score"] >= 85.0
     assert "redacted_context" not in encoded
     assert "raw_output" not in encoded
     assert "raw_prompt" not in encoded
@@ -131,6 +137,9 @@ def test_invalid_json_fails_schema_without_leaking_output():
 
     assert report.status == "failed"
     assert payload["cases"][0]["schema_valid"] is False
+    assert payload["metrics"]["json_valid_rate"] == 0.0
+    assert payload["metrics"]["retry_count_total"] == 1
+    assert payload["cases"][0]["retry_count"] == 1
     assert "not-json" not in encoded
     assert "chain of thought" not in encoded
 

@@ -27,8 +27,12 @@ def test_sensitive_local_worker_builds_redacted_external_safe_result():
     assert result["raw_content_returned"] is False
     assert result["external_model_may_see_result"] is True
     assert result["redacted_abstraction"]["model_scope"] == "local_only"
+    assert result["redacted_abstraction"]["prompt_capsule_id"] == "gemma4.sensitivity_classification.v1"
     assert "Invoice-like document" in result["redacted_abstraction"]["summary"]
     assert "source_hash" in result["redacted_abstraction"]
+    assert result["local_job_request"]["status"] == "ready"
+    assert result["local_job_request"]["maintenance_route"]["raw_content_allowed"] is False
+    assert result["local_job_request"]["maintenance_route"]["api_escalation_allowed"] is False
 
 
 def test_sensitive_local_worker_rejects_raw_text_arguments():
@@ -80,6 +84,26 @@ async def test_sensitive_local_worker_tool_is_registered_and_executable(monkeypa
     assert result["status"] == "ready"
     assert result["raw_content_visible"] is False
     assert "Document about a school worksheet" in result["redacted_abstraction"]["summary"]
+    assert result["local_job_request"]["prompt_capsule_id"] == "gemma4.sensitivity_classification.v1"
+
+
+def test_sensitive_local_worker_can_request_local_memory_job_without_raw_content():
+    result = build_sensitive_local_worker_result({
+        "source_ref": "inbox:memory:abc123",
+        "classification": "sensitive",
+        "task": "Prepare a memory intent from the local source.",
+        "surface": "memory",
+        "workload": "memory_write_intent",
+        "local_only_required": True,
+    }).to_dict()
+    encoded = json.dumps(result, sort_keys=True)
+
+    assert result["status"] == "needs_local_raw_source"
+    assert result["local_job_request"]["status"] == "pending_local_raw_source"
+    assert result["local_job_request"]["prompt_capsule_id"] == "gemma4.memory_write_intent.v1"
+    assert result["local_job_request"]["maintenance_route"]["local_only_required"] is True
+    assert result["local_job_request"]["task_hash"].startswith("sha256:")
+    assert "private raw document" not in encoded
 
 
 @pytest.mark.asyncio

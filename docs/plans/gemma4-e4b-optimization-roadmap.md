@@ -50,6 +50,21 @@ produce that answer.
 - Universal Inbox dry-runs now attach the shared Gemma4 route report, including
   prompt capsule ID, queue policy, source hashes, and excerpt hash without
   persisting raw content.
+- `sensitive_local_analysis` now returns a redacted local Gemma4 job request
+  with prompt capsule, route metadata, source hash, and task hash, so API
+  orchestrators can delegate sensitive work without receiving raw content.
+- Universal Inbox item reports now expose `gemma_triage` with classification,
+  document type, maintenance action, memory intent status, Raptor candidate
+  planning, and review/no-go reasons.
+- Memory Write Intents now include a redacted Gemma4 RaptorGraph candidate
+  block with provenance, confidence, contradiction hints, backend-gate
+  requirement, and `truth_write_allowed=false`.
+- `scripts/gemma_memory_benchmark.py`/`src/gemma_memory_benchmark.py` now report
+  redacted efficiency metrics: JSON-valid-rate, retry counts,
+  local-only-gate pass rate, latency, and chunk score.
+- `src/gemma4_cookbook_control.py` defines the backend control contract for
+  Cookbook status/serve/stop/adopt actions. It maps control intent to native
+  Cookbook tools and keeps live actions gated by operator/live Go.
 
 ## Target Architecture
 
@@ -85,13 +100,13 @@ produce that answer.
 | G4O-2 Prompt Capsule Library | done | repo_only | Bob | Stable mini-prompts for inbox, sensitivity, memory, Raptor, voice | Capsules are short, schema-bound, tested for no raw persistence |
 | G4O-3 JSON Validation + Repair Gate | done | repo_only | Bob | Validate Gemma output before downstream writes | Invalid/partial output becomes retry, repair, review, or blocked state |
 | G4O-4 Budget + Queue Policy | done | repo_only | Charlie | Prevent Gemma from stalling the server | Concurrency 1, timeout, max chars/tokens, chunking and packet downsizing gates are represented |
-| G4O-5 Local Worker Integration | repo_only | Bob | Connect `sensitive_local_analysis` to real local abstraction jobs | Worker can request/use a local model route without exposing raw content to API models |
-| G4O-6 Universal Inbox Optimization | repo_only | Bob | Make Inbox tasks Gemma-native | File triage emits classification, document type, action, memory intent candidate, and review reasons |
-| G4O-7 Memory/Raptor Optimization | repo_only | Bob | Make Gemma produce candidate facts, not truth | Raptor candidates include provenance, confidence, contradiction hints, and require backend gate |
-| G4O-8 Voice/Telegram Local Path | repo_only | Bob | Voice transcript and Telegram file follow-up stay efficient under DSGVO | Transcript summarization and follow-up use bounded local packets and safe recent-attachment refs |
-| G4O-9 Benchmark Runner Upgrade | safe_offline | Charlie | Extend `scripts/gemma_memory_benchmark.py` for efficiency | Adds latency, JSON-valid-rate, retry count, local-only gate, and chunk score |
+| G4O-5 Local Worker Integration | done | repo_only | Bob | Connect `sensitive_local_analysis` to real local abstraction jobs | Worker can request/use a local model route without exposing raw content to API models |
+| G4O-6 Universal Inbox Optimization | done | repo_only | Bob | Make Inbox tasks Gemma-native | File triage emits classification, document type, action, memory intent candidate, and review reasons |
+| G4O-7 Memory/Raptor Optimization | done | repo_only | Bob | Make Gemma produce candidate facts, not truth | Raptor candidates include provenance, confidence, contradiction hints, and require backend gate |
+| G4O-8 Voice/Telegram Local Path | deferred | repo_only | Bob | Voice transcript and Telegram file follow-up stay efficient under DSGVO | Deferred while another Codex thread edits Telegram/model processing hotfiles |
+| G4O-9 Benchmark Runner Upgrade | done | safe_offline | Charlie | Extend `scripts/gemma_memory_benchmark.py` for efficiency | Adds latency, JSON-valid-rate, retry count, local-only gate, and chunk score |
 | G4O-10 DeepSeek Comparison Harness | needs_live_go | Charlie | Compare Gemma E4B vs DeepSeek flash on maintenance tasks | Live comparison writes only aggregate/redacted metrics |
-| G4O-11 Cookbook Control Contract | repo_only | Alice/Bob | Ensure manual control maps to backend state | Serve/stop/adopt/status actions are represented as backend contracts, no UI implementation |
+| G4O-11 Cookbook Control Contract | done | repo_only | Alice/Bob | Ensure manual control maps to backend state | Serve/stop/adopt/status actions are represented as backend contracts, no UI implementation |
 | G4O-12 Debian Live Smoke | needs_live_go | Charlie | Prove real server performance | Run local Ollama Gemma E4B on Debian with synthetic/redacted inbox and Raptor maintenance cases |
 
 ## Gate Queue
@@ -137,13 +152,21 @@ Safe preparation done: Backend control contracts can be built without UI.
 
 Last update: 2026-07-01
 
-- Completed: G4O-1, G4O-2, G4O-3, G4O-4.
+- Completed: G4O-1, G4O-2, G4O-3, G4O-4, G4O-5, G4O-6, G4O-7, G4O-9, G4O-11.
 - Verification: `python -m pytest tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_universal_inbox_worker.py tests/test_gemma_memory_benchmark.py -q`
   passed with 23 tests.
+- Verification: `python -m pytest tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_gemma_memory_benchmark.py -q`
+  passed with 30 tests.
+- Verification: `python -m pytest tests/test_universal_inbox_memory_write_intent.py tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_gemma_memory_benchmark.py -q`
+  passed with 36 tests.
+- Verification: `python -m pytest tests/test_gemma_memory_benchmark.py tests/test_universal_inbox_memory_write_intent.py tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py -q`
+  passed with 36 tests.
+- Verification: `python -m pytest tests/test_gemma4_cookbook_control.py tests/test_gemma_memory_benchmark.py tests/test_universal_inbox_memory_write_intent.py tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py -q`
+  passed with 40 tests.
 - Parallel-thread guard: Telegram bot and direct model-processing files were
   intentionally not edited because another Codex thread is active there.
-- Next safe slice: G4O-5 Local Worker Integration, then G4O-6 Universal Inbox
-  Optimization.
+- Remaining: G4O-8 is deferred while the parallel Telegram/model-processing
+  thread is active. G4O-10 and G4O-12 remain live-gated.
 
 ## Quality Gates
 
@@ -180,11 +203,13 @@ Last update: 2026-07-01
 ## Done Definition
 
 - Gemma4 E4B has a central maintenance router.
-- All Gemma jobs are schema-bound, budgeted, and audited.
+- All safe repo-only Gemma maintenance jobs are schema-bound, budgeted, and
+  represented as redacted/auditable contracts.
 - Universal Inbox can use Gemma for local sensitivity and abstraction work.
-- Telegram follow-up after file/voice has a bounded local path.
+- Telegram follow-up after file/voice is deferred to the active Telegram/model
+  processing thread to avoid hotfile conflict.
 - Memory/Raptor writes receive validated candidates only.
 - DeepSeek can orchestrate sensitive workflows only through redacted local worker
   outputs.
 - Benchmarks provide redacted efficiency evidence.
-- Live gates are either completed with evidence or explicitly deferred.
+- Live gates G4O-10/G4O-12 are explicitly deferred until operator Go.

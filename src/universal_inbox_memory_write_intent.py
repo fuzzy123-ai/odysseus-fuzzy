@@ -235,6 +235,14 @@ def _build_raptorgraph_write_event(
         "raw_content_stored": False,
         "author_stamp": dict(author_stamp or {}),
         "maintenance_route": dict(maintenance_route or {}),
+        "gemma_raptor_candidate": _build_gemma_raptor_candidate(
+            memory_event,
+            policy,
+            memory_record_ids=memory_record_ids,
+            author_stamp=author_stamp,
+            maintenance_route=maintenance_route,
+            status=status,
+        ),
     }
 
 
@@ -261,8 +269,57 @@ def _analysis_maintenance_route(analysis_payload: Mapping[str, Any]) -> Mapping[
         "reason": str(route.get("reason") or ""),
         "token_budget": int(route.get("token_budget") or 0),
         "max_input_chars": int(route.get("max_input_chars") or 0),
+        "prompt_capsule_id": str(route.get("prompt_capsule_id") or ""),
+        "prompt_capsule_schema": str(route.get("prompt_capsule_schema") or ""),
+        "source_hashes": tuple(str(value) for value in route.get("source_hashes") or ()),
+        "excerpt_hash": str(route.get("excerpt_hash") or ""),
         "raw_content_allowed": False,
         "truth_write_allowed": False,
+    }
+
+
+def _build_gemma_raptor_candidate(
+    memory_event: Mapping[str, Any],
+    policy: Mapping[str, Any],
+    *,
+    memory_record_ids: tuple[str, ...],
+    author_stamp: Mapping[str, Any] | None = None,
+    maintenance_route: Mapping[str, Any] | None = None,
+    status: str,
+) -> dict[str, Any]:
+    source_hash = str(memory_event.get("source_hash") or "")
+    abstract = memory_event.get("abstract") if isinstance(memory_event.get("abstract"), Mapping) else {}
+    summary_hash = _hash_text(abstract.get("summary") or "")
+    classification = str(policy.get("classification") or "unknown")
+    document_type = str(memory_event.get("document_type") or "unknown")
+    confidence = _bounded_confidence(memory_event.get("confidence"))
+    review_reasons = tuple(policy.get("review_reasons") or ())
+    no_go_reasons = tuple(policy.get("no_go_reasons") or ())
+    return {
+        "schema": "odysseus.gemma4_raptorgraph_candidate.v1",
+        "status": "candidate_ready" if status == "ready" else ("blocked" if status == "blocked" else "review_required"),
+        "candidate_facts": (
+            {
+                "fact_id": f"uix-raptor-{_hash_text(source_hash + document_type)[-16:]}",
+                "kind": "document_abstraction_candidate",
+                "classification": classification,
+                "document_type": document_type,
+                "source_hash": source_hash,
+                "summary_hash": summary_hash,
+                "confidence": confidence,
+                "memory_record_ids": tuple(memory_record_ids),
+                "raw_content_stored": False,
+            },
+        ),
+        "contradiction_hints": tuple(dict.fromkeys(review_reasons + no_go_reasons)),
+        "provenance": {
+            "source_hash": source_hash,
+            "author_stamp": dict(author_stamp or {}),
+            "maintenance_route": dict(maintenance_route or {}),
+        },
+        "requires_backend_gate": True,
+        "truth_write_allowed": False,
+        "raw_content_stored": False,
     }
 
 
@@ -292,6 +349,18 @@ def _reject_suspicious_text(text: str) -> None:
     encoded = json.dumps(text, ensure_ascii=False)
     if len(encoded) > 4000:
         raise UniversalInboxMemoryWriteIntentError("memory text exceeds safe intent length")
+
+
+def _bounded_confidence(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return max(0.0, min(1.0, confidence))
+
+
+def _hash_text(value: Any) -> str:
+    return "sha256:" + hashlib.sha256(str(value or "").encode("utf-8", errors="replace")).hexdigest()
 
 
 def _token(value: Any, *, field: str) -> str:

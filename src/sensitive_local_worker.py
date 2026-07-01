@@ -17,6 +17,11 @@ import re
 from typing import Any, Mapping
 
 from src.data_classification import resolve_classification
+from src.gemma4_maintenance_router import (
+    GemmaMaintenanceSurface,
+    plan_gemma4_maintenance_route,
+)
+from src.maintenance_model_policy import MaintenanceWorkload
 from src.sensitivity_delegation_gate import decide_sensitivity_delegation
 
 
@@ -68,6 +73,7 @@ class SensitiveLocalWorkerResult:
     classification: str
     delegation: Mapping[str, Any]
     redacted_abstraction: Mapping[str, Any]
+    local_job_request: Mapping[str, Any]
     blocked_reason: str = ""
     schema: str = SENSITIVE_LOCAL_WORKER_SCHEMA
 
@@ -80,6 +86,7 @@ class SensitiveLocalWorkerResult:
             "classification": self.classification,
             "delegation": dict(self.delegation),
             "redacted_abstraction": dict(self.redacted_abstraction),
+            "local_job_request": dict(self.local_job_request),
             "raw_content_visible": False,
             "raw_content_returned": False,
             "external_model_may_see_result": True,
@@ -100,6 +107,8 @@ def build_sensitive_local_worker_result(payload: Mapping[str, Any]) -> Sensitive
     redacted_context = _safe_text(payload.get("redacted_context") or "", field="redacted_context", limit=1000)
     dsgvo_mode = _truthy(payload.get("dsgvo_mode"))
     local_only_required = _truthy(payload.get("local_only_required"))
+    surface = _normalize_surface(payload.get("surface") or payload.get("source_channel") or "universal_inbox")
+    workload = _normalize_workload(payload.get("workload") or payload.get("maintenance_workload") or "sensitivity_classification")
 
     delegation = decide_sensitivity_delegation(
         dsgvo_mode=dsgvo_mode,
@@ -109,15 +118,38 @@ def build_sensitive_local_worker_result(payload: Mapping[str, Any]) -> Sensitive
         local_only_required=local_only_required,
         redacted_context_available=bool(redacted_context),
     ).to_dict()
+    route_plan = plan_gemma4_maintenance_route(
+        surface=surface,
+        workload=workload,
+        classification=classification,
+        dsgvo_mode=dsgvo_mode,
+        input_chars=len(redacted_context),
+        source_refs=(source_ref,),
+        excerpt=redacted_context,
+        api_escalation_allowed=False,
+    )
     abstraction = {
         "summary": redacted_context,
         "source_hash": _stable_hash(source_ref),
         "worker": "local_sensitive_worker",
         "model_scope": "local_only",
+        "prompt_capsule_id": route_plan.capsule.capsule_id,
         "limitations": (
             "No raw source content was exposed to the orchestrator. "
             "If details are required, the final answer must be produced by a local model."
         ),
+    }
+    local_job_request = {
+        "schema": "odysseus.sensitive_local_worker.job_request.v1",
+        "status": "ready" if redacted_context else "pending_local_raw_source",
+        "surface": surface,
+        "workload": workload,
+        "source_hash": _stable_hash(source_ref),
+        "task_hash": _stable_hash(task),
+        "prompt_capsule_id": route_plan.capsule.capsule_id,
+        "maintenance_route": route_plan.flat_route_report(),
+        "raw_content_visible": False,
+        "raw_content_returned": False,
     }
     status = "ready" if redacted_context else "needs_local_raw_source"
     return SensitiveLocalWorkerResult(
@@ -127,6 +159,7 @@ def build_sensitive_local_worker_result(payload: Mapping[str, Any]) -> Sensitive
         classification=classification,
         delegation=delegation,
         redacted_abstraction=abstraction,
+        local_job_request=local_job_request,
     )
 
 
@@ -190,6 +223,23 @@ def register_sensitive_local_worker_tool() -> None:
                 },
                 "dsgvo_mode": {"type": "boolean"},
                 "local_only_required": {"type": "boolean"},
+                "surface": {
+                    "type": "string",
+                    "enum": ["universal_inbox", "telegram", "nextcloud", "memory", "raptorgraph", "voice", "export_conversion", "long_document"],
+                },
+                "workload": {
+                    "type": "string",
+                    "enum": [
+                        "inbox_triage",
+                        "sensitivity_classification",
+                        "memory_write_intent",
+                        "raptorgraph_abstraction",
+                        "raptorgraph_maintenance",
+                        "voice_transcript",
+                        "export_conversion_preflight",
+                        "long_document_preflight",
+                    ],
+                },
             },
             "required": ["source_ref", "classification", "task"],
             "additionalProperties": False,
@@ -241,6 +291,18 @@ def _normalize_classification(value: Any) -> str:
     if resolution.normalized is None:
         raise SensitiveLocalWorkerError("classification_required")
     return resolution.normalized.value
+
+
+def _normalize_surface(value: Any) -> str:
+    text = str(value or "universal_inbox").strip().lower().replace("-", "_").replace(" ", "_")
+    allowed = {item.value for item in GemmaMaintenanceSurface}
+    return text if text in allowed else GemmaMaintenanceSurface.UNIVERSAL_INBOX.value
+
+
+def _normalize_workload(value: Any) -> str:
+    text = str(value or "sensitivity_classification").strip().lower().replace("-", "_").replace(" ", "_")
+    allowed = {item.value for item in MaintenanceWorkload}
+    return text if text in allowed else MaintenanceWorkload.SENSITIVITY_CLASSIFICATION.value
 
 
 def _safe_label(value: Any, *, field: str) -> str:

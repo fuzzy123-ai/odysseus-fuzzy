@@ -82,6 +82,10 @@ class BenchmarkCase:
 class BenchmarkCaseResult:
     case_id: str
     duration_ms: int
+    input_chars: int
+    output_chars: int
+    retry_count: int
+    chunk_score: float
     schema_valid: bool
     pipeline_valid: bool
     local_only_pass: bool
@@ -99,6 +103,10 @@ class BenchmarkCaseResult:
         return {
             "case_id": self.case_id,
             "duration_ms": self.duration_ms,
+            "input_chars": self.input_chars,
+            "output_chars": self.output_chars,
+            "retry_count": self.retry_count,
+            "chunk_score": round(self.chunk_score, 2),
             "schema_valid": self.schema_valid,
             "pipeline_valid": self.pipeline_valid,
             "local_only_pass": self.local_only_pass,
@@ -127,6 +135,7 @@ class BenchmarkReport:
     schema: str = BENCHMARK_SCHEMA
 
     def to_redacted_dict(self) -> dict[str, Any]:
+        metrics = _aggregate_metrics(self.cases)
         return {
             "schema": self.schema,
             "model": self.model,
@@ -136,6 +145,7 @@ class BenchmarkReport:
             "total_duration_ms": self.total_duration_ms,
             "score": round(self.score, 2),
             "status": self.status,
+            "metrics": metrics,
             "cases": tuple(case.to_redacted_dict() for case in self.cases),
         }
 
@@ -287,9 +297,14 @@ async def run_case(
     parsed, parse_error = parse_model_json(raw)
     pipeline = build_pipeline_summary(case, parsed, model=model, provider=provider)
     checks = score_case(case, parsed, pipeline, duration_ms=duration_ms, parse_error=parse_error)
+    retry_count = 0 if checks["schema_valid"] else 1
     return BenchmarkCaseResult(
         case_id=case.case_id,
         duration_ms=duration_ms,
+        input_chars=len(case.prompt),
+        output_chars=len(str(raw or "")),
+        retry_count=retry_count,
+        chunk_score=_chunk_score(case.prompt),
         schema_valid=checks["schema_valid"],
         pipeline_valid=checks["pipeline_valid"],
         local_only_pass=checks["local_only_pass"],
@@ -586,6 +601,36 @@ async def deterministic_fixture_call(prompt: str) -> str:
 
 def report_to_json(report: BenchmarkReport) -> str:
     return json.dumps(report.to_redacted_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _aggregate_metrics(cases: tuple[BenchmarkCaseResult, ...]) -> dict[str, Any]:
+    total = max(len(cases), 1)
+    retry_count_total = sum(case.retry_count for case in cases)
+    timeout_count = sum(1 for case in cases if not case.speed_pass)
+    return {
+        "case_count": len(cases),
+        "avg_latency_ms": round(sum(case.duration_ms for case in cases) / total, 2),
+        "max_latency_ms": max((case.duration_ms for case in cases), default=0),
+        "json_valid_rate": round(100.0 * sum(1 for case in cases if case.schema_valid) / total, 2),
+        "retry_count_total": retry_count_total,
+        "avg_retry_count": round(retry_count_total / total, 2),
+        "local_only_gate_pass_rate": round(100.0 * sum(1 for case in cases if case.local_only_pass) / total, 2),
+        "timeout_rate": round(100.0 * timeout_count / total, 2),
+        "avg_chunk_score": round(sum(case.chunk_score for case in cases) / total, 2),
+        "max_input_chars": max((case.input_chars for case in cases), default=0),
+        "max_output_chars": max((case.output_chars for case in cases), default=0),
+    }
+
+
+def _chunk_score(prompt: str) -> float:
+    length = len(str(prompt or ""))
+    if length <= 1200:
+        return 100.0
+    if length <= 2400:
+        return 85.0
+    if length <= 4800:
+        return 65.0
+    return 35.0
 
 
 def _redacted_parsed_summary(parsed: Mapping[str, Any], *, case_id: str = "") -> dict[str, Any]:

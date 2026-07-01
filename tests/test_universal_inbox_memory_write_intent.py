@@ -62,6 +62,13 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert stamp["source_material_stored"] is False
     assert payload["raptorgraph_event"]["event"] == "universal_inbox_memory_write_intent"
     assert payload["raptorgraph_event"]["author_stamp"]["model_id"] == "deterministic_policy_v1"
+    candidate = payload["raptorgraph_event"]["gemma_raptor_candidate"]
+    assert candidate["schema"] == "odysseus.gemma4_raptorgraph_candidate.v1"
+    assert candidate["status"] == "candidate_ready"
+    assert candidate["requires_backend_gate"] is True
+    assert candidate["truth_write_allowed"] is False
+    assert candidate["candidate_facts"][0]["source_hash"] == payload["raptorgraph_event"]["source_hash"]
+    assert candidate["candidate_facts"][0]["raw_content_stored"] is False
     assert payload["raptorgraph_event"]["memory_record_ids"] == (
         payload["memory_records"][0]["memory_id"],
     )
@@ -109,6 +116,7 @@ def test_ready_intent_carries_redacted_maintenance_route_to_raptor_event():
     assert record_route["raw_content_allowed"] is False
     assert record_route["truth_write_allowed"] is False
     assert raptor_route == record_route
+    assert payload["raptorgraph_event"]["gemma_raptor_candidate"]["provenance"]["maintenance_route"] == record_route
     assert "PRIVATE RAW TEXT" not in encoded
 
 
@@ -127,6 +135,8 @@ def test_sensitive_analysis_requires_review_and_creates_no_records():
     assert payload["memory_records"] == ()
     assert payload["raptorgraph_event"]["memory_record_ids"] == ()
     assert payload["raptorgraph_event"]["author_stamp"]["action"] == "cataloged"
+    assert payload["raptorgraph_event"]["gemma_raptor_candidate"]["status"] == "review_required"
+    assert "sensitive_memory_requires_explicit_review" in payload["raptorgraph_event"]["gemma_raptor_candidate"]["contradiction_hints"]
     assert payload["analysis_policy"]["classification"] == "sensitive"
 
 

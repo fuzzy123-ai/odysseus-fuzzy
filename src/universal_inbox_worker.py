@@ -63,6 +63,7 @@ class UniversalInboxWorkerItemReport:
     filename: str
     source_hash: str
     extraction_status: str
+    gemma_triage: Mapping[str, Any]
     routing_decision: Mapping[str, Any]
     maintenance_route: Mapping[str, Any]
     placement_plan: Mapping[str, Any]
@@ -74,6 +75,7 @@ class UniversalInboxWorkerItemReport:
             "filename": self.filename,
             "source_hash": self.source_hash,
             "extraction_status": self.extraction_status,
+            "gemma_triage": dict(self.gemma_triage),
             "routing_decision": dict(self.routing_decision),
             "maintenance_route": dict(self.maintenance_route),
             "placement_plan": dict(self.placement_plan),
@@ -216,6 +218,13 @@ def run_universal_inbox_dry_run(
         placement_report = placement.to_dict()
         pipeline_report = pipeline.to_dict()
         pipeline_report["memory_write_intent"] = memory_write_intent.to_dict()
+        gemma_triage = _gemma_triage_report(
+            analysis_report=analysis_report,
+            maintenance_report=maintenance_report,
+            memory_write_intent=memory_write_intent.to_dict(),
+            placement_report=placement_report,
+            extraction_status=worker_extraction_status,
+        )
         review_reasons.extend(placement.review_reasons)
         review_reasons.extend(pipeline_report.get("review_reasons", ()))
         no_go_reasons.extend(placement.no_go_reasons)
@@ -226,6 +235,7 @@ def run_universal_inbox_dry_run(
                 filename=item.filename,
                 source_hash=item.sha256,
                 extraction_status=worker_extraction_status,
+                gemma_triage=gemma_triage,
                 routing_decision=routing_decision.to_dict(),
                 maintenance_route=maintenance_report,
                 placement_plan=placement_report,
@@ -336,3 +346,45 @@ def _summary_for_status(status: str) -> str:
 
 def _safe_tags(domain: str, document_type: str) -> tuple[str, ...]:
     return tuple(tag for tag in (domain, document_type) if tag and tag != "unknown")
+
+
+def _gemma_triage_report(
+    *,
+    analysis_report: Mapping[str, Any],
+    maintenance_report: Mapping[str, Any],
+    memory_write_intent: Mapping[str, Any],
+    placement_report: Mapping[str, Any],
+    extraction_status: str,
+) -> dict[str, Any]:
+    policy = dict(analysis_report.get("policy") or {})
+    abstract = dict(analysis_report.get("abstract") or {})
+    return {
+        "schema": "odysseus.universal_inbox.gemma4_triage.v1",
+        "status": analysis_report.get("status") or policy.get("status") or "unknown",
+        "classification": policy.get("classification") or abstract.get("classification") or "unknown",
+        "document_type": analysis_report.get("document_type") or abstract.get("document_type") or "reference",
+        "extraction_status": extraction_status,
+        "action": maintenance_report.get("action") or "unknown",
+        "prompt_capsule_id": maintenance_report.get("prompt_capsule_id") or "",
+        "local_only_required": bool(policy.get("local_only_required")),
+        "api_escalation_allowed": bool(maintenance_report.get("api_escalation_allowed")),
+        "memory_intent_status": memory_write_intent.get("status") or "unknown",
+        "memory_records_planned": len(memory_write_intent.get("memory_records") or ()),
+        "raptor_candidate_planned": bool(memory_write_intent.get("raptorgraph_event")),
+        "review_reasons": tuple(
+            dict.fromkeys(
+                tuple(policy.get("review_reasons") or ())
+                + tuple(placement_report.get("review_reasons") or ())
+                + tuple(memory_write_intent.get("review_reasons") or ())
+            )
+        ),
+        "no_go_reasons": tuple(
+            dict.fromkeys(
+                tuple(policy.get("no_go_reasons") or ())
+                + tuple(placement_report.get("no_go_reasons") or ())
+                + tuple(memory_write_intent.get("no_go_reasons") or ())
+            )
+        ),
+        "raw_content_visible": False,
+        "raw_content_persisted": False,
+    }

@@ -57,6 +57,11 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert payload["items"][0]["placement_plan"]["operation"] == "copy"
     assert payload["items"][0]["maintenance_route"]["action"] == "stay_on_maintenance_model"
     assert payload["items"][0]["maintenance_route"]["raw_content_allowed"] is False
+    assert payload["items"][0]["gemma_triage"]["schema"] == "odysseus.universal_inbox.gemma4_triage.v1"
+    assert payload["items"][0]["gemma_triage"]["classification"] == "private"
+    assert payload["items"][0]["gemma_triage"]["document_type"] == "reference"
+    assert payload["items"][0]["gemma_triage"]["memory_intent_status"] == "ready"
+    assert payload["items"][0]["gemma_triage"]["raptor_candidate_planned"] is True
     assert payload["items"][0]["placement_plan"]["delete_original"] is False
     assert payload["items"][0]["placement_plan"]["overwrite_existing"] is False
     memory_event = payload["items"][0]["pipeline_report"]["memory_abstraction_event"]
@@ -114,6 +119,8 @@ def test_worker_dry_run_routes_partial_pdf_to_review(tmp_path):
     assert payload["items"][0]["extraction_status"] == "partial"
     assert payload["items"][0]["maintenance_route"]["action"] == "route_to_review"
     assert payload["items"][0]["maintenance_route"]["review_required"] is True
+    assert payload["items"][0]["gemma_triage"]["action"] == "route_to_review"
+    assert "partial_or_missing_extraction" in payload["items"][0]["gemma_triage"]["review_reasons"]
     assert "partial_extraction" in payload["items"][0]["routing_decision"]["review_reasons"]
     assert payload["items"][0]["placement_plan"]["status"] == "review"
     assert payload["no_go_reasons"] == ()
