@@ -953,8 +953,17 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 enforce_session_provider_runtime_gate,
             )
 
+            sensitivity_delegation = (
+                bridge.get("sensitivity_delegation")
+                if isinstance(bridge.get("sensitivity_delegation"), dict)
+                else {}
+            )
             dsgvo_enforced = bool(is_dsgvo_mode_enabled() and not bridge.get("telegram_voice_dsgvo_exempt"))
-            if dsgvo_enforced or bool(bridge.get("local_only_required")):
+            if (
+                dsgvo_enforced
+                or bool(bridge.get("local_only_required"))
+                or bool(sensitivity_delegation.get("local_worker_required"))
+            ):
                 try:
                     enforce_session_provider_runtime_gate(
                         security_mode="secure",
@@ -981,6 +990,8 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                             bridge = dict(rebound.get("bridge") or bridge)
                             local_rebind_notice = (
                                 "DSGVO-Modus aktiv: Ich habe auf lokale Verarbeitung umgeschaltet.\n\n"
+                                if dsgvo_enforced
+                                else "Sensibler Kontext erkannt: Ich habe auf lokale Verarbeitung umgeschaltet.\n\n"
                             )
                         except SecureProviderRuntimeError as rebound_gate_exc:
                             reply = (

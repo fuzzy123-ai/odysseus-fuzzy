@@ -299,11 +299,31 @@ def build_agent_bridge_request(
         note = "unsupported_message"
 
     dsgvo_mode = _dsgvo_mode_active()
+    attachment_policy = (
+        (recent_attachment_context or {}).get("analysis_policy")
+        if isinstance((recent_attachment_context or {}).get("analysis_policy"), dict)
+        else {}
+    )
     attachment_local_only = bool((recent_attachment_context or {}).get("local_only_required"))
-    voice_dsgvo_exempt = bool(kind == "voice" and note == "voice_transcribed" and not attachment_local_only)
+    from src.sensitivity_delegation_gate import decide_sensitivity_delegation
+
+    sensitivity_delegation = decide_sensitivity_delegation(
+        dsgvo_mode=dsgvo_mode,
+        classification=attachment_policy.get("classification") or (
+            "private" if kind in {"text", "voice"} else None
+        ),
+        raw_content_visible=bool((recent_attachment_context or {}).get("raw_content_visible"))
+        or bool(kind == "voice" and note == "voice_transcribed"),
+        api_model_allowed=bool((recent_attachment_context or {}).get("api_model_allowed"))
+        or bool(kind == "text" and not recent_attachment_context),
+        local_only_required=attachment_local_only,
+        redacted_context_available=bool((recent_attachment_context or {}).get("memory_write_intent_status") == "written"),
+    ).to_dict()
+    voice_dsgvo_exempt = False
     local_only_required = bool(
-        (runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}) and not voice_dsgvo_exempt)
+        runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode})
         or attachment_local_only
+        or sensitivity_delegation.get("local_worker_required")
     )
     workflow_context = build_telegram_workflow_context(
         message,
@@ -337,6 +357,7 @@ def build_agent_bridge_request(
         "local_only_required": local_only_required,
         "attachment_local_only_required": attachment_local_only,
         "telegram_voice_dsgvo_exempt": voice_dsgvo_exempt,
+        "sensitivity_delegation": sensitivity_delegation,
     }
 
 

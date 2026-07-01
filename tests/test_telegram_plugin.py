@@ -93,6 +93,8 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "telegram_dsgvo_provider_gate_failed" in body
     assert "resolve_workflow_skills" in body
     assert "workflow_skill_resolution=workflow_skill_resolution" in body
+    assert "sensitivity_delegation" in body
+    assert "local_worker_required" in body
     assert "chat_processor.build_context_preface" in body
     assert "use_rag=True" in body
     assert "use_web=False" in body
@@ -105,7 +107,7 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "Do not mention unrelated builds, model downloads, or pending operations" in body
 
 
-def test_voice_transcript_does_not_force_dsgvo_local_only(monkeypatch):
+def test_voice_transcript_forces_local_only_in_dsgvo(monkeypatch):
     monkeypatch.setattr("plugins.telegram.plugin._dsgvo_mode_active", lambda: True)
     turn = VoiceAgentTurn(
         ready_for_agent=True,
@@ -128,9 +130,11 @@ def test_voice_transcript_does_not_force_dsgvo_local_only(monkeypatch):
 
     assert bridge["dsgvo_mode"] is True
     assert bridge["note"] == "voice_transcribed"
-    assert bridge["local_only_required"] is False
-    assert bridge["security_mode"] == "normal"
-    assert bridge["telegram_voice_dsgvo_exempt"] is True
+    assert bridge["local_only_required"] is True
+    assert bridge["security_mode"] == "secure"
+    assert bridge["telegram_voice_dsgvo_exempt"] is False
+    assert bridge["sensitivity_delegation"]["mode"] == "local_raw_worker"
+    assert bridge["sensitivity_delegation"]["local_worker_required"] is True
 
 
 def test_telegram_model_spec_prefers_dedicated_setting(monkeypatch):
@@ -1625,6 +1629,9 @@ def test_sensitive_recent_attachment_requires_local_only(tmp_path):
     assert bridge["local_only_required"] is True
     assert bridge["attachment_local_only_required"] is True
     assert bridge["security_mode"] == "secure"
+    assert bridge["sensitivity_delegation"]["mode"] == "local_raw_worker"
+    assert bridge["sensitivity_delegation"]["local_worker_required"] is True
+    assert bridge["sensitivity_delegation"]["external_raw_allowed"] is False
 
 
 def test_polling_cycle_followup_export_request_sends_recent_attachment_pdf(tmp_path, monkeypatch):
