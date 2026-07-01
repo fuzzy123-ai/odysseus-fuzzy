@@ -1994,6 +1994,15 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     history = TelegramInboxStore(tmp_path).history(limit=20)
     attachment_event = next(item for item in history if item.get("kind") == "universal_inbox_attachment")
     assert attachment_event["memory_write_intent_status"] == "ready"
+    assert attachment_event["queue_status"] == "completed"
+    assert attachment_event["queue_concurrency"] == 1
+    assert attachment_event["maintenance_model_ref"] == "gemma4:e4b"
+    assert attachment_event["maintenance_provider"] == "local_ollama"
+    assert attachment_event["maintenance_action"] == "stay_on_maintenance_model"
+    assert attachment_event["memory_records_planned"] == 1
+    assert attachment_event["raptorgraph_events_planned"] == 1
+    assert any("Memory/Raptor-Intent: ready" in reply[1] for reply in replies)
+    assert any("/review memory ok" in reply[1] for reply in replies)
 
     second = run_telegram_polling_cycle(
         data_dir=tmp_path,

@@ -32,6 +32,11 @@ kanonische Wahrheit.
 | M4 Raptor-Schutz | repo_only | Bob | Raptor-Pfade nutzen dieselbe Budget-/Local-only-Policy vor Write-Intent | done |
 | M5 Cookbook/Settings Contract | repo_only | Alice/Bob | Backend-Settings fuer manuelle Modellsteuerung vorbereiten, ohne UI zu bauen | done |
 | M6 Live Evidence | needs_live_go | Charlie | Server deployen und mit Live-Gemma E4B einen Inbox/Raptor-Maintenance-Smoke laufen lassen | gated |
+| T1 Telegram Attachment Intake | repo_only | Bob | Telegram-Dateien automatisch in Universal Inbox pruefen und mit Maintenance-/Queue-Status beantworten | done |
+| T2 Telegram Review Commands | repo_only | Bob | `/review ok` und `/review memory ok` bestaetigen Ablage bzw. Memory/Raptor-Intent redigiert | done |
+| T3 Nextcloud Copy Gate | needs_live_go | Charlie | Nach Review copy-only in Nextcloud schreiben, no-delete/no-overwrite, live nur mit Gates | existing, live-gated |
+| T4 Raptor Write Executor | repo_only | Bob | Ready/review Intents schreiben nur redigierte Abstraktionen in Memory/RaptorGraph | done |
+| T5 Queue/Worker Status | repo_only | Bob | Telegram-Events enthalten Queue-Status, Concurrency und geplante Memory/Raptor-Arbeit | done |
 
 ## Gate Queue
 
@@ -56,4 +61,7 @@ Server-Durchsatz unter echter Ollama-Latenz.
 - DSGVO/sensitive Faelle koennen nicht still zur API eskalieren.
 - Uebergrosse Pakete gehen in Smaller-Packet/Review statt direkt zu Gemma.
 - RaptorGraph Write-Intent bleibt abstraction-only.
+- Telegram-Datei-Eingang liefert sofort Status, Maintenance-Action und Review-Hinweis.
+- Telegram-Follow-up kann den letzten Anhang ephemeral kontextualisieren.
+- Telegram-Review kann Nextcloud-Copy und Memory/Raptor-Write getrennt bestaetigen.
 - Focused Tests sind gruen.

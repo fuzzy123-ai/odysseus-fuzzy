@@ -63,7 +63,22 @@ def _format_universal_inbox_memory_review_status(review: dict[str, Any]) -> str:
 def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
     status = str(result.get("status") or "failed")
     inbox_status = str(result.get("universal_inbox_status") or "")
+    memory_status = normalize_memory_write_intent_status(
+        result.get("memory_write_intent_status") or "",
+        fallback="unknown",
+    )
+    maintenance_action = str(result.get("maintenance_action") or "").strip()
     processable = int(result.get("processable_count") or 0)
+    if status == "processed" and inbox_status == "go" and memory_status:
+        lines = [
+            f"Anhang verarbeitet. Items: {processable}. Keine Inbox-Review noetig.",
+            f"Memory/Raptor-Intent: {memory_status}.",
+        ]
+        if maintenance_action:
+            lines.append(f"Maintenance: {maintenance_action}.")
+        if memory_status == "ready":
+            lines.append("Zum Schreiben der redigierten Abstraktion antworte mit /review memory ok.")
+        return "\n".join(lines)
     if status == "processed" and inbox_status == "go":
         return f"Anhang verarbeitet. Items: {processable}. Keine Review nötig."
     if status == "processed":

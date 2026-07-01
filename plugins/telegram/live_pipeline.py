@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.universal_inbox_readiness import build_universal_inbox_readiness
+from src.universal_inbox_worker import run_universal_inbox_dry_run
 
 from plugins.telegram.attachments import (
     _telegram_attachment_max_bytes,
@@ -137,10 +138,8 @@ def run_telegram_universal_inbox_attachment_pipeline(
     target = spool_dir / f"telegram-attachment{suffix}"
     target.write_bytes(payload)
 
-    snapshot = build_universal_inbox_readiness(spool_dir)
-    memory_write_intent_status = normalize_memory_write_intent_status(
-        snapshot.get("memory_write_intent_status") or ""
-    )
+    snapshot = _build_attachment_worker_snapshot(spool_dir)
+    memory_write_intent_status = normalize_memory_write_intent_status(snapshot.get("memory_write_intent_status") or "")
     return {
         "status": "processed" if snapshot.get("ready") else "blocked",
         "reason": snapshot.get("reason") or "",
@@ -148,12 +147,76 @@ def run_telegram_universal_inbox_attachment_pipeline(
         "memory_write_intent_status": memory_write_intent_status,
         "discovered_count": snapshot.get("discovered_count"),
         "processable_count": snapshot.get("processable_count"),
+        "queue_status": snapshot.get("queue_status") or "completed",
+        "queue_concurrency": int(snapshot.get("queue_concurrency") or 1),
+        "maintenance_model_ref": str(snapshot.get("maintenance_model_ref") or ""),
+        "maintenance_provider": str(snapshot.get("maintenance_provider") or ""),
+        "maintenance_action": str(snapshot.get("maintenance_action") or ""),
+        "maintenance_review_required": bool(snapshot.get("maintenance_review_required")),
+        "memory_records_planned": int(snapshot.get("memory_records_planned") or 0),
+        "raptorgraph_events_planned": int(snapshot.get("raptorgraph_events_planned") or 0),
         "spooled": True,
         "spool_path_visible": False,
         "raw_content_visible": False,
         "raw_identifiers_visible": False,
         "filename_visible": False,
     }
+
+
+def _build_attachment_worker_snapshot(spool_dir: Path) -> dict[str, Any]:
+    try:
+        report = run_universal_inbox_dry_run(spool_dir).to_dict()
+    except Exception:
+        return build_universal_inbox_readiness(spool_dir)
+
+    item = _first_mapping(report.get("items"))
+    pipeline = item.get("pipeline_report") if isinstance(item.get("pipeline_report"), dict) else {}
+    intent = pipeline.get("memory_write_intent") if isinstance(pipeline.get("memory_write_intent"), dict) else {}
+    maintenance_model = report.get("maintenance_model") if isinstance(report.get("maintenance_model"), dict) else {}
+    maintenance_route = item.get("maintenance_route") if isinstance(item.get("maintenance_route"), dict) else {}
+    discovery = report.get("discovery") if isinstance(report.get("discovery"), dict) else {}
+    status = str(report.get("status") or "blocked")
+    memory_status = normalize_memory_write_intent_status(intent.get("status") or "")
+    return {
+        "feature": "universal_inbox",
+        "status": status,
+        "ready": status in {"go", "partial"},
+        "path_visible": False,
+        "host_paths_visible": False,
+        "raw_content_visible": False,
+        "writes_performed": bool(report.get("writes_performed")),
+        "dry_run": bool(report.get("dry_run", True)),
+        "discovered_count": int(discovery.get("discovered_count") or 0),
+        "processable_count": int(report.get("item_count") or 0),
+        "review_reason_count": len(tuple(report.get("review_reasons") or ())),
+        "no_go_reason_count": len(tuple(report.get("no_go_reasons") or ())),
+        "memory_write_intent_status": memory_status,
+        "reason": _attachment_worker_reason(status, memory_status),
+        "queue_status": "completed",
+        "queue_concurrency": int(maintenance_model.get("max_queue_concurrency") or 1),
+        "maintenance_model_ref": str(maintenance_model.get("model_ref") or ""),
+        "maintenance_provider": str(maintenance_model.get("provider") or ""),
+        "maintenance_action": str(maintenance_route.get("action") or ""),
+        "maintenance_review_required": bool(maintenance_route.get("review_required")),
+        "memory_records_planned": len(tuple(intent.get("memory_records") or ())),
+        "raptorgraph_events_planned": 1 if intent.get("raptorgraph_event") else 0,
+    }
+
+
+def _first_mapping(values: Any) -> dict[str, Any]:
+    if isinstance(values, (tuple, list)) and values and isinstance(values[0], dict):
+        return values[0]
+    return {}
+
+
+def _attachment_worker_reason(status: str, memory_status: str) -> str:
+    if status == "go" and memory_status == "ready":
+        return "attachment_ready_for_memory_review"
+    if status == "partial" or memory_status == "review":
+        return "attachment_requires_review"
+    if status == "no_go" or memory_status == "blocked":
+        return "attachment_blocked_by_policy"
+    return "attachment_processed"
 
 
 def download_telegram_voice_bytes(
