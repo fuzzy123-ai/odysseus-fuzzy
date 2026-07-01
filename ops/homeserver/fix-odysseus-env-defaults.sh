@@ -19,6 +19,7 @@ add_if_missing RESEARCH_LLM_ENDPOINT ""
 add_if_missing HF_TOKEN ""
 add_if_missing HUGGING_FACE_HUB_TOKEN ""
 add_if_missing INSTALL_OPTIONAL false
+add_if_missing INSTALL_OFFICE false
 add_if_missing EMBEDDING_URL ""
 add_if_missing EMBEDDING_MODEL ""
 add_if_missing EMBEDDING_API_KEY ""

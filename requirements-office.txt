@@ -1,0 +1,6 @@
+# Office / EPUB document text extraction for chat attachments, Universal Inbox,
+# personal-docs RAG, and Nextcloud import.
+#
+# Keep this separate from requirements-optional.txt so deployments can enable
+# document extraction without also pulling unrelated optional features.
+markitdown[docx,pptx,xlsx,xls]==0.1.6

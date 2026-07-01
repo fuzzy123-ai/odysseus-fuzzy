@@ -57,11 +57,15 @@ ENV HOME=/app \
 
 # Install Python deps first (layer cache). Optional extras (PyMuPDF AGPL, etc.)
 # are opt-in so the default image stays MIT-core; see requirements-optional.txt.
+# Office extraction is its own switch so Nextcloud/document import can enable
+# MarkItDown without enabling unrelated optional features.
 ARG INSTALL_OPTIONAL=false
+ARG INSTALL_OFFICE=false
 ARG INSTALL_STT=false
-COPY requirements.txt requirements-optional.txt ./
+COPY requirements.txt requirements-optional.txt requirements-office.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_OPTIONAL" = "true" ]; then pip install --no-cache-dir -r requirements-optional.txt; fi \
+    && if [ "$INSTALL_OFFICE" = "true" ] && [ "$INSTALL_OPTIONAL" != "true" ]; then pip install --no-cache-dir -r requirements-office.txt; fi \
     && if [ "$INSTALL_STT" = "true" ] && [ "$INSTALL_OPTIONAL" != "true" ]; then pip install --no-cache-dir faster-whisper; fi
 
 COPY --from=realesrgan-wheels /wheels/ /tmp/odysseus-wheels/
