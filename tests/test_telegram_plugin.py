@@ -93,6 +93,31 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "Do not mention unrelated builds, model downloads, or pending operations" in body
 
 
+def test_telegram_model_spec_prefers_dedicated_setting(monkeypatch):
+    from src.telegram_model_settings import resolve_telegram_model_spec
+
+    def fake_get_setting(key, default=""):
+        values = {
+            "telegram_model_spec": "gemma4:e4b@Local Ollama",
+            "default_model": "deepseek-v4-flash",
+        }
+        return values.get(key, default)
+
+    assert resolve_telegram_model_spec(env={}, get_setting=fake_get_setting) == "gemma4:e4b@Local Ollama"
+
+
+def test_telegram_model_spec_env_still_overrides_setting(monkeypatch):
+    from src.telegram_model_settings import resolve_telegram_model_spec
+
+    assert (
+        resolve_telegram_model_spec(
+            env={"TELEGRAM_MODEL_SPEC": "gemma3:4b@Local Ollama"},
+            get_setting=lambda key, default="": "gemma4:e4b@Local Ollama",
+        )
+        == "gemma3:4b@Local Ollama"
+    )
+
+
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "redacted-chat")

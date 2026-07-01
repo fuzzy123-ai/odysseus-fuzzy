@@ -142,6 +142,9 @@ DEFAULT_SETTINGS = {
     "tool_path_extra_roots": [],
     "task_endpoint_id": "",
     "task_model": "",
+    # Telegram-specific chat model spec. When set, Telegram /new uses this
+    # instead of the general default chat model. Supports "model@endpoint".
+    "telegram_model_spec": "",
     "default_endpoint_id": "",
     "default_model": "",
     # Ordered fallback chain for the default chat model. Each entry is

@@ -814,9 +814,9 @@ def _run_async_bridge(coro):
 
 
 def _telegram_model_spec() -> str:
-    from src.settings import get_setting
+    from src.telegram_model_settings import resolve_telegram_model_spec
 
-    return str(os.getenv("TELEGRAM_MODEL_SPEC") or get_setting("default_model", "") or "").strip()
+    return resolve_telegram_model_spec()
 
 
 def _telegram_owner() -> str | None:
