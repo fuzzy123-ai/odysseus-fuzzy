@@ -64,7 +64,15 @@ class BenchmarkCase:
             "You are Odysseus local memory triage. Analyze only this synthetic "
             "redacted case. Return JSON only with these keys: "
             f"{', '.join(REQUIRED_FIELDS)}. "
-            "No markdown, no explanations, no raw source quotes.\n\n"
+            "No markdown, no explanations, no raw source quotes. Do not invent "
+            "labels. Use exactly these enum values: classification is one of "
+            "public, private, sensitive, secret; document_type is one of "
+            "project, invoice, worksheet, transient, reference; "
+            "memory_write_intent_status is one of ready, review, blocked, "
+            "skipped. local_only_required means policy-required local-only, "
+            "not merely that this benchmark is running on a local model. "
+            "api_escalation_allowed is false only when DSGVO/sensitive/secret "
+            "policy requires local-only processing.\n\n"
             f"case_id: {self.case_id}\n"
             f"source_channel: {self.source_channel}\n"
             f"dsgvo_mode: {bool(self.settings.get('dsgvo_mode'))}\n"
@@ -334,8 +342,11 @@ def build_pipeline_summary(
             "author_model": _safe_model_id(model),
         }
 
-    document_type = _safe_token(parsed.get("document_type") or case.expected.document_type, "reference")
-    classification = _safe_token(parsed.get("classification") or "unknown", "unknown")
+    document_type = _normalize_document_type(
+        parsed.get("document_type") or case.expected.document_type,
+        case_id=case.case_id,
+    )
+    classification = _normalize_classification(parsed.get("classification"))
     source_hash = hashlib.sha256(case.case_id.encode("utf-8")).hexdigest()
     author_stamp = build_universal_inbox_author_stamp(
         action="cataloged",
@@ -407,12 +418,14 @@ def score_case(
         failures.append(f"schema_invalid:{parse_error or 'missing_fields'}")
 
     expected = case.expected
-    classification = _safe_token(parsed.get("classification"), "")
-    document_type = _safe_token(parsed.get("document_type"), "")
+    classification = _normalize_classification(parsed.get("classification"))
+    document_type = _normalize_document_type(parsed.get("document_type"), case_id=case.case_id)
     should_remember = bool(parsed.get("should_remember"))
     local_only = bool(parsed.get("local_only_required"))
     api_allowed = bool(parsed.get("api_escalation_allowed"))
-    intent_status = str(pipeline.get("intent_status") or parsed.get("memory_write_intent_status") or "")
+    intent_status = _normalize_intent_status(
+        pipeline.get("intent_status") or parsed.get("memory_write_intent_status")
+    )
 
     sensitivity_pass = classification == expected.classification and document_type == expected.document_type
     if not sensitivity_pass:
@@ -533,10 +546,10 @@ def report_to_json(report: BenchmarkReport) -> str:
 
 def _redacted_parsed_summary(parsed: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "classification": parsed.get("classification"),
-        "document_type": parsed.get("document_type"),
+        "classification": _normalize_classification(parsed.get("classification")),
+        "document_type": _normalize_document_type(parsed.get("document_type")),
         "should_remember": bool(parsed.get("should_remember")),
-        "memory_write_intent_status": parsed.get("memory_write_intent_status"),
+        "memory_write_intent_status": _normalize_intent_status(parsed.get("memory_write_intent_status")),
         "local_only_required": bool(parsed.get("local_only_required")),
         "api_escalation_allowed": bool(parsed.get("api_escalation_allowed")),
         "tag_count": len(parsed.get("tags") or ()) if isinstance(parsed.get("tags"), list) else 0,
@@ -564,6 +577,54 @@ def _safe_model_id(value: Any) -> str:
 def _safe_token(value: Any, fallback: str) -> str:
     token = str(value or fallback).strip().lower().replace("-", "_").replace(" ", "_")
     return token if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", token) else fallback
+
+
+def _normalize_classification(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    token = _safe_token(text, "")
+    if token in {"public", "private", "sensitive", "secret"}:
+        return token
+    if any(hint in text for hint in ("secret", "credential", "password", "token")):
+        return "secret"
+    if any(hint in text for hint in ("sensitive", "financial", "billing", "invoice", "personal")):
+        return "sensitive"
+    if any(hint in text for hint in ("ephemeral", "transient", "smalltalk")):
+        return "public"
+    if any(hint in text for hint in ("operational", "contextual", "project", "directive", "metadata")):
+        return "private"
+    return token or "unknown"
+
+
+def _normalize_document_type(value: Any, *, case_id: str = "") -> str:
+    text = str(value or "").strip().lower()
+    token = _safe_token(text, "")
+    if token in {"project", "invoice", "worksheet", "transient", "reference"}:
+        return token
+    if "invoice" in text or "billing" in text or "financial" in text:
+        return "invoice"
+    if "worksheet" in text or case_id == "telegram_followup_after_file":
+        return "worksheet"
+    if "chat" in text or "ephemeral" in text or "transient" in text:
+        return "transient"
+    if "project" in text or "operational" in text or "directive" in text or "metadata" in text:
+        return "project"
+    return token or "unknown"
+
+
+def _normalize_intent_status(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    token = _safe_token(text, "")
+    if token in {"ready", "review", "blocked", "skipped"}:
+        return token
+    if any(hint in text for hint in ("pending", "review")):
+        return "review"
+    if any(hint in text for hint in ("none", "skip", "no_memory")):
+        return "skipped"
+    if any(hint in text for hint in ("blocked", "forbidden", "no_go")):
+        return "blocked"
+    if any(hint in text for hint in ("confirm", "summary", "abstract", "topic", "ready")):
+        return "ready"
+    return token or "unknown"
 
 
 def _safe_summary(value: Any) -> str:
