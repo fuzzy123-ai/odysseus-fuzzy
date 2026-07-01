@@ -14,6 +14,7 @@ from src.secure_provider_runtime import (
     [
         "http://localhost:11434/v1",
         "http://127.0.0.1:11434/v1",
+        "http://ollama:11434/api",
         "http://10.0.0.5/v1",
         "http://192.168.1.2/v1",
         "http://gpu-box.local:8000/v1",

@@ -38,7 +38,7 @@ def provider_scope_for_base_url(base_url: Any) -> ProviderScope:
     host = (parsed.hostname or "").strip().lower()
     if not host:
         return ProviderScope.DEFAULT
-    if host in {"localhost", "host.docker.internal"} or host.endswith(".local"):
+    if host in {"localhost", "host.docker.internal", "ollama"} or host.endswith(".local"):
         return ProviderScope.LOCAL_ONLY
     try:
         address = ipaddress.ip_address(host.strip("[]"))
