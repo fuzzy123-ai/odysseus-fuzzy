@@ -33,10 +33,11 @@ kanonische Wahrheit.
 | M5 Cookbook/Settings Contract | repo_only | Alice/Bob | Backend-Settings fuer manuelle Modellsteuerung vorbereiten, ohne UI zu bauen | done |
 | M6 Live Evidence | needs_live_go | Charlie | Server deployen und mit Live-Gemma E4B einen Inbox/Raptor-Maintenance-Smoke laufen lassen | gated |
 | T1 Telegram Attachment Intake | repo_only | Bob | Telegram-Dateien automatisch in Universal Inbox pruefen und mit Maintenance-/Queue-Status beantworten | done |
-| T2 Telegram Review Commands | repo_only | Bob | `/review ok` und `/review memory ok` bestaetigen Ablage bzw. Memory/Raptor-Intent redigiert | done |
+| T2 Telegram Review Commands | repo_only | Bob | `/review ok` bestaetigt Ablage; `/review memory ok` bleibt Fallback fuer geblockte/offene Memory-Faelle | done |
 | T3 Nextcloud Copy Gate | needs_live_go | Charlie | Nach Review copy-only in Nextcloud schreiben, no-delete/no-overwrite, live nur mit Gates | existing, live-gated |
 | T4 Raptor Write Executor | repo_only | Bob | Ready/review Intents schreiben nur redigierte Abstraktionen in Memory/RaptorGraph | done |
 | T5 Queue/Worker Status | repo_only | Bob | Telegram-Events enthalten Queue-Status, Concurrency und geplante Memory/Raptor-Arbeit | done |
+| T6 Auto-Write Ready Memory | repo_only | Bob | Ready-Intents aus Telegram schreiben redigierte Abstraktionen automatisch; Review bleibt nur fuer unsichere Faelle | done |
 
 ## Gate Queue
 
@@ -63,5 +64,6 @@ Server-Durchsatz unter echter Ollama-Latenz.
 - RaptorGraph Write-Intent bleibt abstraction-only.
 - Telegram-Datei-Eingang liefert sofort Status, Maintenance-Action und Review-Hinweis.
 - Telegram-Follow-up kann den letzten Anhang ephemeral kontextualisieren.
-- Telegram-Review kann Nextcloud-Copy und Memory/Raptor-Write getrennt bestaetigen.
+- Telegram-Review kann Nextcloud-Copy bestaetigen; ready Memory/Raptor-Intents werden automatisch als redigierte Abstraktion uebernommen.
+- Memory-Review bleibt als Fallback fuer `review`, `blocked`, fehlende Writer oder Maintenance-Review noetig.
 - Focused Tests sind gruen.

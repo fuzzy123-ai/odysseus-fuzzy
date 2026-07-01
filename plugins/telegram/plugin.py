@@ -1057,6 +1057,7 @@ def _execute_telegram_memory_review_write(
     memory_vector: Any = None,
     memory_owner: str | None = None,
     dry_run: bool = False,
+    confirmation_source: str = "manual_review",
 ) -> dict[str, Any]:
     try:
         from src.universal_inbox_memory_write_executor import execute_universal_inbox_memory_write_intent
@@ -1071,6 +1072,7 @@ def _execute_telegram_memory_review_write(
         report = execute_universal_inbox_memory_write_intent(
             intent,
             review_confirmed=True,
+            confirmation_source=confirmation_source,
             dry_run=dry_run,
             memory_writer=writer,
             raptorgraph_writer=raptorgraph_writer,
@@ -1083,6 +1085,53 @@ def _execute_telegram_memory_review_write(
             "memory_records_written": 0,
         }
     return report
+
+
+def _execute_telegram_memory_auto_write_if_ready(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    inbox_attachment: Mapping[str, Any] | None,
+    source_message_id: int | None = None,
+    memory_manager: Any = None,
+    memory_vector: Any = None,
+    memory_owner: str | None = None,
+) -> dict[str, Any] | None:
+    if inbox_attachment is None:
+        return None
+    status = normalize_memory_write_intent_status(
+        inbox_attachment.get("memory_write_intent_status") or "",
+        fallback="unknown",
+    )
+    if status != "ready":
+        return None
+    if bool(inbox_attachment.get("maintenance_review_required")):
+        return None
+    execution = _execute_telegram_memory_review_write(
+        data_dir=data_dir,
+        store=store,
+        chat_id=chat_id,
+        memory_manager=memory_manager,
+        memory_vector=memory_vector,
+        memory_owner=memory_owner,
+        dry_run=False,
+        confirmation_source="auto_ready",
+    )
+    store.append_event(
+        kind="universal_inbox_memory_auto_write",
+        status=str(execution.get("status") or "blocked"),
+        chat_id=chat_id,
+        source_message_id=source_message_id,
+        memory_write_intent_status=status,
+        memory_records_written=int(execution.get("memory_records_written") or 0),
+        raptorgraph_events_written=int(execution.get("raptorgraph_events_written") or 0),
+        writes_performed=bool(execution.get("writes_performed")),
+        raw_content_visible=False,
+        raw_identifiers_visible=False,
+        filename_visible=False,
+    )
+    return execution
 
 
 def build_telegram_live_voice_stt_provider(
@@ -1209,6 +1258,7 @@ def run_telegram_polling_cycle(
         attachment_family=_telegram_attachment_family,
         attachment_suffix=_telegram_attachment_suffix,
         format_attachment_reply=format_telegram_attachment_inbox_reply,
+        execute_memory_auto_write=_execute_telegram_memory_auto_write_if_ready,
         execute_attachment_export=execute_recent_telegram_attachment_export,
         format_attachment_export_reply=format_telegram_attachment_export_reply,
         build_project_intake_preview=build_telegram_project_intake_preview,
@@ -1614,6 +1664,21 @@ def setup(ctx):
                 raw_identifiers_visible=False,
                 filename_visible=False,
             )
+            memory_auto_write = _execute_telegram_memory_auto_write_if_ready(
+                data_dir=ctx.data_dir,
+                store=store,
+                chat_id=str(message.get("chat_id") or ""),
+                inbox_attachment=inbox_attachment,
+                source_message_id=message.get("message_id"),
+                memory_manager=_ctx_attr("memory_manager"),
+                memory_vector=_ctx_attr("memory_vector"),
+                memory_owner=_ctx_attr("memory_owner"),
+            )
+            if memory_auto_write is not None:
+                inbox_attachment = dict(inbox_attachment)
+                inbox_attachment["memory_auto_write_status"] = str(memory_auto_write.get("status") or "")
+                inbox_attachment["memory_auto_write_reason"] = str(memory_auto_write.get("reason") or "")
+                inbox_attachment["memory_auto_writes_performed"] = bool(memory_auto_write.get("writes_performed"))
             _reply_with_gate(
                 str(message.get("chat_id") or ""),
                 format_telegram_attachment_inbox_reply(inbox_attachment),

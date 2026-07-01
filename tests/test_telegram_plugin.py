@@ -2002,7 +2002,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     assert attachment_event["memory_records_planned"] == 1
     assert attachment_event["raptorgraph_events_planned"] == 1
     assert any("Memory/Raptor-Intent: ready" in reply[1] for reply in replies)
-    assert any("/review memory ok" in reply[1] for reply in replies)
+    assert any("Automatischer Memory-Write blockiert" in reply[1] for reply in replies)
 
     second = run_telegram_polling_cycle(
         data_dir=tmp_path,
@@ -2112,6 +2112,88 @@ def test_review_memory_ok_reports_blocked_when_memory_writer_missing(tmp_path, m
     assert "blocked-memory-document-file-id" not in persisted_text
     assert "blocked-reference.txt" not in persisted_text
     assert "Blocked memory candidate" not in persisted_text
+
+
+def test_ready_memory_intent_auto_writes_without_manual_review(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    replies = []
+
+    class FakeMemoryManager:
+        def __init__(self):
+            self.saved = []
+
+        def add_entry(self, text, source="user", category="fact", owner=None):
+            return {
+                "id": "mem-auto",
+                "text": text,
+                "source": source,
+                "category": category,
+                "owner": owner,
+            }
+
+        def load_all(self):
+            return []
+
+        def save(self, memories):
+            self.saved = list(memories)
+
+    class FakeMemoryVector:
+        healthy = True
+
+        def __init__(self):
+            self.added = []
+
+        def add(self, memory_id, text):
+            self.added.append((memory_id, text))
+
+    memory_manager = FakeMemoryManager()
+    memory_vector = FakeMemoryVector()
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 72,
+            "message": {
+                "message_id": 82,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "auto-memory-document-file-id",
+                    "file_unique_id": "auto-memory-document-unique",
+                    "file_name": "auto-reference.txt",
+                    "mime_type": "text/plain",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"Auto memory candidate",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+        memory_manager=memory_manager,
+        memory_vector=memory_vector,
+        memory_owner="homebase",
+    )
+
+    assert result["processed"] == 1
+    assert len(memory_manager.saved) == 1
+    assert memory_manager.saved[0]["owner"] == "homebase"
+    assert memory_vector.added == [("mem-auto", memory_manager.saved[0]["text"])]
+    assert any("Redigierte Abstraktion automatisch ins Memory/RaptorGraph geschrieben" in reply[1] for reply in replies)
+    history = TelegramInboxStore(tmp_path).history(limit=40)
+    assert any(
+        item.get("kind") == "universal_inbox_memory_auto_write"
+        and item.get("status") == "written"
+        and item.get("memory_records_written") == 1
+        and item.get("raptorgraph_events_written") == 1
+        and item.get("writes_performed") is True
+        for item in history
+    )
+    assert not any(item.get("kind") == "universal_inbox_memory_review" for item in history)
+    graph_log = tmp_path / "universal_inbox_raptorgraph" / "events.jsonl"
+    assert graph_log.exists()
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "auto-memory-document-file-id" not in persisted_text
+    assert "auto-reference.txt" not in persisted_text
+    assert "Auto memory candidate" not in persisted_text
 
 
 def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp_path, monkeypatch):

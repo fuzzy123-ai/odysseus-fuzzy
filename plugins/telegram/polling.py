@@ -187,6 +187,7 @@ def run_telegram_polling_cycle_impl(
     build_recent_attachment_context: Callable[..., dict[str, Any] | None],
     build_agent_bridge_request: Callable[..., dict[str, Any]],
     send_typing_indicator: Callable[..., Any],
+    execute_memory_auto_write: Callable[..., dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -303,6 +304,23 @@ def run_telegram_polling_cycle_impl(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
+                memory_auto_write = None
+                if callable(execute_memory_auto_write):
+                    memory_auto_write = execute_memory_auto_write(
+                        data_dir=data_dir,
+                        store=store,
+                        chat_id=str(message.get("chat_id") or ""),
+                        inbox_attachment=inbox_attachment,
+                        source_message_id=message.get("message_id"),
+                        memory_manager=memory_manager,
+                        memory_vector=memory_vector,
+                        memory_owner=memory_owner,
+                    )
+                    if memory_auto_write is not None:
+                        inbox_attachment = dict(inbox_attachment)
+                        inbox_attachment["memory_auto_write_status"] = str(memory_auto_write.get("status") or "")
+                        inbox_attachment["memory_auto_write_reason"] = str(memory_auto_write.get("reason") or "")
+                        inbox_attachment["memory_auto_writes_performed"] = bool(memory_auto_write.get("writes_performed"))
                 if reply_handler is not None:
                     reply_handler(
                         str(message.get("chat_id") or ""),

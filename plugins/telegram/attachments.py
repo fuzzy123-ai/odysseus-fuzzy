@@ -47,10 +47,9 @@ def _format_universal_inbox_memory_review_status(review: dict[str, Any]) -> str:
     inbox_status = str(review.get("universal_inbox_status") or "unknown")
     if status == "ready":
         return (
-            "Universal Inbox Memory: bereit zur Freigabe.\n"
+            "Universal Inbox Memory: bereit und automatisch uebernommen.\n"
             f"Inbox-Status: {inbox_status}\n"
-            "Es wird nur eine redaktierte Abstraktion vorgemerkt, kein Rohinhalt.\n"
-            "Zum Bestaetigen antworte mit /review memory ok."
+            "Es wird nur eine redaktierte Abstraktion geschrieben, kein Rohinhalt."
         )
     return (
         "Universal Inbox Memory: Review nötig.\n"
@@ -77,7 +76,14 @@ def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
         if maintenance_action:
             lines.append(f"Maintenance: {maintenance_action}.")
         if memory_status == "ready":
-            lines.append("Zum Schreiben der redigierten Abstraktion antworte mit /review memory ok.")
+            auto_status = str(result.get("memory_auto_write_status") or "").strip()
+            if auto_status == "written":
+                lines.append("Redigierte Abstraktion automatisch ins Memory/RaptorGraph geschrieben.")
+            elif auto_status:
+                reason = str(result.get("memory_auto_write_reason") or auto_status).strip()
+                lines.append(f"Automatischer Memory-Write blockiert: {reason}.")
+            else:
+                lines.append("Redigierte Abstraktion wird automatisch uebernommen.")
         return "\n".join(lines)
     if status == "processed" and inbox_status == "go":
         return f"Anhang verarbeitet. Items: {processable}. Keine Review nötig."

@@ -1,7 +1,8 @@
 """Execution gate for Universal Inbox memory write intents.
 
-Live writes require a ready intent plus an explicit review confirmation. The
-default path is dry-run and performs no provider or RaptorGraph mutations.
+Live writes require a ready intent plus either an explicit review confirmation
+or a trusted auto-ready confirmation. The default path is dry-run and performs
+no provider or RaptorGraph mutations.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ def execute_universal_inbox_memory_write_intent(
     intent: Mapping[str, Any],
     *,
     review_confirmed: bool = False,
+    confirmation_source: str = "manual_review",
     dry_run: bool = True,
     memory_writer: Callable[[Mapping[str, Any]], Any] | None = None,
     raptorgraph_writer: Callable[[Mapping[str, Any]], Any] | None = None,
@@ -69,7 +71,7 @@ def execute_universal_inbox_memory_write_intent(
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
-        _record_execution(intent, report, review_confirmed=review_confirmed)
+        _record_execution(intent, report, review_confirmed=review_confirmed, confirmation_source=confirmation_source)
         return report
     if not review_confirmed:
         report = UniversalInboxMemoryWriteExecutionReport(
@@ -79,7 +81,7 @@ def execute_universal_inbox_memory_write_intent(
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
-        _record_execution(intent, report, review_confirmed=review_confirmed)
+        _record_execution(intent, report, review_confirmed=review_confirmed, confirmation_source=confirmation_source)
         return report
     if dry_run:
         report = UniversalInboxMemoryWriteExecutionReport(
@@ -89,7 +91,7 @@ def execute_universal_inbox_memory_write_intent(
             raptorgraph_events_planned=planned_raptor,
             dry_run=True,
         )
-        _record_execution(intent, report, review_confirmed=review_confirmed)
+        _record_execution(intent, report, review_confirmed=review_confirmed, confirmation_source=confirmation_source)
         return report
     if memory_writer is None:
         raise UniversalInboxMemoryWriteExecutionError("memory_writer is required for live execution")
@@ -116,7 +118,7 @@ def execute_universal_inbox_memory_write_intent(
         dry_run=False,
         writes_performed=bool(memory_written or raptor_written),
     )
-    _record_execution(intent, report, review_confirmed=review_confirmed)
+    _record_execution(intent, report, review_confirmed=review_confirmed, confirmation_source=confirmation_source)
     return report
 
 
@@ -125,6 +127,7 @@ def _record_execution(
     report: UniversalInboxMemoryWriteExecutionReport,
     *,
     review_confirmed: bool,
+    confirmation_source: str,
 ) -> None:
     try:
         from src.memory_provenance_ledger import record_memory_provenance
@@ -152,9 +155,10 @@ def _record_execution(
                 "memory_records_written": report.memory_records_written,
                 "raptorgraph_events_planned": report.raptorgraph_events_planned,
                 "raptorgraph_events_written": report.raptorgraph_events_written,
+                "confirmation_source": str(confirmation_source or "manual_review"),
             },
         )
-        if review_confirmed:
+        if review_confirmed and str(confirmation_source or "manual_review") == "manual_review":
             record_memory_provenance(
                 "memory_user_interaction",
                 owner=str(policy.get("owner") or "unknown"),
