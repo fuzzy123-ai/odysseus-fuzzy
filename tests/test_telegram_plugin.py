@@ -29,6 +29,7 @@ from plugins.telegram.plugin import (
 from src.image_tools_worker import ImageToolsWorkerResult
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 from src.server_project_registry import ServerProjectRegistry
+from src.telegram_voice_pipeline import VoiceAgentTurn
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -102,6 +103,34 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "only proves that redacted sources are currently present" in body
     assert "Do not claim that the automatic Nextcloud/background import workflow is active" in body
     assert "Do not mention unrelated builds, model downloads, or pending operations" in body
+
+
+def test_voice_transcript_does_not_force_dsgvo_local_only(monkeypatch):
+    monkeypatch.setattr("plugins.telegram.plugin._dsgvo_mode_active", lambda: True)
+    turn = VoiceAgentTurn(
+        ready_for_agent=True,
+        prompt="[Telegram voice transcript]\nBitte fasse das kurz zusammen.",
+        status="agent_ready",
+        reason="transcript_ready",
+    )
+
+    bridge = build_agent_bridge_request(
+        {
+            "kind": "voice",
+            "chat_id": "voice-chat-999",
+            "chat_handle": "voice_handle",
+            "message_id": 42,
+            "intake_status": "ready",
+        },
+        raw_chat_id="voice-chat-999",
+        voice_agent_turn=turn,
+    )
+
+    assert bridge["dsgvo_mode"] is True
+    assert bridge["note"] == "voice_transcribed"
+    assert bridge["local_only_required"] is False
+    assert bridge["security_mode"] == "normal"
+    assert bridge["telegram_voice_dsgvo_exempt"] is True
 
 
 def test_telegram_model_spec_prefers_dedicated_setting(monkeypatch):

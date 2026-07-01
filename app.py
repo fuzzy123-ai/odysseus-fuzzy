@@ -953,7 +953,8 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 enforce_session_provider_runtime_gate,
             )
 
-            if is_dsgvo_mode_enabled() or bool(bridge.get("local_only_required")):
+            dsgvo_enforced = bool(is_dsgvo_mode_enabled() and not bridge.get("telegram_voice_dsgvo_exempt"))
+            if dsgvo_enforced or bool(bridge.get("local_only_required")):
                 try:
                     enforce_session_provider_runtime_gate(
                         security_mode="secure",
@@ -984,7 +985,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         except SecureProviderRuntimeError as rebound_gate_exc:
                             reply = (
                                 _telegram_dsgvo_model_block_reply(str(rebound_gate_exc))
-                                if is_dsgvo_mode_enabled()
+                                if dsgvo_enforced
                                 else _telegram_local_only_model_block_reply(str(rebound_gate_exc))
                             )
                             return {
@@ -995,7 +996,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     else:
                         reply = (
                             _telegram_dsgvo_model_block_reply(str(gate_exc))
-                            if is_dsgvo_mode_enabled()
+                            if dsgvo_enforced
                             else _telegram_local_only_model_block_reply(str(gate_exc))
                         )
                         return {

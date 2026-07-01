@@ -300,8 +300,9 @@ def build_agent_bridge_request(
 
     dsgvo_mode = _dsgvo_mode_active()
     attachment_local_only = bool((recent_attachment_context or {}).get("local_only_required"))
+    voice_dsgvo_exempt = bool(kind == "voice" and note == "voice_transcribed" and not attachment_local_only)
     local_only_required = bool(
-        runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode})
+        (runtime_requires_local_only(settings={"dsgvo_mode": dsgvo_mode}) and not voice_dsgvo_exempt)
         or attachment_local_only
     )
     workflow_context = build_telegram_workflow_context(
@@ -335,6 +336,7 @@ def build_agent_bridge_request(
         "security_mode": "secure" if local_only_required else "normal",
         "local_only_required": local_only_required,
         "attachment_local_only_required": attachment_local_only,
+        "telegram_voice_dsgvo_exempt": voice_dsgvo_exempt,
     }
 
 
