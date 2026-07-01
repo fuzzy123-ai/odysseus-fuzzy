@@ -88,6 +88,9 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "owner=owner" in body
     assert "owner_inventory(owner=owner)" in body
     assert "telegram rag import status" in body
+    assert "only proves that redacted sources are currently present" in body
+    assert "Do not claim that the automatic Nextcloud/background import workflow is active" in body
+    assert "Do not mention unrelated builds, model downloads, or pending operations" in body
 
 
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):

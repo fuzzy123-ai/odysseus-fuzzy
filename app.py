@@ -983,8 +983,11 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         f"- Indexed source count: {int(inventory.get('source_count') or 0)}\n"
                         f"- Indexed file types: {type_summary or 'unknown'}\n"
                         "- Raw document content, filenames, and host paths are not listed here.\n"
+                        "- This status only proves that redacted sources are currently present in the RAG index.\n"
+                        "- Do not claim that the automatic Nextcloud/background import workflow is active unless separate workflow evidence says so.\n"
+                        "- Do not mention unrelated builds, model downloads, or pending operations from this status.\n"
                         "If the user asks whether files/documents were uploaded, imported, or indexed, "
-                        "answer from this status and mention that detailed file names are hidden for privacy."
+                        "answer only from these counts and mention that detailed file names are hidden for privacy."
                     ),
                 ))
         except Exception as inventory_exc:
