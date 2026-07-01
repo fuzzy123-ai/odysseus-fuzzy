@@ -12,6 +12,10 @@ import re
 from typing import Any, Mapping
 
 from src.data_classification import DataClassification, resolve_classification
+from src.memory_triage_contract import (
+    normalize_memory_classification,
+    normalize_memory_document_type,
+)
 from src.privacy_runtime import is_dsgvo_mode_enabled
 from src.universal_inbox_memory import FORBIDDEN_MEMORY_KEYS
 from src.universal_inbox_provenance import (
@@ -279,7 +283,8 @@ def _resolve_effective_classification(
         _classification_from_source(item),
         _classification_from_hints(item),
     ):
-        resolution = resolve_classification(value)
+        normalized_value = normalize_memory_classification(value, fallback="")
+        resolution = resolve_classification(normalized_value or value)
         if resolution.normalized is not None:
             candidates.append(resolution.normalized)
     if not candidates:
@@ -323,13 +328,18 @@ def _classification_rank(value: DataClassification) -> int:
 def _infer_document_type(item: Mapping[str, Any], *, text_sample: str) -> str:
     explicit = str(item.get("document_type") or "").strip().lower()
     if explicit:
-        return _normalize_token(explicit, field="document_type")
+        return _normalize_token(
+            normalize_memory_document_type(explicit, fallback=explicit, text=text_sample),
+            field="document_type",
+        )
     haystack = f"{item.get('filename') or ''} {item.get('relative_path') or ''} {text_sample[:500]}".lower()
     if any(hint in haystack for hint in ("rechnung", "invoice", "bill")):
         return "invoice"
+    if any(hint in haystack for hint in ("worksheet", "arbeitsblatt", "uebungsblatt", "übungsblatt")):
+        return "worksheet"
     if any(hint in haystack for hint in ("vertrag", "contract", "agreement")):
         return "contract"
-    if any(hint in haystack for hint in ("projekt", "project", "spec", "planung")):
+    if any(hint in haystack for hint in ("projekt", "project", "spec", "planung", "podman", "docker", "roadmap")):
         return "project"
     return "reference"
 

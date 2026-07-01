@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from src.memory_triage_contract import normalize_memory_write_intent_status
 from plugins.telegram.stores import _chat_handle
 
 
@@ -39,7 +40,10 @@ def _format_universal_inbox_review_status(review: dict[str, Any]) -> str:
 
 
 def _format_universal_inbox_memory_review_status(review: dict[str, Any]) -> str:
-    status = str(review.get("memory_write_intent_status") or "unknown")
+    status = normalize_memory_write_intent_status(
+        review.get("memory_write_intent_status") or "",
+        fallback="unknown",
+    )
     inbox_status = str(review.get("universal_inbox_status") or "unknown")
     if status == "ready":
         return (

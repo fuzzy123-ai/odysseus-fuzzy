@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 from typing import Any
 
+from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.universal_inbox_discovery import UniversalInboxDiscoveryError
 from src.universal_inbox_worker import UniversalInboxWorkerConfig, run_universal_inbox_dry_run
 
@@ -151,7 +152,7 @@ def _memory_write_intent_status(payload: dict[str, Any]) -> str:
             continue
         pipeline = item.get("pipeline_report") if isinstance(item.get("pipeline_report"), dict) else {}
         intent = pipeline.get("memory_write_intent") if isinstance(pipeline.get("memory_write_intent"), dict) else {}
-        status = str(intent.get("status") or "").strip()
+        status = normalize_memory_write_intent_status(intent.get("status") or "")
         if status:
             statuses.append(status)
     if not statuses:

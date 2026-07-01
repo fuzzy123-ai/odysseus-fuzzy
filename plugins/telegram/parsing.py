@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
+from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.telegram_image_actions import select_telegram_photo_variant
 
 
@@ -201,7 +202,7 @@ def build_telegram_workflow_context(
                 default="",
             ),
             "memory_write_intent_status": _safe_workflow_token(
-                recent.get("memory_write_intent_status") or "",
+                normalize_memory_write_intent_status(recent.get("memory_write_intent_status") or ""),
                 default="",
             ),
         },

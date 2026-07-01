@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from src.chat_security_state import ChatSecurityState
+from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_only
 from src.secure_channel_policy import ChannelContext, decide_channel_access
 from src.telegram_image_actions import run_telegram_image_action
@@ -775,13 +776,16 @@ def build_recent_telegram_attachment_context(
     spool_dir = Path(data_dir) / "universal_inbox_telegram" / spool_key
     family = _safe_workflow_token(event.get("attachment_family") or "document")
     suffix = _safe_workflow_suffix(event.get("attachment_suffix") or "")
+    memory_status = normalize_memory_write_intent_status(
+        event.get("memory_write_intent_status") or ""
+    )
     if not spool_dir.exists() or not spool_dir.is_dir():
         return {
             "status": "missing_spool",
             "family": family,
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
-            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
+            "memory_write_intent_status": memory_status,
             "context": (
                 "[Letzter Telegram-Anhang: verarbeitet, aber die lokale Datei ist "
                 "nicht mehr im Attachment-Spool verfuegbar.]"
@@ -799,7 +803,7 @@ def build_recent_telegram_attachment_context(
             "family": family,
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
-            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
+            "memory_write_intent_status": memory_status,
             "context": "[Letzter Telegram-Anhang: verarbeitet, aber keine lokale Spool-Datei gefunden.]",
             "raw_content_visible": False,
             "host_paths_visible": False,
@@ -821,7 +825,7 @@ def build_recent_telegram_attachment_context(
             "family": family,
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
-            "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
+            "memory_write_intent_status": memory_status,
             "context": f"[Letzter Telegram-Anhang: Kontext-Extraktion fehlgeschlagen: {str(exc)[:120]}]",
             "raw_content_visible": False,
             "host_paths_visible": False,
@@ -894,7 +898,7 @@ def build_recent_telegram_attachment_context(
         "family": family,
         "suffix": suffix or _safe_workflow_suffix(packet.suffix),
         "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
-        "memory_write_intent_status": str(event.get("memory_write_intent_status") or ""),
+        "memory_write_intent_status": memory_status,
         "context": context,
         "raw_content_visible": raw_visible,
         "host_paths_visible": False,
@@ -937,7 +941,7 @@ def build_recent_telegram_memory_write_intent(
         return dict(intent) if isinstance(intent, dict) else None
     except Exception:
         # The public readiness snapshot still gives the caller a redacted status.
-        status = str(snapshot.get("memory_write_intent_status") or "")
+        status = normalize_memory_write_intent_status(snapshot.get("memory_write_intent_status") or "")
         return {"status": status, "ready_to_write": False, "memory_records": (), "raptorgraph_event": {}}
 
 

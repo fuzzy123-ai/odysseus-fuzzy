@@ -329,6 +329,26 @@ def test_parse_text_update_and_bridge_request(monkeypatch):
     assert bridge["reply_required"] is True
 
 
+def test_telegram_workflow_context_normalizes_memory_status():
+    from plugins.telegram.parsing import build_telegram_workflow_context
+
+    context = build_telegram_workflow_context(
+        {"kind": "text", "text": "analysiere das"},
+        recent_attachment_context={
+            "present": True,
+            "family": "document",
+            "suffix": ".pdf",
+            "universal_inbox_status": "partial",
+            "memory_write_intent_status": "pending_review",
+        },
+        dsgvo_mode=True,
+    )
+
+    assert context["dsgvo_mode"] == "on"
+    assert context["security_mode"] == "secure"
+    assert context["recent_attachment"]["memory_write_intent_status"] == "review"
+
+
 def test_parse_voice_update_marks_pending_stt():
     message = parse_telegram_update({
         "update_id": 8,

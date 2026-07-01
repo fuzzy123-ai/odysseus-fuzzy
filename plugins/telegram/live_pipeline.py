@@ -14,6 +14,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.universal_inbox_readiness import build_universal_inbox_readiness
 
 from plugins.telegram.attachments import (
@@ -137,7 +138,9 @@ def run_telegram_universal_inbox_attachment_pipeline(
     target.write_bytes(payload)
 
     snapshot = build_universal_inbox_readiness(spool_dir)
-    memory_write_intent_status = str(snapshot.get("memory_write_intent_status") or "")
+    memory_write_intent_status = normalize_memory_write_intent_status(
+        snapshot.get("memory_write_intent_status") or ""
+    )
     return {
         "status": "processed" if snapshot.get("ready") else "blocked",
         "reason": snapshot.get("reason") or "",
