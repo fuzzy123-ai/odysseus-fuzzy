@@ -41,7 +41,8 @@ def test_vectorrag_reindex_generation_plan_is_dry_run_and_rollback_ready():
         "odysseus_rag_fastembed__chunkgen_rag_structured_v1",
         "odysseus_rag_custom__chunkgen_rag_structured_v1",
     ]
-    assert all(target["writes_planned"] == 0 for target in plan["targets"])
+    assert [target["writes_planned"] for target in plan["targets"]] == [12, 5]
+    assert all(target["writes_performed"] == 0 for target in plan["targets"])
     assert all(target["rollback_collection"].startswith("odysseus_rag_") for target in plan["targets"])
 
 

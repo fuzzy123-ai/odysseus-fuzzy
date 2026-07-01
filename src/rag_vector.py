@@ -739,7 +739,8 @@ class VectorRAG:
                     "target_collection": collection_generation_name(COLLECTION_NAME, lane_name, generation),
                     "rollback_collection": source_collection,
                     "source_count": source_count,
-                    "writes_planned": 0,
+                    "writes_planned": source_count,
+                    "writes_performed": 0,
                     "live_write_required": True,
                 }
             )

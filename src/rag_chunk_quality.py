@@ -53,6 +53,28 @@ class ChunkQualityReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SyntheticRecallReport:
+    query_count: int
+    hit_count: int
+    recall: float
+    min_recall: float
+
+    @property
+    def passed(self) -> bool:
+        return self.recall >= self.min_recall
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "query_count": self.query_count,
+            "hit_count": self.hit_count,
+            "recall": self.recall,
+            "min_recall": self.min_recall,
+            "passed": self.passed,
+            "private_content_visible": False,
+        }
+
+
 def assess_chunk_quality(
     chunks: Iterable[str],
     *,
@@ -72,6 +94,26 @@ def assess_chunk_quality(
     )
 
 
+def assess_synthetic_recall(
+    chunks: Iterable[str],
+    query_terms: Iterable[str],
+    *,
+    min_recall: float = 0.8,
+) -> SyntheticRecallReport:
+    """Measure simple offline recall without storing query result bodies."""
+
+    chunk_text = "\n".join(str(chunk or "").lower() for chunk in chunks)
+    queries = [str(term or "").strip().lower() for term in query_terms if str(term or "").strip()]
+    hits = sum(1 for term in queries if term in chunk_text)
+    recall = hits / len(queries) if queries else 1.0
+    return SyntheticRecallReport(
+        query_count=len(queries),
+        hit_count=hits,
+        recall=recall,
+        min_recall=_bounded_ratio(min_recall, field="min_recall"),
+    )
+
+
 def _contained_duplicate_count(chunks: list[str]) -> int:
     count = 0
     for index, chunk in enumerate(chunks):
@@ -82,3 +124,10 @@ def _contained_duplicate_count(chunks: list[str]) -> int:
 
 def _has_unclosed_fence(chunk: str) -> bool:
     return chunk.count("```") % 2 == 1 or chunk.count("~~~") % 2 == 1
+
+
+def _bounded_ratio(value: float, *, field: str) -> float:
+    number = float(value)
+    if number < 0 or number > 1:
+        raise ValueError(f"{field} must be between 0 and 1")
+    return number

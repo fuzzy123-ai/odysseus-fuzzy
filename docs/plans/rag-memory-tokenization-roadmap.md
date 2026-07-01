@@ -11,9 +11,9 @@ Status: Post-MVP Detailroadmap, nicht Teil der abgeschlossenen Backend-MVP-Gates
 | RMT0 Baseline Audit | done | Ist-Stand und Degradation-Regeln in dieser Roadmap dokumentiert. |
 | RMT1 Token Budget Adapter | done | `src/token_budget.py`, tokenbudgetfaehiger Splitter-Entry-Point, Tests gruen. |
 | RMT2 Structure-Aware Splitter | done | Gemeinsamer strukturaware Splitter ist an RAG und Personal Docs angebunden; Struktur-/Duplicate-Tail-Tests gruen. |
-| RMT3 Provenance-Rich Chunk Metadata | done | RAG- und Nextcloud-Chunk-Refs tragen Splitter-Version, Hashes, Offsets und Budget-Schaetzungen; Privacy-Tests gruen. |
-| RMT4 Migration-Safe Reindex | done | Parallel-Generation-Dry-Run mit Rollback-Ziel und Live-Write-Gate ist getestet. |
-| RMT5 Retrieval Quality Gates | done | Offline Quality-Gates fuer Duplicate-Tails, Boundary-Coherence und Budget-Overflow sind getestet. |
+| RMT3 Provenance-Rich Chunk Metadata | done | RAG- und Nextcloud-Chunk-Refs tragen Splitter-Version, Hashes, Section/Page-Spans, Offsets und Budget-Schaetzungen; Privacy-Tests gruen. |
+| RMT4 Migration-Safe Reindex | done | Parallel-Generation-Dry-Run mit geplanten Writes, Rollback-Ziel und Live-Write-Gate ist getestet. |
+| RMT5 Retrieval Quality Gates | done | Offline Quality-Gates fuer synthetischen Recall, Duplicate-Tails, Boundary-Coherence und Budget-Overflow sind getestet. |
 | RMT6 Runtime Integration | done | Chat-RAG nutzt Budget-Einheiten und Source-Spans; Kontextinflation ist getestet. |
 | RMT7 Brownian Graph Retrieval Research | done | Offline Research-Decision-Gate existiert; Runtime-Umschaltung bleibt explizit verboten. |
 

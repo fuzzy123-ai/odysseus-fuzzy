@@ -15,6 +15,9 @@ class TextChunkMetadata:
     chunk_index: int
     splitter_version: str
     source_hash: str
+    section_path: str
+    page_start: int
+    page_end: int
     char_start: int
     char_end: int
     token_start_est: int
@@ -26,6 +29,9 @@ class TextChunkMetadata:
             "chunk_index": self.chunk_index,
             "splitter_version": self.splitter_version,
             "source_hash": self.source_hash,
+            "section_path": self.section_path,
+            "page_start": self.page_start,
+            "page_end": self.page_end,
             "char_start": self.char_start,
             "char_end": self.char_end,
             "token_start_est": self.token_start_est,
@@ -183,6 +189,9 @@ def build_chunk_metadata(
                 chunk_index=index,
                 splitter_version=splitter_version,
                 source_hash=source_hash,
+                section_path=_section_path_for_offset(source_text, start),
+                page_start=_page_number_for_offset(source_text, start),
+                page_end=_page_number_for_offset(source_text, max(start, end - 1)),
                 char_start=start,
                 char_end=end,
                 token_start_est=token_start,
@@ -285,3 +294,25 @@ def _locate_chunk(text: str, chunk: str, *, previous_end: int) -> int:
     if pos >= 0:
         return pos
     return min(previous_end, len(text))
+
+
+def _section_path_for_offset(text: str, offset: int) -> str:
+    headings: List[str] = []
+    consumed = 0
+    for line in text[: max(0, offset)].splitlines():
+        stripped = line.strip()
+        match = re.match(r"^(#{1,6})\s+(.+)$", stripped)
+        if match:
+            level = len(match.group(1))
+            title = match.group(2).strip()
+            headings = headings[: level - 1] + [title]
+        consumed += len(line) + 1
+        if consumed > offset:
+            break
+    return " > ".join(headings)
+
+
+def _page_number_for_offset(text: str, offset: int) -> int:
+    if offset <= 0:
+        return 1
+    return text[:offset].count("\f") + 1

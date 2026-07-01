@@ -93,7 +93,7 @@ def test_split_structured_text_into_chunks_treats_form_feed_as_page_boundary():
 
 
 def test_build_chunk_metadata_tracks_offsets_hashes_and_overlap():
-    text = "Alpha one. Beta two. Gamma three. Delta four."
+    text = "# Root\n\nAlpha one. Beta two.\f## Second\n\nGamma three. Delta four."
     chunks = split_text_into_chunks(text, chunk_size=24, overlap=12)
 
     metadata = [item.to_dict() for item in build_chunk_metadata(text, chunks)]
@@ -101,7 +101,20 @@ def test_build_chunk_metadata_tracks_offsets_hashes_and_overlap():
     assert metadata[0]["splitter_version"] == "rag_structured_v1"
     assert metadata[0]["source_hash"].startswith("sha256:")
     assert metadata[0]["char_start"] == 0
+    assert metadata[0]["section_path"] == ""
+    assert metadata[0]["page_start"] == 1
     assert metadata[0]["overlap_from_previous"] == 0
     assert metadata[1]["char_start"] < metadata[0]["char_end"]
     assert metadata[1]["overlap_from_previous"] > 0
     assert metadata[1]["token_end_est"] >= metadata[1]["token_start_est"]
+
+
+def test_build_chunk_metadata_tracks_section_path_and_page_span():
+    text = "# Root\n\nIntro paragraph.\f## Second\n\nDetails paragraph."
+    chunks = split_structured_text_into_chunks(text, chunk_size=28, overlap=0)
+
+    metadata = [item.to_dict() for item in build_chunk_metadata(text, chunks)]
+
+    assert any(item["section_path"] == "Root" for item in metadata)
+    assert any(item["section_path"] == "Root > Second" for item in metadata)
+    assert max(item["page_end"] for item in metadata) == 2
