@@ -4,6 +4,11 @@ from src.rag_manager import RAGManager
 class _FakeVectorRAG:
     def __init__(self):
         self.calls = []
+        self.search_calls = []
+
+    def search(self, query, k=5, owner=None):
+        self.search_calls.append({"query": query, "k": k, "owner": owner})
+        return [{"document": "hit"}]
 
     def index_personal_documents(self, directory, file_extensions=None, owner=None):
         self.calls.append(
@@ -36,3 +41,14 @@ def test_rag_manager_forwards_owner_and_file_extensions():
             "owner": "alice",
         }
     ]
+
+
+def test_rag_manager_search_forwards_owner():
+    fake = _FakeVectorRAG()
+    manager = RAGManager.__new__(RAGManager)
+    manager.vector_rag = fake
+
+    result = manager.search("marker", k=3, owner="alice")
+
+    assert result == [{"document": "hit"}]
+    assert fake.search_calls == [{"query": "marker", "k": 3, "owner": "alice"}]
