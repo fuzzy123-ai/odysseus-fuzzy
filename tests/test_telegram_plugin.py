@@ -86,6 +86,8 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "use_web=False" in body
     assert "use_memory=False" in body
     assert "owner=owner" in body
+    assert "owner_inventory(owner=owner)" in body
+    assert "telegram rag import status" in body
 
 
 def test_readiness_is_redacted_and_network_send_disabled(monkeypatch):

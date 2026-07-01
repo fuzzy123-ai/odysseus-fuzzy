@@ -559,6 +559,62 @@ class VectorRAG:
             logger.error(f"get_stats failed: {e}")
             return {"error": str(e), "healthy": False}
 
+    def owner_inventory(self, owner: Optional[str] = None) -> Dict[str, Any]:
+        """Return redacted owner-scoped RAG inventory counts.
+
+        This is for status/context surfaces only. It never returns source paths,
+        filenames, document text, or raw metadata values.
+        """
+
+        if not self.healthy:
+            return {"healthy": False, "chunk_count": 0, "source_count": 0, "type_counts": {}}
+        seen_ids: set[str] = set()
+        source_keys: set[str] = set()
+        type_counts: Dict[str, int] = {}
+        try:
+            for _lane_name, collection in self._collections_for_delete():
+                rows = collection.get(include=["metadatas"])
+                ids = rows.get("ids") or []
+                metadatas = rows.get("metadatas") or []
+                for idx, metadata in enumerate(metadatas):
+                    if not isinstance(metadata, dict):
+                        continue
+                    if owner and metadata.get("owner") != owner:
+                        continue
+                    row_id = str(ids[idx] if idx < len(ids) else "")
+                    if row_id and row_id in seen_ids:
+                        continue
+                    if row_id:
+                        seen_ids.add(row_id)
+                    source = str(metadata.get("source") or metadata.get("filename") or row_id)
+                    if source:
+                        source_keys.add(hashlib.sha256(source.encode("utf-8", errors="ignore")).hexdigest()[:16])
+                    doc_type = str(metadata.get("type") or "unknown").lower()
+                    if not doc_type.startswith("."):
+                        doc_type = "unknown"
+                    type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
+            return {
+                "healthy": True,
+                "owner_scoped": bool(owner),
+                "chunk_count": len(seen_ids),
+                "source_count": len(source_keys),
+                "type_counts": dict(sorted(type_counts.items())),
+                "private_content_visible": False,
+                "source_paths_visible": False,
+                "filenames_visible": False,
+            }
+        except Exception as e:
+            logger.warning("owner_inventory failed: %s", e)
+            return {
+                "healthy": False,
+                "chunk_count": 0,
+                "source_count": 0,
+                "type_counts": {},
+                "private_content_visible": False,
+                "source_paths_visible": False,
+                "filenames_visible": False,
+            }
+
     # ------------------------------------------------------------------
     # Directory indexing
     # ------------------------------------------------------------------

@@ -968,6 +968,27 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             messages.extend(rag_preface)
         except Exception as rag_exc:
             logger.warning("Telegram RAG context preload failed: %s", rag_exc)
+        try:
+            inventory = rag_manager.owner_inventory(owner=owner) if rag_manager is not None else {}
+            if int(inventory.get("chunk_count") or 0) > 0:
+                from src.prompt_security import untrusted_context_message
+
+                type_counts = inventory.get("type_counts") if isinstance(inventory.get("type_counts"), dict) else {}
+                type_summary = ", ".join(f"{key}: {value}" for key, value in sorted(type_counts.items()))
+                messages.append(untrusted_context_message(
+                    "telegram rag import status",
+                    (
+                        "Telegram/Nextcloud import status for this user:\n"
+                        f"- Indexed RAG chunks: {int(inventory.get('chunk_count') or 0)}\n"
+                        f"- Indexed source count: {int(inventory.get('source_count') or 0)}\n"
+                        f"- Indexed file types: {type_summary or 'unknown'}\n"
+                        "- Raw document content, filenames, and host paths are not listed here.\n"
+                        "If the user asks whether files/documents were uploaded, imported, or indexed, "
+                        "answer from this status and mention that detailed file names are hidden for privacy."
+                    ),
+                ))
+        except Exception as inventory_exc:
+            logger.warning("Telegram RAG inventory preload failed: %s", inventory_exc)
         messages.append({"role": "user", "content": prompt})
         workflow_skill_resolution = None
         workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None

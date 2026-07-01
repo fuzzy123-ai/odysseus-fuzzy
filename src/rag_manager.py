@@ -65,6 +65,10 @@ class RAGManager:
     def get_stats(self) -> Dict[str, Any]:
         """Get stats - delegates to VectorRAG."""
         return self.vector_rag.get_stats()
+
+    def owner_inventory(self, owner: Optional[str] = None) -> Dict[str, Any]:
+        """Get redacted owner-scoped inventory - delegates to VectorRAG."""
+        return self.vector_rag.owner_inventory(owner=owner)
     
     def add_document(self, text: str, metadata: Dict[str, Any]) -> bool:
         """Add single document - delegates to VectorRAG."""
