@@ -1,6 +1,6 @@
 # Gemma4 E4B Optimization Roadmap
 
-Status: **repo complete / live gates deferred**
+Status: **complete / Debian live smoke passed**
 
 Mode: **backend/logik-first**
 
@@ -116,7 +116,7 @@ produce that answer.
 | G4O-9 Benchmark Runner Upgrade | done | safe_offline | Charlie | Extend `scripts/gemma_memory_benchmark.py` for efficiency | Adds latency, JSON-valid-rate, retry count, local-only gate, and chunk score |
 | G4O-10 DeepSeek Comparison Harness | done | needs_live_go | Charlie | Compare Gemma E4B vs DeepSeek flash on maintenance tasks | Redacted comparison harness and CLI are implemented; fixture comparison passes; real provider run remains explicit-live only |
 | G4O-11 Cookbook Control Contract | done | repo_only | Alice/Bob | Ensure manual control maps to backend state | Serve/stop/adopt/status actions are represented as backend contracts, no UI implementation |
-| G4O-12 Debian Live Smoke | deferred | needs_live_go | Charlie | Prove real server performance | Deferred until explicit Debian/Ollama live-smoke Go; Cookbook control contract is ready |
+| G4O-12 Debian Live Smoke | done | needs_live_go | Charlie | Prove real server performance | Debian Podman/Ollama smoke passed with synthetic/redacted Memory/Raptor benchmark against `gemma4:e4b`; latency evidence recorded |
 
 ## Gate Queue
 
@@ -127,10 +127,19 @@ Class: `needs_live_go`
 Blocks: Live performance evidence for actual Debian/Ollama latency and queue
 behavior.
 
-Decision needed: Explicit Go for live benchmark or smoke on the Debian server.
+Decision: Operator Go received on 2026-07-01; Debian/Ollama smoke completed.
 
-Risk if bypassed: Repo tests prove contracts, not throughput under real model
-latency.
+Evidence: Server checkout was fast-forwarded to the current Fuzzy `dev` commit,
+`gemma4:e4b` was present in the local Ollama Podman container, and the redacted
+memory-efficiency benchmark passed with `status=passed`, score `100.0`, and
+total duration about `100s` across five synthetic cases. Four cases completed in
+about `16-18s`; the warm-up/project case took about `30s` and exceeded the
+per-case speed target while preserving schema, sensitivity, local-only, memory,
+and retrieval gates.
+
+Follow-up: Recreate/rebuild the live app container separately when the operator
+wants the running Odysseus service to load every new G4O module from the updated
+checkout.
 
 ---
 
@@ -161,7 +170,7 @@ Safe preparation done: Backend control contracts can be built without UI.
 
 Last update: 2026-07-01
 
-- Completed: G4O-1, G4O-2, G4O-3, G4O-4, G4O-5, G4O-6, G4O-7, G4O-8, G4O-9, G4O-10, G4O-11.
+- Completed: G4O-1, G4O-2, G4O-3, G4O-4, G4O-5, G4O-6, G4O-7, G4O-8, G4O-9, G4O-10, G4O-11, G4O-12.
 - Verification: `python -m pytest tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_universal_inbox_worker.py tests/test_gemma_memory_benchmark.py -q`
   passed with 23 tests.
 - Verification: `python -m pytest tests/test_sensitive_local_worker.py tests/test_universal_inbox_worker.py tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_gemma_memory_benchmark.py -q`
@@ -181,9 +190,13 @@ Last update: 2026-07-01
   `json_valid_rate=100%`, and `local_only_gate_pass_rate=100%`.
 - Parallel-thread guard: Telegram bot and direct model-processing hotfiles were
   intentionally not edited; `G4O-8` was closed via a disjoint backend contract.
-- Remaining live gate: G4O-12 is deferred until explicit, bounded operator Go
-  for Debian/Ollama smoke. A real G4O-10 provider run is now available via
-  explicit CLI flags but is not required for repo completion.
+- Live verification: G4O-12 Debian/Ollama smoke ran on 2026-07-01 against the
+  local Podman Ollama endpoint with `gemma4:e4b`. The synthetic/redacted
+  benchmark passed with `status=passed`, score `100.0`, and no raw content
+  persisted. Latency is usable for maintenance/inbox work, not interactive chat:
+  one warm-up/project case hit about `30s`, the other four cases about `16-18s`.
+- Remaining optional live gate: A real G4O-10 provider comparison is available
+  via explicit CLI flags but is not required for roadmap completion.
 
 ## Quality Gates
 
@@ -232,4 +245,5 @@ Last update: 2026-07-01
 - Benchmarks provide redacted efficiency evidence.
 - G4O-10 has a redacted comparison harness; real provider calls are explicit CLI
   actions only.
-- Live gate G4O-12 is explicitly deferred until operator Go.
+- G4O-12 Debian/Ollama live smoke is complete; the remaining deploy concern is
+  a separate live app container recreate/rebuild when desired.
