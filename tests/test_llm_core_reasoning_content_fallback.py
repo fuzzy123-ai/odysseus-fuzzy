@@ -87,6 +87,43 @@ def test_llm_call_content_wins_over_reasoning_content(monkeypatch):
     assert result == "Normal answer"
 
 
+def test_deepseek_v_flash_strips_visible_reasoning_preamble(monkeypatch):
+    llm_core._response_cache.clear()
+    leaked = (
+        "Wir müssen die Anfrage verstehen. Der Benutzer gibt einen Kontext und "
+        "will drei Punkte. Ich formuliere jetzt knapp.\n\n"
+        "1. **Sofortcheck:** RAG-Status und Owner-Scope prüfen.\n"
+        "2. **Automatisierung:** Rehydrate nach Restart planen.\n"
+        "3. **Human-Gate:** Freigabe für Live-Writes einholen."
+    )
+    monkeypatch.setattr(
+        llm_core.httpx, "post",
+        lambda *a, **kw: _sync_response(_openai_msg(leaked)),
+    )
+    result = llm_core.llm_call(
+        "https://api.deepseek.com/v1/chat/completions",
+        "deepseek-v4-flash",
+        [{"role": "user", "content": "3 Punkte"}],
+    )
+    assert "Wir müssen" not in result
+    assert result.startswith("1. **Sofortcheck:**")
+
+
+def test_deepseek_v_flash_suppresses_reasoning_only_output(monkeypatch):
+    llm_core._response_cache.clear()
+    leaked = "We need to understand the request. The user wants a short answer."
+    monkeypatch.setattr(
+        llm_core.httpx, "post",
+        lambda *a, **kw: _sync_response(_openai_msg(leaked)),
+    )
+    result = llm_core.llm_call(
+        "https://api.deepseek.com/v1/chat/completions",
+        "deepseek-v4-flash",
+        [{"role": "user", "content": "short answer"}],
+    )
+    assert result == ""
+
+
 # ---------------------------------------------------------------------------
 # Streaming agent path tests (4 and 5)
 # These import and test _empty_response_fallback — the real production helper

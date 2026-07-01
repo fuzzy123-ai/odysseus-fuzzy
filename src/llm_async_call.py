@@ -105,6 +105,7 @@ async def llm_call_async_impl(
     parse_anthropic_response_func: Callable[[dict], str],
     parse_ollama_response_func: Callable[[dict], str],
     normalize_mistral_content_func: Callable[[Any], tuple[str, str]],
+    parse_openai_message_func: Callable[..., str],
     mark_host_dead_func: Callable[[str], bool],
 ) -> str:
     """Async LLM call with connection pooling, timeout, retry and logging."""
@@ -206,14 +207,11 @@ async def llm_call_async_impl(
                     text = parse_ollama_response_func(data)
                 else:
                     message = data["choices"][0]["message"]
-                    content = message.get("content")
-                    if isinstance(content, list):
-                        text_part, thinking_part = normalize_mistral_content_func(content)
-                        text = ((thinking_part + "\n\n") if thinking_part else "") + (text_part or "")
-                        if not text:
-                            text = message.get("reasoning_content") or ""
-                    else:
-                        text = content or message.get("reasoning_content") or ""
+                    text = parse_openai_message_func(
+                        message,
+                        model=model,
+                        normalize_content_func=normalize_mistral_content_func,
+                    )
                 set_cached_response_func(cache_key, text)
                 return text
             except Exception:

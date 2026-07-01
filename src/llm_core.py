@@ -272,6 +272,7 @@ from src.llm_message_formats import (
     _build_anthropic_payload,
     _convert_openai_content_to_anthropic,
     _normalize_mistral_content,
+    _parse_openai_compatible_message,
     _parse_anthropic_response,
     _sanitize_llm_messages,
     _supports_thinking,
@@ -374,6 +375,7 @@ def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: floa
         parse_anthropic_response_func=_parse_anthropic_response,
         parse_ollama_response_func=_parse_ollama_response,
         normalize_mistral_content_func=_normalize_mistral_content,
+        parse_openai_message_func=_parse_openai_compatible_message,
     )
 
 def llm_call(
@@ -522,6 +524,7 @@ async def _llm_call_async_impl(
         parse_anthropic_response_func=_parse_anthropic_response,
         parse_ollama_response_func=_parse_ollama_response,
         normalize_mistral_content_func=_normalize_mistral_content,
+        parse_openai_message_func=_parse_openai_compatible_message,
         mark_host_dead_func=_mark_host_dead,
     )
 

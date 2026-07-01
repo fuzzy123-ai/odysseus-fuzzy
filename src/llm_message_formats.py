@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Dict, List
+from typing import Any, Callable, Dict, List
+
+from src.text_helpers import strip_think
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,98 @@ def _normalize_mistral_content(content):
             elif isinstance(inner, str):
                 thinking_parts.append(inner)
     return "".join(text_parts), "".join(thinking_parts)
+
+
+_VISIBLE_REASONING_PREFIX_RE = re.compile(
+    r"^\s*(?:"
+    r"wir m(?:ü|ue)ssen|"
+    r"ich m(?:u|ü)ss|"
+    r"der benutzer|"
+    r"der nutzer|"
+    r"die anfrage|"
+    r"we need to|"
+    r"i need to|"
+    r"the user|"
+    r"the request"
+    r")\b",
+    re.IGNORECASE,
+)
+_ANSWER_START_RE = re.compile(
+    r"(?m)^(?:"
+    r"\s*(?:#{1,6}\s+|\*\*[^*\n]{2,80}\*\*|[-*]\s+|\d+[.)]\s+)|"
+    r"\s*(?:Sofortcheck|Automatisierung|Human-Gate|Kurzantwort|Antwort|Ergebnis|Fazit)\s*:"
+    r")"
+)
+
+
+def _model_needs_visible_reasoning_scrub(model: str) -> bool:
+    if not model:
+        return False
+    m = model.lower()
+    return "deepseek-v" in m or "deepseek-flash" in m
+
+
+def _strip_visible_reasoning_preamble(text: str, model: str) -> str:
+    if not text:
+        return ""
+
+    cleaned = strip_think(text, prose=False, prompt_echo=False)
+    if cleaned != text:
+        return cleaned.strip()
+
+    if not _model_needs_visible_reasoning_scrub(model):
+        return text.strip()
+
+    stripped = text.strip()
+    cleaned = strip_think(stripped, prose=True, prompt_echo=True)
+    if cleaned != stripped:
+        return cleaned.strip()
+
+    if not _VISIBLE_REASONING_PREFIX_RE.match(stripped):
+        return stripped
+
+    matches = list(_ANSWER_START_RE.finditer(stripped))
+    for match in matches:
+        # Avoid treating a numbered reasoning sentence at the very beginning as
+        # the final answer. A real answer marker after a visible preamble is
+        # normally separated by at least one paragraph or several sentences.
+        if match.start() > 40:
+            return stripped[match.start():].strip()
+
+    # If the model spent the whole budget on visible reasoning, suppress it
+    # rather than showing chain-of-thought as the answer.
+    return ""
+
+
+def _parse_openai_compatible_message(
+    message: dict,
+    *,
+    model: str,
+    normalize_content_func: Callable[[Any], tuple[str, str]] = _normalize_mistral_content,
+) -> str:
+    """Extract user-facing text from an OpenAI-compatible chat message.
+
+    Some gateways split thinking into structured fields (`reasoning_content`,
+    `reasoning`, `thinking`). Others, notably weak DeepSeek-V/Flash variants,
+    can leak a leading reasoning preamble inside `content`. Keep ordinary
+    content first, preserve the existing reasoning fallback for reasoning-only
+    responses, but scrub known visible preambles before returning text.
+    """
+    content = message.get("content")
+    reasoning = (
+        message.get("reasoning_content")
+        or message.get("reasoning")
+        or message.get("thinking")
+        or ""
+    )
+    if isinstance(content, list):
+        text_part, thinking_part = normalize_content_func(content)
+        text = ((thinking_part + "\n\n") if thinking_part else "") + (text_part or "")
+        if not text:
+            text = reasoning or ""
+    else:
+        text = content or reasoning or ""
+    return _strip_visible_reasoning_preamble(str(text), model)
 
 def _convert_openai_content_to_anthropic(content):
     """Convert OpenAI multimodal content blocks to Anthropic format.
