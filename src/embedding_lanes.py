@@ -12,12 +12,14 @@ from dataclasses import dataclass
 import hashlib
 import logging
 import os
+import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
 LANE_FASTEMBED = "fastembed"
 LANE_CUSTOM = "custom"
+_SAFE_GENERATION_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 
 
 @dataclass
@@ -69,6 +71,15 @@ def reset_embedding_lane_state() -> None:
 
 def collection_name(base_name: str, lane_name: str) -> str:
     return f"{base_name}_{lane_name}"
+
+
+def collection_generation_name(base_name: str, lane_name: str, generation: str) -> str:
+    """Return a parallel collection name for migration-safe chunk generations."""
+
+    safe_generation = str(generation or "").strip()
+    if not _SAFE_GENERATION_RE.fullmatch(safe_generation):
+        raise ValueError("generation must be a safe collection label")
+    return f"{collection_name(base_name, lane_name)}__chunkgen_{safe_generation}"
 
 
 def _fingerprint(lane_name: str, url: str, model: str, dimension: int) -> str:

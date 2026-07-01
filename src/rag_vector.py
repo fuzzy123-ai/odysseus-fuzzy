@@ -19,13 +19,18 @@ from src.embedding_lanes import (
     LANE_CUSTOM,
     LANE_FASTEMBED,
     build_embedding_lanes,
+    collection_generation_name,
     collection_name,
     dedupe_results,
     lane_count,
     migrate_legacy_collection,
     query_lanes,
 )
-from src.rag_text_chunking import build_chunk_metadata, split_structured_text_into_chunks
+from src.rag_text_chunking import (
+    STRUCTURED_SPLITTER_VERSION,
+    build_chunk_metadata,
+    split_structured_text_into_chunks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -713,6 +718,42 @@ class VectorRAG:
             "removed_count": remove_result.get("removed_count", 0),
             "indexed_count": index_result.get("indexed_count", 0),
             "failed_count": index_result.get("failed_count", 0),
+        }
+
+    def plan_reindex_generation(self, generation: str = STRUCTURED_SPLITTER_VERSION) -> Dict[str, Any]:
+        """Return a dry-run plan for building a parallel chunk generation."""
+
+        lanes = getattr(self, "_lanes", None) or []
+        targets = []
+        for lane in lanes:
+            lane_name = getattr(lane, "name", "")
+            source_collection = getattr(lane, "collection_name", collection_name(COLLECTION_NAME, lane_name))
+            try:
+                source_count = int(lane.count())
+            except Exception:
+                source_count = 0
+            targets.append(
+                {
+                    "lane": lane_name,
+                    "source_collection": source_collection,
+                    "target_collection": collection_generation_name(COLLECTION_NAME, lane_name, generation),
+                    "rollback_collection": source_collection,
+                    "source_count": source_count,
+                    "writes_planned": 0,
+                    "live_write_required": True,
+                }
+            )
+        return {
+            "schema": "odysseus.rag_reindex_generation_plan.v1",
+            "dry_run": True,
+            "generation": generation,
+            "splitter_version": generation,
+            "base_collection": COLLECTION_NAME,
+            "status": "ready" if targets else "degraded_no_lanes",
+            "targets": targets,
+            "live_write_required": True,
+            "rollback_supported": True,
+            "next_action": "operator_go_required_before_collection_writes",
         }
 
     # ------------------------------------------------------------------

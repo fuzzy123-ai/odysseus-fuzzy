@@ -64,7 +64,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | ---: | --- | --- | --- |
 | 11 | GitHub Issue Intelligence | design-ready | Neues Feature mit Sync, Persistence, Embeddings, UI und MCP-Gates. Wertvoll, aber nicht noetig, um den Odysseus-Kern zusammenzubringen. |
 | 12 | Qdrant/Kuzu/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. |
-| 13 | RAG Memory Tokenization und Semantic Chunking | design-ready | Detailplan: `docs/plans/rag-memory-tokenization-roadmap.md`. Erst token-, struktur- und provenance-bewusstes Chunking stabilisieren; Brownian/Random-Walk bleibt spaeterer Research-Slice, nicht Startpunkt. |
+| 13 | RAG Memory Tokenization und Semantic Chunking | repo-only done | Detailplan: `docs/plans/rag-memory-tokenization-roadmap.md`. Token-, struktur- und provenance-bewusstes Chunking ist backendseitig implementiert; Live-Reindex/Runtime-Umschaltung echter Collections bleibt operator-gated. |
 
 ## UI-Gestaltung Spaeter
 

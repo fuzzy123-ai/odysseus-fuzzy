@@ -24,8 +24,10 @@ from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_rout
 from src.secure_provider_runtime import provider_scope_for_base_url
 from src.sensitive_retrieval_guard import decide_retrieval_access
 from src.self_control_runtime import build_self_control_context_message
+from src.token_budget import CHARS_PER_TOKEN_ESTIMATE, count_text_tokens
 
 logger = logging.getLogger(__name__)
+DEFAULT_RAG_CONTEXT_BUDGET_UNITS = 1200
 
 # ── Stopwords & tokenizer ──
 
@@ -54,6 +56,71 @@ def _content_tokens(text: str) -> list:
     """Extract meaningful content words: no stopwords, min 3 chars, lowercase."""
     words = re.findall(r'[a-z0-9]+(?:[-_][a-z0-9]+)*', text.lower())
     return [w for w in words if len(w) >= 3 and w not in _STOPWORDS]
+
+
+def rag_context_budget_units(context_budget_tokens: Optional[int]) -> int:
+    if not context_budget_tokens:
+        return DEFAULT_RAG_CONTEXT_BUDGET_UNITS
+    return max(256, min(4000, int(context_budget_tokens * 0.18)))
+
+
+def build_budgeted_rag_context(
+    relevant: List[Dict[str, Any]],
+    *,
+    budget_units: int,
+) -> tuple[str, List[Dict[str, Any]], int]:
+    """Build RAG context within a metadata-estimated budget."""
+
+    prefix = "Relevant documents:"
+    remaining = max(0, int(budget_units or 0) - count_text_tokens(prefix))
+    sources: List[Dict[str, Any]] = []
+    entries: List[str] = []
+    truncated = 0
+    for result in relevant:
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        filename = metadata.get("filename", metadata.get("source", "unknown"))
+        document = str(result.get("document") or "")
+        header = f"[{filename}]\n"
+        header_units = count_text_tokens(header)
+        if remaining <= header_units:
+            truncated += 1
+            continue
+        document_budget = remaining - header_units
+        trimmed_document, was_truncated = _trim_text_to_budget(document, document_budget)
+        if not trimmed_document:
+            truncated += 1
+            continue
+        entry = header + trimmed_document
+        entry_units = count_text_tokens(entry)
+        entries.append(entry)
+        sources.append(
+            {
+                "filename": filename,
+                "snippet": trimmed_document[:200],
+                "similarity": round(result.get("similarity", 0), 3),
+                "splitter_version": metadata.get("splitter_version", ""),
+                "char_start": metadata.get("char_start"),
+                "char_end": metadata.get("char_end"),
+                "budget_units_est": entry_units,
+                "truncated": was_truncated,
+            }
+        )
+        remaining -= entry_units + count_text_tokens("\n\n---\n\n")
+        if was_truncated:
+            truncated += 1
+            break
+    if not entries:
+        return "", [], truncated
+    return prefix + "\n\n" + "\n\n---\n\n".join(entries), sources, truncated
+
+
+def _trim_text_to_budget(text: str, budget_units: int) -> tuple[str, bool]:
+    if budget_units <= 0 or not text:
+        return "", bool(text)
+    if count_text_tokens(text) <= budget_units:
+        return text, False
+    char_limit = max(1, int(budget_units * CHARS_PER_TOKEN_ESTIMATE))
+    return text[:char_limit].rstrip() + "\n[Truncated]", True
 
 
 class ChatProcessor:
@@ -419,20 +486,14 @@ class ChatProcessor:
                     )
                     if relevant:
                         logger.info(f"RAG: {len(relevant)}/{len(results)} results above threshold {self.RAG_SIMILARITY_THRESHOLD}")
-                        rag_sources = [
-                            {
-                                "filename": r["metadata"].get("filename", r["metadata"].get("source", "unknown")),
-                                "snippet": r["document"][:200],
-                                "similarity": round(r.get("similarity", 0), 3)
-                            }
-                            for r in relevant
-                        ]
-                        rag_content = "Relevant documents:\n\n" + "\n\n---\n\n".join(
-                            f"[{s['filename']}]\n{r['document']}" for s, r in zip(rag_sources, relevant)
+                        rag_content, rag_sources, truncated_count = build_budgeted_rag_context(
+                            relevant,
+                            budget_units=rag_context_budget_units(context_budget_tokens),
                         )
-                        if len(rag_content) > 10000:
-                            rag_content = rag_content[:10000] + "\n[Truncated]"
-                        preface.append(untrusted_context_message("retrieved documents", rag_content))
+                        if rag_content:
+                            if truncated_count:
+                                logger.info("RAG context budget truncated %s result(s)", truncated_count)
+                            preface.append(untrusted_context_message("retrieved documents", rag_content))
             except Exception as e:
                 logger.warning(f"RAG retrieval failed: {e}")
 

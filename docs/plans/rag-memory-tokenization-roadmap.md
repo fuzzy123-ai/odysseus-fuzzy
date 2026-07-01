@@ -12,10 +12,14 @@ Status: Post-MVP Detailroadmap, nicht Teil der abgeschlossenen Backend-MVP-Gates
 | RMT1 Token Budget Adapter | done | `src/token_budget.py`, tokenbudgetfaehiger Splitter-Entry-Point, Tests gruen. |
 | RMT2 Structure-Aware Splitter | done | Gemeinsamer strukturaware Splitter ist an RAG und Personal Docs angebunden; Struktur-/Duplicate-Tail-Tests gruen. |
 | RMT3 Provenance-Rich Chunk Metadata | done | RAG- und Nextcloud-Chunk-Refs tragen Splitter-Version, Hashes, Offsets und Budget-Schaetzungen; Privacy-Tests gruen. |
-| RMT4 Migration-Safe Reindex | in_progress | Naechster repo-only Slice; Live-Reindex bleibt operator-gated. |
-| RMT5 Retrieval Quality Gates | open | Wartet auf Splitter/Metadata-Baseline. |
-| RMT6 Runtime Integration | open | Keine Runtime-Umschaltung vor Quality Gates. |
-| RMT7 Brownian Graph Retrieval Research | deferred | Research-only nach RMT1-RMT5. |
+| RMT4 Migration-Safe Reindex | done | Parallel-Generation-Dry-Run mit Rollback-Ziel und Live-Write-Gate ist getestet. |
+| RMT5 Retrieval Quality Gates | done | Offline Quality-Gates fuer Duplicate-Tails, Boundary-Coherence und Budget-Overflow sind getestet. |
+| RMT6 Runtime Integration | done | Chat-RAG nutzt Budget-Einheiten und Source-Spans; Kontextinflation ist getestet. |
+| RMT7 Brownian Graph Retrieval Research | done | Offline Research-Decision-Gate existiert; Runtime-Umschaltung bleibt explizit verboten. |
+
+Roadmap status: abgeschlossen fuer repo-only Backend/Logik. Live-Reindex und
+Runtime-Umschaltung echter Collections bleiben ueber `RMT-LIVE-REINDEX`
+operator-gated.
 
 ## Ziel
 
