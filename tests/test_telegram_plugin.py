@@ -86,6 +86,9 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "stream_agent_loop" in body
     assert "llm_call(" not in body
     assert "enforce_session_provider_runtime_gate" in body
+    assert "_telegram_rebind_local_session" in body
+    assert "telegram_local_rebind" in source
+    assert "DSGVO-Modus aktiv: Ich habe auf lokale Verarbeitung umgeschaltet." in body
     assert "telegram_dsgvo_provider_gate_failed" in body
     assert "resolve_workflow_skills" in body
     assert "workflow_skill_resolution=workflow_skill_resolution" in body

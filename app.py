@@ -881,6 +881,36 @@ def _telegram_session_bridge(**kwargs):
     return {"session_id": result.get("session_id") or ""}
 
 
+def _telegram_rebind_local_session(bridge: Dict) -> Dict:
+    """Create a fresh Telegram session from telegram_model_spec and bind it."""
+
+    try:
+        from plugins.telegram.stores import TelegramSessionBridgeStore
+
+        chat_id = str(bridge.get("chat_id") or "").strip()
+        if not chat_id:
+            return {"error": "telegram_chat_missing"}
+        result = TelegramSessionBridgeStore(DATA_DIR).rebind_chat(
+            chat_id=chat_id,
+            session_alias=str(bridge.get("session_alias") or ""),
+            recommended_session_name=str(bridge.get("recommended_session_name") or "Telegram Bot"),
+            creator=_telegram_session_bridge,
+        )
+        session_id = str(result.get("session_id") or "").strip()
+        if not session_id:
+            return {"error": "telegram_local_session_create_failed"}
+        session = session_manager.get_session(session_id)
+        if not session:
+            return {"error": "telegram_local_session_not_found", "session_id": session_id}
+        rebound_bridge = dict(bridge)
+        rebound_bridge["session_id"] = session_id
+        rebound_bridge["telegram_local_rebind"] = True
+        return {"session_id": session_id, "session": session, "bridge": rebound_bridge}
+    except Exception as exc:
+        logger.warning("Telegram local session rebind failed: %s", exc)
+        return {"error": "telegram_local_session_rebind_failed"}
+
+
 def _telegram_dsgvo_model_block_reply(block_reason: str) -> str:
     return (
         "DSGVO-Modus ist aktiv. Telegram kann diese Anfrage nur mit einem lokalen "
@@ -915,6 +945,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         return {"status": "failed", "error": "telegram_session_not_found", "reply_text": ""}
     try:
         owner = _telegram_owner()
+        local_rebind_notice = ""
         try:
             from src.privacy_runtime import is_dsgvo_mode_enabled
             from src.secure_provider_runtime import (
@@ -932,16 +963,46 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         model_id=getattr(session, "model", ""),
                     )
                 except SecureProviderRuntimeError as gate_exc:
-                    reply = (
-                        _telegram_dsgvo_model_block_reply(str(gate_exc))
-                        if is_dsgvo_mode_enabled()
-                        else _telegram_local_only_model_block_reply(str(gate_exc))
-                    )
-                    return {
-                        "status": "blocked",
-                        "error": str(gate_exc),
-                        "reply_text": reply,
-                    }
+                    rebound = _telegram_rebind_local_session(bridge)
+                    rebound_session = rebound.get("session")
+                    rebound_session_id = str(rebound.get("session_id") or "").strip()
+                    if rebound_session is not None and rebound_session_id:
+                        try:
+                            enforce_session_provider_runtime_gate(
+                                security_mode="secure",
+                                session_id=rebound_session_id,
+                                owner=owner,
+                                provider_base_url=getattr(rebound_session, "endpoint_url", ""),
+                                model_id=getattr(rebound_session, "model", ""),
+                            )
+                            session_id = rebound_session_id
+                            session = rebound_session
+                            bridge = dict(rebound.get("bridge") or bridge)
+                            local_rebind_notice = (
+                                "DSGVO-Modus aktiv: Ich habe auf lokale Verarbeitung umgeschaltet.\n\n"
+                            )
+                        except SecureProviderRuntimeError as rebound_gate_exc:
+                            reply = (
+                                _telegram_dsgvo_model_block_reply(str(rebound_gate_exc))
+                                if is_dsgvo_mode_enabled()
+                                else _telegram_local_only_model_block_reply(str(rebound_gate_exc))
+                            )
+                            return {
+                                "status": "blocked",
+                                "error": str(rebound_gate_exc),
+                                "reply_text": reply,
+                            }
+                    else:
+                        reply = (
+                            _telegram_dsgvo_model_block_reply(str(gate_exc))
+                            if is_dsgvo_mode_enabled()
+                            else _telegram_local_only_model_block_reply(str(gate_exc))
+                        )
+                        return {
+                            "status": "blocked",
+                            "error": str(gate_exc),
+                            "reply_text": reply,
+                        }
         except Exception as privacy_exc:
             logger.warning("Telegram DSGVO provider gate failed closed: %s", privacy_exc)
             return {
@@ -1043,6 +1104,8 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         response = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
+        if local_rebind_notice:
+            response = f"{local_rebind_notice}{response}"
         session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
         return {"status": "accepted", "reply_text": str(response or "")}
