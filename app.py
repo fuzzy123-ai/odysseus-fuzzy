@@ -952,6 +952,22 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
         messages = list(context)
+        try:
+            rag_preface, _rag_sources, _web_sources = chat_processor.build_context_preface(
+                message=prompt,
+                session=session,
+                use_web=False,
+                use_memory=False,
+                use_rag=True,
+                owner=owner,
+                agent_mode=True,
+                incognito=False,
+                use_skills=False,
+                use_context_providers=False,
+            )
+            messages.extend(rag_preface)
+        except Exception as rag_exc:
+            logger.warning("Telegram RAG context preload failed: %s", rag_exc)
         messages.append({"role": "user", "content": prompt})
         workflow_skill_resolution = None
         workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
