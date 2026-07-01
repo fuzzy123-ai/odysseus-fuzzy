@@ -20,6 +20,16 @@ READY_EVENT = {
     "dsgvo_mode": True,
     "review_reasons": ("needs_review",),
     "raw_content_stored": False,
+    "author_stamp": {
+        "schema": "odysseus.universal_inbox.author_stamp.v1",
+        "actor": "local_model",
+        "model_id": "deterministic_policy_v1",
+        "model_provider": "local",
+        "model_scope": "local_only",
+        "action": "cataloged",
+        "created_at": "2026-07-01T12:00:00Z",
+        "source_material_stored": False,
+    },
 }
 
 
@@ -33,6 +43,8 @@ def test_normalizes_redacted_raptorgraph_event():
     assert event["memory_record_ids"] == ("uix-abc",)
     assert event["raw_content_stored"] is False
     assert event["raw_content_visible"] is False
+    assert event["author_stamp"]["model_id"] == "deterministic_policy_v1"
+    assert event["author_stamp"]["source_material_stored"] is False
     assert "created_at" in event
 
 
@@ -75,10 +87,19 @@ def test_writer_records_redacted_graph_mutations(tmp_path, monkeypatch):
 def test_rejects_unsafe_raw_or_secret_material():
     event = dict(READY_EVENT)
     event["review_reasons"] = ("api_key=super-secret-value",)
+    event["author_stamp"] = {
+        "model_id": "deterministic_policy_v1",
+        "model_provider": "local",
+        "debug": "PRIVATE RAW TEXT",
+        "actor": "api_key=super-secret-value",
+    }
 
     normalized = normalize_universal_inbox_raptorgraph_event(event)
 
     assert normalized["review_reasons"] == ()
+    assert normalized["author_stamp"]["model_id"] == "deterministic_policy_v1"
+    assert "debug" not in normalized["author_stamp"]
+    assert "actor" not in normalized["author_stamp"]
 
 
 def test_rejects_bad_source_hash():

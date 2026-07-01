@@ -126,6 +126,7 @@ def normalize_universal_inbox_raptorgraph_event(event: Mapping[str, Any]) -> dic
         "no_go_reasons": _safe_string_tuple(event.get("no_go_reasons") or ()),
         "raw_content_stored": False,
         "raw_content_visible": False,
+        "author_stamp": _safe_author_stamp(event.get("author_stamp")),
         "created_at": int(time.time()),
     }
     encoded = json.dumps(normalized, ensure_ascii=False)
@@ -182,6 +183,37 @@ def _safe_string_tuple(values: Any) -> tuple[str, ...]:
         if text and not _FORBIDDEN_TEXT_RE.search(text):
             result.append(text[:120])
     return tuple(result)
+
+
+def _safe_author_stamp(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    allowed = {
+        "schema",
+        "actor",
+        "model_id",
+        "model_provider",
+        "model_scope",
+        "action",
+        "created_at",
+        "source_material_stored",
+    }
+    result: dict[str, Any] = {}
+    for key in allowed:
+        if key not in value:
+            continue
+        raw = value.get(key)
+        if isinstance(raw, bool):
+            result[key] = raw
+            continue
+        text = " ".join(str(raw or "").strip().split())
+        if not text or _FORBIDDEN_TEXT_RE.search(text):
+            continue
+        result[key] = text[:120]
+    encoded = json.dumps(result, ensure_ascii=False)
+    if len(encoded) > 1000:
+        raise UniversalInboxRaptorGraphStoreError("author_stamp exceeds safe length")
+    return result
 
 
 def _record_raptorgraph_mutation(event: Mapping[str, Any], *, status: str, duplicate: bool) -> None:
