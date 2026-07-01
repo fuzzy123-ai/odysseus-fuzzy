@@ -1,0 +1,190 @@
+# Gemma4 E4B Optimization Roadmap
+
+Status: **in progress / backend contracts implemented**
+
+Mode: **backend/logik-first**
+
+Related:
+
+- `docs/plans/gemma4-maintenance-inbox-roadmap.md`
+- `docs/plans/gemma-memory-efficiency-benchmark.md`
+- `src/sensitivity_delegation_gate.py`
+- `src/sensitive_local_worker.py`
+
+## Goal
+
+Gemma4 E4B becomes the reliable local maintenance model for Odysseus: Universal
+Inbox triage, DSGVO/sensitivity classification, redacted document abstraction,
+Memory Write Intent, RaptorGraph candidate generation, and local-only Telegram
+handling. It should not behave like a smaller general chat model. It should
+receive small, schema-bound tasks and produce deterministic, auditable outputs.
+
+## Product Principle
+
+Gemma handles private/sensitive raw work locally. DeepSeek/API models may
+orchestrate only after the local worker has produced a redacted abstraction.
+If the final answer needs private details, Gemma or another local model must
+produce that answer.
+
+## Non-Goals
+
+- No new UI design.
+- No raw private documents in repo, logs, tests, docs, or benchmark reports.
+- No live Telegram, Nextcloud, provider, or deploy actions without explicit Go.
+- No attempt to make Gemma4 E4B the default high-context coding/chat model.
+- No RaptorGraph truth writes directly from Gemma without deterministic backend
+  validation and write gates.
+
+## Current Evidence
+
+- Gemma4 E4B is already defined as the maintenance model in the existing
+  roadmap.
+- `gemma-memory-efficiency-benchmark.md` defines a first memory benchmark.
+- `src/sensitivity_delegation_gate.py` decides local/API/redacted delegation.
+- `src/sensitive_local_worker.py` exposes `sensitive_local_analysis` as a safe
+  local-worker contract for external orchestrators.
+- Telegram DSGVO/local-only routing is already enforced before provider calls.
+- `src/gemma4_maintenance_router.py` now provides the central side-effect-free
+  Gemma4 maintenance router, prompt capsule library, JSON output validation
+  gate, and queue/budget policy.
+- Universal Inbox dry-runs now attach the shared Gemma4 route report, including
+  prompt capsule ID, queue policy, source hashes, and excerpt hash without
+  persisting raw content.
+
+## Target Architecture
+
+1. **Maintenance Router**
+   Classifies the job type: inbox triage, sensitivity, memory intent,
+   RaptorGraph candidate, voice transcript, export/conversion preflight.
+
+2. **Prompt Capsules**
+   Each job type gets a tiny stable prompt: task, schema, metadata, bounded
+   excerpt, expected JSON. No giant chat context.
+
+3. **Schema-Only Output**
+   Gemma returns strict JSON-like contracts. Backend validates and repairs or
+   rejects. Free-form prose is avoided for maintenance paths.
+
+4. **Budget Controller**
+   Gemma jobs are capped by token/char limits, chunk size, timeout, retry count,
+   and queue concurrency. Oversized tasks become smaller packets or review.
+
+5. **Redacted Orchestration**
+   Sensitive raw content remains local. DeepSeek/API sees only redacted
+   abstraction, source hashes, policy decisions, and safe task state.
+
+6. **Evidence Loop**
+   Every Gemma maintenance run records redacted metrics: model, route, surface,
+   duration, input/output size, schema validity, status, and failure class.
+
+## Slice Queue
+
+| Slice | Status | Class | Owner | Goal | Done Criteria |
+| --- | --- | --- | --- | --- | --- |
+| G4O-1 Maintenance Router Contract | done | repo_only | Bob | Central route object for Gemma maintenance tasks | Router maps known surfaces to prompt capsule IDs, budgets, and local/API eligibility |
+| G4O-2 Prompt Capsule Library | done | repo_only | Bob | Stable mini-prompts for inbox, sensitivity, memory, Raptor, voice | Capsules are short, schema-bound, tested for no raw persistence |
+| G4O-3 JSON Validation + Repair Gate | done | repo_only | Bob | Validate Gemma output before downstream writes | Invalid/partial output becomes retry, repair, review, or blocked state |
+| G4O-4 Budget + Queue Policy | done | repo_only | Charlie | Prevent Gemma from stalling the server | Concurrency 1, timeout, max chars/tokens, chunking and packet downsizing gates are represented |
+| G4O-5 Local Worker Integration | repo_only | Bob | Connect `sensitive_local_analysis` to real local abstraction jobs | Worker can request/use a local model route without exposing raw content to API models |
+| G4O-6 Universal Inbox Optimization | repo_only | Bob | Make Inbox tasks Gemma-native | File triage emits classification, document type, action, memory intent candidate, and review reasons |
+| G4O-7 Memory/Raptor Optimization | repo_only | Bob | Make Gemma produce candidate facts, not truth | Raptor candidates include provenance, confidence, contradiction hints, and require backend gate |
+| G4O-8 Voice/Telegram Local Path | repo_only | Bob | Voice transcript and Telegram file follow-up stay efficient under DSGVO | Transcript summarization and follow-up use bounded local packets and safe recent-attachment refs |
+| G4O-9 Benchmark Runner Upgrade | safe_offline | Charlie | Extend `scripts/gemma_memory_benchmark.py` for efficiency | Adds latency, JSON-valid-rate, retry count, local-only gate, and chunk score |
+| G4O-10 DeepSeek Comparison Harness | needs_live_go | Charlie | Compare Gemma E4B vs DeepSeek flash on maintenance tasks | Live comparison writes only aggregate/redacted metrics |
+| G4O-11 Cookbook Control Contract | repo_only | Alice/Bob | Ensure manual control maps to backend state | Serve/stop/adopt/status actions are represented as backend contracts, no UI implementation |
+| G4O-12 Debian Live Smoke | needs_live_go | Charlie | Prove real server performance | Run local Ollama Gemma E4B on Debian with synthetic/redacted inbox and Raptor maintenance cases |
+
+## Gate Queue
+
+Gate: `gemma4-live-ollama-smoke`
+
+Class: `needs_live_go`
+
+Blocks: Live performance evidence for actual Debian/Ollama latency and queue
+behavior.
+
+Decision needed: Explicit Go for live benchmark or smoke on the Debian server.
+
+Risk if bypassed: Repo tests prove contracts, not throughput under real model
+latency.
+
+---
+
+Gate: `api-comparison-go`
+
+Class: `needs_live_go`
+
+Blocks: DeepSeek comparison harness.
+
+Decision needed: Explicit Go to call API model for redacted comparison tasks.
+
+Risk if bypassed: Could leak private material if the benchmark is not strictly
+synthetic/redacted.
+
+---
+
+Gate: `ui-control-placement`
+
+Class: `needs_design`
+
+Blocks: Final UI placement for model control.
+
+Decision needed: UI agent decides where Gemma maintenance controls live.
+
+Safe preparation done: Backend control contracts can be built without UI.
+
+## ABC Progress
+
+Last update: 2026-07-01
+
+- Completed: G4O-1, G4O-2, G4O-3, G4O-4.
+- Verification: `python -m pytest tests/test_gemma4_maintenance_router.py tests/test_maintenance_model_policy.py tests/test_universal_inbox_worker.py tests/test_gemma_memory_benchmark.py -q`
+  passed with 23 tests.
+- Parallel-thread guard: Telegram bot and direct model-processing files were
+  intentionally not edited because another Codex thread is active there.
+- Next safe slice: G4O-5 Local Worker Integration, then G4O-6 Universal Inbox
+  Optimization.
+
+## Quality Gates
+
+- No raw content in tests, docs, repo artifacts, benchmark output, or logs.
+- DSGVO/sensitive/secret cases must never route raw text to API providers.
+- Every maintenance output must include schema, status, classification, model
+  scope, confidence or review reason, and provenance/source hash.
+- Invalid JSON must not create memory or Raptor writes.
+- Oversized packets must be chunked or reviewed, not blindly sent to Gemma.
+- RaptorGraph truth writes remain backend-gated.
+
+## Metrics
+
+| Metric | Target |
+| --- | ---: |
+| JSON/schema valid rate | >= 95% on synthetic benchmark |
+| Local-only gate pass rate | 100% |
+| Raw-content leak rate | 0 |
+| Inbox triage timeout rate | < 5% |
+| Memory Write Intent correctness | >= 80 benchmark score |
+| Raptor candidate usefulness | >= 80 reviewer score or deterministic heuristic |
+| Queue concurrency | 1 by default |
+| Default maintenance budget | <= 1200 tokens per packet |
+
+## Recommended Execution Order
+
+1. G4O-1, G4O-2, G4O-3: contracts and prompts.
+2. G4O-4, G4O-5: safe runtime envelope and local worker integration.
+3. G4O-6, G4O-7, G4O-8: Inbox, Memory/Raptor, Telegram/Voice.
+4. G4O-9: benchmark proof.
+5. G4O-11: backend cookbook control contract.
+6. G4O-10 and G4O-12 only after explicit live Go.
+
+## Done Definition
+
+- Gemma4 E4B has a central maintenance router.
+- All Gemma jobs are schema-bound, budgeted, and audited.
+- Universal Inbox can use Gemma for local sensitivity and abstraction work.
+- Telegram follow-up after file/voice has a bounded local path.
+- Memory/Raptor writes receive validated candidates only.
+- DeepSeek can orchestrate sensitive workflows only through redacted local worker
+  outputs.
+- Benchmarks provide redacted efficiency evidence.
+- Live gates are either completed with evidence or explicitly deferred.

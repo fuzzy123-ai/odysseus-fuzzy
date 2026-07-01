@@ -23,7 +23,10 @@ from src.maintenance_model_policy import (
     MaintenanceWorkload,
     default_maintenance_model_profile,
     maintenance_model_profile_from_settings,
-    plan_maintenance_model_route,
+)
+from src.gemma4_maintenance_router import (
+    GemmaMaintenanceSurface,
+    plan_gemma4_maintenance_route,
 )
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
 from src.universal_inbox_memory_write_intent import build_universal_inbox_memory_write_intent
@@ -152,19 +155,21 @@ def run_universal_inbox_dry_run(
             text_sample=extraction.raw_text,
         )
         analysis_report = analysis_packet.to_dict()
-        maintenance_route = plan_maintenance_model_route(
+        maintenance_plan = plan_gemma4_maintenance_route(
+            surface=GemmaMaintenanceSurface.UNIVERSAL_INBOX,
             workload=MaintenanceWorkload.INBOX_TRIAGE,
             classification=analysis_report["policy"]["classification"],
             dsgvo_mode=bool(analysis_report["policy"].get("dsgvo_mode")),
             input_chars=len(extraction.raw_text or ""),
             chunk_count=1,
-            source_ref_count=1,
+            source_refs=(item.sha256,),
+            excerpt=extraction.raw_text,
             confidence=worker_config.review_confidence if worker_extraction_status != "completed" else worker_config.default_confidence,
             extraction_status=worker_extraction_status,
             api_escalation_allowed=bool(analysis_report["policy"].get("api_model_allowed")),
             profile=maintenance_profile,
         )
-        maintenance_report = maintenance_route.to_dict()
+        maintenance_report = maintenance_plan.flat_route_report()
         analysis_metadata = dict(analysis_report.get("metadata") or {})
         analysis_metadata["maintenance_route"] = maintenance_report
         analysis_report = {**analysis_report, "metadata": analysis_metadata}

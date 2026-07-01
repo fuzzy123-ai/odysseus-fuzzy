@@ -42,9 +42,12 @@ class MaintenanceModelPolicyError(ValueError):
 
 class MaintenanceWorkload(StrEnum):
     INBOX_TRIAGE = "inbox_triage"
+    SENSITIVITY_CLASSIFICATION = "sensitivity_classification"
     MEMORY_WRITE_INTENT = "memory_write_intent"
     RAPTORGRAPH_ABSTRACTION = "raptorgraph_abstraction"
     RAPTORGRAPH_MAINTENANCE = "raptorgraph_maintenance"
+    VOICE_TRANSCRIPT = "voice_transcript"
+    EXPORT_CONVERSION_PREFLIGHT = "export_conversion_preflight"
     LONG_DOCUMENT_PREFLIGHT = "long_document_preflight"
 
 
