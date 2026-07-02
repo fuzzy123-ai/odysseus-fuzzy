@@ -48,6 +48,21 @@ def _task_exists(session_factory, task_id="task-1"):
         db.close()
 
 
+def _get_task(session_factory, task_id):
+    db = session_factory()
+    try:
+        task = db.query(ScheduledTask).filter(ScheduledTask.id == task_id).first()
+        if not task:
+            return None
+        return {
+            "schedule": task.schedule,
+            "cron_expression": task.cron_expression,
+            "next_run": task.next_run,
+        }
+    finally:
+        db.close()
+
+
 def test_manage_tasks_delete_requires_confirmation(tmp_path, monkeypatch):
     session_factory = _isolated_task_db(tmp_path, monkeypatch)
     _seed_task(session_factory)
@@ -74,3 +89,27 @@ def test_manage_tasks_delete_runs_after_confirmation(tmp_path, monkeypatch):
     assert result["exit_code"] == 0
     assert "Deleted task" in result["response"]
     assert not _task_exists(session_factory)
+
+
+def test_manage_tasks_creates_weekday_reminder_as_single_cron_task(tmp_path, monkeypatch):
+    session_factory = _isolated_task_db(tmp_path, monkeypatch)
+
+    result = asyncio.run(do_manage_tasks(
+        json.dumps({
+            "action": "create",
+            "name": "Weekday reminder",
+            "prompt": "Remind me to check the planning board.",
+            "task_type": "llm",
+            "trigger_type": "schedule",
+            "schedule": "cron",
+            "cron_expression": "0 9 * * 1-5",
+            "output_target": "telegram",
+        }),
+        owner="alice",
+    ))
+
+    assert result["exit_code"] == 0
+    task = _get_task(session_factory, result["task_id"])
+    assert task["schedule"] == "cron"
+    assert task["cron_expression"] == "0 9 * * 1-5"
+    assert task["next_run"] is not None

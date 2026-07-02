@@ -55,6 +55,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                     "action": t.action,
                     "trigger_type": t.trigger_type or "schedule",
                     "schedule": t.schedule,
+                    "cron_expression": t.cron_expression,
                     "trigger_event": t.trigger_event,
                     "trigger_count": t.trigger_count,
                     "next_run": t.next_run.isoformat() + "Z" if t.next_run else None,
@@ -79,6 +80,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 next_run = compute_next_run(
                     schedule, args.get("scheduled_time", "09:00"),
                     args.get("scheduled_day"),
+                    cron_expression=args.get("cron_expression"),
                 )
 
             task_id = str(_uuid.uuid4())
@@ -96,6 +98,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 schedule=args.get("schedule") if trigger_type == "schedule" else None,
                 scheduled_time=args.get("scheduled_time", "09:00") if trigger_type == "schedule" else None,
                 scheduled_day=args.get("scheduled_day"),
+                cron_expression=args.get("cron_expression"),
                 trigger_type=trigger_type,
                 trigger_event=args.get("trigger_event"),
                 trigger_count=args.get("trigger_count"),
@@ -140,7 +143,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 changed.append("trigger_count")
 
             schedule_changed = False
-            for field in ("schedule", "scheduled_time", "scheduled_day"):
+            for field in ("schedule", "scheduled_time", "scheduled_day", "cron_expression"):
                 if args.get(field) is not None:
                     setattr(task, field, args[field])
                     changed.append(field)
@@ -149,6 +152,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             if schedule_changed and (task.trigger_type or "schedule") == "schedule":
                 task.next_run = compute_next_run(
                     task.schedule, task.scheduled_time, task.scheduled_day,
+                    cron_expression=task.cron_expression,
                 )
 
             db.commit()
@@ -187,6 +191,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 if (task.trigger_type or "schedule") == "schedule":
                     task.next_run = compute_next_run(
                         task.schedule, task.scheduled_time, task.scheduled_day,
+                        cron_expression=task.cron_expression,
                     )
             db.commit()
             return {"response": f"Task '{task.name}' {action}d", "exit_code": 0}
