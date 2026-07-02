@@ -6,6 +6,7 @@ API from ``src.plugin_system``; plugin-specific vault rules stay inside plugins.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -16,6 +17,14 @@ MAX_PROVIDER_DIAGNOSTIC_LIST_ITEMS = 20
 MAX_PROVIDER_DIAGNOSTIC_DICT_ITEMS = 40
 MAX_PROVIDER_DIAGNOSTIC_STRING_CHARS = 500
 MAX_PROVIDER_WARNINGS = 20
+_TOOL_CAPABILITY_QUERY_RE = re.compile(
+    r"\b("
+    r"capabilit(?:y|ies)|tools?|werkzeuge?|faehig(?:keit|keiten)|fähigkeit(?:en)?|"
+    r"was kannst du|what can you do|kannst du|dateien? lesen|dateien? schreiben|"
+    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -68,12 +77,17 @@ def preload_provider_context(
 ) -> tuple[List[ProviderPayload], List[str]]:
     """Retrieve context from all providers that advertise the requested mode."""
     providers = get_context_providers(capability=mode)
-    if not providers:
-        return [], []
-
-    per_provider = max(0, int(budget_tokens or 0) // len(providers))
+    per_provider = max(0, int(budget_tokens or 0) // len(providers)) if providers else 0
     payloads: List[ProviderPayload] = []
     warnings: List[str] = []
+    core_payload = _tool_capability_payload_if_relevant(query=query, budget=budget_tokens, mode=mode)
+    if core_payload:
+        payloads.append(ProviderPayload(
+            provider_id="core.tool_capability_knowledge",
+            plugin_id=None,
+            payload=core_payload,
+            capabilities=("agent", "chat", "tool_capabilities", "memory"),
+        ))
     for provider in providers:
         try:
             raw = provider.retrieve(owner=owner, query=query, budget=per_provider, mode=mode)
@@ -107,6 +121,20 @@ def preload_provider_context(
             capabilities=provider.capabilities,
         ))
     return payloads, warnings
+
+
+def _tool_capability_payload_if_relevant(*, query: str, budget: int, mode: str) -> Optional[Dict[str, Any]]:
+    if mode not in {"agent", "chat"}:
+        return None
+    if not _TOOL_CAPABILITY_QUERY_RE.search(str(query or "")):
+        return None
+    try:
+        from src.tool_capability_maintenance import load_tool_capability_provider_payload
+
+        return load_tool_capability_provider_payload(query=query, budget=budget)
+    except Exception as exc:
+        logger.debug("tool capability provider skipped: %s", exc)
+        return None
 
 
 def _record_retrieval(

@@ -180,6 +180,9 @@ case "$version_json" in
   *) die "version API does not report deployed commit $short_commit" ;;
 esac
 
+log "refreshing tool capability knowledge"
+python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$short_commit"
+
 log "scheduled update completed at $short_commit"
 EOF
 

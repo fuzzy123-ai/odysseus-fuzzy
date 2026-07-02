@@ -214,3 +214,19 @@ def test_provider_nested_memory_warnings_become_prompt_warnings():
     assert assembly.messages[0]["content"].startswith("Provider warnings:")
     assert "demo.warning: Freshness Gate filtered 1 stale item(s)." in assembly.messages[0]["content"]
     assert assembly.messages[-1]["content"] == "hello"
+
+
+def test_tool_capability_provider_injects_for_capability_questions():
+    assembly = assemble_context(
+        system_messages=[{"role": "system", "content": "Core rules"}],
+        history_messages=[{"role": "user", "content": "Kannst du Dateien lesen und git nutzen?"}],
+        owner="alice",
+        query="Kannst du Dateien lesen und git nutzen?",
+        total_budget=2000,
+        mode="agent",
+    )
+
+    assert any(item.provider_id == "core.tool_capability_knowledge" for item in assembly.provider_payloads)
+    content = "\n".join(message["content"] for message in assembly.messages)
+    assert "read_file" in content
+    assert "manage_repos" in content
