@@ -1129,7 +1129,9 @@ def _execute_telegram_memory_auto_write_if_ready(
     )
     if status != "ready":
         return None
-    if bool(inbox_attachment.get("maintenance_review_required")):
+    if bool(inbox_attachment.get("maintenance_review_required")) and not _telegram_memory_auto_write_gate_is_clean(
+        inbox_attachment
+    ):
         return None
     execution = _execute_telegram_memory_review_write(
         data_dir=data_dir,
@@ -1155,6 +1157,27 @@ def _execute_telegram_memory_auto_write_if_ready(
         filename_visible=False,
     )
     return execution
+
+
+def _telegram_memory_auto_write_gate_is_clean(inbox_attachment: Mapping[str, Any]) -> bool:
+    """Allow ready redacted writes when no Inbox or extraction blocker remains."""
+
+    if normalize_memory_write_intent_status(
+        inbox_attachment.get("memory_write_intent_status") or "",
+        fallback="unknown",
+    ) != "ready":
+        return False
+    if str(inbox_attachment.get("universal_inbox_status") or "") != "go":
+        return False
+    if str(inbox_attachment.get("extraction_status") or "") != "completed":
+        return False
+    if tuple(inbox_attachment.get("extraction_warning_codes") or ()):
+        return False
+    if int(inbox_attachment.get("review_reason_count") or 0) > 0:
+        return False
+    if int(inbox_attachment.get("no_go_reason_count") or 0) > 0:
+        return False
+    return True
 
 
 def build_telegram_live_voice_stt_provider(
@@ -1680,6 +1703,8 @@ def setup(ctx):
                 maintenance_provider=str(inbox_attachment.get("maintenance_provider") or ""),
                 maintenance_action=str(inbox_attachment.get("maintenance_action") or ""),
                 maintenance_review_required=bool(inbox_attachment.get("maintenance_review_required")),
+                review_reason_count=int(inbox_attachment.get("review_reason_count") or 0),
+                no_go_reason_count=int(inbox_attachment.get("no_go_reason_count") or 0),
                 extraction_status=str(inbox_attachment.get("extraction_status") or ""),
                 extraction_warning_codes=tuple(inbox_attachment.get("extraction_warning_codes") or ()),
                 memory_records_planned=int(inbox_attachment.get("memory_records_planned") or 0),

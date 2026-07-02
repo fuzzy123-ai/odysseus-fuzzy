@@ -153,6 +153,8 @@ def run_telegram_universal_inbox_attachment_pipeline(
         "maintenance_provider": str(snapshot.get("maintenance_provider") or ""),
         "maintenance_action": str(snapshot.get("maintenance_action") or ""),
         "maintenance_review_required": bool(snapshot.get("maintenance_review_required")),
+        "review_reason_count": int(snapshot.get("review_reason_count") or 0),
+        "no_go_reason_count": int(snapshot.get("no_go_reason_count") or 0),
         "extraction_status": str(snapshot.get("extraction_status") or ""),
         "extraction_warning_codes": tuple(snapshot.get("extraction_warning_codes") or ()),
         "memory_records_planned": int(snapshot.get("memory_records_planned") or 0),

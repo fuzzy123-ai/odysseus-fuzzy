@@ -145,12 +145,82 @@ class LocalTesseractOcrAdapter:
         return image_path.exists()
 
     def _ocr_image(self, image_path: Path) -> str:
+        best_text = ""
+        last_error: UniversalInboxOcrUnavailable | None = None
+        with tempfile.TemporaryDirectory(prefix="odysseus-uix-ocr-img-") as tmp:
+            for candidate in self._image_candidates(image_path, Path(tmp)):
+                for psm in _tesseract_psm_modes(candidate):
+                    try:
+                        text = self._run_tesseract(candidate, psm=psm)
+                    except UniversalInboxOcrUnavailable as exc:
+                        last_error = exc
+                        continue
+                    if _ocr_score(text) > _ocr_score(best_text):
+                        best_text = text
+        if best_text.strip():
+            return _normalize_ocr_text(best_text)[: self.settings.max_chars]
+        if last_error is not None:
+            raise last_error
+        return ""
+
+    def _image_candidates(self, image_path: Path, tmp_dir: Path) -> tuple[Path, ...]:
+        candidates = [image_path]
+        try:
+            from PIL import Image, ImageFilter, ImageOps
+        except Exception:
+            return tuple(candidates)
+
+        try:
+            with Image.open(image_path) as original:
+                base = ImageOps.exif_transpose(original).convert("RGB")
+        except Exception:
+            return tuple(candidates)
+
+        width, height = base.size
+        if width < 32 or height < 32:
+            return tuple(candidates)
+
+        crop_specs = (
+            ("full", (0.0, 0.0, 1.0, 1.0)),
+            ("center", (0.12, 0.18, 0.88, 0.86)),
+            ("device_body", (0.18, 0.24, 0.86, 0.72)),
+            ("lower_label", (0.34, 0.50, 0.78, 0.72)),
+        )
+        for index, (name, box) in enumerate(crop_specs, start=1):
+            left = int(width * box[0])
+            top = int(height * box[1])
+            right = int(width * box[2])
+            bottom = int(height * box[3])
+            if right - left < 24 or bottom - top < 24:
+                continue
+            crop = base.crop((left, top, right, bottom))
+            scale = _ocr_scale_for(crop.size)
+            resized = crop.resize((crop.size[0] * scale, crop.size[1] * scale))
+            gray = ImageOps.grayscale(resized)
+            contrasted = ImageOps.autocontrast(gray)
+            sharpened = contrasted.filter(ImageFilter.SHARPEN)
+            variants = (
+                ("gray", contrasted),
+                ("binary", sharpened.point(lambda value: 255 if value > 172 else 0)),
+            )
+            for variant_name, image in variants:
+                target = tmp_dir / f"{index:02d}-{name}-{variant_name}.png"
+                try:
+                    image.save(target)
+                except Exception:
+                    continue
+                candidates.append(target)
+        return tuple(dict.fromkeys(candidates))
+
+    def _run_tesseract(self, image_path: Path, *, psm: str) -> str:
         command = [
             self.settings.tesseract_cmd,
             str(image_path),
             "stdout",
             "-l",
             self.settings.language,
+            "--psm",
+            psm,
         ]
         try:
             completed = subprocess.run(
@@ -169,6 +239,48 @@ class LocalTesseractOcrAdapter:
             suffix = f":{detail[0][:80]}" if detail else ""
             raise UniversalInboxOcrUnavailable(f"tesseract_failed{suffix}")
         return str(completed.stdout or "")[: self.settings.max_chars]
+
+
+def _tesseract_psm_modes(image_path: Path) -> tuple[str, ...]:
+    name = image_path.name.lower()
+    if "lower_label" in name:
+        return ("7", "13", "6", "11")
+    if "device_body" in name or "center" in name:
+        return ("6", "11", "7")
+    return ("6", "11")
+
+
+def _ocr_scale_for(size: tuple[int, int]) -> int:
+    longest = max(size)
+    if longest < 700:
+        return 4
+    if longest < 1400:
+        return 3
+    return 2
+
+
+def _normalize_ocr_text(text: str) -> str:
+    lines = []
+    seen = set()
+    for raw_line in str(text or "").splitlines():
+        line = " ".join(raw_line.strip().split())
+        if not line:
+            continue
+        key = line.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _ocr_score(text: str) -> int:
+    normalized = _normalize_ocr_text(text)
+    alnum = sum(1 for char in normalized if char.isalnum())
+    digit_bonus = 20 if any(char.isdigit() for char in normalized) else 0
+    mixed_bonus = 20 if any(char.isalpha() for char in normalized) and any(char.isdigit() for char in normalized) else 0
+    line_bonus = min(5, len(normalized.splitlines())) * 4
+    return alnum + digit_bonus + mixed_bonus + line_bonus
 
 
 def _bool_value(value: Any) -> bool:
