@@ -152,7 +152,7 @@ Allowed paths:
 - `routes/webhook_routes.py`
 - `src/url_security.py`
 - `tests/test_api_chat_security.py`
-- optional new `tests/test_url_security.py`
+- direct `base_url` coverage in `tests/test_api_chat_security.py`
 
 Implemented fix:
 
@@ -210,9 +210,7 @@ Goal: Add a todo-only digest backend action that can produce a concise morning c
 Allowed paths:
 
 - `src/builtin_actions.py`
-- `src/tool_domains/personal_workspace.py`
-- `tests/test_task_scheduler.py`
-- optional new `tests/test_todo_digest.py`
+- `tests/test_todo_digest.py`
 
 Requirements:
 
@@ -223,7 +221,7 @@ Requirements:
 
 Verification:
 
-- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_todo_digest.py tests\test_task_scheduler.py`
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_todo_digest.py`
 
 Done when:
 
@@ -277,7 +275,7 @@ Allowed paths:
 - `src/task_scheduler_delivery.py`
 - `routes/task_routes.py`
 - `tests/test_task_scheduler_delivery.py`
-- optional new `tests/test_task_scheduler_telegram_delivery.py`
+- Telegram output coverage in `tests/test_task_scheduler_delivery.py`
 
 Requirements:
 
@@ -288,7 +286,7 @@ Requirements:
 
 Verification:
 
-- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_task_scheduler_delivery.py tests\test_task_scheduler_telegram_delivery.py`
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_task_scheduler_delivery.py`
 
 Done when:
 
@@ -307,8 +305,7 @@ Allowed paths:
 - `routes/note_reminders.py`
 - `routes/note_routes.py`
 - `src/builtin_actions.py`
-- `tests/test_notes_reminders.py`
-- optional new `tests/test_note_reminder_telegram.py`
+- `tests/test_note_reminder_telegram.py`
 
 Requirements:
 
@@ -319,7 +316,7 @@ Requirements:
 
 Verification:
 
-- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_note_reminder_telegram.py tests\test_notes_reminders.py`
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_note_reminder_telegram.py`
 
 Done when:
 
@@ -339,7 +336,7 @@ Allowed paths:
 - `routes/task_routes.py`
 - `src/agent_automation_spec.py`
 - `tests/test_agent_automation_spec.py`
-- `tests/test_task_scheduler.py`
+- interval coverage in `tests/test_agent_automation_spec.py`
 
 Requirements:
 
@@ -349,7 +346,7 @@ Requirements:
 
 Verification:
 
-- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_automation_spec.py tests\test_task_scheduler.py`
+- `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_automation_spec.py`
 
 Done when:
 
@@ -420,7 +417,7 @@ Done when:
 - Run `git status --short --branch`.
 - Confirm no unrelated staged files.
 - Re-open the Security scan summary and this roadmap.
-- Decide whether tomorrow is implementation-only or also commit/push.
+- Confirm implementation scope and commit/push state.
 
 Exit criterion:
 
@@ -544,7 +541,7 @@ Decision needed:
 
 Recommended decision:
 
-- Disable by default tomorrow. Build IP-pinning later only if the feature is genuinely needed.
+- Disabled by default in this slice. Build IP-pinning later only if the feature is genuinely needed.
 
 Risk if bypassed:
 
@@ -562,7 +559,7 @@ Decision needed:
 
 Recommended decision:
 
-- Admin-only tomorrow. Add `vault:write` later after product decision.
+- Admin-only in this slice. Add `vault:write` later after product decision.
 
 Risk if bypassed:
 
