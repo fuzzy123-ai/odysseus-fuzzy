@@ -3,6 +3,7 @@ services:
     volumes:
       - nextcloud-data:/app/nextcloud-data:ro
     networks:
+      - default
       - nextcloud-network
     environment:
       - ODYSSEUS_NEXTCLOUD_PROVIDER_ID=${ODYSSEUS_NEXTCLOUD_PROVIDER_ID:-nextcloud_sync}
@@ -12,6 +13,7 @@ services:
       - ODYSSEUS_NEXTCLOUD_CONTAINER_DATA_PATH=${ODYSSEUS_NEXTCLOUD_CONTAINER_DATA_PATH:-/app/nextcloud-data}
 
 networks:
+  default:
   nextcloud-network:
     external: true
     name: ${NEXTCLOUD_PODMAN_NETWORK:-nextcloud_default}
