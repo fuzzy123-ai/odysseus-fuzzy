@@ -462,6 +462,7 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
             "image model": "image_model", "image quality": "image_quality",
             "image gen": "image_gen_enabled", "image generation": "image_gen_enabled",
             "reminder channel": "reminder_channel", "reminders": "reminder_channel",
+            "reminder telegram dry run": "reminder_telegram_dry_run", "telegram reminder dry run": "reminder_telegram_dry_run",
             "ntfy topic": "reminder_ntfy_topic",
             "webhook integration": "reminder_webhook_integration_id",
             "webhook template": "reminder_webhook_payload_template", "webhook payload": "reminder_webhook_payload_template",
@@ -480,7 +481,7 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
 
         _ENUMS = {
             "image_quality": ["low", "medium", "high"],
-            "reminder_channel": ["browser", "email", "ntfy", "webhook"],
+            "reminder_channel": ["browser", "email", "ntfy", "webhook", "telegram"],
         }
         def _coerce(value, default):
             if isinstance(default, bool):

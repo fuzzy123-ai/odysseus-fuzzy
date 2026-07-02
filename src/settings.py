@@ -184,7 +184,8 @@ DEFAULT_SETTINGS = {
     # library can grow beyond this; cleanup/retirement is an explicit review flow.
     "skill_max_injected": 3,
     # Reminders
-    "reminder_channel": "browser",   # "browser" | "email" | "ntfy" | "webhook"
+    "reminder_channel": "browser",   # "browser" | "email" | "ntfy" | "webhook" | "telegram"
+    "reminder_telegram_dry_run": True,
     "reminder_llm_synthesis": False,
     "reminder_llm_persona": "",
     "reminder_ntfy_topic": "Reminders",

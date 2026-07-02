@@ -81,7 +81,16 @@ def test_aliases_and_public_registry_are_machine_readable():
     assert resolve_setting_alias("default model") == "default_model"
     assert resolve_setting_alias("token budget") == "agent_input_token_budget"
     assert resolve_setting_alias("agent_input_token_budget") == "agent_input_token_budget"
+    assert resolve_setting_alias("telegram reminder dry run") == "reminder_telegram_dry_run"
 
     public = public_registry("feature")
     assert {entry["key"] for entry in public} == set(DEFAULT_FEATURES)
     assert all(entry["agent_access"] == "confirm" for entry in public)
+
+
+def test_reminder_channel_registry_includes_telegram():
+    entry = get_registry_entry("reminder_channel")
+
+    assert entry.value_type == "enum"
+    assert "telegram" in entry.enum_values
+    assert get_registry_entry("reminder_telegram_dry_run").value_type == "bool"

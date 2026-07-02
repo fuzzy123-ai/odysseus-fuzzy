@@ -62,7 +62,9 @@ SETTING_ALIASES: dict[str, str] = {
     "input budget cap": "agent_input_token_hard_max",
     "ntfy topic": "reminder_ntfy_topic",
     "reminder channel": "reminder_channel",
+    "reminder telegram dry run": "reminder_telegram_dry_run",
     "reminders": "reminder_channel",
+    "telegram reminder dry run": "reminder_telegram_dry_run",
     "research max tokens": "research_max_tokens",
     "research model": "research_model",
     "result count": "search_result_count",
@@ -95,7 +97,7 @@ SETTING_ALIASES: dict[str, str] = {
 
 _ENUM_VALUES: dict[str, tuple[str, ...]] = {
     "image_quality": ("low", "medium", "high"),
-    "reminder_channel": ("browser", "email", "ntfy", "webhook"),
+    "reminder_channel": ("browser", "email", "ntfy", "webhook", "telegram"),
     "search_safesearch": ("strict", "moderate", "off"),
 }
 

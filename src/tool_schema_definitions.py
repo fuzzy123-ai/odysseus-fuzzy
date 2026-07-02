@@ -567,7 +567,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "trigger_event": {"type": "string", "enum": ["session_created", "message_sent", "document_created", "memory_added", "research_completed", "email_received", "skill_added"],
                                       "description": "Event name (for trigger_type=event)"},
                     "trigger_count": {"type": "integer", "description": "Fire every N events (for trigger_type=event)"},
-                    "output_target": {"type": "string", "description": "Where results go. Defaults to 'session' (results land in a dedicated chat session the user reads) — this is the right choice for 'summarize for me' / 'send to me'. Do NOT go hunting for the user's email address; only use an email MCP tool name here if the user explicitly asked to be emailed AND an address is already known."},
+                    "output_target": {"type": "string", "description": "Where results go. Defaults to 'session' (results land in a dedicated chat session the user reads) — this is the right choice for 'summarize for me' / 'send to me'. Use 'telegram' only for the server-side safe notification boundary; do not pass chat IDs or tokens. Do NOT go hunting for the user's email address; only use an email MCP tool name here if the user explicitly asked to be emailed AND an address is already known."},
                     "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]

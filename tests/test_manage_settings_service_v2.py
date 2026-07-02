@@ -120,6 +120,28 @@ def test_patch_structured_setting_through_tool(isolated_settings_files):
     assert settings_store.load_settings()["search_fallback_chain"] == ["duckduckgo", "brave"]
 
 
+def test_reminder_channel_accepts_telegram_and_keeps_dry_run_configurable(isolated_settings_files):
+    channel = _run_manage({
+        "action": "set",
+        "key": "reminder channel",
+        "value": "telegram",
+        "scope": "global",
+    })
+    dry_run = _run_manage({
+        "action": "set",
+        "key": "telegram reminder dry run",
+        "value": True,
+        "scope": "global",
+    })
+
+    assert channel["exit_code"] == 0
+    assert channel["value"] == "telegram"
+    assert settings_store.load_settings()["reminder_channel"] == "telegram"
+    assert dry_run["exit_code"] == 0
+    assert dry_run["value"] is True
+    assert settings_store.load_settings()["reminder_telegram_dry_run"] is True
+
+
 def test_confirm_protected_patch_blocks_until_confirmed(isolated_settings_files):
     blocked = _run_manage({
         "action": "patch",

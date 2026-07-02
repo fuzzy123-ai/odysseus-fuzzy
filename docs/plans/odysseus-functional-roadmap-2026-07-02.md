@@ -35,6 +35,7 @@ Status: **repo complete / live sends gated**
 - NOTIFY1 done: shared user notification delivery boundary keeps Telegram target config server-side and dry-run by default.
 - NOTIFY2 done: scheduler output target `telegram` maps to the safe notification boundary, without storing chat IDs in task rows.
 - REMIND1 done: note reminders can request Telegram delivery through the shared boundary.
+- REMIND1 follow-up done: `manage_settings` and the settings registry accept `telegram` as reminder channel, with `reminder_telegram_dry_run=True` as the safe default.
 - AUTO1 done: interval automation specs map safe intervals such as 5 minutes to the live scheduler cron representation.
 - MAINT1 done: `local_maintenance_dry_run` prepares review-only maintenance work without live LLM calls or truth writes.
 - MODEL1 done: model role/routing contract is recorded in `docs/plans/model-cooperation-routing-contract.md`.
