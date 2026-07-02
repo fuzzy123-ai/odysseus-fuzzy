@@ -55,3 +55,14 @@ def test_genuine_keywords_still_force_include():
     assert "reply_to_email" in ti.get_tools_for_query("reply to this email")
     assert "edit_document" in ti.get_tools_for_query("edit the document")
     assert "serve_model" in ti.get_tools_for_query("serve the model")
+
+
+def test_german_daily_task_keywords_force_manage_tasks():
+    ti = _index()
+
+    assert "manage_tasks" in ti.get_tools_for_query(
+        "richte mir jeden Morgen einen Todo Digest per Telegram ein"
+    )
+    assert "manage_tasks" in ti.get_tools_for_query(
+        "taeglich um 8 Uhr die Aufgabenliste senden"
+    )

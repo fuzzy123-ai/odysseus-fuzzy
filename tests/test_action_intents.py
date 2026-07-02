@@ -37,6 +37,14 @@ def test_note_todo_and_reminder_actions_promote_to_agent():
     assert message_needs_tools("set a reminder to call Pat at 4pm")
 
 
+def test_recurring_daily_task_requests_promote_to_agent():
+    assert message_needs_tools("set up a todo digest every morning")
+    assert classify_tool_intent("set up a todo digest every morning").category == "tasks"
+    assert message_needs_tools("richte mir jeden Morgen einen Todo Digest per Telegram ein")
+    assert classify_tool_intent("richte mir jeden Morgen einen Todo Digest per Telegram ein").category == "tasks"
+    assert message_needs_tools("täglich um 8 Uhr schick mir die Aufgabenliste")
+
+
 def test_email_and_ui_actions_promote_to_agent():
     assert message_needs_tools("reply to that email")
     assert message_needs_tools("mark those emails as read")

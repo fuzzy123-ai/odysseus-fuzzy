@@ -77,6 +77,14 @@ _ROUTING_PATTERNS: tuple[tuple[str, str, Pattern[str]], ...] = tuple(
         ("notes", "set reminder request", rf"{_PLEASE}set\s+(?:a\s+)?reminder\b"),
         ("notes", "assistant reminder request", rf"{_ACTION_QUESTION}set\s+(?:a\s+)?reminder\b"),
 
+        # Recurring/background tasks. These must route to manage_tasks instead
+        # of being answered as a one-off chat, especially from Telegram where
+        # users naturally say "jeden Morgen ..." by voice/text.
+        ("tasks", "recurring scheduled task request", rf"{_PLEASE}(?:create|set\s+up|schedule|run|send|make)\b.{{0,160}}\b(?:every|each|daily|weekly|monthly|automatically|on\s+a\s+schedule)\b"),
+        ("tasks", "recurring scheduled task request", rf"{_PLEASE}(?:every|each)\s+(?:morning|day|evening|night|week|month|hour)\b.{{0,160}}\b(?:send|run|create|summari[sz]e|digest|remind)\b"),
+        ("tasks", "german recurring scheduled task request", rf"{_PLEASE}(?:richte|erstelle|plane|mach|setze|leg|lege|schick|sende)\b.{{0,160}}\b(?:jeden|taeglich|täglich|woechentlich|wöchentlich|monatlich|automatisch|regelmaessig|regelmäßig)\b"),
+        ("tasks", "german recurring scheduled task request", rf"{_PLEASE}(?:jeden\s+(?:morgen|tag|abend|mittag|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)|taeglich|täglich)\b.{{0,160}}\b(?:schick|sende|erstelle|lauf|laufen|digest|zusammenfassung|todo|aufgabe)\b"),
+
         # Email actions.
         ("email", "assistant email action request", rf"{_ACTION_QUESTION}(?:send|write|reply|email|message|archive|delete|mark)\b.{{0,120}}\b(?:emails?|mail|messages?|inbox|unread|read)\b"),
         ("email", "send/write/reply email request", rf"{_PLEASE}(?:send|write|reply)\b.{{0,120}}\b(?:emails?|mail|messages?)\b"),

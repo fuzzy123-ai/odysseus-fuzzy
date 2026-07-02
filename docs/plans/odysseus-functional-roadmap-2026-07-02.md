@@ -34,6 +34,7 @@ Status: **repo complete / live sends gated**
 - TODO1 done: `todo_digest` backend action produces a todo-only digest from notes/checklists.
 - NOTIFY1 done: shared user notification delivery boundary keeps Telegram target config server-side and dry-run by default.
 - NOTIFY2 done: scheduler output target `telegram` maps to the safe notification boundary, without storing chat IDs in task rows.
+- NOTIFY2 follow-up done: German/Telegram-style daily task wording such as "jeden Morgen" and "taeglich" reliably routes to `manage_tasks`, with prompt hints for `todo_digest` and `output_target="telegram"`.
 - REMIND1 done: note reminders can request Telegram delivery through the shared boundary.
 - REMIND1 follow-up done: `manage_settings` and the settings registry accept `telegram` as reminder channel, with `reminder_telegram_dry_run=True` as the safe default.
 - AUTO1 done: interval automation specs map safe intervals such as 5 minutes to the live scheduler cron representation.

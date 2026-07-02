@@ -94,7 +94,7 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
     "manage_session": "Chat management: rename, archive, delete, or fork chats (the UI calls these 'chats'; internally 'sessions'). Use for 'rename my chats', 'rename this chat', 'archive/delete a chat'.",
     "manage_memory": "Memory management: list, add, edit, delete, or search persistent memories. For facts about the USER (their name, preferences, where they live). NOT for info about ANOTHER person — addresses, phones, emails belonging to a contact go in manage_contact, not memory.",
     "manage_skills": "Skill management: add, update, publish, or search reusable skills/presets.",
-    "manage_tasks": "Scheduled task management: list, create, edit, delete, pause, resume, or run cron tasks.",
+    "manage_tasks": "Scheduled task management: list, create, edit, delete, pause, resume, or run cron tasks. For the prepared morning todo digest use task_type=action, action_name=todo_digest, schedule=daily, and output_target=telegram when the user asks for Telegram delivery; never include Telegram chat IDs or tokens.",
     "manage_endpoints": "Endpoint management: list, add, update, delete, enable, or disable model API endpoints. Mutations require confirmed=true; API keys use secure handoff, not chat text.",
     "manage_mcp": "MCP server management: list, add, delete, enable, disable, reconnect servers, or list available tools. Mutations require confirmed=true; stdio add is restricted by the MCP command allowlist.",
     "manage_webhooks": "Webhook management: list, add, test, delete, enable, or disable webhooks. Mutating/test actions require confirmed=true and webhook URLs are masked in output.",
@@ -397,6 +397,7 @@ class ToolIndex:
         r"\bevery\s+\w+"                                       # every day / dya / morning / monday / 2 hours
         r"|\b(?:daily|nightly|hourly|weekly|monthly)\b"
         r"|\beach\s+(?:day|morning|night|week|hour|evening)\b"
+        r"|\b(?:jeden\s+\w+|taeglich|täglich|woechentlich|wöchentlich|monatlich|regelmaessig|regelmäßig|automatisch)\b"
         r"|\bat\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b",  # at 7:30 am / at 7am
         re.I,
     )
@@ -440,7 +441,10 @@ class ToolIndex:
                    "daily task", "background task", "scheduled task", "schedule a",
                    "automatically", "auto-summarize", "auto summarize",
                    "cron", "periodically", "on a schedule", "set up a task",
-                   "create a task", "summarize my inbox every", "remind me every"}):
+                   "create a task", "summarize my inbox every", "remind me every",
+                   "jeden morgen", "jeden tag", "jeden abend", "taeglich", "täglich",
+                   "woechentlich", "wöchentlich", "monatlich", "regelmaessig",
+                   "regelmäßig", "geplanter task", "geplante aufgabe"}):
             {"manage_tasks"},
         frozenset({"contact", "address", "phone", "who is"}):
             {"resolve_contact", "manage_contact"},

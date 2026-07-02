@@ -199,7 +199,10 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("email")
     if has(r"\b(note|todo|to-do|checklist|task list|remind me|reminder|buy|pickup|pick up)\b"):
         domains.add("notes_calendar_tasks")
-    if has(r"\b(every day|every morning|every evening|recurring|automatically|cron|scheduled task|background task)\b"):
+    if has(
+        r"\b(every day|every morning|every evening|recurring|automatically|cron|scheduled task|background task)\b",
+        r"\b(jeden morgen|jeden tag|jeden abend|taeglich|täglich|woechentlich|wöchentlich|monatlich|automatisch|wiederkehrend|regelmaessig|regelmäßig|geplanter task|geplante aufgabe)\b",
+    ):
         domains.add("notes_calendar_tasks")
     if has(r"\b(calendar|event|meeting|appointment|schedule)\b"):
         domains.add("notes_calendar_tasks")

@@ -202,6 +202,16 @@ def test_polish_internet_search_request_classifies_as_web():
     assert "web" in intent["domains"]
 
 
+def test_german_daily_task_request_classifies_as_notes_calendar_tasks():
+    intent = _classify_agent_request(
+        [{"role": "user", "content": "Richte mir jeden Morgen einen Todo Digest per Telegram ein"}],
+        "Richte mir jeden Morgen einen Todo Digest per Telegram ein",
+    )
+
+    assert intent["low_signal"] is False
+    assert "notes_calendar_tasks" in intent["domains"]
+
+
 # ---------------------------------------------------------------------------
 # _detect_admin_intent
 # ---------------------------------------------------------------------------
