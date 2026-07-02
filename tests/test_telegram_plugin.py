@@ -684,6 +684,57 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
 
 
+def test_webhook_allowed_text_reaches_coding_agent_task_bridge(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    turns = []
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "sess-coding-task"}
+
+    def _agent_turn(bridge):
+        turns.append(bridge)
+        return {"status": "accepted", "reply_text": "Coding task accepted"}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: {
+        "ok": True,
+        "telegram_message_id": 92,
+        "token_value_visible": False,
+    })
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path, telegram_agent_turn_handler=_agent_turn)
+    ctx.telegram_session_bridge = _session_bridge
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 46,
+        "message": {
+            "message_id": 57,
+            "chat": {"id": 123},
+            "from": {"id": 1, "first_name": "User"},
+            "text": "Repo demo bitte implementiere feature ping und teste es",
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert turns
+    assert turns[0]["ready_for_agent"] is True
+    assert turns[0]["task_intent"]["task_type"] == "coding_agent_task"
+    assert turns[0]["task_intent"]["target_ref"] == "repo:demo"
+    assert turns[0]["task_intent"]["gates_required"] == (
+        "coding_task_scope_review",
+        "sandbox_execution_policy",
+    )
+    assert payload["agent_bridge"]["ready_for_agent"] is True
+    assert payload["agent_bridge"]["task_intent"]["task_type"] == "coding_agent_task"
+    assert payload["agent_turn"]["reply_text_value_visible"] is False
+    assert "Coding task accepted" not in json.dumps(payload["agent_turn"], ensure_ascii=False)
+
+
 def test_webhook_uses_app_state_agent_bridge_when_context_has_no_direct_hooks(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")

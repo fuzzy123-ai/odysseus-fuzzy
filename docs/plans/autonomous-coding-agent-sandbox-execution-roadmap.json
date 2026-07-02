@@ -2,13 +2,13 @@
   "schema_version": 1,
   "kind": "odysseus.abc_execution_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "backend_live_partial_telegram_gate_pending",
   "mode": "Standard ABC",
   "title": "Autonomous Coding Agent And Sandbox Execution Roadmap",
   "goal": "Make Odysseus able to accept a bounded coding task, create an isolated worktree, run checks in a disposable Podman sandbox, collect redacted evidence, and prepare reviewed publish steps without broad host-shell access.",
   "current_evidence": {
-    "latest_verified_commit": "pending",
-    "local_status": "Coding-agent worker, sandbox bridge, evidence storage, Telegram coding intent and local E2E dry-run are implemented locally; Debian live verification is pending deploy.",
+    "latest_verified_commit": "03539ef6",
+    "local_status": "Coding-agent worker, sandbox bridge, evidence storage, Telegram coding intent and local E2E dry-run are implemented, committed and pushed; Debian is on the current fuzzy/dev commit and live sandbox execution has been proven.",
     "focused_tests": {
       "command": "venv/Scripts/python.exe -m pytest tests/test_sandbox_job_ledger.py tests/test_agent_sandbox_worker.py tests/test_sandbox_worker_routes.py tests/test_coding_agent_sandbox_bridge.py tests/test_autonomous_coding_agent_e2e.py tests/test_coding_agent_memory_bridge.py tests/test_sandbox_network_policy.py tests/test_evidence_storage.py tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py tests/test_telegram_task_orchestrator.py tests/test_telegram_plugin.py::test_telegram_workflow_context_detects_coding_agent_tasks tests/test_telegram_plugin.py::test_agent_bridge_includes_redacted_long_running_task_intent tests/test_telegram_plugin.py::test_task_control_commands_are_detected tests/test_telegram_plugin.py::test_task_control_status_and_pause_use_redacted_ledger -q",
       "result": "61 passed, 1 SQLAlchemy deprecation warning"
@@ -21,7 +21,14 @@
       "Artifact policy, resource guard and result observer integration.",
       "Debian live smoke for disposable Podman execution with network none, memory/cpu/pids limits and no-new-privileges."
     ],
-    "known_gap_summary": "Safe repo implementation is complete through local E2E dry-run; remaining gaps are Debian deployment, one live sandbox worker smoke and one Telegram-to-coding-task live smoke."
+    "live_status": {
+      "debian_version_commit": "03539ef6",
+      "sandbox_worker_smoke": "passed",
+      "sandbox_worker_evidence_ref": "autonomous_coding_agent/live-sandbox-worker-smoke.json",
+      "telegram_polling": "observed active via local Odysseus poll endpoint logs",
+      "telegram_coding_task_smoke": "pending real inbound user message or an approved internal synthetic update path"
+    },
+    "known_gap_summary": "Backend and safe repo implementation are complete, Debian is current and one live Podman sandbox worker smoke passed. The remaining completion gate is ACA-12: prove a Telegram coding-task request reaches task lifecycle, sandbox evidence and next-human-decision status without leaking sensitive data."
   },
   "hard_constraints": {
     "runtime": "podman_pods",
@@ -282,14 +289,15 @@
       "id": "ACA-11-debian-live-sandbox-worker-smoke",
       "class": "needs_live_go",
       "owner": "Charlie",
-      "status": "gated",
+      "status": "done",
       "goal": "Run one harmless live sandbox worker job on Debian and store durable redacted evidence.",
       "allowed_paths": [
         "data/reports/autonomous_coding_agent/**"
       ],
       "tests": [],
       "gate_required": "debian-live-sandbox-worker-go",
-      "done_when": "Debian executes a harmless sandbox worker job with network none, no secrets, resource limits and durable evidence under data/reports."
+      "done_when": "Debian executes a harmless sandbox worker job with network none, no secrets, resource limits and durable evidence under data/reports.",
+      "evidence": "Debian /api/version reports commit 03539ef6 current. SandboxWorker live job aca_live_python_version_03539ef6 succeeded with network none, no secrets, 512MB memory, 0.5 CPU, pids limit, exit_code 0 and durable evidence ref autonomous_coding_agent/live-sandbox-worker-smoke.json."
     },
     {
       "id": "ACA-12-telegram-to-coding-task-live-smoke",
@@ -309,9 +317,10 @@
     {
       "id": "debian-live-sandbox-worker-go",
       "class": "needs_live_go",
+      "status": "resolved",
       "blocks": ["ACA-11-debian-live-sandbox-worker-smoke"],
       "decision_needed": "Approve one harmless live Podman sandbox worker job on Debian with network none, no secrets, fixed timeout and durable evidence path.",
-      "safe_preparation_done": "Contracts, templates and prior disposable Podman smoke exist.",
+      "safe_preparation_done": "Contracts, templates and prior disposable Podman smoke exist; approved live smoke has passed.",
       "risk_if_bypassed": "Agent code could execute outside the intended operator-approved live boundary."
     },
     {
@@ -408,10 +417,10 @@
   ],
   "progress_model": {
     "total_required_slices": 12,
-    "completed_slices": 10,
-    "gated_live_slices": 2,
+    "completed_slices": 11,
+    "gated_live_slices": 1,
     "repo_safe_open_slices": 0,
-    "initial_progress_percent": 83,
-    "version_ready_when": "All repo_only and safe_offline slices are done, live gates ACA-11 and ACA-12 are approved and passed, and UI placement is either implemented by the UI agent or consciously deferred as non-blocking backend status."
+    "current_progress_percent": 92,
+    "version_ready_when": "All repo_only and safe_offline slices are done, live gate ACA-12 is approved and passed, and UI placement is either implemented by the UI agent or consciously deferred as non-blocking backend status."
   }
 }

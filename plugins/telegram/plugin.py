@@ -223,10 +223,14 @@ from src.agent_task_ledger import read_task_records, record_task_event
 from src.telegram_task_orchestrator import build_telegram_task_intent, build_telegram_task_status_message
 
 
-def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
+def parse_telegram_update(
+    update: dict[str, Any],
+    *,
+    chat_allowed: Callable[[str], bool] | None = None,
+) -> dict[str, Any]:
     """Extract a redacted local-history message from a Telegram update."""
 
-    return _parse_telegram_update(update, chat_allowed=_chat_allowed)
+    return _parse_telegram_update(update, chat_allowed=chat_allowed or _chat_allowed)
 
 
 def build_telegram_readiness(data_dir: str | Path | None = None) -> dict[str, Any]:
@@ -1401,7 +1405,7 @@ def run_telegram_polling_cycle(
         memory_owner=memory_owner,
         project_registry_path=project_registry_path,
         polling_enabled=_bool_env,
-        parse_update=parse_telegram_update,
+        parse_update=lambda update: parse_telegram_update(update, chat_allowed=_chat_allowed),
         control_command=_telegram_control_command,
         handle_control_command=_handle_telegram_control_command,
         build_live_voice_stt_provider=build_telegram_live_voice_stt_provider,
@@ -1758,7 +1762,7 @@ def setup(ctx):
         _require_admin(request)
         update = await request.json()
         try:
-            message = parse_telegram_update(update)
+            message = parse_telegram_update(update, chat_allowed=_chat_allowed)
         except ValueError as exc:
             store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
             raise HTTPException(400, "invalid telegram update") from exc
