@@ -54,6 +54,11 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert payload["ready_to_write"] is True
     assert payload["writes_performed"] is False
     assert payload["memory_records"][0]["source"] == "universal_inbox"
+    memory_ref = payload["memory_records"][0]["internal_ref"]
+    assert memory_ref["kind"] == "memory"
+    assert memory_ref["entity_id"] == payload["memory_records"][0]["memory_id"]
+    assert memory_ref["uri"].startswith("odysseus://memory/")
+    assert memory_ref["chat_href"].startswith("#memory-")
     assert payload["memory_records"][0]["metadata"]["classification"] == "private"
     assert payload["memory_records"][0]["metadata"]["raw_content_stored"] is False
     stamp = payload["memory_records"][0]["metadata"]["author_stamp"]
@@ -61,10 +66,15 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert stamp["model_id"] == "deterministic_policy_v1"
     assert stamp["source_material_stored"] is False
     assert payload["raptorgraph_event"]["event"] == "universal_inbox_memory_write_intent"
+    assert payload["raptorgraph_event"]["internal_ref"]["kind"] == "raptor_edge"
+    assert payload["raptorgraph_event"]["memory_internal_refs"][0]["entity_id"] == payload["memory_records"][0]["memory_id"]
     assert payload["raptorgraph_event"]["author_stamp"]["model_id"] == "deterministic_policy_v1"
     candidate = payload["raptorgraph_event"]["gemma_raptor_candidate"]
     assert candidate["schema"] == "odysseus.gemma4_raptorgraph_candidate.v1"
     assert candidate["status"] == "candidate_ready"
+    assert candidate["internal_ref"]["kind"] == "raptor_node"
+    assert candidate["candidate_facts"][0]["internal_ref"]["kind"] == "raptor_node"
+    assert candidate["candidate_facts"][0]["memory_internal_refs"][0]["entity_id"] == payload["memory_records"][0]["memory_id"]
     assert candidate["requires_backend_gate"] is True
     assert candidate["truth_write_allowed"] is False
     assert candidate["candidate_facts"][0]["source_hash"] == payload["raptorgraph_event"]["source_hash"]

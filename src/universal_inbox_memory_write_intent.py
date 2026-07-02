@@ -12,6 +12,7 @@ import json
 import re
 from typing import Any, Mapping
 
+from src.internal_references import build_internal_reference_dict
 from src.universal_inbox_analysis import UniversalInboxFileAnalysisPacket
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
 
@@ -186,9 +187,11 @@ def _build_memory_record(
     domain = _token(memory_event.get("domain") or "private", field="domain")
     text = _memory_text(memory_event, classification=classification, document_type=document_type)
     _reject_suspicious_text(text)
+    memory_id = f"uix-{source_hash[-16:]}"
     return {
         "schema": MEMORY_RECORD_SCHEMA,
-        "memory_id": f"uix-{source_hash[-16:]}",
+        "memory_id": memory_id,
+        "internal_ref": build_internal_reference_dict("memory", memory_id, label="Memory oeffnen"),
         "source": "universal_inbox",
         "category": "document",
         "text": text,
@@ -218,16 +221,28 @@ def _build_raptorgraph_write_event(
     maintenance_route: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     status = "ready" if memory_record_ids else ("blocked" if policy.get("status") == "no_go" else "review")
+    source_hash = str(memory_event.get("source_hash") or "")
+    raptor_edge_id = f"uix-rg-intent-{_hash_text(source_hash + '|' + '|'.join(memory_record_ids))[-16:]}"
+    memory_refs = tuple(
+        build_internal_reference_dict("memory", memory_id, label="Memory oeffnen")
+        for memory_id in memory_record_ids
+    )
     return {
         "schema": RAPTORGRAPH_WRITE_EVENT_SCHEMA,
         "event": "universal_inbox_memory_write_intent",
         "status": status,
+        "internal_ref": build_internal_reference_dict(
+            "raptor_edge",
+            raptor_edge_id,
+            label="RaptorGraph Intent oeffnen",
+        ),
+        "memory_internal_refs": memory_refs,
         "source_provider": "universal_inbox",
         "classification": str(policy.get("classification") or "unknown"),
         "local_only": bool(policy.get("local_only_required")),
         "dsgvo_mode": bool(policy.get("dsgvo_mode")),
         "memory_record_ids": tuple(memory_record_ids),
-        "source_hash": memory_event.get("source_hash") or "",
+        "source_hash": source_hash,
         "document_type": memory_event.get("document_type") or "unknown",
         "domain": memory_event.get("domain") or "unknown",
         "review_reasons": tuple(policy.get("review_reasons") or ()),
@@ -295,12 +310,19 @@ def _build_gemma_raptor_candidate(
     confidence = _bounded_confidence(memory_event.get("confidence"))
     review_reasons = tuple(policy.get("review_reasons") or ())
     no_go_reasons = tuple(policy.get("no_go_reasons") or ())
+    fact_id = f"uix-raptor-{_hash_text(source_hash + document_type)[-16:]}"
     return {
         "schema": "odysseus.gemma4_raptorgraph_candidate.v1",
         "status": "candidate_ready" if status == "ready" else ("blocked" if status == "blocked" else "review_required"),
+        "internal_ref": build_internal_reference_dict("raptor_node", fact_id, label="Raptor-Kandidat oeffnen"),
+        "memory_internal_refs": tuple(
+            build_internal_reference_dict("memory", memory_id, label="Memory oeffnen")
+            for memory_id in memory_record_ids
+        ),
         "candidate_facts": (
             {
-                "fact_id": f"uix-raptor-{_hash_text(source_hash + document_type)[-16:]}",
+                "fact_id": fact_id,
+                "internal_ref": build_internal_reference_dict("raptor_node", fact_id, label="Raptor-Kandidat oeffnen"),
                 "kind": "document_abstraction_candidate",
                 "classification": classification,
                 "document_type": document_type,
@@ -308,6 +330,10 @@ def _build_gemma_raptor_candidate(
                 "summary_hash": summary_hash,
                 "confidence": confidence,
                 "memory_record_ids": tuple(memory_record_ids),
+                "memory_internal_refs": tuple(
+                    build_internal_reference_dict("memory", memory_id, label="Memory oeffnen")
+                    for memory_id in memory_record_ids
+                ),
                 "raw_content_stored": False,
             },
         ),

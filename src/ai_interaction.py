@@ -21,6 +21,7 @@ import time
 from typing import Dict, Optional, Tuple
 
 from src.constants import GENERATED_IMAGES_DIR
+from src.internal_references import build_internal_reference_dict, reference_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,15 @@ _memory_manager = None
 _memory_vector = None
 _rag_manager = None
 _personal_docs_manager = None
+
+
+def _memory_reference_payload(memory_id: str) -> dict:
+    ref = build_internal_reference_dict("memory", memory_id, label="Memory oeffnen")
+    return {
+        "internal_ref": ref,
+        "chat_href": ref["chat_href"],
+        "markdown_link": reference_markdown(ref),
+    }
 
 
 def set_session_manager(mgr):
@@ -403,8 +413,13 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         except Exception:
             logger.debug("memory_added event dispatch failed", exc_info=True)
 
-        return {"action": "add", "memory_id": entry["id"],
-                "results": f"Memory added: [{category}] {text}"}
+        ref_payload = _memory_reference_payload(entry["id"])
+        return {
+            "action": "add",
+            "memory_id": entry["id"],
+            **ref_payload,
+            "results": f"Memory added: [{category}] {text}\n{ref_payload['markdown_link']}",
+        }
 
     elif action == "edit":
         if len(lines) < 3:
@@ -437,8 +452,13 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
             except Exception:
                 pass
 
-        return {"action": "edit", "memory_id": memory_id,
-                "results": f"Memory updated: {new_text}"}
+        ref_payload = _memory_reference_payload(full_id)
+        return {
+            "action": "edit",
+            "memory_id": full_id,
+            **ref_payload,
+            "results": f"Memory updated: {new_text}\n{ref_payload['markdown_link']}",
+        }
 
     elif action == "delete":
         if len(lines) < 2:
