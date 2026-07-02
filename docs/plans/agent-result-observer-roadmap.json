@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "draft_ready",
+  "status": "repo_contracts_done_live_smoke_pending",
   "title": "Agent Result Observer Roadmap",
   "goal": "Give agents result sense: execute checks, observe visual state, compare evidence and decide whether work actually succeeded.",
   "constraints": {
@@ -32,7 +32,7 @@
     {
       "id": "ARO-1-result-artifact-model",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Alice",
       "goal": "Define normalized result artifacts for command output, screenshots, DOM, console, network and traces.",
       "allowed_paths": ["src/agent_result_observer.py", "tests/test_agent_result_observer.py"],
@@ -41,7 +41,7 @@
     {
       "id": "ARO-2-visual-diff-policy",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Define when screenshot/DOM changes count as success, warning or failure.",
       "allowed_paths": ["src/agent_visual_diff_policy.py", "tests/test_agent_visual_diff_policy.py"],
@@ -50,7 +50,7 @@
     {
       "id": "ARO-3-live-watch-contract",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Specify sampled frame observation and optional noVNC human-watch mode without requiring GPU.",
       "allowed_paths": ["src/agent_live_watch_contract.py", "tests/test_agent_live_watch_contract.py"],
@@ -59,7 +59,8 @@
     {
       "id": "ARO-4-observer-smoke",
       "class": "needs_live_go",
-      "status": "gated",
+      "status": "ready_for_live_smoke",
+      "live_go_source": "active_thread_goal_2026-07-02",
       "owner": "Charlie",
       "goal": "Run a sandboxed visual smoke and collect screenshot, console and network artifacts.",
       "allowed_paths": ["reports/agent_result_observer/**"],

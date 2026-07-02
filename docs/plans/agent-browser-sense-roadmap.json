@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "draft_ready",
+  "status": "repo_contracts_done_live_smoke_pending",
   "title": "Agent Browser Sense Roadmap",
   "goal": "Give agents a safe browser sense for understanding websites through DOM, accessibility tree, screenshots, console and network evidence.",
   "constraints": {
@@ -27,7 +27,7 @@
     {
       "id": "ABS-1-browser-evidence-contract",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Alice",
       "goal": "Define the browser evidence object and redaction rules.",
       "allowed_paths": ["src/agent_browser_evidence.py", "tests/test_agent_browser_evidence.py"],
@@ -36,7 +36,7 @@
     {
       "id": "ABS-2-playwright-worker-client",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Create a client contract for dispatching browser observation jobs to the sandbox worker.",
       "allowed_paths": ["src/agent_browser_worker_client.py", "tests/test_agent_browser_worker_client.py"],
@@ -45,7 +45,7 @@
     {
       "id": "ABS-3-bounded-crawl-policy",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Implement domain allowlist, depth/page/time limits, robots/login policy and raw-content limits.",
       "allowed_paths": ["src/agent_web_crawl_policy.py", "tests/test_agent_web_crawl_policy.py"],
@@ -54,7 +54,8 @@
     {
       "id": "ABS-4-live-browser-smoke",
       "class": "needs_live_go",
-      "status": "gated",
+      "status": "ready_for_live_smoke",
+      "live_go_source": "active_thread_goal_2026-07-02",
       "owner": "Charlie",
       "goal": "Run one bounded browser smoke against an approved URL and record redacted evidence.",
       "allowed_paths": ["reports/agent_browser_sense/**"],

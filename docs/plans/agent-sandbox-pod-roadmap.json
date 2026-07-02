@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "draft_ready",
+  "status": "repo_contracts_done_live_smoke_pending",
   "title": "Agent Sandbox Pod Roadmap",
   "goal": "Run agent code, browser and test jobs in a disposable Podman sandbox pod with scoped mounts, no default secrets and audited artifacts.",
   "constraints": {
@@ -38,7 +38,7 @@
     {
       "id": "ASP-1-job-contract",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Alice",
       "goal": "Define sandbox job request, policy decision, artifact manifest and audit model.",
       "allowed_paths": ["src/agent_sandbox_contract.py", "tests/test_agent_sandbox_contract.py"],
@@ -47,7 +47,7 @@
     {
       "id": "ASP-2-podman-plan-renderer",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Render safe Podman pod/container command plans without executing them.",
       "allowed_paths": ["src/agent_sandbox_podman_plan.py", "tests/test_agent_sandbox_podman_plan.py"],
@@ -56,7 +56,7 @@
     {
       "id": "ASP-3-worker-api-contract",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Define worker API for submit/status/artifacts/cancel with redacted responses.",
       "allowed_paths": ["src/agent_sandbox_worker_api.py", "tests/test_agent_sandbox_worker_api.py"],
@@ -65,7 +65,8 @@
     {
       "id": "ASP-4-live-pod-smoke",
       "class": "needs_live_go",
-      "status": "gated",
+      "status": "ready_for_live_smoke",
+      "live_go_source": "active_thread_goal_2026-07-02",
       "owner": "Charlie",
       "goal": "Create a disposable sandbox pod and run a harmless argv command plus artifact collection.",
       "allowed_paths": ["reports/agent_sandbox_pod/**"],

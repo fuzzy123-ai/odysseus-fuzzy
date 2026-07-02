@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "draft_ready",
+  "status": "repo_contracts_done_live_smoke_pending",
   "title": "Telegram Web Research To Memory Roadmap",
   "goal": "Allow trusted Telegram requests to trigger bounded website analysis and convert the result into reviewed Memory/RaptorGraph knowledge.",
   "example_task": {
@@ -29,7 +29,7 @@
     {
       "id": "TWRM-1-intent-contract",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Alice",
       "goal": "Define trusted Telegram intent fields for web research to memory without using untrusted page text for routing.",
       "allowed_paths": ["src/telegram_web_research_intent.py", "tests/test_telegram_web_research_intent.py"],
@@ -38,7 +38,7 @@
     {
       "id": "TWRM-2-research-packet",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Define redacted website research packet with source refs, summaries, confidence and gaps.",
       "allowed_paths": ["src/web_research_memory_packet.py", "tests/test_web_research_memory_packet.py"],
@@ -47,7 +47,7 @@
     {
       "id": "TWRM-3-memory-intent-bridge",
       "class": "repo_only",
-      "status": "open",
+      "status": "done",
       "owner": "Bob",
       "goal": "Convert research packets into Memory Write Intent and RaptorGraph candidate payloads.",
       "allowed_paths": ["src/web_research_memory_intent.py", "tests/test_web_research_memory_intent.py"],
@@ -56,7 +56,8 @@
     {
       "id": "TWRM-4-asv-bw-live-pilot",
       "class": "needs_live_go",
-      "status": "gated",
+      "status": "ready_for_live_smoke",
+      "live_go_source": "active_thread_goal_2026-07-02",
       "owner": "Charlie",
       "goal": "Run the ASV BW help-site pilot with approved domain, bounded crawl and reviewed memory writes.",
       "allowed_paths": ["reports/telegram_web_research_memory/**"],
