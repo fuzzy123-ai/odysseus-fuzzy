@@ -1,0 +1,407 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_execution_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "ready",
+  "mode": "Standard ABC",
+  "title": "Autonomous Coding Agent And Sandbox Execution Roadmap",
+  "goal": "Make Odysseus able to accept a bounded coding task, create an isolated worktree, run checks in a disposable Podman sandbox, collect redacted evidence, and prepare reviewed publish steps without broad host-shell access.",
+  "current_evidence": {
+    "latest_verified_commit": "7e025224",
+    "local_status": "Coding-agent backend and sandbox contracts are implemented; Debian is current on fuzzy/dev as of 2026-07-02.",
+    "focused_tests": {
+      "command": "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py -q",
+      "result": "27 passed, 1 SQLAlchemy deprecation warning"
+    },
+    "implemented_today": [
+      "Coding-agent admin routes for snapshot, task-plan, worktree, patch-set, quality-gate, done-gate, handoff-plan, publish-plan and subagents-plan.",
+      "Sandbox job contract with argv-only command shape, scoped mounts, no default secrets, resource limits and network none by default.",
+      "Podman command plan renderer that does not execute live by itself.",
+      "Sandbox job templates for python_pytest, node_check, browser_smoke, document_convert and static_analysis.",
+      "Artifact policy, resource guard and result observer integration.",
+      "Debian live smoke for disposable Podman execution with network none, memory/cpu/pids limits and no-new-privileges."
+    ],
+    "known_gap_summary": "The system has safe contracts and live smoke proof, but it still lacks a persistent sandbox worker, durable job ledger, coding-agent-to-sandbox execution bridge, Telegram coding-task lifecycle, artifact retrieval APIs and end-to-end live proof from Telegram request to sandbox checks to reviewed publish plan."
+  },
+  "hard_constraints": {
+    "runtime": "podman_pods",
+    "docker_default": false,
+    "gpu_available": false,
+    "ui_implementation": "out_of_scope_for_this_roadmap",
+    "default_network": "none",
+    "default_secrets": "none",
+    "default_mount_mode": "read_only",
+    "write_mounts": "explicit_workspace_only_with_gate",
+    "remote_push": "fuzzy/dev_only",
+    "raw_private_content_persistence": "forbidden",
+    "host_shell": "not_exposed_to_agents",
+    "destructive_git": "forbidden_without_explicit_operator_go"
+  },
+  "abc_roles": {
+    "Alice": "Owns operator wording, runbook language, gate definitions, redacted status semantics and Telegram-facing status text.",
+    "Bob": "Owns backend implementation: worker, ledgers, bridge, API contracts, validators and focused tests.",
+    "Charlie": "Owns integration, scope control, focused verification, commits, fuzzy/dev pushes and live gate execution after explicit Go."
+  },
+  "target_flows": [
+    {
+      "id": "telegram-coding-task",
+      "request_example": "baue in Projekt X Feature Y, teste es und sag mir was du geaendert hast",
+      "expected_flow": [
+        "Telegram creates a trusted coding-task intent with repo_id, objective, allowed paths and checks.",
+        "Coding agent builds a gated task plan and isolated worktree.",
+        "Sandbox worker runs allowlisted checks in a disposable Podman job.",
+        "Result observer stores redacted logs, exit status and artifact manifest.",
+        "Quality and done gates produce a reviewed handoff or publish plan.",
+        "Telegram reports status, blockers and next human decision without leaking secrets."
+      ]
+    },
+    {
+      "id": "browser-ui-code-verification",
+      "request_example": "teste die lokale Seite visuell und pruefe Konsole/Netzwerk",
+      "expected_flow": [
+        "Browser smoke runs in a no-GPU sandbox with bounded network policy.",
+        "Screenshots, DOM, console and network summaries are captured as redacted artifacts.",
+        "Quality gate can consume those artifacts as evidence."
+      ]
+    }
+  ],
+  "non_goals": [
+    "No new UI or placement decisions; UI agent owns presentation later.",
+    "No Docker MCP, Docker-only design or broad container-control MCP.",
+    "No arbitrary shell prompt, shell=True, host PowerShell, SSH or systemctl exposure to the agent.",
+    "No automatic commit, push, deploy or Cloudflare exposure without explicit operator gates.",
+    "No persistence of tokens, chat ids, private raw documents, private prompts, full logs or absolute host paths.",
+    "No fullweb sandbox network by default; web access must be allowlisted and bounded."
+  ],
+  "stop_rules": [
+    "Stop if unrelated staged files are present or a hotfile conflict appears, especially static/frontpage-v2/app.js.",
+    "Stop if any slice would persist secrets, tokens, chat ids, private content or absolute host paths.",
+    "Stop if implementation would require destructive git, force push, reset or checkout rewrite.",
+    "Stop if live Podman, Telegram, network, deploy, commit or push action is needed but not explicitly granted.",
+    "Stop if sandbox execution would require broad host mounts or unrestricted network.",
+    "Stop if focused tests fail and the fix would leave the slice scope."
+  ],
+  "slice_queue": [
+    {
+      "id": "ACA-0-state-check",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "status": "done",
+      "goal": "Confirm current coding-agent and sandbox contracts, tests and known gaps before starting implementation.",
+      "allowed_paths": [],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py -q"
+      ],
+      "evidence": "2026-07-02 focused suite returned 27 passed, 1 existing SQLAlchemy warning."
+    },
+    {
+      "id": "ACA-1-sandbox-job-ledger",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "open",
+      "goal": "Add a persistent redacted sandbox job ledger for submit/status/cancel/artifact events under data-safe paths.",
+      "allowed_paths": [
+        "src/sandbox_job_ledger.py",
+        "tests/test_sandbox_job_ledger.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_sandbox_job_ledger.py -q"
+      ],
+      "done_when": "Ledger stores job metadata, state transitions, hashes, artifact refs and redacted previews without raw private content or absolute host paths."
+    },
+    {
+      "id": "ACA-2-sandbox-worker-core",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "open",
+      "goal": "Implement a sandbox worker core that validates jobs, renders Podman plans, supports dry-run by default and exposes submit/status/cancel/artifacts contracts.",
+      "allowed_paths": [
+        "src/agent_sandbox_worker.py",
+        "src/agent_sandbox_worker_api.py",
+        "src/agent_sandbox_podman_plan.py",
+        "tests/test_agent_sandbox_worker.py",
+        "tests/test_agent_sandbox_worker_api.py",
+        "tests/test_agent_sandbox_podman_plan.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_agent_sandbox_worker.py tests/test_agent_sandbox_worker_api.py tests/test_agent_sandbox_podman_plan.py -q"
+      ],
+      "done_when": "Worker can submit dry-run jobs, reject unsafe requests, record ledger events and return redacted status/artifact manifests."
+    },
+    {
+      "id": "ACA-3-sandbox-worker-routes",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "open",
+      "goal": "Expose admin-protected sandbox worker routes for submit/status/cancel/artifacts and keep live execution disabled by default.",
+      "allowed_paths": [
+        "routes/sandbox_worker_routes.py",
+        "app.py",
+        "tests/test_sandbox_worker_routes.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_sandbox_worker_routes.py -q"
+      ],
+      "done_when": "Routes require admin, redact outputs, do not execute live unless a live flag and operator gate are both present, and never expose raw host paths."
+    },
+    {
+      "id": "ACA-4-coding-agent-sandbox-bridge",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "open",
+      "goal": "Connect coding-agent task plans to sandbox jobs so quality checks can be dispatched through the worker instead of direct host subprocess by default.",
+      "allowed_paths": [
+        "src/coding_agent_sandbox_bridge.py",
+        "src/coding_agent_backend.py",
+        "routes/coding_agent_routes.py",
+        "tests/test_coding_agent_sandbox_bridge.py",
+        "tests/test_coding_agent_backend.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_sandbox_bridge.py tests/test_coding_agent_backend.py -q"
+      ],
+      "done_when": "Coding task plans can produce sandbox job requests from allowlisted checks, consume worker statuses and build quality gate reports from sandbox evidence."
+    },
+    {
+      "id": "ACA-5-artifact-manifest-and-result-observer",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "open",
+      "goal": "Standardize sandbox artifacts for logs, test reports, screenshots, DOM/console/network summaries and generated files.",
+      "allowed_paths": [
+        "src/agent_result_observer.py",
+        "src/sandbox_artifact_policy.py",
+        "tests/test_agent_result_observer.py",
+        "tests/test_sandbox_artifact_policy.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_agent_result_observer.py tests/test_sandbox_artifact_policy.py -q"
+      ],
+      "done_when": "Each artifact has kind, hash, size, retention, redaction flag, correlation id and safe relative ref; generated files require review."
+    },
+    {
+      "id": "ACA-6-network-allowlist-policy",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "open",
+      "goal": "Add a per-job network policy model for none, bounded allowlist and blocked fullweb modes.",
+      "allowed_paths": [
+        "src/sandbox_network_policy.py",
+        "src/agent_sandbox_contract.py",
+        "src/sandbox_resource_guard.py",
+        "tests/test_sandbox_network_policy.py",
+        "tests/test_agent_sandbox_contract.py",
+        "tests/test_sandbox_resource_guard.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_sandbox_network_policy.py tests/test_agent_sandbox_contract.py tests/test_sandbox_resource_guard.py -q"
+      ],
+      "done_when": "Sandbox jobs default to network none, allowlist jobs carry bounded host/domain metadata, and fullweb stays blocked without separate live gate."
+    },
+    {
+      "id": "ACA-7-telegram-coding-task-lifecycle",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "open",
+      "goal": "Teach Telegram task orchestration to recognize coding tasks, report sandbox progress and ask for the next human decision when gates block progress.",
+      "allowed_paths": [
+        "src/telegram_task_orchestrator.py",
+        "plugins/telegram/parsing.py",
+        "plugins/telegram/plugin.py",
+        "tests/test_telegram_task_orchestrator.py",
+        "tests/test_telegram_plugin.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_telegram_task_orchestrator.py tests/test_telegram_plugin.py::test_task_control_commands_are_detected tests/test_telegram_plugin.py::test_task_control_status_and_pause_use_redacted_ledger -q"
+      ],
+      "done_when": "Telegram can create and track a coding task intent without executing live work, and replies with concise redacted status, blocker and recommended next decision."
+    },
+    {
+      "id": "ACA-8-memory-and-raptorgraph-evidence-bridge",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "open",
+      "goal": "Convert completed sandbox/coding task summaries into Memory/RaptorGraph write intents with source-linked provenance and model stamps.",
+      "allowed_paths": [
+        "src/memory_candidate_schema.py",
+        "src/raptorgraph_candidate_mapping.py",
+        "src/memory_write_policy.py",
+        "src/coding_agent_memory_bridge.py",
+        "tests/test_memory_candidate_schema.py",
+        "tests/test_raptorgraph_candidate_mapping.py",
+        "tests/test_memory_write_policy.py",
+        "tests/test_coding_agent_memory_bridge.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_memory_bridge.py tests/test_memory_candidate_schema.py tests/test_raptorgraph_candidate_mapping.py tests/test_memory_write_policy.py -q"
+      ],
+      "done_when": "Successful coding tasks can create reviewed knowledge candidates without storing raw logs, raw diffs or private content."
+    },
+    {
+      "id": "ACA-9-durable-evidence-storage",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "open",
+      "goal": "Move live evidence and sandbox reports to durable mounted data paths so deploys/rebuilds do not erase proof artifacts.",
+      "allowed_paths": [
+        "src/evidence_storage.py",
+        "src/agent_result_observer.py",
+        "tests/test_evidence_storage.py",
+        "tests/test_agent_result_observer.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_evidence_storage.py tests/test_agent_result_observer.py -q"
+      ],
+      "done_when": "Reports are written under a configurable durable data path, refs remain safe/relative, and missing report paths are surfaced as readiness blockers."
+    },
+    {
+      "id": "ACA-10-local-e2e-dry-run",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "status": "open",
+      "goal": "Run an end-to-end dry-run from coding task intent to sandbox worker dry-run to quality gate to publish plan.",
+      "allowed_paths": [
+        "tests/test_autonomous_coding_agent_e2e.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_autonomous_coding_agent_e2e.py -q"
+      ],
+      "done_when": "A single test proves the dry-run flow across Telegram intent, coding plan, sandbox job, result observer, quality gate and publish plan."
+    },
+    {
+      "id": "ACA-11-debian-live-sandbox-worker-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "goal": "Run one harmless live sandbox worker job on Debian and store durable redacted evidence.",
+      "allowed_paths": [
+        "data/reports/autonomous_coding_agent/**"
+      ],
+      "tests": [],
+      "gate_required": "debian-live-sandbox-worker-go",
+      "done_when": "Debian executes a harmless sandbox worker job with network none, no secrets, resource limits and durable evidence under data/reports."
+    },
+    {
+      "id": "ACA-12-telegram-to-coding-task-live-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "goal": "Verify a Telegram coding-task request can be tracked through task status to sandbox evidence and next human decision.",
+      "allowed_paths": [
+        "data/reports/autonomous_coding_agent/**"
+      ],
+      "tests": [],
+      "gate_required": "telegram-coding-task-live-go",
+      "done_when": "A real Telegram request creates a coding-task lifecycle entry, reports progress/status and stops at review/publish decision without leaking sensitive data."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "debian-live-sandbox-worker-go",
+      "class": "needs_live_go",
+      "blocks": ["ACA-11-debian-live-sandbox-worker-smoke"],
+      "decision_needed": "Approve one harmless live Podman sandbox worker job on Debian with network none, no secrets, fixed timeout and durable evidence path.",
+      "safe_preparation_done": "Contracts, templates and prior disposable Podman smoke exist.",
+      "risk_if_bypassed": "Agent code could execute outside the intended operator-approved live boundary."
+    },
+    {
+      "id": "telegram-coding-task-live-go",
+      "class": "needs_live_go",
+      "blocks": ["ACA-12-telegram-to-coding-task-live-smoke"],
+      "decision_needed": "Approve a bounded Telegram coding-task live smoke and provide the exact harmless request to send.",
+      "safe_preparation_done": "Telegram task orchestration and coding task dry-run flow must be complete first.",
+      "risk_if_bypassed": "Telegram could trigger unintended live work or expose status details before review."
+    },
+    {
+      "id": "network-allowlist-go",
+      "class": "needs_live_go",
+      "blocks": ["browser_smoke jobs with external targets"],
+      "decision_needed": "Approve specific host/domain allowlist, page cap and timeout for any sandbox job that needs web access.",
+      "safe_preparation_done": "Network none remains default.",
+      "risk_if_bypassed": "Unbounded or accidental external crawling."
+    },
+    {
+      "id": "ui-placement",
+      "class": "needs_design",
+      "blocks": ["visible sandbox job monitor", "artifact viewer", "operator review controls"],
+      "decision_needed": "UI agent decides where these controls live in v2.",
+      "safe_preparation_done": "Backend APIs and redacted contracts can be completed without UI work.",
+      "risk_if_bypassed": "Backend can run, but operator experience will remain fragmented."
+    }
+  ],
+  "path_groups": [
+    {
+      "id": "worker-runtime",
+      "slices": ["ACA-1", "ACA-2", "ACA-3", "ACA-11"],
+      "completion_criteria": "Sandbox jobs have durable lifecycle state, admin routes, dry-run default and one approved Debian live proof."
+    },
+    {
+      "id": "coding-agent-bridge",
+      "slices": ["ACA-4", "ACA-10"],
+      "completion_criteria": "Coding-agent checks dispatch through sandbox contracts and a dry-run e2e proves the whole backend flow."
+    },
+    {
+      "id": "operator-channel",
+      "slices": ["ACA-7", "ACA-12"],
+      "completion_criteria": "Telegram can create, track and report coding tasks with redacted status and human-decision gates."
+    },
+    {
+      "id": "evidence-and-memory",
+      "slices": ["ACA-5", "ACA-8", "ACA-9"],
+      "completion_criteria": "Evidence is durable, redacted and optionally convertible to reviewed Memory/RaptorGraph write intents."
+    },
+    {
+      "id": "policy-hardening",
+      "slices": ["ACA-6"],
+      "completion_criteria": "Network and resource policy is explicit per job and unsafe modes are gated."
+    }
+  ],
+  "verification": {
+    "focused_suite": [
+      "venv/Scripts/python.exe -m pytest tests/test_sandbox_job_ledger.py tests/test_agent_sandbox_worker.py tests/test_sandbox_worker_routes.py tests/test_coding_agent_sandbox_bridge.py tests/test_autonomous_coding_agent_e2e.py -q"
+    ],
+    "regression_suite": [
+      "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py tests/test_telegram_task_orchestrator.py -q"
+    ],
+    "final_live_checks": [
+      "Debian /api/version is current on fuzzy/dev.",
+      "One live sandbox worker job runs with network none and durable evidence.",
+      "One Telegram coding-task smoke reaches a review/publish decision without leaking secrets."
+    ]
+  },
+  "go_language": {
+    "go": "Proceed with the named slice and its allowed paths only.",
+    "partial": "Complete safe repo-only preparation and leave live/design gates queued.",
+    "no_go": "Do not execute the slice; record the blocker and move to the next safe slice.",
+    "deferred": "Park the slice because it needs live Go, design placement or operator wording.",
+    "blocked": "Stop because proceeding would risk secrets, unrelated worktree changes, destructive git or unbounded execution."
+  },
+  "abc_delegation_plan": [
+    {
+      "agent": "Alice",
+      "first_slices": ["ACA-5", "ACA-6", "ACA-7"],
+      "mode": "worker",
+      "note": "Alice starts only after Charlie confirms no UI hotfile conflict and writes no UI."
+    },
+    {
+      "agent": "Bob",
+      "first_slices": ["ACA-1", "ACA-2", "ACA-4"],
+      "mode": "worker",
+      "note": "Bob owns backend worker and bridge implementation with tests."
+    },
+    {
+      "agent": "Charlie",
+      "first_slices": ["ACA-9", "ACA-10", "ACA-11", "ACA-12"],
+      "mode": "worker",
+      "note": "Charlie integrates, runs focused tests, commits/pushes to fuzzy/dev and handles live gates only after explicit Go."
+    }
+  ],
+  "progress_model": {
+    "total_required_slices": 12,
+    "completed_slices": 1,
+    "gated_live_slices": 2,
+    "repo_safe_open_slices": 9,
+    "initial_progress_percent": 8,
+    "version_ready_when": "All repo_only and safe_offline slices are done, live gates ACA-11 and ACA-12 are approved and passed, and UI placement is either implemented by the UI agent or consciously deferred as non-blocking backend status."
+  }
+}
