@@ -42,6 +42,7 @@ _FORBIDDEN_CONTEXT_KEYS = {
 _ANALYSIS_INTENTS = ("analyze", "summarize", "question_answer", "follow_up", "inspect")
 _EXPORT_INTENTS = ("export", "convert")
 _REVIEW_INTENTS = ("approve", "review", "route", "explain")
+_WEB_RESEARCH_MEMORY_INTENTS = ("bounded_site_research_to_memory", "web_research_to_memory")
 _INELIGIBLE_AUDITS = {"fail", "failed", "blocked", "no_go", "unsafe", "audit_failed"}
 
 
@@ -118,6 +119,19 @@ class WorkflowSkillResolution:
 
 
 DEFAULT_WORKFLOW_SKILL_BINDINGS = (
+    WorkflowSkillBinding(
+        workflow_id="telegram-web-research-memory-workflow",
+        trigger=WorkflowSkillTrigger(
+            workflow_id="telegram-web-research-memory-workflow",
+            channels=("telegram",),
+            message_kinds=("text",),
+            requires_recent_attachment=False,
+            intents=_WEB_RESEARCH_MEMORY_INTENTS,
+        ),
+        skill_name="telegram-web-research-memory-workflow",
+        reason="trusted Telegram text requests bounded website research into long-term knowledge",
+        priority=120,
+    ),
     WorkflowSkillBinding(
         workflow_id="telegram-document-analysis-workflow",
         trigger=WorkflowSkillTrigger(

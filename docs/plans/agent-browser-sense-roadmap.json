@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_contracts_done_live_smoke_pending",
+  "status": "done",
   "title": "Agent Browser Sense Roadmap",
   "goal": "Give agents a safe browser sense for understanding websites through DOM, accessibility tree, screenshots, console and network evidence.",
   "constraints": {
@@ -54,8 +54,9 @@
     {
       "id": "ABS-4-live-browser-smoke",
       "class": "needs_live_go",
-      "status": "ready_for_live_smoke",
+      "status": "done",
       "live_go_source": "active_thread_goal_2026-07-02",
+      "evidence": "Debian live smoke on 2026-07-02: https://www.asv-bw.de/ returned HTTP 200, title Startseite - ASV-BW, screenshot artifact written under ignored reports/agent_browser_sense/.",
       "owner": "Charlie",
       "goal": "Run one bounded browser smoke against an approved URL and record redacted evidence.",
       "allowed_paths": ["reports/agent_browser_sense/**"],

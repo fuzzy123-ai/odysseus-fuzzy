@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_contracts_done_live_smoke_pending",
+  "status": "done",
   "title": "Agent Result Observer Roadmap",
   "goal": "Give agents result sense: execute checks, observe visual state, compare evidence and decide whether work actually succeeded.",
   "constraints": {
@@ -59,8 +59,9 @@
     {
       "id": "ARO-4-observer-smoke",
       "class": "needs_live_go",
-      "status": "ready_for_live_smoke",
+      "status": "done",
       "live_go_source": "active_thread_goal_2026-07-02",
+      "evidence": "Debian live smoke on 2026-07-02: browser smoke captured screenshot, title, link/headline counts, console/network counters and redacted hash summary without GPU.",
       "owner": "Charlie",
       "goal": "Run a sandboxed visual smoke and collect screenshot, console and network artifacts.",
       "allowed_paths": ["reports/agent_result_observer/**"],

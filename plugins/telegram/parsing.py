@@ -149,6 +149,15 @@ def _telegram_workflow_intent_from_text(text: str) -> str:
     normalized = str(text or "").strip().lower()
     if not normalized:
         return ""
+    web_terms = ("http://", "https://", "homepage", "website", "webseite", "seite", "hilfeseite")
+    memory_terms = ("gedaechtnis", "gedächtnis", "memory", "raptor", "langzeit")
+    research_terms = ("analys", "recherch", "untersuch", "crawl", "zusammenfass")
+    if (
+        any(term in normalized for term in web_terms)
+        and any(term in normalized for term in memory_terms)
+        and any(term in normalized for term in research_terms)
+    ):
+        return "bounded_site_research_to_memory"
     export_terms = (
         "export",
         "convert",

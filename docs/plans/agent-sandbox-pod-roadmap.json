@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_contracts_done_live_smoke_pending",
+  "status": "done",
   "title": "Agent Sandbox Pod Roadmap",
   "goal": "Run agent code, browser and test jobs in a disposable Podman sandbox pod with scoped mounts, no default secrets and audited artifacts.",
   "constraints": {
@@ -65,8 +65,9 @@
     {
       "id": "ASP-4-live-pod-smoke",
       "class": "needs_live_go",
-      "status": "ready_for_live_smoke",
+      "status": "done",
       "live_go_source": "active_thread_goal_2026-07-02",
+      "evidence": "Debian live smoke on 2026-07-02: disposable Podman pod with network none, Python entrypoint, memory/cpu/pids/no-new-privileges limits returned Python 3.14.6.",
       "owner": "Charlie",
       "goal": "Create a disposable sandbox pod and run a harmless argv command plus artifact collection.",
       "allowed_paths": ["reports/agent_sandbox_pod/**"],

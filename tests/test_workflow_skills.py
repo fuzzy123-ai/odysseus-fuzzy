@@ -53,6 +53,43 @@ def test_telegram_document_followup_resolves_required_analysis_skill():
     assert result.matched_workflows == ("telegram-document-analysis-workflow",)
 
 
+def test_telegram_web_research_to_memory_resolves_without_attachment():
+    result = resolve_workflow_skills(
+        {
+            "channel": "telegram",
+            "message_kind": "text",
+            "intent": "bounded_site_research_to_memory",
+            "dsgvo_mode": "off",
+            "recent_attachment": {"present": False},
+        },
+        skills=[
+            _skill(
+                "telegram-web-research-memory-workflow",
+                requires_toolsets=["trigger_research", "manage_memory", "manage_research"],
+            )
+        ],
+    )
+
+    assert result.blocked is False
+    assert result.required_skill_names == ("telegram-web-research-memory-workflow",)
+    assert result.requested_toolsets == ("trigger_research", "manage_memory", "manage_research")
+
+
+def test_telegram_web_research_missing_skill_blocks():
+    result = resolve_workflow_skills(
+        {
+            "channel": "telegram",
+            "message_kind": "text",
+            "intent": "bounded_site_research_to_memory",
+            "recent_attachment": {"present": False},
+        },
+        skills=[],
+    )
+
+    assert result.blocked is True
+    assert "required_skill_missing:telegram-web-research-memory-workflow" in result.blockers
+
+
 def test_telegram_document_export_resolves_export_skill_before_analysis():
     result = resolve_workflow_skills(
         _telegram_context(intent="export"),
@@ -139,6 +176,7 @@ def test_routing_review_workflow_resolves_on_review_status():
 def test_real_admin_workflow_skills_are_eligible_for_required_routing():
     skills = []
     for name in (
+        "telegram-web-research-memory-workflow",
         "telegram-document-analysis-workflow",
         "telegram-document-export-workflow",
         "universal-inbox-routing-review-workflow",

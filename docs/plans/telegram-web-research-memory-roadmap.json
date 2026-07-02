@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_contracts_done_live_smoke_pending",
+  "status": "done",
   "title": "Telegram Web Research To Memory Roadmap",
   "goal": "Allow trusted Telegram requests to trigger bounded website analysis and convert the result into reviewed Memory/RaptorGraph knowledge.",
   "example_task": {
@@ -56,8 +56,9 @@
     {
       "id": "TWRM-4-asv-bw-live-pilot",
       "class": "needs_live_go",
-      "status": "ready_for_live_smoke",
+      "status": "done",
       "live_go_source": "active_thread_goal_2026-07-02",
+      "evidence": "Workflow binding, admin-published workflow skill, redacted research packet and Memory/RaptorGraph intent bridge implemented and tested; Browser Sense live ASV BW smoke produced redacted source evidence.",
       "owner": "Charlie",
       "goal": "Run the ASV BW help-site pilot with approved domain, bounded crawl and reviewed memory writes.",
       "allowed_paths": ["reports/telegram_web_research_memory/**"],

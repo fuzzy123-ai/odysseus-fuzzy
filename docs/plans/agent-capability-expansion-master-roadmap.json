@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_capability_master_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_contracts_done_live_smokes_pending",
+  "status": "done",
   "mode": "backend_logic_first",
   "title": "Agent Capability Expansion Master Roadmap",
   "goal": "Give Odysseus agents safe senses and a bounded sandbox so they can inspect websites, execute code, observe results, and write reviewed knowledge into Memory/RaptorGraph.",
@@ -52,7 +52,7 @@
       "depends_on": [],
       "safe_start": true,
       "repo_contract_status": "done",
-      "live_smoke_status": "pending",
+      "live_smoke_status": "done",
       "done_when": "Agent can inspect approved pages through DOM, accessibility tree, screenshot, console and network evidence in a redacted report."
     },
     {
@@ -63,7 +63,7 @@
       "depends_on": [],
       "safe_start": true,
       "repo_contract_status": "done",
-      "live_smoke_status": "pending",
+      "live_smoke_status": "done",
       "done_when": "Odysseus can dispatch bounded jobs to an isolated Podman pod with no default secrets, scoped mounts, resource limits and audited artifacts."
     },
     {
@@ -74,7 +74,7 @@
       "depends_on": ["ACE-1", "ACE-2"],
       "safe_start": true,
       "repo_contract_status": "done",
-      "live_smoke_status": "pending",
+      "live_smoke_status": "done",
       "done_when": "Agents can verify code/UI outcomes with tests, logs, screenshots, DOM diffs, traces and artifact summaries without GPU."
     },
     {
@@ -85,7 +85,7 @@
       "depends_on": ["ACE-1", "ACE-2", "ACE-3"],
       "safe_start": true,
       "repo_contract_status": "done",
-      "live_smoke_status": "pending",
+      "live_smoke_status": "done",
       "done_when": "A Telegram request can trigger bounded website analysis and produce reviewed Memory/RaptorGraph write intents."
     }
   ],
@@ -101,21 +101,21 @@
   "global_gate_queue": [
     {
       "id": "agent-sandbox-pod-live-create",
-      "class": "live_go_granted",
+      "class": "done",
       "blocks": ["ACE-2 live pod creation"],
       "decision_needed": "Allow creation/start of a Podman sandbox pod on the Debian host.",
       "risk_if_bypassed": "Agent jobs could run outside audited isolation."
     },
     {
       "id": "browser-network-live-go",
-      "class": "live_go_granted",
+      "class": "done",
       "blocks": ["ACE-1 external website fetch", "ACE-4 ASV BW crawl"],
       "decision_needed": "Allow bounded web access for approved target domains.",
       "risk_if_bypassed": "Unapproved network crawling or accidental data transfer."
     },
     {
       "id": "memory-write-live-go",
-      "class": "live_go_granted",
+      "class": "done",
       "blocks": ["ACE-4 final Memory/RaptorGraph writes"],
       "decision_needed": "Allow reviewed abstractions to be written to native Memory and RaptorGraph.",
       "risk_if_bypassed": "Unreviewed or low-quality knowledge could become long-term truth."
