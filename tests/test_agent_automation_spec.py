@@ -9,6 +9,7 @@ from src.agent_automation_spec import (
     AgentAutomationSpecError,
     AgentAutomationStatus,
     AgentAutomationUnit,
+    interval_spec_to_cron,
 )
 
 
@@ -145,3 +146,33 @@ def test_invalid_path_like_agent_ids_are_rejected():
             agent_id="../bob",
             mode="manual",
         )
+
+
+def test_interval_specs_map_to_live_scheduler_cron_when_safe():
+    five_minutes = AgentAutomationSpec.create(
+        agent_id="charlie",
+        mode="interval",
+        interval_count=5,
+        interval_unit="minutes",
+    )
+    two_hours = AgentAutomationSpec.create(
+        agent_id="alice",
+        mode="interval",
+        interval_count=2,
+        interval_unit="hours",
+    )
+
+    assert interval_spec_to_cron(five_minutes) == "*/5 * * * *"
+    assert five_minutes.to_live_scheduler_cron() == "*/5 * * * *"
+    assert interval_spec_to_cron(two_hours) == "0 */2 * * *"
+
+
+def test_interval_specs_do_not_guess_unsafe_cron():
+    seven_minutes = AgentAutomationSpec.create(
+        agent_id="bob",
+        mode="interval",
+        interval_count=7,
+        interval_unit="minutes",
+    )
+
+    assert interval_spec_to_cron(seven_minutes) is None

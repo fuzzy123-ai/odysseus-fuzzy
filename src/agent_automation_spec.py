@@ -123,6 +123,33 @@ class AgentAutomationSpec:
     def to_dict(self) -> dict[str, Any]:
         return self.to_overlay_payload()
 
+    def to_live_scheduler_cron(self) -> str | None:
+        """Map safe interval specs to the existing live scheduler cron shape."""
+        return interval_spec_to_cron(self)
+
+
+def interval_spec_to_cron(spec: AgentAutomationSpec) -> str | None:
+    """Return the live scheduler cron expression for safe interval specs.
+
+    The task scheduler already supports cron. We keep that as the canonical
+    live representation and only map intervals with deterministic cron
+    semantics. Anything ambiguous returns ``None`` so callers can request review
+    rather than silently scheduling the wrong cadence.
+    """
+    if spec.mode is not AgentAutomationMode.INTERVAL:
+        return None
+    count = spec.interval_count
+    unit = spec.interval_unit
+    if count is None or unit is None:
+        return None
+    if unit is AgentAutomationUnit.MINUTES and 60 % count == 0:
+        return f"*/{count} * * * *"
+    if unit is AgentAutomationUnit.HOURS and 24 % count == 0:
+        return f"0 */{count} * * *"
+    if unit is AgentAutomationUnit.DAYS and 31 % count == 0:
+        return f"0 0 */{count} * *"
+    return None
+
 
 def _normalize_slug(value: Any, *, field_name: str) -> str:
     raw = str(value or "")

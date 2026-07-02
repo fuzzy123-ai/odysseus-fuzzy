@@ -1117,6 +1117,134 @@ async def action_daily_brief(owner: str, **kwargs) -> Tuple[str, bool]:
         return str(e), False
 
 
+def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20) -> str:
+    import json as _json
+    from datetime import datetime as _dt
+
+    label = (label or "").strip().lower()
+    list_filter = (list_filter or "").strip().lower()
+    today = _dt.now().date()
+    overdue: list[str] = []
+    due_today: list[str] = []
+    pinned: list[str] = []
+    open_items: list[str] = []
+
+    def _due_bucket(raw: str | None) -> str:
+        if not raw:
+            return ""
+        try:
+            due = _dt.fromisoformat(str(raw).replace("Z", "+00:00")).date()
+        except Exception:
+            return ""
+        if due < today:
+            return "overdue"
+        if due == today:
+            return "today"
+        return ""
+
+    for note in notes:
+        if getattr(note, "archived", False):
+            continue
+        if label and (getattr(note, "label", "") or "").strip().lower() != label:
+            continue
+        title = (getattr(note, "title", "") or "Checklist").strip() or "Checklist"
+        if list_filter and list_filter not in title.lower():
+            continue
+        if getattr(note, "pinned", False):
+            pinned.append(title)
+        bucket = _due_bucket(getattr(note, "due_date", None))
+        if bucket == "overdue":
+            overdue.append(title)
+        elif bucket == "today":
+            due_today.append(title)
+        if getattr(note, "note_type", "") == "checklist" and getattr(note, "items", None):
+            try:
+                items = _json.loads(note.items or "[]")
+            except Exception:
+                items = []
+            for item in items:
+                if not isinstance(item, dict) or item.get("done"):
+                    continue
+                text = " ".join(str(item.get("text") or "").split())
+                if text:
+                    open_items.append(f"{title}: {text}")
+        elif getattr(note, "pinned", False) and title:
+            open_items.append(title)
+
+    lines = ["Todo digest"]
+    if overdue:
+        lines.append("")
+        lines.append("Overdue:")
+        lines.extend(f"- {item}" for item in overdue[:limit])
+    if due_today:
+        lines.append("")
+        lines.append("Due today:")
+        lines.extend(f"- {item}" for item in due_today[:limit])
+    if pinned:
+        lines.append("")
+        lines.append("Pinned:")
+        lines.extend(f"- {item}" for item in pinned[:limit])
+    lines.append("")
+    lines.append("Open items:")
+    if open_items:
+        lines.extend(f"- {item}" for item in open_items[:limit])
+    else:
+        lines.append("- none")
+    return "\n".join(lines)
+
+
+async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
+    """Build a todo-only digest without calendar/email noise."""
+    try:
+        from core.database import Note, SessionLocal
+        from src.auth_helpers import owner_filter
+
+        db = SessionLocal()
+        try:
+            query = db.query(Note).filter(Note.archived == False)  # noqa: E712
+            if owner:
+                query = owner_filter(query, Note, owner, include_shared=False)
+            notes = query.order_by(Note.pinned.desc(), Note.updated_at.desc()).all()
+        finally:
+            db.close()
+        digest = _todo_digest_from_notes(
+            notes,
+            label=kwargs.get("label"),
+            list_filter=kwargs.get("list") or kwargs.get("list_filter"),
+            limit=int(kwargs.get("limit") or 20),
+        )
+        return digest, True
+    except Exception as e:
+        logger.error(f"todo_digest action failed: {e}")
+        return str(e), False
+
+
+async def action_local_maintenance_dry_run(owner: str, **kwargs) -> Tuple[str, bool]:
+    """Prepare local maintenance work without calling a model or writing truth."""
+    try:
+        import json as _json
+        from src.gemma4_maintenance_router import plan_gemma4_maintenance_route
+
+        plan = plan_gemma4_maintenance_route(
+            surface=kwargs.get("surface") or "memory",
+            workload=kwargs.get("workload"),
+            classification=kwargs.get("classification") or "private",
+            dsgvo_mode=bool(kwargs.get("dsgvo_mode", False)),
+            input_chars=int(kwargs.get("input_chars") or 0),
+            chunk_count=int(kwargs.get("chunk_count") or 1),
+            source_refs=tuple(kwargs.get("source_refs") or (f"owner:{owner or 'default'}",)),
+            excerpt="",
+        )
+        payload = plan.to_dict()
+        payload["dry_run"] = True
+        payload["truth_write_allowed"] = False
+        payload["model_called"] = False
+        return _json.dumps(payload, ensure_ascii=False, sort_keys=True), True
+    except Exception as e:
+        logger.error(f"local_maintenance_dry_run action failed: {e}")
+        return str(e), False
+
+
 async def action_test_skills(owner: str, **kwargs) -> Tuple[str, bool]:
     """Run the per-skill Test on every skill: agent runs the procedure in a
     sandbox, LLM judges the transcript, verdict is recorded on the skill.
@@ -1651,6 +1779,8 @@ BUILTIN_ACTIONS = {
     # ping_events removed from the user-facing registry. Calendar reminders
     # are represented as Notes, so note pings are the single dispatch path.
     "daily_brief": action_daily_brief,
+    "todo_digest": action_todo_digest,
+    "local_maintenance_dry_run": action_local_maintenance_dry_run,
     "learn_sender_signatures": action_learn_sender_signatures,
     "ssh_command": action_ssh_command,
     "run_script": action_run_script,
@@ -1673,6 +1803,8 @@ BUILTIN_ACTION_INFO = {
     "extract_email_events": "Scan emails for booking/meeting confirmations and auto-add to calendar",
     "classify_events": "Tag upcoming events with importance (low/normal/high/critical) and type (work/health/travel/etc.); colors them too",
     "daily_brief": "Build a morning digest: today's calendar, unread email count + top senders, active todos",
+    "todo_digest": "Build a todo-only digest with open checklist items, overdue items, due-today items, and pinned lists",
+    "local_maintenance_dry_run": "Prepare review-only local maintenance model work without live LLM calls or truth writes",
     "learn_sender_signatures": "LLM learns each sender's signature from 3+ of their recent emails; cached per address so future renders fold sigs reliably without heuristics",
     "ssh_command": "Run a shell command on a local or remote host",
     "run_script": "Run a script locally or on ODYSSEUS_SCRIPT_HOST",

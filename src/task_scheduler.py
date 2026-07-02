@@ -927,6 +927,10 @@ class TaskScheduler:
             await self._deliver_via_email(output, task, result)
             return
 
+        if self._is_user_notification_output_target(output):
+            await self._deliver_via_user_notification(task, result)
+            return
+
         if output != "session":
             return
 
@@ -1029,6 +1033,17 @@ class TaskScheduler:
         from src.task_scheduler_delivery import is_email_output_target
 
         return is_email_output_target(output)
+
+    @staticmethod
+    def _is_user_notification_output_target(output: str) -> bool:
+        from src.task_scheduler_delivery import is_user_notification_output_target
+
+        return is_user_notification_output_target(output)
+
+    async def _deliver_via_user_notification(self, task, result: str):
+        from src.task_scheduler_delivery import deliver_user_notification_for_task
+
+        await deliver_user_notification_for_task(task, result)
 
     async def _deliver_via_email(self, output: str, task, result: str):
         """Send task output through the app's configured SMTP account.

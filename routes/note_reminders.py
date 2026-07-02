@@ -379,6 +379,30 @@ async def dispatch_reminder(
             ntfy_error = str(e) or e.__class__.__name__
             logger.warning(f"Reminder ntfy send failed: {e}")
 
+    telegram_sent = False
+    telegram_status = ""
+    telegram_error = ""
+    if channel == "telegram":
+        try:
+            from src.user_notification_delivery import deliver_user_notification
+
+            message = synthesis or note_body or title or "Reminder"
+            decision = await deliver_user_notification({
+                "event": "note_reminder",
+                "message": message,
+                "severity": "warning",
+                "channel": "telegram",
+                "dry_run": settings.get("reminder_telegram_dry_run", True),
+                "metadata": {"note_id": str(note_id or "")[:80]},
+            })
+            telegram_status = str(decision.get("delivery_status") or decision.get("status") or "")
+            telegram_sent = telegram_status == "dispatched"
+            if not telegram_sent:
+                telegram_error = str(decision.get("reason") or telegram_status)
+        except Exception as e:
+            telegram_error = str(e) or e.__class__.__name__
+            logger.warning(f"Reminder telegram request failed: {e}")
+
     # In-app browser notification ALWAYS fires (regardless of channel). The
     # frontend polls `/api/tasks/notifications` and turns any entry with a
     # `body` into a real `Notification(...)` — same surface as task-success
@@ -404,7 +428,7 @@ async def dispatch_reminder(
     # second send for the same note within 25 min. Without this, a note
     # whose due_date fires while the user has the app open got TWO emails
     # (frontend-fired here + background-fired by ping_notes 0–5 min later).
-    if (email_sent or ntfy_sent or webhook_sent or browser_sent or local_browser_sent) and note_id:
+    if (email_sent or ntfy_sent or webhook_sent or telegram_sent or browser_sent or local_browser_sent) and note_id:
         try:
             import json as _json
             from datetime import datetime as _dt, timezone as _tz
@@ -420,7 +444,7 @@ async def dispatch_reminder(
                 _cache = cache or (_json.loads(_STATE.read_text(encoding="utf-8")) if _STATE.exists() else {})
             except Exception:
                 _cache = {}
-            sent_channel = "email" if email_sent else "ntfy" if ntfy_sent else "webhook" if webhook_sent else "browser"
+            sent_channel = "email" if email_sent else "ntfy" if ntfy_sent else "webhook" if webhook_sent else "telegram" if telegram_sent else "browser"
             _cache[cache_key or str(note_id)] = {
                 "at": _dt.now(_tz.utc).isoformat(),
                 "channel": sent_channel,
@@ -438,6 +462,9 @@ async def dispatch_reminder(
         "ntfy_error": ntfy_error,
         "webhook_sent": webhook_sent,
         "webhook_error": webhook_error,
+        "telegram_sent": telegram_sent,
+        "telegram_status": telegram_status,
+        "telegram_error": telegram_error,
         "browser_sent": browser_sent or local_browser_sent,
     }
 

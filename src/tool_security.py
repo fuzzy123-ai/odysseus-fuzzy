@@ -9,6 +9,28 @@ logger = logging.getLogger(__name__)
 
 PUBLIC_MCP_SERVER_ALLOWLIST = {"vault"}
 
+PUBLIC_VAULT_MCP_READONLY_TOOLS = {
+    "obsidian_tree",
+    "obsidian_read_note",
+    "obsidian_search_notes",
+    "obsidian_search_semantic",
+    "obsidian_list_tags",
+    "obsidian_graph",
+    "obsidian_suggest_links",
+    "obsidian_recent_notes",
+    "obsidian_history",
+    "obsidian_vault_stats",
+    "obsidian_spark_analyze",
+    "obsidian_spark_plan",
+    "obsidian_memory_tree_status",
+    "obsidian_memory_status",
+    "obsidian_memory_tree_analyze",
+    "obsidian_knowledge_audit",
+    "obsidian_quarantine_list",
+    "obsidian_raptor_status",
+    "obsidian_raptor_graph_view",
+}
+
 
 # Tools regular/public users must not execute directly. These either expose
 # server/runtime access, sensitive user data, external messaging, persistent
@@ -227,6 +249,9 @@ def is_public_blocked_tool(tool_name: Optional[str]) -> bool:
     if tool_name.startswith("mcp__"):
         parts = tool_name.split("__", 2)
         server_id = parts[1] if len(parts) == 3 else ""
+        mcp_tool = parts[2] if len(parts) == 3 else ""
+        if server_id == "vault":
+            return mcp_tool not in PUBLIC_VAULT_MCP_READONLY_TOOLS
         return server_id not in PUBLIC_MCP_SERVER_ALLOWLIST
     return tool_name in NON_ADMIN_BLOCKED_TOOLS
 

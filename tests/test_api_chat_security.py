@@ -235,7 +235,7 @@ def _install_sync_chat_stubs(monkeypatch):
             self.role = role
             self.content = content
 
-    async def _llm_call_async(endpoint_url, model, messages, headers=None, timeout=None):
+    async def _llm_call_async(endpoint_url, model, messages, headers=None, timeout=None, **kwargs):
         return "mocked response"
 
     endpoint_resolver = types.ModuleType("src.endpoint_resolver")
@@ -298,6 +298,7 @@ async def test_api_chat_direct_base_url_rejects_local_private_targets(monkeypatc
 
 @pytest.mark.asyncio
 async def test_api_chat_direct_base_url_allows_mocked_public_endpoint(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED", "true")
     webhook_routes = _load_webhook_routes_for_test(monkeypatch)
     _install_sync_chat_stubs(monkeypatch)
 
@@ -325,6 +326,39 @@ async def test_api_chat_direct_base_url_allows_mocked_public_endpoint(monkeypatc
     assert response["response"] == "mocked response"
     assert response["model"] == "test-model"
     assert session_manager.created[0]["endpoint_url"] == "https://api.example.com/v1/chat/completions"
+
+
+@pytest.mark.asyncio
+async def test_api_chat_direct_base_url_rejects_public_endpoint_by_default(monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED", raising=False)
+    webhook_routes = _load_webhook_routes_for_test(monkeypatch)
+    _install_sync_chat_stubs(monkeypatch)
+
+    from src import url_security
+
+    monkeypatch.setattr(
+        url_security,
+        "_resolve_hostname_ips",
+        lambda host: [ipaddress.ip_address("93.184.216.34")],
+    )
+
+    session_manager = _SessionManager()
+    sync_chat = _sync_chat_endpoint(webhook_routes, session_manager)
+    body = types.SimpleNamespace(
+        message="hello",
+        api_key="test-key",
+        base_url="https://api.example.com/v1",
+        model="test-model",
+        provider=None,
+        session=None,
+    )
+
+    with pytest.raises(webhook_routes.HTTPException) as exc:
+        await sync_chat(_Request(), body)
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "Direct base_url is disabled for API tokens"
+    assert session_manager.created == []
 
 
 def test_api_chat_fallback_endpoint_selection_for_owned_token(monkeypatch):

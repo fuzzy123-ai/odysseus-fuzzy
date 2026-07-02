@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 from core.database import SessionLocal, Webhook, ModelEndpoint
 from src.auth_helpers import owner_filter
-from src.url_security import validate_public_http_url
+from src.auth_helpers import require_api_token_scope
+from src.url_security import direct_base_url_enabled, validate_public_http_url
 from src.webhook_manager import WebhookManager, validate_webhook_url, validate_events
 
 logger = logging.getLogger(__name__)
@@ -238,9 +239,7 @@ def setup_webhook_routes(
     async def sync_chat(request: Request, body: SyncChatRequest):
         if not getattr(request.state, "api_token", False):
             raise HTTPException(403, "This endpoint requires an API token")
-        scopes = set(getattr(request.state, "api_token_scopes", []) or [])
-        if "chat" not in scopes:
-            raise HTTPException(403, "API token is not scoped for chat")
+        require_api_token_scope(request, "chat")
         token_owner = getattr(request.state, "api_token_owner", None)
 
         from core.models import ChatMessage
@@ -290,6 +289,8 @@ def setup_webhook_routes(
                 except ValueError as e:
                     detail = str(e).replace("URL", "base_url", 1)
                     raise HTTPException(400, detail)
+                if not direct_base_url_enabled():
+                    raise HTTPException(400, "Direct base_url is disabled for API tokens")
             else:
                 base_url = _resolve_base_url(model, body.provider)
             if not base_url:

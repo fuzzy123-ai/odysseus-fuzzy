@@ -4,9 +4,11 @@ import pytest
 
 from src.task_scheduler import TaskScheduler
 from src.task_scheduler_delivery import (
+    deliver_user_notification_for_task,
     deliver_via_mcp,
     format_email_output,
     is_email_output_target,
+    is_user_notification_output_target,
 )
 
 
@@ -31,6 +33,13 @@ def test_task_scheduler_delivery_email_target_detection():
 
     assert not is_email_output_target("session")
     assert not TaskScheduler._is_email_output_target("session")
+
+
+def test_task_scheduler_delivery_telegram_target_detection():
+    assert is_user_notification_output_target("telegram")
+    assert is_user_notification_output_target("notification:telegram")
+    assert TaskScheduler._is_user_notification_output_target("telegram")
+    assert not is_user_notification_output_target("email")
 
 
 @pytest.mark.asyncio
@@ -67,3 +76,23 @@ async def test_task_scheduler_delivery_mcp_args_are_bounded(monkeypatch):
             },
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_task_scheduler_telegram_delivery_uses_safe_boundary(monkeypatch):
+    calls = []
+
+    async def _deliver(payload):
+        calls.append(payload)
+        return {"delivery_status": "dry_run", "reason": "dry_run_requested"}
+
+    monkeypatch.setattr("src.user_notification_delivery.deliver_user_notification", _deliver)
+    task = SimpleNamespace(id="task-telegram", name="Morning Todos", owner="alice")
+
+    decision = await deliver_user_notification_for_task(task, "Todo digest body")
+
+    assert decision["delivery_status"] == "dry_run"
+    assert calls[0]["channel"] == "telegram"
+    assert calls[0]["dry_run"] is True
+    assert "chat_id" not in calls[0]
+    assert "token" not in str(calls[0]).lower()

@@ -52,6 +52,34 @@ def is_email_output_target(output: str) -> bool:
     return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", target))
 
 
+def is_user_notification_output_target(output: str) -> bool:
+    return (output or "").strip().lower() in {"telegram", "notification:telegram"}
+
+
+async def deliver_user_notification_for_task(task, result: str) -> dict:
+    from src.user_notification_delivery import deliver_user_notification
+
+    payload = {
+        "event": "scheduled_task",
+        "message": result or f"Task {getattr(task, 'name', '')} completed.",
+        "severity": "success",
+        "channel": "telegram",
+        "dry_run": True,
+        "metadata": {
+            "task_id": str(getattr(task, "id", "") or ""),
+            "task_name": str(getattr(task, "name", "") or "")[:80],
+        },
+    }
+    decision = await deliver_user_notification(payload)
+    logger.info(
+        "Task %s notification delivery via telegram: status=%s reason=%s",
+        getattr(task, "id", ""),
+        decision.get("delivery_status") or decision.get("status"),
+        decision.get("reason"),
+    )
+    return decision
+
+
 async def deliver_via_mcp(tool_name: str, task, result: str) -> None:
     """Send a task result via an MCP tool such as Gmail send."""
     from src.tool_utils import get_mcp_manager

@@ -52,6 +52,26 @@ def require_authenticated_request(request: Request) -> str:
     return require_user(request)
 
 
+def require_api_token_scope(request: Request, scope: str) -> None:
+    """Require an authenticated API token to carry ``scope``.
+
+    Cookie/session callers are intentionally ignored by this helper. Routes that
+    support both browser users and API tokens can call it before resolving the
+    effective owner; only bearer-token callers are scope-gated.
+    """
+    if not _is_api_token_request(request):
+        return
+    scopes = set(getattr(request.state, "api_token_scopes", []) or [])
+    if scope not in scopes:
+        raise HTTPException(403, f"API token is not scoped for {scope}")
+
+
+def scoped_effective_user(request: Request, scope: str) -> Optional[str]:
+    """Resolve the effective owner while enforcing ``scope`` for API tokens."""
+    require_api_token_scope(request, scope)
+    return effective_user(request)
+
+
 def _auth_disabled() -> bool:
     """True when the operator has explicitly turned off auth via .env.
     Mirrors the AUTH_ENABLED parse in app.py / core/middleware.py so the

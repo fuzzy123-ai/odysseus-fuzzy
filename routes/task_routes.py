@@ -982,6 +982,7 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             {"value": "session", "label": "Session", "description": "Save result to a chat session"},
             {"value": "notification", "label": "Notification", "description": "Push a browser notification with the result (also saved to the session for history)"},
             {"value": "email", "label": "Email me", "description": "Send result through your configured SMTP account"},
+            {"value": "telegram", "label": "Telegram", "description": "Request Telegram delivery through the server-side safe notification boundary"},
         ]
         # Only include tools whose NAME clearly indicates an outbound delivery
         # action — match by verb in the tool name, not by any mention of "email"
@@ -1158,7 +1159,7 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 out["scheduled_time"] = st.strip()
             if isinstance(draft.get("scheduled_day"), int):
                 out["scheduled_day"] = draft["scheduled_day"]
-            if draft.get("output_target") in ("session", "email", "notification"):
+            if draft.get("output_target") in ("session", "email", "notification", "telegram"):
                 out["output_target"] = draft["output_target"]
             out["trigger_type"] = "schedule"
             if not out.get("prompt"):

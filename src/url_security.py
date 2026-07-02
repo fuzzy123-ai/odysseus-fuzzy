@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import os
 import socket
 from urllib.parse import urlparse
 
@@ -92,3 +93,18 @@ def validate_public_http_url(url: str, *, max_length: int = 2048) -> str:
     if not is_public_http_url(cleaned):
         raise ValueError("URL must point to a public HTTP(S) endpoint")
     return cleaned
+
+
+def direct_base_url_enabled() -> bool:
+    """Whether API-token callers may provide an arbitrary direct base_url.
+
+    Direct token-supplied endpoints are deliberately opt-in. Admin-created
+    endpoint rows remain the normal path for local/LAN providers because they
+    are stored server-side and owner-scoped before use.
+    """
+    return os.getenv("ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }

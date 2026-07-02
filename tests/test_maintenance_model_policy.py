@@ -1,4 +1,5 @@
 import pytest
+import json
 
 from src.maintenance_model_policy import (
     MaintenanceModelPolicyError,
@@ -111,3 +112,25 @@ def test_unbounded_profile_is_rejected():
 
     with pytest.raises(MaintenanceModelPolicyError):
         default_maintenance_model_profile().__class__.create(max_queue_concurrency=2)
+
+
+@pytest.mark.asyncio
+async def test_local_maintenance_dry_run_action_never_writes_truth():
+    from src.builtin_actions import BUILTIN_ACTIONS
+
+    result, ok = await BUILTIN_ACTIONS["local_maintenance_dry_run"](
+        "alice",
+        surface="memory",
+        workload="memory_write_intent",
+        classification="sensitive",
+        dsgvo_mode=True,
+        input_chars=1200,
+    )
+    payload = json.loads(result)
+
+    assert ok is True
+    assert payload["dry_run"] is True
+    assert payload["model_called"] is False
+    assert payload["truth_write_allowed"] is False
+    assert payload["route"]["local_only_required"] is True
+    assert payload["route"]["api_escalation_allowed"] is False
