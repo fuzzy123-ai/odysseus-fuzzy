@@ -141,9 +141,12 @@ Current evidence:
   dedicated `odysseus-intake` app password is configured server-side only.
   Live smoke wrote one harmless copy-only file plus redacted sidecar under
   `Odysseus/LiveGate/Smoke/`, verified size `56/56`, and reported no private
-  content, secrets or host paths. Runtime default keeps
-  `UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO=false`; future Telegram-triggered
-  writes still require an explicit operator flip.
+  content, secrets or host paths.
+- 2026-07-02: Operator flipped
+  `UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO=true` on Debian and restarted
+  Odysseus. A Telegram review-transfer path smoke using a harmless synthetic
+  attachment spool completed with `dry_run=false`, `writes_performed=true`,
+  `sidecar_written=true`, `verified=true`, and size `72/72`.
 - 2026-07-02 Focused tests passed:
   `python -m pytest tests/test_nextcloud_webdav_client.py tests/test_universal_inbox_nextcloud_transfer.py tests/test_telegram_plugin.py::test_review_ok_executes_nextcloud_copy_only_with_explicit_live_gates -q`
   returned `13 passed, 1 warning`.
@@ -172,14 +175,14 @@ Slice queue:
 | L1-3-telegram-review-loop | repo_only | Bob | Done: `/review ok` confirms review, reports dry-run/operator gate, and reports verified live copy only when both gates are set. |
 | L1-4-pdf-and-doc-evidence | repo_only | Bob | Done: focused extraction tests cover PDF, DOCX and common text-like documents without raw persistence. |
 | L1-5-memory-intent-link | repo_only | Bob | Done: worker tests cover placement, extraction and Memory Write Intent/RaptorGraph provenance linkage without writes. |
-| L1-6-live-upload-smoke | closed | Charlie | Done: bounded WebDAV copy-only smoke completed and verified on Debian; live write remains operator-flip gated for future runs. |
+| L1-6-live-upload-smoke | closed | Charlie | Done: bounded WebDAV copy-only smoke and Telegram review-transfer smoke completed and verified on Debian; operator live gate is currently enabled. |
 
 Gate queue:
 
 | Gate | Class | Blocks | Decision needed |
 | --- | --- | --- | --- |
 | NC-LIVE-USER | closed | L1-6 | Done: dedicated `odysseus-intake` WebDAV app password configured server-side; target root `Odysseus/LiveGate` used for bounded smoke. |
-| NC-LIVE-WRITE | closed | L1-6 | Done: one bounded copy-only WebDAV upload plus sidecar verified on Debian, with no delete/move/overwrite. |
+| NC-LIVE-WRITE | closed | L1-6 | Done: bounded copy-only WebDAV upload and Telegram review-transfer path verified on Debian, with no delete/move/overwrite. |
 | TG-LIVE-REPLY | needs_live_go | Telegram delivery proof | Allow bounded Telegram reply/delivery smoke if not already covered. |
 | MEMORY-WRITE | needs_live_go | RaptorGraph/native memory writes | Allow reviewed memory writes, or keep dry-run. |
 
