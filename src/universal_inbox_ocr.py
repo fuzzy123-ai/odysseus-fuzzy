@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -17,6 +18,9 @@ from typing import Any, Mapping
 
 class UniversalInboxOcrUnavailable(RuntimeError):
     """Raised when the configured local OCR runtime is unavailable."""
+
+
+_LONG_ALNUM_TOKEN_RE = re.compile(r"\b[A-Za-z0-9][A-Za-z0-9_-]{7,}\b")
 
 
 @dataclass(frozen=True)
@@ -276,11 +280,42 @@ def _normalize_ocr_text(text: str) -> str:
 
 def _ocr_score(text: str) -> int:
     normalized = _normalize_ocr_text(text)
-    alnum = sum(1 for char in normalized if char.isalnum())
-    digit_bonus = 20 if any(char.isdigit() for char in normalized) else 0
-    mixed_bonus = 20 if any(char.isalpha() for char in normalized) and any(char.isdigit() for char in normalized) else 0
-    line_bonus = min(5, len(normalized.splitlines())) * 4
-    return alnum + digit_bonus + mixed_bonus + line_bonus
+    clean_lines = _quality_ocr_lines(normalized)
+    if not clean_lines:
+        return 0
+    clean_text = "\n".join(clean_lines)
+    alnum = sum(1 for char in clean_text if char.isalnum())
+    tokens = _LONG_ALNUM_TOKEN_RE.findall(clean_text)
+    mixed_tokens = [
+        token
+        for token in tokens
+        if any(char.isalpha() for char in token) and any(char.isdigit() for char in token)
+    ]
+    digit_bonus = 20 if any(char.isdigit() for char in clean_text) else 0
+    token_bonus = len(tokens) * 60 + len(mixed_tokens) * 220
+    line_bonus = min(5, len(clean_lines)) * 4
+    line_penalty = max(0, len(clean_lines) - 8) * 18
+    symbol_penalty = sum(
+        1
+        for char in normalized
+        if not (char.isalnum() or char.isspace() or char in ".,:;/-_+()[]")
+    )
+    return min(alnum, 140) + digit_bonus + token_bonus + line_bonus - line_penalty - symbol_penalty
+
+
+def _quality_ocr_lines(text: str) -> tuple[str, ...]:
+    lines = []
+    for line in _normalize_ocr_text(text).splitlines():
+        visible = [char for char in line if not char.isspace()]
+        if len(visible) < 2:
+            continue
+        alnum = sum(1 for char in visible if char.isalnum())
+        if alnum < 2:
+            continue
+        if alnum / max(1, len(visible)) < 0.45:
+            continue
+        lines.append(line)
+    return tuple(lines)
 
 
 def _bool_value(value: Any) -> bool:

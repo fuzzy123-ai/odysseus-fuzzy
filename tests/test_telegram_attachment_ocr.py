@@ -5,7 +5,7 @@ import pytest
 from plugins.telegram.attachments import format_telegram_attachment_inbox_reply
 from plugins.telegram.live_pipeline import run_telegram_universal_inbox_attachment_pipeline
 from plugins.telegram.plugin import _telegram_memory_auto_write_gate_is_clean
-from src.universal_inbox_ocr import LocalTesseractOcrAdapter, UniversalInboxOcrSettings
+from src.universal_inbox_ocr import LocalTesseractOcrAdapter, UniversalInboxOcrSettings, _ocr_score
 
 
 def test_telegram_attachment_reply_mentions_missing_ocr_adapter():
@@ -100,6 +100,21 @@ def test_tesseract_adapter_uses_preprocessed_variants_and_best_text(tmp_path, mo
     assert "80C501001B7C" in text
     assert len(calls) > 2
     assert any("--psm" in call for call in calls)
+
+
+def test_ocr_score_prefers_clear_identifier_over_noisy_full_frame_text():
+    noisy = "\n".join(
+        [
+            "= Ny",
+            "Awe at Arts Bs",
+            "MUS Cent 5% SPEC RY i' te iz",
+            "Mf ftp} Ay Ni iy RR RL A het 7 han",
+            "SANE Dez! RT 4 EAN SP SEE ut",
+        ]
+    )
+    clear = "80C501001B7C\nj"
+
+    assert _ocr_score(clear) > _ocr_score(noisy)
 
 
 def test_clean_telegram_ocr_attachment_can_skip_maintenance_review_gate():
