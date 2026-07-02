@@ -75,6 +75,29 @@ class ResultEvidenceBundle:
         }
 
 
+def build_sandbox_result_evidence(
+    *,
+    job_id: Any,
+    exit_code: Any,
+    stdout_artifact: Any = "",
+    stderr_artifact: Any = "",
+    summary: Any = "",
+) -> dict[str, Any]:
+    status = "ok" if int(exit_code or 0) == 0 else "failed"
+    artifacts = []
+    if stdout_artifact:
+        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=stdout_artifact, summary=summary or "Sandbox stdout captured.", status=status))
+    if stderr_artifact:
+        artifacts.append(ResultArtifact.create(kind="log_tail", artifact_ref=stderr_artifact, summary="Sandbox stderr captured.", status=status))
+    if not artifacts:
+        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=f"reports/sandbox/{_token(job_id, default='job')}.log", summary=summary or "Sandbox completed.", status=status))
+    bundle = ResultEvidenceBundle.create(run_id=job_id, artifacts=artifacts)
+    payload = bundle.to_dict()
+    payload["exit_code"] = max(0, min(int(exit_code or 0), 255))
+    payload["next_action"] = "inspect_failure" if status == "failed" else "continue"
+    return payload
+
+
 def _artifact_ref(value: Any) -> str:
     text = str(value or "").strip().replace("\\", "/")
     if not text or text.startswith("/") or re.match(r"^[A-Za-z]:", text) or ".." in text.split("/"):

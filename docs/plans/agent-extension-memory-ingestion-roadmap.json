@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "Memory And RaptorGraph Knowledge Commit Roadmap",
+  "goal": "Turn agent research and sandbox findings into durable, source-linked Memory/RaptorGraph knowledge with provenance, confidence and internal clickable references.",
+  "scope": {
+    "inputs": ["website research packets", "document analysis packets", "sandbox result packets", "operator-approved summaries"],
+    "outputs": ["memory candidates", "RaptorGraph nodes", "RaptorGraph edges", "review summaries", "write ledgers"],
+    "raw_content_storage": false
+  },
+  "slice_queue": [
+    {
+      "id": "MRK-1-candidate-schema",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Define memory candidates with source refs, model stamp, author stamp, confidence, sensitivity and expiry/recheck hints.",
+      "allowed_paths": ["src/memory_candidate_schema.py", "tests/test_memory_candidate_schema.py"],
+      "tests": ["tests/test_memory_candidate_schema.py"]
+    },
+    {
+      "id": "MRK-2-raptorgraph-mapping",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Map topics, pages, claims, entities and tasks into RaptorGraph nodes and edges with provenance.",
+      "allowed_paths": ["src/raptorgraph_candidate_mapping.py", "tests/test_raptorgraph_candidate_mapping.py"],
+      "tests": ["tests/test_raptorgraph_candidate_mapping.py"]
+    },
+    {
+      "id": "MRK-3-policy-auto-write",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Decide when abstractions can be auto-written, when review is needed and when DSGVO/local-only mode blocks API-derived content.",
+      "allowed_paths": ["src/memory_write_policy.py", "tests/test_memory_write_policy.py"],
+      "tests": ["tests/test_memory_write_policy.py"]
+    },
+    {
+      "id": "MRK-4-internal-link-targets",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Ensure Memory and RaptorGraph records expose stable internal link targets for Odysseus UI without requiring Telegram links.",
+      "allowed_paths": ["src/internal_reference_links.py", "tests/test_internal_reference_links.py"],
+      "tests": ["tests/test_internal_reference_links.py"]
+    },
+    {
+      "id": "MRK-5-live-memory-write-pilot",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Write a small approved ASV BW research subset into Memory/RaptorGraph and verify it is retrievable by Odysseus.",
+      "allowed_paths": ["reports/memory_ingestion/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Memory writes include source refs, timestamps, model/author stamps and confidence.",
+    "RaptorGraph can represent relationships between source pages, topics, claims and memory records.",
+    "Internal Odysseus links are stable and clickable in the UI layer.",
+    "Telegram summaries do not need internal links, but can mention record ids if useful.",
+    "Raw website or private document content is not persisted as long-term truth."
+  ]
+}

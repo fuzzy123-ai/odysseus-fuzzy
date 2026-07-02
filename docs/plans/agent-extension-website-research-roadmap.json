@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "Complete Website Research Pipeline Roadmap",
+  "goal": "Analyze approved websites deeply enough to answer operator questions and create source-linked memory without unbounded crawling.",
+  "no_gpu_strategy": "Use headless Chromium with software rendering, DOM/accessibility extraction and screenshots; do not require GPU acceleration.",
+  "example_task": {
+    "request": "analysiere die asv bw hilfeseite vollstaendig und fasse alle informationen im gedaechtnis zusammen",
+    "target_type": "public_help_site",
+    "required_bounds": ["target domain", "max pages", "max depth", "rate limit", "memory write policy"]
+  },
+  "slice_queue": [
+    {
+      "id": "CWR-1-scope-planner",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Convert operator intent into a bounded crawl scope with domain allowlist, path rules, depth and page caps.",
+      "allowed_paths": ["src/web_research_scope.py", "tests/test_web_research_scope.py"],
+      "tests": ["tests/test_web_research_scope.py"]
+    },
+    {
+      "id": "CWR-2-source-inventory",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Collect canonical URLs, titles, headings, link graph, content hashes and crawl gaps without storing raw page dumps.",
+      "allowed_paths": ["src/web_research_inventory.py", "tests/test_web_research_inventory.py"],
+      "tests": ["tests/test_web_research_inventory.py"]
+    },
+    {
+      "id": "CWR-3-content-synthesis",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Synthesize topics, processes, contacts, warnings, FAQs and unknowns from source chunks under DSGVO/model routing policy.",
+      "allowed_paths": ["src/web_research_synthesis.py", "tests/test_web_research_synthesis.py"],
+      "tests": ["tests/test_web_research_synthesis.py"]
+    },
+    {
+      "id": "CWR-4-crawl-resume",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Make large website research resumable with checkpointed frontier, dedupe state, budgets and retry metadata.",
+      "allowed_paths": ["src/web_research_checkpoint.py", "tests/test_web_research_checkpoint.py"],
+      "tests": ["tests/test_web_research_checkpoint.py"]
+    },
+    {
+      "id": "CWR-5-asv-bw-live-pilot",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Run a bounded ASV BW help-site pilot and produce a redacted source inventory plus memory candidates.",
+      "allowed_paths": ["reports/web_research/asv_bw/**"],
+      "tests": []
+    }
+  ],
+  "crawl_policy": {
+    "default_max_pages": 50,
+    "default_max_depth": 3,
+    "default_rate_limit_seconds": 2,
+    "respect_robots": true,
+    "login_required_pages": "skip_unless_operator_approves",
+    "external_links": "inventory_only_by_default",
+    "raw_html_persistence": false
+  },
+  "done_definition": [
+    "A full-site task cannot run without explicit bounds.",
+    "Research packets include source refs and content hashes, not raw dumps.",
+    "The pipeline reports skipped pages and uncertainty.",
+    "The ASV BW pilot can produce memory-ready abstractions from a bounded crawl."
+  ]
+}

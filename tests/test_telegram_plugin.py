@@ -15,6 +15,7 @@ from plugins.telegram.plugin import (
     TelegramPollingStateStore,
     TelegramPrivacyPinStore,
     TelegramSessionBridgeStore,
+    _handle_telegram_control_command,
     _telegram_control_command,
     build_agent_bridge_request,
     build_recent_telegram_attachment_context,
@@ -27,6 +28,7 @@ from plugins.telegram.plugin import (
     setup,
 )
 from src.image_tools_worker import ImageToolsWorkerResult
+from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 from src.server_project_registry import ServerProjectRegistry
 from src.telegram_voice_pipeline import VoiceAgentTurn
@@ -391,6 +393,89 @@ def test_telegram_workflow_context_normalizes_memory_status():
     assert context["dsgvo_mode"] == "on"
     assert context["security_mode"] == "secure"
     assert context["recent_attachment"]["memory_write_intent_status"] == "review"
+
+
+def test_agent_bridge_includes_redacted_long_running_task_intent(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    message = parse_telegram_update({
+        "update_id": 9,
+        "message": {
+            "message_id": 13,
+            "chat": {"id": 123},
+            "text": "Analysiere https://www.asv-bw.de/hilfe?private=1 vollstaendig und fasse alles im Gedaechtnis zusammen.",
+        },
+    })
+
+    bridge = build_agent_bridge_request(message)
+    task_intent = bridge["task_intent"]
+    encoded = json.dumps(task_intent, ensure_ascii=False, sort_keys=True).lower()
+    assert bridge["long_running_task"] is True
+    assert task_intent["task_type"] == "website_research_to_memory"
+    assert task_intent["target_ref"] == "https://www.asv-bw.de/"
+    assert "live_web_target_approval" in task_intent["gates_required"]
+    assert "memory_write_policy" in task_intent["gates_required"]
+    assert "task erkannt" in bridge["task_status_message"].lower()
+    assert "private=1" not in encoded
+    assert "vollstaendig" not in encoded
+
+
+def test_task_control_commands_are_detected():
+    assert _telegram_control_command({"kind": "text", "text": "/task"}) == "agent_task_status"
+    assert _telegram_control_command({"kind": "text", "text": "/task pause"}) == "agent_task_pause"
+    assert _telegram_control_command({"kind": "text", "text": "/task weiter"}) == "agent_task_resume"
+    assert _telegram_control_command({"kind": "text", "text": "/task cancel"}) == "agent_task_cancel"
+
+
+def test_task_control_status_and_pause_use_redacted_ledger(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setattr(agent_task_ledger, "AGENT_TASK_LEDGER_DIR", str(tmp_path / "task-ledger"))
+    import plugins.telegram.plugin as telegram_plugin
+
+    monkeypatch.setattr(telegram_plugin, "AGENT_TASK_LEDGER_DIR", str(tmp_path / "task-ledger"), raising=False)
+    agent_task_ledger.record_task_event(
+        task_id="tg_task_abc",
+        task_type="website_research_to_memory",
+        status="running",
+        correlation_id="tg_task_abc",
+        target_ref="https://www.asv-bw.de/",
+        progress_percent=42,
+        gates_waiting=("memory_write_policy",),
+    )
+    message = parse_telegram_update({
+        "update_id": 10,
+        "message": {
+            "message_id": 14,
+            "chat": {"id": 123},
+            "text": "/task status",
+        },
+    })
+    replies: list[tuple[str, str, int | None]] = []
+
+    result = _handle_telegram_control_command(
+        "agent_task_status",
+        message=message,
+        raw_chat_id="123",
+        sessions=TelegramSessionBridgeStore(tmp_path),
+        session_creator=None,
+        reply_handler=lambda chat_id, text, reply_to: replies.append((chat_id, text, reply_to)) or {"ok": True},
+    )
+    assert result is not None
+    assert result["status"] == "agent_task_status"
+    assert result["agent_task"]["raw_content_visible"] is False
+    assert "tg_task_abc" in result["reply_text"]
+    assert "42%" in result["reply_text"]
+
+    pause = _handle_telegram_control_command(
+        "agent_task_pause",
+        message=message,
+        raw_chat_id="123",
+        sessions=TelegramSessionBridgeStore(tmp_path),
+        session_creator=None,
+    )
+    assert pause is not None
+    assert pause["status"] == "pause_requested"
+    assert pause["agent_task"]["status"] == "pause_requested"
+    assert "123" not in json.dumps(pause["agent_task"], sort_keys=True)
 
 
 def test_parse_voice_update_marks_pending_stt():

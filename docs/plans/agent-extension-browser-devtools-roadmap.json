@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "Browser DevTools Understanding Roadmap",
+  "goal": "Give agents browser understanding beyond text by capturing DevTools-style signals safely: console, network, DOM state, accessibility tree, storage metadata and runtime errors.",
+  "no_gpu_strategy": "Use headless Chromium and Chrome DevTools Protocol compatible signals; GPU acceleration is not required.",
+  "slice_queue": [
+    {
+      "id": "BDU-1-console-network-contract",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Define redacted console and network event summaries with URL hosts, status classes, timing and error classes.",
+      "allowed_paths": ["src/browser_devtools_evidence.py", "tests/test_browser_devtools_evidence.py"],
+      "tests": ["tests/test_browser_devtools_evidence.py"]
+    },
+    {
+      "id": "BDU-2-dom-accessibility-diff",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Summarize DOM and accessibility tree changes across interactions without storing private raw forms or secrets.",
+      "allowed_paths": ["src/browser_dom_observer.py", "tests/test_browser_dom_observer.py"],
+      "tests": ["tests/test_browser_dom_observer.py"]
+    },
+    {
+      "id": "BDU-3-storage-cookie-redaction",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Record only safe storage/cookie metadata needed for diagnosis, never values or auth material.",
+      "allowed_paths": ["src/browser_storage_redaction.py", "tests/test_browser_storage_redaction.py"],
+      "tests": ["tests/test_browser_storage_redaction.py"]
+    },
+    {
+      "id": "BDU-4-interaction-script",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Represent bounded interactions such as click, type, wait and screenshot as auditable steps.",
+      "allowed_paths": ["src/browser_interaction_script.py", "tests/test_browser_interaction_script.py"],
+      "tests": ["tests/test_browser_interaction_script.py"]
+    },
+    {
+      "id": "BDU-5-live-devtools-smoke",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Capture redacted console/network/DOM evidence from an approved public page on Debian.",
+      "allowed_paths": ["reports/browser_devtools/**"],
+      "tests": []
+    }
+  ],
+  "redaction_rules": [
+    "Never store Authorization headers, cookies, tokens or form values.",
+    "Hash full URLs when query strings may contain private data.",
+    "Store host, path class, status code, mime family and timing instead of raw payloads.",
+    "Store screenshots only when policy allows the page class."
+  ],
+  "done_definition": [
+    "Agents can explain why a page failed using console and network summaries.",
+    "Evidence remains useful without exposing secrets.",
+    "DevTools evidence can be attached to website research and sandbox result observer runs."
+  ]
+}

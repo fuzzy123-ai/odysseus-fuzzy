@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "No-GPU Visual Observer Roadmap",
+  "goal": "Allow Odysseus to observe websites and app results visually without a graphics card, using software-rendered screenshots, sampled frames and visual diffs.",
+  "hardware_constraints": {
+    "gpu_available": false,
+    "expected_renderer": "headless Chromium software rendering",
+    "live_video_streaming": "not_required_for_mvp",
+    "frame_sampling": "preferred_over_continuous_stream"
+  },
+  "slice_queue": [
+    {
+      "id": "NGV-1-screenshot-contract",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Define screenshot evidence metadata, dimensions, hash, viewport, selector focus and redaction policy.",
+      "allowed_paths": ["src/visual_observer_evidence.py", "tests/test_visual_observer_evidence.py"],
+      "tests": ["tests/test_visual_observer_evidence.py"]
+    },
+    {
+      "id": "NGV-2-frame-sampler",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Sample frames from dynamic pages with max duration, max frames and perceptual hash dedupe.",
+      "allowed_paths": ["src/visual_frame_sampler.py", "tests/test_visual_frame_sampler.py"],
+      "tests": ["tests/test_visual_frame_sampler.py"]
+    },
+    {
+      "id": "NGV-3-visual-diff-summary",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Summarize visual differences between before/after states without storing excessive images.",
+      "allowed_paths": ["src/visual_diff_summary.py", "tests/test_visual_diff_summary.py"],
+      "tests": ["tests/test_visual_diff_summary.py"]
+    },
+    {
+      "id": "NGV-4-ocr-caption-bridge",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Bridge screenshots into OCR/caption pipelines when text is only visible as pixels.",
+      "allowed_paths": ["src/visual_ocr_bridge.py", "tests/test_visual_ocr_bridge.py"],
+      "tests": ["tests/test_visual_ocr_bridge.py"]
+    },
+    {
+      "id": "NGV-5-live-no-gpu-smoke",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Verify screenshot, frame sampling and visual diff on Debian without GPU.",
+      "allowed_paths": ["reports/no_gpu_visual_observer/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Visual checks work on the Debian host without GPU.",
+    "Dynamic pages can be observed through sampled frames rather than continuous video.",
+    "Screenshots and diffs are bounded, hashed and policy-controlled.",
+    "OCR/caption follow-up can be triggered when visual text is not available in DOM."
+  ]
+}

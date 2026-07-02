@@ -1,6 +1,6 @@
 import pytest
 
-from src.agent_result_observer import ResultArtifact, ResultEvidenceBundle, ResultObserverError
+from src.agent_result_observer import ResultArtifact, ResultEvidenceBundle, ResultObserverError, build_sandbox_result_evidence
 
 
 def test_result_evidence_bundle_sets_warning_verdict():
@@ -27,3 +27,18 @@ def test_result_artifact_rejects_secret_summary():
             artifact_ref="reports/run1/log.txt",
             summary="password=secret",
         )
+
+
+def test_sandbox_result_evidence_attaches_exit_code_and_next_action():
+    payload = build_sandbox_result_evidence(
+        job_id="pytest_smoke",
+        exit_code=1,
+        stdout_artifact="reports/sandbox/stdout.log",
+        stderr_artifact="reports/sandbox/stderr.log",
+        summary="Focused tests failed.",
+    )
+
+    assert payload["verdict"] == "failed"
+    assert payload["exit_code"] == 1
+    assert payload["next_action"] == "inspect_failure"
+    assert payload["raw_content_visible"] is False

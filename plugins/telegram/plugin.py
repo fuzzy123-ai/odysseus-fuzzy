@@ -219,6 +219,8 @@ from plugins.telegram.stores import (
     _stable_handle,
     build_telegram_draft_id,
 )
+from src.agent_task_ledger import read_task_records, record_task_event
+from src.telegram_task_orchestrator import build_telegram_task_intent, build_telegram_task_status_message
 
 
 def parse_telegram_update(update: dict[str, Any]) -> dict[str, Any]:
@@ -330,6 +332,8 @@ def build_agent_bridge_request(
         recent_attachment_context=recent_attachment_context,
         dsgvo_mode=dsgvo_mode,
     )
+    task_intent = build_telegram_task_intent(message, workflow_context=workflow_context).to_dict()
+    task_status_message = build_telegram_task_status_message(task_intent)
     return {
         "channel": "telegram",
         "session_alias": f"telegram:{chat_handle}",
@@ -351,6 +355,12 @@ def build_agent_bridge_request(
             "host_paths_visible": False,
         },
         "workflow_context": workflow_context,
+        "task_intent": task_intent,
+        "task_status_message": task_status_message,
+        "long_running_task": task_intent.get("task_type") in {
+            "website_research",
+            "website_research_to_memory",
+        },
         "intake_status": message.get("intake_status") or note,
         "dsgvo_mode": dsgvo_mode,
         "security_mode": "secure" if local_only_required else "normal",
@@ -358,6 +368,85 @@ def build_agent_bridge_request(
         "attachment_local_only_required": attachment_local_only,
         "telegram_voice_dsgvo_exempt": voice_dsgvo_exempt,
         "sensitivity_delegation": sensitivity_delegation,
+    }
+
+
+def _handle_agent_task_control_command(command: str) -> dict[str, Any]:
+    records = read_task_records(limit=5)
+    latest = records.get("records", [None])[0] if records.get("records") else None
+    if command == "agent_task_help":
+        return {
+            "status": "agent_task_help",
+            "reply_text": "Task-Kommandos: /task status, /task pause, /task resume, /task cancel.",
+            "agent_task": {"raw_content_visible": False},
+        }
+    if command == "agent_task_status":
+        if not latest:
+            return {
+                "status": "agent_task_missing",
+                "reply_text": "Ich finde aktuell keinen laufenden Agent-Task.",
+                "agent_task": {"raw_content_visible": False},
+            }
+        task_id = str(latest.get("task_id") or "")
+        task_type = str(latest.get("task_type") or "unknown")
+        status = str(latest.get("status") or "unknown")
+        progress = int(latest.get("progress_percent") or 0)
+        gates = tuple(str(item) for item in latest.get("gates_waiting") or ())
+        gate_text = f" Gates: {', '.join(gates[:3])}." if gates else ""
+        return {
+            "status": "agent_task_status",
+            "reply_text": f"Letzter Task {task_id}: {task_type}, Status {status}, Fortschritt {progress}%.{gate_text}",
+            "agent_task": _public_agent_task_record(latest),
+        }
+    if command not in {"agent_task_pause", "agent_task_resume", "agent_task_cancel"}:
+        return {
+            "status": "agent_task_unknown_command",
+            "reply_text": "Task-Kommando nicht erkannt. Nutze /task status.",
+            "agent_task": {"raw_content_visible": False},
+        }
+    if not latest:
+        return {
+            "status": "agent_task_missing",
+            "reply_text": "Ich finde keinen Agent-Task, auf den ich das anwenden kann.",
+            "agent_task": {"raw_content_visible": False},
+        }
+    next_status = {
+        "agent_task_pause": "pause_requested",
+        "agent_task_resume": "resume_requested",
+        "agent_task_cancel": "cancel_requested",
+    }[command]
+    action_text = {
+        "agent_task_pause": "Pause angefordert",
+        "agent_task_resume": "Fortsetzen angefordert",
+        "agent_task_cancel": "Abbruch angefordert",
+    }[command]
+    record = record_task_event(
+        task_id=str(latest.get("task_id") or ""),
+        task_type=str(latest.get("task_type") or "unknown"),
+        status=next_status,
+        surface="telegram",
+        correlation_id=str(latest.get("correlation_id") or ""),
+        target_ref=str(latest.get("target_ref") or ""),
+        progress_percent=int(latest.get("progress_percent") or 0),
+        gates_waiting=tuple(str(item) for item in latest.get("gates_waiting") or ()),
+        summary=action_text,
+    )
+    return {
+        "status": next_status,
+        "reply_text": f"{action_text} fuer Task {record.get('task_id')}.",
+        "agent_task": _public_agent_task_record(record),
+    }
+
+
+def _public_agent_task_record(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "task_id": str(record.get("task_id") or ""),
+        "task_type": str(record.get("task_type") or ""),
+        "status": str(record.get("status") or ""),
+        "target_ref": str(record.get("target_ref") or ""),
+        "progress_percent": int(record.get("progress_percent") or 0),
+        "gates_waiting": tuple(str(item) for item in record.get("gates_waiting") or ()),
+        "raw_content_visible": False,
     }
 
 
@@ -427,6 +516,25 @@ def _handle_telegram_control_command(
             "reply": reply_result,
             "dsgvo_mode": bool((result or {}).get("after") if result is not None else _dsgvo_mode_active()),
             "pin_status": pin_result.get("status"),
+        }
+    if command.startswith("agent_task_"):
+        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+        result = _handle_agent_task_control_command(command)
+        reply_text = str(result.get("reply_text") or "")
+        reply_result = None
+        if reply_handler is not None and bridge["chat_id"]:
+            reply_result = reply_handler(
+                bridge["chat_id"],
+                reply_text,
+                bridge.get("source_message_id"),
+            )
+        return {
+            "command": command,
+            "status": str(result.get("status") or command),
+            "binding": {},
+            "reply_text": reply_text,
+            "reply": reply_result,
+            "agent_task": result.get("agent_task") or {},
         }
     if command == "universal_inbox_status":
         snapshot = build_universal_inbox_readiness()

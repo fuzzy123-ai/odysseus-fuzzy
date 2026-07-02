@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "Sandbox Code Execution Roadmap",
+  "goal": "Let Odysseus execute code, tests and small build tasks inside disposable Podman sandboxes with scoped mounts, resource limits and auditable artifacts.",
+  "runtime_strategy": {
+    "container_runtime": "podman",
+    "docker_mcp": false,
+    "default_network": "none",
+    "secrets_available_by_default": false,
+    "destructive_commands": "blocked_or_operator_approved"
+  },
+  "slice_queue": [
+    {
+      "id": "SCE-1-job-template-catalog",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Define safe templates for Python, Node, browser, document conversion and static-analysis jobs.",
+      "allowed_paths": ["src/sandbox_job_templates.py", "tests/test_sandbox_job_templates.py"],
+      "tests": ["tests/test_sandbox_job_templates.py"]
+    },
+    {
+      "id": "SCE-2-artifact-policy",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Classify sandbox outputs into logs, screenshots, reports and generated files with redaction and retention policy.",
+      "allowed_paths": ["src/sandbox_artifact_policy.py", "tests/test_sandbox_artifact_policy.py"],
+      "tests": ["tests/test_sandbox_artifact_policy.py"]
+    },
+    {
+      "id": "SCE-3-resource-guard",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Enforce CPU, memory, timeout, pids, filesystem and network constraints before job dispatch.",
+      "allowed_paths": ["src/sandbox_resource_guard.py", "tests/test_sandbox_resource_guard.py"],
+      "tests": ["tests/test_sandbox_resource_guard.py"]
+    },
+    {
+      "id": "SCE-4-result-observer-integration",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Attach sandbox results to the agent result observer with exit code, evidence summary and next-action recommendation.",
+      "allowed_paths": ["src/agent_result_observer.py", "tests/test_agent_result_observer.py"],
+      "tests": ["tests/test_agent_result_observer.py"]
+    },
+    {
+      "id": "SCE-5-live-sandbox-template-smoke",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Run one Python and one Node disposable sandbox job on Debian and verify artifacts are redacted.",
+      "allowed_paths": ["reports/sandbox_execution/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Agents cannot execute arbitrary host commands by default.",
+    "Every sandbox job has explicit limits and a correlation id.",
+    "Network access is opt-in per job.",
+    "Artifacts are redacted and retained under policy.",
+    "Operator can understand what was run and why."
+  ]
+}

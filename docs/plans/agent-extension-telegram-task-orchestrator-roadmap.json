@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_extension_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "repo_done_live_pending",
+  "title": "Telegram Task Orchestrator Roadmap",
+  "goal": "Let Telegram act as the remote operator surface for long-running Odysseus tasks without requiring constant manual supervision.",
+  "primary_channel": "telegram",
+  "example_requests": [
+    "analysiere die asv bw hilfeseite vollstaendig und fasse alle informationen im gedaechtnis zusammen",
+    "wie weit ist die analyse?",
+    "pausiere den lauf",
+    "zeige mir die wichtigsten offenen entscheidungen"
+  ],
+  "slice_queue": [
+    {
+      "id": "TTO-1-task-intent-model",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Normalize Telegram messages into trusted task intents with channel, operator, target kind, requested output and live gate needs.",
+      "allowed_paths": ["src/telegram_task_orchestrator.py", "tests/test_telegram_task_orchestrator.py"],
+      "tests": ["tests/test_telegram_task_orchestrator.py"]
+    },
+    {
+      "id": "TTO-2-run-ledger",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Create a redacted run ledger for task state, progress, gates, retries and operator-visible summaries.",
+      "allowed_paths": ["src/agent_task_ledger.py", "tests/test_agent_task_ledger.py"],
+      "tests": ["tests/test_agent_task_ledger.py"]
+    },
+    {
+      "id": "TTO-3-telegram-status-bridge",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Return concise Telegram updates for started, waiting-for-gate, running, blocked, done and failed states.",
+      "allowed_paths": ["plugins/telegram/plugin.py", "plugins/telegram/parsing.py", "tests/test_telegram_plugin.py"],
+      "tests": ["tests/test_telegram_plugin.py"]
+    },
+    {
+      "id": "TTO-4-operator-controls",
+      "class": "repo_only",
+      "status": "done",
+      "goal": "Support pause, resume, cancel, status and review commands without exposing raw private content in Telegram.",
+      "allowed_paths": ["src/telegram_task_orchestrator.py", "plugins/telegram/plugin.py", "tests/test_telegram_task_orchestrator.py", "tests/test_telegram_plugin.py"],
+      "tests": ["tests/test_telegram_task_orchestrator.py", "tests/test_telegram_plugin.py"]
+    },
+    {
+      "id": "TTO-5-live-telegram-smoke",
+      "class": "needs_live_go",
+      "status": "planned",
+      "goal": "Verify that Telegram can create a bounded task and receive progress/status on Debian.",
+      "allowed_paths": ["reports/telegram_task_orchestrator/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Every long-running task has a correlation id and redacted state.",
+    "Telegram status messages never include raw sensitive content.",
+    "The user can ask for progress without restarting the job.",
+    "Missing live gates are reported clearly instead of silently failing."
+  ]
+}

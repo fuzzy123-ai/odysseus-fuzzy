@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_autonomy_extensions_master_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "in_progress",
+  "mode": "backend_logic_first",
+  "title": "Agent Autonomy Extensions Master Roadmap",
+  "goal": "Extend the completed agent capability foundation into production-grade Telegram-driven research, browser understanding, no-GPU observation, sandbox execution and Memory/RaptorGraph knowledge commits.",
+  "hard_constraints": {
+    "gpu_available": false,
+    "runtime_container_strategy": "podman_pods",
+    "no_docker_default": true,
+    "no_ui_implementation_in_this_track": true,
+    "no_ui_hotfiles_without_ui_agent": true,
+    "telegram_is_primary_remote_operator_channel": true,
+    "raw_private_content_persistence": "forbidden",
+    "sensitive_content_policy": "DSGVO gate decides local-only versus API-capable processing",
+    "live_network_requires_bounded_target": true,
+    "memory_truth_writes_require_policy_gate": true,
+    "large_site_crawls_require_budget_caps": true
+  },
+  "foundation_roadmaps": [
+    {
+      "roadmap": "docs/plans/agent-capability-expansion-master-roadmap.json",
+      "status": "done",
+      "provides": ["browser evidence contract", "sandbox pod contract", "result observer contract", "telegram web research workflow binding"]
+    },
+    {
+      "roadmap": "docs/plans/telegram-web-research-memory-roadmap.json",
+      "status": "done",
+      "provides": ["trusted Telegram intent", "redacted research packet", "Memory/RaptorGraph write intent bridge"]
+    }
+  ],
+  "target_user_stories": [
+    {
+      "channel": "telegram",
+      "request": "analysiere die asv bw hilfeseite vollstaendig und fasse alle informationen im gedaechtnis zusammen",
+      "expected_result": "Odysseus asks only for missing bounded inputs if needed, crawls the approved ASV BW scope, extracts structured knowledge, writes reviewed abstractions into Memory/RaptorGraph and reports source-linked gaps."
+    },
+    {
+      "channel": "telegram",
+      "request": "pruefe homepage x und y, erklaere die Unterschiede und merke dir die relevanten Prozesse",
+      "expected_result": "Odysseus compares bounded sites with browser evidence, console/network summaries and source-linked memory candidates."
+    },
+    {
+      "channel": "telegram",
+      "request": "fuehre diesen kleinen Code-Test in einer Sandbox aus und zeig mir das Ergebnis",
+      "expected_result": "Odysseus runs bounded code in an isolated Podman sandbox, captures artifacts, screenshots/logs where applicable and returns a concise operator summary."
+    }
+  ],
+  "source_roadmaps": [
+    "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+    "docs/plans/agent-extension-website-research-roadmap.json",
+    "docs/plans/agent-extension-browser-devtools-roadmap.json",
+    "docs/plans/agent-extension-nogpu-visual-observer-roadmap.json",
+    "docs/plans/agent-extension-sandbox-execution-roadmap.json",
+    "docs/plans/agent-extension-memory-ingestion-roadmap.json"
+  ],
+  "capability_lanes": [
+    {
+      "id": "AAE-1",
+      "name": "Telegram Task Orchestrator",
+      "roadmap": "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+      "priority": "P0",
+      "depends_on": [],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Telegram can start, pause, query and receive status for long-running bounded agent tasks without requiring the user to babysit the run."
+    },
+    {
+      "id": "AAE-2",
+      "name": "Complete Website Research Pipeline",
+      "roadmap": "docs/plans/agent-extension-website-research-roadmap.json",
+      "priority": "P0",
+      "depends_on": ["AAE-1"],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Odysseus can analyze an approved site scope fully enough for operator intent, with crawl caps, deduplication, source map, gaps and redacted synthesis."
+    },
+    {
+      "id": "AAE-3",
+      "name": "Browser DevTools Understanding",
+      "roadmap": "docs/plans/agent-extension-browser-devtools-roadmap.json",
+      "priority": "P1",
+      "depends_on": ["AAE-2"],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Agents can understand page behavior through console, network, DOM, accessibility tree, storage metadata and failed requests without exposing secrets."
+    },
+    {
+      "id": "AAE-4",
+      "name": "No-GPU Visual Observer",
+      "roadmap": "docs/plans/agent-extension-nogpu-visual-observer-roadmap.json",
+      "priority": "P1",
+      "depends_on": ["AAE-2", "AAE-3"],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Odysseus can visually observe pages/apps through software-rendered screenshots, frame sampling and diff evidence without a GPU."
+    },
+    {
+      "id": "AAE-5",
+      "name": "Sandbox Code Execution",
+      "roadmap": "docs/plans/agent-extension-sandbox-execution-roadmap.json",
+      "priority": "P1",
+      "depends_on": ["AAE-1"],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Agents can run bounded code/tests/builds in disposable Podman sandboxes with scoped mounts, resource limits and redacted artifacts."
+    },
+    {
+      "id": "AAE-6",
+      "name": "Memory And RaptorGraph Knowledge Commit",
+      "roadmap": "docs/plans/agent-extension-memory-ingestion-roadmap.json",
+      "priority": "P0",
+      "depends_on": ["AAE-2"],
+      "safe_start": true,
+      "status": "repo_done_live_pending",
+      "done_when": "Website and sandbox findings become source-linked Memory/RaptorGraph candidates, then policy-approved knowledge entries with model stamps and provenance."
+    }
+  ],
+  "execution_order": [
+    "AAE-1 Telegram task lifecycle and status model",
+    "AAE-2 bounded website crawler planner and source inventory",
+    "AAE-6 memory candidate schema and write policy",
+    "AAE-3 browser evidence enrichment with DevTools-style signals",
+    "AAE-4 software-rendered visual observer and frame/diff budget",
+    "AAE-5 sandbox job templates and artifact observer",
+    "AAE-2 plus AAE-6 ASV BW pilot under explicit live web and memory gates"
+  ],
+  "global_gate_queue": [
+    {
+      "id": "live-web-target-approval",
+      "class": "needs_operator_go",
+      "blocks": ["AAE-2 live crawls", "AAE-3 live network evidence", "AAE-4 live screenshots"],
+      "decision_needed": "Approve target domain, crawl depth, page cap, rate limit and robots/login handling.",
+      "risk_if_bypassed": "Unbounded crawling or accidental access to unrelated/private pages."
+    },
+    {
+      "id": "memory-write-policy",
+      "class": "needs_policy",
+      "blocks": ["AAE-6 final Memory/RaptorGraph writes"],
+      "decision_needed": "Decide when research abstractions may auto-write versus require review.",
+      "risk_if_bypassed": "Low-quality or stale statements could become long-term truth."
+    },
+    {
+      "id": "sandbox-execution-live-go",
+      "class": "needs_operator_go",
+      "blocks": ["AAE-5 live sandbox execution"],
+      "decision_needed": "Allow disposable Podman sandbox jobs with configured resource limits and mounts.",
+      "risk_if_bypassed": "Code may execute outside the intended isolation model."
+    },
+    {
+      "id": "ui-agent-placement",
+      "class": "needs_design",
+      "blocks": ["visible task monitor", "review windows", "operator controls"],
+      "decision_needed": "UI agent decides placement and interaction model for long-running tasks and memory review.",
+      "risk_if_bypassed": "Backend can work but operator experience remains incomplete."
+    }
+  ],
+  "non_goals": [
+    "No GPU dependency.",
+    "No Docker-first workflow.",
+    "No broad host shell access.",
+    "No unbounded web crawling.",
+    "No persistence of raw private documents or raw private page captures.",
+    "No UI implementation in this roadmap set."
+  ],
+  "success_metrics": [
+    "Telegram can start an ASV BW research-to-memory task with bounded parameters.",
+    "Research output includes source map, topic map, confidence, gaps and timestamps.",
+    "Browser evidence includes DOM, accessibility, screenshot, console and network summaries.",
+    "No-GPU visual observer produces usable screenshots and diffs through software rendering.",
+    "Sandbox jobs produce redacted artifacts and exit summaries under resource limits.",
+    "Memory and RaptorGraph entries are clickable internally, source-linked and model-stamped."
+  ]
+}

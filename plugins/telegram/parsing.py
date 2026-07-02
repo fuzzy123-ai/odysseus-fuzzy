@@ -249,6 +249,18 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
         if first_arg in {"status", "state", "info", ""}:
             return "project_intake_review_status"
         return ""
+    if command in {"/task", "/tasks", "/lauf", "/job"}:
+        args = parts[1].strip().split() if len(parts) > 1 and parts[1].strip() else []
+        first_arg = args[0].lower() if args else ""
+        if first_arg in {"pause", "pausieren", "hold", "stop"}:
+            return "agent_task_pause"
+        if first_arg in {"resume", "weiter", "fortsetzen", "continue"}:
+            return "agent_task_resume"
+        if first_arg in {"cancel", "abbrechen", "canceln"}:
+            return "agent_task_cancel"
+        if first_arg in {"status", "state", "info", ""}:
+            return "agent_task_status"
+        return "agent_task_help"
     if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
         if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
             return "dsgvo_enable"
