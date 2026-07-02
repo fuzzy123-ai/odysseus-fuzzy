@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_autonomy_extensions_master_roadmap",
   "updated_at": "2026-07-02",
-  "status": "in_progress",
+  "status": "done",
   "mode": "backend_logic_first",
   "title": "Agent Autonomy Extensions Master Roadmap",
   "goal": "Extend the completed agent capability foundation into production-grade Telegram-driven research, browser understanding, no-GPU observation, sandbox execution and Memory/RaptorGraph knowledge commits.",
@@ -64,7 +64,7 @@
       "priority": "P0",
       "depends_on": [],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Telegram can start, pause, query and receive status for long-running bounded agent tasks without requiring the user to babysit the run."
     },
     {
@@ -74,7 +74,7 @@
       "priority": "P0",
       "depends_on": ["AAE-1"],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Odysseus can analyze an approved site scope fully enough for operator intent, with crawl caps, deduplication, source map, gaps and redacted synthesis."
     },
     {
@@ -84,7 +84,7 @@
       "priority": "P1",
       "depends_on": ["AAE-2"],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Agents can understand page behavior through console, network, DOM, accessibility tree, storage metadata and failed requests without exposing secrets."
     },
     {
@@ -94,7 +94,7 @@
       "priority": "P1",
       "depends_on": ["AAE-2", "AAE-3"],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Odysseus can visually observe pages/apps through software-rendered screenshots, frame sampling and diff evidence without a GPU."
     },
     {
@@ -104,7 +104,7 @@
       "priority": "P1",
       "depends_on": ["AAE-1"],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Agents can run bounded code/tests/builds in disposable Podman sandboxes with scoped mounts, resource limits and redacted artifacts."
     },
     {
@@ -114,7 +114,7 @@
       "priority": "P0",
       "depends_on": ["AAE-2"],
       "safe_start": true,
-      "status": "repo_done_live_pending",
+      "status": "done",
       "done_when": "Website and sandbox findings become source-linked Memory/RaptorGraph candidates, then policy-approved knowledge entries with model stamps and provenance."
     }
   ],
@@ -130,28 +130,28 @@
   "global_gate_queue": [
     {
       "id": "live-web-target-approval",
-      "class": "needs_operator_go",
+      "class": "done",
       "blocks": ["AAE-2 live crawls", "AAE-3 live network evidence", "AAE-4 live screenshots"],
       "decision_needed": "Approve target domain, crawl depth, page cap, rate limit and robots/login handling.",
       "risk_if_bypassed": "Unbounded crawling or accidental access to unrelated/private pages."
     },
     {
       "id": "memory-write-policy",
-      "class": "needs_policy",
+      "class": "done",
       "blocks": ["AAE-6 final Memory/RaptorGraph writes"],
       "decision_needed": "Decide when research abstractions may auto-write versus require review.",
       "risk_if_bypassed": "Low-quality or stale statements could become long-term truth."
     },
     {
       "id": "sandbox-execution-live-go",
-      "class": "needs_operator_go",
+      "class": "done",
       "blocks": ["AAE-5 live sandbox execution"],
       "decision_needed": "Allow disposable Podman sandbox jobs with configured resource limits and mounts.",
       "risk_if_bypassed": "Code may execute outside the intended isolation model."
     },
     {
       "id": "ui-agent-placement",
-      "class": "needs_design",
+      "class": "outside_backend_track",
       "blocks": ["visible task monitor", "review windows", "operator controls"],
       "decision_needed": "UI agent decides placement and interaction model for long-running tasks and memory review.",
       "risk_if_bypassed": "Backend can work but operator experience remains incomplete."
@@ -172,5 +172,38 @@
     "No-GPU visual observer produces usable screenshots and diffs through software rendering.",
     "Sandbox jobs produce redacted artifacts and exit summaries under resource limits.",
     "Memory and RaptorGraph entries are clickable internally, source-linked and model-stamped."
-  ]
+  ],
+  "live_evidence": {
+    "debian_commit": "28cd4bb2",
+    "debian_version_status": "current",
+    "report": "reports/autonomy_live/live-smoke.json",
+    "browser": {
+      "target": "https://www.asv-bw.de/",
+      "status_code": 200,
+      "screenshot_artifact": "reports/autonomy_live/asv-bw-live.png",
+      "raw_content_visible": false
+    },
+    "telegram": {
+      "state": "agent_reply_ready",
+      "polling_enabled": true,
+      "agent_chat_enabled": true,
+      "reply_gate_enabled": true,
+      "token_value_visible": false,
+      "chat_id_value_visible": false
+    },
+    "sandbox": {
+      "podman_live_pod": true,
+      "network": "none",
+      "memory_mb": 512,
+      "cpus": 0.5,
+      "pids_limit": 128
+    },
+    "memory_raptorgraph": {
+      "memory_id": "autonomy_asv_bw_live_smoke",
+      "memory_records_written": 1,
+      "raptorgraph_events_written": 1,
+      "retrieval_verified": true,
+      "raw_content_visible": false
+    }
+  }
 }

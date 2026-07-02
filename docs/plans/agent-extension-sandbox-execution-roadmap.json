@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "Sandbox Code Execution Roadmap",
   "goal": "Let Odysseus execute code, tests and small build tasks inside disposable Podman sandboxes with scoped mounts, resource limits and auditable artifacts.",
   "runtime_strategy": {
@@ -48,7 +48,8 @@
     {
       "id": "SCE-5-live-sandbox-template-smoke",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live Podman smoke ran a disposable sandbox container with --network none, 512m memory, 0.5 CPUs, pids-limit 128, no-new-privileges and validated the python_pytest template guard.",
       "goal": "Run one Python and one Node disposable sandbox job on Debian and verify artifacts are redacted.",
       "allowed_paths": ["reports/sandbox_execution/**"],
       "tests": []

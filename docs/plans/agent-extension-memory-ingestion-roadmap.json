@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "Memory And RaptorGraph Knowledge Commit Roadmap",
   "goal": "Turn agent research and sandbox findings into durable, source-linked Memory/RaptorGraph knowledge with provenance, confidence and internal clickable references.",
   "scope": {
@@ -46,7 +46,8 @@
     {
       "id": "MRK-5-live-memory-write-pilot",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live pilot wrote memory_id autonomy_asv_bw_live_smoke for owner homebase and appended one RaptorGraph provenance event; retrieval verified through MemoryManager with raw_content_visible=false.",
       "goal": "Write a small approved ASV BW research subset into Memory/RaptorGraph and verify it is retrievable by Odysseus.",
       "allowed_paths": ["reports/memory_ingestion/**"],
       "tests": []

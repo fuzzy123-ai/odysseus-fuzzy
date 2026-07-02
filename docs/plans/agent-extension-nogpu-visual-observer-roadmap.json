@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "No-GPU Visual Observer Roadmap",
   "goal": "Allow Odysseus to observe websites and app results visually without a graphics card, using software-rendered screenshots, sampled frames and visual diffs.",
   "hardware_constraints": {
@@ -47,7 +47,8 @@
     {
       "id": "NGV-5-live-no-gpu-smoke",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live smoke produced software-rendered screenshot reports/autonomy_live/asv-bw-live.png, screenshot metadata, frame sampling plan, visual diff and OCR request without GPU.",
       "goal": "Verify screenshot, frame sampling and visual diff on Debian without GPU.",
       "allowed_paths": ["reports/no_gpu_visual_observer/**"],
       "tests": []

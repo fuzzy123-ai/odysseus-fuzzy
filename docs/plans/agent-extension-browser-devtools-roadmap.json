@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "Browser DevTools Understanding Roadmap",
   "goal": "Give agents browser understanding beyond text by capturing DevTools-style signals safely: console, network, DOM state, accessibility tree, storage metadata and runtime errors.",
   "no_gpu_strategy": "Use headless Chromium and Chrome DevTools Protocol compatible signals; GPU acceleration is not required.",
@@ -42,7 +42,8 @@
     {
       "id": "BDU-5-live-devtools-smoke",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live smoke captured redacted console/network evidence from https://www.asv-bw.de/ with failed_request_count=0 in reports/autonomy_live/live-smoke.json.",
       "goal": "Capture redacted console/network/DOM evidence from an approved public page on Debian.",
       "allowed_paths": ["reports/browser_devtools/**"],
       "tests": []

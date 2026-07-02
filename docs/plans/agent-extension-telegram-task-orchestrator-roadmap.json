@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "Telegram Task Orchestrator Roadmap",
   "goal": "Let Telegram act as the remote operator surface for long-running Odysseus tasks without requiring constant manual supervision.",
   "primary_channel": "telegram",
@@ -48,7 +48,8 @@
     {
       "id": "TTO-5-live-telegram-smoke",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live status reports agent_reply_ready, polling_enabled=true, agent_chat_enabled=true, reply_gate_enabled=true; task simulation resolves ASV BW request to website_research_to_memory without exposing token or chat id values.",
       "goal": "Verify that Telegram can create a bounded task and receive progress/status on Debian.",
       "allowed_paths": ["reports/telegram_task_orchestrator/**"],
       "tests": []

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
   "updated_at": "2026-07-02",
-  "status": "repo_done_live_pending",
+  "status": "done",
   "title": "Complete Website Research Pipeline Roadmap",
   "goal": "Analyze approved websites deeply enough to answer operator questions and create source-linked memory without unbounded crawling.",
   "no_gpu_strategy": "Use headless Chromium with software rendering, DOM/accessibility extraction and screenshots; do not require GPU acceleration.",
@@ -47,7 +47,8 @@
     {
       "id": "CWR-5-asv-bw-live-pilot",
       "class": "needs_live_go",
-      "status": "planned",
+      "status": "done",
+      "evidence": "Debian live smoke visited https://www.asv-bw.de/ with HTTP 200, generated redacted source inventory, checkpoint, synthesis and memory candidates in reports/autonomy_live/live-smoke.json.",
       "goal": "Run a bounded ASV BW help-site pilot and produce a redacted source inventory plus memory candidates.",
       "allowed_paths": ["reports/web_research/asv_bw/**"],
       "tests": []
