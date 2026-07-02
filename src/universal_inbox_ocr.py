@@ -202,11 +202,7 @@ class LocalTesseractOcrAdapter:
             resized = crop.resize((crop.size[0] * scale, crop.size[1] * scale))
             gray = ImageOps.grayscale(resized)
             contrasted = ImageOps.autocontrast(gray)
-            sharpened = contrasted.filter(ImageFilter.SHARPEN)
-            variants = (
-                ("gray", contrasted),
-                ("binary", sharpened.point(lambda value: 255 if value > 172 else 0)),
-            )
+            variants = (("gray", contrasted.filter(ImageFilter.SHARPEN)),)
             for variant_name, image in variants:
                 target = tmp_dir / f"{index:02d}-{name}-{variant_name}.png"
                 try:
@@ -248,9 +244,9 @@ class LocalTesseractOcrAdapter:
 def _tesseract_psm_modes(image_path: Path) -> tuple[str, ...]:
     name = image_path.name.lower()
     if "lower_label" in name:
-        return ("7", "13", "6", "11")
-    if "device_body" in name or "center" in name:
-        return ("6", "11", "7")
+        return ("6", "7", "11")
+    if "device_body" in name or "center" in name or "full" in name:
+        return ("11",)
     return ("6", "11")
 
 
