@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_capability_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "draft_ready",
+  "title": "Agent Result Observer Roadmap",
+  "goal": "Give agents result sense: execute checks, observe visual state, compare evidence and decide whether work actually succeeded.",
+  "constraints": {
+    "gpu_available": false,
+    "visual_runtime": "headless_chromium_software_rendering",
+    "live_watch_mode": "sampled_frames_not_raw_video_by_default",
+    "artifact_default": "bounded_redacted_summary"
+  },
+  "capabilities": [
+    "test_output_summary",
+    "log_tail_summary",
+    "screenshot_capture",
+    "screenshot_diff",
+    "dom_diff",
+    "console_diff",
+    "network_diff",
+    "playwright_trace_summary",
+    "optional_novnc_human_watch"
+  ],
+  "no_gpu_strategy": [
+    "Use Chromium headless with software rendering for normal websites and UI.",
+    "Use Xvfb only when a headed browser or noVNC session is required.",
+    "Use SwiftShader or software WebGL for light WebGL cases.",
+    "Mark heavy 3D/game workloads as degraded without GPU."
+  ],
+  "slice_queue": [
+    {
+      "id": "ARO-1-result-artifact-model",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Alice",
+      "goal": "Define normalized result artifacts for command output, screenshots, DOM, console, network and traces.",
+      "allowed_paths": ["src/agent_result_observer.py", "tests/test_agent_result_observer.py"],
+      "tests": ["tests/test_agent_result_observer.py"]
+    },
+    {
+      "id": "ARO-2-visual-diff-policy",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Define when screenshot/DOM changes count as success, warning or failure.",
+      "allowed_paths": ["src/agent_visual_diff_policy.py", "tests/test_agent_visual_diff_policy.py"],
+      "tests": ["tests/test_agent_visual_diff_policy.py"]
+    },
+    {
+      "id": "ARO-3-live-watch-contract",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Specify sampled frame observation and optional noVNC human-watch mode without requiring GPU.",
+      "allowed_paths": ["src/agent_live_watch_contract.py", "tests/test_agent_live_watch_contract.py"],
+      "tests": ["tests/test_agent_live_watch_contract.py"]
+    },
+    {
+      "id": "ARO-4-observer-smoke",
+      "class": "needs_live_go",
+      "status": "gated",
+      "owner": "Charlie",
+      "goal": "Run a sandboxed visual smoke and collect screenshot, console and network artifacts.",
+      "allowed_paths": ["reports/agent_result_observer/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Agent can report what changed visually and technically.",
+    "Result evidence is bounded and redacted.",
+    "Live watch does not require GPU.",
+    "Raw video streaming is optional and operator-facing, not a default model input."
+  ]
+}

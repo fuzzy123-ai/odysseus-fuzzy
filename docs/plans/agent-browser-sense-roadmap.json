@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_capability_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "draft_ready",
+  "title": "Agent Browser Sense Roadmap",
+  "goal": "Give agents a safe browser sense for understanding websites through DOM, accessibility tree, screenshots, console and network evidence.",
+  "constraints": {
+    "gpu_available": false,
+    "preferred_engine": "playwright_chromium_headless",
+    "rendering": "software_rendering_or_xvfb",
+    "network_default": "off_until_operator_go",
+    "secrets_default": "none"
+  },
+  "capabilities": [
+    "read_page_text",
+    "read_dom_snapshot",
+    "read_accessibility_tree",
+    "capture_screenshot",
+    "capture_console_errors",
+    "capture_network_summary",
+    "capture_failed_assets",
+    "capture_performance_basic",
+    "bounded_crawl"
+  ],
+  "slice_queue": [
+    {
+      "id": "ABS-1-browser-evidence-contract",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Alice",
+      "goal": "Define the browser evidence object and redaction rules.",
+      "allowed_paths": ["src/agent_browser_evidence.py", "tests/test_agent_browser_evidence.py"],
+      "tests": ["tests/test_agent_browser_evidence.py"]
+    },
+    {
+      "id": "ABS-2-playwright-worker-client",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Create a client contract for dispatching browser observation jobs to the sandbox worker.",
+      "allowed_paths": ["src/agent_browser_worker_client.py", "tests/test_agent_browser_worker_client.py"],
+      "tests": ["tests/test_agent_browser_worker_client.py"]
+    },
+    {
+      "id": "ABS-3-bounded-crawl-policy",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Implement domain allowlist, depth/page/time limits, robots/login policy and raw-content limits.",
+      "allowed_paths": ["src/agent_web_crawl_policy.py", "tests/test_agent_web_crawl_policy.py"],
+      "tests": ["tests/test_agent_web_crawl_policy.py"]
+    },
+    {
+      "id": "ABS-4-live-browser-smoke",
+      "class": "needs_live_go",
+      "status": "gated",
+      "owner": "Charlie",
+      "goal": "Run one bounded browser smoke against an approved URL and record redacted evidence.",
+      "allowed_paths": ["reports/agent_browser_sense/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "Browser evidence is structured and redacted.",
+    "External network is gated by approved target domain.",
+    "Screenshots and traces are artifacts, not raw prompt text.",
+    "Console and network summaries are bounded.",
+    "No browser profile or private cookies are used by default."
+  ]
+}

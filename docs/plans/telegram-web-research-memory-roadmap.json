@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_capability_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "draft_ready",
+  "title": "Telegram Web Research To Memory Roadmap",
+  "goal": "Allow trusted Telegram requests to trigger bounded website analysis and convert the result into reviewed Memory/RaptorGraph knowledge.",
+  "example_task": {
+    "request": "analysiere die asv bw hilfeseite vollstaendig und fasse alle informationen im gedaechtnis zusammen",
+    "interpreted_intent": "bounded_site_research_to_memory",
+    "required_inputs": [
+      "approved target URL or domain",
+      "crawl depth and page cap",
+      "memory write policy",
+      "DSGVO/local-only mode",
+      "operator live web go"
+    ]
+  },
+  "workflow": [
+    "Telegram command is classified as web research to memory.",
+    "Workflow skill binding selects a mandatory website-analysis workflow.",
+    "Browser worker crawls only the approved domain under limits.",
+    "Evidence packet records DOM/text/screenshot/console/network summaries.",
+    "Research synthesizer builds topic map, FAQs, processes, contacts, warnings and source references.",
+    "Memory Write Intent creates redacted abstractions and RaptorGraph candidates.",
+    "Reviewed writes update long-term memory and graph only if gates allow."
+  ],
+  "slice_queue": [
+    {
+      "id": "TWRM-1-intent-contract",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Alice",
+      "goal": "Define trusted Telegram intent fields for web research to memory without using untrusted page text for routing.",
+      "allowed_paths": ["src/telegram_web_research_intent.py", "tests/test_telegram_web_research_intent.py"],
+      "tests": ["tests/test_telegram_web_research_intent.py"]
+    },
+    {
+      "id": "TWRM-2-research-packet",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Define redacted website research packet with source refs, summaries, confidence and gaps.",
+      "allowed_paths": ["src/web_research_memory_packet.py", "tests/test_web_research_memory_packet.py"],
+      "tests": ["tests/test_web_research_memory_packet.py"]
+    },
+    {
+      "id": "TWRM-3-memory-intent-bridge",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Convert research packets into Memory Write Intent and RaptorGraph candidate payloads.",
+      "allowed_paths": ["src/web_research_memory_intent.py", "tests/test_web_research_memory_intent.py"],
+      "tests": ["tests/test_web_research_memory_intent.py"]
+    },
+    {
+      "id": "TWRM-4-asv-bw-live-pilot",
+      "class": "needs_live_go",
+      "status": "gated",
+      "owner": "Charlie",
+      "goal": "Run the ASV BW help-site pilot with approved domain, bounded crawl and reviewed memory writes.",
+      "allowed_paths": ["reports/telegram_web_research_memory/**"],
+      "tests": []
+    }
+  ],
+  "memory_policy": {
+    "raw_page_text_in_memory": false,
+    "store_source_urls": true,
+    "store_excerpts": "short_redacted_only_when_policy_allows",
+    "store_summary": true,
+    "store_topic_graph": true,
+    "store_unknowns_and_gaps": true,
+    "review_required_for_large_site": true
+  },
+  "done_definition": [
+    "Telegram request cannot cause unbounded crawling.",
+    "Website content cannot silently become long-term truth.",
+    "Memory entries carry source refs, timestamps, model/author stamps and confidence.",
+    "RaptorGraph stores relationships between pages, topics and memory records.",
+    "The operator receives a concise review summary before final writes unless policy explicitly allows auto-write."
+  ]
+}

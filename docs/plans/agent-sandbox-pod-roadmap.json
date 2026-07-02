@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_capability_roadmap",
+  "updated_at": "2026-07-02",
+  "status": "draft_ready",
+  "title": "Agent Sandbox Pod Roadmap",
+  "goal": "Run agent code, browser and test jobs in a disposable Podman sandbox pod with scoped mounts, no default secrets and audited artifacts.",
+  "constraints": {
+    "runtime": "podman",
+    "docker_default": false,
+    "gpu_available": false,
+    "default_network": "none",
+    "default_secrets": "none",
+    "default_mount_mode": "read_only",
+    "write_mode": "explicit_workspace_only"
+  },
+  "capabilities": [
+    "run_argv_command",
+    "run_test_command",
+    "run_frontend_dev_server",
+    "run_playwright",
+    "collect_artifacts",
+    "collect_logs",
+    "collect_exit_status",
+    "enforce_timeout",
+    "enforce_resource_limits"
+  ],
+  "security_model": {
+    "command_shape": "argv_only_by_default",
+    "free_form_shell": "blocked_until_separate_gate",
+    "destructive_commands": "blocked",
+    "host_mounts": "deny_broad_roots",
+    "secret_mounts": "explicit_per_job_only",
+    "network": "off_allowlist_fullweb",
+    "audit": "ai_activity_ledger plus sandbox_job_ledger"
+  },
+  "slice_queue": [
+    {
+      "id": "ASP-1-job-contract",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Alice",
+      "goal": "Define sandbox job request, policy decision, artifact manifest and audit model.",
+      "allowed_paths": ["src/agent_sandbox_contract.py", "tests/test_agent_sandbox_contract.py"],
+      "tests": ["tests/test_agent_sandbox_contract.py"]
+    },
+    {
+      "id": "ASP-2-podman-plan-renderer",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Render safe Podman pod/container command plans without executing them.",
+      "allowed_paths": ["src/agent_sandbox_podman_plan.py", "tests/test_agent_sandbox_podman_plan.py"],
+      "tests": ["tests/test_agent_sandbox_podman_plan.py"]
+    },
+    {
+      "id": "ASP-3-worker-api-contract",
+      "class": "repo_only",
+      "status": "open",
+      "owner": "Bob",
+      "goal": "Define worker API for submit/status/artifacts/cancel with redacted responses.",
+      "allowed_paths": ["src/agent_sandbox_worker_api.py", "tests/test_agent_sandbox_worker_api.py"],
+      "tests": ["tests/test_agent_sandbox_worker_api.py"]
+    },
+    {
+      "id": "ASP-4-live-pod-smoke",
+      "class": "needs_live_go",
+      "status": "gated",
+      "owner": "Charlie",
+      "goal": "Create a disposable sandbox pod and run a harmless argv command plus artifact collection.",
+      "allowed_paths": ["reports/agent_sandbox_pod/**"],
+      "tests": []
+    }
+  ],
+  "done_definition": [
+    "No job can access host paths outside declared mounts.",
+    "No job gets secrets unless explicitly attached.",
+    "Every command has timeout, output cap and artifact cap.",
+    "Job output is redacted before entering chat or memory.",
+    "Podman plans are reviewable before live execution."
+  ]
+}
