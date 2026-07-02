@@ -6,6 +6,8 @@ from dataclasses import dataclass
 import re
 from typing import Any, Iterable
 
+from src.sandbox_network_policy import build_sandbox_network_policy
+
 
 SANDBOX_JOB_SCHEMA = "odysseus.agent.sandbox_job.v1"
 
@@ -76,6 +78,7 @@ class SandboxJobRequest:
     mounts: tuple[SandboxMount, ...]
     limits: SandboxResourceLimits
     network_mode: str = "none"
+    network_allowlist: tuple[str, ...] = ()
     secrets_attached: bool = False
     schema: str = SANDBOX_JOB_SCHEMA
 
@@ -89,16 +92,21 @@ class SandboxJobRequest:
         mounts: Iterable[SandboxMount | dict[str, Any]] = (),
         limits: SandboxResourceLimits | dict[str, Any] | None = None,
         network_mode: Any = "none",
+        network_allowlist: Iterable[Any] = (),
         secrets_attached: bool = False,
     ) -> "SandboxJobRequest":
         args = _argv(argv)
         mount_tuple = tuple(m if isinstance(m, SandboxMount) else SandboxMount.create(**m) for m in mounts)
         limit_obj = limits if isinstance(limits, SandboxResourceLimits) else SandboxResourceLimits.create(**(limits or {}))
         net = str(network_mode or "none").lower()
-        if net not in {"none", "allowlist", "fullweb"}:
-            raise SandboxContractError("unsupported network mode")
+        try:
+            network_policy = build_sandbox_network_policy(mode=net, allowlist=network_allowlist)
+        except ValueError as exc:
+            raise SandboxContractError(str(exc)) from exc
         if net == "fullweb":
             raise SandboxContractError("fullweb network requires a separate live gate")
+        if not network_policy.allowed:
+            raise SandboxContractError(",".join(network_policy.reasons))
         return cls(
             job_id=_slug(job_id, field_name="job_id"),
             argv=args,
@@ -106,6 +114,7 @@ class SandboxJobRequest:
             mounts=mount_tuple,
             limits=limit_obj,
             network_mode=net,
+            network_allowlist=network_policy.allowlist,
             secrets_attached=bool(secrets_attached),
         )
 
@@ -118,6 +127,7 @@ class SandboxJobRequest:
             "mounts": tuple(mount.to_dict() for mount in self.mounts),
             "limits": self.limits.to_dict(),
             "network_mode": self.network_mode,
+            "network_allowlist": self.network_allowlist,
             "secrets_attached": self.secrets_attached,
         }
 

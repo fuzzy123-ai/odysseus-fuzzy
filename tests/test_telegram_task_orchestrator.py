@@ -60,6 +60,31 @@ def test_site_research_without_target_asks_for_missing_target():
     assert "freigegebener Ziel-Link" in build_telegram_task_status_message(intent)
 
 
+def test_builds_coding_agent_task_intent_with_repo_scope_gate():
+    intent = build_telegram_task_intent(
+        {"kind": "text", "text": "Baue im Projekt demo ein kleines Feature und teste es."},
+        workflow_context={"intent": "coding_agent_task", "recent_attachment": {"present": False}},
+    )
+
+    payload = intent.to_dict()
+    assert payload["task_type"] == "coding_agent_task"
+    assert payload["target_kind"] == "repo"
+    assert payload["target_ref"] == "repo:demo"
+    assert payload["requested_output"] == "sandbox_coding_task"
+    assert "coding_task_scope_review" in payload["gates_required"]
+    assert "sandbox_execution_policy" in payload["gates_required"]
+    assert payload["raw_content_visible"] is False
+
+
+def test_coding_agent_task_without_repo_asks_for_resolution():
+    intent = build_telegram_task_intent({"kind": "text", "text": "implementiere ein Feature und teste es"})
+
+    assert intent.task_type == "coding_agent_task"
+    assert intent.target_status == "needs_repo_resolution"
+    assert "repo_resolution" in intent.gates_required
+    assert "freigegebenes Projekt" in build_telegram_task_status_message(intent)
+
+
 def test_rejects_untrusted_workflow_context_fields():
     with pytest.raises(TelegramTaskOrchestratorError):
         build_telegram_task_intent(

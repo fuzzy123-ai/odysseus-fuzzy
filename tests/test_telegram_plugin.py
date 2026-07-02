@@ -395,6 +395,18 @@ def test_telegram_workflow_context_normalizes_memory_status():
     assert context["recent_attachment"]["memory_write_intent_status"] == "review"
 
 
+def test_telegram_workflow_context_detects_coding_agent_tasks():
+    from plugins.telegram.parsing import build_telegram_workflow_context
+
+    context = build_telegram_workflow_context(
+        {"kind": "text", "text": "Baue im Projekt demo ein Feature und teste es"},
+        recent_attachment_context={},
+    )
+
+    assert context["intent"] == "coding-agent-task"
+    assert context["message_kind"] == "text"
+
+
 def test_agent_bridge_includes_redacted_long_running_task_intent(monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
     message = parse_telegram_update({

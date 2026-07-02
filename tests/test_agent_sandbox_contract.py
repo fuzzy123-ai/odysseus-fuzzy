@@ -38,3 +38,17 @@ def test_sandbox_job_blocks_fullweb_without_gate_and_absolute_mounts():
 
     with pytest.raises(SandboxContractError):
         SandboxMount.create(source="C:/Users/nkatz/odysseus", target="/workspace/repo")
+
+
+def test_sandbox_job_requires_allowlist_for_allowlist_network():
+    with pytest.raises(SandboxContractError):
+        SandboxJobRequest.create(job_id="web", argv=["echo", "hi"], image="image:dev", network_mode="allowlist")
+
+    job = SandboxJobRequest.create(
+        job_id="web2",
+        argv=["echo", "hi"],
+        image="image:dev",
+        network_mode="allowlist",
+        network_allowlist=["example.org"],
+    )
+    assert job.network_allowlist == ("example.org",)

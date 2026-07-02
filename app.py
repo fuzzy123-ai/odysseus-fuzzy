@@ -656,6 +656,10 @@ app.include_router(setup_repo_routes())
 from routes.coding_agent_routes import setup_coding_agent_routes
 app.include_router(setup_coding_agent_routes())
 
+# Sandbox worker backend
+from routes.sandbox_worker_routes import setup_sandbox_worker_routes
+app.include_router(setup_sandbox_worker_routes())
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))

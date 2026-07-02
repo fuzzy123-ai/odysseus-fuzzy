@@ -90,9 +90,14 @@ def build_telegram_task_intent(
     message_kind = _safe_token(message.get("kind") or context.get("message_kind") or "unknown", "message_kind")
     workflow_intent = _safe_token(context.get("intent") or _classify_workflow_intent(text), "workflow_intent", allow_empty=True)
     task_type = _task_type_for_intent(workflow_intent)
-    target = _target_from_text(text)
-    target_kind = "website" if task_type == "website_research_to_memory" else "none"
-    target_status = "ready" if target else ("needs_target_resolution" if _looks_like_site_research(text) else "not_required")
+    if task_type == "coding_agent_task":
+        target = _repo_target_from_text(text)
+        target_kind = "repo"
+        target_status = "ready" if target else "needs_repo_resolution"
+    else:
+        target = _target_from_text(text)
+        target_kind = "website" if task_type in {"website_research_to_memory", "website_research"} else "none"
+        target_status = "ready" if target else ("needs_target_resolution" if _looks_like_site_research(text) else "not_required")
     requested_output = _requested_output_for_intent(workflow_intent, text)
     gates = _gates_for_task(task_type=task_type, target_status=target_status)
     status = "waiting_for_gate" if gates else "ready"
@@ -131,6 +136,8 @@ def build_telegram_task_status_message(intent: TelegramTaskIntent | Mapping[str,
     gates = tuple(str(item) for item in payload.get("gates_required") or ())
     if target_status == "needs-target-resolution":
         return "Task erkannt: Website-Analyse. Mir fehlt noch ein freigegebener Ziel-Link oder eine Domain."
+    if target_status == "needs-repo-resolution":
+        return "Task erkannt: Coding-Agent. Mir fehlt noch ein freigegebenes Projekt/Repo und der erlaubte Scope."
     if status == "waiting-for-gate" or gates:
         gate_text = ", ".join(gates[:3])
         return f"Task erkannt: {task_type}. Warte auf Gate: {gate_text}."
@@ -141,6 +148,8 @@ def build_telegram_task_status_message(intent: TelegramTaskIntent | Mapping[str,
 
 def _classify_workflow_intent(text: str) -> str:
     normalized = text.lower()
+    if _looks_like_coding_task(normalized):
+        return "coding-agent-task"
     if _looks_like_site_research(normalized) and any(term in normalized for term in ("gedaechtnis", "gedächtnis", "memory", "raptor")):
         return "bounded-site-research-to-memory"
     if _looks_like_site_research(normalized):
@@ -155,8 +164,17 @@ def _looks_like_site_research(text: str) -> bool:
     return any(term in normalized for term in web_terms) and any(term in normalized for term in research_terms)
 
 
+def _looks_like_coding_task(text: str) -> bool:
+    normalized = text.lower()
+    coding_terms = ("baue", "implement", "code", "feature", "fix", "bug", "teste", "pytest", "repo", "projekt", "project")
+    action_terms = ("mach", "baue", "implement", "fix", "teste", "pruef", "prüf", "aendere", "ändere")
+    return any(term in normalized for term in coding_terms) and any(term in normalized for term in action_terms)
+
+
 def _task_type_for_intent(intent: str) -> str:
     normalized = intent.replace("_", "-")
+    if normalized in {"coding-agent-task", "coding-task", "autonomous-coding"}:
+        return "coding_agent_task"
     if normalized in {"bounded-site-research-to-memory", "web-research-to-memory"}:
         return "website_research_to_memory"
     if normalized == "bounded-site-research":
@@ -166,6 +184,8 @@ def _task_type_for_intent(intent: str) -> str:
 
 def _requested_output_for_intent(intent: str, text: str) -> str:
     normalized = f"{intent} {text}".lower()
+    if _looks_like_coding_task(normalized):
+        return "sandbox_coding_task"
     if any(term in normalized for term in ("gedaechtnis", "gedächtnis", "memory", "raptor")):
         return "memory_and_raptorgraph_candidates"
     if any(term in normalized for term in ("vergleich", "unterschied", "compare")):
@@ -188,6 +208,13 @@ def _target_from_text(text: str) -> str:
     return f"{parsed.scheme}://{host}/"
 
 
+def _repo_target_from_text(text: str) -> str:
+    match = re.search(r"\b(?:repo|projekt|project)\s+([A-Za-z0-9_.-]{2,80})", str(text or ""), re.IGNORECASE)
+    if not match:
+        return ""
+    return "repo:" + _safe_token(match.group(1), "repo")
+
+
 def _gates_for_task(*, task_type: str, target_status: str) -> tuple[str, ...]:
     gates: list[str] = []
     if task_type in {"website_research", "website_research_to_memory"}:
@@ -196,6 +223,10 @@ def _gates_for_task(*, task_type: str, target_status: str) -> tuple[str, ...]:
         gates.append("live_web_target_approval")
     if task_type == "website_research_to_memory":
         gates.append("memory_write_policy")
+    if task_type == "coding_agent_task":
+        if target_status == "needs_repo_resolution":
+            gates.append("repo_resolution")
+        gates.extend(["coding_task_scope_review", "sandbox_execution_policy"])
     return tuple(dict.fromkeys(gates))
 
 

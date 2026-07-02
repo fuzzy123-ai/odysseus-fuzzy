@@ -152,6 +152,10 @@ def _telegram_workflow_intent_from_text(text: str) -> str:
     web_terms = ("http://", "https://", "homepage", "website", "webseite", "seite", "hilfeseite")
     memory_terms = ("gedaechtnis", "gedächtnis", "memory", "raptor", "langzeit")
     research_terms = ("analys", "recherch", "untersuch", "crawl", "zusammenfass")
+    coding_terms = ("baue", "implement", "code", "feature", "fix", "bug", "teste", "pytest", "repo", "projekt", "project")
+    coding_actions = ("mach", "baue", "implement", "fix", "teste", "pruef", "prüf", "ändere", "aendere")
+    if any(term in normalized for term in coding_terms) and any(term in normalized for term in coding_actions):
+        return "coding_agent_task"
     if (
         any(term in normalized for term in web_terms)
         and any(term in normalized for term in memory_terms)

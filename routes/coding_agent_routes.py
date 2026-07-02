@@ -24,8 +24,11 @@ from src.coding_agent_backend import (
     evaluate_coding_worktree_gate,
     repo_git_snapshot_for_coding_task,
 )
+from src.agent_sandbox_worker import SandboxWorker
+from src.coding_agent_sandbox_bridge import CodingAgentSandboxBridgeError, dispatch_coding_checks_to_sandbox
 from src.constants import BASE_DIR, DATA_DIR
 from src.repo_registry import REPO_REGISTRY_FILE, RepoRegistry
+from src.sandbox_job_ledger import SandboxJobLedger
 
 
 class CodingCheckRequest(BaseModel):
@@ -97,6 +100,11 @@ class CodingSubagentPlanRequest(CodingTaskPlanRequest):
     reviewer_agent_id: str = "charlie"
 
 
+class CodingSandboxChecksRequest(CodingTaskPlanRequest):
+    sandbox_live_enabled: bool = False
+    sandbox_operator_go: bool = False
+
+
 def setup_coding_agent_routes(
     *,
     registry_path: str | Path = REPO_REGISTRY_FILE,
@@ -107,6 +115,7 @@ def setup_coding_agent_routes(
     registry_file = Path(registry_path)
     configured_workspace_base = Path(workspace_base)
     configured_worktree_base = Path(worktree_base) if worktree_base is not None else Path(DATA_DIR) / "coding-worktrees"
+    sandbox_worker = SandboxWorker(ledger=SandboxJobLedger(Path(DATA_DIR) / "sandbox_job_ledger"))
 
     @router.get("/repos/{repo_id}/snapshot")
     def get_repo_snapshot(request: Request, repo_id: str) -> dict[str, Any]:
@@ -250,6 +259,37 @@ def setup_coding_agent_routes(
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
         return {"success": report.verified, "quality_gate": report.to_dict()}
+
+    @router.post("/repos/{repo_id}/sandbox-checks")
+    def dispatch_sandbox_checks(request: Request, repo_id: str, body: CodingSandboxChecksRequest) -> dict[str, Any]:
+        require_admin(request)
+        registry = _load_registry(registry_file)
+        try:
+            plan = build_coding_task_plan(
+                registry=registry,
+                repo_id=repo_id,
+                workspace_base=configured_workspace_base,
+                objective=body.objective,
+                allowed_paths=body.allowed_paths,
+                blocked_paths=body.blocked_paths,
+                checks=_checks_from_request(body.checks),
+                base_ref=body.base_ref,
+                task_id=body.task_id,
+                worktree_base=configured_worktree_base,
+                allow_existing_worktree=True,
+                live_enabled=body.live_enabled,
+                operator_decision=body.operator_decision,
+            )
+            dispatch = dispatch_coding_checks_to_sandbox(
+                plan=plan,
+                worker=sandbox_worker,
+                live_enabled=body.sandbox_live_enabled,
+                operator_go=body.sandbox_operator_go,
+            )
+        except (CodingAgentBackendError, CodingAgentSandboxBridgeError) as exc:
+            status = 404 if "unknown repo" in str(exc) else 400
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
+        return {"success": True, "sandbox_dispatch": dispatch.to_dict()}
 
     @router.post("/done-gate")
     def evaluate_done_gate(request: Request, body: CodingDoneGateRequest) -> dict[str, Any]:

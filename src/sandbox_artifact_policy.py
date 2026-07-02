@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import hashlib
 from typing import Any, Mapping
 
 
@@ -10,9 +11,10 @@ class SandboxArtifactPolicyError(ValueError):
     """Raised when an artifact policy record is unsafe."""
 
 
-def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any = 0) -> dict[str, Any]:
+def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any = 0, correlation_id: Any = "") -> dict[str, Any]:
     safe_kind = _kind(kind)
     size = _size(size_bytes)
+    ref = _artifact_ref(artifact_ref)
     retention = "short"
     if safe_kind in {"report", "screenshot"}:
         retention = "medium"
@@ -20,9 +22,11 @@ def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any =
         retention = "review_required"
     payload = {
         "schema": "odysseus.sandbox_artifact_policy.v1",
-        "artifact_ref": _artifact_ref(artifact_ref),
+        "artifact_ref": ref,
         "kind": safe_kind,
         "size_bytes": size,
+        "content_hash": _content_hash(ref, size),
+        "correlation_id": _correlation_id(correlation_id),
         "retention": retention,
         "redaction_required": safe_kind in {"log", "report", "generated_file"},
         "raw_content_visible": False,
@@ -33,7 +37,7 @@ def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any =
 
 def _kind(value: Any) -> str:
     text = str(value or "").strip().lower()
-    if text not in {"log", "screenshot", "report", "generated_file"}:
+    if text not in {"log", "screenshot", "report", "generated_file", "test_report", "dom_snapshot", "console", "network"}:
         raise SandboxArtifactPolicyError("unsupported artifact kind")
     return text
 
@@ -51,6 +55,19 @@ def _size(value: Any) -> int:
     except (TypeError, ValueError):
         parsed = 0
     return max(0, min(parsed, 100_000_000))
+
+
+def _content_hash(ref: str, size: int) -> str:
+    return "sha256:" + hashlib.sha256(f"{ref}:{size}".encode("utf-8", errors="replace")).hexdigest()
+
+
+def _correlation_id(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}", text):
+        raise SandboxArtifactPolicyError("correlation_id is unsafe")
+    return text
 
 
 def _reject_unsafe_payload(payload: Mapping[str, Any]) -> None:

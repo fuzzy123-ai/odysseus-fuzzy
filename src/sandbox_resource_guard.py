@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.agent_sandbox_contract import SandboxJobRequest, evaluate_sandbox_job
+from src.sandbox_network_policy import network_policy_from_job
 
 
 def evaluate_sandbox_resource_guard(
@@ -19,6 +20,9 @@ def evaluate_sandbox_resource_guard(
     reasons: list[str] = []
     if not decision.allowed:
         reasons.append(decision.reason)
+    network_policy = network_policy_from_job(job)
+    if not network_policy.allowed:
+        reasons.extend(network_policy.reasons)
     if job.network_mode != "none" and not allow_network:
         reasons.append("network_not_allowed")
     if any(mount.mode == "rw" for mount in job.mounts) and not allow_rw_mounts:
@@ -33,6 +37,8 @@ def evaluate_sandbox_resource_guard(
         "reasons": tuple(dict.fromkeys(reasons)),
         "warnings": decision.warnings,
         "network_mode": job.network_mode,
+        "network_allowlist": job.network_allowlist,
+        "network_policy": network_policy.to_dict(),
         "memory_mb": job.limits.memory_mb,
         "timeout_seconds": job.limits.timeout_seconds,
         "raw_content_visible": False,
