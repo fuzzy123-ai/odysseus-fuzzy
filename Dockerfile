@@ -77,6 +77,7 @@ RUN pip install --no-cache-dir --no-deps /tmp/odysseus-wheels/*.whl \
 # Install Node deps used by test/dev tooling and optional npx-backed helpers.
 COPY package.json package-lock.json ./
 RUN npm ci \
+    && npx playwright install --with-deps chromium \
     && npx -y @playwright/mcp@latest --version
 
 # Copy app code
