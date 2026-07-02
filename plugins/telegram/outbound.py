@@ -22,14 +22,45 @@ from plugins.telegram.stores import build_telegram_draft_id
 
 
 _THINKING_BLOCK_RE = re.compile(r"<tg-thinking>.*?</tg-thinking>", re.IGNORECASE | re.DOTALL)
+_TELEGRAM_MAX_MESSAGE_CHARS = 4096
+_TELEGRAM_CHUNK_BODY_CHARS = 4000
+_TELEGRAM_DEFAULT_MAX_REPLY_CHUNKS = 3
 
 
 def _bool_env(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _int_env(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        value = int((os.getenv(name) or "").strip())
+    except ValueError:
+        value = default
+    return max(minimum, min(value, maximum))
+
+
 def _strip_draft_thinking(markdown: str) -> str:
     return _THINKING_BLOCK_RE.sub("", str(markdown or "")).strip()
+
+
+def _number_telegram_chunks(chunks: tuple[str, ...], *, max_chunks: int) -> tuple[tuple[str, ...], bool]:
+    """Add compact part labels and enforce a hard reply budget."""
+
+    if len(chunks) <= 1:
+        return chunks, False
+    truncated = len(chunks) > max_chunks
+    selected = list(chunks[:max_chunks])
+    if truncated:
+        notice = "\n\n[Weitere Teile wurden gekuerzt. Bitte enger nachfragen oder Datei/Export nutzen.]"
+        room = max(256, _TELEGRAM_CHUNK_BODY_CHARS - len(notice))
+        selected[-1] = selected[-1][:room].rstrip() + notice
+    total = len(selected)
+    numbered: list[str] = []
+    for index, chunk in enumerate(selected, start=1):
+        prefix = f"Teil {index}/{total}\n\n"
+        body_room = _TELEGRAM_MAX_MESSAGE_CHARS - len(prefix)
+        numbered.append(prefix + chunk[:body_room].rstrip())
+    return tuple(numbered), truncated
 
 
 def _telegram_http_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -178,20 +209,34 @@ def send_telegram_text(
         raise ValueError("telegram chat id is missing")
     if not text.strip():
         raise ValueError("telegram reply text is empty")
+    max_reply_chunks = _int_env(
+        "TELEGRAM_MAX_REPLY_CHUNKS",
+        _TELEGRAM_DEFAULT_MAX_REPLY_CHUNKS,
+        minimum=1,
+        maximum=10,
+    )
     rendered = render_telegram_markdown(text)
-    rendered_chunks = chunk_telegram_html(rendered.html)
+    rendered_chunks = chunk_telegram_html(rendered.html, max_chars=_TELEGRAM_CHUNK_BODY_CHARS)
     if rendered.parse_mode and len(rendered_chunks) == 1:
         chunks = rendered_chunks
         parse_mode = rendered.parse_mode
         delivery_mode = "classic_html"
         formatting_mode = rendered.formatting_mode
+        truncated = False
     else:
         # Telegram requires every individual message to contain balanced HTML
         # entities. A naive split can bisect <pre>/<code>/<b> blocks, so long
         # replies use plaintext chunks instead of risking total delivery failure.
-        chunks = chunk_telegram_html(rendered.plaintext)
+        raw_chunks = chunk_telegram_html(rendered.plaintext, max_chars=_TELEGRAM_CHUNK_BODY_CHARS)
+        chunks, truncated = _number_telegram_chunks(raw_chunks, max_chunks=max_reply_chunks)
         parse_mode = ""
-        delivery_mode = "classic_plaintext_chunks" if len(chunks) > 1 else "classic_plaintext"
+        delivery_mode = (
+            "classic_plaintext_chunks_truncated"
+            if truncated
+            else "classic_plaintext_chunks"
+            if len(chunks) > 1
+            else "classic_plaintext"
+        )
         formatting_mode = "plaintext_chunk_fallback" if rendered.parse_mode else rendered.formatting_mode
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     post = http_post or _telegram_http_post
@@ -212,6 +257,8 @@ def send_telegram_text(
         "formatting_mode": formatting_mode,
         "parse_mode": parse_mode,
         "message_count": len(chunks),
+        "max_reply_chunks": max_reply_chunks,
+        "truncated": truncated,
         "token_value_visible": False,
         "raw_rich_payload_visible": False,
     }

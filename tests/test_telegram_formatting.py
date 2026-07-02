@@ -96,6 +96,32 @@ def test_send_telegram_text_uses_plaintext_chunks_for_long_html(monkeypatch):
     assert result["delivery_mode"] == "classic_plaintext_chunks"
     assert result["formatting_mode"] == "plaintext_chunk_fallback"
     assert result["parse_mode"] == ""
+    assert result["truncated"] is False
+    assert all("parse_mode" not in call[1] for call in calls)
+    assert all(len(call[1]["text"]) <= 4096 for call in calls)
+    assert calls[0][1]["text"].startswith("Teil 1/")
+
+
+def test_send_telegram_text_caps_long_replies(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_MAX_REPLY_CHUNKS", "2")
+    calls = []
+
+    def _post(url, payload):
+        calls.append((url, dict(payload)))
+        return {"ok": True, "result": {"message_id": len(calls)}}
+
+    huge_reply = "```python\n" + "\n".join(f"print({index})" for index in range(2000)) + "\n```"
+    result = send_telegram_text("chat-1", huge_reply, http_post=_post)
+
+    assert result["ok"] is True
+    assert result["message_count"] == 2
+    assert result["max_reply_chunks"] == 2
+    assert result["truncated"] is True
+    assert result["delivery_mode"] == "classic_plaintext_chunks_truncated"
+    assert calls[0][1]["text"].startswith("Teil 1/2")
+    assert calls[1][1]["text"].startswith("Teil 2/2")
+    assert "Weitere Teile wurden gekuerzt" in calls[1][1]["text"]
     assert all("parse_mode" not in call[1] for call in calls)
     assert all(len(call[1]["text"]) <= 4096 for call in calls)
 
