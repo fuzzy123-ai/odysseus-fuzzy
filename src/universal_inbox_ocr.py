@@ -98,10 +98,12 @@ class LocalTesseractOcrAdapter:
         raise UniversalInboxOcrUnavailable("tesseract_not_found")
 
     def _render_pdf_page(self, source: Path, page_number: int, image_path: Path) -> None:
+        if self._render_pdf_page_with_poppler(source, page_number, image_path):
+            return
         try:
             import fitz  # PyMuPDF, optional
         except Exception as exc:
-            raise UniversalInboxOcrUnavailable(f"pymupdf_not_available:{type(exc).__name__}") from exc
+            raise UniversalInboxOcrUnavailable(f"pdf_renderer_not_available:{type(exc).__name__}") from exc
 
         try:
             with fitz.open(str(source)) as document:
@@ -110,6 +112,37 @@ class LocalTesseractOcrAdapter:
                 pixmap.save(str(image_path))
         except Exception as exc:
             raise UniversalInboxOcrUnavailable(f"pdf_page_render_failed:{type(exc).__name__}") from exc
+
+    def _render_pdf_page_with_poppler(self, source: Path, page_number: int, image_path: Path) -> bool:
+        if not shutil.which("pdftoppm"):
+            return False
+        output_prefix = image_path.with_suffix("")
+        command = [
+            "pdftoppm",
+            "-f",
+            str(page_number),
+            "-l",
+            str(page_number),
+            "-singlefile",
+            "-png",
+            "-r",
+            "200",
+            str(source),
+            str(output_prefix),
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=self.settings.timeout_seconds,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            return False
+        if completed.returncode != 0:
+            return False
+        return image_path.exists()
 
     def _ocr_image(self, image_path: Path) -> str:
         command = [

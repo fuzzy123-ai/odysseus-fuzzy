@@ -18,6 +18,7 @@ FROM python:3.14-slim
 # nodejs/npm provide npx for the optional built-in Browser MCP server.
 # gosu lets the entrypoint drop privileges cleanly so signals still reach
 # uvicorn directly (no extra shell layer like `su`/`sudo` would add).
+ARG INSTALL_OCR=false
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -32,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
     openssh-client \
     gosu \
+    $(if [ "$INSTALL_OCR" = "true" ]; then echo "poppler-utils tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng"; fi) \
     && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI client only. The daemon remains on the host via the optional
