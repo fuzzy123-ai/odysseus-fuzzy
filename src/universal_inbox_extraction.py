@@ -11,15 +11,22 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from xml.etree import ElementTree
 import zipfile
 
 from src.universal_inbox_file_types import (
     DOCUMENT_SUFFIXES,
+    IMAGE_SUFFIXES,
     TEXT_SUFFIXES as CLASSIFIED_TEXT_SUFFIXES,
     UniversalInboxFileTypeDecision,
     classify_universal_inbox_file,
+)
+from src.universal_inbox_ocr import (
+    UniversalInboxOcrSettings,
+    UniversalInboxOcrUnavailable,
+    build_universal_inbox_ocr_adapter,
+    load_universal_inbox_ocr_settings,
 )
 
 
@@ -29,6 +36,10 @@ TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
 STRUCTURED_TEXT_SUFFIXES = {".json", ".csv", ".tsv", ".html", ".htm", ".xml"}
 DOCX_SUFFIX = ".docx"
 PDF_SUFFIX = ".pdf"
+IMAGE_OCR_REQUIRED = "image_ocr_required"
+IMAGE_OCR_UNAVAILABLE = "image_ocr_unavailable"
+IMAGE_OCR_FAILED = "image_ocr_failed"
+IMAGE_OCR_EMPTY = "image_ocr_empty"
 
 
 class UniversalInboxExtractionError(ValueError):
@@ -83,6 +94,8 @@ def extract_universal_inbox_content(
     root: str | Path | None = None,
     relative_path: str | None = None,
     max_extract_bytes: int = DEFAULT_MAX_EXTRACT_BYTES,
+    ocr_adapter: Callable[[Path, int | None, Mapping[str, Any]], str] | None = None,
+    ocr_settings: UniversalInboxOcrSettings | None = None,
 ) -> UniversalInboxExtractionPacket:
     """Extract supported local content types without persisting raw text."""
 
@@ -131,6 +144,8 @@ def extract_universal_inbox_content(
             status="blocked",
         )
 
+    resolved_ocr_settings = ocr_settings or load_universal_inbox_ocr_settings()
+
     if suffix in TEXT_SUFFIXES:
         raw_text, warning = _read_text(path, normalized_relative_path)
     elif suffix == ".json":
@@ -144,7 +159,21 @@ def extract_universal_inbox_content(
     elif suffix == DOCX_SUFFIX:
         raw_text, warning = _read_docx(path, normalized_relative_path)
     elif suffix == PDF_SUFFIX:
-        return _read_pdf_packet(path, normalized_relative_path, base_metadata)
+        return _read_pdf_packet(
+            path,
+            normalized_relative_path,
+            base_metadata,
+            ocr_adapter=ocr_adapter,
+            ocr_settings=resolved_ocr_settings,
+        )
+    elif suffix in IMAGE_SUFFIXES:
+        return _read_image_packet(
+            path,
+            normalized_relative_path,
+            base_metadata,
+            ocr_adapter=ocr_adapter,
+            ocr_settings=resolved_ocr_settings,
+        )
     else:
         return _metadata_only_packet(
             normalized_relative_path,
@@ -184,6 +213,8 @@ def build_universal_inbox_extraction_packet(
     root: str | Path | None = None,
     relative_path: str | None = None,
     max_extract_bytes: int = DEFAULT_MAX_EXTRACT_BYTES,
+    ocr_adapter: Callable[[Path, int | None, Mapping[str, Any]], str] | None = None,
+    ocr_settings: UniversalInboxOcrSettings | None = None,
 ) -> UniversalInboxExtractionPacket:
     """Compatibility wrapper for pipeline callers."""
 
@@ -192,6 +223,8 @@ def build_universal_inbox_extraction_packet(
         root=root,
         relative_path=relative_path,
         max_extract_bytes=max_extract_bytes,
+        ocr_adapter=ocr_adapter,
+        ocr_settings=ocr_settings,
     )
 
 
@@ -342,9 +375,12 @@ def _read_pdf_packet(
     path: Path,
     relative_path: str,
     base_metadata: Mapping[str, Any],
+    *,
+    ocr_adapter: Callable[[Path, int | None, Mapping[str, Any]], str] | None,
+    ocr_settings: UniversalInboxOcrSettings,
 ) -> UniversalInboxExtractionPacket:
     try:
-        from src.pdf_extraction import extract_pdf_pages
+        from src.pdf_extraction import PdfExtractionBudget, extract_pdf_pages
     except Exception:
         return UniversalInboxExtractionPacket(
             relative_path=relative_path,
@@ -354,7 +390,23 @@ def _read_pdf_packet(
             warnings=(UniversalInboxExtractionWarning("pdf_extractor_unavailable", relative_path),),
         )
 
-    result = extract_pdf_pages(path)
+    effective_adapter = ocr_adapter
+    if effective_adapter is None and ocr_settings.enabled:
+        try:
+            effective_adapter = build_universal_inbox_ocr_adapter(ocr_settings)
+        except UniversalInboxOcrUnavailable:
+            effective_adapter = None
+    ocr_enabled = bool(ocr_settings.enabled or effective_adapter is not None)
+    result = extract_pdf_pages(
+        path,
+        PdfExtractionBudget(
+            ocr_enabled=ocr_enabled,
+            ocr_max_pages=ocr_settings.max_pdf_pages if ocr_enabled else 0,
+            max_images_per_page=ocr_settings.max_images_per_page,
+        ),
+        policy_context=ocr_settings.policy_context(),
+        ocr_adapter=effective_adapter,
+    )
     raw_text = result.text
     warnings = tuple(_map_pdf_warning(warning, relative_path) for warning in result.warnings)
     return UniversalInboxExtractionPacket(
@@ -371,8 +423,97 @@ def _read_pdf_packet(
             "pdf_page_count": result.page_count,
             "pdf_processed_pages": result.processed_pages,
             "pdf_warning_codes": tuple(result.warning_codes),
+            "ocr_enabled": bool(result.metadata.get("ocr_enabled")),
+            "ocr_pages_processed": int(result.metadata.get("ocr_pages_processed") or 0),
         },
         warnings=warnings,
+    )
+
+
+def _read_image_packet(
+    path: Path,
+    relative_path: str,
+    base_metadata: Mapping[str, Any],
+    *,
+    ocr_adapter: Callable[[Path, int | None, Mapping[str, Any]], str] | None,
+    ocr_settings: UniversalInboxOcrSettings,
+) -> UniversalInboxExtractionPacket:
+    metadata = {
+        **base_metadata,
+        "extractor": "image_ocr_tesseract" if ocr_settings.enabled or ocr_adapter else "image_metadata",
+        "ocr_enabled": bool(ocr_settings.enabled or ocr_adapter is not None),
+        "ocr_engine": ocr_settings.engine,
+    }
+    if not ocr_settings.enabled and ocr_adapter is None:
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=path.suffix.lower(),
+            status="needs_review",
+            metadata=metadata,
+            warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_REQUIRED, relative_path),),
+        )
+
+    effective_adapter = ocr_adapter
+    if effective_adapter is None:
+        try:
+            effective_adapter = build_universal_inbox_ocr_adapter(ocr_settings)
+        except UniversalInboxOcrUnavailable as exc:
+            return UniversalInboxExtractionPacket(
+                relative_path=relative_path,
+                suffix=path.suffix.lower(),
+                status="needs_review",
+                metadata=metadata,
+                warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_UNAVAILABLE, relative_path, str(exc)[:120]),),
+            )
+    if effective_adapter is None:
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=path.suffix.lower(),
+            status="needs_review",
+            metadata=metadata,
+            warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_REQUIRED, relative_path),),
+        )
+
+    try:
+        raw_text = _normalize_extracted_text(
+            effective_adapter(path, None, {**ocr_settings.policy_context(), "source": "universal_inbox_image"})
+        )
+    except UniversalInboxOcrUnavailable as exc:
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=path.suffix.lower(),
+            status="needs_review",
+            metadata=metadata,
+            warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_UNAVAILABLE, relative_path, str(exc)[:120]),),
+        )
+    except Exception as exc:
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=path.suffix.lower(),
+            status="needs_review",
+            metadata=metadata,
+            warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_FAILED, relative_path, type(exc).__name__),),
+        )
+
+    if not raw_text:
+        return UniversalInboxExtractionPacket(
+            relative_path=relative_path,
+            suffix=path.suffix.lower(),
+            status="needs_review",
+            metadata=metadata,
+            warnings=(UniversalInboxExtractionWarning(IMAGE_OCR_EMPTY, relative_path),),
+        )
+    return UniversalInboxExtractionPacket(
+        relative_path=relative_path,
+        suffix=path.suffix.lower(),
+        status="completed",
+        raw_text=raw_text,
+        metadata={
+            **metadata,
+            "char_count": len(raw_text),
+            "line_count": len(raw_text.splitlines()),
+            "ocr_text_available": True,
+        },
     )
 
 
@@ -389,6 +530,12 @@ def _map_pdf_warning(warning: Any, relative_path: str) -> UniversalInboxExtracti
         relative_path,
         ":".join(parts),
     )
+
+
+def _normalize_extracted_text(value: str) -> str:
+    lines = str(value or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    normalized = [line.rstrip() for line in lines]
+    return "\n".join(normalized).strip()
 
 
 def _normalize_relative_path(value: Any) -> str:

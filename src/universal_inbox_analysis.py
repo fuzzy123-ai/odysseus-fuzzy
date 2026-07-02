@@ -182,7 +182,7 @@ def evaluate_universal_inbox_file_analysis_policy(
         classification_value = classification.value
 
     extraction_status = str(item.get("extraction_status") or item.get("status") or "").strip().lower()
-    if extraction_status in {"partial", "metadata_only", "unsupported", "failed", "blocked"}:
+    if extraction_status in {"partial", "metadata_only", "unsupported", "failed", "blocked", "needs_review"}:
         review_reasons.append("partial_or_missing_extraction")
     if bool(item.get("dangerous") or extraction_status == "blocked"):
         no_go_reasons.append("dangerous_file_blocked")

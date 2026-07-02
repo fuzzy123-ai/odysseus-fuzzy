@@ -1,5 +1,7 @@
 import json
 
+from pypdf import PdfWriter
+
 from src.universal_inbox_worker import run_universal_inbox_dry_run
 from src.universal_inbox_memory_write_executor import execute_universal_inbox_memory_write_intent
 
@@ -124,6 +126,25 @@ def test_worker_dry_run_routes_partial_pdf_to_review(tmp_path):
     assert "partial_extraction" in payload["items"][0]["routing_decision"]["review_reasons"]
     assert payload["items"][0]["placement_plan"]["status"] == "review"
     assert payload["no_go_reasons"] == ()
+
+
+def test_worker_dry_run_routes_ocr_required_pdf_to_review(tmp_path):
+    inbox = tmp_path / "Incoming"
+    inbox.mkdir()
+    source = inbox / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with source.open("wb") as handle:
+        writer.write(handle)
+
+    report = run_universal_inbox_dry_run(inbox, rules=TEST_RULES)
+    payload = report.to_dict()
+
+    assert payload["status"] == "partial"
+    assert payload["items"][0]["extraction_status"] == "needs_review"
+    assert "pdf_ocr_required" in payload["items"][0]["pipeline_report"]["stages"]["extraction"]["reasons"]
+    assert "partial_extraction" in payload["items"][0]["routing_decision"]["review_reasons"]
+    assert "partial_or_missing_extraction" in payload["items"][0]["gemma_triage"]["review_reasons"]
 
 
 def test_worker_dry_run_discovery_warnings_make_partial_without_no_go(tmp_path):

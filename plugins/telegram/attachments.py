@@ -67,6 +67,7 @@ def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
         fallback="unknown",
     )
     maintenance_action = str(result.get("maintenance_action") or "").strip()
+    ocr_note = _telegram_attachment_ocr_note(result)
     processable = int(result.get("processable_count") or 0)
     if status == "processed" and inbox_status == "go" and memory_status:
         lines = [
@@ -84,19 +85,45 @@ def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
                 lines.append(f"Automatischer Memory-Write blockiert: {reason}.")
             else:
                 lines.append("Redigierte Abstraktion wird automatisch uebernommen.")
+        if ocr_note:
+            lines.append(ocr_note)
         return "\n".join(lines)
     if status == "processed" and inbox_status == "go":
-        return f"Anhang verarbeitet. Items: {processable}. Keine Review nötig."
+        lines = [f"Anhang verarbeitet. Items: {processable}. Keine Review noetig."]
+        if ocr_note:
+            lines.append(ocr_note)
+        return "\n".join(lines)
     if status == "processed":
-        return (
-            "Anhang empfangen und geprüft. Review nötig.\n"
-            f"Universal-Inbox-Status: {inbox_status or 'partial'}\n"
-            f"Items: {processable}\n"
-            "Zum Bestätigen antworte mit /review ok."
-        )
+        lines = [
+            "Anhang empfangen und geprüft. Review nötig.",
+            f"Universal-Inbox-Status: {inbox_status or 'partial'}",
+            f"Items: {processable}",
+        ]
+        if ocr_note:
+            lines.append(ocr_note)
+        lines.append("Zum Bestätigen antworte mit /review ok.")
+        return "\n".join(lines)
     if status == "blocked":
         return f"Anhang empfangen, aber blockiert: {result.get('reason') or 'policy_gate'}."
     return f"Anhang empfangen, aber Verarbeitung fehlgeschlagen: {result.get('reason') or 'unknown'}."
+
+
+def _telegram_attachment_ocr_note(result: dict[str, Any]) -> str:
+    warnings = tuple(str(value) for value in (result.get("extraction_warning_codes") or ()))
+    warning_set = set(warnings)
+    if "pdf_ocr_required" in warning_set or "image_ocr_required" in warning_set:
+        return "OCR: noetig, aber lokaler OCR-Adapter ist noch nicht aktiv."
+    if "pdf_ocr_blocked_by_policy" in warning_set:
+        return "OCR: durch Datenschutz-/Policy-Gate blockiert."
+    if "pdf_ocr_budget_exceeded" in warning_set:
+        return "OCR: Budget erreicht; bitte mit hoeherem OCR-Budget erneut starten."
+    if "image_ocr_unavailable" in warning_set:
+        return "OCR: lokaler OCR-Adapter ist nicht verfuegbar."
+    if "pdf_ocr_failed" in warning_set or "image_ocr_failed" in warning_set:
+        return "OCR: lokaler OCR-Lauf ist fehlgeschlagen."
+    if "image_ocr_empty" in warning_set:
+        return "OCR: Bild geprueft, aber kein Text erkannt."
+    return ""
 
 
 def _telegram_attachment_suffix(message: dict[str, Any]) -> str:

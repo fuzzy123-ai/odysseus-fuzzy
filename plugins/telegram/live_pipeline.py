@@ -153,6 +153,8 @@ def run_telegram_universal_inbox_attachment_pipeline(
         "maintenance_provider": str(snapshot.get("maintenance_provider") or ""),
         "maintenance_action": str(snapshot.get("maintenance_action") or ""),
         "maintenance_review_required": bool(snapshot.get("maintenance_review_required")),
+        "extraction_status": str(snapshot.get("extraction_status") or ""),
+        "extraction_warning_codes": tuple(snapshot.get("extraction_warning_codes") or ()),
         "memory_records_planned": int(snapshot.get("memory_records_planned") or 0),
         "raptorgraph_events_planned": int(snapshot.get("raptorgraph_events_planned") or 0),
         "spooled": True,
@@ -171,6 +173,8 @@ def _build_attachment_worker_snapshot(spool_dir: Path) -> dict[str, Any]:
 
     item = _first_mapping(report.get("items"))
     pipeline = item.get("pipeline_report") if isinstance(item.get("pipeline_report"), dict) else {}
+    stages = pipeline.get("stages") if isinstance(pipeline.get("stages"), dict) else {}
+    extraction_stage = stages.get("extraction") if isinstance(stages.get("extraction"), dict) else {}
     intent = pipeline.get("memory_write_intent") if isinstance(pipeline.get("memory_write_intent"), dict) else {}
     maintenance_model = report.get("maintenance_model") if isinstance(report.get("maintenance_model"), dict) else {}
     maintenance_route = item.get("maintenance_route") if isinstance(item.get("maintenance_route"), dict) else {}
@@ -190,6 +194,8 @@ def _build_attachment_worker_snapshot(spool_dir: Path) -> dict[str, Any]:
         "processable_count": int(report.get("item_count") or 0),
         "review_reason_count": len(tuple(report.get("review_reasons") or ())),
         "no_go_reason_count": len(tuple(report.get("no_go_reasons") or ())),
+        "extraction_status": str(extraction_stage.get("status") or item.get("extraction_status") or ""),
+        "extraction_warning_codes": tuple(extraction_stage.get("reasons") or ()),
         "memory_write_intent_status": memory_status,
         "reason": _attachment_worker_reason(status, memory_status),
         "queue_status": "completed",

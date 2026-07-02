@@ -8,6 +8,7 @@ from src.universal_inbox_extraction import (
     UniversalInboxExtractionError,
     extract_universal_inbox_content,
 )
+from src.universal_inbox_ocr import UniversalInboxOcrSettings
 from src.universal_export_executor import _write_simple_text_pdf
 
 
@@ -98,6 +99,69 @@ def test_pdf_without_extractable_text_needs_review(tmp_path):
     assert packet.to_dict()["metadata"]["pdf_status"] == "needs_review"
 
 
+def test_pdf_without_extractable_text_uses_configured_local_ocr_adapter(tmp_path):
+    source = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with source.open("wb") as handle:
+        writer.write(handle)
+    calls = []
+
+    def fake_ocr(path, page_number, context):
+        calls.append((path, page_number, context["local_only"]))
+        return "OCR text from local adapter"
+
+    packet = extract_universal_inbox_content(
+        source,
+        relative_path="scan.pdf",
+        ocr_adapter=fake_ocr,
+        ocr_settings=UniversalInboxOcrSettings(enabled=True, max_pdf_pages=1),
+    )
+
+    assert packet.status == "completed"
+    assert packet.raw_text == "OCR text from local adapter"
+    assert packet.warnings == ()
+    assert packet.to_dict()["metadata"]["ocr_pages_processed"] == 1
+    assert calls == [(source, 1, True)]
+    assert "OCR text from local adapter" not in json.dumps(packet.to_dict(), sort_keys=True)
+
+
+def test_image_without_ocr_adapter_needs_review(tmp_path):
+    source = tmp_path / "photo.jpg"
+    source.write_bytes(b"\xff\xd8\xff bytes")
+
+    packet = extract_universal_inbox_content(source, relative_path="photo.jpg")
+
+    assert packet.status == "needs_review"
+    assert packet.raw_text == ""
+    assert packet.warnings[0].code == "image_ocr_required"
+    assert packet.to_dict()["metadata"]["ocr_enabled"] is False
+
+
+def test_image_uses_configured_local_ocr_adapter_without_persisting_text(tmp_path):
+    source = tmp_path / "photo.jpg"
+    source.write_bytes(b"\xff\xd8\xff bytes")
+    calls = []
+
+    def fake_ocr(path, page_number, context):
+        calls.append((path, page_number, context["local_only"], context["source"]))
+        return "Text aus dem Foto"
+
+    packet = extract_universal_inbox_content(
+        source,
+        relative_path="photo.jpg",
+        ocr_adapter=fake_ocr,
+        ocr_settings=UniversalInboxOcrSettings(enabled=True),
+    )
+
+    assert packet.status == "completed"
+    assert packet.raw_text == "Text aus dem Foto"
+    assert packet.warnings == ()
+    assert packet.to_dict()["metadata"]["ocr_text_available"] is True
+    assert calls == [(source, None, True, "universal_inbox_image")]
+    assert "Text aus dem Foto" not in json.dumps(packet.to_dict(), sort_keys=True)
+
+
 def test_partial_pdf_maps_shared_warning_metadata(tmp_path, monkeypatch):
     source = tmp_path / "partial.pdf"
     source.write_bytes(b"%PDF-1.4 fake")
@@ -181,7 +245,7 @@ def test_extraction_rejects_absolute_serialized_relative_path(tmp_path):
 @pytest.mark.parametrize(
     ("filename", "body", "status", "warning"),
     [
-        ("photo.jpg", b"\xff\xd8\xff bytes", "metadata_only", "image_metadata_only"),
+        ("photo.jpg", b"\xff\xd8\xff bytes", "needs_review", "image_ocr_required"),
         ("voice.ogg", b"OggS bytes", "metadata_only", "audio_transcription_required"),
         ("bundle.zip", b"PK\x03\x04 bytes", "metadata_only", "archive_needs_review"),
         ("mail.eml", b"Subject: hi\n\nbody", "metadata_only", "structured_message_needs_parser"),

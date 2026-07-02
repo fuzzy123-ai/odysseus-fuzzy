@@ -193,6 +193,7 @@ def run_universal_inbox_dry_run(
                 "status": worker_extraction_status,
                 "abstract": _safe_abstract(item.to_dict(), extraction, analysis_report=analysis_report),
                 "raw_packet": extraction.to_dict(),
+                "reasons": tuple(warning.code for warning in extraction.warnings),
             },
             analysis={
                 "status": analysis_report["status"],
@@ -278,7 +279,7 @@ def _routing_item(
 ) -> dict[str, Any]:
     document_type = _infer_document_type(item["filename"], config.default_document_type)
     status = extraction_status or extraction.status
-    partial_extraction = status in {"partial", "metadata_only", "unsupported", "failed", "blocked"}
+    partial_extraction = status in {"partial", "metadata_only", "unsupported", "failed", "blocked", "needs_review"}
     confidence = config.review_confidence if partial_extraction else config.default_confidence
     return {
         "original_path": f"{config.incoming_prefix}/{item['relative_path']}",

@@ -194,7 +194,14 @@ def plan_maintenance_model_route(
         and int(chunk_count or 1) <= model_profile.chunk_budget
         and int(source_ref_count or 1) <= model_profile.source_ref_budget
     )
-    partial = _token(extraction_status, fallback="unknown") in {"partial", "metadata_only", "unsupported", "failed", "blocked"}
+    partial = _token(extraction_status, fallback="unknown") in {
+        "partial",
+        "metadata_only",
+        "unsupported",
+        "failed",
+        "blocked",
+        "needs_review",
+    }
     low_confidence = float(confidence or 0.0) < 0.72
     fallback_reason = _token(fallback_gate_reason, fallback="")
 
