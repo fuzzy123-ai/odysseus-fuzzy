@@ -61,7 +61,7 @@ def test_telegram_chunking_respects_classic_message_limit():
     assert all(len(chunk) <= 4096 for chunk in chunks)
 
 
-def test_send_telegram_text_uses_html_parse_mode_and_chunks(monkeypatch):
+def test_send_telegram_text_uses_html_parse_mode_for_single_message(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     calls = []
 
@@ -69,14 +69,35 @@ def test_send_telegram_text_uses_html_parse_mode_and_chunks(monkeypatch):
         calls.append((url, dict(payload)))
         return {"ok": True, "result": {"message_id": len(calls)}}
 
-    result = send_telegram_text("chat-1", "**Hello** " + ("x " * 2200), http_post=_post)
+    result = send_telegram_text("chat-1", "**Hello**", http_post=_post)
 
     assert result["ok"] is True
     assert result["telegram_message_id"] == 1
-    assert result["message_count"] == len(calls)
+    assert result["message_count"] == 1
     assert result["delivery_mode"] == "classic_html"
     assert result["formatting_mode"] == "html"
     assert all(call[1]["parse_mode"] == "HTML" for call in calls)
+
+
+def test_send_telegram_text_uses_plaintext_chunks_for_long_html(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    calls = []
+
+    def _post(url, payload):
+        calls.append((url, dict(payload)))
+        return {"ok": True, "result": {"message_id": len(calls)}}
+
+    long_code = "```python\n" + "\n".join(f"print({index})" for index in range(900)) + "\n```"
+    result = send_telegram_text("chat-1", "**Plan**\n" + long_code, http_post=_post)
+
+    assert result["ok"] is True
+    assert result["message_count"] == len(calls)
+    assert result["message_count"] > 1
+    assert result["delivery_mode"] == "classic_plaintext_chunks"
+    assert result["formatting_mode"] == "plaintext_chunk_fallback"
+    assert result["parse_mode"] == ""
+    assert all("parse_mode" not in call[1] for call in calls)
+    assert all(len(call[1]["text"]) <= 4096 for call in calls)
 
 
 def test_readiness_exposes_rich_status_without_raw_payloads(tmp_path):

@@ -179,15 +179,28 @@ def send_telegram_text(
     if not text.strip():
         raise ValueError("telegram reply text is empty")
     rendered = render_telegram_markdown(text)
-    chunks = chunk_telegram_html(rendered.html)
+    rendered_chunks = chunk_telegram_html(rendered.html)
+    if rendered.parse_mode and len(rendered_chunks) == 1:
+        chunks = rendered_chunks
+        parse_mode = rendered.parse_mode
+        delivery_mode = "classic_html"
+        formatting_mode = rendered.formatting_mode
+    else:
+        # Telegram requires every individual message to contain balanced HTML
+        # entities. A naive split can bisect <pre>/<code>/<b> blocks, so long
+        # replies use plaintext chunks instead of risking total delivery failure.
+        chunks = chunk_telegram_html(rendered.plaintext)
+        parse_mode = ""
+        delivery_mode = "classic_plaintext_chunks" if len(chunks) > 1 else "classic_plaintext"
+        formatting_mode = "plaintext_chunk_fallback" if rendered.parse_mode else rendered.formatting_mode
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     post = http_post or _telegram_http_post
     message_ids: list[Any] = []
     ok = True
     for chunk in chunks:
         payload = {"chat_id": str(chat_id), "text": chunk}
-        if rendered.parse_mode:
-            payload["parse_mode"] = rendered.parse_mode
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         result = post(url, payload)
         ok = ok and bool(result.get("ok"))
         message_ids.append((result.get("result") or {}).get("message_id"))
@@ -195,9 +208,9 @@ def send_telegram_text(
         "ok": ok,
         "telegram_message_id": message_ids[0] if message_ids else None,
         "telegram_message_ids": message_ids,
-        "delivery_mode": "classic_html" if rendered.parse_mode else "classic_plaintext",
-        "formatting_mode": rendered.formatting_mode,
-        "parse_mode": rendered.parse_mode,
+        "delivery_mode": delivery_mode,
+        "formatting_mode": formatting_mode,
+        "parse_mode": parse_mode,
         "message_count": len(chunks),
         "token_value_visible": False,
         "raw_rich_payload_visible": False,
