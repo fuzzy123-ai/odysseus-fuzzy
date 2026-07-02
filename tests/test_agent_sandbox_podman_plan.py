@@ -15,4 +15,5 @@ def test_podman_plan_is_argv_only_and_not_executed():
     assert payload["executes_live"] is False
     assert payload["pod_create_argv"][:3] == ("podman", "pod", "create")
     assert "--privileged" not in payload["run_argv"]
+    assert "--entrypoint" in payload["run_argv"]
     assert payload["decision"]["allowed"] is True

@@ -63,7 +63,10 @@ def render_podman_sandbox_plan(job: SandboxJobRequest, *, pod_name_prefix: str =
     ]
     for mount in job.mounts:
         run_args.extend(["--mount", f"type=bind,src={mount.source},dst={mount.target},{mount.mode}"])
-    run_args.extend([job.image, *job.argv])
+    command_args = list(job.argv)
+    if command_args and command_args[0] in {"python", "python3", "node", "npm", "npx"}:
+        run_args.extend(["--entrypoint", command_args.pop(0)])
+    run_args.extend([job.image, *command_args])
     cleanup = ("podman", "pod", "rm", "-f", pod_name)
     if not decision.allowed:
         run_args = []
