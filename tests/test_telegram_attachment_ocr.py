@@ -98,8 +98,9 @@ def test_tesseract_adapter_uses_preprocessed_variants_and_best_text(tmp_path, mo
 
     assert "OctoGate" in text
     assert "80C501001B7C" in text
-    assert len(calls) > 2
+    assert len(calls) >= 2
     assert any("--psm" in call for call in calls)
+    assert any("lower_label" in " ".join(str(part) for part in call) for call in calls)
 
 
 def test_ocr_score_prefers_clear_identifier_over_noisy_full_frame_text():

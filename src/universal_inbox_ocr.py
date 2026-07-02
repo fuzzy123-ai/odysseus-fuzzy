@@ -161,6 +161,8 @@ class LocalTesseractOcrAdapter:
                         continue
                     if _ocr_score(text) > _ocr_score(best_text):
                         best_text = text
+                    if _ocr_score(best_text) >= 260:
+                        return _normalize_ocr_text(best_text)[: self.settings.max_chars]
         if best_text.strip():
             return _normalize_ocr_text(best_text)[: self.settings.max_chars]
         if last_error is not None:
@@ -168,7 +170,8 @@ class LocalTesseractOcrAdapter:
         return ""
 
     def _image_candidates(self, image_path: Path, tmp_dir: Path) -> tuple[Path, ...]:
-        candidates = [image_path]
+        is_rendered_pdf_page = image_path.name.startswith("page-")
+        candidates = [image_path] if is_rendered_pdf_page else []
         try:
             from PIL import Image, ImageFilter, ImageOps
         except Exception:
@@ -185,10 +188,10 @@ class LocalTesseractOcrAdapter:
             return tuple(candidates)
 
         crop_specs = (
-            ("full", (0.0, 0.0, 1.0, 1.0)),
-            ("center", (0.12, 0.18, 0.88, 0.86)),
-            ("device_body", (0.18, 0.24, 0.86, 0.72)),
             ("lower_label", (0.34, 0.50, 0.78, 0.72)),
+            ("device_body", (0.18, 0.24, 0.86, 0.72)),
+            ("center", (0.12, 0.18, 0.88, 0.86)),
+            ("full", (0.0, 0.0, 1.0, 1.0)),
         )
         for index, (name, box) in enumerate(crop_specs, start=1):
             left = int(width * box[0])
@@ -210,6 +213,8 @@ class LocalTesseractOcrAdapter:
                 except Exception:
                     continue
                 candidates.append(target)
+        if not is_rendered_pdf_page:
+            candidates.append(image_path)
         return tuple(dict.fromkeys(candidates))
 
     def _run_tesseract(self, image_path: Path, *, psm: str) -> str:
