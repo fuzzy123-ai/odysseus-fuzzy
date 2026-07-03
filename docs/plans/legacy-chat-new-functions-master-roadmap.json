@@ -45,6 +45,9 @@
     ],
     "lc8_backend_contract": [
       "GET /api/coding-agent/quick-entry"
+    ],
+    "lc9_backend_contract": [
+      "GET /api/diagnostics/quick-summary"
     ]
   },
   "slices": [
@@ -170,14 +173,12 @@
       "id": "LC9",
       "title": "Diagnostics surfaces",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "slash command summaries",
       "requires": [
-        "/api/diagnostics/ai-activity",
-        "/api/diagnostics/memory-provenance",
-        "/api/diagnostics/tool-capabilities"
+        "GET /api/diagnostics/quick-summary"
       ],
-      "why_not_100": "Compact redacted summaries are not implemented yet."
+      "why_not_100": "Backend route contract is ready; slash command summaries and compact diagnostics UI wiring are not implemented in this backend-first slice."
     },
     {
       "id": "LC10",
@@ -204,6 +205,7 @@
     "LC6: let the UI agent render /api/universal-file-io/export-plan as an attachment follow-up preview.",
     "LC7: let the UI agent render /api/diagnostics/quick-status for compact MCP/system summaries.",
     "LC8: let the UI agent render /api/coding-agent/quick-entry as a compact coding task entry/status card.",
-    "LC9: continue backend-first with compact redacted diagnostics summaries where needed."
+    "LC9: let the UI agent render /api/diagnostics/quick-summary as compact redacted diagnostics blocks.",
+    "LC10: keep live delivery/converter affordances gated until action-specific live readiness is available."
   ]
 }

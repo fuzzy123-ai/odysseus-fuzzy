@@ -48,9 +48,14 @@ Owner: operator + Codex
   map for project/coding-agent/sandbox actions classified as read-only preview,
   gated mutation or live action. It does not list project titles, host paths,
   repo paths, tokens, chat IDs or raw task contents and performs no execution.
+- LC9 backend route contract is available for UI wiring:
+  `GET /api/diagnostics/quick-summary`. It aggregates the existing AI
+  activity, Memory/RaptorGraph provenance and tool-capability diagnostics into
+  compact counts and status summaries without raw records, prompts, outputs,
+  private document text, host paths, provider headers or chat IDs.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC8 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC9 backend work.
 
 ## Goal
 

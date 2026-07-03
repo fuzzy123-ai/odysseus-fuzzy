@@ -126,6 +126,30 @@ def setup_diagnostics_routes(
             logger.error(f"Tool capability diagnostics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve tool capability diagnostics")
 
+    @router.get("/api/diagnostics/quick-summary")
+    async def get_diagnostics_quick_summary(
+        request: Request,
+        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    ) -> Dict[str, Any]:
+        """Return compact redacted diagnostics for chat surfaces."""
+        require_admin(request)
+        try:
+            from src.ai_activity_ledger import read_ai_activity
+            from src.diagnostics_quick_summary import build_diagnostics_quick_summary
+            from src.memory_provenance_ledger import read_memory_provenance
+            from src.tool_capability_maintenance import read_tool_capability_diagnostics
+
+            return build_diagnostics_quick_summary(
+                ai_activity=read_ai_activity(day=day, limit=100),
+                memory_provenance=read_memory_provenance(day=day, limit=100),
+                tool_capabilities=read_tool_capability_diagnostics(),
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"Diagnostics quick summary retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve diagnostics quick summary")
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)
