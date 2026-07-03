@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Dict, Tuple
@@ -184,18 +185,58 @@ def compute_next_run(schedule: str, scheduled_time: str,
     return None
 
 
+def resolve_task_timezone(db, task=None, *, owner: str | None = None, crew_member_id: str | None = None) -> str | None:
+    """Resolve the IANA timezone for a scheduled task.
+
+    Tasks created from Telegram or other non-browser surfaces often have no
+    linked CrewMember. In that case, fall back to the owner's default assistant
+    timezone before using the process default. This keeps "09:00" as the user's
+    local 09:00 while still storing next_run as naive UTC.
+    """
+    if task is not None:
+        crew_member_id = crew_member_id or getattr(task, "crew_member_id", None)
+        owner = owner or getattr(task, "owner", None)
+
+    def _valid_tz(value: str | None) -> str | None:
+        value = (value or "").strip()
+        if not value:
+            return None
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo(value)
+            return value
+        except Exception:
+            return None
+
+    if crew_member_id:
+        try:
+            from core.database import CrewMember
+            cm = db.query(CrewMember).filter(CrewMember.id == crew_member_id).first()
+            tz = _valid_tz(getattr(cm, "timezone", None) if cm else None)
+            if tz:
+                return tz
+        except Exception:
+            pass
+
+    if owner:
+        try:
+            from core.database import CrewMember
+            cm = db.query(CrewMember).filter(
+                CrewMember.owner == owner,
+                CrewMember.is_default_assistant == True,  # noqa: E712
+            ).order_by(CrewMember.created_at.asc()).first()
+            tz = _valid_tz(getattr(cm, "timezone", None) if cm else None)
+            if tz:
+                return tz
+        except Exception:
+            pass
+
+    return _valid_tz(os.getenv("ODYSSEUS_DEFAULT_TIMEZONE") or os.getenv("TZ"))
+
+
 def _resolve_task_timezone(db, task) -> str | None:
-    """Look up the IANA timezone name for a task via its linked CrewMember, if any."""
-    if not getattr(task, "crew_member_id", None):
-        return None
-    try:
-        from core.database import CrewMember
-        cm = db.query(CrewMember).filter(CrewMember.id == task.crew_member_id).first()
-        if cm and cm.timezone:
-            return cm.timezone
-    except Exception:
-        pass
-    return None
+    """Backward-compatible wrapper for existing scheduler call sites."""
+    return resolve_task_timezone(db, task)
 
 
 HOUSEKEEPING_DEFAULTS = {

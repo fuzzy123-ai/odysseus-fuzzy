@@ -133,8 +133,9 @@ def current_datetime_prompt(now_utc: Optional[datetime] = None) -> str:
         "user used a relative date.\n"
         "When scheduling calendar events with manage_calendar, pass local ISO "
         "datetimes resolved against this user-local date/time.\n"
-        "When scheduling a task with manage_tasks, scheduled_time is in UTC: "
-        "convert the user's stated local time using the UTC offset above.\n\n"
+        "When scheduling a task with manage_tasks, pass scheduled_time as the "
+        "user's local clock time; the backend resolves the owner's timezone and "
+        "stores the UTC next_run.\n\n"
     )
 
 

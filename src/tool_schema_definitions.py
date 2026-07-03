@@ -562,7 +562,7 @@ FUNCTION_TOOL_SCHEMAS = [
                                      "description": "schedule = time-based, event = count-based"},
                     "schedule": {"type": "string", "enum": ["once", "daily", "weekly", "monthly", "cron"],
                                  "description": "Schedule frequency (for trigger_type=schedule). Use cron for compact weekday ranges such as Mo-Fr / weekdays."},
-                    "scheduled_time": {"type": "string", "description": "HH:MM in UTC (for schedule triggers). Convert the user's stated local time using the UTC offset given in the 'Current date and time' context."},
+                    "scheduled_time": {"type": "string", "description": "HH:MM in the user's local clock time (for schedule triggers). The backend resolves the owner/default-assistant timezone and stores next_run as UTC."},
                     "scheduled_day": {"type": "integer", "description": "Day of week 0=Mon (weekly) or day of month (monthly)"},
                     "cron_expression": {"type": "string", "description": "Five-field cron expression for schedule='cron'. Use one task with cron like '0 9 * * 1-5' for weekdays at 09:00 instead of creating one task per weekday."},
                     "trigger_event": {"type": "string", "enum": ["session_created", "message_sent", "document_created", "memory_added", "research_completed", "email_received", "skill_added"],

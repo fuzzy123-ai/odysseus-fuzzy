@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 import core.database as cdb
-from core.database import ScheduledTask
+from core.database import CrewMember, ScheduledTask
 from src.tool_implementations import do_manage_tasks
 
 
@@ -113,3 +113,38 @@ def test_manage_tasks_creates_weekday_reminder_as_single_cron_task(tmp_path, mon
     assert task["schedule"] == "cron"
     assert task["cron_expression"] == "0 9 * * 1-5"
     assert task["next_run"] is not None
+
+
+def test_manage_tasks_uses_default_assistant_timezone(tmp_path, monkeypatch):
+    session_factory = _isolated_task_db(tmp_path, monkeypatch)
+    db = session_factory()
+    try:
+        db.add(CrewMember(
+            id="assistant-alice",
+            owner="alice",
+            name="Assistant",
+            is_default_assistant=True,
+            timezone="Europe/Berlin",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    result = asyncio.run(do_manage_tasks(
+        json.dumps({
+            "action": "create",
+            "name": "Daily todo digest",
+            "prompt": "Send my todo digest.",
+            "task_type": "llm",
+            "trigger_type": "schedule",
+            "schedule": "daily",
+            "scheduled_time": "09:00",
+            "output_target": "telegram",
+        }),
+        owner="alice",
+    ))
+
+    assert result["exit_code"] == 0
+    task = _get_task(session_factory, result["task_id"])
+    assert task["next_run"].hour == 7
+    assert task["next_run"].minute == 0

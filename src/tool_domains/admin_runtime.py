@@ -21,6 +21,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
     import uuid as _uuid
     from core.database import SessionLocal, ScheduledTask
     from src.task_scheduler import compute_next_run
+    from src.task_scheduler_helpers import resolve_task_timezone
 
     try:
         args = _parse_tool_args(content)
@@ -81,6 +82,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                     schedule, args.get("scheduled_time", "09:00"),
                     args.get("scheduled_day"),
                     cron_expression=args.get("cron_expression"),
+                    tz_name=resolve_task_timezone(db, owner=owner),
                 )
 
             task_id = str(_uuid.uuid4())
@@ -153,6 +155,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 task.next_run = compute_next_run(
                     task.schedule, task.scheduled_time, task.scheduled_day,
                     cron_expression=task.cron_expression,
+                    tz_name=resolve_task_timezone(db, task),
                 )
 
             db.commit()
@@ -192,6 +195,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                     task.next_run = compute_next_run(
                         task.schedule, task.scheduled_time, task.scheduled_day,
                         cron_expression=task.cron_expression,
+                        tz_name=resolve_task_timezone(db, task),
                     )
             db.commit()
             return {"response": f"Task '{task.name}' {action}d", "exit_code": 0}

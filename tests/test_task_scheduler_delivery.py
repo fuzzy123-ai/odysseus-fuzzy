@@ -84,15 +84,15 @@ async def test_task_scheduler_telegram_delivery_uses_safe_boundary(monkeypatch):
 
     async def _deliver(payload):
         calls.append(payload)
-        return {"delivery_status": "dry_run", "reason": "dry_run_requested"}
+        return {"delivery_status": "dispatched", "reason": "ready_for_server_side_dispatch"}
 
     monkeypatch.setattr("src.user_notification_delivery.deliver_user_notification", _deliver)
     task = SimpleNamespace(id="task-telegram", name="Morning Todos", owner="alice")
 
     decision = await deliver_user_notification_for_task(task, "Todo digest body")
 
-    assert decision["delivery_status"] == "dry_run"
+    assert decision["delivery_status"] == "dispatched"
     assert calls[0]["channel"] == "telegram"
-    assert calls[0]["dry_run"] is True
+    assert calls[0]["dry_run"] is False
     assert "chat_id" not in calls[0]
     assert "token" not in str(calls[0]).lower()

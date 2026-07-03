@@ -64,7 +64,7 @@ async def deliver_user_notification_for_task(task, result: str) -> dict:
         "message": result or f"Task {getattr(task, 'name', '')} completed.",
         "severity": "success",
         "channel": "telegram",
-        "dry_run": True,
+        "dry_run": False,
         "metadata": {
             "task_id": str(getattr(task, "id", "") or ""),
             "task_name": str(getattr(task, "name", "") or "")[:80],

@@ -24,3 +24,13 @@ def test_malformed_scheduled_time_returns_none():
 def test_valid_scheduled_time_still_computes():
     now = datetime(2026, 6, 2, 8, 0)
     assert compute_next_run("daily", "09:00", after=now) == datetime(2026, 6, 2, 9, 0)
+
+
+def test_daily_schedule_with_timezone_stores_utc_naive():
+    now = datetime(2026, 7, 3, 6, 30)
+    assert compute_next_run(
+        "daily",
+        "09:00",
+        after=now,
+        tz_name="Europe/Berlin",
+    ) == datetime(2026, 7, 3, 7, 0)
