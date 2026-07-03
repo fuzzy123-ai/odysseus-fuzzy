@@ -29,6 +29,9 @@
     ],
     "lc3_backend_contract": [
       "GET /api/internal-refs/resolve?ref={internal_ref}"
+    ],
+    "lc4_backend_contract": [
+      "GET /api/review-gates/status"
     ]
   },
   "slices": [
@@ -98,12 +101,12 @@
       "id": "LC4",
       "title": "Review and write gates",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "compact inline action row",
       "requires": [
-        "Redacted pending-review state for Memory, RaptorGraph, Nextcloud and export gates"
+        "GET /api/review-gates/status"
       ],
-      "why_not_100": "Pending review state needs a compact read contract before buttons are wired."
+      "why_not_100": "Backend route contract is ready; compact inline action row UI wiring is not implemented in this backend-first slice."
     },
     {
       "id": "LC5",
@@ -179,13 +182,6 @@
   ],
   "open_backend_contracts": [
     {
-      "id": "REVIEW_GATE_STATE_ROUTE",
-      "blocks": [
-        "LC4"
-      ],
-      "decision": "Expose pending review/write gate state as redacted metadata."
-    },
-    {
       "id": "UNIVERSAL_FILE_IO_PLAN_ROUTE",
       "blocks": [
         "LC6"
@@ -197,6 +193,7 @@
     "LC1: let the UI agent wire a compact legacy chat indicator against /api/security/dsgvo/status.",
     "LC2: let the UI agent render /api/universal-inbox/items/{source_ref}/status in attachment chips/user footers.",
     "LC3: let the UI agent route internal Memory/RaptorGraph links through /api/internal-refs/resolve.",
-    "LC4 or LC6: continue backend-first with review gate state or Universal File IO plan routes."
+    "LC4: let the UI agent render /api/review-gates/status as compact redacted action rows.",
+    "LC6: continue backend-first with a Universal File IO plan route."
   ]
 }

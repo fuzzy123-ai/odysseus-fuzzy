@@ -24,9 +24,13 @@ Owner: operator + Codex
   chat anchors and shorthand refs into redacted open targets. Memory refs point
   to the existing Memory route/modal without returning text; RaptorGraph refs
   return a redacted event summary or the memory-provenance diagnostics fallback.
+- LC4 backend route contract is available for UI wiring:
+  `GET /api/review-gates/status`. It summarizes pending Nextcloud copy,
+  Memory write, RaptorGraph write and file export decisions as redacted gate
+  metadata without raw text, paths, chat IDs, message IDs or token values.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC3 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC4 backend work.
 
 ## Goal
 

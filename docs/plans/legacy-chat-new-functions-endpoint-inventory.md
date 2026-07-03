@@ -33,7 +33,7 @@ Scope: safe_offline inventory only
 | LC1 secure mode indicator | inline + slash | Telegram `/dsgvo` command path in `plugins/telegram/plugin.py`; Telegram readiness includes `privacy_boundary`; browser-safe DSGVO contract now exists: `GET /api/security/dsgvo/status`, `POST /api/security/dsgvo/toggle`, `POST /api/security/dsgvo`. | `static/js/chat.js` composer/header chip plus `static/js/slashCommands.js` `/dsgvo` status/toggle. | No backend blocker. UI wiring remains intentionally separate. |
 | LC2 attachment processing status | inline | Upload: `POST /api/upload`, read: `GET /api/upload/{id}`; compact redacted status: `GET /api/universal-inbox/items/{source_ref}/status`; Universal Inbox file-type policy classifies extraction families and review requirements. | `static/js/fileHandler.js` chips and `static/js/chat.js` user-message footer. | No backend blocker. UI wiring remains intentionally separate. |
 | LC3 Memory/Raptor clickable refs | message_action + modal_existing | Memory: `GET /api/memory`, `GET /api/memory/{id}`, `GET /api/memory/timeline`; canonical internal ref resolver: `GET /api/internal-refs/resolve?ref={internal_ref}`; RaptorGraph candidates resolve to redacted event summaries or `/api/diagnostics/memory-provenance?event_type=raptorgraph_mutation`. | `static/js/markdown.js`, `static/js/chatRenderer.js`, `static/js/memory.js`. | No backend blocker. UI wiring remains intentionally separate. |
-| LC4 review and write gates | inline action row | Memory write intent/executor contracts in `src/universal_inbox_memory_write_intent.py` and `src/universal_inbox_memory_write_executor.py`; write gate probe in `src/universal_inbox_write_gate.py`; Tasks and Memory mutation endpoints exist but should remain gated. | `static/js/chatRenderer.js` tool-result block/action row and existing confirm/toast helpers. | Add or confirm a redacted review-state endpoint for pending Memory/Nextcloud/export decisions. |
+| LC4 review and write gates | inline action row | Redacted gate summary: `GET /api/review-gates/status`; Memory write intent/executor contracts in `src/universal_inbox_memory_write_intent.py` and `src/universal_inbox_memory_write_executor.py`; write gate probe in `src/universal_inbox_write_gate.py`; Tasks and Memory mutation endpoints exist but should remain gated. | `static/js/chatRenderer.js` tool-result block/action row and existing confirm/toast helpers. | No backend blocker. UI wiring remains intentionally separate. |
 | LC5 task/reminder feedback | slash + result block | Tasks: `GET/POST /api/tasks`, `GET /api/tasks/{id}`, `PUT /api/tasks/{id}`, pause/resume/run/stop, `GET /api/tasks/runs/recent`, `POST /api/tasks/parse`, metadata endpoints. | `static/js/slashCommands.js` `/tasks*`; `static/js/chatRenderer.js` task result renderer. | No blocker. Improve grouping of weekday cron into one readable recurrence rule. |
 | LC6 file export intent preview | inline result block | Export planning in `src/universal_file_io.py`; document export preview/render routes: `/api/document/{doc_id}/export-pdf/preview`, `/api/document/{doc_id}/render-pdf`, `/api/document/{doc_id}/export-pdf`; zip export `/api/documents/export-zip`. | `static/js/chatRenderer.js` follow-up result block after recent attachment. | Add or confirm browser/API route that returns Universal File IO plan without executing converter. |
 | LC7 MCP/system health quick status | slash | MCP manager: `/api/mcp/servers`, `/api/mcp/tools`, `/api/mcp/servers/{id}/tools`; local MCP plugin: `/api/plugins/mcp/info`, `/api/plugins/mcp/config`; system health plugin: `/api/plugins/system_health_checker/health`; app health `/api/health`, `/api/ready`, `/api/version`; diagnostics services `/api/diagnostics/services`. | `static/js/slashCommands.js` `/mcp`, `/status` style slash replies. | No blocker for read-only summaries. Mutating MCP/server config remains out of scope. |
@@ -70,10 +70,9 @@ Scope: safe_offline inventory only
 
 These should be resolved before touching the corresponding legacy UI slice:
 
-1. Review-state route that summarizes pending Memory/Nextcloud/export gates.
-2. Universal File IO plan endpoint for "make this file a PDF/image/audio"
+1. Universal File IO plan endpoint for "make this file a PDF/image/audio"
    without executing converters.
-3. Per-action live readiness payload for Telegram delivery, Nextcloud copy and
+2. Per-action live readiness payload for Telegram delivery, Nextcloud copy and
    converter execution.
 
 ## Recommended Next Slice
@@ -81,5 +80,6 @@ These should be resolved before touching the corresponding legacy UI slice:
 LC1 UI wiring can start from the browser-safe DSGVO status route. LC2 UI wiring
 can start from the redacted Universal Inbox attachment status contract. LC3 UI
 wiring can resolve `memory:` and `raptor:` links through
-`/api/internal-refs/resolve`. The next backend-first slice is LC4 or LC6 unless
-the UI agent wants LC1-LC3 integration support.
+`/api/internal-refs/resolve`. LC4 UI wiring can render pending review/write
+states from `/api/review-gates/status`. The next backend-first slice is LC6
+unless the UI agent wants LC1-LC4 integration support.
