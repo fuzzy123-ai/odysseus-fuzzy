@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1-CTXE4 done; manifest-first schema selection, session envelope and cache-boundary policy ready; CTXE5 next**
+Status: **CTXE1-CTXE5 done; manifest-first tool/schema/provider flow, session envelope and cache-boundary policy ready; CTXE6 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE5-context-provider-manifest-first`.
+- Naechster sicherer Slice: `CTXE6-simple-task-router-policy`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -59,7 +59,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | `CTXE2-deferred-tool-schema-selection` | `repo_only` | Bob | Auswahlfunktion bauen, die fuer eine Capsule/Session zuerst kompakte Tool-Manifeste liefert und volle Schemata nur fuer relevante Tools markiert. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `13 passed, 1 warning` | none |
 | `CTXE3-session-envelope-hash` | `repo_only` | Bob | Session-Envelope modellieren: model ref, reasoning/context budget, active tool manifest set, system prompt version, MCP/plugin selection, cache boundary marker. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `19 passed, 1 warning` | none |
 | `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `24 passed, 1 warning` | none |
-| `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/memory_provider.py`, `src/nextcloud_source_provider.py`, plugin context providers, tests | focused provider tests | no live source access |
+| `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/context_orchestrator.py`, `tests/test_context_orchestrator.py` | done: `24 passed, 1 warning` | no live source access |
 | `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `docs/plans/`, optional `src/*routing*.py` if model-only | docs-only or focused model tests | no live model calls |
 | `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/`, `tests/`, `docs/plans/` narrow evidence files | focused pytest | none |
 | `CTXE8-master-roadmap-closeout` | `repo_only` | Charlie | Fortschritt in MVP-/Release-Status einsortieren: Go/Partial/Deferred, keine 1.0-Ueberzeichnung. | `docs/plans/` only | docs-only | may defer if MVP hotfile dirty |
@@ -272,6 +272,36 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_session_env
 Result: `24 passed, 1 warning`.
 
 Next safe slice: `CTXE5-context-provider-manifest-first`.
+
+### CTXE5 Context Provider Manifest First
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- Optional provider payload flag `manifest_first` in `src/context_orchestrator.py`
+  that injects a compact `Provider context manifest` before structured state,
+  diagnostics and untrusted snippets.
+- Manifest fields for provider id, plugin id, capabilities, cache key,
+  structured-state presence, diagnostic keys, source/snippet counts, source refs
+  and snippet budget.
+- Snippet budgeting in provider prompt assembly with capped item count and text
+  characters, so providers can expose metadata/refs first and bounded snippets
+  second.
+- Host-/path-like source refs in provider manifests are hashed before prompt
+  injection.
+- Focused tests for manifest-first ordering, budgeted snippets, no raw snippet
+  text in manifests and host-path hashing.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_context_orchestrator.py tests\test_user_time.py tests\test_agent_loop.py::test_agent_provider_context_inserts_after_primary_system_prompt -q
+```
+
+Result: `24 passed, 1 warning`.
+
+Next safe slice: `CTXE6-simple-task-router-policy`.
 
 ## Go Language
 

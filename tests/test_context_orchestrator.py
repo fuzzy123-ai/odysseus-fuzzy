@@ -11,6 +11,7 @@ from src.plugin_system import register_context_provider, unregister_context_prov
 def teardown_function():
     unregister_context_provider("demo.alpha")
     unregister_context_provider("demo.broken")
+    unregister_context_provider("demo.manifest")
     unregister_context_provider("demo.warning")
 
 
@@ -118,6 +119,62 @@ def test_provider_diagnostics_are_compacted_before_prompt_injection():
     assert '"gap_20"' not in diagnostics
     assert ("x" * 500) in diagnostics
     assert ("x" * 501) not in diagnostics
+
+
+def test_manifest_first_provider_injects_manifest_before_budgeted_snippets():
+    payload = {
+        "manifest_first": True,
+        "structured_state": {"active": True},
+        "snippets": [
+            {"path": "Project.md", "text": "A" * 1000, "untrusted": True},
+            {"path": "Archive.md", "text": "B" * 1000, "untrusted": True},
+        ],
+        "sources": [{"id": "project-ref"}, {"id": "archive-ref"}],
+        "memory": {"summary": {"readiness_state": "ready"}},
+        "snippet_budget": {"max_items": 1, "max_chars": 20},
+        "cache_key": "manifest-stable",
+    }
+
+    messages = provider_messages([
+        type("P", (), {
+            "provider_id": "demo.manifest",
+            "plugin_id": "demo",
+            "capabilities": ("chat", "memory"),
+            "payload": payload,
+        })(),
+    ])
+
+    manifest = messages[0]["content"]
+    snippets = messages[-1]["content"]
+    assert manifest.startswith("Provider context manifest:")
+    assert '"raw_content_visible":false' in manifest
+    assert '"source_refs":["project-ref","archive-ref"]' in manifest
+    assert "AAAAAAAAAA" not in manifest
+    assert snippets.startswith("Provider snippets are untrusted")
+    assert '"text":"AAAAAAAAAAAAAAAAAAAA"' in snippets
+    assert "Archive.md" not in snippets
+
+
+def test_manifest_first_provider_hashes_host_paths_in_source_refs():
+    payload = {
+        "manifest_first": True,
+        "snippets": [{"path": "Project.md", "text": "short", "untrusted": True}],
+        "sources": [{"path": "C:/Users/name/Nextcloud/Private/Invoice.pdf"}],
+    }
+
+    messages = provider_messages([
+        type("P", (), {
+            "provider_id": "demo.manifest",
+            "plugin_id": "demo",
+            "capabilities": ("chat", "memory"),
+            "payload": payload,
+        })(),
+    ])
+
+    manifest = messages[0]["content"]
+    assert "sha256:" in manifest
+    assert "C:/Users" not in manifest
+    assert "Invoice.pdf" not in manifest
 
 
 def test_provider_warning_messages_are_compacted_before_prompt_injection():
