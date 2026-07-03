@@ -2,8 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **Partial; profile, command gate, and operator runbook exist, but stored
-runtime mount validation and real smoke evidence remain pending**
+Status: **repo complete; runtime validation and write smoke live-gated**
 
 ## Goal
 
@@ -24,9 +23,15 @@ is sandboxed.
   named command-intent gate.
 - `docs/gamedev-project-access-runbook.md` defines the operator checklist and
   smoke plan.
-- The local runtime mount data may still need its stored allowed extensions
-  updated by an operator because `data/mounts.json` is runtime state, not a
-  tracked roadmap artifact.
+- `build_gamedev_mount_report(...)` validates stored mount-like data without
+  exposing host paths, and `build_gamedev_write_smoke_plan(...)` prepares a
+  reversible write-smoke plan without writing.
+- `src.mvp_gamedev_mount_closure.build_gamedev_mount_closure_report(...)`
+  keeps the final manual write smoke at `needs_live_go` until explicit
+  operator approval.
+- Focused verification on 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_gamedev_project_profile.py tests\test_mvp_gamedev_mount_closure.py tests\test_mount_points.py tests\test_workspace_confine.py -q`
+  returned `57 passed, 1 skipped, 2 warnings`.
 
 ## Non-Goals
 
@@ -50,6 +55,8 @@ is sandboxed.
 
 ### GDEV0 Inventory And Roadmap
 
+Status: done
+
 Owner: Charlie.
 
 Done when:
@@ -72,6 +79,8 @@ Done when:
 Status: done in repo; runtime config still needs operator validation.
 
 ### GDEV2 Project Mode Binding
+
+Status: done
 
 Owner: Bob, Charlie integration.
 
@@ -100,6 +109,8 @@ Status: done as offline command-plan model; runtime adapter remains future work.
 
 ### GDEV4 Audit And Undo
 
+Status: done
+
 Owner: Bob, Alice docs.
 
 Goal:
@@ -125,6 +136,8 @@ Status: done in `docs/gamedev-project-access-runbook.md`.
 
 ### GDEV6 Final Gate
 
+Status: live-gated
+
 Owner: Charlie.
 
 Done when:
@@ -138,7 +151,7 @@ Done when:
 - **Go**: profile tests pass, stored mount configuration validates, shell is not
   treated as sandboxed, and a smoke test proves read/write within the virtual
   mount only.
-- **Partial**: profile and docs exist, but local runtime mount configuration or
+- **Partial**: repo contracts pass, but local runtime mount configuration or
   smoke evidence is pending.
 - **No-Go**: broad host root, shell-as-sandbox, secret leakage, or destructive
   project commands are required.

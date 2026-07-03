@@ -33,6 +33,7 @@ Primary sources:
 - `docs/plans/coding-agent-backend-handoff.md`
 - `docs/plans/repo-control-roadmap.md`
 - `docs/plans/server-project-runner-roadmap.md`
+- `docs/plans/gamedev-project-access-roadmap.md`
 - `docs/plans/odysseus-mcp-server-roadmap.md`
 - `docs/plans/mcp-workbench-evidence-plan.md`
 - `docs/mcp-server-runbook.md`
@@ -1920,7 +1921,7 @@ Open gates / next slices:
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
 | L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory, redacted pilot profiling and Gemma4 maintenance routing are implemented and verified; local-only extraction/review now has a fixture-tested executor behind explicit operator Go, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
-| L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
+| L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links, GameDev mount/project access contracts and UI handoff are done; provider repo creation, live server execution, stored runtime mount validation, reversible write smoke, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence, Gemma4 maintenance policy, provenance logging and read-only memory storage stats are tested; live graph writes, rebuild/fullbuild, runtime migration, live Gemma smoke and accelerators remain gated operational tracks, and visible memory labels remain UI-owned. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
