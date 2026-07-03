@@ -43,9 +43,14 @@ Owner: operator + Codex
   diagnostics, system-health and version quick summary without live probes,
   host commands, URLs, command values, env values, tokens, chat IDs or tool
   descriptions.
+- LC8 backend route contract is available for UI wiring:
+  `GET /api/coding-agent/quick-entry`. It returns a static redacted capability
+  map for project/coding-agent/sandbox actions classified as read-only preview,
+  gated mutation or live action. It does not list project titles, host paths,
+  repo paths, tokens, chat IDs or raw task contents and performs no execution.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC7 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC8 backend work.
 
 ## Goal
 

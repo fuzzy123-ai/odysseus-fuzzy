@@ -663,6 +663,8 @@ app.include_router(setup_repo_routes())
 # Coding Agent backend
 from routes.coding_agent_routes import setup_coding_agent_routes
 app.include_router(setup_coding_agent_routes())
+from routes.coding_agent_quick_entry_routes import setup_coding_agent_quick_entry_routes
+app.include_router(setup_coding_agent_quick_entry_routes())
 
 # Sandbox worker backend
 from routes.sandbox_worker_routes import setup_sandbox_worker_routes

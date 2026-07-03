@@ -42,6 +42,9 @@
     ],
     "lc7_backend_contract": [
       "GET /api/diagnostics/quick-status"
+    ],
+    "lc8_backend_contract": [
+      "GET /api/coding-agent/quick-entry"
     ]
   },
   "slices": [
@@ -156,12 +159,12 @@
       "id": "LC8",
       "title": "Coding-agent lightweight entry",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "slash command + chat task card",
       "requires": [
-        "Project and sandbox actions classified as preview, gated mutation or live action"
+        "GET /api/coding-agent/quick-entry"
       ],
-      "why_not_100": "Action safety classification is not yet surfaced to legacy chat."
+      "why_not_100": "Backend route contract is ready; slash command and compact chat task-card UI wiring are not implemented in this backend-first slice."
     },
     {
       "id": "LC9",
@@ -200,6 +203,7 @@
     "LC5: let the UI agent render /api/tasks/summary for compact reminder/task summaries.",
     "LC6: let the UI agent render /api/universal-file-io/export-plan as an attachment follow-up preview.",
     "LC7: let the UI agent render /api/diagnostics/quick-status for compact MCP/system summaries.",
-    "LC8 or LC9: continue backend-first with compact read contracts where needed."
+    "LC8: let the UI agent render /api/coding-agent/quick-entry as a compact coding task entry/status card.",
+    "LC9: continue backend-first with compact redacted diagnostics summaries where needed."
   ]
 }
