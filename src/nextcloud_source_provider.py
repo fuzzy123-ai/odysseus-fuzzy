@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from src.chat_security_state import ChatSecurityState
+from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
 from src.nextcloud_source_policy import (
     RECOMMENDED_ACTOR,
     REQUIRED_FOLDERS,
@@ -40,6 +41,7 @@ class NextcloudSourceReadinessReport:
     secure_policy_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        runtime_event = _nextcloud_readiness_runtime_event(self)
         return {
             "provider_id": self.provider_id,
             "status": self.status,
@@ -55,6 +57,8 @@ class NextcloudSourceReadinessReport:
             "secure_policy_decision": self.secure_policy_decision,
             "secure_policy_allowed": self.secure_policy_allowed,
             "secure_policy_reason": self.secure_policy_reason,
+            "correlation_id": runtime_event["correlation_id"],
+            "runtime_event": runtime_event,
         }
 
 
@@ -221,3 +225,47 @@ def _default_next_actions(status: str, provider_id: str | None) -> tuple[str, ..
         target = provider_id or "the provider"
         return (f"Fix the invalid offline configuration for {target} before any further readiness step.",)
     return ("Leave the provider deferred and revisit only when a safe offline config review is needed.",)
+
+
+def _nextcloud_event_status(status: str) -> str:
+    if status == "ready":
+        return "success"
+    if status == "partial":
+        return "warn"
+    if status == "blocked":
+        return "blocked"
+    if status == "deferred":
+        return "skipped"
+    return "unknown"
+
+
+def _nextcloud_correlation_id(report: NextcloudSourceReadinessReport) -> str:
+    return stable_payload_hash(
+        {
+            "surface": "nextcloud",
+            "provider_id": report.provider_id,
+            "status": report.status,
+        }
+    )
+
+
+def _nextcloud_readiness_runtime_event(report: NextcloudSourceReadinessReport) -> dict[str, Any]:
+    status = _nextcloud_event_status(report.status)
+    return build_runtime_event(
+        surface="universal_inbox",
+        component="nextcloud_source_provider",
+        event_type="nextcloud_readiness",
+        status=status,
+        severity="warn" if status in {"warn", "blocked"} else "info",
+        owner_scope="nextcloud_source",
+        correlation_id=_nextcloud_correlation_id(report),
+        privacy_level="private_metadata",
+        metadata={
+            "provider_id": report.provider_id,
+            "status": report.status,
+            "error_count": len(report.errors),
+            "warning_count": len(report.warnings),
+            "secure_policy_decision": report.secure_policy_decision or "unknown",
+            "secure_policy_allowed": bool(report.secure_policy_allowed),
+        },
+    )

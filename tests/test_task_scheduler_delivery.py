@@ -92,7 +92,37 @@ async def test_task_scheduler_telegram_delivery_uses_safe_boundary(monkeypatch):
     decision = await deliver_user_notification_for_task(task, "Todo digest body")
 
     assert decision["delivery_status"] == "dispatched"
+    assert decision["correlation_id"].startswith("sha256:")
+    assert decision["runtime_event"]["surface"] == "scheduler"
+    assert decision["runtime_event"]["component"] == "task_delivery"
+    assert decision["runtime_event"]["status"] == "success"
+    assert decision["runtime_event"]["raw_content_visible"] is False
     assert calls[0]["channel"] == "telegram"
     assert calls[0]["dry_run"] is False
     assert "chat_id" not in calls[0]
+    assert calls[0]["metadata"]["task_id"].startswith("sha256:")
+    assert "Morning Todos" not in str(decision["runtime_event"])
     assert "token" not in str(calls[0]).lower()
+
+
+@pytest.mark.asyncio
+async def test_task_scheduler_mcp_delivery_returns_redacted_runtime_event(monkeypatch):
+    class _Mcp:
+        async def call_tool(self, tool_name, args):
+            return {"exit_code": 1, "stdout": "private delivery output", "stderr": "secret-ish error"}
+
+    monkeypatch.setattr("src.tool_utils.get_mcp_manager", lambda: _Mcp())
+    monkeypatch.setattr("routes.email_helpers._get_email_config", lambda: {"from_address": "me@example.com"})
+
+    task = SimpleNamespace(id="task-mcp", name="Sensitive Task", owner="owner@example.com")
+
+    decision = await deliver_via_mcp("mcp__gmail__send_email", task, "private body")
+
+    encoded_event = str(decision["runtime_event"])
+    assert decision["status"] == "failed"
+    assert decision["runtime_event"]["status"] == "failed"
+    assert decision["runtime_event"]["raw_content_visible"] is False
+    assert decision["runtime_event"]["metadata"]["tool_ref"] == "mcp__gmail__send_email"
+    assert "private body" not in encoded_event
+    assert "private delivery output" not in encoded_event
+    assert "Sensitive Task" not in encoded_event

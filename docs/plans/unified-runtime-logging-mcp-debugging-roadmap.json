@@ -307,7 +307,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "C",
-      "status": "planned",
+      "status": "done",
       "goal": "Add unified event emission to scheduler, Universal Inbox, Nextcloud transfer and memory write-intent flows.",
       "allowed_paths": [
         "src/task_scheduler.py",
@@ -322,8 +322,9 @@
       ],
       "done_when": "Reminder failures, inbox extraction failures, Nextcloud copy/write blockers and memory write outcomes are diagnosable by correlation_id.",
       "tests": [
-        "venv/Scripts/python.exe -m pytest tests/test_task_scheduler_delivery.py tests/test_universal_inbox_pipeline.py tests/test_runtime_event_envelope.py -q"
-      ]
+        "venv/Scripts/python.exe -m pytest tests/test_task_scheduler_delivery.py tests/test_universal_inbox_pipeline.py tests/test_universal_inbox_memory_write_intent.py tests/test_nextcloud_source_provider.py tests/test_runtime_event_envelope.py -q"
+      ],
+      "evidence": "Implemented redacted runtime_event and correlation_id fields for scheduler delivery decisions, Universal Inbox pipeline reports, Universal Inbox memory write intents and Nextcloud source readiness reports. Events expose status, component, safe counts and policy outcomes without raw task text, document content, chat IDs, host paths, WebDAV endpoints or secrets. Focused tests passed on 2026-07-03: 34 passed, 1 warning."
     },
     {
       "id": "ULOG-4-raptor-memory-provenance-adapters",
@@ -480,7 +481,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-3-scheduler-inbox-memory-adapters",
-    "reason": "ULOG-0, ULOG-1, ULOG-2 and ULOG-7 are complete; the next repo-only slice is event adapters for scheduler, Universal Inbox, Nextcloud transfer and memory write-intent flows."
+    "id": "ULOG-4-raptor-memory-provenance-adapters",
+    "reason": "ULOG-0, ULOG-1, ULOG-2, ULOG-3 and ULOG-7 are complete; the next repo-only slice is RaptorGraph and long-term memory provenance event adapters."
   }
 }

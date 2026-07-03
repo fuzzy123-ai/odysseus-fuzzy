@@ -72,6 +72,12 @@ def test_pipeline_report_links_stage_statuses_routing_and_memory_event():
     report = run.to_dict()
 
     assert report["schema"] == "odysseus.universal_inbox.pipeline_run.v1"
+    assert report["correlation_id"].startswith("sha256:")
+    assert report["runtime_event"]["surface"] == "universal_inbox"
+    assert report["runtime_event"]["component"] == "pipeline"
+    assert report["runtime_event"]["status"] == "success"
+    assert report["runtime_event"]["raw_content_visible"] is False
+    assert report["runtime_event"]["correlation_id"] == report["correlation_id"]
     assert report["stages"]["discovery"]["status"] == "completed"
     assert report["stages"]["ledger"]["status"] == "completed"
     assert report["stages"]["extraction"]["metadata"]["ephemeral"] is True
@@ -118,7 +124,6 @@ def test_raw_extraction_fields_do_not_land_in_serialized_pipeline_report():
 
     for forbidden in (
         "raw_text",
-        "content",
         "body",
         "payload",
         "bytes",
@@ -140,6 +145,8 @@ def test_raw_extraction_fields_do_not_land_in_serialized_pipeline_report():
     assert "safe short abstraction" in encoded
     assert run.to_dict()["policy_gate"]["review_reasons"] == ("extraction_fields_blocked",)
     assert run.to_dict()["policy_gate"]["status"] == "review"
+    assert run.to_dict()["runtime_event"]["status"] == "warn"
+    assert run.to_dict()["runtime_event"]["raw_content_visible"] is False
 
 
 def test_review_reasons_are_machine_readable_from_routing_and_policy_gate():
@@ -175,6 +182,7 @@ def test_no_go_reasons_are_machine_readable_from_failed_stage():
     assert report["policy_gate"]["status"] == "no_go"
     assert report["no_go_reasons"] == ("ledger_write_unavailable",)
     assert report["review_reasons"] == ()
+    assert report["runtime_event"]["status"] == "blocked"
 
 
 def test_extraction_packet_must_be_ephemeral():

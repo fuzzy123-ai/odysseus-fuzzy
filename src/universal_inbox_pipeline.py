@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any, Mapping
 
+from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
 from src.universal_inbox_memory import (
     FORBIDDEN_MEMORY_KEYS,
     UniversalInboxMemoryAbstraction,
@@ -286,12 +287,18 @@ class UniversalInboxPipelineRun:
         payload = {
             "schema": self.schema,
             "run_id": self.run_id,
+            "correlation_id": _pipeline_correlation_id(self.run_id),
             "stages": stages,
             "routing_decision": routing_payload,
             "memory_abstraction_event": memory_event,
             "policy_gate": self.policy_gate.to_dict(),
             "review_reasons": self.policy_gate.review_reasons,
             "no_go_reasons": self.policy_gate.no_go_reasons,
+            "runtime_event": _pipeline_runtime_event(
+                run_id=self.run_id,
+                policy_gate=self.policy_gate,
+                blocked_count=blocked_count,
+            ),
         }
         if blocked_count:
             payload["blocked_field_count"] = blocked_count
@@ -408,3 +415,43 @@ def _normalize_run_id(value: Any) -> str:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", run_id):
         raise UniversalInboxPipelineError("run_id must be a safe identifier")
     return run_id
+
+
+def _pipeline_correlation_id(run_id: str) -> str:
+    return stable_payload_hash({"surface": "universal_inbox", "run_id": run_id})
+
+
+def _pipeline_event_status(policy_gate: UniversalInboxPolicyGate) -> str:
+    if policy_gate.status == "go":
+        return "success"
+    if policy_gate.status == "review":
+        return "warn"
+    if policy_gate.status == "no_go":
+        return "blocked"
+    return "unknown"
+
+
+def _pipeline_runtime_event(
+    *,
+    run_id: str,
+    policy_gate: UniversalInboxPolicyGate,
+    blocked_count: int,
+) -> dict[str, Any]:
+    status = _pipeline_event_status(policy_gate)
+    return build_runtime_event(
+        surface="universal_inbox",
+        component="pipeline",
+        event_type="pipeline_run",
+        status=status,
+        severity="warn" if status in {"warn", "blocked"} else "info",
+        owner_scope="universal_inbox",
+        correlation_id=_pipeline_correlation_id(run_id),
+        privacy_level="private_metadata",
+        run_id=run_id,
+        metadata={
+            "policy_gate": policy_gate.status,
+            "review_reason_count": len(policy_gate.review_reasons),
+            "no_go_reason_count": len(policy_gate.no_go_reasons),
+            "blocked_field_count": blocked_count,
+        },
+    )

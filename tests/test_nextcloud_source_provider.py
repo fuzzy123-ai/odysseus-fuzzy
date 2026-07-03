@@ -32,6 +32,13 @@ def test_nextcloud_sync_ready_with_recommended_actor_and_readonly_scope() -> Non
     assert report.secure_policy_allowed is True
     assert report.root_path == "/Odysseus/Intake"
     assert report.webdav_endpoint is None
+    payload = report.to_dict()
+    assert payload["correlation_id"].startswith("sha256:")
+    assert payload["runtime_event"]["surface"] == "universal_inbox"
+    assert payload["runtime_event"]["component"] == "nextcloud_source_provider"
+    assert payload["runtime_event"]["status"] == "success"
+    assert payload["runtime_event"]["raw_content_visible"] is False
+    assert "/Odysseus/Intake" not in str(payload["runtime_event"])
 
 
 def test_nextcloud_webdav_ready_with_https_dav_endpoint() -> None:
@@ -199,3 +206,5 @@ def test_summary_is_compact_and_redacts_error_details_to_codes() -> None:
     assert summary["errors"] == ("invalid_webdav_endpoint",)
     assert summary["warnings"] == ()
     assert summary["webdav_endpoint"] is None
+    assert summary["runtime_event"]["status"] == "blocked"
+    assert "https://cloud.example.test" not in str(summary["runtime_event"])

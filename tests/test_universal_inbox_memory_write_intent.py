@@ -53,6 +53,11 @@ def test_ready_intent_builds_memory_record_and_raptor_event_without_raw_content(
     assert payload["status"] == "ready"
     assert payload["ready_to_write"] is True
     assert payload["writes_performed"] is False
+    assert payload["correlation_id"].startswith("sha256:")
+    assert payload["runtime_event"]["surface"] == "universal_inbox"
+    assert payload["runtime_event"]["component"] == "memory_write_intent"
+    assert payload["runtime_event"]["status"] == "queued"
+    assert payload["runtime_event"]["raw_content_visible"] is False
     assert payload["memory_records"][0]["source"] == "universal_inbox"
     memory_ref = payload["memory_records"][0]["internal_ref"]
     assert memory_ref["kind"] == "memory"
@@ -141,6 +146,7 @@ def test_sensitive_analysis_requires_review_and_creates_no_records():
     payload = intent.to_dict()
 
     assert payload["status"] == "review"
+    assert payload["runtime_event"]["status"] == "warn"
     assert payload["ready_to_write"] is False
     assert payload["memory_records"] == ()
     assert payload["raptorgraph_event"]["memory_record_ids"] == ()
@@ -161,6 +167,7 @@ def test_no_go_analysis_blocks_memory_and_raptor_write():
     payload = intent.to_dict()
 
     assert payload["status"] == "blocked"
+    assert payload["runtime_event"]["status"] == "blocked"
     assert payload["ready_to_write"] is False
     assert payload["memory_records"] == ()
     assert "dangerous_file_blocked" in payload["analysis_policy"]["no_go_reasons"]

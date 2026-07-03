@@ -13,6 +13,7 @@ import re
 from typing import Any, Mapping
 
 from src.internal_references import build_internal_reference_dict
+from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
 from src.universal_inbox_analysis import UniversalInboxFileAnalysisPacket
 from src.universal_inbox_memory import UniversalInboxMemoryAbstraction
 
@@ -49,6 +50,7 @@ class UniversalInboxMemoryWriteIntent:
         return self.status == "ready"
 
     def to_dict(self) -> dict[str, Any]:
+        runtime_event = _intent_runtime_event(self)
         return {
             "schema": self.schema,
             "status": self.status,
@@ -57,6 +59,8 @@ class UniversalInboxMemoryWriteIntent:
             "writes_performed": self.writes_performed,
             "ready_to_write": self.ready_to_write,
             "raw_content_visible": False,
+            "correlation_id": runtime_event["correlation_id"],
+            "runtime_event": runtime_event,
             "memory_records": tuple(dict(record) for record in self.memory_records),
             "raptorgraph_event": dict(self.raptorgraph_event),
             "analysis_policy": dict(self.analysis_policy),
@@ -394,3 +398,52 @@ def _token(value: Any, *, field: str) -> str:
     if not _SAFE_TOKEN_RE.fullmatch(token):
         raise UniversalInboxMemoryWriteIntentError(f"{field} must be a safe token")
     return token
+
+
+def _intent_correlation_id(intent: UniversalInboxMemoryWriteIntent) -> str:
+    source_hash = str(intent.raptorgraph_event.get("source_hash") or "")
+    if source_hash:
+        return source_hash if source_hash.startswith("sha256:") else f"sha256:{source_hash}"
+    return stable_payload_hash(
+        {
+            "status": intent.status,
+            "reason": intent.reason,
+            "records": len(intent.memory_records),
+        }
+    )
+
+
+def _intent_event_status(status: str) -> str:
+    if status == "ready":
+        return "queued"
+    if status == "review":
+        return "warn"
+    if status == "blocked":
+        return "blocked"
+    return "unknown"
+
+
+def _intent_runtime_event(intent: UniversalInboxMemoryWriteIntent) -> dict[str, Any]:
+    status = _intent_event_status(intent.status)
+    source_hash = str(intent.raptorgraph_event.get("source_hash") or "")
+    doc_id = source_hash if source_hash.startswith("sha256:") else (f"sha256:{source_hash}" if source_hash else "")
+    return build_runtime_event(
+        surface="universal_inbox",
+        component="memory_write_intent",
+        event_type="memory_write_intent",
+        status=status,
+        severity="warn" if status in {"warn", "blocked"} else "info",
+        owner_scope="universal_inbox",
+        correlation_id=_intent_correlation_id(intent),
+        privacy_level="private_metadata",
+        doc_id=doc_id,
+        side_effects=("none",) if intent.dry_run else ("memory", "raptorgraph"),
+        metadata={
+            "intent_status": intent.status,
+            "reason": _token(intent.reason or "unknown", field="reason"),
+            "memory_records_planned": len(intent.memory_records),
+            "writes_performed": bool(intent.writes_performed),
+            "dry_run": bool(intent.dry_run),
+            "raptor_status": _token(intent.raptorgraph_event.get("status") or "unknown", field="raptor_status"),
+        },
+    )
