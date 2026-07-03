@@ -39,6 +39,9 @@
     "lc6_backend_contract": [
       "GET /api/universal-file-io/capabilities",
       "POST /api/universal-file-io/export-plan"
+    ],
+    "lc7_backend_contract": [
+      "GET /api/diagnostics/quick-status"
     ]
   },
   "slices": [
@@ -142,12 +145,12 @@
       "id": "LC7",
       "title": "MCP and system health quick status",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "slash command result block",
       "requires": [
-        "Read-only MCP, diagnostics, system health and version endpoints"
+        "GET /api/diagnostics/quick-status"
       ],
-      "why_not_100": "Compact slash summaries are not implemented yet."
+      "why_not_100": "Backend route contract is ready; slash command result block UI wiring is not implemented in this backend-first slice."
     },
     {
       "id": "LC8",
@@ -196,6 +199,7 @@
     "LC4: let the UI agent render /api/review-gates/status as compact redacted action rows.",
     "LC5: let the UI agent render /api/tasks/summary for compact reminder/task summaries.",
     "LC6: let the UI agent render /api/universal-file-io/export-plan as an attachment follow-up preview.",
-    "LC7, LC8 or LC9: continue backend-first with compact read contracts where needed."
+    "LC7: let the UI agent render /api/diagnostics/quick-status for compact MCP/system summaries.",
+    "LC8 or LC9: continue backend-first with compact read contracts where needed."
   ]
 }

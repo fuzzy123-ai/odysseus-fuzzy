@@ -38,9 +38,14 @@ Owner: operator + Codex
   source refs, exposes only source family/extension, target format, required
   tool, local-only state and blockers, and never executes converters or
   delivery.
+- LC7 backend route contract is available for UI wiring:
+  `GET /api/diagnostics/quick-status`. It returns a local-only MCP,
+  diagnostics, system-health and version quick summary without live probes,
+  host commands, URLs, command values, env values, tokens, chat IDs or tool
+  descriptions.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC6 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC7 backend work.
 
 ## Goal
 

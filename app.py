@@ -811,6 +811,8 @@ from routes.mcp_routes import setup_mcp_routes
 mcp_manager = McpManager()
 set_mcp_manager(mcp_manager)
 app.include_router(setup_mcp_routes(mcp_manager))
+from routes.operator_quick_status_routes import setup_operator_quick_status_routes
+app.include_router(setup_operator_quick_status_routes(mcp_manager))
 logger.info("MCP routes initialized")
 
 # AI Interaction tools (debates, pipelines, self-managing AI, UI control)
