@@ -40,6 +40,7 @@ from routes.chat_endpoint_helpers import (
 from routes.chat_helpers import (
     resolve_session_auth,
     build_chat_context,
+    build_deterministic_capability_self_report,
     save_assistant_response,
     run_post_response_tasks,
     clean_thinking_for_save,
@@ -380,6 +381,18 @@ def setup_chat_routes(
             allow_tool_preprocessing=allow_tool_preprocessing,
         )
 
+        deterministic_reply = build_deterministic_capability_self_report(message)
+        if deterministic_reply:
+            save_assistant_response(
+                sess,
+                session_manager,
+                session,
+                deterministic_reply,
+                {"source": "tool_capability_diagnostics"},
+                character_name=ctx.preset.character_name,
+            )
+            return {"response": deterministic_reply}
+
         # Research injection
         research_blocked_by_policy = (
             tool_policy.blocks("trigger_research")
@@ -660,6 +673,26 @@ def setup_chat_routes(
             agent_mode=(chat_mode == "agent"),
             allow_tool_preprocessing=allow_tool_preprocessing,
         )
+
+        deterministic_reply = build_deterministic_capability_self_report(message)
+        if deterministic_reply:
+            _saved_id = save_assistant_response(
+                sess,
+                session_manager,
+                session,
+                deterministic_reply,
+                {"source": "tool_capability_diagnostics"},
+                character_name=ctx.preset.character_name,
+                incognito=incognito,
+            )
+
+            async def _capability_report_stream() -> AsyncGenerator[str, None]:
+                yield f'data: {json.dumps({"delta": deterministic_reply})}\n\n'
+                if _saved_id:
+                    yield f'data: {json.dumps({"type": "message_saved", "id": _saved_id})}\n\n'
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(_capability_report_stream(), media_type="text/event-stream")
 
         _research_flags = {"do": do_research}  # Mutable container for generator scope
         _is_compare_session = (

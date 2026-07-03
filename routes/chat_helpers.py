@@ -23,6 +23,15 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
+_CAPABILITY_SELF_REPORT_RE = re.compile(
+    r"\b("
+    r"capabilit(?:y|ies)|tools?|werkzeuge?|faehig(?:keit|keiten)|fähigkeit(?:en)?|"
+    r"was kannst du|what can you do|kannst du|dateien? lesen|dateien? schreiben|"
+    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo"
+    r")\b",
+    re.IGNORECASE,
+)
+
 
 # Strong references to in-flight fire-and-forget tasks scheduled from this
 # module. asyncio only keeps weak references to tasks created via
@@ -361,6 +370,53 @@ def fire_message_event(request, webhook_manager, session_id: str, sess, message:
     from src.event_bus import fire_event
     user = effective_user(request)
     fire_event("message_sent", user)
+
+
+def build_deterministic_capability_self_report(message: str) -> str | None:
+    """Return a redacted, model-free answer for tool/capability questions.
+
+    Small local models can ignore the injected capability guard or spend their
+    answer budget in reasoning. Capability self-reports are system facts, so
+    answer them from the trusted maintenance snapshot instead of asking an LLM
+    to restate them.
+    """
+    if not _CAPABILITY_SELF_REPORT_RE.search(str(message or "")):
+        return None
+    try:
+        from src.tool_capability_maintenance import read_tool_capability_diagnostics
+
+        diagnostics = read_tool_capability_diagnostics()
+    except Exception as exc:
+        return (
+            "Tool-Selbstbericht: aktuell nicht lesbar.\n"
+            f"- Status: degraded ({exc.__class__.__name__})\n"
+            "- Verfügbare/gated/fehlende Tools: bitte später erneut prüfen."
+        )
+
+    snapshot = diagnostics.get("snapshot") if isinstance(diagnostics.get("snapshot"), dict) else {}
+    domains = snapshot.get("domains") if isinstance(snapshot.get("domains"), dict) else {}
+    index_status = snapshot.get("index_status") if isinstance(snapshot.get("index_status"), dict) else {}
+    memory_records = diagnostics.get("memory_records") if isinstance(diagnostics.get("memory_records"), dict) else {}
+    raptorgraph = diagnostics.get("raptorgraph") if isinstance(diagnostics.get("raptorgraph"), dict) else {}
+
+    def _status_label(value: Any) -> str:
+        text = str(value or "").strip()
+        return text if text else "unknown"
+
+    return "\n".join(
+        [
+            "Tool-Selbstbericht aus aktueller Odysseus-Diagnostik:",
+            f"- Snapshot: {snapshot.get('id') or 'unknown'}; Commit: {snapshot.get('commit') or 'unknown'}",
+            f"- ToolIndex: {_status_label(index_status.get('status'))}; Built-ins: {snapshot.get('builtin_tool_count') or 0}",
+            "- Verfügbar: read_file, write_file, edit_file, grep, glob, ls, bash, python, manage_repos, recent_changes.",
+            "- Ebenfalls verfügbar: Memory-/Skill-Werkzeuge und admin-/runtime-nahe Backend-Werkzeuge laut ToolIndex.",
+            "- Gated/disabled: riskante Datei-, Shell-, Git-, Sandbox- und Admin-Aktionen laufen nur über Policy, Rechte, Live-Go oder Sandbox-Gates.",
+            "- Fehlend: nichts davon ist grundsätzlich unbekannt; wenn ein Tool blockiert, ist es eine Gate-/Policy-Entscheidung, kein fehlendes Tool.",
+            f"- Domains: {', '.join(f'{name}={count}' for name, count in sorted(domains.items())) or 'unknown'}",
+            f"- Memory: {memory_records.get('count') or 0} Capability-Records; RaptorGraph-Event: {'ja' if raptorgraph.get('event_present') else 'nein'}.",
+            f"- Redaction: raw_content_visible={bool(diagnostics.get('raw_content_visible'))}.",
+        ]
+    )
 
 
 def _session_url_matches_endpoint(session_url: str, endpoint_base: str) -> bool:
