@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -51,6 +52,9 @@ DEBUG_TOOL_NAMES = (
     "agent_debug_run_trace",
     "agent_debug_tool_failures",
     "local_model_debug_latency",
+    "prometheus_query_readonly",
+    "loki_query_readonly",
+    "grafana_dashboard_summary",
     "podman_debug_status_readonly",
     "debug_bundle_create_redacted",
     "debug_bundle_list",
@@ -102,6 +106,8 @@ def call_debug_tool_contract(name: str, arguments: Mapping[str, Any] | None = No
         )
     if name == "debug_bundle_create_redacted":
         return _create_debug_bundle(arguments or {})
+    if name in {"prometheus_query_readonly", "loki_query_readonly", "grafana_dashboard_summary"}:
+        return _call_observability_tool_contract(name, arguments or {})
     if name.startswith("security_"):
         return _call_security_tool_contract(name, arguments or {})
     return _response(
@@ -143,6 +149,41 @@ def _create_debug_bundle(arguments: Mapping[str, Any]) -> dict[str, Any]:
         "bundle": bundle,
         "summary": summarize_debug_bundle(bundle),
     }
+
+
+def _call_observability_tool_contract(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    if name == "grafana_dashboard_summary":
+        return _response(
+            name=name,
+            status="blocked",
+            reason="grafana_client_not_configured",
+            arguments=arguments,
+            next_action="configure_redacted_grafana_summary_adapter",
+        )
+    from src.observability_clients import (
+        ObservabilityClientConfig,
+        ObservabilityClientError,
+        query_loki_readonly,
+        query_prometheus_readonly,
+    )
+
+    config = ObservabilityClientConfig(
+        prometheus_url=os.getenv("ODYSSEUS_PROMETHEUS_URL", ""),
+        loki_url=os.getenv("ODYSSEUS_LOKI_URL", ""),
+        enabled=os.getenv("ODYSSEUS_OBSERVABILITY_QUERY_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"},
+    )
+    try:
+        if name == "prometheus_query_readonly":
+            return query_prometheus_readonly(arguments.get("query"), config=config, limit=arguments.get("limit"))
+        return query_loki_readonly(arguments.get("query"), config=config, limit=arguments.get("limit"))
+    except ObservabilityClientError as exc:
+        return _response(
+            name=name,
+            status="blocked",
+            reason=str(exc).replace(" ", "_")[:120],
+            arguments=arguments,
+            next_action="provide_safe_observability_query_or_config",
+        )
 
 
 def _call_security_tool_contract(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
@@ -383,6 +424,17 @@ def _tool_contract(name: str) -> dict[str, Any]:
             "items": {"type": "object"},
         }
         required.append("events")
+    if name in {"prometheus_query_readonly", "loki_query_readonly"}:
+        properties["query"] = {
+            "type": "string",
+            "description": "Read-only Prometheus/LogQL query. The raw query is hashed in outputs.",
+        }
+        required.append("query")
+    if name == "grafana_dashboard_summary":
+        properties["dashboard_uid"] = {
+            "type": "string",
+            "description": "Redacted Grafana dashboard UID. Server-side Grafana config is required.",
+        }
     if name in {
         "security_incident_list",
         "security_incident_read",

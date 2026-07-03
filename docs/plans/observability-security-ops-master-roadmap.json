@@ -269,6 +269,6 @@
   ],
   "recommended_next_action": {
     "id": "observability-live-go",
-    "reason": "All current repo-only ULOG, SIR and DEB-OBS observability contracts are complete through OBS-7. The remaining backend progress needs bounded live Go for Debian metrics/logging/CrowdSec setup and log-retention/exposure decisions."
+    "reason": "All current repo-only ULOG, SIR and DEB-OBS observability contracts are complete, including ULOG-8 and OBS-7. The remaining backend progress needs bounded live Go for Debian metrics/logging/CrowdSec setup, live observability smoke, and log-retention/exposure decisions."
   }
 }

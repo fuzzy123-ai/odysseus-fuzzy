@@ -87,6 +87,24 @@ def test_debug_server_unknown_tool_is_blocked():
     assert result["writes_performed"] is False
 
 
+def test_observability_query_tools_are_readonly_and_config_gated():
+    prometheus = call_debug_tool_contract("prometheus_query_readonly", {"query": "up", "limit": 500})
+    loki = call_debug_tool_contract("loki_query_readonly", {"query": '{surface="telegram"}'})
+    grafana = call_debug_tool_contract("grafana_dashboard_summary", {"dashboard_uid": "ops-main"})
+
+    assert prometheus["status"] == "blocked"
+    assert prometheus["reason"] == "prometheus_not_configured"
+    assert prometheus["limit"] == 100
+    assert prometheus["read_only"] is True
+    assert prometheus["writes_performed"] is False
+    assert "up" not in json.dumps(prometheus, sort_keys=True)
+    assert loki["status"] == "blocked"
+    assert loki["reason"] == "loki_not_configured"
+    assert loki["writes_performed"] is False
+    assert grafana["status"] == "blocked"
+    assert grafana["reason"] == "grafana_client_not_configured"
+
+
 def test_security_policy_readiness_is_readonly():
     result = call_debug_tool_contract("security_policy_readiness", {})
 

@@ -412,7 +412,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "E",
-      "status": "planned",
+      "status": "done",
       "goal": "Add optional read-only clients for Prometheus and Loki queries behind MCP diagnostics, disabled unless configured.",
       "allowed_paths": [
         "src/observability_clients.py",
@@ -427,7 +427,8 @@
       "notes": [
         "No live network query in unit tests.",
         "Use fake clients and explicit config gates."
-      ]
+      ],
+      "evidence": "Implemented src/observability_clients.py with config-gated read-only Prometheus and Loki clients, fake-transport test support, bounded query limits, query hashing, low-cardinality label filtering and Loki stream summaries without log lines. Wired prometheus_query_readonly, loki_query_readonly and grafana_dashboard_summary into mcp_servers/debug_server.py and src/mcp_server_tool_policy.py. Verified with tests/test_observability_clients.py, tests/test_mcp_debug_server.py and tests/test_mcp_server_tool_policy.py."
     },
     {
       "id": "ULOG-9-live-observability-smoke",
@@ -484,7 +485,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-8-loki-prometheus-read-adapters",
-    "reason": "ULOG-0 through ULOG-7 are complete; the next ULOG repo-only slice is optional read-only Loki/Prometheus adapters, gated by configuration."
+    "id": "ULOG-9-live-observability-smoke",
+    "reason": "ULOG-0 through ULOG-8 are complete. The remaining ULOG work is the bounded live observability smoke, which requires explicit observability-live-smoke-go."
   }
 }
