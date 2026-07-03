@@ -814,6 +814,96 @@ class CalendarDeletedEvent(TimestampMixin, Base):
     last_error = Column(Text, nullable=True)
 
 
+class GitHubIssueRecord(TimestampMixin, Base):
+    """Provider-neutral copy of a GitHub/local issue for duplicate triage."""
+    __tablename__ = "github_issue_records"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    provider = Column(String, nullable=False, default="github", index=True)
+    repository = Column(String, nullable=False, index=True)
+    external_id = Column(String, nullable=True, index=True)
+    external_node_id = Column(String, nullable=True)
+    title = Column(String, nullable=False, default="")
+    body = Column(Text, nullable=True)
+    state = Column(String, nullable=False, default="open", index=True)
+    url = Column(String, nullable=True)
+    labels_json = Column(JSON, nullable=True, default=list)
+    author = Column(String, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+
+    field_values = relationship(
+        "GitHubIssueFieldValue",
+        back_populates="issue",
+        cascade="all, delete-orphan",
+    )
+    duplicate_candidates = relationship(
+        "GitHubIssueDuplicateCandidate",
+        foreign_keys="GitHubIssueDuplicateCandidate.source_issue_id",
+        back_populates="source_issue",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_github_issue_owner_repo_state", "owner", "repository", "state"),
+        Index(
+            "ux_github_issue_external",
+            "owner",
+            "provider",
+            "repository",
+            "external_id",
+            unique=True,
+        ),
+    )
+
+
+class GitHubIssueFieldValue(TimestampMixin, Base):
+    """Canonical Odysseus issue field value attached to an issue record."""
+    __tablename__ = "github_issue_field_values"
+
+    id = Column(String, primary_key=True, index=True)
+    issue_id = Column(String, ForeignKey("github_issue_records.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner = Column(String, nullable=False, index=True)
+    field_name = Column(String, nullable=False, index=True)
+    value_json = Column(JSON, nullable=False, default=dict)
+    source = Column(String, nullable=False, default="user")
+    confidence = Column(Integer, nullable=True)
+
+    issue = relationship("GitHubIssueRecord", back_populates="field_values")
+
+    __table_args__ = (
+        Index("ix_github_issue_field_owner_name", "owner", "field_name"),
+        Index("ux_github_issue_field", "issue_id", "field_name", unique=True),
+    )
+
+
+class GitHubIssueDuplicateCandidate(TimestampMixin, Base):
+    """Audit trail for duplicate issue candidate decisions."""
+    __tablename__ = "github_issue_duplicate_candidates"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    repository = Column(String, nullable=False, index=True)
+    source_issue_id = Column(String, ForeignKey("github_issue_records.id", ondelete="CASCADE"), nullable=False, index=True)
+    candidate_issue_id = Column(String, ForeignKey("github_issue_records.id", ondelete="CASCADE"), nullable=False, index=True)
+    score = Column(Integer, nullable=False, default=0)
+    reason = Column(Text, nullable=True)
+    decision = Column(String, nullable=False, default="pending", index=True)
+    decided_at = Column(DateTime, nullable=True)
+
+    source_issue = relationship(
+        "GitHubIssueRecord",
+        foreign_keys=[source_issue_id],
+        back_populates="duplicate_candidates",
+    )
+    candidate_issue = relationship("GitHubIssueRecord", foreign_keys=[candidate_issue_id])
+
+    __table_args__ = (
+        Index("ix_github_issue_duplicate_owner_repo", "owner", "repository", "decision"),
+        Index("ux_github_issue_duplicate_pair", "source_issue_id", "candidate_issue_id", unique=True),
+    )
+
+
 class Integration(TimestampMixin, Base):
     """An external service connection (email, RSS, webhook, etc.)."""
     __tablename__ = "integrations"

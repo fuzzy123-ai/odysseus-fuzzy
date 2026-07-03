@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0 repo slice complete; persistence, sync, duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS1 repo slices complete; sync, duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -378,6 +378,24 @@ Done when:
 - Issue rows are owner-scoped.
 - Field values round-trip as JSON.
 - Duplicate candidate rows can be accepted/rejected without deleting evidence.
+
+Status: done.
+
+Evidence:
+
+- `core/database.py` defines `GitHubIssueRecord`,
+  `GitHubIssueFieldValue` and `GitHubIssueDuplicateCandidate` as owner-scoped
+  SQLAlchemy models.
+- New tables are created through the existing startup migration path
+  `Base.metadata.create_all(bind=engine)`; no destructive migration or live
+  GitHub action is involved.
+- `tests/test_github_issue_models.py` verifies owner-scoped issue rows, JSON
+  label and field-value roundtrips, unique external issue identity per
+  owner/provider/repository, duplicate candidate accept/reject decisions, and
+  evidence preservation.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py -q`
+  -> `11 passed, 1 warning`.
 
 ### GHISS2 Sync Adapter
 
