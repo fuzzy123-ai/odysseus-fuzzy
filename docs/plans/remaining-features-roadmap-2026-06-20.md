@@ -181,6 +181,15 @@ Goal:
 - Add GitHub Issue duplicate preview, provider-neutral issue fields, and
   GitHub Issue Fields projection.
 
+Current status 2026-07-03:
+
+- GHISS0 is complete: `src/github_issue_fields.py` and
+  `tests/test_github_issue_fields.py` implement and verify the provider-neutral
+  field contract, default mappings, label fallback and fail-closed validation.
+- Remaining P9 work starts at GHISS1 persistence, then read-only sync and
+  duplicate preview. No GitHub token, network call or write action is enabled by
+  GHISS0.
+
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the
   read-only sync and duplicate preview slices.

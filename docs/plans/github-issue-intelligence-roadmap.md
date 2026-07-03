@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **new feature track, design-ready**
+Status: **GHISS0 repo slice complete; persistence, sync, duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -346,6 +346,21 @@ Done when:
 - Field definitions validate type/value/date constraints.
 - GitHub-field and label-fallback mapping are deterministic.
 - Unknown fields fail closed unless explicitly configured.
+
+Status: done.
+
+Evidence:
+
+- `src/github_issue_fields.py` defines the provider-neutral field contract,
+  default field definitions, validation, GitHub Issue Field projection,
+  deterministic label fallback and redacted write-report planning.
+- `tests/test_github_issue_fields.py` covers default normalization,
+  unknown-field fail-closed behavior, configured custom fields, invalid
+  value/date/ref rejection, secret marker rejection, GitHub-field preference,
+  label fallback, local-only projection and structured write reports.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py -q`
+  -> `7 passed, 1 warning`.
 
 ### GHISS1 Persistence
 

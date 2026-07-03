@@ -62,7 +62,7 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 
 | Prio | Track | Status | Warum spaeter |
 | ---: | --- | --- | --- |
-| 11 | GitHub Issue Intelligence | design-ready | Neues Feature mit Sync, Persistence, Embeddings, UI und MCP-Gates. Wertvoll, aber nicht noetig, um den Odysseus-Kern zusammenzubringen. |
+| 11 | GitHub Issue Intelligence | GHISS0 complete / post-MVP | Provider-neutrales Issue-Feldmodell mit Mapping/Label-Fallback ist umgesetzt; Persistence, Sync, Duplicate Index, UI und MCP-Gates bleiben Post-MVP. |
 | 12 | Qdrant/Kuzu/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. |
 | 13 | RAG Memory Tokenization und Semantic Chunking | repo-only done | Detailplan: `docs/plans/rag-memory-tokenization-roadmap.md`. Token-, struktur- und provenance-bewusstes Chunking ist backendseitig implementiert; Live-Reindex/Runtime-Umschaltung echter Collections bleibt operator-gated. |
 
