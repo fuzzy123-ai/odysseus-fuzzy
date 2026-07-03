@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
   "updated_at": "2026-07-03",
-  "status": "planned",
+  "status": "repo_slices_done_live_gated",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -105,7 +105,7 @@
       "id": "ACPR-1-project-task-control-plane",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "partially_done",
+      "status": "done",
       "goal": "Make workstation-created coding tasks durable and queryable through a neutral task control plane.",
       "allowed_paths": [
         "src/agent_task_ledger.py",
@@ -117,7 +117,7 @@
         "venv/Scripts/python.exe -m pytest tests/test_agent_task_ledger.py tests/test_coding_agent_backend.py -q"
       ],
       "done_when": "Workstation task-plan creation writes a redacted coding_agent_task record and /api/coding-agent/tasks can list it.",
-      "evidence": "Initial slice implemented in commit 4f9a767a: task-plan writes workstation surface records; safe repo target refs are preserved."
+      "evidence": "Completed and verified: routes/coding_agent_routes.py exposes GET /api/coding-agent/tasks, POST /api/coding-agent/repos/{repo_id}/task-plan writes a redacted coding_agent_task record through src/agent_task_ledger.py, and task records preserve safe repo target refs while excluding raw private content. Focused verification on 2026-07-03: tests/test_agent_task_ledger.py and tests/test_coding_agent_backend.py passed with 17 tests."
     },
     {
       "id": "ACPR-2-runner-state-machine",
