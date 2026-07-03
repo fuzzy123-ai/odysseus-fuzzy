@@ -21,6 +21,10 @@ def _bool_env(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _voice_stt_enabled() -> bool:
+    return _bool_env("TELEGRAM_VOICE_STT_ENABLED") or _bool_env("TELEGRAM_STT_ENABLED")
+
+
 def _draft_interval_ms() -> int:
     raw = os.getenv("TELEGRAM_DRAFT_INTERVAL_MS") or "750"
     try:
@@ -110,10 +114,11 @@ def build_telegram_readiness(
         "send_enabled": bool(token_present and chat_present and reply_enabled),
         "history_counts": counts,
         "voice_boundary": {
-            "mode": "fakeable_pipeline" if _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") or _bool_env("TELEGRAM_VOICE_STT_ENABLED") else "metadata_only",
+            "mode": "fakeable_pipeline" if _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") or _voice_stt_enabled() else "metadata_only",
             "pending_stt_count": int(counts.get("pending_stt") or 0),
             "download_enabled": _bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED"),
-            "stt_enabled": _bool_env("TELEGRAM_VOICE_STT_ENABLED"),
+            "stt_enabled": _voice_stt_enabled(),
+            "stt_gate_names": ["TELEGRAM_VOICE_STT_ENABLED", "TELEGRAM_STT_ENABLED"],
             "raw_voice_ids_visible": False,
         },
         "image_boundary": {

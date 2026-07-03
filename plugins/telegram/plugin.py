@@ -66,6 +66,10 @@ def _bool_env(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _voice_stt_enabled() -> bool:
+    return _bool_env("TELEGRAM_VOICE_STT_ENABLED") or _bool_env("TELEGRAM_STT_ENABLED")
+
+
 def _load_dsgvo_settings() -> dict[str, Any]:
     from src.settings import load_settings
 
@@ -853,7 +857,7 @@ def run_telegram_voice_pipeline(
     local_ref = build_voice_local_file_ref(download, mime_type=str(media.get("mime_type") or "audio/ogg"))
     stt = run_fakeable_stt(
         local_file_ref=local_ref.local_file_ref,
-        stt_enabled=_bool_env("TELEGRAM_VOICE_STT_ENABLED") if stt_enabled is None else stt_enabled,
+        stt_enabled=_voice_stt_enabled() if stt_enabled is None else stt_enabled,
         stt_provider=stt_provider,
     )
     chat_handle = str(message.get("chat_handle") or _chat_handle(message.get("chat_id")))
@@ -1303,7 +1307,7 @@ def build_telegram_live_voice_stt_provider(
     return _build_telegram_live_voice_stt_provider(
         raw_message,
         voice_bytes_provider=voice_bytes_provider,
-        enabled=_bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") and _bool_env("TELEGRAM_VOICE_STT_ENABLED"),
+        enabled=_bool_env("TELEGRAM_VOICE_DOWNLOAD_ENABLED") and _voice_stt_enabled(),
     )
 
 

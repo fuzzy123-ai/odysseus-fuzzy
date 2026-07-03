@@ -149,9 +149,10 @@ Go:
 - Voice-Status werden operator-tauglich getrennt:
   `voice_received`, `pending_download`, `download_blocked`, `pending_stt`,
   `transcribed`, `agent_ready`, `failed`.
-- `TELEGRAM_VOICE_DOWNLOAD_ENABLED`, `TELEGRAM_STT_ENABLED` und
+- `TELEGRAM_VOICE_DOWNLOAD_ENABLED`, `TELEGRAM_VOICE_STT_ENABLED` und
   `TELEGRAM_AGENT_REPLY_ENABLED` bleiben getrennte Gates mit eigener
-  Betreiberfreigabe.
+  Betreiberfreigabe. Der alte Name `TELEGRAM_STT_ENABLED` wird als
+  Kompatibilitaets-Alias akzeptiert.
 - Voice bleibt mindestens `pending_stt`, solange kein spaeterer STT-Slice
   freigegeben ist.
 - Textchat-Readiness bleibt voll nutzbar, auch wenn Voice aus oder pending ist.
@@ -193,7 +194,8 @@ werden:
 - `TELEGRAM_POLLING_ENABLED`: ja oder nein
 - `TELEGRAM_VOICE_ENABLED`: ja oder nein
 - `TELEGRAM_VOICE_DOWNLOAD_ENABLED`: ja oder nein
-- `TELEGRAM_STT_ENABLED`: ja oder nein
+- `TELEGRAM_VOICE_STT_ENABLED`: ja oder nein
+- `TELEGRAM_STT_ENABLED`: ja oder nein, Legacy-Alias fuer STT
 - Allowlist vorhanden: ja oder nein
 - Session-Mapping nachvollziehbar: ja oder nein
 - Redacted history uses stable handles only: ja oder nein

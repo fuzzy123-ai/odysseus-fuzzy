@@ -1,8 +1,8 @@
 # Telegram Voice Processing Roadmap
 
-Status: active ABC roadmap for the next Telegram plugin phase. Text Telegram
-agent chat is treated as the existing baseline. This track adds safe voice
-message processing in small gates.
+Status: backend complete, live smoke gated. Text Telegram agent chat is treated
+as the existing baseline. This track adds safe voice message processing in
+small gates.
 
 Goal: Telegram voice messages can be received from an allowed chat, stored with
 redacted metadata, transcribed through an explicitly enabled STT boundary, and
@@ -14,8 +14,13 @@ then forwarded as an Odysseus agent-chat turn with a gated Telegram text reply.
 - The plugin already supports text intake, local redacted history, session
   bridge payloads, an injected agent-turn hook, gated Telegram replies, and
   metadata-only voice intake marked `pending_stt`.
+- Voice download, fakeable STT, transcript-to-agent-turn, retry handling and
+  Telegram reply handoff are implemented with tests and stay default-off behind
+  gates.
+- `TELEGRAM_VOICE_STT_ENABLED` is the canonical STT gate. The older
+  `TELEGRAM_STT_ENABLED` operator wording is accepted as a compatibility alias.
 - Focused Telegram tests exist in `tests/test_telegram_plugin.py`.
-- The current text-chat finish commit is `e049612a`.
+- Manual live Telegram voice smoke remains explicit-Go only.
 
 ## Non-Goals
 
@@ -84,7 +89,8 @@ Requirements:
   `pending_stt`, `transcribed`, `agent_ready`, and `failed`.
 - Document local gates by name only:
   `TELEGRAM_VOICE_ENABLED`, `TELEGRAM_VOICE_DOWNLOAD_ENABLED`,
-  `TELEGRAM_STT_ENABLED`, `TELEGRAM_AGENT_REPLY_ENABLED`,
+  `TELEGRAM_VOICE_STT_ENABLED` / legacy alias `TELEGRAM_STT_ENABLED`,
+  `TELEGRAM_AGENT_REPLY_ENABLED`,
   `TELEGRAM_ALLOWED_CHAT_IDS`, and `TELEGRAM_BOT_TOKEN`.
 - Explain that voice is accepted as metadata first.
 - Explain that file download, transcription, and outbound replies are separate
@@ -123,7 +129,8 @@ Go:
 - Download, STT und Reply sind sichtbar getrennte Gates.
 - Nur Gate-Namen werden dokumentiert:
   `TELEGRAM_VOICE_ENABLED`, `TELEGRAM_VOICE_DOWNLOAD_ENABLED`,
-  `TELEGRAM_STT_ENABLED`, `TELEGRAM_AGENT_REPLY_ENABLED`,
+  `TELEGRAM_VOICE_STT_ENABLED` / legacy alias `TELEGRAM_STT_ENABLED`,
+  `TELEGRAM_AGENT_REPLY_ENABLED`,
   `TELEGRAM_ALLOWED_CHAT_IDS`, `TELEGRAM_BOT_TOKEN`.
 - Persistierte Diagnostik nutzt nur redacted Handles statt roher Chat-, Sender-
   oder File-Identifier.
@@ -180,6 +187,8 @@ Requirements:
 - Tests must use fakes and never call Telegram.
 - Persist no raw Telegram file ids.
 
+Status: done in backend. Live download remains bounded and gate-controlled.
+
 ### TVP4 - STT Provider Boundary
 
 Owner: Bob implementation, Alice docs, Charlie integration.
@@ -188,10 +197,14 @@ Goal:
 - Add a provider-agnostic STT boundary with a fake provider for tests.
 
 Requirements:
-- Requires `TELEGRAM_STT_ENABLED`.
+- Requires `TELEGRAM_VOICE_STT_ENABLED`; `TELEGRAM_STT_ENABLED` is accepted as a
+  legacy alias.
 - STT provider receives a local safe file reference, not raw Telegram ids.
 - Transcripts are stored as text history only after redaction checks.
 - Tests use fake STT, no network/provider calls.
+
+Status: done in backend. Provider execution remains gate-controlled and tests
+use fake STT.
 
 ### TVP5 - Voice Agent Turn
 
@@ -207,9 +220,12 @@ Requirements:
 - Preserve inbound voice metadata and transcript state.
 - Gated reply path remains the same as text replies.
 
+Status: done in backend. Live Telegram reply still requires the existing reply
+gate.
+
 ### TVP6 - Manual Voice Live Smoke
 
-Owner: Charlie, only after explicit operator Go.
+Owner: Charlie, only after explicit operator Go. Status: deferred/live-gated.
 
 Goal:
 - Verify one real allowed Telegram voice roundtrip.

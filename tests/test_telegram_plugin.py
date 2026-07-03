@@ -25,6 +25,7 @@ from plugins.telegram.plugin import (
     parse_telegram_update,
     run_telegram_universal_inbox_attachment_pipeline,
     run_telegram_polling_cycle,
+    run_telegram_voice_pipeline,
     setup,
 )
 from src.image_tools_worker import ImageToolsWorkerResult
@@ -2817,7 +2818,53 @@ def test_readiness_reports_voice_pipeline_gates_without_enabling_network(tmp_pat
     assert readiness["voice_boundary"]["mode"] == "fakeable_pipeline"
     assert readiness["voice_boundary"]["download_enabled"] is True
     assert readiness["voice_boundary"]["stt_enabled"] is True
+    assert readiness["voice_boundary"]["stt_gate_names"] == ["TELEGRAM_VOICE_STT_ENABLED", "TELEGRAM_STT_ENABLED"]
     assert readiness["network_enabled"] is False
+
+
+def test_readiness_accepts_legacy_telegram_stt_gate_alias(tmp_path, monkeypatch):
+    monkeypatch.delenv("TELEGRAM_VOICE_STT_ENABLED", raising=False)
+    monkeypatch.setenv("TELEGRAM_STT_ENABLED", "true")
+
+    readiness = build_telegram_readiness(tmp_path)
+
+    assert readiness["voice_boundary"]["mode"] == "fakeable_pipeline"
+    assert readiness["voice_boundary"]["stt_enabled"] is True
+    assert readiness["voice_boundary"]["stt_gate_names"] == ["TELEGRAM_VOICE_STT_ENABLED", "TELEGRAM_STT_ENABLED"]
+
+
+def test_voice_pipeline_accepts_legacy_telegram_stt_gate_alias(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat")
+    monkeypatch.setenv("TELEGRAM_VOICE_DOWNLOAD_ENABLED", "true")
+    monkeypatch.delenv("TELEGRAM_VOICE_STT_ENABLED", raising=False)
+    monkeypatch.setenv("TELEGRAM_STT_ENABLED", "true")
+    message = parse_telegram_update({
+        "update_id": 44,
+        "message": {
+            "message_id": 77,
+            "chat": {"id": "voice-chat"},
+            "voice": {
+                "file_id": "voice-file-id",
+                "file_unique_id": "voice-unique-id",
+                "duration": 4,
+                "mime_type": "audio/ogg",
+                "file_size": 1024,
+            },
+        },
+    })
+
+    stored = TelegramInboxStore(tmp_path).append_inbound(message)["message"]
+
+    turn, pipeline = run_telegram_voice_pipeline(
+        stored,
+        stt_provider=lambda _local_ref: "legacy alias transcript",
+    )
+
+    assert turn is not None
+    assert turn.status == "agent_ready"
+    assert turn.ready_for_agent is True
+    assert pipeline["stt"]["status"] == "transcribed"
+    assert pipeline["stt"]["transcript_value_visible"] is False
 
 
 def test_readiness_reports_pending_voice_without_raw_identifiers(tmp_path, monkeypatch):
