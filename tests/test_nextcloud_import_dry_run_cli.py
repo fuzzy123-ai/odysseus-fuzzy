@@ -88,6 +88,57 @@ def test_pipeline_requires_runtime_root_unless_scan_is_skipped(tmp_path):
         raise AssertionError("missing root should block scans")
 
 
+def test_cli_ephemeral_ledger_deletes_metadata_after_report(tmp_path, capsys):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "notes.md").write_text("runtime body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger" / "events.jsonl"
+    config_path = _open_test_config(tmp_path)
+
+    rc = main(
+        [
+            "--config",
+            str(config_path),
+            "--root",
+            str(root),
+            "--ledger-path",
+            str(ledger_path),
+            "--skip-software-plan",
+            "--skip-document-pilot",
+            "--ephemeral-ledger",
+            "--format",
+            "json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert rc == 0
+    assert payload["report"]["inventory_total"] == 1
+    assert payload["ephemeral_ledger"] == {
+        "enabled": True,
+        "deleted": True,
+        "reason": "deleted_after_report",
+    }
+    assert not ledger_path.exists()
+
+
+def test_ephemeral_ledger_is_blocked_for_skip_scan_reports(tmp_path):
+    try:
+        run_pipeline(
+            _args(
+                root="",
+                ledger_path=str(tmp_path / "ledger.jsonl"),
+                skip_scan=True,
+                skip_software_plan=True,
+                ephemeral_ledger=True,
+            )
+        )
+    except SystemExit as exc:
+        assert "--ephemeral-ledger cannot be used with --skip-scan" in str(exc)
+    else:
+        raise AssertionError("ephemeral skip-scan should be blocked")
+
+
 def _args(**overrides):
     values = {
         "config": "config/nextcloud_import_config.json",
@@ -103,6 +154,7 @@ def _args(**overrides):
         "pilot_batch_limit": 100,
         "include_private_pilot_documents": False,
         "max_samples": 10,
+        "ephemeral_ledger": False,
         "format": "json",
     }
     values.update(overrides)

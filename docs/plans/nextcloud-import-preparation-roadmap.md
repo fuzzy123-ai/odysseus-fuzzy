@@ -61,6 +61,17 @@ Ergebnis: `250` Dateien metadata-only gescannt, `245` Inventory-Datensaetze,
 dieser Report enthielt keine Samples, Rohinhalte oder Secrets. Das temporaere
 Ledger wurde nach dem Smoke entfernt.
 
+CLI-Haertung 2026-07-03:
+
+- `scripts/nextcloud_import_dry_run.py` unterstuetzt jetzt
+  `--ephemeral-ledger`.
+- Die Option baut den Report zuerst und loescht danach nur die explizite
+  `.jsonl`-Ledgerdatei.
+- `--ephemeral-ledger` ist mit `--skip-scan` blockiert, damit keine
+  bestaendigen Bestandsledger aus Versehen geloescht werden.
+- Der Markdown/JSON-Report zeigt redaktiert, ob das temporaere Ledger geloescht
+  wurde, ohne den Ledger-Pfad zu persistieren.
+
 Offen:
 
 - Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
@@ -780,5 +791,6 @@ Erst nach erfolgreichem Import:
 Als naechstes sollte der Dokument-Pilot gegen eine bewusst ausgewaehlte
 extrahierbare Teilmenge freigegeben werden. Falls der Operator vorher
 Vollinventar moechte, bleibt das metadata-only und mit `--max-samples 0`
-moeglich. Live-Upload-Smoke und echte Memory/RaptorGraph-Writes bleiben
-separat gegated. UI bleibt ausserhalb dieser Backend-Roadmap.
+plus `--ephemeral-ledger` moeglich. Live-Upload-Smoke und echte
+Memory/RaptorGraph-Writes bleiben separat gegated. UI bleibt ausserhalb dieser
+Backend-Roadmap.

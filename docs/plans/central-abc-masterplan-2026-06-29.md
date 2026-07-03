@@ -159,6 +159,12 @@ Current evidence:
 - 2026-07-03 Focused import tests passed:
   `python -m pytest tests/test_nextcloud_import_dry_run_cli.py tests/test_nextcloud_resumable_scanner.py tests/test_nextcloud_document_pilot_import.py tests/test_nextcloud_import_report.py -q`
   returned `15 passed, 1 warning`.
+- 2026-07-03: The Nextcloud import dry-run CLI now supports
+  `--ephemeral-ledger`, which builds the redacted report first and then deletes
+  only the explicit temporary `.jsonl` ledger. It is blocked with `--skip-scan`
+  to avoid deleting persistent report ledgers by accident. Focused tests passed:
+  `python -m pytest tests/test_nextcloud_import_dry_run_cli.py tests/test_nextcloud_resumable_scanner.py tests/test_nextcloud_document_pilot_import.py tests/test_nextcloud_import_report.py -q`
+  returned `17 passed, 1 warning`.
 
 Primary allowed paths:
 
@@ -186,6 +192,7 @@ Slice queue:
 | L1-5-memory-intent-link | repo_only | Bob | Done: worker tests cover placement, extraction and Memory Write Intent/RaptorGraph provenance linkage without writes. |
 | L1-6-live-upload-smoke | closed | Charlie | Done: bounded WebDAV copy-only smoke and Telegram review-transfer smoke completed and verified on Debian; operator live gate is currently enabled. |
 | L1-7-local-import-inventory-smoke | safe_offline | Charlie | Done: bounded metadata-only local Nextcloud import smokes completed for `25` and `250` item batches; temporary private-metadata ledgers were removed after aggregate evidence was recorded. |
+| L1-8-ephemeral-import-ledger | repo_only | Charlie | Done: dry-run CLI can self-delete temporary JSONL ledgers after report generation and blocks that mode for `--skip-scan` reports. |
 
 Gate queue:
 
@@ -1666,7 +1673,9 @@ Recommended next human decision:
   requests, not recurring default work.
 - Decide whether the next L1 step is a consciously selected document-pilot
   import subset, a full metadata-only inventory pass, or no further Nextcloud
-  import work until the UI review queue is ready.
+  import work until the UI review queue is ready. Full metadata-only inventory
+  should use `--max-samples 0` and `--ephemeral-ledger` unless the operator
+  intentionally wants to retain a private local ledger outside the repo.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.
