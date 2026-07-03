@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS6 repo slices complete; projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS7 repo slices complete; MCP exposure remains planned/gated**
 
 ## Goal
 
@@ -604,6 +604,26 @@ Done when:
 - GitHub field IDs are cached per repo/org.
 - Missing field support falls back cleanly.
 - Per-field write result is visible and redacted.
+
+Status: done.
+
+Evidence:
+
+- `src/github_issue_projection.py` defines a token-free, injected-client
+  projection adapter for GitHub Issue Fields.
+- Field IDs are cached by owner/repository through
+  `InMemoryGitHubIssueFieldCache`; callers can force refresh without persisting
+  provider secrets.
+- `prepare_github_issue_projection()` maps canonical Odysseus fields to GitHub
+  Issue Fields when IDs are available and falls back to labels or `local_only`
+  plans when support is missing.
+- `apply_github_issue_projection()` supports dry-run previews by default and
+  explicit injected-client applies, with per-field status and redacted errors.
+- `tests/test_github_issue_projection.py` verifies cache scoping, field writes,
+  label fallback, local-only skips and redaction of token-like upstream errors.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_projection.py -q`
+  -> `5 passed, 1 warning`.
 
 ### GHISS8 MCP Exposure
 

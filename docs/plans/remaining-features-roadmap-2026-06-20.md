@@ -211,8 +211,12 @@ Current status 2026-07-03:
   `tests/test_github_issue_routes.py` implement and verify backend route
   contracts for readiness, local duplicate preview and write-plan gates without
   touching legacy/V2 UI files.
-- Remaining P9 work starts at GHISS7 GitHub Issue Fields projection. No GitHub
-  token, network call or write action is enabled by GHISS0-GHISS6.
+- GHISS7 is complete: `src/github_issue_projection.py` and
+  `tests/test_github_issue_projection.py` implement and verify token-free
+  GitHub Issue Fields projection contracts with owner/repo field-ID cache,
+  label/local-only fallback and redacted per-field results.
+- Remaining P9 work starts at GHISS8 MCP exposure. No GitHub token, network
+  call or provider write action is enabled by GHISS0-GHISS7.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the
