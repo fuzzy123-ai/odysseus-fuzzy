@@ -233,6 +233,125 @@ def build_tool_manifests_from_function_schemas(
     return tuple(sorted(manifests, key=lambda item: item.tool_id))
 
 
+@dataclass(frozen=True, slots=True)
+class DeferredToolSchemaSelection:
+    manifests: tuple[ToolManifest, ...]
+    selected_schemas: tuple[dict[str, Any], ...]
+    selected_schema_refs: tuple[str, ...]
+    deferred_schema_refs: tuple[str, ...]
+    blocked_schema_refs: tuple[str, ...]
+    warnings: tuple[str, ...]
+    prompt_budget_estimate: int
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "manifest_count": len(self.manifests),
+            "selected_schema_count": len(self.selected_schemas),
+            "deferred_schema_count": len(self.deferred_schema_refs),
+            "blocked_schema_count": len(self.blocked_schema_refs),
+            "selected_schema_refs": self.selected_schema_refs,
+            "deferred_schema_refs": self.deferred_schema_refs,
+            "blocked_schema_refs": self.blocked_schema_refs,
+            "warnings": self.warnings,
+            "prompt_budget_estimate": self.prompt_budget_estimate,
+            "raw_schema_visible": False,
+            "raw_content_visible": False,
+            "token_value_visible": False,
+        }
+
+
+def select_deferred_tool_schemas(
+    schemas: Iterable[dict[str, Any]],
+    *,
+    relevant_tool_ids: Iterable[str] | None,
+    required_tool_ids: Iterable[str] = (),
+    disabled_tool_ids: Iterable[str] = (),
+    admin_tool_ids: Iterable[str] = (),
+    needs_admin: bool = False,
+    allow_full_fallback: bool = False,
+) -> DeferredToolSchemaSelection:
+    """Return manifest-first tool context plus the small full-schema subset.
+
+    The function is intentionally pure: no tool execution, no provider calls and
+    no MCP discovery. Callers decide which ids are relevant from trusted runtime
+    state; this helper only maps that decision to compact manifests and deferred
+    full schemas.
+    """
+
+    schema_by_name: dict[str, dict[str, Any]] = {}
+    for schema in schemas:
+        name = _function_schema_name(schema)
+        if not name or name in schema_by_name:
+            continue
+        schema_by_name[name] = schema
+
+    disabled = {_normalize_tool_id(item, field_name="disabled_tool_id") for item in disabled_tool_ids}
+    required = {_normalize_tool_id(item, field_name="required_tool_id") for item in required_tool_ids}
+    admin = {_normalize_tool_id(item, field_name="admin_tool_id") for item in admin_tool_ids}
+
+    if relevant_tool_ids is None:
+        selected = set(schema_by_name) if allow_full_fallback else set()
+        warnings = ["fallback_full_schema_selection"] if allow_full_fallback else ["schema_selection_requires_relevant_tool_ids"]
+    else:
+        selected = {_normalize_tool_id(item, field_name="relevant_tool_id") for item in relevant_tool_ids}
+        warnings = []
+    selected |= required
+    if needs_admin:
+        selected |= admin
+    selected -= disabled
+
+    manifests: list[ToolManifest] = []
+    selected_refs: list[str] = []
+    deferred_refs: list[str] = []
+    blocked_refs: list[str] = []
+    selected_schemas: list[dict[str, Any]] = []
+
+    for name in sorted(schema_by_name):
+        schema = schema_by_name[name]
+        schema_ref = f"function:{name}"
+        if name in disabled:
+            visibility = ToolVisibility.BLOCKED
+            blocked_refs.append(schema_ref)
+        elif name in selected:
+            visibility = ToolVisibility.VISIBLE
+            selected_refs.append(schema_ref)
+            selected_schemas.append(schema)
+        else:
+            visibility = ToolVisibility.HIDDEN
+            deferred_refs.append(schema_ref)
+        manifests.append(ToolManifest.from_function_schema(schema, visibility_state=visibility))
+
+    missing_selected = sorted(item for item in selected if item not in schema_by_name)
+    warnings.extend(f"selected_schema_missing:{item}" for item in missing_selected)
+    missing_disabled = sorted(item for item in disabled if item not in schema_by_name)
+    warnings.extend(f"disabled_schema_missing:{item}" for item in missing_disabled)
+
+    prompt_budget = sum(item.prompt_budget_estimate for item in manifests)
+    prompt_budget += sum(_schema_budget_estimate(schema) for schema in selected_schemas)
+    return DeferredToolSchemaSelection(
+        manifests=tuple(manifests),
+        selected_schemas=tuple(selected_schemas),
+        selected_schema_refs=tuple(selected_refs),
+        deferred_schema_refs=tuple(deferred_refs),
+        blocked_schema_refs=tuple(blocked_refs),
+        warnings=tuple(warnings),
+        prompt_budget_estimate=prompt_budget,
+    )
+
+
+def _function_schema_name(schema: dict[str, Any]) -> str:
+    fn = schema.get("function") if isinstance(schema, dict) else None
+    payload = fn if isinstance(fn, dict) else schema
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("name") or "").strip()
+
+
+def _schema_budget_estimate(schema: dict[str, Any]) -> int:
+    text = repr(schema)
+    return max(24, min(600, len(text) // 8))
+
+
 def infer_tool_family(tool_id: str) -> str:
     name = str(tool_id or "").lower()
     if name.startswith("mcp__"):

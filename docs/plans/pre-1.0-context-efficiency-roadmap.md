@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1 done; manifest-first backend model started; CTXE2 next**
+Status: **CTXE1-CTXE2 done; manifest-first schema selection started; CTXE3 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE2-deferred-tool-schema-selection`.
+- Naechster sicherer Slice: `CTXE3-session-envelope-hash`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -56,7 +56,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | --- | --- | --- | --- | --- | --- | --- |
 | `CTXE0-tool-inventory-and-budget-baseline` | `repo_only` | Charlie/Bob | Inventar der aktuellen agent-callable Tools, MCP-Tools, Plugin-Tools und Context-Provider plus grobe Prompt-Budget-Schaetzung erstellen. | `src/`, `routes/`, `plugins/`, `mcp_servers/`, `tests/`, `docs/plans/` | Focused static/unit tests if model added; otherwise docs-only. | none |
 | `CTXE1-tool-manifest-model` | `repo_only` | Bob | Kleines Backend-Modell fuer Tool-Manifeste bauen: id, family, short description, capabilities, risk class, schema ref, visibility state. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `9 passed, 1 warning` | none |
-| `CTXE2-deferred-tool-schema-selection` | `repo_only` | Bob | Auswahlfunktion bauen, die fuer eine Capsule/Session zuerst kompakte Tool-Manifeste liefert und volle Schemata nur fuer relevante Tools markiert. | `src/`, `tests/` only within tool selection scope | focused pytest | none |
+| `CTXE2-deferred-tool-schema-selection` | `repo_only` | Bob | Auswahlfunktion bauen, die fuer eine Capsule/Session zuerst kompakte Tool-Manifeste liefert und volle Schemata nur fuer relevante Tools markiert. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `13 passed, 1 warning` | none |
 | `CTXE3-session-envelope-hash` | `repo_only` | Bob | Session-Envelope modellieren: model ref, reasoning/context budget, active tool manifest set, system prompt version, MCP/plugin selection, cache boundary marker. | `src/`, `core/`, `tests/` narrow session/envelope files | focused pytest | none |
 | `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/`, `core/`, `routes/`, `tests/` narrow session policy files | focused pytest | needs_design only if user-facing wording unclear |
 | `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/memory_provider.py`, `src/nextcloud_source_provider.py`, plugin context providers, tests | focused provider tests | no live source access |
@@ -190,6 +190,34 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_tool_catalo
 Result: `9 passed, 1 warning`.
 
 Next safe slice: `CTXE2-deferred-tool-schema-selection`.
+
+### CTXE2 Deferred Tool Schema Selection
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- `select_deferred_tool_schemas(...)` in `src/tool_catalog.py`.
+- Manifest-first selection result: all known function schemas are represented as
+  compact `ToolManifest` records, while full schemas are selected only for
+  relevant, required or admin-expanded tool ids.
+- Disabled tools become `blocked` manifests and are excluded from full schemas
+  even if the caller marked them relevant.
+- Fallback mode is explicit: without `relevant_tool_ids`, full schema selection
+  is empty unless `allow_full_fallback=True` is passed, and both paths emit
+  audit warnings.
+- Redacted audit summary reports counts and schema refs, not raw schema bodies,
+  raw content or token values.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_tool_catalog.py -q
+```
+
+Result: `13 passed, 1 warning`.
+
+Next safe slice: `CTXE3-session-envelope-hash`.
 
 ## Go Language
 

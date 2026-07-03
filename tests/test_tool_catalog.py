@@ -11,6 +11,7 @@ from src.tool_catalog import (
     ToolSelectionResult,
     ToolVisibility,
     build_tool_manifests_from_function_schemas,
+    select_deferred_tool_schemas,
 )
 
 
@@ -276,3 +277,89 @@ def test_tool_manifest_rejects_unsafe_tool_ids():
             risk_level=ToolRiskLevel.SAFE,
             schema_ref="function:secret",
         )
+
+
+def test_deferred_schema_selection_sends_only_relevant_full_schemas():
+    schemas = [
+        {"type": "function", "function": {"name": "read_file", "description": "Read files.", "parameters": {"x": "full"}}},
+        {"type": "function", "function": {"name": "write_file", "description": "Write files.", "parameters": {"x": "full"}}},
+        {"type": "function", "function": {"name": "web_search", "description": "Search web.", "parameters": {"x": "full"}}},
+    ]
+
+    result = select_deferred_tool_schemas(
+        schemas,
+        relevant_tool_ids=["read_file"],
+        required_tool_ids=["web_search"],
+    )
+    audit = result.audit_summary()
+
+    assert [schema["function"]["name"] for schema in result.selected_schemas] == ["read_file", "web_search"]
+    assert result.selected_schema_refs == ("function:read_file", "function:web_search")
+    assert result.deferred_schema_refs == ("function:write_file",)
+    visibility = {item.tool_id: item.visibility_state for item in result.manifests}
+    assert visibility == {
+        "read_file": ToolVisibility.VISIBLE,
+        "web_search": ToolVisibility.VISIBLE,
+        "write_file": ToolVisibility.HIDDEN,
+    }
+    assert audit["raw_schema_visible"] is False
+    assert audit["selected_schema_count"] == 2
+
+
+def test_deferred_schema_selection_blocks_disabled_tools_even_when_relevant():
+    schemas = [
+        {"type": "function", "function": {"name": "bash", "description": "Run shell.", "parameters": {}}},
+        {"type": "function", "function": {"name": "ask_user", "description": "Ask.", "parameters": {}}},
+    ]
+
+    result = select_deferred_tool_schemas(
+        schemas,
+        relevant_tool_ids=["bash", "ask_user"],
+        disabled_tool_ids=["bash"],
+    )
+
+    assert [schema["function"]["name"] for schema in result.selected_schemas] == ["ask_user"]
+    assert result.blocked_schema_refs == ("function:bash",)
+    visibility = {item.tool_id: item.visibility_state for item in result.manifests}
+    assert visibility["bash"] == ToolVisibility.BLOCKED
+    assert visibility["ask_user"] == ToolVisibility.VISIBLE
+
+
+def test_deferred_schema_selection_adds_admin_schemas_only_when_needed():
+    schemas = [
+        {"type": "function", "function": {"name": "manage_memory", "description": "Memory.", "parameters": {}}},
+        {"type": "function", "function": {"name": "manage_settings", "description": "Settings.", "parameters": {}}},
+    ]
+
+    normal = select_deferred_tool_schemas(
+        schemas,
+        relevant_tool_ids=["manage_memory"],
+        admin_tool_ids=["manage_settings"],
+        needs_admin=False,
+    )
+    admin = select_deferred_tool_schemas(
+        schemas,
+        relevant_tool_ids=["manage_memory"],
+        admin_tool_ids=["manage_settings"],
+        needs_admin=True,
+    )
+
+    assert normal.selected_schema_refs == ("function:manage_memory",)
+    assert normal.deferred_schema_refs == ("function:manage_settings",)
+    assert admin.selected_schema_refs == ("function:manage_memory", "function:manage_settings")
+
+
+def test_deferred_schema_selection_requires_relevant_ids_unless_explicit_fallback():
+    schemas = [
+        {"type": "function", "function": {"name": "ask_user", "description": "Ask.", "parameters": {}}},
+        {"type": "function", "function": {"name": "web_fetch", "description": "Fetch.", "parameters": {}}},
+    ]
+
+    strict = select_deferred_tool_schemas(schemas, relevant_tool_ids=None)
+    fallback = select_deferred_tool_schemas(schemas, relevant_tool_ids=None, allow_full_fallback=True)
+
+    assert strict.selected_schemas == ()
+    assert strict.deferred_schema_refs == ("function:ask_user", "function:web_fetch")
+    assert strict.warnings == ("schema_selection_requires_relevant_tool_ids",)
+    assert [schema["function"]["name"] for schema in fallback.selected_schemas] == ["ask_user", "web_fetch"]
+    assert fallback.warnings == ("fallback_full_schema_selection",)
