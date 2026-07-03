@@ -169,6 +169,26 @@ privaten Pfade. `--ephemeral-ledger` loeschte das temporaere Ledger nach der
 Report-Erstellung; `Test-Path` bestaetigte danach, dass keine Ledgerdatei
 verblieb.
 
+Local-only Extraktions-/Review-Executor 2026-07-03:
+
+- `src/nextcloud_local_extraction_review.py` fuehrt den naechsten Backend-
+  Schritt nach dem Plan aus: lokale Runtime-Extraktion gegen bewusst erlaubte
+  local-only Kandidaten.
+- Der Executor blockiert ohne `operator_local_extraction_go=True` und liest
+  dann keine Dateien.
+- Mit Go liest er lokale Sync-Dateien nur zur Laufzeit, baut ein redaktiertes
+  Analysepaket und persistiert im BigData-Ledger nur synthetische
+  `Local Extraction Review/<hash>.json` Records.
+- Persistiert werden nur sichere Felder wie Status, Endung, Zaehler,
+  Warncodes, Klassifikation, Dokumenttyp und Policy-Flags. Ausgewaehlte
+  private Pfade, Item-IDs und Rohinhalte werden nicht persistiert.
+- Memory- und RaptorGraph-Writes bleiben im Executor deaktiviert.
+- `scripts/nextcloud_import_dry_run.py` unterstuetzt den Lauf ueber
+  `--local-only-extraction-review-run`; echtes Lesen braucht zusaetzlich
+  `--operator-local-extraction-go`.
+- Verifiziert ist der Executor aktuell mit synthetischen Fixture-Dateien, nicht
+  mit echten privaten Nextcloud-Inhalten.
+
 Offen:
 
 - Copy-only Live-Smokes gegen die echte Nextcloud sind fuer den Transferpfad

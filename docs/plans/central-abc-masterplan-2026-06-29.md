@@ -204,6 +204,11 @@ Current evidence:
   disallowed. A bounded 5k metadata smoke with
   `--local-only-extraction-review-plan` selected `98` local-only
   extraction/review candidates and deleted its temporary ledger.
+- 2026-07-03: Local-only extraction review executor is implemented in
+  repo-only scope. It blocks unless `operator_local_extraction_go=True`, reads
+  files only at runtime, writes only synthetic redacted review records, and
+  keeps Memory/RaptorGraph writes disabled. Fixture tests cover both blocked
+  and allowed runs without leaking private paths or contents.
 
 Primary allowed paths:
 
@@ -238,6 +243,7 @@ Slice queue:
 | L1-12-bounded-local-only-pilot-smoke | safe_offline | Charlie | Done: bounded 5k metadata-only local sync smoke produced aggregate local-only pilot evidence and deleted its temporary ledger. |
 | L1-13-local-only-extraction-review-plan | repo_only | Charlie | Done: CLI can append an aggregate-only local extraction/review plan for supported document extractors while keeping Memory/RaptorGraph writes blocked. |
 | L1-14-bounded-local-only-extraction-smoke | safe_offline | Charlie | Done: bounded 5k metadata-only local sync smoke selected 98 local-only extraction/review candidates and deleted its temporary ledger. |
+| L1-15-local-only-extraction-review-executor | repo_only | Charlie | Done: fixture-verified executor can run local-only extraction/review behind an explicit operator Go while persisting only synthetic redacted review records. |
 
 Gate queue:
 
@@ -1701,7 +1707,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; a bounded local-only extraction/review plan can now select 98 runtime-only candidates in a 5k metadata slice, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; local-only extraction/review now has a fixture-tested executor behind explicit operator Go, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |

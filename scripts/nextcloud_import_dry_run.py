@@ -19,6 +19,7 @@ from src.nextcloud_import_report import build_nextcloud_import_dry_run_report
 from src.nextcloud_document_pilot_import import append_nextcloud_document_pilot_plan
 from src.nextcloud_document_pilot_import import append_nextcloud_local_only_extraction_review_plan
 from src.nextcloud_document_pilot_import import append_nextcloud_local_only_document_pilot_profile
+from src.nextcloud_local_extraction_review import run_nextcloud_local_only_extraction_review
 from src.nextcloud_resumable_scanner import run_nextcloud_scanner_dry_run
 from src.nextcloud_software_archives import plan_nextcloud_software_archive_metadata
 
@@ -73,6 +74,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--local-only-extraction-review-plan",
         action="store_true",
         help="Append an aggregate-only local extraction/review plan for private/local documents.",
+    )
+    parser.add_argument(
+        "--local-only-extraction-review-run",
+        action="store_true",
+        help="Run local-only extraction/review against selected private/local documents.",
+    )
+    parser.add_argument(
+        "--operator-local-extraction-go",
+        action="store_true",
+        help="Allow the local-only extraction/review run to read local synced files.",
     )
     parser.add_argument("--max-samples", type=int, default=10, help="Maximum sample paths in reports.")
     parser.add_argument(
@@ -148,9 +159,23 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         )
         local_only_extraction_review_payload = extraction_review_result.to_dict()
 
+    local_only_extraction_review_run_payload: dict[str, Any] | None = None
+    if bool(getattr(args, "local_only_extraction_review_run", False)):
+        if root is None:
+            raise SystemExit("source root is required for --local-only-extraction-review-run")
+        extraction_run = run_nextcloud_local_only_extraction_review(
+            root=root,
+            ledger_path=ledger_path,
+            source_id=source_id,
+            batch_limit=args.pilot_batch_limit,
+            operator_local_extraction_go=bool(args.operator_local_extraction_go),
+        )
+        local_only_extraction_review_run_payload = extraction_run.to_dict()
+
     redact_local_samples = bool(
         getattr(args, "local_only_document_pilot_profile", False)
         or getattr(args, "local_only_extraction_review_plan", False)
+        or getattr(args, "local_only_extraction_review_run", False)
     )
     report_max_samples = 0 if redact_local_samples else args.max_samples
     report = build_nextcloud_import_dry_run_report(
@@ -168,6 +193,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         "document_pilot": document_pilot_payload,
         "local_only_document_pilot": local_only_document_pilot_payload,
         "local_only_extraction_review": local_only_extraction_review_payload,
+        "local_only_extraction_review_run": local_only_extraction_review_run_payload,
         "report": report.to_dict(),
         "ephemeral_ledger": {
             "enabled": ephemeral_ledger,
@@ -209,6 +235,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     document_pilot = ((payload.get("document_pilot") or {}).get("plan") or {})
     local_only_pilot = ((payload.get("local_only_document_pilot") or {}).get("profile") or {})
     local_only_extraction = ((payload.get("local_only_extraction_review") or {}).get("plan") or {})
+    local_only_extraction_run = payload.get("local_only_extraction_review_run") or {}
     ephemeral = payload.get("ephemeral_ledger") or {}
     lines = [
         "# Nextcloud Import Pipeline Dry-run",
@@ -224,6 +251,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         f"- Document pilot selected: `{document_pilot.get('selected_count', 'skipped')}`",
         f"- Local-only document pilot selected: `{local_only_pilot.get('selected_count', 'skipped')}`",
         f"- Local-only extraction review selected: `{local_only_extraction.get('selected_count', 'skipped')}`",
+        f"- Local-only extraction review processed: `{local_only_extraction_run.get('processed_count', 'skipped')}`",
         f"- Ephemeral ledger deleted: `{ephemeral.get('deleted', False)}`",
         "",
         "Private contents and secret values are intentionally not included.",

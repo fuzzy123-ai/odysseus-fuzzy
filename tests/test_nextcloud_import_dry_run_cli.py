@@ -192,6 +192,76 @@ def test_cli_can_emit_local_only_extraction_review_plan(tmp_path, capsys):
     assert "private.docx" not in encoded
 
 
+def test_cli_blocks_local_only_extraction_review_run_without_operator_go(tmp_path, capsys):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "Privat").mkdir()
+    (root / "Privat" / "private.md").write_text("private body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger" / "events.jsonl"
+    config_path = _open_test_config(tmp_path)
+
+    rc = main(
+        [
+            "--config",
+            str(config_path),
+            "--root",
+            str(root),
+            "--ledger-path",
+            str(ledger_path),
+            "--skip-software-plan",
+            "--local-only-extraction-review-run",
+            "--format",
+            "json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    encoded = json.dumps(payload, sort_keys=True)
+    run = payload["local_only_extraction_review_run"]
+
+    assert rc == 0
+    assert run["status"] == "blocked"
+    assert run["processed_count"] == 0
+    assert run["reasons"] == ["operator_local_extraction_go_required"]
+    assert "private body" not in encoded
+    assert "private.md" not in encoded
+
+
+def test_cli_can_run_local_only_extraction_review_with_operator_go(tmp_path, capsys):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "Privat").mkdir()
+    (root / "Privat" / "private.md").write_text("private body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger" / "events.jsonl"
+    config_path = _open_test_config(tmp_path)
+
+    rc = main(
+        [
+            "--config",
+            str(config_path),
+            "--root",
+            str(root),
+            "--ledger-path",
+            str(ledger_path),
+            "--skip-software-plan",
+            "--local-only-extraction-review-run",
+            "--operator-local-extraction-go",
+            "--format",
+            "json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    encoded = json.dumps(payload, sort_keys=True)
+    run = payload["local_only_extraction_review_run"]
+
+    assert rc == 0
+    assert run["processed_count"] == 1
+    assert run["appended_count"] == 1
+    assert run["memory_writes_permitted"] is False
+    assert run["raptor_writes_permitted"] is False
+    assert "private body" not in encoded
+    assert "private.md" not in encoded
+
+
 def test_ephemeral_ledger_is_blocked_for_skip_scan_reports(tmp_path):
     try:
         run_pipeline(
@@ -225,6 +295,8 @@ def _args(**overrides):
         "include_private_pilot_documents": False,
         "local_only_document_pilot_profile": False,
         "local_only_extraction_review_plan": False,
+        "local_only_extraction_review_run": False,
+        "operator_local_extraction_go": False,
         "max_samples": 10,
         "ephemeral_ledger": False,
         "format": "json",
