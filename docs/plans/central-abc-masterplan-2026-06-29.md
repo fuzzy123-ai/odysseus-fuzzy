@@ -1616,8 +1616,9 @@ Stop or defer the active slice if:
 3. L1-0 through L1-5: done; safe backend path for Inbox -> Nextcloud proposal,
    review, optional WebDAV copy gate and memory intent is implemented and
    tested.
-4. Decide whether to run L1-6 bounded live upload smoke after runtime env is
-   configured on the server.
+4. L1-6 is closed: the bounded Nextcloud WebDAV copy-only smoke and Telegram
+   review-transfer smoke were verified on Debian. Do not repeat this smoke
+   unless a new bounded regression check is explicitly requested.
 5. L2 and L4 safe backend lanes are reconciled as backend-complete/live-gated.
    Do not loop on their live/provider/deploy/rebuild gates; move to another
    safe backend lane unless an explicit bounded live run is being executed.
@@ -1638,7 +1639,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | partial, live-gated | Safe backend path is implemented and tested; bounded live upload smoke still needs operator Go plus runtime env. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate and Telegram review-transfer smoke are implemented and verified; future delete/move/overwrite behavior remains out of scope and any new live write regression needs a fresh bounded request. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1648,7 +1649,11 @@ Stop or defer the active slice if:
 
 Recommended next human decision:
 
-- Decide whether to run L1-6 as a bounded live upload smoke on the server. This
-  requires the dedicated Nextcloud automation user, WebDAV runtime env and both
-  live-write gates. If not, continue with backend/live-gated tracks only; L6 is
-  backend-complete and L7 is parked at the accepted 1200-line backend threshold.
+- Ship the new UI before claiming Version 1.0; use
+  `GET /api/version-one/readiness` as the release gate.
+- Keep L1 live writes bounded and review-driven. The Nextcloud copy-only smoke
+  is already closed; new live write checks should be explicit regression
+  requests, not recurring default work.
+- Continue only backend/live-gated tracks that add new capability evidence; L6
+  is backend-complete and L7 is parked at the accepted 1200-line backend
+  threshold unless a concrete backend hotfile is selected.
