@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **backend quality/privacy hardening in progress; RCH4 and RCH5 done, RCH7 collector/route privacy done**
+Status: **backend quality/privacy hardening in progress; RCH4, RCH5 and RCH6 done, RCH7 collector/route privacy done**
 
 Mode: **Standard ABC**
 
@@ -13,8 +13,8 @@ Master Chat, bitte diese Roadmap in die aktive Master-Roadmap aufnehmen:
 - Ziel: Odysseus soll Fragen wie "Was gab es in den letzten 12h Neues?" ohne externe Recherche korrekt beantworten und dieselbe Aenderungshistorie spaeter als Patch-Notes-Interface anzeigen.
 - Roadmap: `docs/plans/recent-changes-patch-notes-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/unified-odysseus-roadmap.md`, `docs/plans/mvp-master-roadmap.md`, `docs/plans/updater-live-boundary-contract.md` und `docs/plans/updates-backups-ui-operator-contract.md`.
-- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality, Retention/Automation und Collector-Privacy wurden weiter gehaertet; UI und weitergehende Agent-Behavior-Gates bleiben Follow-up.
-- Naechster sicherer Slice: `RCH6-agent-behavior-gates`.
+- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality, Retention/Automation, Agent-Behavior-Gates und Collector-Privacy wurden weiter gehaertet; UI und breitere Privacy-Reviews bleiben Follow-up.
+- Naechster sicherer Slice: `RCH7-security-privacy-closeout`.
 - Owner-Vorschlag: Charlie koordiniert Roadmap/Status, Bob haertet Backend/Tests, Alice definiert UI- und Patch-Notes-Sprache.
 
 ## Goal
@@ -47,7 +47,7 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH3-patch-notes-button` | `needs_design` | Alice/Bob | Nutzer- oder Admin-Button fuer Patch Notes bauen: latest, history, read snapshot, optional "collect now". | `static/`, `routes/`, `src/`, `tests/` narrow UI/API files | focused route tests plus browser/static smoke if UI touched | design_go |
 | `RCH4-change-quality` | `done` | Bob | Zusammenfassung, Filter, Kategorien und File-Link-Evidence verbessern; untracked Noise weiter reduzieren. | `src/recent_changes.py`, `tests/test_recent_changes.py` | done: `3 passed, 1 warning` | none |
 | `RCH5-retention-and-automation` | `done` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | done: `22 passed, 1 warning` | no live update action |
-| `RCH6-agent-behavior-gates` | `repo_only` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop.py`, tool schema/tests | focused intent/tool-selection tests | none |
+| `RCH6-agent-behavior-gates` | `done` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop_intent.py`, `tests/test_recent_changes_agent_routing.py` | done: `21 passed, 1 warning` | none |
 | `RCH7-security-privacy-closeout` | `partial_done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/`, `routes/`, `tests/`, `docs/plans/` | collector/route privacy done: `3 passed, 1 warning`; broader agent-route privacy static review remains | none |
 
 ## Progress Evidence
@@ -101,6 +101,32 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_chan
 
 Result: `22 passed, 1 warning`.
 
+### RCH6 Agent Behavior Gates
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- German and English recent-change prompts now deterministically route to the
+  `changes` domain, including "Was gab es in den letzten 12h Neues?",
+  "Patch Notes", "was hat sich gestern geaendert?", "what changed in the last
+  12 hours?" and local Odysseus update questions.
+- Local Odysseus/App/Repo update phrasing seeds `recent_changes`; generic web
+  or news update prompts are guarded so they do not get misrouted to local
+  patch-note history.
+- Regression tests verify that the selected domain exposes only
+  `recent_changes`, that the function schema reaches the model, and that prompt
+  rules explicitly block web-search or git-commit-only answers for local
+  changes.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_changes_agent_routing.py tests\test_api_call_integration_routing.py tests\test_tool_rag_contacts_domain.py -q
+```
+
+Result: `21 passed, 1 warning`.
+
 ### RCH7 Collector/Route Privacy Closeout
 
 Status: partial done 2026-07-03.
@@ -150,7 +176,7 @@ Aktuelle Foundation-Evidence:
 ## Go Language
 
 - `Go`: Foundation ist implementiert, offline getestet und fuer Master-Roadmap-Intake bereit.
-- `Partial`: Backend-Historie funktioniert, aber UI-Button, Retention und Agent-Behavior-Gates sind noch offen.
+- `Partial`: Backend-Historie funktioniert, aber UI-Button und breitere Privacy-Closeout-Reviews sind noch offen.
 - `Deferred`: Breitere Patch-Notes-UI oder Live-Update-Aktionen warten auf Master-/Design-/Operator-Go.
 - `No-Go`: Jeder Ansatz, der Patch Notes per globaler Prompt-Injection, Live-Recherche, ungefilterten Logs oder privaten Daten erzeugt.
 - `Blocked`: Master-Roadmap-Hotfiles sind aktiv in fremder Bearbeitung oder die Ziel-Einordnung ist unklar.

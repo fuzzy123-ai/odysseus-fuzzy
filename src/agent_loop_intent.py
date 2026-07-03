@@ -237,10 +237,12 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
     if has(r"\b(contact|contacts|phone|phone number|address book|vcard)\b"):
         domains.add("contacts")
     if has(
-        r"\b(neuerungen|neuigkeiten|änderungen|aenderungen|patch notes?|changelog|change ?log|what changed|recent changes|changed|changes)\b",
-        r"\b(was hat sich ge[aä]ndert|was wurde ge[aä]ndert|was ist neu|was gibt es neu)\b",
+        r"\b(neuerungen|neuigkeiten|neues|änderungen|aenderungen|patch notes?|changelog|change ?log|what changed|recent changes|changed|changes)\b",
+        r"\b(was hat sich ge(?:ae|a|ä)ndert|was wurde ge(?:ae|a|ä)ndert|was ist neu|was gibt es neu(?:es)?)\b",
         r"\b(letzte[nrsm]?|last)\s+\d+\s*(?:h|std|stunden|hours?)\b",
-        r"\b(heute|gestern|today|yesterday)\b.*\b(neu|ge[aä]ndert|changed|changes|patch)\b",
+        r"\b(heute|gestern|today|yesterday)\b.*\b(neu|ge(?:ae|a|ä)ndert|changed|changes|patch)\b",
+        r"\b(odysseus|app|projekt|project|repo|lokal|local)\b.*\b(updates?|update history|neuerungen|neuigkeiten|neues|änderungen|aenderungen)\b",
+        r"\b(updates?|update history)\b.*\b(odysseus|app|projekt|project|repo|lokal|local)\b",
     ):
         domains.add("changes")
     # API-integration intent — calling a configured service via the api_call

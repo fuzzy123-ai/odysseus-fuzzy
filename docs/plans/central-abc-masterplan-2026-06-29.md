@@ -103,7 +103,7 @@ Run at most three active implementation lanes at the same time.
 | L9 Calendar MCP + Autonomous Coding Control | P0/P1 | Limited | Reminder/calendar reliability and workstation-first coding automation are now bundled in a JSON master roadmap; repo slices are done, remaining smokes are live-gated. |
 | L10 Observability + Security Ops | P0/P1 | Limited | Unified logging, MCP debugging, incident response and Debian observability are repo-complete; remaining progress is live ops setup and smoke evidence. |
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
-| L12 Recent Changes + Patch Notes | P1 | Yes | Local patch-note history helps Odysseus answer "what changed" from repo evidence; quality/privacy hardening can continue without UI work. |
+| L12 Recent Changes + Patch Notes | P1 | Yes | Local patch-note history helps Odysseus answer "what changed" from repo evidence; quality/privacy hardening and agent-routing gates are implemented; UI placement remains UI-owned. |
 
 Integration rule:
 
@@ -1889,11 +1889,17 @@ Current evidence:
 - Focused verification passed:
   `tests/test_recent_changes.py tests/test_system_update_status.py tests/test_repo_recent_memory.py`
   returned `22 passed, 1 warning`.
+- Agent behavior gates are covered by
+  `tests/test_recent_changes_agent_routing.py`; German/English "Neuerungen",
+  "Patch Notes", "what changed" and local Odysseus update questions now seed
+  `recent_changes` while generic web/news updates stay out of the local
+  changes domain.
 
 Open gates / next slices:
 
-- `RCH6-agent-behavior-gates`: add focused tests that "letzte 12h",
-  "Neuerungen", "Patch Notes" and update questions route to `recent_changes`.
+- `RCH7-security-privacy-closeout`: finish the broader static review across
+  agent tool payloads, update-status summaries and route tests before closing
+  Recent Changes completely.
 - `RCH3-patch-notes-button`: design/UI-owned; do not implement from backend
   ABC while the UI agent owns placement.
 
@@ -1912,7 +1918,7 @@ Open gates / next slices:
 | L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
-| L12 Recent Changes + Patch Notes | in progress | Foundation, RCH4 quality, RCH5 retention/automation and RCH7 collector privacy are implemented and tested; agent behavior routing tests remain the next repo-only follow-up, while the patch-notes button is UI-owned. |
+| L12 Recent Changes + Patch Notes | in progress | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 collector privacy are implemented and tested; the broader privacy closeout remains repo-only, while the patch-notes button is UI-owned. |
 
 Recommended next human decision:
 
@@ -1943,5 +1949,5 @@ Recommended next human decision:
 - For L11, use the existing autonomy pipeline for a concrete bounded pilot only
   after target/crawl/sandbox/memory-write constraints are stated; otherwise
   hand UI/operator placement to the UI track.
-- For L12, continue with `RCH6-agent-behavior-gates`; do not build the
+- For L12, continue with `RCH7-security-privacy-closeout`; do not build the
   patch-notes button in this backend track.
