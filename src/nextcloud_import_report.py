@@ -34,6 +34,7 @@ class NextcloudImportDryRunReport:
     by_privacy_class: Mapping[str, int]
     long_path_count: int
     document_candidates: int
+    document_candidate_profile: Mapping[str, Any]
     metadata_only_candidates: int
     review_candidates: int
     software_archive_candidates: int
@@ -52,6 +53,7 @@ class NextcloudImportDryRunReport:
             "by_privacy_class": dict(self.by_privacy_class),
             "long_path_count": self.long_path_count,
             "document_candidates": self.document_candidates,
+            "document_candidate_profile": _stable_profile(self.document_candidate_profile),
             "metadata_only_candidates": self.metadata_only_candidates,
             "review_candidates": self.review_candidates,
             "software_archive_candidates": self.software_archive_candidates,
@@ -68,6 +70,7 @@ class NextcloudImportDryRunReport:
             f"- Source: `{self.source_id}`",
             f"- Inventory records: `{self.inventory_total}`",
             f"- Document candidates: `{self.document_candidates}`",
+            f"- Private document review candidates: `{self.document_candidate_profile.get('private_review_candidates', 0)}`",
             f"- Metadata-only candidates: `{self.metadata_only_candidates}`",
             f"- Review candidates: `{self.review_candidates}`",
             f"- Long paths: `{self.long_path_count}`",
@@ -98,6 +101,8 @@ def build_nextcloud_import_dry_run_report(
     by_file_category: dict[str, int] = {}
     by_privacy_class: dict[str, int] = {}
     long_path_count = document_candidates = metadata_only_candidates = review_candidates = 0
+    private_document_review_candidates = 0
+    document_by_extension: dict[str, dict[str, int]] = {}
     sample_review_paths: list[str] = []
 
     for record in inventory:
@@ -107,8 +112,16 @@ def build_nextcloud_import_dry_run_report(
         by_privacy_class[privacy_class] = by_privacy_class.get(privacy_class, 0) + 1
         if bool(record.metadata.get("long_path")):
             long_path_count += 1
-        if category in DOCUMENT_CATEGORIES and privacy_class not in PRIVATE_PRIVACY_CLASSES:
-            document_candidates += 1
+        if category in DOCUMENT_CATEGORIES:
+            extension = _extension(record)
+            bucket = document_by_extension.setdefault(extension, {"total": 0, "safe": 0, "private_review": 0})
+            bucket["total"] += 1
+            if privacy_class in PRIVATE_PRIVACY_CLASSES:
+                private_document_review_candidates += 1
+                bucket["private_review"] += 1
+            else:
+                document_candidates += 1
+                bucket["safe"] += 1
         if category in METADATA_ONLY_CATEGORIES or privacy_class in PRIVATE_PRIVACY_CLASSES:
             metadata_only_candidates += 1
         if _needs_review(category, privacy_class):
@@ -128,6 +141,12 @@ def build_nextcloud_import_dry_run_report(
         by_privacy_class=dict(sorted(by_privacy_class.items())),
         long_path_count=long_path_count,
         document_candidates=document_candidates,
+        document_candidate_profile={
+            "total_document_inventory": document_candidates + private_document_review_candidates,
+            "safe_candidates": document_candidates,
+            "private_review_candidates": private_document_review_candidates,
+            "by_extension": dict(sorted(document_by_extension.items())),
+        },
         metadata_only_candidates=metadata_only_candidates,
         review_candidates=review_candidates,
         software_archive_candidates=len(software_plans),
@@ -150,6 +169,22 @@ def _privacy_class(record: BigDataLedgerRecord) -> str:
     if isinstance(privacy, Mapping):
         return str(privacy.get("privacy_class") or record.metadata.get("privacy_class") or "unknown")
     return str(record.metadata.get("privacy_class") or "unknown")
+
+
+def _extension(record: BigDataLedgerRecord) -> str:
+    extension = str(record.metadata.get("extension") or "").strip().casefold()
+    if extension:
+        return extension if extension.startswith(".") else "." + extension
+    suffix = Path(record.item.relative_path).suffix.casefold()
+    return suffix or "(none)"
+
+
+def _stable_profile(value: Mapping[str, Any]) -> dict[str, Any]:
+    profile = dict(value)
+    by_extension = profile.get("by_extension")
+    if isinstance(by_extension, Mapping):
+        profile["by_extension"] = {str(key): dict(val) for key, val in sorted(by_extension.items())}
+    return profile
 
 
 def _needs_review(category: str, privacy_class: str) -> bool:

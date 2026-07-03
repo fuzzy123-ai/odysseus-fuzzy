@@ -85,6 +85,25 @@ keine Samples, Rohinhalte oder Secrets. `--ephemeral-ledger` loeschte das
 temporaere Ledger nach der Report-Erstellung; `Test-Path` bestaetigte danach,
 dass keine Ledgerdatei verblieb.
 
+Pilot-Profil 2026-07-03:
+
+- `src/nextcloud_import_report.py` meldet jetzt ein redaktiertes
+  `document_candidate_profile` mit reinen Aggregaten.
+- Der profilierte Vollinventar-Lauf fand `19.145` dokumentartige
+  Inventory-Eintraege, aber `0` safe candidates.
+- Grund: alle dokumentartigen Eintraege sind aktuell privacy-gated
+  (`local_sensitive` oder `unknown_private`) und muessen vor Extraktion/Pilot
+  bewusst freigegeben oder lokal-only behandelt werden.
+- Aggregat nach Endung:
+  - `.json`: `8.072`
+  - `.html`: `6.877`
+  - `.pdf`: `3.480`
+  - `.txt`: `294`
+  - `.docx`: `271`
+  - `.xml`: `90`
+  - `.md`: `53`
+  - `.htm`: `8`
+
 Offen:
 
 - Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
@@ -802,8 +821,11 @@ Erst nach erfolgreichem Import:
 ## 19. Aktueller naechster Schritt
 
 Als naechstes sollte der Dokument-Pilot gegen eine bewusst ausgewaehlte
-extrahierbare Teilmenge freigegeben werden. Der Vollinventar-Dry-run ist
-metadata-only erledigt; ein erneuter Vollinventar-Lauf ist nur noetig, wenn die
-lokale Nextcloud-Struktur deutlich geaendert wurde. Live-Upload-Smoke und echte
-Memory/RaptorGraph-Writes bleiben separat gegated. UI bleibt ausserhalb dieser
-Backend-Roadmap.
+extrahierbare Teilmenge freigegeben werden. Weil aktuell alle dokumentartigen
+Kandidaten privacy-gated sind, braucht der Pilot entweder eine bewusst
+ausgewaehlte lokale-only Teilmenge oder eine verfeinerte Regel, welche
+Top-Level-/Dateityp-Bereiche nicht mehr `unknown_private` sind. Der
+Vollinventar-Dry-run ist metadata-only erledigt; ein erneuter Vollinventar-Lauf
+ist nur noetig, wenn die lokale Nextcloud-Struktur deutlich geaendert wurde.
+Live-Upload-Smoke und echte Memory/RaptorGraph-Writes bleiben separat gegated.
+UI bleibt ausserhalb dieser Backend-Roadmap.

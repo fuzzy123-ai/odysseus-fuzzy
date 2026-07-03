@@ -172,6 +172,13 @@ Current evidence:
   plans. The report exposed only aggregate counts and confirmed the temporary
   ledger was deleted; no raw content, samples, secrets or private paths were
   committed.
+- 2026-07-03: The import report now exposes a redacted
+  `document_candidate_profile` for pilot selection. The profiled full
+  inventory found `19.145` document-like records but `0` safe candidates,
+  because all document-like records are currently `local_sensitive` or
+  `unknown_private`. Aggregate extension counts only: `.json` `8.072`,
+  `.html` `6.877`, `.pdf` `3.480`, `.txt` `294`, `.docx` `271`, `.xml` `90`,
+  `.md` `53`, `.htm` `8`.
 
 Primary allowed paths:
 
@@ -201,6 +208,7 @@ Slice queue:
 | L1-7-local-import-inventory-smoke | safe_offline | Charlie | Done: bounded metadata-only local Nextcloud import smokes completed for `25` and `250` item batches; temporary private-metadata ledgers were removed after aggregate evidence was recorded. |
 | L1-8-ephemeral-import-ledger | repo_only | Charlie | Done: dry-run CLI can self-delete temporary JSONL ledgers after report generation and blocks that mode for `--skip-scan` reports. |
 | L1-9-full-local-import-inventory | safe_offline | Charlie | Done: full local Nextcloud metadata-only inventory dry-run completed with `--max-samples 0` and `--ephemeral-ledger`; only aggregate evidence was recorded. |
+| L1-10-redacted-document-pilot-profile | repo_only | Charlie | Done: report now exposes document-pilot aggregate counts by extension and privacy gate without paths or contents. |
 
 Gate queue:
 
@@ -1664,7 +1672,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes and full local metadata-only inventory are implemented and verified; document pilot import and future delete/move/overwrite behavior remain separate gated decisions. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; document pilot import is blocked by current privacy policy until a local-only subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1682,7 +1690,10 @@ Recommended next human decision:
 - Decide whether the next L1 step is a consciously selected document-pilot
   import subset or no further Nextcloud import work until the UI review queue
   is ready. The full metadata-only inventory pass is already complete; repeat
-  it only after meaningful source changes.
+  it only after meaningful source changes. Current pilot blocker: all
+  document-like records are privacy-gated, so the operator must choose a
+  local-only pilot subset or refine which areas are no longer
+  `unknown_private`.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.

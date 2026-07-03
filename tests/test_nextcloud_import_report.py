@@ -62,6 +62,16 @@ def test_import_report_summarizes_candidates_without_private_content(tmp_path):
 
     assert payload["inventory_total"] == 7
     assert payload["document_candidates"] == 2
+    assert payload["document_candidate_profile"] == {
+        "total_document_inventory": 3,
+        "safe_candidates": 2,
+        "private_review_candidates": 1,
+        "by_extension": {
+            ".docx": {"total": 1, "safe": 0, "private_review": 1},
+            ".md": {"total": 1, "safe": 1, "private_review": 0},
+            ".pdf": {"total": 1, "safe": 1, "private_review": 0},
+        },
+    }
     assert payload["metadata_only_candidates"] == 5
     assert payload["review_candidates"] == 4
     assert payload["long_path_count"] == 1
@@ -99,3 +109,4 @@ def test_import_report_ignores_other_sources_and_non_inventory(tmp_path):
 
     assert report.inventory_total == 1
     assert report.document_candidates == 1
+    assert report.document_candidate_profile["safe_candidates"] == 1
