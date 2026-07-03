@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1-CTXE3 done; manifest-first schema selection and session envelope started; CTXE4 next**
+Status: **CTXE1-CTXE4 done; manifest-first schema selection, session envelope and cache-boundary policy ready; CTXE5 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE4-cache-boundary-policy`.
+- Naechster sicherer Slice: `CTXE5-context-provider-manifest-first`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -58,7 +58,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | `CTXE1-tool-manifest-model` | `repo_only` | Bob | Kleines Backend-Modell fuer Tool-Manifeste bauen: id, family, short description, capabilities, risk class, schema ref, visibility state. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `9 passed, 1 warning` | none |
 | `CTXE2-deferred-tool-schema-selection` | `repo_only` | Bob | Auswahlfunktion bauen, die fuer eine Capsule/Session zuerst kompakte Tool-Manifeste liefert und volle Schemata nur fuer relevante Tools markiert. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `13 passed, 1 warning` | none |
 | `CTXE3-session-envelope-hash` | `repo_only` | Bob | Session-Envelope modellieren: model ref, reasoning/context budget, active tool manifest set, system prompt version, MCP/plugin selection, cache boundary marker. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `19 passed, 1 warning` | none |
-| `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/`, `core/`, `routes/`, `tests/` narrow session policy files | focused pytest | needs_design only if user-facing wording unclear |
+| `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `24 passed, 1 warning` | none |
 | `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/memory_provider.py`, `src/nextcloud_source_provider.py`, plugin context providers, tests | focused provider tests | no live source access |
 | `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `docs/plans/`, optional `src/*routing*.py` if model-only | docs-only or focused model tests | no live model calls |
 | `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/`, `tests/`, `docs/plans/` narrow evidence files | focused pytest | none |
@@ -245,6 +245,33 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_session_env
 Result: `19 passed, 1 warning`.
 
 Next safe slice: `CTXE4-cache-boundary-policy`.
+
+### CTXE4 Cache Boundary Policy
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- `SessionMutationPhase` in `src/session_envelope.py` with `session_start`,
+  `mid_session`, `after_compaction` and `operator_approved`.
+- `evaluate_cache_boundary_policy(...)` to allow unchanged envelopes anywhere,
+  allow cache-boundary changes at session start or after compaction, and block
+  mid-session model/tool/reasoning/budget changes unless explicit operator Go is
+  present.
+- `CacheBoundaryPolicyDecision` with redacted audit summaries and explicit
+  `requires_new_session` / `requires_operator_go` flags.
+- Focused tests for same-envelope reuse, allowed start/compaction changes,
+  blocked mid-session changes, operator-approved changes and unknown phases.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_session_envelope.py tests\test_tool_catalog.py -q
+```
+
+Result: `24 passed, 1 warning`.
+
+Next safe slice: `CTXE5-context-provider-manifest-first`.
 
 ## Go Language
 

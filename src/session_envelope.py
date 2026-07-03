@@ -47,6 +47,13 @@ class CacheBoundaryReason(StrEnum):
     REASONING_CHANGED = "reasoning_changed"
 
 
+class SessionMutationPhase(StrEnum):
+    SESSION_START = "session_start"
+    MID_SESSION = "mid_session"
+    AFTER_COMPACTION = "after_compaction"
+    OPERATOR_APPROVED = "operator_approved"
+
+
 def _reject_forbidden_text(value: Any, *, field_name: str) -> None:
     text = str(value or "").lower()
     if any(bit in text for bit in _FORBIDDEN_TEXT_BITS):
@@ -200,6 +207,32 @@ class CacheBoundaryDiff:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class CacheBoundaryPolicyDecision:
+    allowed: bool
+    phase: SessionMutationPhase
+    diff: CacheBoundaryDiff
+    requires_new_session: bool
+    requires_operator_go: bool
+    decision: str
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "allowed": self.allowed,
+            "phase": self.phase.value,
+            "changed": self.diff.changed,
+            "reasons": tuple(reason.value for reason in self.diff.reasons),
+            "requires_new_session": self.requires_new_session,
+            "requires_operator_go": self.requires_operator_go,
+            "decision": self.decision,
+            "previous_marker": self.diff.previous_marker,
+            "current_marker": self.diff.current_marker,
+            "raw_prompt_visible": False,
+            "raw_content_visible": False,
+            "token_value_visible": False,
+        }
+
+
 def compare_session_envelopes(previous: SessionEnvelope, current: SessionEnvelope) -> CacheBoundaryDiff:
     if not isinstance(previous, SessionEnvelope) or not isinstance(current, SessionEnvelope):
         raise SessionEnvelopeError("previous and current must be SessionEnvelope instances")
@@ -229,6 +262,59 @@ def compare_session_envelopes(previous: SessionEnvelope, current: SessionEnvelop
         reasons=tuple(reasons),
         previous_marker=previous.cache_boundary_marker,
         current_marker=current.cache_boundary_marker,
+    )
+
+
+def evaluate_cache_boundary_policy(
+    previous: SessionEnvelope,
+    current: SessionEnvelope,
+    *,
+    phase: SessionMutationPhase | str,
+    operator_go: bool = False,
+) -> CacheBoundaryPolicyDecision:
+    try:
+        normalized_phase = phase if isinstance(phase, SessionMutationPhase) else SessionMutationPhase(str(phase))
+    except ValueError:
+        raise SessionEnvelopeError("phase must be a known session mutation phase") from None
+
+    diff = compare_session_envelopes(previous, current)
+    if not diff.changed:
+        return CacheBoundaryPolicyDecision(
+            allowed=True,
+            phase=normalized_phase,
+            diff=diff,
+            requires_new_session=False,
+            requires_operator_go=False,
+            decision="same_envelope",
+        )
+
+    if normalized_phase in (SessionMutationPhase.SESSION_START, SessionMutationPhase.AFTER_COMPACTION):
+        return CacheBoundaryPolicyDecision(
+            allowed=True,
+            phase=normalized_phase,
+            diff=diff,
+            requires_new_session=False,
+            requires_operator_go=False,
+            decision="cache_boundary_allowed_at_phase",
+        )
+
+    if normalized_phase is SessionMutationPhase.OPERATOR_APPROVED and operator_go:
+        return CacheBoundaryPolicyDecision(
+            allowed=True,
+            phase=normalized_phase,
+            diff=diff,
+            requires_new_session=False,
+            requires_operator_go=False,
+            decision="cache_boundary_allowed_by_operator_go",
+        )
+
+    return CacheBoundaryPolicyDecision(
+        allowed=False,
+        phase=normalized_phase,
+        diff=diff,
+        requires_new_session=True,
+        requires_operator_go=normalized_phase is SessionMutationPhase.MID_SESSION,
+        decision="cache_boundary_change_blocked_mid_session",
     )
 
 

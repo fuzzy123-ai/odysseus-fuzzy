@@ -4,7 +4,9 @@ from src.session_envelope import (
     CacheBoundaryReason,
     SessionEnvelope,
     SessionEnvelopeError,
+    SessionMutationPhase,
     compare_session_envelopes,
+    evaluate_cache_boundary_policy,
 )
 from src.tool_catalog import ToolManifest, ToolRiskLevel, ToolVisibility
 
@@ -98,3 +100,60 @@ def test_session_envelope_hashes_unsafe_refs_without_exposing_host_paths():
     assert payload["mcp_server_refs"][0].startswith("sha256:")
     assert "C:/Users" not in encoded
     assert "private/server" not in encoded
+
+
+def test_cache_boundary_policy_allows_same_envelope_without_operator_go():
+    previous = _envelope()
+    decision = evaluate_cache_boundary_policy(
+        previous,
+        _envelope(),
+        phase=SessionMutationPhase.MID_SESSION,
+    )
+
+    assert decision.allowed is True
+    assert decision.requires_new_session is False
+    assert decision.requires_operator_go is False
+    assert decision.decision == "same_envelope"
+
+
+def test_cache_boundary_policy_allows_changes_at_start_and_after_compaction():
+    previous = _envelope()
+    changed = _envelope(model_ref="gemma4:e4b")
+
+    start = evaluate_cache_boundary_policy(previous, changed, phase="session_start")
+    compacted = evaluate_cache_boundary_policy(previous, changed, phase="after_compaction")
+
+    assert start.allowed is True
+    assert compacted.allowed is True
+    assert start.decision == "cache_boundary_allowed_at_phase"
+    assert compacted.audit_summary()["raw_prompt_visible"] is False
+
+
+def test_cache_boundary_policy_blocks_mid_session_changes_without_operator_go():
+    previous = _envelope()
+    changed = _envelope(reasoning_profile="deep-debug")
+
+    decision = evaluate_cache_boundary_policy(previous, changed, phase="mid_session")
+
+    assert decision.allowed is False
+    assert decision.requires_new_session is True
+    assert decision.requires_operator_go is True
+    assert CacheBoundaryReason.REASONING_CHANGED in decision.diff.reasons
+    assert decision.decision == "cache_boundary_change_blocked_mid_session"
+
+
+def test_cache_boundary_policy_allows_operator_go_phase_only_with_go_flag():
+    previous = _envelope()
+    changed = _envelope(output_budget_tokens=8192)
+
+    missing_go = evaluate_cache_boundary_policy(previous, changed, phase="operator_approved")
+    approved = evaluate_cache_boundary_policy(previous, changed, phase="operator_approved", operator_go=True)
+
+    assert missing_go.allowed is False
+    assert approved.allowed is True
+    assert approved.decision == "cache_boundary_allowed_by_operator_go"
+
+
+def test_cache_boundary_policy_rejects_unknown_phase():
+    with pytest.raises(SessionEnvelopeError):
+        evaluate_cache_boundary_policy(_envelope(), _envelope(), phase="teleport")
