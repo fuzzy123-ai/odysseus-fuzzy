@@ -150,6 +150,15 @@ Current evidence:
 - 2026-07-02 Focused tests passed:
   `python -m pytest tests/test_nextcloud_webdav_client.py tests/test_universal_inbox_nextcloud_transfer.py tests/test_telegram_plugin.py::test_review_ok_executes_nextcloud_copy_only_with_explicit_live_gates -q`
   returned `13 passed, 1 warning`.
+- 2026-07-03: Nextcloud import preparation ran two bounded local
+  metadata-only inventory smokes against the runtime Nextcloud sync root with
+  `--max-samples 0`. Batch `25` produced `20` inventory records; batch `250`
+  produced `245` inventory records. Both reports exposed only aggregate counts,
+  no raw content, no samples, no secrets and no host paths in committed docs;
+  temporary ledgers were removed after each smoke.
+- 2026-07-03 Focused import tests passed:
+  `python -m pytest tests/test_nextcloud_import_dry_run_cli.py tests/test_nextcloud_resumable_scanner.py tests/test_nextcloud_document_pilot_import.py tests/test_nextcloud_import_report.py -q`
+  returned `15 passed, 1 warning`.
 
 Primary allowed paths:
 
@@ -176,6 +185,7 @@ Slice queue:
 | L1-4-pdf-and-doc-evidence | repo_only | Bob | Done: focused extraction tests cover PDF, DOCX and common text-like documents without raw persistence. |
 | L1-5-memory-intent-link | repo_only | Bob | Done: worker tests cover placement, extraction and Memory Write Intent/RaptorGraph provenance linkage without writes. |
 | L1-6-live-upload-smoke | closed | Charlie | Done: bounded WebDAV copy-only smoke and Telegram review-transfer smoke completed and verified on Debian; operator live gate is currently enabled. |
+| L1-7-local-import-inventory-smoke | safe_offline | Charlie | Done: bounded metadata-only local Nextcloud import smokes completed for `25` and `250` item batches; temporary private-metadata ledgers were removed after aggregate evidence was recorded. |
 
 Gate queue:
 
@@ -1639,7 +1649,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate and Telegram review-transfer smoke are implemented and verified; future delete/move/overwrite behavior remains out of scope and any new live write regression needs a fresh bounded request. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke and bounded local metadata-only import smokes are implemented and verified; document pilot import, full inventory and future delete/move/overwrite behavior remain separate gated decisions. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1654,6 +1664,9 @@ Recommended next human decision:
 - Keep L1 live writes bounded and review-driven. The Nextcloud copy-only smoke
   is already closed; new live write checks should be explicit regression
   requests, not recurring default work.
+- Decide whether the next L1 step is a consciously selected document-pilot
+  import subset, a full metadata-only inventory pass, or no further Nextcloud
+  import work until the UI review queue is ready.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.
