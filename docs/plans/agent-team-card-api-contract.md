@@ -2,8 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: pre-implementation user and operator contract for a read-only
-Agent-Team-Card API surface
+Status: backend contract consumed; read-only Agent-Team-Card API surface implemented
 
 Dieses Dokument definiert die read-only Surface fuer Agent-Team-Informationen.
 Es baut auf `AgentProfile`, `AgentTeamCard` und `AgentProfileRegistry` auf und
@@ -35,7 +34,8 @@ Dieser Slice deckt bewusst nicht ab:
 - keine Scheduler-Aktivierung
 - keine Thread-Sends
 - keine Netzwerk-, Provider-, Telegram-, Plugin- oder UI-Hotfile-Arbeit
-- keine Behauptung, dass ATC2 oder ATC3 bereits implementiert sind
+- keine Behauptung, dass die Surface Agenten starten, Scheduler schreibt oder
+  Hidden Worker ausfuehrt
 
 ## Beziehung Zu Bestehenden Fundamenten
 
@@ -44,6 +44,13 @@ Die Team-Card-Surface ist eine abgeleitete Sicht auf bestehende Fundamente:
 - `AgentProfile` liefert die semantische Agentbeschreibung
 - `AgentTeamCard` liefert die kompakte Teamdarstellung
 - `AgentProfileRegistry` liefert die aufgeloesten Rollen und Defaults
+- `src/agent_team_card_api.py` erzeugt die read-only Payload fuer Main Agent
+  und spaetere UI.
+- `routes/agent_team_routes.py` stellt die admin-gated Read-Route bereit.
+- Fokussierte Verifikation am 2026-07-03 fuer Profilmodell, Registry,
+  Teamkarte, API-Payload und Route:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_team_routes.py tests\test_agent_team_card_api.py tests\test_agent_profile.py tests\test_agent_team_card.py tests\test_agent_profile_registry.py -q`
+  returned `27 passed, 2 warnings`.
 
 Wichtig:
 

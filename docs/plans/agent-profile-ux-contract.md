@@ -2,7 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: pre-implementation user and operator contract for Agent Profiles
+Status: backend contract consumed; APF profile model, registry, team card and read-only API payload implemented
 
 Dieses Dokument definiert die Nutzer- und Operator-Sprache fuer Agent-Profile.
 Es fuehrt kein neues Agentensystem ein, sondern verbindet vorhandene

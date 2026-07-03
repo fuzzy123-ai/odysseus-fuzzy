@@ -2,7 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: **APF0 gestartet; Ziel ist ein wartbarer Agent-Profile-Layer fuer Main-Agent, UI und spaetere Automatisierung**
+Status: **backend complete; APF1-APF4 umgesetzt und getestet; APF5 UI deferred**
 
 ## Goal
 
@@ -17,6 +17,23 @@ Odysseus soll Agenten wie Alice, Bob, Charlie und spaetere Subagents ueber ein g
 - `src/preset_manager.py` stellt Presets, User Templates und Group Presets bereit.
 - `src/delegate_tool.py` unterstuetzt Hidden-Worker-Delegation als fokussierten Tool-Schritt.
 - `static/js/assistant.js` hat bereits Assistant Settings fuer Name, Persona, Modell, Tools und Check-ins.
+- `docs/plans/agent-profile-ux-contract.md` definiert APF1 als Nutzer- und
+  Operator-Vertrag fuer Profile, Staerken, Grenzen, Timer-Sprache,
+  Sichtbarkeit und Hidden Worker.
+- `src/agent_profile.py` und `tests/test_agent_profile.py` implementieren APF2
+  als runtime-agnostisches Profilmodell mit nicht entfernbaren Safety Rules.
+- `src/agent_team_card.py` und `tests/test_agent_team_card.py` implementieren
+  APF3 als kompakte Main-Agent-Teamkarte, die Hidden Worker nicht als sichtbare
+  Agenten rendert.
+- `src/agent_profile_registry.py` und `tests/test_agent_profile_registry.py`
+  implementieren APF4 als read-only Resolver ueber Rollenpresets,
+  CrewMember-aehnliche Daten und Overrides.
+- `src/agent_team_card_api.py` und `tests/test_agent_team_card_api.py` liefern
+  eine read-only JSON-kompatible Payload fuer spaetere UI/API-Nutzung, mit
+  Redaction fuer offensichtliche Secret-/Chat-ID-Muster.
+- Fokussierte Verifikation am 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_profile.py tests\test_agent_profile_registry.py tests\test_agent_team_card.py tests\test_agent_team_card_api.py -q`
+  returned `26 passed, 1 warning`.
 
 ## Non-goals
 
@@ -89,6 +106,8 @@ Rules:
 
 Charlie erstellt diese Roadmap, prueft vorhandene Fundamente und startet den ABC-Track.
 
+Status: done.
+
 ### APF1-agent-profile-ux-contract
 
 Alice beschreibt Nutzer- und Operator-Vertrag fuer Agent-Profile, Staerkenanzeige, Overrides, Parent/Child-Sichtbarkeit, Timer-Uhr und Hidden-Worker-Darstellung.
@@ -101,6 +120,8 @@ Erlaubter Scope:
 Primaerer Alice-Contract:
 - `docs/plans/agent-profile-ux-contract.md`
 
+Status: done.
+
 ### APF2-agent-profile-model
 
 Bob baut ein kleines runtime-agnostisches Profilmodell plus Tests. Kein DB-Write, keine UI, keine echten Agent-Sends.
@@ -109,6 +130,8 @@ Erlaubter Scope:
 
 - `src/agent_profile.py`
 - `tests/test_agent_profile.py`
+
+Status: done.
 
 ### APF3-main-agent-team-card
 
@@ -119,13 +142,21 @@ Voraussichtlicher Scope:
 - `src/agent_team_card.py`
 - `tests/test_agent_team_card.py`
 
+Status: done.
+
 ### APF4-profile-registry-plan
 
 Alice/Charlie definieren, wie Profile spaeter aus `CrewMember`, Presets, `AgentIdentity`, Tool Catalog und Overrides zusammengesetzt werden. Erst Plan/Contract, noch keine Migration.
 
+Status: done as read-only registry contract and implementation in
+`src/agent_profile_registry.py`; no DB migration and no live runtime activation.
+
 ### APF5-ui-readonly-profile-surface
 
 Optionaler spaeterer UI-Slice: read-only Profilanzeige in Chatliste/Overlay. Nur wenn APF1-APF3 stabil sind.
+
+Status: deferred to UI track. Backend/API payload is ready via
+`src/agent_team_card_api.py`; placement and visual interaction remain UI-owned.
 
 ## Verification
 
@@ -135,10 +166,14 @@ Optionaler spaeterer UI-Slice: read-only Profilanzeige in Chatliste/Overlay. Nur
 
 ## Go / Partial / No-Go
 
-- `Go`: APF1 und APF2 sind dokumentiert/getestet, Main-Agent-Kontext kann aus Profilen sicher abgeleitet werden, Safety-Regeln sind nicht per Override aushebelbar.
-- `Partial`: Profile sind modelliert, aber Teamkarte oder UI-Anzeige fehlt noch.
+- `Go`: APF1 bis APF4 sind dokumentiert/getestet, Main-Agent-Kontext kann aus
+  Profilen sicher abgeleitet werden, Safety-Regeln sind nicht per Override
+  aushebelbar, und die read-only API-Payload ist verfuegbar.
+- `Partial`: Profile sind modelliert, aber Teamkarte, Registry oder API-Payload
+  fehlen noch.
 - `No-Go`: Profile duplizieren bestehende Primaerwahrheiten, Overrides koennen Safety-Regeln umgehen, oder Hidden Worker werden sichtbar/aktiviert ohne Boundary.
-- `Deferred`: UI-Overlay, echte Timer-Editierung und dynamische Hidden-Worker-Ausfuehrung bleiben nach APF3 eigene Tracks.
+- `Deferred`: UI-Overlay, echte Timer-Editierung und dynamische
+  Hidden-Worker-Ausfuehrung bleiben nach APF4 eigene Tracks.
 
 ## Stop Rules
 
