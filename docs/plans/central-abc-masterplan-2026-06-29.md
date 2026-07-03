@@ -179,6 +179,10 @@ Current evidence:
   `unknown_private`. Aggregate extension counts only: `.json` `8.072`,
   `.html` `6.877`, `.pdf` `3.480`, `.txt` `294`, `.docx` `271`, `.xml` `90`,
   `.md` `53`, `.htm` `8`.
+- 2026-07-03: The same profile now separates local-only extraction from
+  Memory/RaptorGraph write eligibility. Current aggregate result: `19.145`
+  document-like records are local-only extract/review candidates, but `0` are
+  Memory-write candidates under the current `unknown_private` policy.
 
 Primary allowed paths:
 
@@ -208,7 +212,7 @@ Slice queue:
 | L1-7-local-import-inventory-smoke | safe_offline | Charlie | Done: bounded metadata-only local Nextcloud import smokes completed for `25` and `250` item batches; temporary private-metadata ledgers were removed after aggregate evidence was recorded. |
 | L1-8-ephemeral-import-ledger | repo_only | Charlie | Done: dry-run CLI can self-delete temporary JSONL ledgers after report generation and blocks that mode for `--skip-scan` reports. |
 | L1-9-full-local-import-inventory | safe_offline | Charlie | Done: full local Nextcloud metadata-only inventory dry-run completed with `--max-samples 0` and `--ephemeral-ledger`; only aggregate evidence was recorded. |
-| L1-10-redacted-document-pilot-profile | repo_only | Charlie | Done: report now exposes document-pilot aggregate counts by extension and privacy gate without paths or contents. |
+| L1-10-redacted-document-pilot-profile | repo_only | Charlie | Done: report now exposes document-pilot aggregate counts by extension, privacy gate, local-only extract eligibility and memory-write eligibility without paths or contents. |
 
 Gate queue:
 
@@ -1691,8 +1695,9 @@ Recommended next human decision:
   import subset or no further Nextcloud import work until the UI review queue
   is ready. The full metadata-only inventory pass is already complete; repeat
   it only after meaningful source changes. Current pilot blocker: all
-  document-like records are privacy-gated, so the operator must choose a
-  local-only pilot subset or refine which areas are no longer
+  document-like records are privacy-gated; local-only extraction/review is
+  possible, but Memory/RaptorGraph writes need either an explicit local-only
+  pilot subset with review or a refined rule for areas no longer treated as
   `unknown_private`.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend

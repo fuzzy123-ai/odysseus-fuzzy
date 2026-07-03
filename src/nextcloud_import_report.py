@@ -102,6 +102,9 @@ def build_nextcloud_import_dry_run_report(
     by_privacy_class: dict[str, int] = {}
     long_path_count = document_candidates = metadata_only_candidates = review_candidates = 0
     private_document_review_candidates = 0
+    local_only_extract_candidates = 0
+    local_only_memory_candidates = 0
+    local_only_review_only_candidates = 0
     document_by_extension: dict[str, dict[str, int]] = {}
     sample_review_paths: list[str] = []
 
@@ -114,11 +117,31 @@ def build_nextcloud_import_dry_run_report(
             long_path_count += 1
         if category in DOCUMENT_CATEGORIES:
             extension = _extension(record)
-            bucket = document_by_extension.setdefault(extension, {"total": 0, "safe": 0, "private_review": 0})
+            bucket = document_by_extension.setdefault(
+                extension,
+                {
+                    "total": 0,
+                    "safe": 0,
+                    "private_review": 0,
+                    "local_only_extract": 0,
+                    "local_only_memory": 0,
+                    "local_only_review_only": 0,
+                },
+            )
             bucket["total"] += 1
             if privacy_class in PRIVATE_PRIVACY_CLASSES:
                 private_document_review_candidates += 1
                 bucket["private_review"] += 1
+                privacy = _privacy_payload(record)
+                if bool(privacy.get("local_model_only")):
+                    local_only_extract_candidates += 1
+                    bucket["local_only_extract"] += 1
+                    if bool(privacy.get("memory_write_candidate")):
+                        local_only_memory_candidates += 1
+                        bucket["local_only_memory"] += 1
+                    else:
+                        local_only_review_only_candidates += 1
+                        bucket["local_only_review_only"] += 1
             else:
                 document_candidates += 1
                 bucket["safe"] += 1
@@ -145,6 +168,9 @@ def build_nextcloud_import_dry_run_report(
             "total_document_inventory": document_candidates + private_document_review_candidates,
             "safe_candidates": document_candidates,
             "private_review_candidates": private_document_review_candidates,
+            "local_only_extract_candidates": local_only_extract_candidates,
+            "local_only_memory_candidates": local_only_memory_candidates,
+            "local_only_review_only_candidates": local_only_review_only_candidates,
             "by_extension": dict(sorted(document_by_extension.items())),
         },
         metadata_only_candidates=metadata_only_candidates,
@@ -169,6 +195,11 @@ def _privacy_class(record: BigDataLedgerRecord) -> str:
     if isinstance(privacy, Mapping):
         return str(privacy.get("privacy_class") or record.metadata.get("privacy_class") or "unknown")
     return str(record.metadata.get("privacy_class") or "unknown")
+
+
+def _privacy_payload(record: BigDataLedgerRecord) -> Mapping[str, Any]:
+    privacy = record.metadata.get("privacy")
+    return privacy if isinstance(privacy, Mapping) else {}
 
 
 def _extension(record: BigDataLedgerRecord) -> str:

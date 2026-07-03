@@ -66,10 +66,34 @@ def test_import_report_summarizes_candidates_without_private_content(tmp_path):
         "total_document_inventory": 3,
         "safe_candidates": 2,
         "private_review_candidates": 1,
+        "local_only_extract_candidates": 1,
+        "local_only_memory_candidates": 1,
+        "local_only_review_only_candidates": 0,
         "by_extension": {
-            ".docx": {"total": 1, "safe": 0, "private_review": 1},
-            ".md": {"total": 1, "safe": 1, "private_review": 0},
-            ".pdf": {"total": 1, "safe": 1, "private_review": 0},
+            ".docx": {
+                "total": 1,
+                "safe": 0,
+                "private_review": 1,
+                "local_only_extract": 1,
+                "local_only_memory": 1,
+                "local_only_review_only": 0,
+            },
+            ".md": {
+                "total": 1,
+                "safe": 1,
+                "private_review": 0,
+                "local_only_extract": 0,
+                "local_only_memory": 0,
+                "local_only_review_only": 0,
+            },
+            ".pdf": {
+                "total": 1,
+                "safe": 1,
+                "private_review": 0,
+                "local_only_extract": 0,
+                "local_only_memory": 0,
+                "local_only_review_only": 0,
+            },
         },
     }
     assert payload["metadata_only_candidates"] == 5

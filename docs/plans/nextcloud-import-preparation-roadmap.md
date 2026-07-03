@@ -94,6 +94,10 @@ Pilot-Profil 2026-07-03:
 - Grund: alle dokumentartigen Eintraege sind aktuell privacy-gated
   (`local_sensitive` oder `unknown_private`) und muessen vor Extraktion/Pilot
   bewusst freigegeben oder lokal-only behandelt werden.
+- Local-only Gate: dieselben `19.145` Dokumente sind lokal-only
+  extrahierbar, aber `0` sind Memory-Write-Kandidaten. Ohne explizite
+  Policy-Freigabe bleibt der Pilot deshalb auf lokale Extraktion/Review
+  beschraenkt und darf nichts in Memory/RaptorGraph schreiben.
 - Aggregat nach Endung:
   - `.json`: `8.072`
   - `.html`: `6.877`
@@ -823,8 +827,9 @@ Erst nach erfolgreichem Import:
 Als naechstes sollte der Dokument-Pilot gegen eine bewusst ausgewaehlte
 extrahierbare Teilmenge freigegeben werden. Weil aktuell alle dokumentartigen
 Kandidaten privacy-gated sind, braucht der Pilot entweder eine bewusst
-ausgewaehlte lokale-only Teilmenge oder eine verfeinerte Regel, welche
-Top-Level-/Dateityp-Bereiche nicht mehr `unknown_private` sind. Der
+ausgewaehlte lokale-only Teilmenge nur fuer Extraktion/Review oder eine
+verfeinerte Regel, welche Top-Level-/Dateityp-Bereiche nicht mehr
+`unknown_private` sind und Memory-Write-Kandidaten erlaubt. Der
 Vollinventar-Dry-run ist metadata-only erledigt; ein erneuter Vollinventar-Lauf
 ist nur noetig, wenn die lokale Nextcloud-Struktur deutlich geaendert wurde.
 Live-Upload-Smoke und echte Memory/RaptorGraph-Writes bleiben separat gegated.
