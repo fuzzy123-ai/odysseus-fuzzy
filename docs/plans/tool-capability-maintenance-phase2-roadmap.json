@@ -137,16 +137,23 @@
     {
       "id": "TCM2-5-diagnostics-and-audit-readback",
       "class": "repo_only",
-      "status": "planned",
+      "status": "done",
       "owner": "Bob",
       "goal": "Expose a backend diagnostics readback for the latest tool capability snapshot, index status, memory write status, and RaptorGraph event status.",
       "allowed_paths": [
         "routes/*diagnostics*.py",
         "routes/*system*.py",
         "src/tool_capability_maintenance.py",
-        "tests/test_tool_capability_maintenance.py"
+        "tests/test_tool_capability_maintenance.py",
+        "tests/test_tool_capability_diagnostics.py"
       ],
-      "done_when": "A read-only API or existing diagnostics path can report latest snapshot id, timestamp, commit, index status, chunk count, and graph event id without UI changes."
+      "done_when": "A read-only API or existing diagnostics path can report latest snapshot id, timestamp, commit, index status, chunk count, and graph event id without UI changes.",
+      "evidence": [
+        "read_tool_capability_diagnostics returns latest snapshot id, generated_at, commit, index_status, domain counts, memory record ids/count, and RaptorGraph event/readback status.",
+        "GET /api/diagnostics/tool-capabilities is admin-gated and redacted.",
+        "No UI files were changed for this slice.",
+        "Focused suite passed: tests/test_tool_capability_diagnostics.py tests/test_tool_capability_maintenance.py tests/test_homeserver_auto_update_timer.py tests/test_context_orchestrator.py tests/test_memory_provenance_ledger.py -> 29 passed."
+      ]
     },
     {
       "id": "TCM2-6-update-regression-suite",
@@ -194,7 +201,6 @@
   "tomorrow_start": {
     "recommended_first_slice": "TCM2-0-state-check",
     "then": [
-      "TCM2-5-diagnostics-and-audit-readback",
       "TCM2-1-live-post-update-smoke",
       "TCM2-7-final-live-acceptance"
     ]

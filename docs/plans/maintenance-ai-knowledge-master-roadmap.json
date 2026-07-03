@@ -19,7 +19,7 @@
       "id": "TCM2",
       "title": "Tool Capability Maintenance Phase 2",
       "roadmap": "docs/plans/tool-capability-maintenance-phase2-roadmap.json",
-      "status": "planned",
+      "status": "in_progress",
       "summary": "Live post-update smoke, idempotent Memory writes, RaptorGraph event-store integration, self-report guard, diagnostics readback, and final Telegram/chat acceptance."
     }
   ],
@@ -110,10 +110,16 @@
       "id": "MAK-6",
       "name": "Diagnostics And Audit Readback",
       "priority": "P1",
-      "status": "planned",
+      "status": "repo_done_live_gate_pending",
       "depends_on": ["MAK-2", "MAK-3", "MAK-4"],
       "roadmap_slice": "TCM2-5-diagnostics-and-audit-readback",
-      "done_when": "Backend diagnostics can report latest snapshot, index status, memory write status, graph event status, and freshness."
+      "done_when": "Backend diagnostics can report latest snapshot, index status, memory write status, graph event status, and freshness.",
+      "evidence": [
+        "read_tool_capability_diagnostics reports latest snapshot id, timestamp, commit, index status, memory chunk count/ids, and RaptorGraph event/store status.",
+        "GET /api/diagnostics/tool-capabilities is admin-gated and redacted.",
+        "Focused suite passed with 29 tests."
+      ],
+      "remaining": "Confirm the route against the live Debian deployment after pushing and deploying latest fuzzy/dev."
     },
     {
       "id": "MAK-7",
@@ -156,7 +162,7 @@
     "Add/verify updater regression tests.",
     "Memory write executor binding is repo-done; run live gated smoke later.",
     "RaptorGraph/event-store integration is repo-done; run live gated smoke later.",
-    "Add diagnostics readback.",
+    "Diagnostics readback is repo-done; run live readback after deploy.",
     "Commit and push to fuzzy/dev.",
     "Deploy to Debian after operator Go.",
     "Ask Odysseus via Telegram/chat what tools and repo/file capabilities it has."

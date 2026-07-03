@@ -305,6 +305,75 @@ def load_tool_capability_provider_payload(*, query: str = "", budget: int = 0) -
     }
 
 
+def read_tool_capability_diagnostics(
+    *,
+    data_dir: str | Path | None = None,
+    raptorgraph_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """Return a compact, redacted readback of current tool capability knowledge."""
+
+    payload = _load_latest_payload(data_dir)
+    if not payload:
+        result = {
+            "status": "no_data",
+            "snapshot": None,
+            "memory_records": {
+                "count": 0,
+                "ids": (),
+                "written_status": "unknown",
+            },
+            "raptorgraph": {
+                "event_present": False,
+                "event": "",
+                "store_event_count": 0,
+                "latest_event_id": "",
+                "latest_event": "",
+            },
+            "raw_content_visible": False,
+        }
+        _assert_safe_payload(result)
+        return result
+
+    snapshot = payload.get("snapshot") if isinstance(payload.get("snapshot"), Mapping) else {}
+    _assert_snapshot(snapshot)
+    records = tuple(record for record in (payload.get("memory_records") or ()) if isinstance(record, Mapping))
+    for record in records:
+        _assert_safe_payload(record)
+    raptor_event = payload.get("raptorgraph_event") if isinstance(payload.get("raptorgraph_event"), Mapping) else {}
+    if raptor_event:
+        _assert_safe_payload(raptor_event)
+    graph_rows = _read_tool_raptorgraph_rows(raptorgraph_dir)
+    latest_graph = graph_rows[-1] if graph_rows else {}
+    result = {
+        "status": "success",
+        "snapshot": {
+            "id": snapshot.get("id"),
+            "generated_at": snapshot.get("generated_at"),
+            "commit": snapshot.get("commit") or "",
+            "builtin_tool_count": snapshot.get("builtin_tool_count"),
+            "schema_tool_count": snapshot.get("schema_tool_count"),
+            "fingerprint": snapshot.get("fingerprint"),
+            "index_status": dict(snapshot.get("index_status") or {}),
+            "domains": dict(snapshot.get("domains") or {}),
+        },
+        "memory_records": {
+            "count": len(records),
+            "ids": tuple(str(record.get("memory_id") or "") for record in records if record.get("memory_id")),
+            "written_status": "generated",
+        },
+        "raptorgraph": {
+            "event_present": bool(raptor_event),
+            "event": raptor_event.get("event") if raptor_event else "",
+            "store_event_count": len(graph_rows),
+            "latest_event_id": latest_graph.get("event_id") or "",
+            "latest_event": latest_graph.get("event") or "",
+        },
+        "raw_content_visible": False,
+    }
+    _assert_safe_payload(result)
+    return result
+
+
 def refresh_runtime_tool_index(*, enabled: bool = True) -> dict[str, Any]:
     """Force the runtime tool index to pick up current built-ins/plugins."""
 
@@ -520,6 +589,24 @@ def _load_latest_payload(data_dir: str | Path | None = None) -> dict[str, Any]:
         return {}
     _assert_safe_payload(payload)
     return payload
+
+
+def _read_tool_raptorgraph_rows(root: str | Path | None = None) -> list[dict[str, Any]]:
+    path = Path(root or TOOL_CAPABILITY_RAPTORGRAPH_DIR) / "events.jsonl"
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            _assert_safe_payload(row)
+            rows.append(row)
+    return rows
 
 
 def _upsert_tool_memory_record(

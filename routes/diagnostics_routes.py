@@ -112,6 +112,20 @@ def setup_diagnostics_routes(
             logger.error(f"Memory provenance diagnostics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve memory provenance diagnostics")
 
+    @router.get("/api/diagnostics/tool-capabilities")
+    async def get_tool_capabilities(request: Request) -> Dict[str, Any]:
+        """Return redacted tool capability freshness diagnostics."""
+        require_admin(request)
+        try:
+            from src.tool_capability_maintenance import read_tool_capability_diagnostics
+
+            return read_tool_capability_diagnostics()
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"Tool capability diagnostics retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve tool capability diagnostics")
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)
