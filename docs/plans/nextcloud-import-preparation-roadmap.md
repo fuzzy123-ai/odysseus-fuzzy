@@ -108,11 +108,30 @@ Pilot-Profil 2026-07-03:
   - `.md`: `53`
   - `.htm`: `8`
 
+Local-only Pilotprofil 2026-07-03:
+
+- `scripts/nextcloud_import_dry_run.py` unterstuetzt jetzt
+  `--local-only-document-pilot-profile`.
+- Der Modus haengt einen aggregierten lokalen Pilotplan an, ohne ausgewaehlte
+  Items, Item-IDs oder private relative Pfade in das neue Analyse-Artefakt zu
+  schreiben.
+- Sobald dieser Modus aktiv ist, werden Report-Samples auf `0` gesetzt, damit
+  private/local-only Pilotberichte nicht versehentlich Beispielpfade ausgeben.
+- Das Profil enthaelt nur Zaehler wie `selected_count`,
+  `memory_write_candidates`, `review_only_candidates`, `by_extension`,
+  `selected_items_redacted=true` und die erlaubten Aktionen
+  `extract_runtime_only` plus `review_redacted_summary`.
+- Damit ist eine lokale Extraktion/Review-Welle planbar, ohne schon
+  Memory/RaptorGraph-Writes oder private Pfadlisten freizugeben.
+
 Offen:
 
-- Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
-- Live-Smoke braucht konkrete Runtime-Env auf dem Server, dedizierten
-  Nextcloud-User und explizites Operator-Go.
+- Copy-only Live-Smokes gegen die echte Nextcloud sind fuer den Transferpfad
+  erledigt; ein echter Dokument-Pilot mit Extraktion/Review/Memory-Entscheid
+  wurde noch nicht ausgefuehrt.
+- Der Dokument-Pilot braucht eine bewusst ausgewaehlte lokale-only Teilmenge
+  oder eine verfeinerte Safe-Area-Regel. Memory/RaptorGraph-Writes brauchen
+  weiterhin ein separates Gate.
 - Der ZIP-Executor ist als review-gated Backend-Baustein vorhanden; ein
   Live-run gegen echte Nextcloud-/Nutzerdateien bleibt operator-gated.
 - Delete, Move, Rename, Overwrite, Tag-Write, Sidecar-Write ausserhalb des

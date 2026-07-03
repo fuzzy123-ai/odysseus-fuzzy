@@ -2,7 +2,9 @@ import json
 
 from src.bigdata_ledger_contract import AppendOnlyBigDataLedger, BigDataLedgerItem, BigDataLedgerRecord
 from src.nextcloud_document_pilot_import import (
+    append_nextcloud_local_only_document_pilot_profile,
     append_nextcloud_document_pilot_plan,
+    build_nextcloud_local_only_document_pilot_profile,
     build_nextcloud_document_pilot_plan,
 )
 
@@ -151,3 +153,62 @@ def test_append_document_pilot_plan_noops_when_no_candidates(tmp_path):
     assert result.appended is False
     assert result.plan.selected_count == 0
     assert result.plan.skipped_non_document == 1
+
+
+def test_local_only_document_pilot_profile_is_aggregate_only():
+    profile = build_nextcloud_local_only_document_pilot_profile(
+        [
+            _inventory("Privat/private.docx", file_category="document_extractable", privacy_class="local_sensitive"),
+            _inventory("Unknown/report.pdf", file_category="document_extractable", privacy_class="unknown_private"),
+            _inventory("Daten/public.md", file_category="text_extractable"),
+            _inventory("Daten/photo.jpg", file_category="media_metadata"),
+        ],
+        source_id="nextcloud-main",
+        batch_limit=1,
+    )
+    payload = profile.to_dict()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert payload["candidate_count"] == 2
+    assert payload["selected_count"] == 1
+    assert payload["memory_write_candidates"] == 0
+    assert payload["review_only_candidates"] == 2
+    assert payload["interrupted"] is True
+    assert payload["selected_items_redacted"] is True
+    assert payload["by_extension"] == {
+        ".docx": {"total": 1, "memory_write": 0, "review_only": 1},
+        ".pdf": {"total": 1, "memory_write": 0, "review_only": 1},
+    }
+    assert "Privat/private.docx" not in encoded
+    assert "Unknown/report.pdf" not in encoded
+    assert "private body" not in encoded
+
+
+def test_append_local_only_document_pilot_profile_omits_selected_paths(tmp_path):
+    ledger_path = tmp_path / "events.jsonl"
+    ledger = AppendOnlyBigDataLedger(ledger_path)
+    ledger.append_record(
+        _inventory("Privat/private.docx", file_category="document_extractable", privacy_class="local_sensitive")
+    )
+
+    result = append_nextcloud_local_only_document_pilot_profile(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        batch_limit=10,
+    )
+    encoded = ledger_path.read_text(encoding="utf-8")
+
+    assert result.appended is True
+    assert result.profile.selected_count == 1
+    assert result.profile.to_dict()["selected_items_redacted"] is True
+    analysis_records = [
+        record
+        for record in AppendOnlyBigDataLedger(ledger_path).latest_state().values()
+        if record.stage == "analysis"
+        and record.metadata.get("planner") == "nextcloud_local_only_document_pilot_profile"
+    ]
+    encoded_analysis = json.dumps(analysis_records[0].to_dict(), sort_keys=True)
+
+    assert "Privat/private.docx" not in encoded_analysis
+    assert '"selected_items":' not in encoded_analysis
+    assert "selected_items_redacted" in encoded

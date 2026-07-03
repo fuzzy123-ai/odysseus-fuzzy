@@ -183,6 +183,12 @@ Current evidence:
   Memory/RaptorGraph write eligibility. Current aggregate result: `19.145`
   document-like records are local-only extract/review candidates, but `0` are
   Memory-write candidates under the current `unknown_private` policy.
+- 2026-07-03: The dry-run CLI can now append a redacted
+  local-only document pilot profile with `--local-only-document-pilot-profile`.
+  This profile persists only aggregate counts, extension buckets, selected
+  count and gate state; it omits selected item paths and IDs. When the mode is
+  active, report samples are suppressed so private/local-only pilot reports do
+  not expose example paths.
 
 Primary allowed paths:
 
@@ -213,6 +219,7 @@ Slice queue:
 | L1-8-ephemeral-import-ledger | repo_only | Charlie | Done: dry-run CLI can self-delete temporary JSONL ledgers after report generation and blocks that mode for `--skip-scan` reports. |
 | L1-9-full-local-import-inventory | safe_offline | Charlie | Done: full local Nextcloud metadata-only inventory dry-run completed with `--max-samples 0` and `--ephemeral-ledger`; only aggregate evidence was recorded. |
 | L1-10-redacted-document-pilot-profile | repo_only | Charlie | Done: report now exposes document-pilot aggregate counts by extension, privacy gate, local-only extract eligibility and memory-write eligibility without paths or contents. |
+| L1-11-local-only-pilot-plan-profile | repo_only | Charlie | Done: CLI can append an aggregate-only local-only pilot profile with selected item details redacted and report samples suppressed for this privacy-gated mode. |
 
 Gate queue:
 
@@ -1676,7 +1683,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; document pilot import is blocked by current privacy policy until a local-only subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; local-only pilot planning can now be generated as aggregate-only evidence, but actual document extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1691,14 +1698,14 @@ Recommended next human decision:
 - Keep L1 live writes bounded and review-driven. The Nextcloud copy-only smoke
   is already closed; new live write checks should be explicit regression
   requests, not recurring default work.
-- Decide whether the next L1 step is a consciously selected document-pilot
-  import subset or no further Nextcloud import work until the UI review queue
-  is ready. The full metadata-only inventory pass is already complete; repeat
-  it only after meaningful source changes. Current pilot blocker: all
-  document-like records are privacy-gated; local-only extraction/review is
-  possible, but Memory/RaptorGraph writes need either an explicit local-only
-  pilot subset with review or a refined rule for areas no longer treated as
-  `unknown_private`.
+- Decide whether the next L1 step is to run the redacted local-only pilot
+  profile against a consciously selected subset, or to pause further Nextcloud
+  import work until the UI review queue is ready. The full metadata-only
+  inventory pass is already complete; repeat it only after meaningful source
+  changes. Current pilot blocker: all document-like records are privacy-gated;
+  local-only extraction/review is possible, but Memory/RaptorGraph writes need
+  either an explicit local-only pilot subset with review or a refined rule for
+  areas no longer treated as `unknown_private`.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.

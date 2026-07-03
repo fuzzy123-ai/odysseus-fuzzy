@@ -122,6 +122,39 @@ def test_cli_ephemeral_ledger_deletes_metadata_after_report(tmp_path, capsys):
     assert not ledger_path.exists()
 
 
+def test_cli_can_emit_local_only_document_pilot_profile(tmp_path, capsys):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "Privat").mkdir()
+    (root / "Privat" / "private.docx").write_text("private body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger" / "events.jsonl"
+    config_path = _open_test_config(tmp_path)
+
+    rc = main(
+        [
+            "--config",
+            str(config_path),
+            "--root",
+            str(root),
+            "--ledger-path",
+            str(ledger_path),
+            "--skip-software-plan",
+            "--local-only-document-pilot-profile",
+            "--format",
+            "json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert rc == 0
+    assert payload["document_pilot"]["plan"]["selected_count"] == 0
+    assert payload["local_only_document_pilot"]["profile"]["selected_count"] == 1
+    assert payload["local_only_document_pilot"]["profile"]["selected_items_redacted"] is True
+    assert "private body" not in encoded
+    assert "private.docx" not in encoded
+
+
 def test_ephemeral_ledger_is_blocked_for_skip_scan_reports(tmp_path):
     try:
         run_pipeline(
@@ -153,6 +186,7 @@ def _args(**overrides):
         "pilot_id": "pilot-documents",
         "pilot_batch_limit": 100,
         "include_private_pilot_documents": False,
+        "local_only_document_pilot_profile": False,
         "max_samples": 10,
         "ephemeral_ledger": False,
         "format": "json",
