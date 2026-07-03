@@ -45,6 +45,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
 | `docs/plans/nextcloud-source-bridge.md` | aktivierbarer Source-Provider-Plan; Nextcloud laeuft inzwischen auf dem Homeserver |
 | `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md` | Universal-Inbox-Plan fuer Nextcloud Intake, Routing, Metadaten und RaptorGraph-Provenance |
+| `docs/plans/github-issue-intelligence-roadmap.md` | Post-MVP Backend-Track fuer GitHub Issues als strukturierte Arbeitsobjekte; GHISS0-GHISS8 sind repo-seitig abgeschlossen mit Duplicate Preview, Issue Fields Projection, Backend-Routen und schmalem read-only MCP Lookup; echte Provider-Syncs/Writes bleiben live-gated |
 | `docs/plans/vault-longterm-memory.md` | aelterer Langzeitgedaechtnis-Plan, nur noch historischer Kontext |
 
 Wenn Plaene kollidieren, gilt diese Master-Roadmap.
@@ -64,6 +65,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO11 plus Subagent Runtime v1 repo-seitig abgeschlossen; echte Thread-/Git-/Test-/Scheduler-Hooks bleiben Live-Gates |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | aktivierbar, da Nextcloud-Infrastruktur laeuft |
+| `0.21.x` | GitHub Issue Intelligence | Issues als strukturierte Arbeitsobjekte mit Duplicate Preview, provider-neutralen Feldern, GitHub Issue Fields Projection und schmalem read-only MCP Lookup | GHISS0-GHISS8 repo-seitig abgeschlossen; Live GitHub Token, Provider-Sync/Write und optionaler Schedule bleiben explizite Gates |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
 
 ## Fortschrittsformat

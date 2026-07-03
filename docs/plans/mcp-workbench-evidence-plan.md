@@ -47,15 +47,21 @@ read-only by default and auditable.
   contract still excludes generic shell/filesystem/Docker control while keeping
   local MCP readiness, policy filtering, resources and redacted audit checks
   testable.
+- 2026-07-03 GHISS8 repo-only verification passed:
+  `venv/Scripts/python.exe -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py tests/test_github_issue_duplicates.py tests/test_github_issue_tools.py tests/test_github_issue_routes.py tests/test_github_issue_projection.py tests/test_tool_index_schema_parity.py -q`
+  returned `59 passed, 1 warning`. The Odysseus MCP surface now exposes only
+  the narrow read-only `github_issue_find_duplicates` helper for local duplicate
+  lookup over already-synced issue records; mixed/write/raw GitHub tools remain
+  hidden.
 
 ## Workbench Components
 
 | Component | Status | Purpose | Gate |
 | --- | --- | --- | --- |
-| Local Odysseus MCP endpoint | offline tests done, live smoke gated | Verify JSON-RPC, tool policy, readiness and redacted audit. | Live activation needs operator Go. |
+| Local Odysseus MCP endpoint | offline tests done, live smoke gated | Verify JSON-RPC, tool policy, readiness, redacted audit and the narrow read-only GitHub issue duplicate helper. | Live activation needs operator Go. |
 | Codex MCP service setup | gated | Configure corresponding MCP services/connectors in this Codex environment when available. | Needs availability plus explicit Go for non-bundled/networked services. |
 | Playwright/browser evidence | planned | Capture UI flow evidence without private browser profiles or secrets. | Live browser run only against approved local target. |
-| GitHub connector/MCP | planned | Read PR, Actions, review and issue context without manual copying. | Writes need explicit visible approval. |
+| GitHub connector/MCP | planned | Read PR, Actions, review and issue context without manual copying; local Odysseus MCP already exposes read-only duplicate lookup, not provider sync/write. | Writes need explicit visible approval. |
 | Docs MCPs | planned | Read current technical docs for framework/API changes. | Read-only only; no private Odysseus data. |
 | Chrome DevTools MCP | optional | Diagnose console, network and performance issues when Playwright is not enough. | Use only for concrete UI/runtime diagnosis. |
 | Podman read-only checks | repo helper ready, live probe gated | Plan bounded runtime status, ports, health and logs evidence without restart/recreate. | Host execution and mutations remain separately gated. |
@@ -139,6 +145,10 @@ Write scope:
 - PR comments, issue labels, issue updates and review replies require explicit
   visible approval.
 - No generic GitHub API passthrough through Odysseus MCP.
+- Through Odysseus MCP, `github_issue_find_duplicates` may be exposed as a
+  read-only helper. It only calls local duplicate search over already-synced
+  `GitHubIssueRecord` rows and must not accept tokens, sync GitHub, create
+  issues or set GitHub Issue Fields.
 - Push remains a repo/git operation through the existing local policy: use
   `fuzzy/dev`, never `origin` for this fork.
 

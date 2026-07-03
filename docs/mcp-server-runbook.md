@@ -14,6 +14,11 @@ This is intentional. Enabling the plugin creates a powerful automation surface f
 - `expose_all`: not supported in this MVP.
 - Generic API tool: hidden by default.
 - Shell/Python/file-write/email-send/admin/settings/token/plugin-management tools: hidden by default.
+- GitHub Issue Intelligence exposes only the narrow read-only
+  `github_issue_find_duplicates` MCP tool; mixed/write/raw GitHub surfaces such
+  as `manage_github_issues`, issue creation, field writes and generic GitHub
+  passthrough remain hidden unless a future owner-scoped live gate explicitly
+  approves them.
 - `odysseus_notify_user`: allowed when the Telegram plugin has registered the tool, but still dry-run/gated by its own server-side rules.
 - Docker MCP is not part of this deployment model. Runtime checks must assume Podman/pods and remain read-only unless a separate operator approval explicitly allows a mutation.
 
@@ -94,7 +99,15 @@ Confirm these are absent:
 - `manage_tokens`
 - `manage_settings`
 - `manage_mcp`
+- `manage_github_issues`
+- `github_issue_create_triaged`
+- raw or generic GitHub passthrough tools
 - `odysseus_call`
+
+Confirm this read-only helper may be present when GitHub Issue Intelligence is
+installed:
+
+- `github_issue_find_duplicates`
 
 6. Read readiness:
 
