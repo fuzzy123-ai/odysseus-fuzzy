@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1-CTXE7 done; context efficiency contracts, routing policy and redacted evidence records ready; CTXE8 next**
+Status: **done / Go for repo-only pre-1.0 context-efficiency foundation; live provider routing and UI controls remain Deferred**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE8-master-roadmap-closeout`.
+- Naechster sicherer Slice: none in this roadmap; remaining items are live/design/master-integration gates.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -62,7 +62,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/context_orchestrator.py`, `tests/test_context_orchestrator.py` | done: `24 passed, 1 warning` | no live source access |
 | `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `src/simple_task_router_policy.py`, `tests/test_simple_task_router_policy.py`, `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: `7 passed, 1 warning` | no live model calls |
 | `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/context_efficiency_evidence.py`, `tests/test_context_efficiency_evidence.py`, `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: `35 passed, 1 warning` | none |
-| `CTXE8-master-roadmap-closeout` | `repo_only` | Charlie | Fortschritt in MVP-/Release-Status einsortieren: Go/Partial/Deferred, keine 1.0-Ueberzeichnung. | `docs/plans/` only | docs-only | may defer if MVP hotfile dirty |
+| `CTXE8-master-roadmap-closeout` | `repo_only` | Charlie | Fortschritt in MVP-/Release-Status einsortieren: Go/Partial/Deferred, keine 1.0-Ueberzeichnung. | `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: docs-only/no tests | master/unified integration deferred while unrelated hotfile is dirty |
 
 ## Gate Queue
 
@@ -106,7 +106,7 @@ Safe preparation done: This standalone roadmap is safe to read and reference.
 
 Risk if bypassed: Overwriting or mixing unrelated active MVP work.
 
-Next safe slice: `CTXE0-tool-inventory-and-budget-baseline`.
+Next safe slice: none; standalone closeout is complete and master/unified integration remains deferred until the worktree is clean.
 
 ## Paths
 
@@ -148,9 +148,9 @@ Target slice: `CTXE8`.
 
 Done when:
 
-- Master Chat has accepted Go/Partial/Deferred status;
-- MVP/Release status references this roadmap without claiming live provider routing;
-- remaining live/design gates are explicit.
+- standalone roadmap records Go/Partial/Deferred status;
+- MVP/Release status is not overclaimed as 1.0 completion;
+- remaining live/design/master-integration gates are explicit.
 
 ## Verification
 
@@ -364,6 +364,30 @@ Result: `35 passed, 1 warning`.
 
 Next safe slice: `CTXE8-master-roadmap-closeout`.
 
+### CTXE8 Master Roadmap Closeout
+
+Status: done 2026-07-03.
+
+Closeout:
+
+- Repo-only context-efficiency foundation is `Go`.
+- Live provider/model routing remains `Deferred` behind `CTXE-G1`; no live
+  model/provider calls were performed or claimed.
+- UI/settings/dashboard surface remains `Deferred` behind `CTXE-G2`; no UI files
+  were edited for this roadmap.
+- Master/unified roadmap integration remains `Deferred` because the worktree has
+  unrelated active UI edits; this standalone roadmap is the safe source of truth
+  until that integration is explicitly allowed or the worktree is clean.
+- This closeout does not claim Version 1.0 completion; the global 1.0 gate still
+  depends on broader release/live/UI evidence outside this roadmap.
+
+Evidence:
+
+Docs-only closeout. No pytest required for CTXE8; implementation evidence is
+listed in CTXE1-CTXE7.
+
+Next safe slice: none in this roadmap.
+
 ## Go Language
 
 - `Go`: Repo-only models, policies and focused tests are complete; no live provider routing or UI redesign is implied.
@@ -371,6 +395,13 @@ Next safe slice: `CTXE8-master-roadmap-closeout`.
 - `Deferred`: Live provider routing, UI controls, or MVP hotfile integration are intentionally postponed.
 - `No-Go`: The implementation would require live calls, secrets, private source content, destructive git, or a hidden model/tool change.
 - `Blocked`: Existing hotfile conflicts or missing operator decisions prevent safe continuation.
+
+Current closeout language:
+
+- `Go`: CTXE1-CTXE8 repo-only roadmap scope is complete.
+- `Deferred`: CTXE-G1 live provider routing, CTXE-G2 UI surface, and CTXE-G3
+  master/unified hotfile integration.
+- `No-Go`: Any claim that this roadmap alone makes Odysseus `1.0.0` complete.
 
 ## First Delegation Prompts
 
