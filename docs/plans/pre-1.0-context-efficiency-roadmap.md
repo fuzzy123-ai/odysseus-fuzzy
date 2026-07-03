@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1-CTXE5 done; manifest-first tool/schema/provider flow, session envelope and cache-boundary policy ready; CTXE6 next**
+Status: **CTXE1-CTXE6 done; context efficiency contracts and simple routing policy ready; CTXE7 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE6-simple-task-router-policy`.
+- Naechster sicherer Slice: `CTXE7-truth-and-telemetry-evidence`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -60,7 +60,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | `CTXE3-session-envelope-hash` | `repo_only` | Bob | Session-Envelope modellieren: model ref, reasoning/context budget, active tool manifest set, system prompt version, MCP/plugin selection, cache boundary marker. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `19 passed, 1 warning` | none |
 | `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `24 passed, 1 warning` | none |
 | `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/context_orchestrator.py`, `tests/test_context_orchestrator.py` | done: `24 passed, 1 warning` | no live source access |
-| `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `docs/plans/`, optional `src/*routing*.py` if model-only | docs-only or focused model tests | no live model calls |
+| `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `src/simple_task_router_policy.py`, `tests/test_simple_task_router_policy.py`, `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: `7 passed, 1 warning` | no live model calls |
 | `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/`, `tests/`, `docs/plans/` narrow evidence files | focused pytest | none |
 | `CTXE8-master-roadmap-closeout` | `repo_only` | Charlie | Fortschritt in MVP-/Release-Status einsortieren: Go/Partial/Deferred, keine 1.0-Ueberzeichnung. | `docs/plans/` only | docs-only | may defer if MVP hotfile dirty |
 
@@ -302,6 +302,37 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_context_orc
 Result: `24 passed, 1 warning`.
 
 Next safe slice: `CTXE6-simple-task-router-policy`.
+
+### CTXE6 Simple Task Router Policy
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- `SimpleTaskRoute` and `SimpleTaskKind` in
+  `src/simple_task_router_policy.py`.
+- `route_simple_task(...)` deterministic policy for pre-1.0 routing language:
+  simple summarization/classification/extraction/focused edits can stay on the
+  maintenance model, while tool signals, multi-file/debug/roadmap/research
+  signals and too-small budgets route to tool orchestration, strong reasoning
+  or review.
+- Local-only handling for trusted sensitive metadata and secret-like prompt
+  markers without exposing raw prompts in audit summaries.
+- Redacted `SimpleTaskRoutingDecision.audit_summary()` with only counts, route,
+  task kind and reason codes.
+- Focused tests for maintenance eligibility, tool orchestration, multi-file
+  strong reasoning, local-only sensitive work, review on tiny budgets and
+  redacted audit output.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_simple_task_router_policy.py -q
+```
+
+Result: `7 passed, 1 warning`.
+
+Next safe slice: `CTXE7-truth-and-telemetry-evidence`.
 
 ## Go Language
 
