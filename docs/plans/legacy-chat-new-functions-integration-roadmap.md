@@ -10,9 +10,12 @@ Owner: operator + Codex
   `docs/plans/legacy-chat-new-functions-endpoint-inventory.md`.
 - Machine-readable slice overview is captured in
   `docs/plans/legacy-chat-new-functions-master-roadmap.json`.
+- LC1 backend route contract is available for UI wiring:
+  `GET /api/security/dsgvo/status`, `POST /api/security/dsgvo/toggle`, and
+  `POST /api/security/dsgvo`.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0.
+- No legacy or V2 UI code has been changed for LC0/LC1 backend work.
 
 ## Goal
 

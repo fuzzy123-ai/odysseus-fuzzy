@@ -676,6 +676,10 @@ app.include_router(setup_preset_routes(preset_manager))
 from routes.diagnostics_routes import setup_diagnostics_routes
 app.include_router(setup_diagnostics_routes(rag_manager, rag_available, research_handler, memory_vector))
 
+# Security / privacy runtime
+from routes.security_routes import setup_security_routes
+app.include_router(setup_security_routes())
+
 # System update / backup status
 from routes.system_update_routes import setup_system_update_routes
 app.include_router(setup_system_update_routes())

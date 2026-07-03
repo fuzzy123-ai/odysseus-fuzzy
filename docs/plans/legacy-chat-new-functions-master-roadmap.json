@@ -18,7 +18,12 @@
     "mvp_roadmaps_1_to_10_percent": 100,
     "version_1_0_ui_live": false,
     "lc0_inventory": "docs/plans/legacy-chat-new-functions-endpoint-inventory.md",
-    "legacy_roadmap": "docs/plans/legacy-chat-new-functions-integration-roadmap.md"
+    "legacy_roadmap": "docs/plans/legacy-chat-new-functions-integration-roadmap.md",
+    "lc1_backend_contract": [
+      "GET /api/security/dsgvo/status",
+      "POST /api/security/dsgvo/toggle",
+      "POST /api/security/dsgvo"
+    ]
   },
   "slices": [
     {
@@ -52,12 +57,14 @@
       "id": "LC1",
       "title": "Secure mode chat indicator",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "inline + slash",
       "requires": [
-        "Browser-safe DSGVO status/toggle route or confirmed existing equivalent"
+        "GET /api/security/dsgvo/status",
+        "POST /api/security/dsgvo/toggle",
+        "POST /api/security/dsgvo"
       ],
-      "why_not_100": "Backend browser status/toggle contract is not confirmed."
+      "why_not_100": "Backend route contract is ready; legacy chat indicator UI is not implemented in this backend-first slice."
     },
     {
       "id": "LC2",
@@ -166,13 +173,6 @@
   ],
   "open_backend_contracts": [
     {
-      "id": "SECURITY_DSGVO_BROWSER_ROUTE",
-      "blocks": [
-        "LC1"
-      ],
-      "decision": "Add or confirm browser-safe DSGVO status/toggle endpoints."
-    },
-    {
       "id": "UIX_ATTACHMENT_STATUS_ROUTE",
       "blocks": [
         "LC2"
@@ -202,7 +202,7 @@
     }
   ],
   "recommended_next": [
-    "LC1: confirm or add DSGVO browser status route, then wire a compact legacy chat indicator.",
+    "LC1: let the UI agent wire a compact legacy chat indicator against /api/security/dsgvo/status.",
     "LC2: expose redacted Universal Inbox attachment status, then render it in attachment chips/user footer.",
     "LC5: improve task/reminder summaries because the backend routes already exist."
   ]
