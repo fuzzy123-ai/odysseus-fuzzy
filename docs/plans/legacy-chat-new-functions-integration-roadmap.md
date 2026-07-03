@@ -28,6 +28,10 @@ Owner: operator + Codex
   `GET /api/review-gates/status`. It summarizes pending Nextcloud copy,
   Memory write, RaptorGraph write and file export decisions as redacted gate
   metadata without raw text, paths, chat IDs, message IDs or token values.
+- LC5 backend route contract is available for UI wiring:
+  `GET /api/tasks/summary`. It returns compact redacted task/reminder
+  summaries and collapses weekday cron rules such as `0 9 * * 1-5` to one
+  readable recurrence label: `Mo-Fr 09:00`.
 - LC6 backend route contract is available for UI wiring:
   `GET /api/universal-file-io/capabilities` and
   `POST /api/universal-file-io/export-plan`. The plan endpoint hashes unsafe
@@ -36,7 +40,7 @@ Owner: operator + Codex
   delivery.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC4 and LC6 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC6 backend work.
 
 ## Goal
 

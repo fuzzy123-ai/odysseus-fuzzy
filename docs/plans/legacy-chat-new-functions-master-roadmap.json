@@ -33,6 +33,9 @@
     "lc4_backend_contract": [
       "GET /api/review-gates/status"
     ],
+    "lc5_backend_contract": [
+      "GET /api/tasks/summary"
+    ],
     "lc6_backend_contract": [
       "GET /api/universal-file-io/capabilities",
       "POST /api/universal-file-io/export-plan"
@@ -116,12 +119,12 @@
       "id": "LC5",
       "title": "Task and reminder feedback",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "slash command + task result block",
       "requires": [
-        "Existing /api/tasks routes"
+        "GET /api/tasks/summary"
       ],
-      "why_not_100": "Renderer and slash summaries are not implemented yet."
+      "why_not_100": "Backend route contract is ready; slash command and task result block UI wiring are not implemented in this backend-first slice."
     },
     {
       "id": "LC6",
@@ -191,7 +194,8 @@
     "LC2: let the UI agent render /api/universal-inbox/items/{source_ref}/status in attachment chips/user footers.",
     "LC3: let the UI agent route internal Memory/RaptorGraph links through /api/internal-refs/resolve.",
     "LC4: let the UI agent render /api/review-gates/status as compact redacted action rows.",
+    "LC5: let the UI agent render /api/tasks/summary for compact reminder/task summaries.",
     "LC6: let the UI agent render /api/universal-file-io/export-plan as an attachment follow-up preview.",
-    "LC5, LC7, LC8 or LC9: continue backend-first with compact read contracts where needed."
+    "LC7, LC8 or LC9: continue backend-first with compact read contracts where needed."
   ]
 }
