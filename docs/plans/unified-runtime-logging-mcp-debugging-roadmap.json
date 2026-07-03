@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.unified_runtime_logging_mcp_debugging_roadmap",
   "updated_at": "2026-07-03",
-  "status": "in_progress",
+  "status": "repo_slices_done_live_gated",
   "mode": "parallel_ready_handoff",
   "title": "Unified Runtime Logging And MCP Debugging Roadmap",
   "goal": "Unify Odysseus runtime logs, ledgers and Telegram diagnostics behind one redacted event model and expose full read-only MCP debugging and analysis capabilities for operators and coding agents.",

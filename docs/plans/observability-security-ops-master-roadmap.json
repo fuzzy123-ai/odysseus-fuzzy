@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.observability_security_ops_master_roadmap",
   "updated_at": "2026-07-03",
-  "status": "in_progress",
+  "status": "repo_slices_done_live_gated",
   "mode": "master_coordination",
   "title": "Observability Security And Operations Master Roadmap",
   "goal": "Coordinate Debian observability, unified runtime logging, MCP debugging and defensive incident response into one backend-first operations program for Odysseus.",
@@ -11,7 +11,7 @@
       "id": "DEB-OBS",
       "path": "docs/plans/debian-observability-security-handoff-roadmap.json",
       "title": "Debian Observability And Active Security Roadmap",
-      "status": "planned",
+      "status": "repo_contracts_done_live_gated",
       "priority": "P0",
       "role": "Infrastructure layer: Prometheus, Grafana, Loki, log agent, Podman metrics and CrowdSec."
     },
@@ -19,7 +19,7 @@
       "id": "ULOG",
       "path": "docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json",
       "title": "Unified Runtime Logging And MCP Debugging Roadmap",
-      "status": "in_progress",
+      "status": "repo_slices_done_live_gated",
       "priority": "P0",
       "role": "Data and tool layer: unified redacted events, Telegram diagnostics, read-only MCP debugging and debug bundles."
     },
@@ -27,7 +27,7 @@
       "id": "SIR",
       "path": "docs/plans/security-incident-response-escalation-roadmap.json",
       "title": "Security Incident Response And Escalation Roadmap",
-      "status": "in_progress",
+      "status": "repo_slices_done_live_gated",
       "priority": "P1",
       "role": "Decision layer: escalation ladder, incident model, response policy and gated remediation."
     }

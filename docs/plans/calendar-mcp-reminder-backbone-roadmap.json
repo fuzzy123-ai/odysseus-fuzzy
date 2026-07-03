@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.calendar_mcp_reminder_backbone_roadmap",
   "updated_at": "2026-07-03",
-  "status": "in_progress",
+  "status": "repo_slices_done_live_gated",
   "mode": "backend_logic_first",
   "title": "Calendar MCP And Reminder Backbone Roadmap",
   "goal": "Turn calendar, todo reminders, scheduled digests and Telegram notifications into one coherent owner-scoped calendar/reminder capability with a built-in MCP server behind it.",

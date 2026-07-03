@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.debian_observability_security_handoff_roadmap",
   "updated_at": "2026-07-03",
-  "status": "planned",
+  "status": "repo_contracts_done_live_gated",
   "mode": "handoff",
   "title": "Debian Observability And Active Security Roadmap",
   "goal": "Build a small, Podman-aware observability and security backbone for the Debian Odysseus server so performance, health, logs, security decisions and Odysseus runtime failures become inspectable and alertable.",
