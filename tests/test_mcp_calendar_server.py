@@ -11,7 +11,7 @@ from tests.helpers.sqlite_db import make_temp_sqlite
 clear_fake_database_modules()
 
 import core.database as cdb
-from core.database import CalendarCal, CalendarEvent, CrewMember, Note, ScheduledTask
+from core.database import CalendarCal, CalendarDeletedEvent, CalendarEvent, CrewMember, Note, ScheduledTask
 
 import mcp_servers.calendar_server as calendar_server
 
@@ -33,7 +33,7 @@ def _bind_temp_db(monkeypatch):
 def _reset_db():
     db = _TS()
     try:
-        for model in (ScheduledTask, Note, CalendarEvent, CalendarCal, CrewMember):
+        for model in (ScheduledTask, Note, CalendarEvent, CalendarDeletedEvent, CalendarCal, CrewMember):
             db.query(model).delete()
         db.commit()
     finally:
@@ -168,6 +168,53 @@ def test_calendar_mcp_resources_return_json(monkeypatch):
 
     assert payload["status"] == "success"
     assert payload["counts"] == {"due_notes": 1, "scheduled_tasks": 1}
+    assert payload["raw_content_visible"] is False
+
+
+def test_calendar_mcp_readiness_exposes_caldav_diagnostics_redacted(monkeypatch):
+    _reset_db()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+    monkeypatch.setattr("src.caldav_sync._load_caldav_accounts", lambda owner: [{
+        "id": "nextcloud-primary",
+        "label": "Private Nextcloud",
+        "url": "https://nextcloud.example.test/remote.php/dav",
+        "username": "private-user",
+        "password": "private-password",
+    }])
+    db = _TS()
+    try:
+        db.add(CalendarCal(id="cal-alice", owner="alice", name="Alice", source="caldav"))
+        db.add(CalendarEvent(
+            uid="evt-pending",
+            calendar_id="cal-alice",
+            summary="Pending private event",
+            dtstart=datetime(2026, 7, 4, 9, 0),
+            dtend=datetime(2026, 7, 4, 10, 0),
+            caldav_sync_pending="create",
+        ))
+        db.add(CalendarDeletedEvent(
+            uid="evt-deleted",
+            owner="alice",
+            calendar_id="cal-alice",
+            summary="Private deleted event",
+            last_error="AuthorizationError: private-password rejected",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    payload = _tool_json("calendar_readiness", {})
+    encoded = json.dumps(payload, ensure_ascii=False)
+
+    assert payload["pending_caldav_writebacks"] == 1
+    assert payload["pending_caldav_writebacks_by_action"] == {"create": 1}
+    assert payload["pending_caldav_delete_tombstones"] == 1
+    assert payload["caldav_accounts_configured"] == 1
+    assert payload["caldav_accounts"][0]["password_configured"] is True
+    assert payload["caldav_delete_tombstone_errors"][0]["error_hash"]
+    assert "private-password" not in encoded
+    assert "evt-pending" not in encoded
+    assert "evt-deleted" not in encoded
     assert payload["raw_content_visible"] is False
 
 

@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
+import hashlib
 import re
 import uuid
+from urllib.parse import urlparse
 
 
 CALENDAR_CAPABILITY_SCHEMA = "odysseus.calendar_capability.v1"
@@ -117,8 +119,10 @@ def build_calendar_readiness(*, owner: str | None = None) -> dict[str, Any]:
             task_query = task_query.filter(ScheduledTask.owner == owner)
             tombstone_query = tombstone_query.filter(CalendarDeletedEvent.owner == owner)
 
-        pending_writebacks = event_query.filter(CalendarEvent.caldav_sync_pending.isnot(None)).count()
-        caldav_accounts = _count_caldav_accounts(owner)
+        pending_event_rows = event_query.filter(CalendarEvent.caldav_sync_pending.isnot(None)).all()
+        pending_writebacks = len(pending_event_rows)
+        tombstone_rows = tombstone_query.all()
+        caldav_accounts = _caldav_account_readiness(owner)
         active_telegram_tasks = task_query.filter(
             ScheduledTask.status == "active",
             ScheduledTask.output_target.in_(("telegram", "notification:telegram")),
@@ -132,9 +136,14 @@ def build_calendar_readiness(*, owner: str | None = None) -> dict[str, Any]:
             "due_notes": note_query.filter(Note.due_date.isnot(None), Note.due_date != "").count(),
             "scheduled_tasks": task_query.count(),
             "active_telegram_tasks": active_telegram_tasks,
-            "caldav_accounts_configured": caldav_accounts,
+            "caldav_accounts_configured": len(caldav_accounts),
+            "caldav_accounts": caldav_accounts,
+            "caldav_sync_window": _caldav_sync_window_packet(),
             "pending_caldav_writebacks": pending_writebacks,
-            "pending_caldav_delete_tombstones": tombstone_query.count(),
+            "pending_caldav_writebacks_by_action": _pending_writeback_counts(pending_event_rows),
+            "pending_caldav_writeback_samples": _pending_writeback_samples(pending_event_rows),
+            "pending_caldav_delete_tombstones": len(tombstone_rows),
+            "caldav_delete_tombstone_errors": _tombstone_error_packets(tombstone_rows),
             "raw_content_visible": False,
         }
     finally:
@@ -815,13 +824,85 @@ def _compute_next_run_for_plan(*, owner: str | None, scheduled_time: str, cron_e
         db.close()
 
 
-def _count_caldav_accounts(owner: str | None) -> int:
+def _caldav_account_readiness(owner: str | None) -> list[dict[str, Any]]:
     try:
         from src.caldav_sync import _load_caldav_accounts
 
-        return len(_load_caldav_accounts(owner or ""))
+        accounts = _load_caldav_accounts(owner or "")
     except Exception:
-        return 0
+        return []
+    return [_redacted_caldav_account(account) for account in accounts if isinstance(account, dict)]
+
+
+def _redacted_caldav_account(account: dict[str, Any]) -> dict[str, Any]:
+    url = str(account.get("url") or "")
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    account_id = str(account.get("id") or account.get("label") or host or "account")
+    return {
+        "id_hash": _stable_short_hash(account_id),
+        "label": _safe_text(account.get("label") or "", max_len=80),
+        "url_scheme": parsed.scheme if parsed.scheme in {"http", "https"} else "",
+        "url_host": _safe_text(host, max_len=120),
+        "username_configured": bool(account.get("username")),
+        "password_configured": bool(account.get("password")),
+        "raw_content_visible": False,
+    }
+
+
+def _caldav_sync_window_packet() -> dict[str, Any]:
+    try:
+        from src import caldav_sync
+
+        return {
+            "lookback_days": int(getattr(caldav_sync, "_LOOKBACK_DAYS", 90)),
+            "lookahead_days": int(getattr(caldav_sync, "_LOOKAHEAD_DAYS", 365)),
+            "private_caldav_allowed": bool(caldav_sync._private_caldav_allowed()),
+        }
+    except Exception:
+        return {"lookback_days": 90, "lookahead_days": 365, "private_caldav_allowed": False}
+
+
+def _pending_writeback_counts(events: Iterable[Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for event in events:
+        action = _safe_text(getattr(event, "caldav_sync_pending", "") or "unknown", max_len=24)
+        counts[action] = counts.get(action, 0) + 1
+    return counts
+
+
+def _pending_writeback_samples(events: Iterable[Any]) -> list[dict[str, Any]]:
+    samples: list[dict[str, Any]] = []
+    for event in list(events)[:5]:
+        samples.append({
+            "uid_hash": _stable_short_hash(getattr(event, "uid", "") or ""),
+            "calendar_id_hash": _stable_short_hash(getattr(event, "calendar_id", "") or ""),
+            "action": _safe_text(getattr(event, "caldav_sync_pending", "") or "", max_len=24),
+            "raw_content_visible": False,
+        })
+    return samples
+
+
+def _tombstone_error_packets(tombstones: Iterable[Any]) -> list[dict[str, Any]]:
+    packets: list[dict[str, Any]] = []
+    for tombstone in list(tombstones)[:5]:
+        error = str(getattr(tombstone, "last_error", "") or "")
+        packets.append({
+            "uid_hash": _stable_short_hash(getattr(tombstone, "uid", "") or ""),
+            "calendar_id_hash": _stable_short_hash(getattr(tombstone, "calendar_id", "") or ""),
+            "error_hash": _stable_short_hash(error) if error else "",
+            "error_class": _safe_text(error.split(":", 1)[0], max_len=80) if error else "",
+            "error_length": len(error),
+            "raw_content_visible": False,
+        })
+    return packets
+
+
+def _stable_short_hash(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
 
 def _iso(value: Any) -> str:

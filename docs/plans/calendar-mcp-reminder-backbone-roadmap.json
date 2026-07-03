@@ -167,7 +167,7 @@
       "id": "CAL-MCP-6-caldav-nextcloud-readiness",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "goal": "Expose CalDAV/Nextcloud sync and writeback health as calendar readiness diagnostics.",
       "allowed_paths": [
         "src/calendar_capability_service.py",
@@ -178,7 +178,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py tests/test_mcp_calendar_server.py -q"
       ],
-      "done_when": "Readiness reports configured accounts, sync windows, pending writebacks and last errors in redacted form."
+      "done_when": "Readiness reports configured accounts, sync windows, pending writebacks and last errors in redacted form.",
+      "evidence": "Calendar readiness now includes redacted CalDAV account diagnostics, sync window metadata, pending writeback counts by action, hashed writeback samples, delete tombstone counts and hashed last-error metadata; Calendar MCP exposes the same readiness payload and tests verify no credentials or raw UIDs leak."
     },
     {
       "id": "CAL-MCP-7-live-telegram-reminder-smoke",

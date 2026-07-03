@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-6-caldav-nextcloud-readiness",
-    "reason": "CAL-MCP-0 through CAL-MCP-5 are complete; the next backend-safe calendar slice exposes CalDAV/Nextcloud readiness and pending writebacks in redacted diagnostics before live smokes."
+    "id": "ACPR-7-publish-and-deploy-gates",
+    "reason": "CAL-MCP-0 through CAL-MCP-6 are complete; CAL-MCP-7 remains live-gated, so the next safe backend slice is publish/deploy gate hardening for autonomous coding."
   }
 }

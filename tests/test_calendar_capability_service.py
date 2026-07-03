@@ -9,7 +9,7 @@ from tests.helpers.sqlite_db import make_temp_sqlite
 clear_fake_database_modules()
 
 import core.database as cdb
-from core.database import CalendarCal, CalendarEvent, CrewMember, Note, ScheduledTask
+from core.database import CalendarCal, CalendarDeletedEvent, CalendarEvent, CrewMember, Note, ScheduledTask
 
 _TS, _ENGINE, _TMPDB = make_temp_sqlite(cdb.Base.metadata)
 
@@ -27,7 +27,7 @@ def _bind_temp_db(monkeypatch):
 def _reset_db():
     db = _TS()
     try:
-        for model in (ScheduledTask, Note, CalendarEvent, CalendarCal, CrewMember):
+        for model in (ScheduledTask, Note, CalendarEvent, CalendarDeletedEvent, CalendarCal, CrewMember):
             db.query(model).delete()
         db.commit()
     finally:
@@ -139,10 +139,17 @@ def test_todo_digest_schedule_plan_accepts_weekday_ranges():
     assert plan["cron_expression"] == "0 9 * * 1,2,3,4,5"
 
 
-def test_calendar_readiness_reports_redacted_counts():
+def test_calendar_readiness_reports_redacted_counts(monkeypatch):
     from src.calendar_capability_service import build_calendar_readiness
 
     _reset_db()
+    monkeypatch.setattr("src.caldav_sync._load_caldav_accounts", lambda owner: [{
+        "id": "nextcloud-primary",
+        "label": "Private Nextcloud",
+        "url": "https://nextcloud.example.test/remote.php/dav",
+        "username": "private-user",
+        "password": "private-password",
+    }])
     db = _TS()
     try:
         db.add(CalendarCal(id="cal-alice", owner="alice", name="Alice", source="caldav"))
@@ -153,6 +160,13 @@ def test_calendar_readiness_reports_redacted_counts():
             dtstart=datetime(2026, 7, 4, 9, 0),
             dtend=datetime(2026, 7, 4, 10, 0),
             caldav_sync_pending="update",
+        ))
+        db.add(CalendarDeletedEvent(
+            uid="evt-deleted",
+            owner="alice",
+            calendar_id="cal-alice",
+            summary="Private deleted event",
+            last_error="AuthorizationError: private-password rejected",
         ))
         db.add(Note(id="note-due", owner="alice", title="Due", due_date="2026-07-04T08:30:00"))
         db.add(ScheduledTask(
@@ -174,5 +188,17 @@ def test_calendar_readiness_reports_redacted_counts():
     assert readiness["events"] == 1
     assert readiness["due_notes"] == 1
     assert readiness["active_telegram_tasks"] == 1
+    assert readiness["caldav_accounts_configured"] == 1
+    assert readiness["caldav_accounts"][0]["password_configured"] is True
+    assert readiness["caldav_accounts"][0]["url_host"] == "nextcloud.example.test"
     assert readiness["pending_caldav_writebacks"] == 1
+    assert readiness["pending_caldav_writebacks_by_action"] == {"update": 1}
+    assert readiness["pending_caldav_writeback_samples"][0]["uid_hash"]
+    assert readiness["pending_caldav_delete_tombstones"] == 1
+    assert readiness["caldav_delete_tombstone_errors"][0]["error_hash"]
+    assert readiness["caldav_sync_window"]["lookahead_days"] >= 1
     assert readiness["raw_content_visible"] is False
+    encoded = str(readiness)
+    assert "private-password" not in encoded
+    assert "evt-pending" not in encoded
+    assert "evt-deleted" not in encoded
