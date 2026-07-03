@@ -28,6 +28,11 @@ Scope: safe_offline inventory only
 
 ## Endpoint Map By Slice
 
+UI-agent bridge:
+
+- `GET /api/legacy-chat/contracts` returns the compact LC1-LC10 manifest for
+  wiring legacy chat affordances without reading these docs at runtime.
+
 | Slice | Surface | Existing endpoints/contracts | Preferred legacy hook | Missing backend endpoint before UI work |
 | - | - | - | - | - |
 | LC1 secure mode indicator | inline + slash | Telegram `/dsgvo` command path in `plugins/telegram/plugin.py`; Telegram readiness includes `privacy_boundary`; browser-safe DSGVO contract now exists: `GET /api/security/dsgvo/status`, `POST /api/security/dsgvo/toggle`, `POST /api/security/dsgvo`. | `static/js/chat.js` composer/header chip plus `static/js/slashCommands.js` `/dsgvo` status/toggle. | No backend blocker. UI wiring remains intentionally separate. |

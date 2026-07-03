@@ -51,6 +51,9 @@
     ],
     "lc10_backend_contract": [
       "GET /api/live-affordances/readiness"
+    ],
+    "ui_agent_contract_manifest": [
+      "GET /api/legacy-chat/contracts"
     ]
   },
   "slices": [
@@ -206,6 +209,7 @@
     "LC7: let the UI agent render /api/diagnostics/quick-status for compact MCP/system summaries.",
     "LC8: let the UI agent render /api/coding-agent/quick-entry as a compact coding task entry/status card.",
     "LC9: let the UI agent render /api/diagnostics/quick-summary as compact redacted diagnostics blocks.",
+    "UI agent: use /api/legacy-chat/contracts as the compact LC1-LC10 manifest before wiring legacy chat affordances.",
     "LC10: let the UI agent render /api/live-affordances/readiness as disabled/gated live-action affordances; real execution remains action-specific live work."
   ]
 }

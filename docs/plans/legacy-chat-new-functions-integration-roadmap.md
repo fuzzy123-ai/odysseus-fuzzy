@@ -58,6 +58,10 @@ Owner: operator + Codex
   Nextcloud copy and converter execution readiness as redacted gates. It does
   not send, copy, convert, probe the network, reveal tokens/chat IDs/paths, or
   start external converter processes.
+- A single UI-agent manifest is available:
+  `GET /api/legacy-chat/contracts`. It lists LC1-LC10 surfaces, hooks and
+  backend endpoints in one redacted admin-gated contract, without executing
+  live actions or exposing raw values.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
 - No legacy or V2 UI code has been changed for LC0-LC10 backend work.
@@ -431,5 +435,7 @@ Manual smoke targets:
 
 ## Recommended Next Human Decision
 
-Start with LC0-LC2 in one small ABC pass. These give the biggest day-to-day
-benefit in legacy chat without stepping on the V2 UI work.
+Let the UI agent consume `GET /api/legacy-chat/contracts` and wire LC1-LC10
+incrementally in the legacy chat or V2 surfaces. Backend live execution for
+Telegram delivery, Nextcloud copy and converters remains separate, bounded
+operator-gated work.
