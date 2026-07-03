@@ -60,6 +60,7 @@ _ADMIN_TOOLS = {
     "manage_embeddings",
     "manage_plugins",
     "manage_repos",
+    "manage_github_issues",
     "manage_settings",
     "recent_changes",
     "download_model",
@@ -403,6 +404,7 @@ async def _execute_tool_block_impl(
         do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
         do_manage_mcp, do_manage_webhooks, do_manage_tokens,
         do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_repos, do_manage_settings, do_manage_notes,
+        do_manage_github_issues,
         do_manage_calendar,
         do_download_model, do_serve_model, do_list_served_models, do_stop_served_model,
         do_tail_serve_output,
@@ -670,6 +672,9 @@ async def _execute_tool_block_impl(
     elif tool == "manage_repos":
         desc = "manage_repos"
         result = await do_manage_repos(content, owner=owner)
+    elif tool == "manage_github_issues":
+        desc = "manage_github_issues"
+        result = await do_manage_github_issues(content, owner=owner)
     elif tool == "manage_settings":
         desc = "manage_settings"
         result = await do_manage_settings(content, owner=owner)

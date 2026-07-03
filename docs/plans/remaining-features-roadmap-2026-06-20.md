@@ -202,8 +202,13 @@ Current status 2026-07-03:
   `tests/test_github_issue_duplicates.py` implement and verify top-3 duplicate
   previews with score/reason, sensible open/closed ranking, high-confidence
   auto-create blocking and local pending duplicate evidence persistence.
-- Remaining P9 work starts at GHISS5 agent tools. No GitHub token, network call
-  or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3/GHISS4.
+- GHISS5 is complete: `manage_github_issues` is wired through tool schema,
+  parser conversion, dispatcher, tool index, security policy, MCP policy,
+  prompt/admin surfaces and deterministic discovery hints. Local duplicate
+  search is read-only; sync and write-like actions return confirmation/live
+  gates instead of provider calls.
+- Remaining P9 work starts at GHISS6 backend route contracts. No GitHub token,
+  network call or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3/GHISS4/GHISS5.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the

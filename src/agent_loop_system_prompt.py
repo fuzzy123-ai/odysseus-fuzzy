@@ -538,7 +538,7 @@ _ADMIN_TOOLS = {
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "manage_documents", "manage_settings", "create_session", "list_sessions",
     "send_to_session", "pipeline", "ask_teacher", "list_models",
-    "recent_changes", "manage_repos",
+    "recent_changes", "manage_repos", "manage_github_issues",
 }
 
 def _build_base_prompt(

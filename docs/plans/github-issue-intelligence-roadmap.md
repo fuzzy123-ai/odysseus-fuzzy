@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS4 repo slices complete; tools, routes, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS5 repo slices complete; route contracts, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -524,25 +524,49 @@ Done when:
 - Write tools require explicit confirmation.
 - MCP policy classifies write tools as gated.
 
-### GHISS6 Routes And UI
+Status: done.
+
+Evidence:
+
+- `src/tool_domains/github_issues.py` implements the conservative
+  `manage_github_issues` backend surface.
+- `duplicate_search` runs local/read-only duplicate preview against already
+  synced `GitHubIssueRecord` rows.
+- `sync` returns a bounded live-read gate and never accepts provider tokens in
+  chat.
+- `create_triaged` and `set_fields` require confirmation and then return
+  explicit live/auth gates instead of writing to GitHub in this repo-only slice.
+- Tool wiring is registered in `src/agent_tools/__init__.py`,
+  `src/tool_schema_definitions.py`, `src/tool_schemas.py`,
+  `src/tool_execution.py`, `src/tool_implementations.py`, `src/tool_index.py`,
+  `src/tool_security.py`, `src/mcp_server_tool_policy.py`,
+  `src/agent_loop_intent.py`, `src/agent_loop_system_prompt.py`,
+  `src/agent_loop_prompts.py` and `src/chat_agent_tool_discovery_map.py`.
+- `tests/test_github_issue_tools.py` verifies schema/index/security/MCP wiring,
+  function-call conversion, dispatcher execution, local duplicate search,
+  confirmation/live gates and high-confidence duplicate blocking.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py tests\test_github_issue_index.py tests\test_github_issue_duplicates.py tests\test_github_issue_tools.py tests\test_tool_index_schema_parity.py tests\test_mcp_server_tool_policy.py -q`
+  -> `38 passed, 1 warning`.
+
+### GHISS6 Route Contracts
 
 Goal:
-- Add compact admin/user UI for issue sync and draft duplicate preview.
+- Add compact backend route contracts for issue sync readiness, local duplicate
+  preview and write-plan gates. UI placement remains a separate UI-agent task.
 
 Expected files:
 
 - `routes/github_issue_routes.py`
-- `static/js/githubIssues.js`
-- `static/style.css`
 - route registration in app setup
-- focused route/UI tests
+- focused route tests
 
 Done when:
 
-- User can sync a repo.
-- User can draft an issue and see top 3 duplicate candidates.
-- User can edit internal fields before create.
-- Text fits mobile/desktop and no nested-card UI is introduced.
+- API caller can request sync readiness without live provider action.
+- API caller can draft an issue and see top 3 duplicate candidates.
+- API caller can request internal field/write plans without provider writes.
+- UI placement, text fit and visual behavior are tracked outside backend ABC.
 
 ### GHISS7 GitHub Issue Fields Projection
 

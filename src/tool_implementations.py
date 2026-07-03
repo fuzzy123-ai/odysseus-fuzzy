@@ -24,6 +24,7 @@ from src.tool_domains.repo_skills import (
     do_recent_changes,
     do_search_chats,
 )
+from src.tool_domains.github_issues import do_manage_github_issues
 from src.tool_domains.personal_workspace import (
     do_manage_calendar,
     do_manage_notes,

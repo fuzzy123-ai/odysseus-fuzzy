@@ -73,7 +73,7 @@ TOOL_TAGS = {"bash", "python", "web_search", "web_fetch", "read_file", "write_fi
              "manage_session", "manage_memory", "list_models",
              "ui_control", "generate_image", "ask_user", "update_plan",
              "manage_tasks", "api_call", "ask_teacher", "manage_skills",
-             "recent_changes", "manage_repos",
+             "recent_changes", "manage_repos", "manage_github_issues",
              "suggest_document",
              "manage_endpoints", "manage_mcp", "manage_webhooks",
              "manage_tokens", "manage_documents", "manage_settings",

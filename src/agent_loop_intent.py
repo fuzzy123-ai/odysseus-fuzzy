@@ -33,7 +33,7 @@ _ADMIN_SCHEMA_NAMES = frozenset([
     "manage_session", "manage_skills", "manage_tasks",
     "manage_endpoints", "manage_mcp", "manage_webhooks", "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_plugins",
     "create_session", "list_sessions", "send_to_session", "pipeline",
-    "ask_teacher", "list_models", "search_chats", "recent_changes", "manage_repos",
+    "ask_teacher", "list_models", "search_chats", "recent_changes", "manage_repos", "manage_github_issues",
 ])
 _TOOL_SELECTION_TIMEOUT_SECONDS = 1.5
 

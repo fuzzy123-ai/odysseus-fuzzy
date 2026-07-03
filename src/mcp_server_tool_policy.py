@@ -30,6 +30,7 @@ ALWAYS_DENIED_TOOLS = frozenset({
     "manage_endpoints",
     "manage_memory",
     "manage_mcp",
+    "manage_github_issues",
     "manage_settings",
     "manage_skills",
     "manage_subagents",

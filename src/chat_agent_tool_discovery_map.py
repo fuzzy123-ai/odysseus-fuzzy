@@ -31,6 +31,10 @@ DELEGATE_TOOLSET = frozenset({
     "delegate",
 })
 
+GITHUB_ISSUE_TOOLSET = frozenset({
+    "manage_github_issues",
+})
+
 DURABLE_SUBAGENT_TOOLSET = frozenset({
     "spawn_subagent",
     "manage_subagents",
@@ -104,6 +108,23 @@ DELEGATE_INTENT_KEYWORDS = frozenset({
     "fokussierte analyse",
 })
 
+GITHUB_ISSUE_INTENT_KEYWORDS = frozenset({
+    "duplicate issue",
+    "duplicate github issue",
+    "github issue",
+    "github issues",
+    "issue fields",
+    "github issue fields",
+    "triaged issue",
+    "create triaged issue",
+    "issue duplicate",
+    "issue duplikat",
+    "github ticket",
+    "ticket duplikat",
+    "github label",
+    "issue priority",
+})
+
 MULTI_AGENT_TOOLSET = DURABLE_SUBAGENT_TOOLSET
 
 DISCOVERY_INTENTS = (
@@ -121,6 +142,11 @@ DISCOVERY_INTENTS = (
         name="delegate_lightweight",
         keywords=DELEGATE_INTENT_KEYWORDS,
         tools=DELEGATE_TOOLSET,
+    ),
+    ToolDiscoveryIntent(
+        name="github_issue_intelligence",
+        keywords=GITHUB_ISSUE_INTENT_KEYWORDS,
+        tools=GITHUB_ISSUE_TOOLSET,
     ),
 )
 
