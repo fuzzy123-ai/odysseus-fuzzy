@@ -9,6 +9,7 @@ from .memory import MemoryManager
 from .memory_vector import MemoryVectorStore
 from src.memory_provider import MemoryRecord, NativeMemoryProvider
 from src.constants import DATA_DIR
+from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
 
 
 @dataclass
@@ -45,6 +46,7 @@ class MemoryService:
             os.path.join(data_dir, "memory_vectors")
         ) else None
         self.provider = NativeMemoryProvider(self.manager, self.vector_store)
+        self.last_runtime_event: Dict[str, Any] = {}
 
     def _sync_provider(self) -> None:
         self.provider.memory_vector = self.vector_store
@@ -85,7 +87,21 @@ class MemoryService:
         """
         self._sync_provider()
         record = await self.provider.remember(text, session_id=session_id)
-        return self._record_to_memory(record)
+        event = _memory_runtime_event(
+            operation="remember",
+            status="success",
+            memory_id=record.id,
+            session_id=session_id,
+            writes_performed=True,
+        )
+        self.last_runtime_event = event
+        return self._record_to_memory(
+            record,
+            metadata={
+                "correlation_id": event["correlation_id"],
+                "runtime_event": event,
+            },
+        )
 
     async def recall(self, query: str, top_k: int = 5) -> MemorySearchResult:
         """
@@ -100,10 +116,30 @@ class MemoryService:
         """
         self._sync_provider()
         results = await self.provider.recall(query, top_k=top_k)
+        event = _memory_runtime_event(
+            operation="recall",
+            status="success",
+            retrieval_count=len(results),
+            writes_performed=False,
+        )
+        self.last_runtime_event = event
         memories = [
-            self._record_to_memory(hit.memory, metadata={"score": hit.score})
+            self._record_to_memory(
+                hit.memory,
+                metadata={
+                    "score": hit.score,
+                    "correlation_id": event["correlation_id"],
+                    "runtime_event": event,
+                },
+            )
             if hit.score is not None
-            else self._record_to_memory(hit.memory)
+            else self._record_to_memory(
+                hit.memory,
+                metadata={
+                    "correlation_id": event["correlation_id"],
+                    "runtime_event": event,
+                },
+            )
             for hit in results
         ]
         return MemorySearchResult(memories=memories, query=query, total=len(memories))
@@ -118,9 +154,60 @@ class MemoryService:
         memories = self.manager.load_all()
         remaining = [m for m in memories if m.get("id") != memory_id]
         if len(remaining) == len(memories):
+            self.last_runtime_event = _memory_runtime_event(
+                operation="delete",
+                status="skipped",
+                memory_id=memory_id,
+                writes_performed=False,
+            )
             return False
 
         self.manager.save(remaining)
         if self.vector_store and self.vector_store.healthy:
             self.vector_store.remove(memory_id)
+        self.last_runtime_event = _memory_runtime_event(
+            operation="delete",
+            status="success",
+            memory_id=memory_id,
+            writes_performed=True,
+        )
         return True
+
+
+def _memory_runtime_event(
+    *,
+    operation: str,
+    status: str,
+    memory_id: str = "",
+    session_id: str | None = None,
+    retrieval_count: int = 0,
+    writes_performed: bool = False,
+) -> dict[str, Any]:
+    correlation_id = stable_payload_hash(
+        {
+            "surface": "memory",
+            "operation": operation,
+            "memory_id": memory_id,
+            "session_id": session_id or "",
+            "retrieval_count": retrieval_count,
+        }
+    )
+    return build_runtime_event(
+        surface="memory",
+        component="memory_service",
+        event_type=f"memory_{operation}",
+        status=status,
+        severity="info",
+        owner_scope="memory_service",
+        correlation_id=correlation_id,
+        privacy_level="private_metadata",
+        session_id=session_id,
+        doc_id=memory_id,
+        side_effects=("memory",) if writes_performed else ("none",),
+        metadata={
+            "operation": operation,
+            "memory_id_present": bool(memory_id),
+            "retrieval_count": retrieval_count,
+            "writes_performed": writes_performed,
+        },
+    )

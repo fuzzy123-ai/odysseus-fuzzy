@@ -24,6 +24,13 @@ def test_maps_memory_candidate_to_raptor_nodes_and_edges():
     payload = mapping.to_dict()
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).lower()
     assert payload["mapping_id"].startswith("rgmap_")
+    assert payload["correlation_id"].startswith("sha256:")
+    assert payload["runtime_event"]["surface"] == "raptorgraph"
+    assert payload["runtime_event"]["component"] == "candidate_mapping"
+    assert payload["runtime_event"]["status"] == "queued"
+    assert payload["runtime_event"]["raw_content_visible"] is False
+    assert payload["runtime_event"]["metadata"]["node_count"] == 2
+    assert payload["runtime_event"]["metadata"]["edge_count"] == 1
     assert len(payload["nodes"]) == 2
     assert len(payload["edges"]) == 1
     assert payload["nodes"][0]["internal_ref"]["uri"].startswith("odysseus://raptor/node/")

@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "ULOG-4-raptor-memory-provenance-adapters",
-    "reason": "ULOG-0, ULOG-1, ULOG-2, ULOG-3, ULOG-7, SIR-0, SIR-1 and SIR-2 are complete; the next master-order repo-only slice is RaptorGraph and long-term memory provenance event adapters."
+    "id": "SIR-3-anomaly-classifiers",
+    "reason": "ULOG-0, ULOG-1, ULOG-2, ULOG-3, ULOG-4, ULOG-7, SIR-0, SIR-1 and SIR-2 are complete; the next master-order repo-only slice is anomaly classification over redacted runtime events."
   }
 }

@@ -331,7 +331,7 @@
       "class": "repo_only",
       "owner": "Alice",
       "parallel_group": "C",
-      "status": "planned",
+      "status": "done",
       "goal": "Connect RaptorGraph maintenance, provenance and memory write logs to the shared event envelope.",
       "allowed_paths": [
         "src/raptorgraph*.py",
@@ -342,8 +342,9 @@
       ],
       "done_when": "RaptorGraph rebuild/readiness/maintenance and memory writes produce redacted events that can be traced back to source docs/tasks without exposing private content.",
       "tests": [
-        "venv/Scripts/python.exe -m pytest tests/test_runtime_event_envelope.py tests/test_raptorgraph*.py -q"
-      ]
+        "venv/Scripts/python.exe -m pytest tests/test_raptorgraph_candidate_mapping.py tests/test_memory_imports.py tests/test_memory_provenance_ledger.py tests/test_runtime_event_envelope.py -q"
+      ],
+      "evidence": "Implemented redacted runtime_event and correlation_id fields for RaptorGraph candidate mappings and MemoryService remember/recall/delete operations. Existing memory provenance ledger tests confirm memory, RaptorGraph and user interaction provenance remains redacted; new tests verify runtime events do not expose raw memory text or raw queries. Focused tests passed on 2026-07-03: 18 passed, 1 warning."
     },
     {
       "id": "ULOG-5-mcp-diagnostic-contract",
@@ -481,7 +482,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-4-raptor-memory-provenance-adapters",
-    "reason": "ULOG-0, ULOG-1, ULOG-2, ULOG-3 and ULOG-7 are complete; the next repo-only slice is RaptorGraph and long-term memory provenance event adapters."
+    "id": "SIR-3-anomaly-classifiers",
+    "reason": "ULOG-0 through ULOG-4 plus ULOG-7 are complete; continue master-order execution with SIR-3 anomaly classifiers over redacted runtime events."
   }
 }

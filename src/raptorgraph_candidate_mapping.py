@@ -8,6 +8,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.internal_references import build_internal_reference_dict
+from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
 
 
 RAPTORGRAPH_CANDIDATE_MAPPING_SCHEMA = "odysseus.raptorgraph_candidate_mapping.v1"
@@ -26,9 +27,12 @@ class RaptorGraphCandidateMapping:
     schema: str = RAPTORGRAPH_CANDIDATE_MAPPING_SCHEMA
 
     def to_dict(self) -> dict[str, Any]:
+        runtime_event = _mapping_runtime_event(self)
         payload = {
             "schema": self.schema,
             "mapping_id": self.mapping_id,
+            "correlation_id": runtime_event["correlation_id"],
+            "runtime_event": runtime_event,
             "nodes": self.nodes,
             "edges": self.edges,
             "raw_content_visible": self.raw_content_visible,
@@ -167,3 +171,31 @@ def _reject_unsafe_payload(payload: Mapping[str, Any]) -> None:
         raise RaptorGraphCandidateMappingError("payload contains forbidden marker")
     if re.search(r"(^|['\"\\s])([a-z]:[\\/]|/home/|/opt/|/users/|~[\\/])", encoded):
         raise RaptorGraphCandidateMappingError("payload contains host path")
+
+
+def _mapping_runtime_event(mapping: RaptorGraphCandidateMapping) -> dict[str, Any]:
+    correlation_id = stable_payload_hash(
+        {
+            "surface": "raptorgraph",
+            "mapping_id": mapping.mapping_id,
+            "node_count": len(mapping.nodes),
+            "edge_count": len(mapping.edges),
+        }
+    )
+    return build_runtime_event(
+        surface="raptorgraph",
+        component="candidate_mapping",
+        event_type="raptorgraph_candidate_mapping",
+        status="queued",
+        severity="info",
+        owner_scope="raptorgraph",
+        correlation_id=correlation_id,
+        privacy_level="private_metadata",
+        run_id=mapping.mapping_id,
+        metadata={
+            "mapping_id": mapping.mapping_id,
+            "node_count": len(mapping.nodes),
+            "edge_count": len(mapping.edges),
+            "truth_write_allowed": False,
+        },
+    )

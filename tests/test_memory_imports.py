@@ -31,15 +31,27 @@ def test_memory_service_uses_canonical_manager_api(tmp_path):
     remembered = asyncio.run(service.remember("User prefers dark mode", session_id="sess-1"))
     assert remembered.text == "User prefers dark mode"
     assert remembered.session_id == "sess-1"
+    assert remembered.metadata["correlation_id"].startswith("sha256:")
+    assert remembered.metadata["runtime_event"]["surface"] == "memory"
+    assert remembered.metadata["runtime_event"]["component"] == "memory_service"
+    assert remembered.metadata["runtime_event"]["event_type"] == "memory_remember"
+    assert remembered.metadata["runtime_event"]["raw_content_visible"] is False
+    assert "User prefers dark mode" not in str(remembered.metadata["runtime_event"])
 
     all_memories = service.get_all()
     assert [m.id for m in all_memories] == [remembered.id]
 
     recalled = asyncio.run(service.recall("dark mode", top_k=5))
     assert [m.id for m in recalled.memories] == [remembered.id]
+    assert recalled.memories[0].metadata["runtime_event"]["event_type"] == "memory_recall"
+    assert recalled.memories[0].metadata["runtime_event"]["metadata"]["retrieval_count"] == 1
+    assert "dark mode" not in str(recalled.memories[0].metadata["runtime_event"])
 
     assert service.delete(remembered.id) is True
+    assert service.last_runtime_event["event_type"] == "memory_delete"
+    assert service.last_runtime_event["status"] == "success"
     assert service.delete(remembered.id) is False
+    assert service.last_runtime_event["status"] == "skipped"
     assert service.get_all() == []
 
 
