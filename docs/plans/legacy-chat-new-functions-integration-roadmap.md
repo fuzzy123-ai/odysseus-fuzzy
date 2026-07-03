@@ -62,6 +62,10 @@ Owner: operator + Codex
   `GET /api/legacy-chat/contracts`. It lists LC1-LC10 surfaces, hooks and
   backend endpoints in one redacted admin-gated contract, without executing
   live actions or exposing raw values.
+- A single Version 1.0 readiness gate is available:
+  `GET /api/version-one/readiness`. It combines MVP roadmap completion,
+  backend contract readiness and the separate UI-live gate without live probes,
+  network calls or raw/private values.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
 - No legacy or V2 UI code has been changed for LC0-LC10 backend work.

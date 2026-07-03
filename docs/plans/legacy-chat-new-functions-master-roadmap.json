@@ -54,6 +54,9 @@
     ],
     "ui_agent_contract_manifest": [
       "GET /api/legacy-chat/contracts"
+    ],
+    "version_one_readiness_contract": [
+      "GET /api/version-one/readiness"
     ]
   },
   "slices": [
@@ -210,6 +213,7 @@
     "LC8: let the UI agent render /api/coding-agent/quick-entry as a compact coding task entry/status card.",
     "LC9: let the UI agent render /api/diagnostics/quick-summary as compact redacted diagnostics blocks.",
     "UI agent: use /api/legacy-chat/contracts as the compact LC1-LC10 manifest before wiring legacy chat affordances.",
+    "Version 1.0: use /api/version-one/readiness to keep the final release gate explicit; MVP roadmaps are complete but UI-live is still required.",
     "LC10: let the UI agent render /api/live-affordances/readiness as disabled/gated live-action affordances; real execution remains action-specific live work."
   ]
 }

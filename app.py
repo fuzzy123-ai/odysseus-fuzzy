@@ -635,6 +635,8 @@ from routes.review_gate_routes import setup_review_gate_routes
 app.include_router(setup_review_gate_routes())
 from routes.legacy_chat_contract_routes import setup_legacy_chat_contract_routes
 app.include_router(setup_legacy_chat_contract_routes())
+from routes.version_one_readiness_routes import setup_version_one_readiness_routes
+app.include_router(setup_version_one_readiness_routes())
 from routes.skills_routes import setup_skills_routes
 app.include_router(setup_skills_routes(skills_manager))
 

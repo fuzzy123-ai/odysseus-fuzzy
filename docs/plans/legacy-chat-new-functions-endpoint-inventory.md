@@ -32,6 +32,9 @@ UI-agent bridge:
 
 - `GET /api/legacy-chat/contracts` returns the compact LC1-LC10 manifest for
   wiring legacy chat affordances without reading these docs at runtime.
+- `GET /api/version-one/readiness` returns the final Version 1.0 gate for
+  operator/UI surfaces: MVP roadmaps complete, backend contracts ready and UI
+  live still required.
 
 | Slice | Surface | Existing endpoints/contracts | Preferred legacy hook | Missing backend endpoint before UI work |
 | - | - | - | - | - |
@@ -94,3 +97,5 @@ wiring can render compact diagnostics from
 Telegram delivery, Nextcloud copy and converter actions from
 `/api/live-affordances/readiness`. Real live execution remains a separate
 operator-gated track.
+Version 1.0 readiness can be rendered from `/api/version-one/readiness`; it is
+an operator gate, not a UI implementation task.
