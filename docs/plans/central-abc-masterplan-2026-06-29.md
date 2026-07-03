@@ -1938,6 +1938,58 @@ Open gates / next slices:
 - `RCH3-patch-notes-button`: design/UI-owned; do not implement from backend
   ABC while the UI agent owns placement.
 
+## Active Lane L13: Automated Agent Handoff Orchestration
+
+Goal:
+
+Odysseus can run the proven Alice/Bob/Charlie handoff pattern as a native,
+bounded orchestration runtime: plan graph, agent runs, thread references,
+heartbeat decisions, handoff parsing, quality gates and status snapshots are
+machine-readable and auditable before any real thread send or command execution
+is allowed.
+
+Primary source docs:
+
+- `docs/plans/automated-agent-handoff-orchestration-mvp.md`
+- `docs/plans/orchestration-runtime-readiness-contract.md`
+- `docs/plans/orchestration-operator-activation-contract.md`
+- `docs/plans/orchestration-e2e-smoke-runbook.md`
+- `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md`
+- `docs/plans/automated-agent-n-scaling-design.md`
+
+Current evidence:
+
+- `AUTO1` through `AUTO8` are implemented as persistent stores, thread
+  registry/bridge, handoff mailbox, runtime loop planner, quality gate
+  evaluator, dashboard snapshot builder, deterministic E2E smoke and N-agent
+  scaling model.
+- `AUTO9` and `AUTO10` add runtime readiness and operator activation contracts,
+  including activation packets and explicit review gates.
+- `AUTO11` adds dry-run planning for live runtime bridge and quality-gate
+  commands; these models explicitly block live thread sends, automatic agent
+  starts, command execution, raw output capture, destructive git and network
+  actions.
+- Focused verification passed:
+  `tests/test_live_orchestration_runtime_bridge.py tests/test_live_quality_gate_command_runner.py tests/test_orchestration_runtime_readiness.py tests/test_orchestration_operator_activation.py tests/test_orchestration_operator_activation_packet.py`
+  returned `27 passed, 1 warning`.
+
+Open gates:
+
+- Real Thread Send Gate: approve exact Codex/Odysseus thread bridge target,
+  message envelope, redaction policy and rollback behavior.
+- Real Command Execution Gate: approve exact focused command classes, timeout,
+  output redaction and workspace scope before runtime-owned test/git checks run.
+- Scheduler Activation Gate: approve heartbeat cadence, stop rules, stuck-run
+  notification owner and pause/kill behavior.
+- UI/API Live Gate: UI agent owns visual placement; backend ABC may expose or
+  harden read-only snapshots, but does not build UI in this lane.
+
+Recommended next backend action:
+
+- Treat L13 as repo-foundation complete. Start new work only for a concrete
+  activation step with bounded operator Go, a failing regression, or an
+  explicitly requested backend API hardening slice.
+
 ## Current Master Status
 
 | Lane | Status | Why not complete |
@@ -1954,6 +2006,7 @@ Open gates / next slices:
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |
+| L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness and dry-run live bridge/command plans are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
 
 Recommended next human decision:
 
@@ -1990,3 +2043,7 @@ Recommended next human decision:
   hand UI/operator placement to the UI track.
 - For L12, hand `RCH3-patch-notes-button` to the UI track; backend ABC should
   move to the next non-UI roadmap slice.
+- For L13, choose whether the next activation is a thread-send dry-run review,
+  a focused command-runner approval path, or heartbeat scheduler activation.
+  Without that explicit operator scope, the repo foundation is complete and
+  should remain dry-run/readiness-only.
