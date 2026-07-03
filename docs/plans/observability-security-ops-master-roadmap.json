@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "SIR-6-runbooks",
-    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-5 are complete; the next master-order safe-offline slice is defensive operator runbooks before prepare-only remediation."
+    "id": "SIR-7-gated-remediation",
+    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-6 are complete; the next master-order repo-only slice is prepare-only remediation action planning."
   }
 }

@@ -363,7 +363,7 @@
       "class": "safe_offline",
       "owner": "Alice",
       "parallel_group": "D",
-      "status": "planned",
+      "status": "done",
       "goal": "Write defensive runbooks for common incident types and recovery flow.",
       "allowed_paths": [
         "docs/runbooks/security-incident-response.md",
@@ -371,7 +371,8 @@
         "docs/runbooks/telegram-security-incident.md"
       ],
       "tests": [],
-      "done_when": "Runbooks define observe, diagnose, contain, lockdown and recovery steps with clear operator gates."
+      "done_when": "Runbooks define observe, diagnose, contain, lockdown and recovery steps with clear operator gates.",
+      "evidence": "Added defensive runbooks for security incident response, CrowdSec prepare-only remediation and Telegram operator incident notifications. The runbooks define observe/diagnose/contain/lockdown/recovery flow, redaction rules, approve/deny semantics, and live gates without enabling remediation."
     },
     {
       "id": "SIR-7-gated-remediation",
@@ -444,7 +445,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-6-runbooks",
-    "reason": "SIR-0 through SIR-5 are complete; the next SIR safe-offline slice is defensive operator runbooks before prepare-only remediation."
+    "id": "SIR-7-gated-remediation",
+    "reason": "SIR-0 through SIR-6 are complete; the next SIR repo-only slice is prepare-only remediation action planning."
   }
 }
