@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **backend quality/privacy hardening in progress; RCH4, RCH5 and RCH6 done, RCH7 collector/route privacy done**
+Status: **backend-safe slices done; RCH3 patch-notes button remains UI-owned**
 
 Mode: **Standard ABC**
 
@@ -13,8 +13,8 @@ Master Chat, bitte diese Roadmap in die aktive Master-Roadmap aufnehmen:
 - Ziel: Odysseus soll Fragen wie "Was gab es in den letzten 12h Neues?" ohne externe Recherche korrekt beantworten und dieselbe Aenderungshistorie spaeter als Patch-Notes-Interface anzeigen.
 - Roadmap: `docs/plans/recent-changes-patch-notes-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/unified-odysseus-roadmap.md`, `docs/plans/mvp-master-roadmap.md`, `docs/plans/updater-live-boundary-contract.md` und `docs/plans/updates-backups-ui-operator-contract.md`.
-- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality, Retention/Automation, Agent-Behavior-Gates und Collector-Privacy wurden weiter gehaertet; UI und breitere Privacy-Reviews bleiben Follow-up.
-- Naechster sicherer Slice: `RCH7-security-privacy-closeout`.
+- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation, Change-Quality, Retention/Automation, Agent-Behavior-Gates und Security/Privacy-Closeout sind umgesetzt und fokussiert getestet; UI bleibt Follow-up im UI-Track.
+- Naechster sicherer Slice: keiner im Backend-Track; `RCH3-patch-notes-button` wartet auf UI/Design-Go.
 - Owner-Vorschlag: Charlie koordiniert Roadmap/Status, Bob haertet Backend/Tests, Alice definiert UI- und Patch-Notes-Sprache.
 
 ## Goal
@@ -48,7 +48,7 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH4-change-quality` | `done` | Bob | Zusammenfassung, Filter, Kategorien und File-Link-Evidence verbessern; untracked Noise weiter reduzieren. | `src/recent_changes.py`, `tests/test_recent_changes.py` | done: `3 passed, 1 warning` | none |
 | `RCH5-retention-and-automation` | `done` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | done: `22 passed, 1 warning` | no live update action |
 | `RCH6-agent-behavior-gates` | `done` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop_intent.py`, `tests/test_recent_changes_agent_routing.py` | done: `21 passed, 1 warning` | none |
-| `RCH7-security-privacy-closeout` | `partial_done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/`, `routes/`, `tests/`, `docs/plans/` | collector/route privacy done: `3 passed, 1 warning`; broader agent-route privacy static review remains | none |
+| `RCH7-security-privacy-closeout` | `done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/recent_changes.py`, `routes/recent_changes_routes.py`, `src/tool_domains/repo_skills.py`, `src/system_update_status.py`, `tests/` | done: `31 passed, 1 warning` | none |
 
 ## Progress Evidence
 
@@ -127,9 +127,9 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_chan
 
 Result: `21 passed, 1 warning`.
 
-### RCH7 Collector/Route Privacy Closeout
+### RCH7 Security/Privacy Closeout
 
-Status: partial done 2026-07-03.
+Status: done 2026-07-03.
 
 Implemented:
 
@@ -141,12 +141,21 @@ Implemented:
   `require_admin(request)` for collect, history and read endpoints.
 - Tests assert that rendered patch notes do not expose the absolute test repo
   path, private remote-attachment noise or generated `output/` files.
+- Secret/private path filters now cover `.env` variants, key/certificate-like
+  files, `data/`, `logs/`, generated output and Codex attachment paths before
+  data is persisted or returned to tools/routes.
+- Raw `git diff --stat` is filtered so excluded paths cannot leak through the
+  full snapshot payload even when they are tracked dirty files.
+- Agent-tool output, update-status summaries and FastAPI route payloads are
+  covered by focused privacy tests.
 
-Remaining:
+Evidence:
 
-- Broader RCH7 static review can still inspect agent-tool return payloads,
-  update-status summaries and route tests together before closing the slice
-  completely.
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_changes.py tests\test_recent_changes_routes.py tests\test_system_update_status.py tests\test_recent_changes_agent_routing.py -q
+```
+
+Result: `31 passed, 1 warning`.
 
 ## Done Definition
 
@@ -155,7 +164,7 @@ Remaining:
 - Update-Status zeigt `recent_changes.latest` und `recent_changes.history`.
 - Update-Check erstellt einen neuen Snapshot; normaler Update-Status liest die letzte Historie ohne unnoetigen Scan.
 - Ein Interface-Button kann spaeter dieselbe Historie lesen, ohne neue Datenmodelle zu brauchen.
-- Tests bleiben gruen und Patch Notes enthalten keine Secrets, Logs oder privaten Datenordner.
+- Tests bleiben gruen und Patch Notes/Snapshots enthalten keine Secrets, Logs oder privaten Datenordner.
 
 ## Risks
 

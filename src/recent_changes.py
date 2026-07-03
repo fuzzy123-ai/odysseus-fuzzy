@@ -65,6 +65,22 @@ _SKIP_PREFIXES = (
     "output/",
 )
 _SKIP_SUFFIXES = (".log", ".tmp")
+_SKIP_EXACT_FILENAMES = {
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.development",
+    ".netrc",
+    "id_dsa",
+    "id_ed25519",
+    "id_rsa",
+}
+_SKIP_SECRET_SUFFIXES = (
+    ".key",
+    ".pem",
+    ".p12",
+    ".pfx",
+)
 
 
 @dataclass(frozen=True)
@@ -119,9 +135,12 @@ def _rel(repo: Path, path: Path) -> str:
 
 def _should_skip_rel(rel_path: str) -> bool:
     normalized = rel_path.replace("\\", "/")
+    filename = normalized.rsplit("/", 1)[-1].lower()
     return (
         any(normalized.startswith(prefix) for prefix in _SKIP_PREFIXES)
         or any(normalized.endswith(suffix) for suffix in _SKIP_SUFFIXES)
+        or filename in _SKIP_EXACT_FILENAMES
+        or any(filename.endswith(suffix) for suffix in _SKIP_SECRET_SUFFIXES)
     )
 
 
@@ -186,6 +205,24 @@ def _parse_numstat(output: str) -> dict[str, dict[str, int | None]]:
         deleted = None if deleted_raw == "-" else int(deleted_raw)
         stats[path] = {"additions": added, "deletions": deleted}
     return stats
+
+
+def _filter_diff_stat(output: str) -> str:
+    """Keep only non-sensitive repo-relative diff-stat rows.
+
+    ``git diff --stat`` is primarily diagnostic, but the raw summary can still
+    mention excluded paths such as .env files. Drop aggregate-only rows too so
+    skipped private files do not leak through counts.
+    """
+    lines: list[str] = []
+    for line in (output or "").splitlines():
+        if "|" not in line:
+            continue
+        path_part = line.split("|", 1)[0].strip()
+        if not path_part or _should_skip_rel(path_part):
+            continue
+        lines.append(line.rstrip())
+    return "\n".join(lines)
 
 
 def _recent_files(repo: Path, cutoff: datetime) -> list[dict[str, Any]]:
@@ -462,7 +499,7 @@ def collect_recent_changes(
         "commits": _parse_log(log.stdout if log.ok else ""),
         "tracked_changes": tracked_changes,
         "numstat": _parse_numstat(numstat.stdout if numstat.ok else ""),
-        "diff_stat": diff_stat.stdout.strip() if diff_stat.ok else "",
+        "diff_stat": _filter_diff_stat(diff_stat.stdout) if diff_stat.ok else "",
         "untracked_files": [
             line.strip()
             for line in (untracked.stdout if untracked.ok else "").splitlines()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import subprocess
 
 from src.recent_changes import (
@@ -114,6 +116,84 @@ def test_recent_changes_skips_private_attachment_and_output_noise(tmp_path):
     assert "output/debug.txt" not in rendered
     assert "src/new_feature.py" in rendered
     assert str(repo) not in rendered
+
+
+def test_recent_changes_redacts_secret_and_private_paths_across_snapshot_payload(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    readme = repo / "README.md"
+    readme.write_text("one\n", encoding="utf-8")
+    secret = repo / ".env"
+    secret.write_text("TOKEN=old\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+
+    secret.write_text("TOKEN=new\n", encoding="utf-8")
+    private_key = repo / "deploy.key"
+    private_key.write_text("PRIVATE KEY\n", encoding="utf-8")
+    private_data = repo / "data" / "private.db"
+    private_data.parent.mkdir()
+    private_data.write_text("private\n", encoding="utf-8")
+    private_log = repo / "logs" / "app.log"
+    private_log.parent.mkdir()
+    private_log.write_text("private\n", encoding="utf-8")
+    useful = repo / "src" / "feature.py"
+    useful.parent.mkdir()
+    useful.write_text("print('ok')\n", encoding="utf-8")
+
+    snapshot = collect_recent_changes(
+        repo_root=repo,
+        history_dir=tmp_path / "history",
+        hours=12,
+        persist=False,
+    )
+
+    dumped = json.dumps(snapshot, ensure_ascii=False)
+    assert "src/feature.py" in dumped
+    assert ".env" not in dumped
+    assert "deploy.key" not in dumped
+    assert "data/private.db" not in dumped
+    assert "logs/app.log" not in dumped
+    assert "TOKEN=" not in dumped
+    assert "PRIVATE KEY" not in dumped
+    assert str(repo) not in dumped
+
+
+def test_recent_changes_tool_output_uses_redacted_snapshot_payload(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    readme = repo / "README.md"
+    readme.write_text("one\n", encoding="utf-8")
+    env_file = repo / ".env"
+    env_file.write_text("TOKEN=old\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+
+    env_file.write_text("TOKEN=new\n", encoding="utf-8")
+    useful = repo / "src" / "agent_gate.py"
+    useful.parent.mkdir()
+    useful.write_text("print('ok')\n", encoding="utf-8")
+
+    import src.recent_changes as recent_changes
+    from src.tool_domains.repo_skills import do_recent_changes
+
+    monkeypatch.setattr(recent_changes, "BASE_DIR", str(repo))
+    monkeypatch.setattr(recent_changes, "RECENT_CHANGES_DIR", str(tmp_path / "history"))
+
+    result = asyncio.run(do_recent_changes('{"action":"collect","hours":12}', owner="tester"))
+
+    assert result["exit_code"] == 0
+    dumped = json.dumps(result, ensure_ascii=False)
+    assert "src/agent_gate.py" in dumped
+    assert ".env" not in dumped
+    assert "TOKEN=" not in dumped
+    assert str(repo) not in dumped
 
 
 def test_recent_changes_retention_and_trigger_policy(tmp_path):
