@@ -2108,7 +2108,7 @@ Safe queue audit 2026-07-03:
 
 - `scripts/roadmap_safe_queue_audit.py --format markdown` scans JSON roadmaps
   for open `safe_offline`/`repo_only` slices and live/design gates.
-- Current result: `0` safe open JSON slices, `25` live gates, `5` design gates,
+- Current result: `0` safe open JSON slices, `35` live gates, `5` design gates,
   MVP runner progress `100%`, UI live `no`, active slice `none`.
 - This confirms backend-safe autonomous ABC should not invent more repo slices
   from completed JSON roadmaps; the next meaningful work is a bounded live gate,

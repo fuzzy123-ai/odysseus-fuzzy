@@ -156,6 +156,8 @@ def _walk_items(value: Any, *, file_name: str, path: str = "") -> Iterable[Roadm
 def _classify_item(item: RoadmapAuditItem) -> str:
     status = item.status.lower()
     item_class = item.item_class.lower()
+    item_id = item.item_id.lower()
+    path = item.path.lower()
     if status in DONE_STATUSES or status in GATED_DONE_STATUSES:
         return "closed"
     if item_class in SAFE_CLASSES:
@@ -164,11 +166,41 @@ def _classify_item(item: RoadmapAuditItem) -> str:
         return "live_gate"
     if item_class == "needs_design":
         return "design_gate"
+    if not item_class and _looks_like_live_gate(item_id=item_id, path=path):
+        return "live_gate"
+    if not item_class and _looks_like_design_gate(item_id=item_id, path=path):
+        return "design_gate"
     if item_class == "blocked":
         return "other_open"
     if status in OPEN_STATUSES:
         return "other_open"
     return "closed"
+
+
+def _looks_like_live_gate(*, item_id: str, path: str) -> bool:
+    if "gate" not in path and "gate" not in item_id:
+        return False
+    live_markers = (
+        "live",
+        "telegram",
+        "caldav",
+        "nextcloud",
+        "deploy",
+        "cloudflare",
+        "mcp-service",
+        "observability",
+        "crowdsec",
+        "remediation",
+        "lockdown",
+        "retention",
+    )
+    return any(marker in item_id for marker in live_markers)
+
+
+def _looks_like_design_gate(*, item_id: str, path: str) -> bool:
+    if "gate" not in path and "gate" not in item_id:
+        return False
+    return any(marker in item_id for marker in ("ui", "design", "placement"))
 
 
 def _mvp_summary(path: Path) -> dict[str, Any]:

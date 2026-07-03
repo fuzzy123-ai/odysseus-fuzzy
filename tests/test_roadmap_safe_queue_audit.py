@@ -66,3 +66,24 @@ def test_audit_marks_queue_exhausted_when_only_gates_remain(tmp_path):
     assert report["queue_exhausted"] is True
     assert "Queue exhausted: yes" in rendered
     assert "LIVE-1" in rendered
+
+
+def test_audit_classifies_classless_gate_lists_by_id_and_path(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "master.json",
+        {
+            "open_gates": [
+                {"id": "telegram-reminder-live-go", "status": "open"},
+                {"id": "ui-placement", "status": "open"},
+                {"id": "ambiguous-followup", "status": "open"},
+            ]
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert [item["id"] for item in report["live_gates"]] == ["telegram-reminder-live-go"]
+    assert [item["id"] for item in report["design_gates"]] == ["ui-placement"]
+    assert [item["id"] for item in report["other_open_items"]] == ["ambiguous-followup"]
