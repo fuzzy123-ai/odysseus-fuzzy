@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import re
 from typing import Any, Iterable
 
+from src.agent_result_observer import ResultArtifact, ResultEvidenceBundle
 from src.agent_sandbox_contract import SandboxJobRequest, SandboxMount, SandboxResourceLimits
 from src.agent_sandbox_worker import SandboxWorker
 from src.agent_sandbox_worker_api import SandboxWorkerStatus
@@ -22,6 +23,7 @@ class CodingSandboxDispatch:
     jobs: tuple[SandboxJobRequest, ...]
     statuses: tuple[SandboxWorkerStatus, ...]
     quality_gate: dict[str, Any]
+    evidence_bundle: dict[str, Any]
     raw_content_visible: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,6 +33,7 @@ class CodingSandboxDispatch:
             "jobs": tuple(job.to_dict() for job in self.jobs),
             "statuses": tuple(status.to_dict() for status in self.statuses),
             "quality_gate": self.quality_gate,
+            "evidence_bundle": self.evidence_bundle,
             "raw_content_visible": False,
         }
 
@@ -86,6 +89,7 @@ def dispatch_coding_checks_to_sandbox(
         jobs=jobs,
         statuses=tuple(statuses),
         quality_gate=quality.to_dict(),
+        evidence_bundle=_build_dispatch_evidence(plan.task_id, statuses),
     )
 
 
@@ -127,3 +131,43 @@ def _safe_mount_source(value: Any) -> str:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,180}", text):
         raise CodingAgentSandboxBridgeError("allowed path is unsafe for sandbox mount")
     return text
+
+
+def _build_dispatch_evidence(task_id: str, statuses: Iterable[SandboxWorkerStatus]) -> dict[str, Any]:
+    artifacts: list[ResultArtifact] = []
+    for status in statuses:
+        result = sandbox_status_to_coding_result(status)
+        artifact_status = "ok" if result.ok else "failed"
+        artifacts.append(
+            ResultArtifact.create(
+                kind="command_output",
+                artifact_ref=f"reports/sandbox/{status.job_id}.log",
+                summary=_status_summary(status),
+                status=artifact_status,
+            )
+        )
+    if not artifacts:
+        artifacts.append(
+            ResultArtifact.create(
+                kind="command_output",
+                artifact_ref=f"reports/sandbox/{task_id}.log",
+                summary="No sandbox checks were dispatched.",
+                status="failed",
+            )
+        )
+    return ResultEvidenceBundle.create(run_id=task_id, artifacts=artifacts).to_dict()
+
+
+def _status_summary(status: SandboxWorkerStatus) -> str:
+    status_text = str(status.status or "unknown").lower()
+    if status_text == "dry_run":
+        return "Sandbox check planned in dry-run mode; live execution not enabled."
+    if status_text == "succeeded":
+        return "Sandbox check completed successfully."
+    if status_text == "blocked":
+        return "Sandbox check blocked by sandbox policy."
+    if status_text == "timed_out":
+        return "Sandbox check timed out."
+    if status_text == "failed":
+        return "Sandbox check failed."
+    return f"Sandbox check status: {status_text}."

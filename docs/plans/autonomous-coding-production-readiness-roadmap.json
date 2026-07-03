@@ -46,7 +46,8 @@
       "src/server_project_runner.py provides repo-only universal project runner planning with deploy/Cloudflare gates that do not execute live actions.",
       "plugins/telegram/plugin.py already records redacted task pause/resume/cancel/status control events in the agent task ledger.",
       "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations.",
-      "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking."
+      "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking.",
+      "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases."
     ],
     "missing_or_not_yet_durable": [
       "Publish/deploy gates exist as plans, but should wait until runner-state and scope resolution are durable."
@@ -155,7 +156,7 @@
       "id": "ACPR-4-sandbox-check-orchestration",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Let the runner dispatch allowlisted checks to the Podman sandbox and consume evidence into the quality gate.",
       "allowed_paths": [
         "src/coding_agent_runner_state.py",
@@ -167,7 +168,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_coding_agent_runner_state.py tests/test_coding_agent_sandbox_bridge.py -q"
       ],
-      "done_when": "Checks run in dry-run or approved live sandbox mode, artifacts are redacted, and failures become actionable blockers."
+      "done_when": "Checks run in dry-run or approved live sandbox mode, artifacts are redacted, and failures become actionable blockers.",
+      "evidence": "Implemented redacted sandbox evidence bundles in CodingSandboxDispatch and transition_from_sandbox_dispatch() for runner-state consumption. Dry-run or successful sandbox dispatch moves the runner to review_ready with operator_review gate; failed/blocked sandbox checks move it to blocked with sandbox_check_failure and actionable blockers. Focused tests cover dry-run evidence, live failure simulation, review_ready transitions and blocked transitions."
     },
     {
       "id": "ACPR-5-mcp-workbench-verification",

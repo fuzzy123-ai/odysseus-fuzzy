@@ -187,6 +187,55 @@ class CodingRunnerStateStore:
         return self.write(current.transition(**kwargs))
 
 
+def transition_from_sandbox_dispatch(
+    *,
+    store: CodingRunnerStateStore,
+    plan: Any,
+    dispatch: Any,
+) -> CodingRunnerState:
+    """Consume sandbox dispatch evidence into the durable runner phase."""
+
+    task_id = getattr(plan, "task_id", "")
+    current = store.read(task_id)
+    if current is None:
+        current = store.upsert_from_task_plan(plan)
+    if current.phase in {"publish_ready", "done"}:
+        raise CodingRunnerStateError("sandbox dispatch cannot modify a published or completed runner state")
+    if current.phase not in {"checks_running", "review_ready", "publish_ready", "done"}:
+        current = store.write(
+            current.transition(
+                phase="checks_running",
+                progress_percent=max(current.progress_percent, 45),
+                gates_waiting=(),
+                blockers=(),
+                next_human_decision="Sandbox checks are running or have been dispatched; wait for redacted evidence.",
+            )
+        )
+
+    quality_gate = _dispatch_quality_gate(dispatch)
+    if bool(quality_gate.get("verified")):
+        return store.write(
+            current.transition(
+                phase="review_ready",
+                progress_percent=max(current.progress_percent, 65),
+                gates_waiting=("operator_review",),
+                blockers=(),
+                next_human_decision="Review redacted sandbox evidence and approve the coding result before publish gates.",
+            )
+        )
+
+    blockers = _sandbox_dispatch_blockers(dispatch, quality_gate)
+    return store.write(
+        current.transition(
+            phase="blocked",
+            progress_percent=current.progress_percent,
+            gates_waiting=("sandbox_check_failure",),
+            blockers=blockers,
+            next_human_decision="Inspect sandbox evidence and fix the failing check before continuing.",
+        )
+    )
+
+
 def _gates_from_blockers(blockers: Iterable[Any]) -> tuple[str, ...]:
     gates: list[str] = []
     for blocker in blockers:
@@ -200,6 +249,33 @@ def _gates_from_blockers(blockers: Iterable[Any]) -> tuple[str, ...]:
         else:
             gates.append("runner_review")
     return tuple(dict.fromkeys(gates))
+
+
+def _dispatch_quality_gate(dispatch: Any) -> dict[str, Any]:
+    quality = getattr(dispatch, "quality_gate", None)
+    if isinstance(quality, Mapping):
+        return dict(quality)
+    if isinstance(dispatch, Mapping):
+        raw = dispatch.get("quality_gate")
+        if isinstance(raw, Mapping):
+            return dict(raw)
+    return {}
+
+
+def _sandbox_dispatch_blockers(dispatch: Any, quality_gate: Mapping[str, Any]) -> tuple[str, ...]:
+    blockers: list[str] = []
+    for blocker in quality_gate.get("blockers") or ():
+        blockers.append(_safe_summary(blocker, "sandbox_blocker"))
+    statuses = getattr(dispatch, "statuses", None)
+    if statuses is None and isinstance(dispatch, Mapping):
+        statuses = dispatch.get("statuses") or ()
+    for status in statuses or ():
+        payload = status.to_dict() if hasattr(status, "to_dict") else dict(status or {})
+        status_text = str(payload.get("status") or "unknown").lower()
+        if status_text not in {"succeeded", "dry_run"}:
+            job_id = _safe_label(payload.get("job_id") or "sandbox_job", "sandbox_job")
+            blockers.append(f"sandbox job {job_id} status {status_text}")
+    return tuple(dict.fromkeys(blockers or ("sandbox checks failed",)))
 
 
 def _phase(value: Any) -> str:

@@ -2,7 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.coding_agent_runner_state import CodingRunnerState, CodingRunnerStateError, CodingRunnerStateStore
+from src.agent_sandbox_worker_api import SandboxWorkerStatus
+from src.coding_agent_runner_state import (
+    CodingRunnerState,
+    CodingRunnerStateError,
+    CodingRunnerStateStore,
+    transition_from_sandbox_dispatch,
+)
 
 
 def test_runner_state_persists_and_survives_store_recreation(tmp_path):
@@ -56,3 +62,63 @@ def test_store_upserts_from_task_plan_without_raw_objective(tmp_path):
     assert payload["gates_waiting"] == ["operator_go"]
     assert "objective" not in payload
     assert "Private implementation" not in str(payload)
+
+
+def test_runner_state_consumes_successful_sandbox_dispatch_as_review_ready(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    plan = SimpleNamespace(
+        task_id="task-alpha",
+        repo_id="demo",
+        decision="plan_ready",
+        blockers=(),
+        next_human_decision="Run checks.",
+    )
+    dispatch = SimpleNamespace(
+        quality_gate={"verified": True, "blockers": []},
+        statuses=(SandboxWorkerStatus.create(job_id="task-alpha-check-1", status="dry_run"),),
+    )
+
+    state = transition_from_sandbox_dispatch(store=store, plan=plan, dispatch=dispatch)
+
+    assert state.phase == "review_ready"
+    assert state.progress_percent == 65
+    assert state.gates_waiting == ("operator_review",)
+    assert state.blockers == ()
+    assert state.event_count >= 3
+    assert store.read("task-alpha").phase == "review_ready"
+
+
+def test_runner_state_consumes_failed_sandbox_dispatch_as_blocked(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    plan = SimpleNamespace(
+        task_id="task-beta",
+        repo_id="demo",
+        decision="plan_ready",
+        blockers=(),
+        next_human_decision="Run checks.",
+    )
+    dispatch = SimpleNamespace(
+        quality_gate={"verified": False, "blockers": ["changed path outside allowed scope"]},
+        statuses=(SandboxWorkerStatus.create(job_id="task-beta-check-1", status="failed", exit_code=1),),
+    )
+
+    state = transition_from_sandbox_dispatch(store=store, plan=plan, dispatch=dispatch)
+
+    assert state.phase == "blocked"
+    assert state.gates_waiting == ("sandbox_check_failure",)
+    assert "changed path outside allowed scope" in state.blockers
+    assert "sandbox job task-beta-check-1 status failed" in state.blockers
+    assert "fix the failing check" in state.next_human_decision
+
+
+def test_runner_state_refuses_sandbox_dispatch_after_done(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    store.write(CodingRunnerState.create(task_id="task-done", repo_id="demo", phase="done", progress_percent=100))
+    plan = SimpleNamespace(task_id="task-done", repo_id="demo", decision="plan_ready")
+    dispatch = SimpleNamespace(
+        quality_gate={"verified": True, "blockers": []},
+        statuses=(SandboxWorkerStatus.create(job_id="task-done-check-1", status="dry_run"),),
+    )
+
+    with pytest.raises(CodingRunnerStateError, match="completed runner state"):
+        transition_from_sandbox_dispatch(store=store, plan=plan, dispatch=dispatch)

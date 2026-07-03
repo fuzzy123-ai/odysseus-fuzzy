@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from routes.coding_agent_routes import setup_coding_agent_routes
 from src.coding_agent_backend import CodingCheckCommand, build_coding_task_plan
 from src.coding_agent_sandbox_bridge import build_sandbox_jobs_for_coding_plan, dispatch_coding_checks_to_sandbox
-from src.agent_sandbox_worker import SandboxWorker
+from src.agent_sandbox_worker import SandboxCommandResult, SandboxWorker
 from src.repo_registry import RepoRecord, RepoRegistry
 from src.sandbox_job_ledger import SandboxJobLedger
 
@@ -75,6 +75,35 @@ def test_dispatch_coding_checks_to_sandbox_returns_quality_gate(tmp_path: Path):
 
     assert dispatch.statuses[0].status == "dry_run"
     assert dispatch.quality_gate["verified"] is True
+    assert dispatch.evidence_bundle["verdict"] == "passed"
+    assert dispatch.evidence_bundle["raw_content_visible"] is False
+    assert dispatch.to_dict()["raw_content_visible"] is False
+
+
+def test_dispatch_coding_checks_to_sandbox_turns_live_failures_into_quality_blockers(tmp_path: Path):
+    plan = _plan(tmp_path)
+    calls: list[tuple[str, ...]] = []
+
+    def runner(argv: tuple[str, ...], timeout_seconds: int):
+        calls.append(argv)
+        if "run" in argv:
+            return SandboxCommandResult(exit_code=2, stderr="test failed")
+        return SandboxCommandResult(exit_code=0, stdout="pod ready")
+
+    worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path / "ledger"), command_runner=runner)
+
+    dispatch = dispatch_coding_checks_to_sandbox(
+        plan=plan,
+        worker=worker,
+        changed_paths=["src/example.py"],
+        live_enabled=True,
+        operator_go=True,
+    )
+
+    assert calls
+    assert dispatch.statuses[0].status == "failed"
+    assert dispatch.quality_gate["verified"] is False
+    assert dispatch.evidence_bundle["verdict"] == "failed"
     assert dispatch.to_dict()["raw_content_visible"] is False
 
 

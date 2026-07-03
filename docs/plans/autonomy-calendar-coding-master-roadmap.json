@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "ACPR-4-sandbox-check-orchestration",
-    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2 and ACPR-3 are complete; CAL-MCP-7 remains live-gated, so the next safe backend slice is sandbox check orchestration."
+    "id": "ACPR-6-telegram-remote-control-consumption",
+    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3 and ACPR-4 are complete; CAL-MCP-7 remains live-gated and ACPR-5 is optional MCP availability work, so the next safe backend slice is Telegram consumption of durable runner controls."
   }
 }
