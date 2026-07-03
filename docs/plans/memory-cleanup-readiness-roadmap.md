@@ -1,6 +1,6 @@
 # Memory Cleanup Readiness Roadmap
 
-Status: active planning slice for pre-1.0 memory clarity
+Status: backend complete; UI labels optional/deferred
 Owner: Charlie coordinates, Alice documents roles, Bob builds read-only stats
 
 ## Goal
@@ -28,6 +28,16 @@ The operator should be able to answer:
   endpoint.
 - Local size/count observations from operator context are evidence only and
   must not be hardcoded into code or tests.
+- `docs/plans/memory-storage-roles-contract.md` documents the four storage
+  roles and pre-1.0 Go / Partial / No-Go language.
+- `src/memory_store_stats.py` provides the read-only stats model for canonical
+  memory, derived vector index and knowledge/RAG index roles.
+- `GET /api/memory/stats` is implemented in `routes/memory_routes.py`, is
+  admin-gated, does not expose memory text, and performs no write/rebuild
+  operation.
+- Focused verification on 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_memory_store_stats.py -q`
+  returned `5 passed, 1 warning`.
 
 ## Storage Roles
 
@@ -50,6 +60,8 @@ The operator should be able to answer:
 
 ### MEM0A: memory-storage-roles-contract
 
+Status: done
+
 Alice owns this docs-only slice.
 
 Allowed files:
@@ -65,6 +77,8 @@ Outcome:
   `docs/plans/memory-storage-roles-contract.md`
 
 ### MEM0B: memory-stats-readonly-model
+
+Status: done
 
 Bob owns this model/test slice.
 
@@ -91,6 +105,8 @@ Outcome:
 
 ### MEM1: memory-stats-admin-route
 
+Status: done
+
 Charlie integrates after MEM0A and MEM0B are stable.
 
 Candidate route:
@@ -103,12 +119,19 @@ Outcome:
 
 ### MEM2: memory-ui-labels-or-doc-link
 
+Status: deferred
+
 Optional P2 only if tiny and low-risk.
 
 Outcome:
 - Align user-facing labels to "Personal Memory", "Vector Index", and
   "Knowledge / RAG Index".
 - No UI redesign.
+
+Deferred reason:
+- Backend clarity is complete. Any visible label placement belongs to the UI
+  track and should not be implemented from backend ABC while legacy/V2 UI work
+  is active elsewhere.
 
 ## Stop Rules
 

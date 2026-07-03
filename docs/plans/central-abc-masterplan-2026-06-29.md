@@ -44,6 +44,8 @@ Primary sources:
 - `docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json`
 - `docs/plans/security-incident-response-escalation-roadmap.json`
 - `docs/plans/debian-observability-security-handoff-roadmap.json`
+- `docs/plans/memory-cleanup-readiness-roadmap.md`
+- `docs/plans/memory-storage-roles-contract.md`
 - `docs/plans/agent-autonomy-extensions-master-roadmap.json`
 - `docs/plans/agent-capability-expansion-master-roadmap.json`
 - `docs/plans/recent-changes-patch-notes-roadmap.md`
@@ -1916,7 +1918,7 @@ Open gates / next slices:
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
 | L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory and redacted pilot profiling are implemented and verified; local-only extraction/review now has a fixture-tested executor behind explicit operator Go, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
-| L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
+| L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence, provenance logging and read-only memory storage stats are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks, and visible memory labels remain UI-owned. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
