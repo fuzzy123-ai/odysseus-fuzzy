@@ -286,7 +286,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "B",
-      "status": "planned",
+      "status": "done",
       "goal": "Implement the response policy engine that decides observe, diagnose, recommend or act based on severity, confidence and approved gates.",
       "allowed_paths": [
         "src/security_response_policy.py",
@@ -296,7 +296,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_security_response_policy.py tests/test_security_incident_model.py -q"
       ],
-      "done_when": "The policy engine auto-allows only read-only diagnostics and debug bundles, requires confirmation for remediation, and blocks never-allowed actions."
+      "done_when": "The policy engine auto-allows only read-only diagnostics and debug bundles, requires confirmation for remediation, and blocks never-allowed actions.",
+      "evidence": "Implemented src/security_response_policy.py with prepare-only action decisions, incident response aggregation, policy readiness, read-only auto-allow decisions, remediation gate requirements, confidence/level blockers, never-allowed denial, incident/DSGVO mode sensitive-action blocking, and no live execution path. Focused tests passed on 2026-07-03: 16 passed, 1 warning."
     },
     {
       "id": "SIR-3-anomaly-classifiers",
@@ -440,7 +441,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-2-policy-engine",
-    "reason": "SIR-0 and SIR-1 are complete; the next repo-only slice is the policy engine that decides observe, diagnose, recommend or gated action from incident severity, confidence and approvals."
+    "id": "SIR-3-anomaly-classifiers",
+    "reason": "SIR-0, SIR-1 and SIR-2 are complete; the next SIR repo-only slice is anomaly classification over redacted runtime events and observability summaries."
   }
 }

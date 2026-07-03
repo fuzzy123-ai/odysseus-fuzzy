@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "SIR-2-policy-engine",
-    "reason": "ULOG-0, ULOG-1, ULOG-7, SIR-0 and SIR-1 are complete; the next repo-only slice is the incident response policy engine before classifiers, notifications or MCP incident tools."
+    "id": "ULOG-2-telegram-flow-events",
+    "reason": "ULOG-0, ULOG-1, ULOG-7, SIR-0, SIR-1 and SIR-2 are complete; the next master-order slice is Telegram flow events. It touches Telegram hotfiles and should be handled serially."
   }
 }
