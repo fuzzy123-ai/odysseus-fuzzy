@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.observability_security_ops_master_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "in_progress",
+  "mode": "master_coordination",
+  "title": "Observability Security And Operations Master Roadmap",
+  "goal": "Coordinate Debian observability, unified runtime logging, MCP debugging and defensive incident response into one backend-first operations program for Odysseus.",
+  "source_roadmaps": [
+    {
+      "id": "DEB-OBS",
+      "path": "docs/plans/debian-observability-security-handoff-roadmap.json",
+      "title": "Debian Observability And Active Security Roadmap",
+      "status": "planned",
+      "priority": "P0",
+      "role": "Infrastructure layer: Prometheus, Grafana, Loki, log agent, Podman metrics and CrowdSec."
+    },
+    {
+      "id": "ULOG",
+      "path": "docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json",
+      "title": "Unified Runtime Logging And MCP Debugging Roadmap",
+      "status": "in_progress",
+      "priority": "P0",
+      "role": "Data and tool layer: unified redacted events, Telegram diagnostics, read-only MCP debugging and debug bundles."
+    },
+    {
+      "id": "SIR",
+      "path": "docs/plans/security-incident-response-escalation-roadmap.json",
+      "title": "Security Incident Response And Escalation Roadmap",
+      "status": "in_progress",
+      "priority": "P1",
+      "role": "Decision layer: escalation ladder, incident model, response policy and gated remediation."
+    }
+  ],
+  "design_principles": [
+    "Backend and logic first; no new UI in this program.",
+    "Podman pods, not Docker, are the operational assumption.",
+    "Promtail must not be introduced as a new component; prefer Grafana Alloy, Fluent Bit or OpenTelemetry Collector.",
+    "All event/log/diagnostic output must be redacted by default.",
+    "MCP debugging is full-featured but read-only by default.",
+    "Any remediation, restart, firewall, CrowdSec, deploy, rollback, token rotation or live write action requires a gate.",
+    "DSGVO/incident mode forces local-only handling for sensitive evidence."
+  ],
+  "execution_order": [
+    {
+      "order": 1,
+      "slice": "ULOG-0-inventory",
+      "roadmap": "ULOG",
+      "reason": "Before anything ships to Loki or becomes MCP-visible, map current logs and privacy risk."
+    },
+    {
+      "order": 2,
+      "slice": "SIR-0-threat-and-response-inventory",
+      "roadmap": "SIR",
+      "reason": "Map attacker scenarios to evidence and response limits while the log inventory is fresh."
+    },
+    {
+      "order": 3,
+      "slice": "ULOG-1-event-schema",
+      "roadmap": "ULOG",
+      "reason": "Shared event envelope is the contract for all later telemetry, MCP and incident response."
+    },
+    {
+      "order": 4,
+      "slice": "ULOG-7-dashboard-label-contract",
+      "roadmap": "ULOG",
+      "reason": "Define safe low-cardinality Loki/Prometheus labels before broad ingestion."
+    },
+    {
+      "order": 5,
+      "slice": "SIR-1-incident-model",
+      "roadmap": "SIR",
+      "reason": "Incident and action objects can be built against the event envelope."
+    },
+    {
+      "order": 6,
+      "slice": "SIR-2-policy-engine",
+      "roadmap": "SIR",
+      "reason": "Response permissions and blocked actions must exist before any remediation tooling."
+    },
+    {
+      "order": 7,
+      "slice": "ULOG-2-telegram-flow-events",
+      "roadmap": "ULOG",
+      "reason": "Telegram is the most important first end-to-end diagnostic flow."
+    },
+    {
+      "order": 8,
+      "slice": "ULOG-3-scheduler-inbox-memory-adapters",
+      "roadmap": "ULOG",
+      "reason": "Scheduler, inbox, Nextcloud and memory are the recurring operational pain points."
+    },
+    {
+      "order": 9,
+      "slice": "ULOG-4-raptor-memory-provenance-adapters",
+      "roadmap": "ULOG",
+      "reason": "RaptorGraph and long-term memory need provenance-aware diagnostics."
+    },
+    {
+      "order": 10,
+      "slice": "SIR-3-anomaly-classifiers",
+      "roadmap": "SIR",
+      "reason": "Classifiers need enough unified events to classify real system behavior."
+    },
+    {
+      "order": 11,
+      "slice": "ULOG-5-mcp-diagnostic-contract",
+      "roadmap": "ULOG",
+      "reason": "Read-only MCP debugging becomes useful once event sources exist."
+    },
+    {
+      "order": 12,
+      "slice": "ULOG-6-debug-bundle",
+      "roadmap": "ULOG",
+      "reason": "Debug bundles package correlated evidence for incidents and operator review."
+    },
+    {
+      "order": 13,
+      "slice": "SIR-4-operator-notifications",
+      "roadmap": "SIR",
+      "reason": "Notifications should use incident model, policy and debug bundle references."
+    },
+    {
+      "order": 14,
+      "slice": "SIR-5-mcp-incident-tools",
+      "roadmap": "SIR",
+      "reason": "Incident MCP tools extend the debug MCP surface after base MCP diagnostics are stable."
+    },
+    {
+      "order": 15,
+      "slice": "SIR-6-runbooks",
+      "roadmap": "SIR",
+      "reason": "Runbooks document operator gates before remediation plans are prepared."
+    },
+    {
+      "order": 16,
+      "slice": "SIR-7-gated-remediation",
+      "roadmap": "SIR",
+      "reason": "Prepare-only remediation can be implemented after policies, MCP and runbooks are clear."
+    },
+    {
+      "order": 17,
+      "slice": "DEB-OBS OBS-0-current-state-inventory",
+      "roadmap": "DEB-OBS",
+      "reason": "Read-only server inventory can be performed when operator grants a bounded live gate."
+    },
+    {
+      "order": 18,
+      "slice": "DEB-OBS OBS-1 through OBS-5",
+      "roadmap": "DEB-OBS",
+      "reason": "Install/configure observability and CrowdSec only after repo contracts and live gates are ready."
+    },
+    {
+      "order": 19,
+      "slice": "ULOG-8-loki-prometheus-read-adapters",
+      "roadmap": "ULOG",
+      "reason": "Live observability read adapters depend on configured Prometheus/Loki endpoints."
+    },
+    {
+      "order": 20,
+      "slice": "Live tabletop and smoke gates",
+      "roadmap": "ULOG/SIR/DEB-OBS",
+      "reason": "Run live validation only after repo tests and explicit operator Go."
+    }
+  ],
+  "parallelization_plan": {
+    "phase_0_safe_parallel": [
+      {
+        "parallel_set": [
+          "ULOG-0-inventory",
+          "SIR-0-threat-and-response-inventory"
+        ],
+        "condition": "Docs/inventory only; no live server access without gate."
+      },
+      {
+        "parallel_set": [
+          "ULOG-1-event-schema",
+          "ULOG-7-dashboard-label-contract",
+          "SIR-1-incident-model"
+        ],
+        "condition": "Coordinate model field names; avoid changing MCP or Telegram files."
+      }
+    ],
+    "phase_1_safe_parallel": [
+      {
+        "parallel_set": [
+          "SIR-2-policy-engine",
+          "ULOG-3-scheduler-inbox-memory-adapters",
+          "ULOG-4-raptor-memory-provenance-adapters"
+        ],
+        "condition": "All use the event envelope; avoid same files in memory services."
+      }
+    ],
+    "phase_2_serial_hot_paths": [
+      {
+        "serial_set": [
+          "ULOG-2-telegram-flow-events",
+          "SIR-4-operator-notifications"
+        ],
+        "reason": "Telegram plugin is a hotspot."
+      },
+      {
+        "serial_set": [
+          "ULOG-5-mcp-diagnostic-contract",
+          "SIR-5-mcp-incident-tools",
+          "ULOG-8-loki-prometheus-read-adapters"
+        ],
+        "reason": "MCP server and tool policy must remain coherent."
+      }
+    ],
+    "phase_3_live_gated": [
+      {
+        "gated_set": [
+          "DEB-OBS server inventory",
+          "DEB-OBS metrics/log installs",
+          "ULOG live observability smoke",
+          "SIR tabletop smoke",
+          "CrowdSec remediation"
+        ],
+        "condition": "Requires explicit operator live Go per gate."
+      }
+    ]
+  },
+  "global_gates": [
+    {
+      "id": "observability-live-go",
+      "blocks": [
+        "Debian read-only inventory",
+        "Node Exporter/Prometheus/Grafana/Loki/CrowdSec installation"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "mcp-debug-server-exposure-go",
+      "blocks": [
+        "Remote MCP debugging access"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "security-incident-tabletop-go",
+      "blocks": [
+        "Synthetic live incident smoke"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "crowdsec-remediation-go",
+      "blocks": [
+        "Any automatic or operator-approved CrowdSec ban/unban execution"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "log-retention-policy-go",
+      "blocks": [
+        "Broad Loki ingestion"
+      ],
+      "status": "open"
+    }
+  ],
+  "master_definition_of_done": [
+    "Odysseus has a unified redacted event envelope across major runtime subsystems.",
+    "Telegram, scheduler, inbox, memory, RaptorGraph and model failures are traceable by correlation_id.",
+    "A read-only MCP debug workbench can diagnose incidents and operational failures.",
+    "Security incidents have a structured escalation ladder, response policy and operator-gated actions.",
+    "Debian observability provides host, Podman, log, CrowdSec and Odysseus runtime evidence.",
+    "No live remediation or public exposure is enabled without explicit gates."
+  ],
+  "recommended_next_action": {
+    "id": "SIR-1-incident-model",
+    "reason": "ULOG-0, ULOG-1, ULOG-7 and SIR-0 are complete; the next repo-only slice is the incident/action model that later policy, classifier, notification and MCP incident tools depend on."
+  }
+}

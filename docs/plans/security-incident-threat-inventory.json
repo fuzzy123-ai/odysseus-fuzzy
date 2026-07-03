@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.security_incident_threat_inventory",
+  "updated_at": "2026-07-03",
+  "status": "done",
+  "scope": "repo_only_redacted_inventory",
+  "raw_content_visible": false,
+  "summary": "Redacted defensive threat and response inventory for Odysseus incidents. This file contains no real attacker identifiers, private logs, chat ids, tokens, host paths or document content.",
+  "surfaces": [
+    {
+      "id": "ssh_access",
+      "risk": "brute_force_or_stolen_credential_attempts",
+      "evidence_sources": ["systemd_journal_summary", "crowdsec_ssh_alerts", "prometheus_auth_failure_counter"],
+      "initial_level": "watch_or_alert",
+      "auto_allowed": ["deduplicate_alerts", "create_incident_candidate", "create_redacted_debug_bundle"],
+      "confirmation_required": ["crowdsec_temp_block", "session_invalidation", "token_rotation_prepare"],
+      "never_allowed": ["hackback", "broad_firewall_change_without_gate"]
+    },
+    {
+      "id": "reverse_proxy_or_tunnel_edge",
+      "risk": "unexpected_endpoint_probing_or_abuse",
+      "evidence_sources": ["reverse_proxy_access_summary", "odysseus_http_error_counters", "crowdsec_web_alerts"],
+      "initial_level": "watch_or_alert",
+      "auto_allowed": ["read_only_mcp_diagnostics", "rate_spike_summary"],
+      "confirmation_required": ["cloudflare_tunnel_pause_prepare", "proxy_rule_change", "crowdsec_temp_block"],
+      "never_allowed": ["publicly expose debug mcp", "print request headers"]
+    },
+    {
+      "id": "nextcloud",
+      "risk": "suspicious_sync_or_import_activity",
+      "evidence_sources": ["nextcloud_transfer_status", "universal_inbox_events", "loki_nextcloud_summary"],
+      "initial_level": "watch",
+      "auto_allowed": ["mark_import_for_review", "summarize_failed_transfers"],
+      "confirmation_required": ["nextcloud_import_retry", "sync_pause", "delete_or_move_remote_file"],
+      "never_allowed": ["external_model_upload_of_private_document", "raw_filename_as_metric_label"]
+    },
+    {
+      "id": "odysseus_http_api",
+      "risk": "auth_gate_bypass_attempt_or_sensitive_endpoint_probe",
+      "evidence_sources": ["runtime_event_envelope", "app_log_summary", "api_status_counters"],
+      "initial_level": "alert",
+      "auto_allowed": ["create_incident", "trace_correlation_id", "read_only_mcp_debug"],
+      "confirmation_required": ["service_restart", "token_rotation_prepare", "deploy_rollback"],
+      "never_allowed": ["dump_authorization_headers", "enable_expose_all_mcp"]
+    },
+    {
+      "id": "telegram_bridge",
+      "risk": "message_flooding_media_abuse_or_control_command_misuse",
+      "evidence_sources": ["telegram_flow_events", "telegram_reply_status", "universal_inbox_attachment_status"],
+      "initial_level": "watch_or_alert",
+      "auto_allowed": ["summarize_flow_failure", "create_redacted_debug_bundle", "notify_operator"],
+      "confirmation_required": ["pause_bot_delivery", "block_sender_handle", "retry_attachment_processing"],
+      "never_allowed": ["persist_raw_chat_id", "include_message_text_in_shared_logs"]
+    },
+    {
+      "id": "mcp_debug_surface",
+      "risk": "debug_tool_overreach_or_mutation_attempt",
+      "evidence_sources": ["mcp_tool_policy_events", "mcp_audit_summary", "runtime_event_envelope"],
+      "initial_level": "alert",
+      "auto_allowed": ["deny_tool_call", "record_policy_block", "read_readiness"],
+      "confirmation_required": ["activate_nonbundled_mcp", "enable_remote_mcp_access"],
+      "never_allowed": ["generic_shell_tool", "raw_filesystem_mcp", "docker_mcp_default", "expose_all"]
+    },
+    {
+      "id": "provider_and_secret_handling",
+      "risk": "secret_leak_or_external_model_sensitive_data_exposure",
+      "evidence_sources": ["ai_activity_ledger", "dsgvo_security_gate_events", "runtime_event_envelope"],
+      "initial_level": "lockdown",
+      "auto_allowed": ["force_local_only_analysis_for_sensitive_refs", "block_external_call", "create_incident"],
+      "confirmation_required": ["token_rotation_prepare", "provider_key_replacement", "incident_mode_exit"],
+      "never_allowed": ["print_secret", "send_sensitive_document_to_external_provider", "store_raw_prompt_with_private_content"]
+    },
+    {
+      "id": "raptorgraph_memory",
+      "risk": "incorrect_or_sensitive_memory_write",
+      "evidence_sources": ["memory_provenance_ledger", "raptorgraph_maintenance_events", "memory_write_intent_status"],
+      "initial_level": "watch",
+      "auto_allowed": ["mark_memory_candidate_for_review", "trace_source_hash", "summarize_provenance"],
+      "confirmation_required": ["delete_memory_record", "rebuild_graph", "promote_sensitive_memory"],
+      "never_allowed": ["store_private_raw_document_text", "send_sensitive_memory_to_external_model"]
+    }
+  ],
+  "response_boundaries": {
+    "auto_allowed": [
+      "read_only_diagnostics",
+      "redacted_debug_bundle_creation",
+      "incident_candidate_creation",
+      "alert_deduplication",
+      "local_only_sensitive_analysis",
+      "operator_notification_with_redacted_facts"
+    ],
+    "confirmation_required": [
+      "CrowdSec temporary ban or unban",
+      "firewall or reverse-proxy rule changes",
+      "service restart",
+      "scheduler pause or retry",
+      "RaptorGraph maintenance restart",
+      "Nextcloud import retry",
+      "token rotation",
+      "session invalidation",
+      "Cloudflare tunnel changes",
+      "deploy rollback"
+    ],
+    "never_allowed": [
+      "hackback",
+      "offensive third-party exploitation",
+      "secret printing",
+      "private evidence upload to external API models during DSGVO or incident mode",
+      "destructive cleanup before evidence preservation",
+      "arbitrary shell through MCP"
+    ]
+  },
+  "minimum_evidence_for_incident": [
+    "one redacted trigger event or alert summary",
+    "one affected surface id",
+    "severity and confidence estimate",
+    "correlation id or source event id when available",
+    "recommended next action with policy gate classification",
+    "raw_content_visible=false"
+  ]
+}

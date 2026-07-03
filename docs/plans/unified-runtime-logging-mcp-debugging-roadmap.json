@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.unified_runtime_logging_mcp_debugging_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "in_progress",
+  "mode": "parallel_ready_handoff",
+  "title": "Unified Runtime Logging And MCP Debugging Roadmap",
+  "goal": "Unify Odysseus runtime logs, ledgers and Telegram diagnostics behind one redacted event model and expose full read-only MCP debugging and analysis capabilities for operators and coding agents.",
+  "why": [
+    "Odysseus currently has several useful logs and ledgers, but they are fragmented across app logs, AI activity, agent runs, Telegram, scheduler, Universal Inbox, memory, RaptorGraph and background jobs.",
+    "Troubleshooting recurring issues such as missing Telegram replies, failed OCR/STT, scheduler reminders, Nextcloud import, memory writes and RaptorGraph maintenance needs a shared correlation model.",
+    "The Debian observability stack should collect already-redacted structured events instead of scraping an inconsistent mix of prose logs.",
+    "MCP should become the safe debugging workbench: broad analysis and diagnosis, but read-only by default and gated for any live mutation."
+  ],
+  "related_roadmaps": [
+    {
+      "path": "docs/plans/debian-observability-security-handoff-roadmap.json",
+      "relationship": "Downstream observability stack consumes the unified events and MCP diagnostics defined here."
+    }
+  ],
+  "current_log_sources_to_unify": {
+    "runtime_log": "data/logs/app.log",
+    "ai_activity_ledger": "data/ai_activity_ledger/*.jsonl",
+    "agent_run_ledger": "data/agent_run_ledger/*.jsonl",
+    "chat_history": "data/app.db table chat_messages",
+    "mount_audit": "data/mount_audit.jsonl",
+    "background_jobs": [
+      "data/bg_jobs.json",
+      "data/bg_jobs/*.log"
+    ],
+    "telegram": [
+      "plugins/telegram local history/events",
+      "Telegram polling/webhook status events",
+      "Telegram voice/STT/image/OCR/document pipeline events",
+      "Telegram reply send/block/fail events"
+    ],
+    "universal_inbox": [
+      "Universal Inbox attachment pipeline events",
+      "Memory write intent events",
+      "Nextcloud transfer events"
+    ],
+    "memory_and_raptor": [
+      "Memory write ledgers",
+      "RaptorGraph maintenance logs",
+      "RaptorGraph provenance and graph events"
+    ],
+    "scheduler": [
+      "scheduled_tasks database rows",
+      "task run logs",
+      "delivery results"
+    ],
+    "security_and_ops": [
+      "systemd journal",
+      "Podman logs",
+      "CrowdSec alerts and decisions once enabled"
+    ]
+  },
+  "target_event_envelope": {
+    "required_fields": [
+      "ts",
+      "event_id",
+      "schema",
+      "surface",
+      "component",
+      "event_type",
+      "status",
+      "severity",
+      "owner_hash_or_owner_scope",
+      "correlation_id",
+      "privacy_level",
+      "raw_content_visible"
+    ],
+    "optional_fields": [
+      "session_id",
+      "task_id",
+      "doc_id",
+      "message_ref",
+      "run_id",
+      "model_ref",
+      "provider",
+      "duration_ms",
+      "input_chars",
+      "output_chars",
+      "error_class",
+      "retry_count",
+      "gate_ids",
+      "side_effects",
+      "source_event_ids"
+    ],
+    "forbidden_fields": [
+      "api_key",
+      "authorization_header",
+      "cookie",
+      "telegram_chat_id_raw",
+      "telegram_token",
+      "private_document_text",
+      "private_email_body",
+      "image_base64",
+      "absolute_private_host_path",
+      "unredacted_tool_output"
+    ],
+    "label_cardinality_rules": [
+      "Prometheus/Loki labels may use surface, component, event_type, status and severity.",
+      "Do not use raw IDs, filenames, document titles, prompts, URLs with query strings or user text as labels.",
+      "Correlation IDs belong in event payloads and query parameters, not high-cardinality metric labels."
+    ]
+  },
+  "mcp_debugging_target": {
+    "principle": "Full debugging and analysis surface, read-only by default.",
+    "server_scope": "Local Odysseus MCP server or dedicated debug MCP server, token-authenticated and not exposed remotely without a separate gate.",
+    "default_mode": "read_only",
+    "write_or_remediation_policy": "Any mutation such as task retry, scheduler pause, CrowdSec remediation, service restart, log deletion or replay requires an explicit gated tool and operator confirmation.",
+    "tool_groups": [
+      {
+        "group": "event_correlation",
+        "tools": [
+          "debug_trace_by_correlation_id",
+          "debug_trace_by_telegram_message",
+          "debug_trace_by_task_id",
+          "debug_trace_by_doc_id",
+          "debug_recent_failures"
+        ]
+      },
+      {
+        "group": "telegram_diagnostics",
+        "tools": [
+          "telegram_debug_last_update",
+          "telegram_debug_message_flow",
+          "telegram_debug_reply_status",
+          "telegram_debug_voice_pipeline",
+          "telegram_debug_image_ocr_pipeline",
+          "telegram_debug_control_commands"
+        ]
+      },
+      {
+        "group": "scheduler_and_calendar",
+        "tools": [
+          "scheduler_debug_due_tasks",
+          "scheduler_debug_delivery_failures",
+          "calendar_debug_reminder_flow",
+          "calendar_debug_todo_digest_flow"
+        ]
+      },
+      {
+        "group": "universal_inbox_and_nextcloud",
+        "tools": [
+          "inbox_debug_document_flow",
+          "inbox_debug_extraction_status",
+          "inbox_debug_memory_write_intent",
+          "nextcloud_debug_transfer_status"
+        ]
+      },
+      {
+        "group": "memory_and_raptor",
+        "tools": [
+          "memory_debug_write_flow",
+          "raptorgraph_debug_maintenance",
+          "raptorgraph_debug_provenance",
+          "raptorgraph_debug_rebuild_readiness"
+        ]
+      },
+      {
+        "group": "model_and_agent",
+        "tools": [
+          "llm_debug_activity_summary",
+          "agent_debug_run_trace",
+          "agent_debug_tool_failures",
+          "local_model_debug_latency"
+        ]
+      },
+      {
+        "group": "ops_observability",
+        "tools": [
+          "prometheus_query_readonly",
+          "loki_query_readonly",
+          "grafana_dashboard_summary",
+          "podman_debug_status_readonly",
+          "crowdsec_debug_summary_readonly"
+        ]
+      },
+      {
+        "group": "debug_bundle",
+        "tools": [
+          "debug_bundle_create_redacted",
+          "debug_bundle_list",
+          "debug_bundle_read_summary"
+        ]
+      }
+    ]
+  },
+  "parallelization_model": {
+    "hot_files": [
+      "plugins/telegram/plugin.py",
+      "src/llm_core.py",
+      "src/ai_activity_ledger.py",
+      "src/agent_run_ledger.py",
+      "mcp_servers/*",
+      "src/builtin_mcp.py"
+    ],
+    "rule": "Multiagent execution must assign disjoint write scopes. Telegram, LLM core, MCP server registration and RaptorGraph files are hot paths and should be edited serially unless a coordinator explicitly partitions exact files.",
+    "safe_parallel_tracks": [
+      {
+        "tracks": [
+          "ULOG-1-event-schema",
+          "ULOG-7-dashboard-label-contract"
+        ],
+        "reason": "Schema and observability label policy are docs/model work and can proceed before adapters."
+      },
+      {
+        "tracks": [
+          "ULOG-3-scheduler-inbox-memory-adapters",
+          "ULOG-5-mcp-diagnostic-contract"
+        ],
+        "reason": "Runtime adapters and MCP contract can be developed against the same envelope with separate files."
+      },
+      {
+        "tracks": [
+          "ULOG-4-raptor-memory-provenance-adapters",
+          "ULOG-6-debug-bundle"
+        ],
+        "reason": "Raptor provenance and redacted bundle generation are separable if they only meet at the event query API."
+      }
+    ],
+    "avoid_parallel_tracks": [
+      {
+        "tracks": [
+          "ULOG-2-telegram-flow-events",
+          "Any other Telegram plugin slice"
+        ],
+        "reason": "Telegram plugin is already a hotspot."
+      },
+      {
+        "tracks": [
+          "ULOG-5-mcp-diagnostic-contract",
+          "Any MCP server registration slice"
+        ],
+        "reason": "MCP registration and tool policy must remain coherent."
+      },
+      {
+        "tracks": [
+          "ULOG-0-inventory",
+          "Live log shipping"
+        ],
+        "reason": "Do not start shipping logs before the inventory and redaction policy are known."
+      }
+    ]
+  },
+  "slice_queue": [
+    {
+      "id": "ULOG-0-inventory",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "parallel_group": "A",
+      "status": "done",
+      "goal": "Inventory every existing log, ledger and diagnostic surface and classify it by privacy risk, owner scope, retention and correlation fields.",
+      "allowed_paths": [
+        "docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json",
+        "docs/plans/unified-runtime-logging-inventory.json"
+      ],
+      "done_when": "A machine-readable inventory lists all current log sources, what they contain, what is safe for Loki, and which fields need redaction or hashing.",
+      "evidence": "Created docs/plans/unified-runtime-logging-inventory.json with source groups for app logs, AI activity, agent runs, agent tasks, memory provenance, Telegram, Universal Inbox, scheduler/calendar, diagnostics routes, mount audit, background jobs and Podman/systemd ops. The inventory classifies privacy risk, Loki suitability, correlation fields and forbidden raw fields."
+    },
+    {
+      "id": "ULOG-1-event-schema",
+      "class": "repo_only",
+      "owner": "Alice",
+      "parallel_group": "A",
+      "status": "done",
+      "goal": "Implement the shared runtime event envelope and redaction rules as a small backend module.",
+      "allowed_paths": [
+        "src/runtime_event_envelope.py",
+        "tests/test_runtime_event_envelope.py"
+      ],
+      "done_when": "All event writers can create redacted events with correlation_id, surface, component, event_type, status, severity and privacy metadata.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_runtime_event_envelope.py -q"
+      ],
+      "evidence": "Implemented src/runtime_event_envelope.py with required runtime event fields, owner hash/scope handling, privacy levels, safe statuses/severities, forbidden field and marker rejection, host-path hashing for references, metadata validation and a low-cardinality Loki projection. Focused tests passed on 2026-07-03: 7 passed, 1 warning."
+    },
+    {
+      "id": "ULOG-2-telegram-flow-events",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "B",
+      "status": "planned",
+      "goal": "Emit unified events for the complete Telegram flow from inbound update to reply, including STT, OCR, Inbox, Agent turn and control commands.",
+      "allowed_paths": [
+        "plugins/telegram/plugin.py",
+        "plugins/telegram/polling.py",
+        "plugins/telegram/stores.py",
+        "src/runtime_event_envelope.py",
+        "tests/test_telegram_plugin.py"
+      ],
+      "done_when": "A Telegram message can be traced by correlation_id through receive, allow/block, parse, media pipeline, agent/control handling and reply status.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_telegram_plugin.py tests/test_runtime_event_envelope.py -q"
+      ],
+      "notes": [
+        "Do not store raw chat IDs as event fields.",
+        "Use stable hashed chat/message references for correlation.",
+        "This slice must not run in parallel with other Telegram plugin edits."
+      ]
+    },
+    {
+      "id": "ULOG-3-scheduler-inbox-memory-adapters",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "C",
+      "status": "planned",
+      "goal": "Add unified event emission to scheduler, Universal Inbox, Nextcloud transfer and memory write-intent flows.",
+      "allowed_paths": [
+        "src/task_scheduler.py",
+        "src/task_scheduler_delivery.py",
+        "src/universal_inbox_pipeline.py",
+        "src/universal_inbox_worker.py",
+        "src/universal_inbox_memory_write_intent.py",
+        "src/nextcloud_source_provider.py",
+        "src/runtime_event_envelope.py",
+        "tests/test_task_scheduler*.py",
+        "tests/test_universal_inbox*.py"
+      ],
+      "done_when": "Reminder failures, inbox extraction failures, Nextcloud copy/write blockers and memory write outcomes are diagnosable by correlation_id.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_task_scheduler_delivery.py tests/test_universal_inbox_pipeline.py tests/test_runtime_event_envelope.py -q"
+      ]
+    },
+    {
+      "id": "ULOG-4-raptor-memory-provenance-adapters",
+      "class": "repo_only",
+      "owner": "Alice",
+      "parallel_group": "C",
+      "status": "planned",
+      "goal": "Connect RaptorGraph maintenance, provenance and memory write logs to the shared event envelope.",
+      "allowed_paths": [
+        "src/raptorgraph*.py",
+        "services/memory/**",
+        "src/runtime_event_envelope.py",
+        "tests/test_raptor*.py",
+        "tests/test_memory*.py"
+      ],
+      "done_when": "RaptorGraph rebuild/readiness/maintenance and memory writes produce redacted events that can be traced back to source docs/tasks without exposing private content.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_runtime_event_envelope.py tests/test_raptorgraph*.py -q"
+      ]
+    },
+    {
+      "id": "ULOG-5-mcp-diagnostic-contract",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "parallel_group": "D",
+      "status": "planned",
+      "goal": "Define and implement the read-only MCP diagnostic tool contract for unified logs, metrics, Telegram, scheduler, inbox, memory, RaptorGraph, models and ops summaries.",
+      "allowed_paths": [
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py",
+        "src/builtin_mcp.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "done_when": "MCP exposes broad read-only debugging tools and blocks all mutation/remediation by default.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_mcp_debug_server.py tests/test_mcp_server_tool_policy.py -q"
+      ],
+      "required_tool_properties": [
+        "read_only true",
+        "redacted output",
+        "bounded result sizes",
+        "no raw private content",
+        "no raw secrets",
+        "no raw chat IDs",
+        "operator confirmation required for any future write/remediation tool"
+      ]
+    },
+    {
+      "id": "ULOG-6-debug-bundle",
+      "class": "repo_only",
+      "owner": "Alice",
+      "parallel_group": "D",
+      "status": "planned",
+      "goal": "Build a redacted debug bundle generator that collects correlated events, summaries and counters for one incident.",
+      "allowed_paths": [
+        "src/debug_bundle.py",
+        "mcp_servers/debug_server.py",
+        "tests/test_debug_bundle.py"
+      ],
+      "done_when": "A missing Telegram reply, failed reminder or blocked memory write can produce a compact redacted bundle for review or GitHub issue attachment.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_debug_bundle.py tests/test_mcp_debug_server.py -q"
+      ]
+    },
+    {
+      "id": "ULOG-7-dashboard-label-contract",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "parallel_group": "A",
+      "status": "done",
+      "goal": "Define the Loki/Grafana/Prometheus label contract so live log shipping remains queryable and low-cardinality.",
+      "allowed_paths": [
+        "docs/plans/unified-runtime-logging-dashboard-label-contract.json"
+      ],
+      "done_when": "Dashboard labels and log fields are documented with explicit forbidden labels and retention assumptions.",
+      "tests": [],
+      "evidence": "Created docs/plans/unified-runtime-logging-dashboard-label-contract.json with allowed Loki and Prometheus labels, forbidden high-cardinality/private labels, allowed and forbidden event payload fields, metric families, dashboard sections, retention defaults and acceptance checks."
+    },
+    {
+      "id": "ULOG-8-loki-prometheus-read-adapters",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "E",
+      "status": "planned",
+      "goal": "Add optional read-only clients for Prometheus and Loki queries behind MCP diagnostics, disabled unless configured.",
+      "allowed_paths": [
+        "src/observability_clients.py",
+        "mcp_servers/debug_server.py",
+        "tests/test_observability_clients.py",
+        "tests/test_mcp_debug_server.py"
+      ],
+      "done_when": "Configured deployments can query Prometheus/Loki through bounded read-only tools; unconfigured deployments return readiness blockers.",
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_observability_clients.py tests/test_mcp_debug_server.py -q"
+      ],
+      "notes": [
+        "No live network query in unit tests.",
+        "Use fake clients and explicit config gates."
+      ]
+    },
+    {
+      "id": "ULOG-9-live-observability-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "parallel_group": "LIVE",
+      "status": "gated",
+      "goal": "Run one bounded live smoke on the Debian server after the event schema, MCP tools and log shipping are configured.",
+      "allowed_paths": [
+        "data/reports/observability/**"
+      ],
+      "done_when": "A harmless Telegram diagnostic flow is visible through unified events, MCP debug query, Loki/Grafana and Prometheus counters.",
+      "gate_required": "observability-live-smoke-go"
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "observability-live-smoke-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "ULOG-9-live-observability-smoke"
+      ],
+      "decision_needed": "Approve one harmless live Telegram/debug flow on Debian after repo-only slices pass.",
+      "risk_if_bypassed": "Live Telegram, Loki or Prometheus queries could reveal operational metadata or notify the wrong target."
+    },
+    {
+      "id": "mcp-debug-server-exposure-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "Remote MCP debugging access"
+      ],
+      "decision_needed": "Decide whether the debug MCP server remains local-only or is reachable through a protected channel.",
+      "risk_if_bypassed": "A broad debugging surface can leak sensitive operational metadata if exposed."
+    },
+    {
+      "id": "mcp-remediation-tools-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "Any MCP tool that restarts services, retries jobs, mutates scheduler state, deletes logs or changes CrowdSec decisions"
+      ],
+      "decision_needed": "Approve specific remediation tools one by one after read-only diagnostics are proven.",
+      "risk_if_bypassed": "Debugging could accidentally become unsafe remote control."
+    }
+  ],
+  "definition_of_done": [
+    "All major Odysseus runtime subsystems emit or can be mapped into one redacted event envelope.",
+    "Telegram message failures are traceable end-to-end without raw chat IDs or private content.",
+    "Scheduler, Inbox, Nextcloud, Memory and RaptorGraph failures are diagnosable by correlation_id.",
+    "A read-only MCP debug server exposes comprehensive analysis tools with bounded redacted output.",
+    "Optional Loki/Prometheus adapters support Grafana-era observability without making the app depend on live observability services.",
+    "A redacted debug bundle can be generated for one incident."
+  ],
+  "recommended_next_action": {
+    "id": "ULOG-7-dashboard-label-contract",
+    "reason": "After the inventory and runtime event envelope, define the Loki/Grafana/Prometheus label contract before wiring hot-path Telegram, scheduler, inbox, memory or MCP adapters."
+  }
+}

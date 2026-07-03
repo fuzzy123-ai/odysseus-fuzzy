@@ -1,0 +1,445 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.security_incident_response_escalation_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "in_progress",
+  "mode": "parallel_ready_handoff",
+  "title": "Security Incident Response And Escalation Roadmap",
+  "goal": "Define and implement a defensive escalation system so Odysseus can detect security anomalies, preserve evidence, diagnose causes, recommend containment, and execute only explicitly allowed remediation actions.",
+  "principles": [
+    "No hackback, no retaliation, no offensive scanning against third-party systems.",
+    "Evidence first: preserve redacted facts before remediation changes state.",
+    "Read-only diagnostics are allowed by default; mutations require policy and operator confirmation.",
+    "Incident mode must fail closed around secrets, private logs and DSGVO-sensitive content.",
+    "CrowdSec remediation, firewall changes, restarts, token rotation and deploy rollback are gated actions."
+  ],
+  "related_roadmaps": [
+    {
+      "path": "docs/plans/debian-observability-security-handoff-roadmap.json",
+      "relationship": "Provides metrics, logs, CrowdSec and Grafana/Loki/Prometheus evidence."
+    },
+    {
+      "path": "docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json",
+      "relationship": "Provides unified event correlation, redacted debug bundles and read-only MCP diagnostics."
+    }
+  ],
+  "incident_ladder": [
+    {
+      "level": 0,
+      "name": "normal",
+      "meaning": "No anomaly beyond baseline.",
+      "allowed_autonomy": [
+        "monitor",
+        "collect routine metrics"
+      ],
+      "operator_notification": "none"
+    },
+    {
+      "level": 1,
+      "name": "watch",
+      "meaning": "Low-confidence anomaly such as isolated scanner hits or a small error spike.",
+      "allowed_autonomy": [
+        "create incident candidate",
+        "correlate recent events",
+        "deduplicate alerts"
+      ],
+      "operator_notification": "optional or digest"
+    },
+    {
+      "level": 2,
+      "name": "alert",
+      "meaning": "Repeated suspicious behavior, auth failures, unexpected endpoint probing or subsystem failure with security relevance.",
+      "allowed_autonomy": [
+        "create incident",
+        "create redacted debug bundle",
+        "run read-only MCP diagnostics",
+        "notify operator"
+      ],
+      "operator_notification": "immediate"
+    },
+    {
+      "level": 3,
+      "name": "contain",
+      "meaning": "Active brute force, exploit signature, abuse pattern, suspicious repeated access or service disruption.",
+      "allowed_autonomy": [
+        "recommend temporary block",
+        "recommend rate limit",
+        "recommend service isolation",
+        "execute pre-approved soft block only if policy allows"
+      ],
+      "operator_notification": "immediate with approve or deny action ids"
+    },
+    {
+      "level": 4,
+      "name": "lockdown",
+      "meaning": "Secret leak suspicion, admin-token abuse, data exfiltration suspicion, webshell suspicion or confirmed compromise indicator.",
+      "allowed_autonomy": [
+        "force incident mode",
+        "force local-only analysis for sensitive evidence",
+        "block risky write tools",
+        "preserve evidence",
+        "request explicit operator Go for token rotation, session invalidation, service restart or network isolation"
+      ],
+      "operator_notification": "urgent"
+    },
+    {
+      "level": 5,
+      "name": "recovery",
+      "meaning": "Containment is complete and the system must return to a trusted operating state.",
+      "allowed_autonomy": [
+        "recommend recovery runbook",
+        "verify service health",
+        "prepare post-incident report",
+        "propose rule tuning"
+      ],
+      "operator_notification": "review required"
+    }
+  ],
+  "response_policy": {
+    "auto_allowed": [
+      "read-only MCP diagnostics",
+      "redacted debug bundle creation",
+      "incident candidate creation",
+      "alert deduplication",
+      "Grafana/Loki/Prometheus read-only summaries",
+      "Telegram or UI notification with redacted facts"
+    ],
+    "confirmation_required": [
+      "CrowdSec temporary ban or unban",
+      "firewall or reverse-proxy rule changes",
+      "service restart",
+      "scheduler pause or retry",
+      "RaptorGraph maintenance restart",
+      "Nextcloud import retry",
+      "token rotation",
+      "session invalidation",
+      "Cloudflare tunnel changes",
+      "deploy rollback",
+      "log level increase that may capture private data"
+    ],
+    "never_allowed": [
+      "hackback",
+      "exploit execution against third-party systems",
+      "doxxing or identity enrichment beyond defensive IP reputation",
+      "secret printing",
+      "private log/document upload to external API models while incident or DSGVO mode is active",
+      "destructive cleanup before evidence preservation",
+      "broad firewall changes without explicit approval"
+    ]
+  },
+  "target_incident_object": {
+    "required_fields": [
+      "incident_id",
+      "created_at",
+      "updated_at",
+      "level",
+      "severity",
+      "confidence",
+      "status",
+      "trigger",
+      "affected_surfaces",
+      "correlation_ids",
+      "evidence_refs",
+      "recommended_actions",
+      "raw_content_visible"
+    ],
+    "recommended_action_fields": [
+      "action_id",
+      "type",
+      "summary",
+      "risk",
+      "requires_confirmation",
+      "expires_at",
+      "policy_gate",
+      "status"
+    ],
+    "privacy_requirements": [
+      "No raw IP address in user-facing summary unless operator policy permits it.",
+      "No raw Telegram chat IDs.",
+      "No tokens, cookies, authorization headers or raw private documents.",
+      "Use hashes or redacted refs for attacker identifiers unless needed for an approved defensive action."
+    ]
+  },
+  "mcp_incident_response_target": {
+    "default": "read_only",
+    "read_only_tools": [
+      "security_incident_list",
+      "security_incident_read",
+      "security_incident_trace",
+      "security_recent_anomalies",
+      "security_policy_readiness",
+      "security_recommend_next_action",
+      "security_debug_bundle_read"
+    ],
+    "gated_action_tools": [
+      "security_action_prepare",
+      "security_action_approve",
+      "security_action_deny",
+      "security_action_execute"
+    ],
+    "future_remediation_actions": [
+      "crowdsec_temp_block",
+      "crowdsec_unblock",
+      "service_restart",
+      "scheduler_pause",
+      "scheduler_retry",
+      "token_rotation_prepare",
+      "session_invalidate_prepare",
+      "cloudflare_tunnel_pause_prepare"
+    ],
+    "tool_policy": [
+      "All tools return redacted evidence.",
+      "Action execute requires an existing prepared action_id and explicit operator approval.",
+      "No direct shell or arbitrary command execution through the incident MCP surface.",
+      "No broad firewall, file delete or secret mutation tools in MVP."
+    ]
+  },
+  "parallelization_model": {
+    "hot_files": [
+      "mcp_servers/debug_server.py",
+      "src/mcp_server_tool_policy.py",
+      "src/builtin_mcp.py",
+      "plugins/telegram/plugin.py",
+      "src/security*.py"
+    ],
+    "safe_parallel_tracks": [
+      {
+        "tracks": [
+          "SIR-1-incident-model",
+          "SIR-2-policy-engine"
+        ],
+        "reason": "Model and policy can be developed against a shared contract with separate files."
+      },
+      {
+        "tracks": [
+          "SIR-3-anomaly-classifiers",
+          "SIR-4-operator-notifications"
+        ],
+        "reason": "Classifier output and notification formatting are separable if they share incident object tests."
+      },
+      {
+        "tracks": [
+          "SIR-5-mcp-incident-tools",
+          "SIR-6-runbooks"
+        ],
+        "reason": "MCP tools and runbook docs are separable until final integration."
+      }
+    ],
+    "avoid_parallel_tracks": [
+      {
+        "tracks": [
+          "SIR-5-mcp-incident-tools",
+          "ULOG-5-mcp-diagnostic-contract"
+        ],
+        "reason": "Both touch MCP debug server and tool policy; integrate serially."
+      },
+      {
+        "tracks": [
+          "SIR-4-operator-notifications",
+          "Any Telegram control-command work"
+        ],
+        "reason": "Telegram plugin is a hotspot."
+      },
+      {
+        "tracks": [
+          "SIR-7-gated-remediation",
+          "Live server observability setup"
+        ],
+        "reason": "Remediation must wait until observability evidence and gates are stable."
+      }
+    ]
+  },
+  "slice_queue": [
+    {
+      "id": "SIR-0-threat-and-response-inventory",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "parallel_group": "A",
+      "status": "done",
+      "goal": "Map likely attacker scenarios against Odysseus surfaces and define which evidence source detects each scenario.",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-escalation-roadmap.json",
+        "docs/plans/security-incident-threat-inventory.json"
+      ],
+      "done_when": "A redacted threat inventory covers SSH, reverse proxy/tunnel, Nextcloud, Odysseus API, Telegram bridge, MCP and provider/secret misuse.",
+      "evidence": "Created docs/plans/security-incident-threat-inventory.json with redacted defensive scenarios for SSH, reverse proxy/tunnel, Nextcloud, Odysseus API, Telegram bridge, MCP debug surface, provider/secret handling and RaptorGraph/Memory. The inventory maps evidence sources, initial escalation levels, auto-allowed actions, confirmation-required actions and never-allowed actions without real identifiers or private content."
+    },
+    {
+      "id": "SIR-1-incident-model",
+      "class": "repo_only",
+      "owner": "Alice",
+      "parallel_group": "B",
+      "status": "planned",
+      "goal": "Implement the incident object, action object and escalation ladder as backend models.",
+      "allowed_paths": [
+        "src/security_incident_model.py",
+        "tests/test_security_incident_model.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_security_incident_model.py -q"
+      ],
+      "done_when": "Incidents and recommended actions serialize safely, reject forbidden fields and enforce severity/level constraints."
+    },
+    {
+      "id": "SIR-2-policy-engine",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "B",
+      "status": "planned",
+      "goal": "Implement the response policy engine that decides observe, diagnose, recommend or act based on severity, confidence and approved gates.",
+      "allowed_paths": [
+        "src/security_response_policy.py",
+        "src/security_incident_model.py",
+        "tests/test_security_response_policy.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_security_response_policy.py tests/test_security_incident_model.py -q"
+      ],
+      "done_when": "The policy engine auto-allows only read-only diagnostics and debug bundles, requires confirmation for remediation, and blocks never-allowed actions."
+    },
+    {
+      "id": "SIR-3-anomaly-classifiers",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "C",
+      "status": "planned",
+      "goal": "Build initial anomaly classifiers over unified events and observability summaries.",
+      "allowed_paths": [
+        "src/security_anomaly_classifier.py",
+        "src/runtime_event_envelope.py",
+        "tests/test_security_anomaly_classifier.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_security_anomaly_classifier.py tests/test_runtime_event_envelope.py -q"
+      ],
+      "done_when": "Classifier can identify repeated auth failures, suspicious endpoint probing, Telegram abuse, service-down security events and secret-leak indicators from redacted events."
+    },
+    {
+      "id": "SIR-4-operator-notifications",
+      "class": "repo_only",
+      "owner": "Alice",
+      "parallel_group": "C",
+      "status": "planned",
+      "goal": "Create redacted incident notification formats for Telegram and future UI without exposing sensitive evidence.",
+      "allowed_paths": [
+        "src/security_incident_notifications.py",
+        "plugins/telegram/plugin.py",
+        "tests/test_security_incident_notifications.py",
+        "tests/test_telegram_plugin.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_security_incident_notifications.py tests/test_telegram_plugin.py -q"
+      ],
+      "done_when": "Operator receives concise incident summaries, action IDs and approve/deny instructions without raw secrets or private content."
+    },
+    {
+      "id": "SIR-5-mcp-incident-tools",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "parallel_group": "D",
+      "status": "planned",
+      "goal": "Expose read-only incident response tools through the MCP debug workbench and define gated action tools without enabling live remediation by default.",
+      "allowed_paths": [
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py",
+        "src/builtin_mcp.py",
+        "src/security_incident_model.py",
+        "src/security_response_policy.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_mcp_debug_server.py tests/test_mcp_server_tool_policy.py tests/test_security_response_policy.py -q"
+      ],
+      "done_when": "MCP can list/read/trace incidents and prepare recommendations, while execute remains gated and policy-controlled."
+    },
+    {
+      "id": "SIR-6-runbooks",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "parallel_group": "D",
+      "status": "planned",
+      "goal": "Write defensive runbooks for common incident types and recovery flow.",
+      "allowed_paths": [
+        "docs/runbooks/security-incident-response.md",
+        "docs/runbooks/crowdsec-remediation.md",
+        "docs/runbooks/telegram-security-incident.md"
+      ],
+      "tests": [],
+      "done_when": "Runbooks define observe, diagnose, contain, lockdown and recovery steps with clear operator gates."
+    },
+    {
+      "id": "SIR-7-gated-remediation",
+      "class": "repo_only",
+      "owner": "Bob",
+      "parallel_group": "E",
+      "status": "planned",
+      "goal": "Implement safe preparation of remediation actions without executing live changes.",
+      "allowed_paths": [
+        "src/security_remediation_actions.py",
+        "src/security_response_policy.py",
+        "tests/test_security_remediation_actions.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_security_remediation_actions.py tests/test_security_response_policy.py -q"
+      ],
+      "done_when": "Odysseus can prepare redacted action plans for CrowdSec temp block, restart request, scheduler pause/retry and token-rotation prep, but cannot execute them without a live gate."
+    },
+    {
+      "id": "SIR-8-live-tabletop-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "parallel_group": "LIVE",
+      "status": "gated",
+      "goal": "Run a tabletop live smoke using synthetic/redacted events to verify incident creation, notification, MCP diagnosis and approve/deny flow.",
+      "allowed_paths": [
+        "data/reports/security_incidents/**"
+      ],
+      "gate_required": "security-incident-tabletop-go",
+      "done_when": "A synthetic incident escalates to alert, produces a debug bundle, notifies the operator and records an approve/deny decision without touching firewall, CrowdSec or live services."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "security-incident-tabletop-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "SIR-8-live-tabletop-smoke"
+      ],
+      "decision_needed": "Approve a synthetic incident tabletop smoke with no real remediation.",
+      "risk_if_bypassed": "Even synthetic notifications can confuse operators if not clearly marked."
+    },
+    {
+      "id": "crowdsec-remediation-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "Any CrowdSec ban/unban action"
+      ],
+      "decision_needed": "Approve whether Odysseus may execute CrowdSec temporary bans and under what confidence/severity thresholds.",
+      "risk_if_bypassed": "False positives could block legitimate operator access."
+    },
+    {
+      "id": "lockdown-mode-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": [
+        "Automatic lockdown actions"
+      ],
+      "decision_needed": "Decide which lockdown actions, if any, Odysseus may take automatically.",
+      "risk_if_bypassed": "Over-broad lockdown could interrupt legitimate operations or hide evidence."
+    }
+  ],
+  "definition_of_done": [
+    "Security anomalies are represented as structured incidents with severity, confidence, evidence and recommended actions.",
+    "Odysseus can diagnose incidents using unified events and read-only MCP tools.",
+    "Operator notifications are precise and redacted.",
+    "Remediation is policy-gated and never defaults to arbitrary shell, firewall or CrowdSec mutation.",
+    "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
+  ],
+  "recommended_next_action": {
+    "id": "SIR-0-threat-and-response-inventory",
+    "reason": "Before implementation, map attacker scenarios to evidence sources and response limits."
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.unified_runtime_logging_inventory",
+  "updated_at": "2026-07-03",
+  "status": "done",
+  "scope": "repo_only_inventory",
+  "raw_content_visible": false,
+  "summary": "Inventory of current Odysseus log, ledger and diagnostic sources that should feed the unified runtime event envelope without persisting private raw content.",
+  "source_groups": [
+    {
+      "id": "runtime_log",
+      "path_or_surface": "data/logs/app.log",
+      "current_owner": "application logging",
+      "privacy_risk": "medium",
+      "safe_for_loki": "after_redaction_and_label_policy",
+      "correlation_fields_present": ["varies"],
+      "must_redact_or_hash": ["provider outputs", "tokens", "chat ids", "private host paths", "raw tool output"],
+      "notes": "Primary prose runtime log. Useful for failures but should not become the canonical structured event source."
+    },
+    {
+      "id": "ai_activity_ledger",
+      "path_or_surface": "data/ai_activity_ledger/*.jsonl",
+      "module": "src/ai_activity_ledger.py",
+      "privacy_risk": "low",
+      "safe_for_loki": "summary_or_metadata_only",
+      "correlation_fields_present": ["owner", "surface", "correlation_id", "session_id", "task_id", "doc_id", "prompt_type", "provider", "model", "status"],
+      "must_redact_or_hash": ["prompt_hash only", "endpoint_hash only", "no raw prompts", "no raw outputs"],
+      "notes": "Already metadata-first and date partitioned. Good candidate for direct envelope adapter."
+    },
+    {
+      "id": "agent_run_ledger",
+      "path_or_surface": "data/agent_run_ledger/*.jsonl",
+      "module": "src/agent_run_ledger.py",
+      "privacy_risk": "medium",
+      "safe_for_loki": "summary_only",
+      "correlation_fields_present": ["session_id", "run events"],
+      "must_redact_or_hash": ["tool arguments", "tool output", "private file paths", "raw prompt fragments"],
+      "notes": "Useful for SSE/tool traces; unified events should reference run/session ids, not copy verbose tool output."
+    },
+    {
+      "id": "agent_task_ledger",
+      "path_or_surface": "data/agent_task_ledger/*.jsonl",
+      "module": "src/agent_task_ledger.py",
+      "privacy_risk": "low",
+      "safe_for_loki": "metadata_only",
+      "correlation_fields_present": ["owner_hash", "correlation_id", "task_id", "surface", "status"],
+      "must_redact_or_hash": ["owner raw value", "private paths"],
+      "notes": "Already stores metadata-only task events and Telegram control statuses."
+    },
+    {
+      "id": "memory_provenance_ledger",
+      "path_or_surface": "data/memory_provenance_ledger/*.jsonl",
+      "module": "src/memory_provenance_ledger.py",
+      "privacy_risk": "low",
+      "safe_for_loki": "metadata_only",
+      "correlation_fields_present": ["owner", "surface", "session_id", "task_id", "document_ref", "source_hash", "memory_record_ids", "graph_event_id", "status"],
+      "must_redact_or_hash": ["document_ref", "source_hash", "memory ids if exposed outside owner scope"],
+      "notes": "Canonical source for Memory/RaptorGraph write intent and provenance without private content."
+    },
+    {
+      "id": "telegram_local_history",
+      "path_or_surface": "plugins/telegram local stores",
+      "modules": ["plugins/telegram/stores.py", "plugins/telegram/plugin.py", "plugins/telegram/polling.py"],
+      "privacy_risk": "high",
+      "safe_for_loki": "event_metadata_only",
+      "correlation_fields_present": ["chat_handle", "message_id", "correlation_id", "spool_key"],
+      "must_redact_or_hash": ["raw chat id", "file id", "file unique id", "message text", "attachment filenames", "voice transcript", "OCR text"],
+      "notes": "Telegram needs first-class flow events, but private text/media must stay out of metrics and shared logs."
+    },
+    {
+      "id": "universal_inbox",
+      "path_or_surface": "Universal Inbox pipeline state and ledgers",
+      "modules": ["src/universal_inbox_pipeline.py", "src/universal_inbox_worker.py", "src/universal_inbox_memory_write_intent.py"],
+      "privacy_risk": "high",
+      "safe_for_loki": "status_and_hashes_only",
+      "correlation_fields_present": ["source_ref", "doc_id", "source_hash", "memory_write_intent_status"],
+      "must_redact_or_hash": ["document text", "file names when private", "absolute source paths", "OCR/extraction output"],
+      "notes": "Should emit extraction, policy, Nextcloud transfer and memory write outcomes by correlation id."
+    },
+    {
+      "id": "scheduler_and_calendar",
+      "path_or_surface": "scheduled tasks, calendar MCP server and CalDAV readiness",
+      "modules": ["src/task_scheduler.py", "src/task_scheduler_delivery.py", "mcp_servers/calendar_server.py"],
+      "privacy_risk": "medium",
+      "safe_for_loki": "task_metadata_only",
+      "correlation_fields_present": ["task_id", "owner", "delivery status"],
+      "must_redact_or_hash": ["task body", "todo text", "calendar titles", "calendar locations", "recipient details"],
+      "notes": "Needed to diagnose missed reminders without exposing the reminder content."
+    },
+    {
+      "id": "diagnostics_routes",
+      "path_or_surface": "/api/diagnostics/*",
+      "modules": ["routes/diagnostics_routes.py", "src/diagnostics_quick_summary.py"],
+      "privacy_risk": "low",
+      "safe_for_loki": "summary_only",
+      "correlation_fields_present": ["day", "surface", "status"],
+      "must_redact_or_hash": ["raw records by default", "private host paths"],
+      "notes": "Already admin-gated summaries are useful as MCP diagnostic source material."
+    },
+    {
+      "id": "mount_audit",
+      "path_or_surface": "data/mount_audit.jsonl",
+      "privacy_risk": "medium",
+      "safe_for_loki": "bounded_summary_only",
+      "correlation_fields_present": ["operation status"],
+      "must_redact_or_hash": ["host paths", "file names", "raw command output"],
+      "notes": "Useful for coding/sandbox file access auditing, but never expose absolute private paths as labels."
+    },
+    {
+      "id": "background_jobs",
+      "path_or_surface": "data/bg_jobs.json and data/bg_jobs/*.log",
+      "privacy_risk": "medium",
+      "safe_for_loki": "status_summary_only",
+      "correlation_fields_present": ["job id", "task id", "status"],
+      "must_redact_or_hash": ["raw job logs", "command output", "private paths", "provider outputs"],
+      "notes": "Use unified events for job lifecycle; keep detailed logs local and redacted."
+    },
+    {
+      "id": "podman_systemd_ops",
+      "path_or_surface": "Podman pods, systemd journal and Debian service logs",
+      "privacy_risk": "medium",
+      "safe_for_loki": "after_live_retention_and_redaction_policy",
+      "correlation_fields_present": ["service name", "container name", "exit status"],
+      "must_redact_or_hash": ["environment variables", "tokens", "host paths", "request bodies"],
+      "notes": "Live collection belongs to OBS roadmap; ULOG only defines the content-free event contract."
+    }
+  ],
+  "recommended_adapter_order": [
+    "ai_activity_ledger",
+    "memory_provenance_ledger",
+    "agent_task_ledger",
+    "scheduler_and_calendar",
+    "universal_inbox",
+    "telegram_local_history",
+    "background_jobs",
+    "podman_systemd_ops"
+  ],
+  "forbidden_for_unified_events": [
+    "api_key",
+    "authorization_header",
+    "cookie",
+    "telegram_chat_id_raw",
+    "telegram_token",
+    "private_document_text",
+    "private_email_body",
+    "image_base64",
+    "absolute_private_host_path",
+    "unredacted_tool_output"
+  ]
+}

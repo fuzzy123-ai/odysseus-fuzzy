@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.unified_runtime_logging_dashboard_label_contract",
+  "updated_at": "2026-07-03",
+  "status": "done",
+  "raw_content_visible": false,
+  "goal": "Define safe low-cardinality labels and payload fields for Loki, Prometheus and Grafana dashboards before broad Odysseus log shipping is enabled.",
+  "shared_rules": {
+    "labels_are_for_routing_not_content": true,
+    "label_cardinality_must_be_bounded": true,
+    "raw_private_content_in_labels": false,
+    "raw_private_content_in_payloads": false,
+    "correlation_ids_in_labels": false,
+    "correlation_ids_in_payloads": true,
+    "host_paths_in_labels": false,
+    "tokens_headers_cookies_in_any_field": false
+  },
+  "allowed_loki_labels": [
+    "surface",
+    "component",
+    "event_type",
+    "status",
+    "severity",
+    "privacy_level",
+    "deployment_env"
+  ],
+  "allowed_prometheus_labels": [
+    "surface",
+    "component",
+    "event_type",
+    "status",
+    "severity",
+    "worker_kind",
+    "model_lane",
+    "deployment_env"
+  ],
+  "forbidden_labels": [
+    "owner",
+    "owner_hash_or_owner_scope",
+    "correlation_id",
+    "session_id",
+    "task_id",
+    "doc_id",
+    "message_ref",
+    "run_id",
+    "source_ref",
+    "source_hash",
+    "filename",
+    "document_title",
+    "url",
+    "query",
+    "prompt",
+    "output",
+    "chat_id",
+    "ip_address",
+    "email",
+    "absolute_path",
+    "token",
+    "api_key"
+  ],
+  "event_payload_fields_allowed": [
+    "ts",
+    "event_id",
+    "schema",
+    "owner_hash_or_owner_scope",
+    "correlation_id",
+    "session_id",
+    "task_id",
+    "doc_id",
+    "message_ref",
+    "run_id",
+    "model_ref",
+    "provider",
+    "duration_ms",
+    "input_chars",
+    "output_chars",
+    "error_class",
+    "retry_count",
+    "gate_ids",
+    "side_effects",
+    "source_event_ids",
+    "raw_content_visible"
+  ],
+  "event_payload_fields_forbidden": [
+    "api_key",
+    "authorization_header",
+    "cookie",
+    "telegram_chat_id_raw",
+    "telegram_token",
+    "private_document_text",
+    "private_email_body",
+    "image_base64",
+    "absolute_private_host_path",
+    "unredacted_tool_output",
+    "raw_prompt",
+    "raw_output",
+    "raw_transcript",
+    "ocr_text",
+    "attachment_filename"
+  ],
+  "metric_families": [
+    {
+      "name": "odysseus_runtime_events_total",
+      "type": "counter",
+      "labels": ["surface", "component", "event_type", "status", "severity"],
+      "description": "Count of redacted runtime events by bounded label set."
+    },
+    {
+      "name": "odysseus_runtime_event_duration_seconds",
+      "type": "histogram",
+      "labels": ["surface", "component", "event_type", "status"],
+      "description": "Duration of event-producing operations such as Telegram reply, Inbox extraction, scheduler delivery and model calls."
+    },
+    {
+      "name": "odysseus_runtime_failures_total",
+      "type": "counter",
+      "labels": ["surface", "component", "event_type", "severity"],
+      "description": "Failures and blocked events by bounded operational source."
+    },
+    {
+      "name": "odysseus_live_gate_open_total",
+      "type": "gauge",
+      "labels": ["component", "gate_kind", "severity"],
+      "description": "Open gates that require operator action, without embedding action ids or private context as labels."
+    }
+  ],
+  "dashboard_sections": [
+    {
+      "id": "telegram_health",
+      "labels": ["surface=telegram"],
+      "questions_answered": [
+        "Are Telegram updates arriving?",
+        "Are replies being sent or blocked?",
+        "Are voice, OCR or document pipelines failing?"
+      ],
+      "privacy_note": "Show counts and statuses only; message text and raw chat ids never appear."
+    },
+    {
+      "id": "scheduler_reminders",
+      "labels": ["surface=scheduler", "surface=calendar"],
+      "questions_answered": [
+        "Were due tasks found?",
+        "Did delivery fail?",
+        "Is CalDAV writeback gated?"
+      ],
+      "privacy_note": "Reminder content and calendar titles stay out of labels and shared logs."
+    },
+    {
+      "id": "inbox_nextcloud_memory",
+      "labels": ["surface=universal_inbox", "surface=nextcloud", "surface=memory", "surface=raptorgraph"],
+      "questions_answered": [
+        "Did extraction run?",
+        "Was a write intent blocked?",
+        "Did memory or graph provenance write?"
+      ],
+      "privacy_note": "Use doc ids and source hashes only in payloads, not labels."
+    },
+    {
+      "id": "model_agent_latency",
+      "labels": ["surface=llm", "surface=agent"],
+      "questions_answered": [
+        "Are local model calls slow?",
+        "Are provider calls failing?",
+        "Are agent runs blocked by gates?"
+      ],
+      "privacy_note": "Prompt hashes, token counts and model refs are allowed; raw prompts and outputs are not."
+    },
+    {
+      "id": "security_incidents",
+      "labels": ["surface=security", "severity"],
+      "questions_answered": [
+        "Are incidents increasing?",
+        "Which components are producing security alerts?",
+        "Which actions are waiting for operator approval?"
+      ],
+      "privacy_note": "Attacker identifiers and IPs are not labels; approved defensive actions may reference redacted payload refs."
+    }
+  ],
+  "retention_defaults": {
+    "runtime_event_jsonl": "30d local default before rotation policy is finalized",
+    "loki_operational_logs": "14d initial recommendation",
+    "security_incident_summaries": "180d redacted summaries",
+    "debug_bundles": "operator-reviewed retention per incident"
+  },
+  "acceptance_checks": [
+    "No forbidden label appears in metrics or Loki labels.",
+    "No raw content fields appear in runtime event payloads.",
+    "Correlation ids are queryable through payload fields or MCP, not high-cardinality labels.",
+    "Dashboards can answer Telegram, scheduler, inbox, memory, model and security status questions from bounded labels."
+  ]
+}
