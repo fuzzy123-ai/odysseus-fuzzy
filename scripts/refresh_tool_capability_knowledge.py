@@ -17,6 +17,7 @@ from src.tool_capability_maintenance import (
     append_tool_capability_raptorgraph_event,
     build_tool_capability_memory_write_intent,
     execute_tool_capability_memory_write,
+    read_tool_capability_diagnostics,
     refresh_tool_capability_knowledge,
 )
 
@@ -35,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-raptorgraph", action="store_true")
     parser.add_argument("--dry-run-raptorgraph-write", action="store_true")
     parser.add_argument("--raptorgraph-dir", default="")
+    parser.add_argument("--read-diagnostics", action="store_true")
+    parser.add_argument("--assert-acceptance", action="store_true")
     args = parser.parse_args(argv)
 
     report = refresh_tool_capability_knowledge(
@@ -88,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
                 report.raptorgraph_event,
                 root=args.raptorgraph_dir or None,
             ).to_dict()
+    diagnostics = {"status": "not_requested"}
+    if args.read_diagnostics or args.assert_acceptance:
+        diagnostics = read_tool_capability_diagnostics(
+            data_dir=args.data_dir or None,
+            raptorgraph_dir=args.raptorgraph_dir or None,
+        )
     summary = {
         "status": report.status,
         "snapshot_id": report.snapshot.get("id"),
@@ -99,11 +108,53 @@ def main(argv: list[str] | None = None) -> int:
         "index_status": report.index_status,
         "memory_write": memory_write,
         "raptorgraph_write": raptorgraph_write,
+        "diagnostics": diagnostics,
     }
+    acceptance_errors = _acceptance_errors(
+        summary,
+        expect_raptorgraph_store=bool(raptorgraph_requested and not args.dry_run_raptorgraph_write),
+    ) if args.assert_acceptance else []
+    if args.assert_acceptance:
+        summary["acceptance"] = {
+            "status": "passed" if not acceptance_errors else "failed",
+            "errors": acceptance_errors,
+        }
     print(json.dumps(summary, ensure_ascii=True, sort_keys=True))
     if not args.allow_index_failure and report.index_status.get("status") not in {"ok", "skipped"}:
         return 2
+    if acceptance_errors:
+        return 3
     return 0
+
+
+def _acceptance_errors(summary: dict, *, expect_raptorgraph_store: bool) -> list[str]:
+    errors: list[str] = []
+    if summary.get("status") != "refreshed":
+        errors.append("refresh_status_not_refreshed")
+    if not summary.get("snapshot_id"):
+        errors.append("missing_snapshot_id")
+    if int(summary.get("memory_records") or 0) <= 0:
+        errors.append("missing_memory_records")
+    if not summary.get("raptorgraph_event"):
+        errors.append("missing_raptorgraph_event")
+    for key in ("memory_write", "raptorgraph_write"):
+        payload = summary.get(key) if isinstance(summary.get(key), dict) else {}
+        if payload.get("raw_content_visible"):
+            errors.append(f"{key}_raw_content_visible")
+    diagnostics = summary.get("diagnostics") if isinstance(summary.get("diagnostics"), dict) else {}
+    if diagnostics.get("status") != "success":
+        errors.append("diagnostics_not_success")
+    if diagnostics.get("raw_content_visible"):
+        errors.append("diagnostics_raw_content_visible")
+    records = diagnostics.get("memory_records") if isinstance(diagnostics.get("memory_records"), dict) else {}
+    if int(records.get("count") or 0) != int(summary.get("memory_records") or 0):
+        errors.append("diagnostics_memory_record_count_mismatch")
+    graph = diagnostics.get("raptorgraph") if isinstance(diagnostics.get("raptorgraph"), dict) else {}
+    if not graph.get("event_present"):
+        errors.append("diagnostics_raptorgraph_event_missing")
+    if expect_raptorgraph_store and int(graph.get("store_event_count") or 0) <= 0:
+        errors.append("diagnostics_raptorgraph_store_empty")
+    return errors
 
 
 if __name__ == "__main__":

@@ -34,7 +34,8 @@
         "Commit cf4193c2 pushed to fuzzy/dev.",
         "scripts/refresh_tool_capability_knowledge.py exists.",
         "ops/homeserver/install-auto-update-timer.sh calls the refresh after version and Chroma readiness.",
-        "TCM2-6 regression test now proves the refresh stays after App/Chroma readiness and version verification."
+        "TCM2-6 regression test now proves the refresh stays after App/Chroma readiness and version verification.",
+        "refresh_tool_capability_knowledge.py now supports --read-diagnostics plus --assert-acceptance for a single bounded live acceptance command."
       ],
       "remaining": "Deploy latest fuzzy/dev to Debian and run live smoke."
     },

@@ -60,7 +60,8 @@
       "goal": "Run a bounded Debian smoke proving that the post-update hook can refresh ToolIndex and persist latest.json/history.jsonl after services are ready.",
       "allowed_paths": [
         "ops/homeserver/install-auto-update-timer.sh",
-        "scripts/refresh_tool_capability_knowledge.py"
+        "scripts/refresh_tool_capability_knowledge.py",
+        "tests/test_refresh_tool_capability_knowledge_cli.py"
       ],
       "live_gate": {
         "requires": [
@@ -76,7 +77,12 @@
           "Docker-specific assumptions"
         ]
       },
-      "done_when": "Debian latest.json exists, history.jsonl appended one row, ToolIndex status is ok, and no secret/path leak appears in output."
+      "done_when": "Debian latest.json exists, history.jsonl appended one row, ToolIndex status is ok, and no secret/path leak appears in output.",
+      "safe_preparation_done": [
+        "refresh_tool_capability_knowledge.py supports --read-diagnostics to include redacted latest snapshot, memory record and RaptorGraph readback in the same command output.",
+        "refresh_tool_capability_knowledge.py supports --assert-acceptance to fail closed when diagnostics, memory record count, RaptorGraph event status or raw-content flags do not match acceptance criteria.",
+        "Focused suite passed: tests/test_refresh_tool_capability_knowledge_cli.py tests/test_tool_capability_maintenance.py tests/test_tool_capability_diagnostics.py tests/test_context_orchestrator.py tests/test_homeserver_auto_update_timer.py tests/test_memory_provenance_ledger.py -> 32 passed."
+      ]
     },
     {
       "id": "TCM2-2-memory-write-executor-binding",
