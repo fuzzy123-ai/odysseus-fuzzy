@@ -625,6 +625,8 @@ app.include_router(setup_admin_wipe_routes(session_manager))
 from routes.memory_routes import setup_memory_routes
 memory_router = setup_memory_routes(memory_manager, session_manager, memory_vector=memory_vector)
 app.include_router(memory_router)
+from routes.internal_reference_routes import setup_internal_reference_routes
+app.include_router(setup_internal_reference_routes(memory_manager))
 from routes.skills_routes import setup_skills_routes
 app.include_router(setup_skills_routes(skills_manager))
 

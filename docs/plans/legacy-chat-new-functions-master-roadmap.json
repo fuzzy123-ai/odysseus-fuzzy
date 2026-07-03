@@ -26,6 +26,9 @@
     ],
     "lc2_backend_contract": [
       "GET /api/universal-inbox/items/{source_ref}/status"
+    ],
+    "lc3_backend_contract": [
+      "GET /api/internal-refs/resolve?ref={internal_ref}"
     ]
   },
   "slices": [
@@ -84,12 +87,12 @@
       "id": "LC3",
       "title": "Memory and RaptorGraph clickable refs",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "AI message renderer + memory modal",
       "requires": [
-        "Canonical RaptorGraph detail/read route or diagnostics fallback"
+        "GET /api/internal-refs/resolve?ref={internal_ref}"
       ],
-      "why_not_100": "Memory refs have a modal target, but RaptorGraph detail routing is not confirmed."
+      "why_not_100": "Backend ref resolver is ready; internal link rendering and modal/popover UI wiring are not implemented in this backend-first slice."
     },
     {
       "id": "LC4",
@@ -176,13 +179,6 @@
   ],
   "open_backend_contracts": [
     {
-      "id": "RAPTORGRAPH_REF_ROUTE",
-      "blocks": [
-        "LC3"
-      ],
-      "decision": "Confirm canonical internal RaptorGraph detail route or diagnostics fallback."
-    },
-    {
       "id": "REVIEW_GATE_STATE_ROUTE",
       "blocks": [
         "LC4"
@@ -200,6 +196,7 @@
   "recommended_next": [
     "LC1: let the UI agent wire a compact legacy chat indicator against /api/security/dsgvo/status.",
     "LC2: let the UI agent render /api/universal-inbox/items/{source_ref}/status in attachment chips/user footers.",
-    "LC5: improve task/reminder summaries because the backend routes already exist."
+    "LC3: let the UI agent route internal Memory/RaptorGraph links through /api/internal-refs/resolve.",
+    "LC4 or LC6: continue backend-first with review gate state or Universal File IO plan routes."
   ]
 }

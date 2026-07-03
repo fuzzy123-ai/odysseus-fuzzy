@@ -18,9 +18,15 @@ Owner: operator + Codex
   attachment status metadata only: file family, category, review requirement,
   extraction readiness and blocked state, without names, paths, hashes, chat IDs
   or raw contents.
+- LC3 backend route contract is available for UI wiring:
+  `GET /api/internal-refs/resolve?ref={internal_ref}`. It resolves canonical
+  `odysseus://memory/...`, `odysseus://raptor/node/...`, `odysseus://raptor/edge/...`,
+  chat anchors and shorthand refs into redacted open targets. Memory refs point
+  to the existing Memory route/modal without returning text; RaptorGraph refs
+  return a redacted event summary or the memory-provenance diagnostics fallback.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC2 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC3 backend work.
 
 ## Goal
 

@@ -93,6 +93,23 @@ class UniversalInboxRaptorGraphEventStore:
                     return True
         return False
 
+    def read_event(self, event_id: str) -> dict[str, Any] | None:
+        """Return one stored redacted event by id, if present."""
+        safe_event_id = _safe_event_id(event_id)
+        if not self.path.exists():
+            return None
+        with self.path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(row, dict) and row.get("event_id") == safe_event_id:
+                    normalized = dict(row)
+                    normalized["raw_content_visible"] = False
+                    return normalized
+        return None
+
 
 def build_universal_inbox_raptorgraph_writer(root: str | Path):
     store = UniversalInboxRaptorGraphEventStore(root)
@@ -101,6 +118,11 @@ def build_universal_inbox_raptorgraph_writer(root: str | Path):
         return store.append(event)
 
     return _writer
+
+
+def read_universal_inbox_raptorgraph_event(root: str | Path, event_id: str) -> dict[str, Any] | None:
+    """Read one redacted Universal Inbox RaptorGraph event."""
+    return UniversalInboxRaptorGraphEventStore(root).read_event(event_id)
 
 
 def normalize_universal_inbox_raptorgraph_event(event: Mapping[str, Any]) -> dict[str, Any]:
@@ -170,6 +192,13 @@ def _safe_id_tuple(values: Any) -> tuple[str, ...]:
     if not result or any(not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", value) for value in result):
         raise UniversalInboxRaptorGraphStoreError("memory_record_ids contain unsafe values")
     return result
+
+
+def _safe_event_id(value: Any) -> str:
+    text = str(value or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,160}", text):
+        raise UniversalInboxRaptorGraphStoreError("event_id contains unsafe values")
+    return text
 
 
 def _safe_string_tuple(values: Any) -> tuple[str, ...]:
