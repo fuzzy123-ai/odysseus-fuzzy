@@ -27,9 +27,16 @@ Standard ABC, backend/logik-first. UI placement is out of scope for this slice.
   review-partial at the worker/pipeline level so malformed PDFs route to review
   instead of hard No-Go, while the lower extraction contract still records the
   parser failure.
+- 2026-07-03: Telegram delivery planning is exposed as a browser-safe backend
+  contract at `/api/universal-file-io/telegram-delivery-plan`. It selects
+  `sendDocument`, `sendPhoto`, or `sendAudio` from redacted export metadata and
+  reports reply/live-gate blockers without sending files.
 - 2026-06-30 Focused tests passed:
   `python -m pytest tests/test_universal_file_io.py tests/test_universal_inbox_worker.py tests/test_universal_inbox_extraction.py tests/test_pdf_extraction.py -q`
   returned `46 passed, 1 warning`.
+- 2026-07-03 Focused tests passed:
+  `python -m pytest tests/test_universal_file_io.py tests/test_universal_file_io_routes.py -q`
+  returned `21 passed, 1 warning`.
 
 ## Non-Goals
 
@@ -66,7 +73,7 @@ Standard ABC, backend/logik-first. UI placement is out of scope for this slice.
 4. `UFIO4-telegram-delivery-prep`
    - Class: `safe_offline`
    - Owner: Charlie
-   - Status: `planned`
+   - Status: `done`
    - Goal: document and test the Telegram reply/delivery contract before live
      sendDocument/sendPhoto/sendAudio execution.
 
@@ -118,5 +125,8 @@ GameDev Assets:
 - File type registry recognizes common document/media/game asset formats.
 - Export intent parser understands common natural-language target requests.
 - Export capability planner returns deterministic, redacted plans.
+- Telegram delivery planner returns deterministic, redacted method/gate plans
+  for document, photo, and audio delivery without executing Telegram calls.
 - Focused tests cover document, image, audio, PDF-to-image, 3D asset plans,
-  unsupported targets, DSGVO local-only behavior, and redaction.
+  unsupported targets, DSGVO local-only behavior, Telegram delivery gates, and
+  redaction.

@@ -11,6 +11,7 @@ from src.auth_helpers import require_authenticated_request
 from src.universal_file_io import (
     UniversalFileIOError,
     build_export_plan,
+    build_telegram_delivery_plan,
     parse_export_intent,
     summarize_file_capabilities,
 )
@@ -18,6 +19,7 @@ from src.universal_file_io import (
 
 EXPORT_PLAN_RESPONSE_SCHEMA = "odysseus.universal_file_io.export_plan_response.v1"
 CAPABILITIES_RESPONSE_SCHEMA = "odysseus.universal_file_io.capabilities_response.v1"
+TELEGRAM_DELIVERY_PLAN_RESPONSE_SCHEMA = "odysseus.universal_file_io.telegram_delivery_plan_response.v1"
 
 
 class UniversalFileIOPlanRequest(BaseModel):
@@ -26,6 +28,15 @@ class UniversalFileIOPlanRequest(BaseModel):
     source_name_or_extension: str = Field(..., min_length=1, max_length=300)
     dsgvo_mode: bool = False
     delivery_hint: str = "review"
+
+
+class UniversalFileIOTelegramDeliveryPlanRequest(BaseModel):
+    status: str = Field(..., min_length=1, max_length=64)
+    target_format: str = Field(..., min_length=1, max_length=32)
+    mime_type: str | None = Field(default=None, max_length=120)
+    delivery_ready: bool = False
+    reply_gate_enabled: bool = False
+    operator_live_go: bool = False
 
 
 def setup_universal_file_io_routes() -> APIRouter:
@@ -81,6 +92,38 @@ def setup_universal_file_io_routes() -> APIRouter:
         }
         return _redaction_guard(payload)
 
+    @router.post("/telegram-delivery-plan")
+    async def universal_file_io_telegram_delivery_plan(request: Request, body: UniversalFileIOTelegramDeliveryPlanRequest):
+        require_authenticated_request(request)
+        try:
+            plan = build_telegram_delivery_plan(
+                {
+                    "status": body.status,
+                    "target_format": body.target_format,
+                    "mime_type": body.mime_type or "",
+                    "delivery_ready": bool(body.delivery_ready),
+                },
+                reply_gate_enabled=bool(body.reply_gate_enabled),
+                operator_live_go=bool(body.operator_live_go),
+            )
+        except UniversalFileIOError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return _telegram_delivery_redaction_guard(
+            {
+                "schema": TELEGRAM_DELIVERY_PLAN_RESPONSE_SCHEMA,
+                "ok": True,
+                "plan": plan.to_dict(),
+                "execution_performed": False,
+                "telegram_send_performed": False,
+                "delivery_allowed": bool(plan.send_allowed),
+                "raw_content_visible": False,
+                "path_values_visible": False,
+                "filename_visible": False,
+                "chat_id_value_visible": False,
+                "token_value_visible": False,
+            }
+        )
+
     return router
 
 
@@ -105,4 +148,22 @@ def _redaction_guard(payload: dict[str, Any]) -> dict[str, Any]:
     intent = payload.get("intent")
     if isinstance(intent, dict):
         intent["raw_request_visible"] = False
+    return payload
+
+
+def _telegram_delivery_redaction_guard(payload: dict[str, Any]) -> dict[str, Any]:
+    payload["execution_performed"] = False
+    payload["telegram_send_performed"] = False
+    payload["raw_content_visible"] = False
+    payload["path_values_visible"] = False
+    payload["filename_visible"] = False
+    payload["chat_id_value_visible"] = False
+    payload["token_value_visible"] = False
+    plan = payload.get("plan")
+    if isinstance(plan, dict):
+        plan["raw_content_visible"] = False
+        plan["host_paths_visible"] = False
+        plan["filename_visible"] = False
+        plan["token_value_visible"] = False
+        plan["chat_id_value_visible"] = False
     return payload

@@ -101,6 +101,67 @@ def test_capabilities_route_returns_redacted_summary():
     assert payload["path_values_visible"] is False
 
 
+def test_telegram_delivery_plan_blocks_without_live_gates_and_redacts():
+    response = TestClient(_app()).post(
+        "/api/universal-file-io/telegram-delivery-plan",
+        json={
+            "status": "exported",
+            "target_format": "pdf",
+            "mime_type": "application/pdf",
+            "delivery_ready": True,
+            "reply_gate_enabled": False,
+            "operator_live_go": False,
+        },
+    )
+    payload = response.json()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert response.status_code == 200
+    assert payload["schema"] == "odysseus.universal_file_io.telegram_delivery_plan_response.v1"
+    assert payload["execution_performed"] is False
+    assert payload["telegram_send_performed"] is False
+    assert payload["delivery_allowed"] is False
+    assert payload["plan"]["status"] == "blocked"
+    assert payload["plan"]["method"] == "sendDocument"
+    assert "telegram_reply_gate_disabled" in payload["plan"]["blockers"]
+    assert "telegram_delivery_live_go_missing" in payload["plan"]["blockers"]
+    assert payload["plan"]["host_paths_visible"] is False
+    assert payload["plan"]["filename_visible"] is False
+    assert "C:/Users" not in encoded
+    assert "secret" not in encoded
+
+
+def test_telegram_delivery_plan_selects_media_methods_when_gated():
+    client = TestClient(_app())
+    photo = client.post(
+        "/api/universal-file-io/telegram-delivery-plan",
+        json={
+            "status": "exported",
+            "target_format": "png",
+            "delivery_ready": True,
+            "reply_gate_enabled": True,
+            "operator_live_go": True,
+        },
+    ).json()
+    audio = client.post(
+        "/api/universal-file-io/telegram-delivery-plan",
+        json={
+            "status": "exported",
+            "target_format": "mp3",
+            "delivery_ready": True,
+            "reply_gate_enabled": True,
+            "operator_live_go": True,
+        },
+    ).json()
+
+    assert photo["delivery_allowed"] is True
+    assert photo["plan"]["method"] == "sendPhoto"
+    assert "image_delivery_should_use_reviewed_preview_policy" in photo["plan"]["warnings"]
+    assert audio["delivery_allowed"] is True
+    assert audio["plan"]["method"] == "sendAudio"
+    assert "audio_delivery_should_use_reviewed_media_policy" in audio["plan"]["warnings"]
+
+
 def test_export_plan_requires_auth_when_auth_is_configured():
     response = TestClient(_app(user=None, auth_configured=True)).post(
         "/api/universal-file-io/export-plan",
