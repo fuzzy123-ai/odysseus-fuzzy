@@ -2112,6 +2112,11 @@ Safe queue audit 2026-07-03:
   representing `25` unique live decisions, `5` design gate entries
   representing `4` unique design decisions, MVP runner progress `100%`, UI
   live `no`, active slice `none`.
+- The audit now groups unique gates into prioritized decision families:
+  `version_release` (`3` unique gates / `4` entries),
+  `calendar_reminders` (`3` / `5`), `autonomous_coding` (`4` / `6`),
+  `observability_ops` (`11` / `14`), `security_ops` (`5` / `7`) and
+  `ui_design` (`3` / `4`).
 - This confirms backend-safe autonomous ABC should not invent more repo slices
   from completed JSON roadmaps; the next meaningful work is a bounded live gate,
   a UI/design handoff, or a newly approved roadmap.
@@ -2135,6 +2140,9 @@ Safe queue audit 2026-07-03:
 
 Recommended next human decision:
 
+- Work through gate families in this order unless the operator explicitly
+  selects another live target: `version_release`, `calendar_reminders`,
+  `autonomous_coding`, `observability_ops`, `security_ops`, then `ui_design`.
 - Ship the new UI before claiming Version 1.0; use
   `GET /api/version-one/readiness` as the release gate.
 - Hand `docs/plans/legacy-chat-new-functions-master-roadmap.json` to the UI

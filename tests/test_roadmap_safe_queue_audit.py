@@ -116,3 +116,43 @@ def test_audit_groups_duplicate_gate_decisions_across_files(tmp_path):
     ]
     assert "Unique live gate ids: 1" in rendered
     assert "| live | deploy-live-go | 2 | detail.json, master.json |" in rendered
+
+
+def test_audit_recommends_prioritized_decision_families(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "master.json",
+        {
+            "open_gates": [
+                {"id": "telegram-reminder-live-go", "status": "open"},
+                {"id": "caldav-write-live-go", "status": "open"},
+                {"id": "deploy-live-go", "status": "open"},
+                {"id": "ui-placement", "status": "open"},
+                {"id": "crowdsec-remediation-go", "status": "open"},
+            ]
+        },
+    )
+    _write_json(
+        plans / "detail.json",
+        {
+            "gate_queue": [
+                {"id": "deploy-live-go", "class": "needs_live_go", "status": "open"},
+            ]
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+    rendered = render_markdown(report)
+
+    assert [
+        (item["family"], item["priority"], item["unique_gate_count"], item["entry_count"])
+        for item in report["recommended_decisions"]
+    ] == [
+        ("version_release", 10, 1, 2),
+        ("calendar_reminders", 20, 2, 2),
+        ("security_ops", 50, 1, 1),
+        ("ui_design", 60, 1, 1),
+    ]
+    assert "## Recommended Next Decisions" in rendered
+    assert "| 10 | version_release | 1 | 2 | deploy-live-go |" in rendered

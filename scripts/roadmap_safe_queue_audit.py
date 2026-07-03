@@ -38,6 +38,79 @@ GATED_DONE_STATUSES = {
 }
 OPEN_STATUSES = {"open", "planned", "running", "todo", "pending"}
 
+DECISION_FAMILIES = (
+    (
+        "version_release",
+        10,
+        (
+            "version-1",
+            "release",
+            "deploy",
+            "cloudflare",
+            "r8-release",
+        ),
+    ),
+    (
+        "calendar_reminders",
+        20,
+        (
+            "telegram-reminder",
+            "caldav",
+            "calendar",
+            "reminder",
+            "cal-mcp",
+        ),
+    ),
+    (
+        "autonomous_coding",
+        30,
+        (
+            "autonomous-coding",
+            "workstation",
+            "network-allowlist",
+            "mcp-service",
+            "acpr",
+        ),
+    ),
+    (
+        "observability_ops",
+        40,
+        (
+            "observability",
+            "debian-observability",
+            "grafana",
+            "log-retention",
+            "mcp-debug-server",
+            "ulog",
+            "obs-",
+        ),
+    ),
+    (
+        "security_ops",
+        50,
+        (
+            "security-incident",
+            "crowdsec",
+            "lockdown",
+            "remediation",
+            "sir-",
+        ),
+    ),
+    (
+        "ui_design",
+        60,
+        (
+            "ui",
+            "design",
+            "placement",
+            "r6-lens",
+            "r7-browser",
+        ),
+    ),
+)
+DEFAULT_DECISION_FAMILY = "other_gate"
+DEFAULT_DECISION_PRIORITY = 90
+
 
 @dataclass(frozen=True)
 class RoadmapAuditItem:
@@ -100,6 +173,7 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "live_gate_groups": _gate_groups(live_gates),
         "design_gates": [item.to_dict() for item in design_gates],
         "design_gate_groups": _gate_groups(design_gates),
+        "recommended_decisions": _recommended_decisions(live_gates, design_gates),
         "other_open_items": [item.to_dict() for item in other_open],
     }
 
@@ -145,6 +219,21 @@ def render_markdown(report: dict[str, Any]) -> str:
         for item in report["design_gate_groups"]:
             lines.append(
                 f"| design | {item['id']} | {item['entry_count']} | {', '.join(item['files'])} |"
+            )
+        lines.append("")
+    if report.get("recommended_decisions"):
+        lines.extend(
+            [
+                "## Recommended Next Decisions",
+                "",
+                "| Priority | Family | Unique Gates | Entry Count | Gate IDs |",
+                "| -: | - | -: | -: | - |",
+            ]
+        )
+        for item in report["recommended_decisions"]:
+            lines.append(
+                f"| {item['priority']} | {item['family']} | {item['unique_gate_count']} | "
+                f"{item['entry_count']} | {', '.join(item['gate_ids'])} |"
             )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
@@ -243,6 +332,53 @@ def _gate_groups(items: Iterable[RoadmapAuditItem]) -> list[dict[str, Any]]:
             }
         )
     return result
+
+
+def _decision_family(gate_id: str) -> tuple[str, int]:
+    lowered = gate_id.lower()
+    for family, priority, markers in DECISION_FAMILIES:
+        if any(marker in lowered for marker in markers):
+            return family, priority
+    return DEFAULT_DECISION_FAMILY, DEFAULT_DECISION_PRIORITY
+
+
+def _recommended_decisions(
+    live_gates: Iterable[RoadmapAuditItem], design_gates: Iterable[RoadmapAuditItem]
+) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    all_groups = _gate_groups(live_gates) + _gate_groups(design_gates)
+    for gate in all_groups:
+        family, priority = _decision_family(gate["id"])
+        item = grouped.setdefault(
+            family,
+            {
+                "family": family,
+                "priority": priority,
+                "unique_gate_count": 0,
+                "entry_count": 0,
+                "gate_ids": [],
+                "files": set(),
+            },
+        )
+        item["priority"] = min(item["priority"], priority)
+        item["unique_gate_count"] += 1
+        item["entry_count"] += gate["entry_count"]
+        item["gate_ids"].append(gate["id"])
+        item["files"].update(gate["files"])
+
+    result: list[dict[str, Any]] = []
+    for item in grouped.values():
+        result.append(
+            {
+                "family": item["family"],
+                "priority": item["priority"],
+                "unique_gate_count": item["unique_gate_count"],
+                "entry_count": item["entry_count"],
+                "gate_ids": sorted(item["gate_ids"]),
+                "files": sorted(item["files"]),
+            }
+        )
+    return sorted(result, key=lambda item: (item["priority"], item["family"]))
 
 
 def _mvp_summary(path: Path) -> dict[str, Any]:
