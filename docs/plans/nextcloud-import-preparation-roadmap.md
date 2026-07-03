@@ -124,6 +124,20 @@ Local-only Pilotprofil 2026-07-03:
 - Damit ist eine lokale Extraktion/Review-Welle planbar, ohne schon
   Memory/RaptorGraph-Writes oder private Pfadlisten freizugeben.
 
+Bounded Local-only Pilotprofil-Smoke 2026-07-03:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\nextcloud_import_dry_run.py --root <runtime-nextcloud-root> --ledger-path .tmp\nextcloud-dryrun\local-only-pilot-profile-20260703-b5000.jsonl --scan-profile full --batch-limit 5000 --pilot-batch-limit 100 --skip-software-plan --local-only-document-pilot-profile --ephemeral-ledger --format markdown
+```
+
+Ergebnis: `5.000` Dateien metadata-only gescannt, `4.995`
+Inventory-Datensaetze, `4.995` Review-Kandidaten, `98` local-only
+Dokument-Pilotkandidaten, `0` safe Dokument-Pilot-Auswahl und `0` Long Paths.
+Der Markdown-Report enthielt keine Samples, Rohinhalte, Secrets oder privaten
+Pfade. `--ephemeral-ledger` loeschte das temporaere Ledger nach der
+Report-Erstellung; `Test-Path` bestaetigte danach, dass keine Ledgerdatei
+verblieb.
+
 Offen:
 
 - Copy-only Live-Smokes gegen die echte Nextcloud sind fuer den Transferpfad
