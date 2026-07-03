@@ -9,9 +9,10 @@ als externen Odysseus-Kanal. Es fuehrt keine Telegram-, Netzwerk- oder
 Plugin-Aktion aus und enthaelt keine Tokenwerte, keine Chat-IDs und keine
 Live-Credentials.
 
-Wichtig: Solange `DLF1B` nicht umgesetzt ist, beschreibt "redacted history" in
-diesem Dokument das Zielbild fuer persistierte Diagnostik, nicht einen bereits
-vollstaendig belegten Ist-Zustand.
+Wichtig: "redacted history" ist der belegte Persistenz-Standard fuer
+Telegram-Diagnostik. Persistierte Events nutzen stabile Handles fuer Chat-,
+Sender-, Voice-, Image- und Document-Identifier; rohe Identifier oder Tokens
+duerfen weder in Evidence noch in Runbooks auftauchen.
 
 ## Zweck
 

@@ -23,6 +23,8 @@ Primary sources:
 - `docs/plans/universal-inbox-live-readiness-runbook.md`
 - `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md`
 - `docs/plans/gemma4-maintenance-inbox-roadmap.md`
+- `docs/plans/telegram-agent-chat-roadmap.md`
+- `docs/plans/telegram-agent-chat-operator-runbook.md`
 - `docs/plans/workflow-skills-universal-inbox-handoff.md`
 - `docs/plans/workflow-skills-universal-inbox-roadmap.md`
 - `docs/plans/universal-file-io-roadmap.md`
@@ -1924,7 +1926,7 @@ Open gates / next slices:
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
 | L8 UI/V2 + Legacy Chat Integration | backend contracts ready, UI/live-gated | Backend ABC exposes contracts, diagnostics, `GET /api/legacy-chat/contracts` and `GET /api/version-one/readiness`; LC1-LC9 are UI-agent wiring work, LC10 live affordances remain bounded operator-gated, and no legacy/V2 UI file should be edited by backend ABC. |
-| L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
+| L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram agent chat, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, Telegram agent-chat smoke, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |

@@ -1,6 +1,6 @@
 # Telegram Agent Chat Roadmap
 
-Status: active implementation roadmap for the standalone Telegram plugin.
+Status: backend complete; live smoke gated for the standalone Telegram plugin.
 
 Goal: make Telegram a real external Odysseus agent-chat channel. A Telegram user
 can send a message to the bot, Odysseus routes it into an agent chat session, the
@@ -21,12 +21,15 @@ Out of scope for this roadmap:
 - `plugins/telegram/plugin.py` exists as a standalone plugin.
 - Local readiness, inbox/history, webhook ingest, bridge payloads, gated
   `telegram_reply`, and voice metadata intake are in place.
-- Until `DLF1B` lands, operator docs must treat redaction as the required target
-  state for persisted diagnostics, not as a blanket proof that every stored
-  identifier is already redacted.
+- Persisted Telegram diagnostics use stable redacted handles for chat, sender,
+  voice, image and document identifiers. Raw identifier values are not
+  acceptable in stored diagnostic evidence.
 - Current test focus: `tests/test_telegram_plugin.py`,
   `tests/test_plugin_local_audit.py`, `tests/test_plugin_manifest_policy.py`.
 - `v0.99.4` is the latest pushed baseline.
+- 2026-07-03 verification:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_telegram_plugin.py tests\test_plugin_local_audit.py tests\test_plugin_manifest_policy.py -q`
+  returned `101 passed, 1 warning`.
 
 ## Done Definition
 
@@ -88,6 +91,8 @@ Charlie allowed paths:
 
 ### TAI0 - Roadmap and Work Split
 
+Status: done
+
 Owner: Charlie.
 
 Deliverables:
@@ -99,6 +104,8 @@ Tests:
 - No runtime tests required unless code changes are made.
 
 ### TAI1 - Telegram Intake Runner
+
+Status: done
 
 Owner: Bob implementation, Alice operator docs, Charlie integration.
 
@@ -118,6 +125,8 @@ Expected paths:
 - Alice: `docs/plans/telegram-agent-chat-operator-runbook.md`
 
 ### TAI2 - Odysseus Session Bridge
+
+Status: done
 
 Owner: Bob implementation, Alice operator docs, Charlie integration.
 
@@ -139,6 +148,8 @@ Expected paths:
 
 ### TAI3 - Telegram Reply End-to-End
 
+Status: done
+
 Owner: Bob implementation, Alice operator docs, Charlie integration.
 
 Goal:
@@ -157,6 +168,8 @@ Expected paths:
 - Alice: operator checklist for enabling/disabling reply mode.
 
 ### TAI4 - Voice Intake and STT Handoff
+
+Status: done
 
 Owner: Bob implementation, Alice operator docs, Charlie integration.
 
@@ -177,6 +190,8 @@ Expected paths:
   the operator enables the next processing stage.
 
 ### TAI5 - Manual Live Smoke Evidence
+
+Status: live-gated
 
 Owner: Charlie, with user Go.
 
