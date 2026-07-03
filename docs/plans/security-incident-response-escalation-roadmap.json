@@ -341,7 +341,7 @@
       "class": "repo_only",
       "owner": "Charlie",
       "parallel_group": "D",
-      "status": "planned",
+      "status": "done",
       "goal": "Expose read-only incident response tools through the MCP debug workbench and define gated action tools without enabling live remediation by default.",
       "allowed_paths": [
         "mcp_servers/debug_server.py",
@@ -355,7 +355,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_mcp_debug_server.py tests/test_mcp_server_tool_policy.py tests/test_security_response_policy.py -q"
       ],
-      "done_when": "MCP can list/read/trace incidents and prepare recommendations, while execute remains gated and policy-controlled."
+      "done_when": "MCP can list/read/trace incidents and prepare recommendations, while execute remains gated and policy-controlled.",
+      "evidence": "Extended mcp_servers/debug_server.py with read-only security_incident_list/read/trace, security_recent_anomalies, security_policy_readiness, security_recommend_next_action, security_debug_bundle_read and gated action stubs. security_action_execute remains blocked without an action store/gate and all tools report writes_performed=false. Focused tests passed on 2026-07-03: 23 passed, 1 warning."
     },
     {
       "id": "SIR-6-runbooks",
@@ -443,7 +444,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-5-mcp-incident-tools",
-    "reason": "SIR-0 through SIR-4 are complete; the next SIR repo-only slice is the read-only MCP incident response surface."
+    "id": "SIR-6-runbooks",
+    "reason": "SIR-0 through SIR-5 are complete; the next SIR safe-offline slice is defensive operator runbooks before prepare-only remediation."
   }
 }
