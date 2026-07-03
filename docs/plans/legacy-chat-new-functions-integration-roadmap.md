@@ -13,9 +13,14 @@ Owner: operator + Codex
 - LC1 backend route contract is available for UI wiring:
   `GET /api/security/dsgvo/status`, `POST /api/security/dsgvo/toggle`, and
   `POST /api/security/dsgvo`.
+- LC2 backend route contract is available for UI wiring:
+  `GET /api/universal-inbox/items/{source_ref}/status`. It returns redacted
+  attachment status metadata only: file family, category, review requirement,
+  extraction readiness and blocked state, without names, paths, hashes, chat IDs
+  or raw contents.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0/LC1 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC2 backend work.
 
 ## Goal
 

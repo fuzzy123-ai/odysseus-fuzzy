@@ -23,6 +23,9 @@
       "GET /api/security/dsgvo/status",
       "POST /api/security/dsgvo/toggle",
       "POST /api/security/dsgvo"
+    ],
+    "lc2_backend_contract": [
+      "GET /api/universal-inbox/items/{source_ref}/status"
     ]
   },
   "slices": [
@@ -70,12 +73,12 @@
       "id": "LC2",
       "title": "Attachment processing status",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "attachment chips + user message footer",
       "requires": [
-        "Redacted Universal Inbox status in chat attachment event or read endpoint"
+        "GET /api/universal-inbox/items/{source_ref}/status"
       ],
-      "why_not_100": "Attachment processing status is not yet exposed as a compact browser contract."
+      "why_not_100": "Backend route contract is ready; attachment chip/footer UI wiring is not implemented in this backend-first slice."
     },
     {
       "id": "LC3",
@@ -173,13 +176,6 @@
   ],
   "open_backend_contracts": [
     {
-      "id": "UIX_ATTACHMENT_STATUS_ROUTE",
-      "blocks": [
-        "LC2"
-      ],
-      "decision": "Expose redacted Universal Inbox processing status for uploaded files."
-    },
-    {
       "id": "RAPTORGRAPH_REF_ROUTE",
       "blocks": [
         "LC3"
@@ -203,7 +199,7 @@
   ],
   "recommended_next": [
     "LC1: let the UI agent wire a compact legacy chat indicator against /api/security/dsgvo/status.",
-    "LC2: expose redacted Universal Inbox attachment status, then render it in attachment chips/user footer.",
+    "LC2: let the UI agent render /api/universal-inbox/items/{source_ref}/status in attachment chips/user footers.",
     "LC5: improve task/reminder summaries because the backend routes already exist."
   ]
 }
