@@ -2,7 +2,7 @@
 
 Date: 2026-06-29
 Audience: UI agent and next backend agent
-Status: backend foundation implemented, UI integration pending
+Status: backend handoff consumed; production backend roadmap repo-slices done/live-gated; UI integration remains UI-owned
 
 ## Goal
 
@@ -426,10 +426,24 @@ Important UX copy:
 - Show blockers in plain language.
 - Make every mutation visibly gated.
 
-## Suggested Next Backend Work
+## Follow-up Status
+
+This handoff is no longer the active backend implementation queue. The
+production-readiness follow-up was moved into
+`docs/plans/autonomous-coding-production-readiness-roadmap.json` and the
+combined master is
+`docs/plans/autonomy-calendar-coding-master-roadmap.json`.
+
+Repo-only backend slices for durable task records, runner state, project scope
+resolution, sandbox evidence, Telegram remote-control consumption,
+publish/deploy gates and maintenance self-knowledge are complete there. The
+remaining work is UI-owned integration or bounded live smokes.
+
+## Historical Suggested Backend Work
 
 1. Add a generated or hand-written typed frontend contract.
-2. Add run persistence:
+2. Add run persistence. Superseded by
+   `src/coding_agent_runner_state.py` and the task ledger:
    - run id
    - repo id
    - task id
@@ -437,11 +451,16 @@ Important UX copy:
    - events/logs
    - patch results
    - gate status
-3. Add a file read API for worktree files.
-4. Add diff retrieval by task id.
-5. Add background job execution for checks.
-6. Add final operator-controlled handoff/apply implementation.
-7. Add real subagent spawning only after run persistence exists.
+3. Add a file read API for worktree files. Deferred until a concrete UI or
+   review-flow need exists.
+4. Add diff retrieval by task id. Deferred until the UI agent requests the
+   exact review surface.
+5. Add background job execution for checks. Covered by sandbox/check evidence
+   contracts; live execution remains gated.
+6. Add final operator-controlled handoff/apply implementation. Still gated as a
+   mutation path.
+7. Add real subagent spawning only after run persistence exists. Still gated;
+   no unrestricted autonomous execution.
 
 ## Do Not Lose
 

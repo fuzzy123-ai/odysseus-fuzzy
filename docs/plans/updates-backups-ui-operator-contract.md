@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **contract ready; implementation pending**
+Status: **operator contract ready; UI-owned implementation and live host evidence gated**
 
 ## Goal
 
