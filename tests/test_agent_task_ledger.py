@@ -72,3 +72,18 @@ def test_task_ledger_read_filters_and_summarizes(tmp_path, monkeypatch):
     assert result["records"][0]["status"] == "done"
     assert result["summary"]["latest_progress"]["tg_task_1"] == 100
     assert result["summary"]["by_type"]["website_research_to_memory"] == 2
+
+
+def test_task_ledger_keeps_safe_repo_target_refs(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_task_ledger, "AGENT_TASK_LEDGER_DIR", str(tmp_path))
+
+    record = agent_task_ledger.record_task_event(
+        task_id="coding_task_1",
+        task_type="coding_agent_task",
+        status="planned",
+        surface="workstation",
+        target_ref="repo:demo-project",
+        progress_percent=10,
+    )
+
+    assert record["target_ref"] == "repo:demo-project"

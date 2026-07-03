@@ -180,6 +180,10 @@ def _safe_target_ref(value: Any) -> str:
         domain = lowered.removeprefix("domain:")
         if re.fullmatch(r"[a-z0-9.-]{1,253}", domain):
             return f"domain:{domain}"
+    if lowered.startswith("repo:"):
+        repo = lowered.removeprefix("repo:")
+        if re.fullmatch(r"[a-z0-9_.-]{2,80}", repo):
+            return f"repo:{repo}"
     if lowered.startswith(("http://", "https://")):
         match = re.fullmatch(r"https?://[a-z0-9.-]{1,253}(:[0-9]{1,5})?/", lowered)
         if match:

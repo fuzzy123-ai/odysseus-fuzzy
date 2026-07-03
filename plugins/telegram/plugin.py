@@ -368,6 +368,7 @@ def build_agent_bridge_request(
         "task_intent": task_intent,
         "task_status_message": task_status_message,
         "long_running_task": task_intent.get("task_type") in {
+            "coding_agent_task",
             "website_research",
             "website_research_to_memory",
         },

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from core.middleware import require_admin
+from src import agent_task_ledger
 from src.coding_agent_backend import (
     CodingAgentBackendError,
     CodingCheckCommand,
@@ -117,6 +118,11 @@ def setup_coding_agent_routes(
     configured_worktree_base = Path(worktree_base) if worktree_base is not None else Path(DATA_DIR) / "coding-worktrees"
     sandbox_worker = SandboxWorker(ledger=SandboxJobLedger(Path(DATA_DIR) / "sandbox_job_ledger"))
 
+    @router.get("/tasks")
+    def list_coding_tasks(request: Request, limit: int = 25) -> dict[str, Any]:
+        require_admin(request)
+        return agent_task_ledger.read_task_records(limit=limit)
+
     @router.get("/repos/{repo_id}/snapshot")
     def get_repo_snapshot(request: Request, repo_id: str) -> dict[str, Any]:
         require_admin(request)
@@ -154,7 +160,8 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": plan.decision == "plan_ready", "coding_task": plan.to_dict()}
+        task_record = _record_coding_task_plan(plan)
+        return {"success": plan.decision == "plan_ready", "coding_task": plan.to_dict(), "agent_task": task_record}
 
     @router.post("/repos/{repo_id}/worktree")
     def create_worktree(request: Request, repo_id: str, body: CodingTaskPlanRequest) -> dict[str, Any]:
@@ -485,3 +492,33 @@ def _command_result_from_payload(payload: dict[str, Any]):
         timed_out=bool(payload.get("timed_out", False)),
         duration_seconds=float(payload.get("duration_seconds", 0.0) or 0.0),
     )
+
+
+def _record_coding_task_plan(plan: Any) -> dict[str, Any]:
+    ready = getattr(plan, "decision", "") == "plan_ready"
+    return agent_task_ledger.record_task_event(
+        task_id=str(getattr(plan, "task_id", "") or ""),
+        task_type="coding_agent_task",
+        status="planned" if ready else "waiting_for_gate",
+        surface="workstation",
+        correlation_id=str(getattr(plan, "task_id", "") or ""),
+        target_ref=f"repo:{getattr(plan, 'repo_id', '') or ''}",
+        progress_percent=10 if ready else 0,
+        gates_waiting=_coding_plan_gates(tuple(getattr(plan, "blockers", ()) or ())),
+        summary="Coding task plan ready." if ready else "Coding task plan waits for operator gates.",
+    )
+
+
+def _coding_plan_gates(blockers: tuple[str, ...]) -> tuple[str, ...]:
+    gates: list[str] = []
+    for blocker in blockers:
+        text = str(blocker).lower()
+        if "operator decision" in text:
+            gates.append("coding_task_scope_review")
+        elif "live_enabled" in text or "live" in text:
+            gates.append("coding_agent_live_enable")
+        elif "branch/worktree" in text:
+            gates.append("repo_branch_permission")
+        else:
+            gates.append("coding_task_review")
+    return tuple(dict.fromkeys(gates))

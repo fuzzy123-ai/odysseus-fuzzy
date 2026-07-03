@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from routes.coding_agent_routes import setup_coding_agent_routes
+from src import agent_task_ledger
 from src.coding_agent_backend import (
     CodingCheckCommand,
     CodingCommandResult,
@@ -341,6 +342,7 @@ def test_coding_agent_routes_require_admin_by_default(tmp_path: Path):
 
 def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("AUTH_ENABLED", "false")
+    monkeypatch.setattr(agent_task_ledger, "AGENT_TASK_LEDGER_DIR", str(tmp_path / "agent-task-ledger"))
     _repo_root(tmp_path)
     _registry(tmp_path / "repos.json")
     client = _client(tmp_path / "repos.json", workspace_base=tmp_path, worktree_base=tmp_path / "worktrees")
@@ -368,6 +370,13 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert plan.status_code == 200
     assert plan.json()["success"] is True
     assert plan.json()["coding_task"]["worktree_ref"] == "coding-worktrees/demo/add-route"
+    assert plan.json()["agent_task"]["surface"] == "workstation"
+    assert plan.json()["agent_task"]["target_ref"] == "repo:demo"
+    assert plan.json()["agent_task"]["status"] == "planned"
+    tasks = client.get("/api/coding-agent/tasks")
+    assert tasks.status_code == 200
+    assert tasks.json()["records"][0]["task_id"] == "add-route"
+    assert tasks.json()["records"][0]["task_type"] == "coding_agent_task"
     assert gate.status_code == 200
     assert gate.json()["success"] is True
     dumped = json.dumps({"plan": plan.json(), "gate": gate.json()})

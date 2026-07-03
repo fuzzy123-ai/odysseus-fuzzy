@@ -35,7 +35,7 @@
       "telegram_coding_task_evidence_ref": "autonomous_coding_agent/telegram-coding-task-live-smoke.json",
       "external_real_user_message": "recommended acceptance check; Codex cannot originate a genuine user Telegram message from the user's client"
     },
-    "known_gap_summary": "Backend and safe repo implementation are complete, Debian live sandbox execution is proven, and ACA-12 is proven through a live-container synthetic Telegram polling/bridge smoke. A true user-originated Telegram message remains a recommended external acceptance check because Codex cannot create that input autonomously; it is not a backend-roadmap blocker.",
+    "known_gap_summary": "Backend and safe repo implementation are complete, Debian live sandbox execution is proven, and ACA-12 is proven through a live-container synthetic Telegram polling/bridge smoke. The primary coding workflow is workstation/project-runner first; Telegram is a remote monitoring and control surface, with full Telegram task creation remaining optional.",
     "completion_rationale": "All 12 required slices are done, progress_model.current_progress_percent is 100, repo/live evidence exists for the backend runtime, and UI placement plus true user-originated Telegram acceptance are explicitly outside or recommended acceptance checks rather than required backend slices."
   },
   "hard_constraints": {
@@ -59,15 +59,24 @@
   },
   "target_flows": [
     {
-      "id": "telegram-coding-task",
-      "request_example": "baue in Projekt X Feature Y, teste es und sag mir was du geaendert hast",
+      "id": "workstation-roadmap-coding-task",
+      "request_example": "open a workstation/project-runner roadmap slice for Projekt X, implement Feature Y, run checks, then expose status for remote control",
       "expected_flow": [
-        "Telegram creates a trusted coding-task intent with repo_id, objective, allowed paths and checks.",
+        "Workstation, project runner or roadmap runner creates a trusted coding-task plan with repo_id, objective, allowed paths and checks.",
         "Coding agent builds a gated task plan and isolated worktree.",
         "Sandbox worker runs allowlisted checks in a disposable Podman job.",
         "Result observer stores redacted logs, exit status and artifact manifest.",
         "Quality and done gates produce a reviewed handoff or publish plan.",
-        "Telegram reports status, blockers and next human decision without leaking secrets."
+        "Telegram can report status, blockers and next human decision and can request pause, resume or cancel without leaking secrets."
+      ]
+    },
+    {
+      "id": "telegram-remote-control",
+      "request_example": "/task status, /task pause, /task weiter, /task cancel",
+      "expected_flow": [
+        "Telegram reads the same redacted task ledger as the workstation.",
+        "Telegram writes only safe control events, never raw task content, host paths or secrets.",
+        "The coding runner treats Telegram as operator input, not as the only task source."
       ]
     },
     {
@@ -224,7 +233,7 @@
       "class": "repo_only",
       "owner": "Alice",
       "status": "done",
-      "goal": "Teach Telegram task orchestration to recognize coding tasks, report sandbox progress and ask for the next human decision when gates block progress.",
+      "goal": "Teach Telegram task orchestration to recognize coding tasks as optional remote input, report sandbox progress and ask for the next human decision when gates block progress.",
       "allowed_paths": [
         "src/telegram_task_orchestrator.py",
         "plugins/telegram/parsing.py",
@@ -318,7 +327,7 @@
       ],
       "tests": [],
       "gate_required": "telegram-coding-task-live-go",
-      "done_when": "The production Telegram polling/bridge path creates a coding-agent task intent, reports gate status, and stores redacted durable evidence without leaking sensitive data.",
+      "done_when": "The production Telegram polling/bridge path can create a coding-agent task intent as optional remote input, reports gate status, and stores redacted durable evidence without leaking sensitive data.",
       "evidence": "Debian is current with fuzzy/dev. A live-container synthetic Telegram update passed through run_telegram_polling_cycle, created one agent turn with workflow_intent coding_agent_task, target repo:demo, gates coding_task_scope_review and sandbox_execution_policy, simulated the reply handler without Telegram network delivery, and wrote durable evidence ref autonomous_coding_agent/telegram-coding-task-live-smoke.json."
     }
   ],
@@ -337,9 +346,9 @@
       "class": "needs_live_go",
       "status": "resolved_with_synthetic_live_evidence",
       "blocks": ["ACA-12-telegram-to-coding-task-live-smoke"],
-      "decision_needed": "Approve a bounded Telegram coding-task live smoke and provide the exact harmless request to send.",
+      "decision_needed": "Approve a bounded Telegram coding-task live smoke when optional remote task creation is being tested; workstation/project-runner remains the primary task source.",
       "safe_preparation_done": "Telegram task orchestration, coding-task dry-run, allowlist propagation, and Debian live-container synthetic polling/bridge smoke are complete.",
-      "risk_if_bypassed": "Telegram could trigger unintended live work or expose status details before review."
+      "risk_if_bypassed": "Telegram remote control could trigger unintended live work or expose status details before review."
     },
     {
       "id": "network-allowlist-go",
@@ -433,8 +442,8 @@
     "current_progress_percent": 100,
     "version_ready_when": "All repo_only, safe_offline and live evidence slices are done. UI placement remains owned by the UI agent and is consciously deferred as non-blocking backend status.",
     "external_acceptance_checks": [
-      "Send a harmless real Telegram message from the user client, for example: Repo demo bitte implementiere feature ping und teste es.",
-      "Expected result: Odysseus recognizes a coding-agent task, reports the required scope/sandbox gates, and does not start unrestricted execution."
+      "Create a harmless coding task from the workstation/project-runner and verify /task status reports it through Telegram.",
+      "Optional only: send a harmless real Telegram message from the user client, for example: Repo demo bitte implementiere feature ping und teste es. Expected result: Odysseus recognizes a coding-agent task, reports the required scope/sandbox gates, and does not start unrestricted execution."
     ]
   }
 }
