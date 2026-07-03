@@ -165,6 +165,13 @@ Current evidence:
   to avoid deleting persistent report ledgers by accident. Focused tests passed:
   `python -m pytest tests/test_nextcloud_import_dry_run_cli.py tests/test_nextcloud_resumable_scanner.py tests/test_nextcloud_document_pilot_import.py tests/test_nextcloud_import_report.py -q`
   returned `17 passed, 1 warning`.
+- 2026-07-03: Full local Nextcloud import inventory dry-run completed
+  metadata-only with `--max-samples 0` and `--ephemeral-ledger`: `53.147`
+  scanned files, `53.042` inventory records, `53.042` review candidates,
+  `212` long paths, `0` document-pilot selections and `0` software archive
+  plans. The report exposed only aggregate counts and confirmed the temporary
+  ledger was deleted; no raw content, samples, secrets or private paths were
+  committed.
 
 Primary allowed paths:
 
@@ -193,6 +200,7 @@ Slice queue:
 | L1-6-live-upload-smoke | closed | Charlie | Done: bounded WebDAV copy-only smoke and Telegram review-transfer smoke completed and verified on Debian; operator live gate is currently enabled. |
 | L1-7-local-import-inventory-smoke | safe_offline | Charlie | Done: bounded metadata-only local Nextcloud import smokes completed for `25` and `250` item batches; temporary private-metadata ledgers were removed after aggregate evidence was recorded. |
 | L1-8-ephemeral-import-ledger | repo_only | Charlie | Done: dry-run CLI can self-delete temporary JSONL ledgers after report generation and blocks that mode for `--skip-scan` reports. |
+| L1-9-full-local-import-inventory | safe_offline | Charlie | Done: full local Nextcloud metadata-only inventory dry-run completed with `--max-samples 0` and `--ephemeral-ledger`; only aggregate evidence was recorded. |
 
 Gate queue:
 
@@ -1656,7 +1664,7 @@ Stop or defer the active slice if:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke and bounded local metadata-only import smokes are implemented and verified; document pilot import, full inventory and future delete/move/overwrite behavior remain separate gated decisions. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes and full local metadata-only inventory are implemented and verified; document pilot import and future delete/move/overwrite behavior remain separate gated decisions. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links and UI handoff are done; provider repo creation, live server execution, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence and provenance logging are tested; live graph writes, rebuild/fullbuild, runtime migration and accelerators remain gated operational tracks. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1672,10 +1680,9 @@ Recommended next human decision:
   is already closed; new live write checks should be explicit regression
   requests, not recurring default work.
 - Decide whether the next L1 step is a consciously selected document-pilot
-  import subset, a full metadata-only inventory pass, or no further Nextcloud
-  import work until the UI review queue is ready. Full metadata-only inventory
-  should use `--max-samples 0` and `--ephemeral-ledger` unless the operator
-  intentionally wants to retain a private local ledger outside the repo.
+  import subset or no further Nextcloud import work until the UI review queue
+  is ready. The full metadata-only inventory pass is already complete; repeat
+  it only after meaningful source changes.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.

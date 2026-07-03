@@ -72,6 +72,19 @@ CLI-Haertung 2026-07-03:
 - Der Markdown/JSON-Report zeigt redaktiert, ob das temporaere Ledger geloescht
   wurde, ohne den Ledger-Pfad zu persistieren.
 
+Vollinventar-Dry-run 2026-07-03:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\nextcloud_import_dry_run.py --root <runtime-nextcloud-root> --ledger-path .tmp\nextcloud-dryrun\full-inventory-20260703.jsonl --scan-profile full --pilot-batch-limit 100 --max-samples 0 --ephemeral-ledger --format markdown
+```
+
+Ergebnis: `53.147` Dateien metadata-only gescannt, `53.042`
+Inventory-Datensaetze, `53.042` Review-Kandidaten, `212` Long Paths,
+`0` Dokument-Pilot-Auswahl und `0` Software-Archivplaene. Der Report enthielt
+keine Samples, Rohinhalte oder Secrets. `--ephemeral-ledger` loeschte das
+temporaere Ledger nach der Report-Erstellung; `Test-Path` bestaetigte danach,
+dass keine Ledgerdatei verblieb.
+
 Offen:
 
 - Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
@@ -789,8 +802,8 @@ Erst nach erfolgreichem Import:
 ## 19. Aktueller naechster Schritt
 
 Als naechstes sollte der Dokument-Pilot gegen eine bewusst ausgewaehlte
-extrahierbare Teilmenge freigegeben werden. Falls der Operator vorher
-Vollinventar moechte, bleibt das metadata-only und mit `--max-samples 0`
-plus `--ephemeral-ledger` moeglich. Live-Upload-Smoke und echte
+extrahierbare Teilmenge freigegeben werden. Der Vollinventar-Dry-run ist
+metadata-only erledigt; ein erneuter Vollinventar-Lauf ist nur noetig, wenn die
+lokale Nextcloud-Struktur deutlich geaendert wurde. Live-Upload-Smoke und echte
 Memory/RaptorGraph-Writes bleiben separat gegated. UI bleibt ausserhalb dieser
 Backend-Roadmap.
