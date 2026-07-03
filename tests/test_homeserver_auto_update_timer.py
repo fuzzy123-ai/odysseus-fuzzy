@@ -38,6 +38,21 @@ def test_auto_update_wrapper_checks_before_backup_and_backs_up_before_pull():
     assert "version API does not report deployed commit" in script
 
 
+def test_auto_update_wrapper_refreshes_tool_capability_after_readiness():
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    app_wait_index = script.index('wait_http "$APP_URL/" "odysseus app"')
+    chroma_wait_index = script.index('wait_http "$CHROMA_URL" "chromadb"')
+    version_check_index = script.index("version API does not report deployed commit")
+    refresh_log_index = script.index("refreshing tool capability knowledge")
+    refresh_index = script.index("scripts/refresh_tool_capability_knowledge.py")
+    completed_index = script.index("scheduled update completed")
+
+    assert app_wait_index < chroma_wait_index < version_check_index
+    assert version_check_index < refresh_log_index < refresh_index < completed_index
+    assert 'python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$short_commit"' in script
+
+
 def test_auto_update_wrapper_uses_podman_and_never_docker():
     script = SCRIPT.read_text(encoding="utf-8")
 

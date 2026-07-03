@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.maintenance_ai_knowledge_master_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "phase2_in_progress",
+  "mode": "backend_logic_first",
+  "title": "Maintenance AI Knowledge Freshness Master Roadmap",
+  "goal": "Ensure the maintenance AI keeps Odysseus' self-knowledge, tool index, tool usage memory chunks, and RaptorGraph capability facts current after every update.",
+  "source_roadmaps": [
+    {
+      "id": "TCM1",
+      "title": "Tool Capability Refresh After Updates",
+      "roadmap": "implemented_inline_2026-07-02",
+      "status": "done",
+      "commit": "cf4193c2",
+      "summary": "Post-update refresh script, ToolIndex refresh, tool capability latest/history packet, generated memory-record chunks, RaptorGraph event packet, and capability-question provider context."
+    },
+    {
+      "id": "TCM2",
+      "title": "Tool Capability Maintenance Phase 2",
+      "roadmap": "docs/plans/tool-capability-maintenance-phase2-roadmap.json",
+      "status": "planned",
+      "summary": "Live post-update smoke, idempotent Memory writes, RaptorGraph event-store integration, self-report guard, diagnostics readback, and final Telegram/chat acceptance."
+    }
+  ],
+  "master_lanes": [
+    {
+      "id": "MAK-1",
+      "name": "Update Hook And ToolIndex Refresh",
+      "priority": "P0",
+      "status": "done",
+      "depends_on": [],
+      "evidence": [
+        "Commit cf4193c2 pushed to fuzzy/dev.",
+        "scripts/refresh_tool_capability_knowledge.py exists.",
+        "ops/homeserver/install-auto-update-timer.sh calls the refresh after version and Chroma readiness.",
+        "TCM2-6 regression test now proves the refresh stays after App/Chroma readiness and version verification."
+      ],
+      "remaining": "Deploy latest fuzzy/dev to Debian and run live smoke."
+    },
+    {
+      "id": "MAK-2",
+      "name": "Tool Capability Knowledge Artifacts",
+      "priority": "P0",
+      "status": "done",
+      "depends_on": ["MAK-1"],
+      "evidence": [
+        "data/tool_capability_knowledge/latest.json is the target latest packet.",
+        "history.jsonl appends durable refresh history.",
+        "Generated records use source=tool_capability_maintenance and category=system_capability."
+      ],
+      "remaining": "Confirm on Debian after deploy."
+    },
+    {
+      "id": "MAK-3",
+      "name": "Memory Truth Write Integration",
+      "priority": "P0",
+      "status": "repo_done_live_gate_pending",
+      "depends_on": ["MAK-2"],
+      "roadmap_slice": "TCM2-2-memory-write-executor-binding",
+      "done_when": "Generated tool usage memory chunks are written idempotently into native Memory/vector lanes when the system-memory write gate is open.",
+      "evidence": [
+        "Tool capability memory write executor is implemented with dry-run default, write gate, idempotent memory_id upsert, optional vector update, and provenance logging.",
+        "refresh_tool_capability_knowledge.py supports gated --write-memory execution and dry-run proof.",
+        "Focused suite passed with 26 tests."
+      ],
+      "remaining": "Enable the write gate on Debian and run a live bounded smoke only after operator Go."
+    },
+    {
+      "id": "MAK-4",
+      "name": "RaptorGraph Tool Capability Integration",
+      "priority": "P0",
+      "status": "planned",
+      "depends_on": ["MAK-2", "MAK-3"],
+      "roadmap_slice": "TCM2-3-raptorgraph-tool-event-store",
+      "done_when": "Every accepted refresh creates or dedupes a RaptorGraph capability event linked to snapshot id, commit, and memory record ids."
+    },
+    {
+      "id": "MAK-5",
+      "name": "Agent Self-Report Freshness Guard",
+      "priority": "P1",
+      "status": "partially_done",
+      "depends_on": ["MAK-2"],
+      "evidence": [
+        "Context orchestrator injects tool capability provider payload for capability/tool/file/git questions."
+      ],
+      "remaining": "Add stronger answer guard and regression around stale negative claims."
+    },
+    {
+      "id": "MAK-5A",
+      "name": "Updater Regression Coverage",
+      "priority": "P0",
+      "status": "done",
+      "depends_on": ["MAK-1"],
+      "roadmap_slice": "TCM2-6-update-regression-suite",
+      "evidence": [
+        "tests/test_homeserver_auto_update_timer.py covers post-readiness tool capability refresh ordering.",
+        "Focused suite passed with 18 tests."
+      ],
+      "remaining": "None for repo-only regression coverage."
+    },
+    {
+      "id": "MAK-6",
+      "name": "Diagnostics And Audit Readback",
+      "priority": "P1",
+      "status": "planned",
+      "depends_on": ["MAK-2", "MAK-3", "MAK-4"],
+      "roadmap_slice": "TCM2-5-diagnostics-and-audit-readback",
+      "done_when": "Backend diagnostics can report latest snapshot, index status, memory write status, graph event status, and freshness."
+    },
+    {
+      "id": "MAK-7",
+      "name": "Live Debian And Telegram Acceptance",
+      "priority": "P0",
+      "status": "live_gated",
+      "depends_on": ["MAK-1", "MAK-3", "MAK-4", "MAK-5"],
+      "roadmap_slices": [
+        "TCM2-1-live-post-update-smoke",
+        "TCM2-7-final-live-acceptance"
+      ],
+      "done_when": "After an update, Odysseus answers tool/capability questions from current knowledge and no longer reports present tools as missing."
+    }
+  ],
+  "global_gates": [
+    {
+      "id": "debian-deploy-go",
+      "class": "live_gated",
+      "status": "needed_tomorrow",
+      "blocks": ["MAK-1 live proof", "MAK-7 acceptance"],
+      "decision_needed": "Allow deploying latest fuzzy/dev to Debian and running the post-update refresh."
+    },
+    {
+      "id": "memory-truth-write-go",
+      "class": "policy_gated",
+      "status": "needed_tomorrow",
+      "blocks": ["MAK-3"],
+      "decision_needed": "Confirm that system capability chunks may be written automatically because they contain no private user content."
+    },
+    {
+      "id": "raptorgraph-event-write-go",
+      "class": "policy_gated",
+      "status": "needed_tomorrow",
+      "blocks": ["MAK-4"],
+      "decision_needed": "Confirm that tool capability graph events are allowed as maintenance metadata."
+    }
+  ],
+  "tomorrow_execution_order": [
+    "Run TCM2-0 state check.",
+    "Add/verify updater regression tests.",
+    "Memory write executor binding is repo-done; run live gated smoke later.",
+    "Implement RaptorGraph/event-store integration or explicit blocked ledger.",
+    "Add diagnostics readback.",
+    "Commit and push to fuzzy/dev.",
+    "Deploy to Debian after operator Go.",
+    "Ask Odysseus via Telegram/chat what tools and repo/file capabilities it has."
+  ],
+  "non_goals": [
+    "No UI placement or UI implementation.",
+    "No edits to static/frontpage-v2/app.js or legacy UI files.",
+    "No raw private document, chat, Telegram, token, secret, or absolute host path persistence.",
+    "No Docker-first implementation; Podman is the runtime assumption.",
+    "No broad MCP or host shell exposure."
+  ],
+  "success_definition": "After every update, Odysseus can refresh and retrieve current tool capability knowledge, write safe tool-usage chunks to Memory/RaptorGraph when gates allow it, and accurately answer capability questions from current state."
+}

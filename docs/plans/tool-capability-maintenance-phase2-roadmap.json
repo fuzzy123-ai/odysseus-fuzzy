@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_execution_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "in_progress",
+  "mode": "backend_logic_first",
+  "title": "Tool Capability Maintenance Phase 2 Roadmap",
+  "goal": "Make Odysseus' maintenance AI keep tool usage knowledge, tool index state, Memory chunks, and RaptorGraph tool-capability facts fresh after every update, without storing private content or relying on UI work.",
+  "current_baseline": {
+    "phase1_commit": "cf4193c2",
+    "phase1_status": "implemented_and_pushed",
+    "phase1_summary": [
+      "Post-update hook refreshes the runtime ToolIndex after a successful deploy and Chroma health check.",
+      "A redacted tool capability snapshot is generated under data/tool_capability_knowledge.",
+      "Memory-record-shaped chunks and a RaptorGraph event are generated from trusted registry metadata.",
+      "Agent/chat context injects current tool capability knowledge for capability/tool/file/git questions."
+    ],
+    "phase1_tests": [
+      "venv/Scripts/python.exe -m pytest tests/test_tool_capability_maintenance.py tests/test_context_orchestrator.py",
+      "14 passed, 1 SQLAlchemy deprecation warning"
+    ],
+    "known_local_gap": "A full local ToolIndex refresh cannot be proven on the Windows workstation when ChromaDB is not listening on localhost:8100; Debian updater runs this after Chroma readiness."
+  },
+  "hard_constraints": {
+    "no_ui_work": true,
+    "no_legacy_or_v2_ui_edits": true,
+    "no_private_content_persistence": true,
+    "no_tokens_chat_ids_or_secrets": true,
+    "no_absolute_host_paths": true,
+    "remote_push": "fuzzy/dev_only",
+    "runtime_container_strategy": "podman_pods",
+    "docker_default": false,
+    "live_actions_require_operator_go": true,
+    "memory_truth_writes_require_policy_gate": true
+  },
+  "slice_queue": [
+    {
+      "id": "TCM2-0-state-check",
+      "class": "safe_offline",
+      "status": "done",
+      "owner": "Charlie",
+      "goal": "Confirm latest local branch, fuzzy/dev, Debian version, Chroma readiness, and current data/tool_capability_knowledge state before changing anything.",
+      "allowed_paths": [],
+      "tests": [
+        "git status --short --branch",
+        "scripts/refresh_tool_capability_knowledge.py --reason preflight --commit <sha> --skip-index --no-persist"
+      ],
+      "done_when": "Preflight report identifies whether Phase 1 is deployed and whether live ToolIndex refresh can run on Debian.",
+      "evidence": [
+        "git log shows cf4193c2 as current local HEAD.",
+        "refresh_tool_capability_knowledge.py --reason preflight --commit cf4193c2 --skip-index --no-persist returned status=refreshed, builtin_tool_count=79, memory_records=10, raptorgraph_event=true.",
+        "Both roadmap JSON files validate with python -m json.tool."
+      ]
+    },
+    {
+      "id": "TCM2-1-live-post-update-smoke",
+      "class": "live_gated",
+      "status": "planned",
+      "owner": "Charlie",
+      "goal": "Run a bounded Debian smoke proving that the post-update hook can refresh ToolIndex and persist latest.json/history.jsonl after services are ready.",
+      "allowed_paths": [
+        "ops/homeserver/install-auto-update-timer.sh",
+        "scripts/refresh_tool_capability_knowledge.py"
+      ],
+      "live_gate": {
+        "requires": [
+          "operator_go",
+          "Debian SSH access",
+          "Chroma healthy on configured host/port",
+          "working podman deployment"
+        ],
+        "forbidden": [
+          "force push",
+          "reset",
+          "manual secret persistence",
+          "Docker-specific assumptions"
+        ]
+      },
+      "done_when": "Debian latest.json exists, history.jsonl appended one row, ToolIndex status is ok, and no secret/path leak appears in output."
+    },
+    {
+      "id": "TCM2-2-memory-write-executor-binding",
+      "class": "repo_only",
+      "status": "done",
+      "owner": "Bob",
+      "goal": "Add a policy-aware executor path that can write generated tool capability memory records into the native Memory vector store when system-memory writes are explicitly allowed.",
+      "allowed_paths": [
+        "scripts/refresh_tool_capability_knowledge.py",
+        "src/tool_capability_maintenance.py",
+        "src/memory_provenance_ledger.py",
+        "tests/test_tool_capability_maintenance.py"
+      ],
+      "done_when": "Tool capability memory records can be written idempotently, vector-indexed, provenance-logged, and skipped safely when the write gate is closed.",
+      "evidence": [
+        "execute_tool_capability_memory_write blocks when write_gate_open=false.",
+        "Dry-run mode plans writes without touching Memory or Chroma.",
+        "Live execution path upserts by stable memory_id, preserves idempotence, updates MemoryVectorStore when provided, and records memory_maintenance provenance.",
+        "CLI supports --write-memory plus --dry-run-memory-write and ODYSSEUS_TOOL_CAPABILITY_MEMORY_WRITE for gated update integration.",
+        "Focused suite passed: tests/test_tool_capability_maintenance.py tests/test_homeserver_auto_update_timer.py tests/test_context_orchestrator.py tests/test_memory_provenance_ledger.py -> 26 passed."
+      ]
+    },
+    {
+      "id": "TCM2-3-raptorgraph-tool-event-store",
+      "class": "repo_only",
+      "status": "planned",
+      "owner": "Bob",
+      "goal": "Route tool capability RaptorGraph events into the graph/event store or an equivalent redacted maintenance ledger so graph memory can link tool facts to update commits.",
+      "allowed_paths": [
+        "src/tool_capability_maintenance.py",
+        "src/universal_inbox_raptorgraph_store.py",
+        "tests/test_tool_capability_maintenance.py"
+      ],
+      "done_when": "A tool capability refresh can create or dedupe a graph event with snapshot id, commit, memory record ids, and no raw private data."
+    },
+    {
+      "id": "TCM2-4-agent-self-report-guard",
+      "class": "repo_only",
+      "status": "planned",
+      "owner": "Alice",
+      "goal": "Prevent stale capability answers by adding a small self-report guard: if the user asks what Odysseus can do, the answer must be grounded in the current tool capability provider payload.",
+      "allowed_paths": [
+        "src/context_orchestrator.py",
+        "src/agent_loop_prompts.py",
+        "tests/test_context_orchestrator.py"
+      ],
+      "done_when": "Regression tests prove capability questions receive tool capability context and mention current tools such as read_file, write_file, grep, bash, python, and manage_repos when available."
+    },
+    {
+      "id": "TCM2-5-diagnostics-and-audit-readback",
+      "class": "repo_only",
+      "status": "planned",
+      "owner": "Bob",
+      "goal": "Expose a backend diagnostics readback for the latest tool capability snapshot, index status, memory write status, and RaptorGraph event status.",
+      "allowed_paths": [
+        "routes/*diagnostics*.py",
+        "routes/*system*.py",
+        "src/tool_capability_maintenance.py",
+        "tests/test_tool_capability_maintenance.py"
+      ],
+      "done_when": "A read-only API or existing diagnostics path can report latest snapshot id, timestamp, commit, index status, chunk count, and graph event id without UI changes."
+    },
+    {
+      "id": "TCM2-6-update-regression-suite",
+      "class": "repo_only",
+      "status": "done",
+      "owner": "Charlie",
+      "goal": "Add focused regression coverage that the updater script calls the refresh hook after service readiness and that script failures are visible.",
+      "allowed_paths": [
+        "ops/homeserver/install-auto-update-timer.sh",
+        "tests/test_tool_capability_maintenance.py",
+        "tests/test_homeserver_auto_update_timer.py"
+      ],
+      "done_when": "Focused tests or static assertions prove the update wrapper invokes the refresh after Chroma wait and before scheduled update completion.",
+      "evidence": [
+        "tests/test_homeserver_auto_update_timer.py asserts the refresh command runs after App/Chroma readiness and version verification, before scheduled update completion.",
+        "Focused suite passed: tests/test_homeserver_auto_update_timer.py tests/test_tool_capability_maintenance.py tests/test_context_orchestrator.py -> 18 passed."
+      ]
+    },
+    {
+      "id": "TCM2-7-final-live-acceptance",
+      "class": "live_gated",
+      "status": "planned",
+      "owner": "Charlie",
+      "goal": "After repo tests pass and the feature is pushed, deploy to Debian and ask Odysseus via Telegram or chat what tools it has, verifying the answer is no longer stale.",
+      "allowed_paths": [],
+      "live_gate": {
+        "requires": [
+          "operator_go",
+          "push to fuzzy/dev",
+          "Debian deploy",
+          "Telegram/chat test message"
+        ]
+      },
+      "done_when": "Odysseus correctly reports current file, shell, grep/glob/ls, repo, memory, and sandbox-related capabilities or clearly states which are gated/disabled."
+    }
+  ],
+  "global_acceptance": [
+    "Every update refreshes the runtime ToolIndex.",
+    "Every update emits a redacted tool capability snapshot.",
+    "Tool usage Memory chunks are generated and, when the write gate is open, written idempotently.",
+    "RaptorGraph receives a source-linked tool capability event or a clear blocked status.",
+    "Odysseus no longer says core tools are missing when they are present but gated.",
+    "No private content, secrets, chat ids, tokens, or absolute host paths are persisted."
+  ],
+  "tomorrow_start": {
+    "recommended_first_slice": "TCM2-0-state-check",
+    "then": [
+      "TCM2-3-raptorgraph-tool-event-store",
+      "TCM2-5-diagnostics-and-audit-readback",
+      "TCM2-1-live-post-update-smoke",
+      "TCM2-7-final-live-acceptance"
+    ]
+  }
+}

@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -25,6 +26,8 @@ from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
 TOOL_CAPABILITY_SNAPSHOT_SCHEMA = "odysseus.tool_capability_snapshot.v1"
 TOOL_CAPABILITY_MEMORY_RECORD_SCHEMA = "odysseus.tool_capability_memory_record.v1"
 TOOL_CAPABILITY_RAPTORGRAPH_EVENT_SCHEMA = "odysseus.tool_capability_raptorgraph_event.v1"
+TOOL_CAPABILITY_MEMORY_WRITE_INTENT_SCHEMA = "odysseus.tool_capability_memory_write_intent.v1"
+TOOL_CAPABILITY_MEMORY_WRITE_EXECUTION_SCHEMA = "odysseus.tool_capability_memory_write_execution.v1"
 HISTORY_FILE = "history.jsonl"
 LATEST_FILE = "latest.json"
 
@@ -54,6 +57,32 @@ class ToolCapabilityRefreshReport:
             "raptorgraph_event": dict(self.raptorgraph_event),
             "persisted": self.persisted,
             "index_status": dict(self.index_status),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCapabilityMemoryWriteReport:
+    status: str
+    reason: str
+    memory_records_planned: int
+    memory_records_written: int = 0
+    memory_records_skipped: int = 0
+    dry_run: bool = True
+    writes_performed: bool = False
+    raw_content_visible: bool = False
+    schema: str = TOOL_CAPABILITY_MEMORY_WRITE_EXECUTION_SCHEMA
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "status": self.status,
+            "reason": self.reason,
+            "memory_records_planned": self.memory_records_planned,
+            "memory_records_written": self.memory_records_written,
+            "memory_records_skipped": self.memory_records_skipped,
+            "dry_run": self.dry_run,
+            "writes_performed": self.writes_performed,
+            "raw_content_visible": False,
         }
 
 
@@ -88,6 +117,115 @@ def refresh_tool_capability_knowledge(
         persisted=persisted,
         index_status=index_status,
     )
+
+
+def build_tool_capability_memory_write_intent(
+    *,
+    snapshot: Mapping[str, Any],
+    memory_records: Iterable[Mapping[str, Any]],
+    raptorgraph_event: Mapping[str, Any],
+    owner: str = "system",
+) -> dict[str, Any]:
+    """Build a ready-to-write intent for non-private system capability memory."""
+
+    _assert_snapshot(snapshot)
+    records = tuple(dict(record) for record in memory_records)
+    for record in records:
+        _assert_safe_payload(record)
+    event = dict(raptorgraph_event)
+    _assert_safe_payload(event)
+    intent = {
+        "schema": TOOL_CAPABILITY_MEMORY_WRITE_INTENT_SCHEMA,
+        "status": "ready",
+        "ready_to_write": True,
+        "owner": _safe_label(owner or "system"),
+        "source": "tool_capability_maintenance",
+        "snapshot_id": snapshot["id"],
+        "source_fingerprint": snapshot["fingerprint"],
+        "classification": "system_capability",
+        "raw_content_stored": False,
+        "private_content_stored": False,
+        "memory_records": records,
+        "raptorgraph_event": event,
+        "analysis_policy": {
+            "owner": _safe_label(owner or "system"),
+            "surface": "tool_capability_maintenance",
+            "classification": "system_capability",
+            "dsgvo_mode": False,
+            "local_only": False,
+            "raw_content_stored": False,
+            "write_gate_required": True,
+        },
+    }
+    _assert_safe_payload(intent)
+    return intent
+
+
+def execute_tool_capability_memory_write(
+    intent: Mapping[str, Any],
+    *,
+    write_gate_open: bool = False,
+    dry_run: bool = True,
+    memory_manager: Any = None,
+    memory_vector: Any = None,
+    owner: str = "system",
+    confirmation_source: str = "system_capability_policy",
+) -> ToolCapabilityMemoryWriteReport:
+    """Plan or execute idempotent writes of tool capability chunks to Memory."""
+
+    if not isinstance(intent, Mapping):
+        raise ToolCapabilityMaintenanceError("intent must be a mapping")
+    records = tuple(record for record in (intent.get("memory_records") or ()) if isinstance(record, Mapping))
+    if str(intent.get("status") or "") != "ready" or not bool(intent.get("ready_to_write")):
+        report = ToolCapabilityMemoryWriteReport(
+            status="blocked",
+            reason="intent_not_ready",
+            memory_records_planned=len(records),
+            dry_run=True,
+        )
+        _record_tool_capability_memory_write(intent, report, owner=owner, confirmation_source=confirmation_source)
+        return report
+    if not write_gate_open:
+        report = ToolCapabilityMemoryWriteReport(
+            status="blocked",
+            reason="write_gate_closed",
+            memory_records_planned=len(records),
+            dry_run=True,
+        )
+        _record_tool_capability_memory_write(intent, report, owner=owner, confirmation_source=confirmation_source)
+        return report
+    if dry_run:
+        report = ToolCapabilityMemoryWriteReport(
+            status="planned",
+            reason="dry_run_only",
+            memory_records_planned=len(records),
+            dry_run=True,
+        )
+        _record_tool_capability_memory_write(intent, report, owner=owner, confirmation_source=confirmation_source)
+        return report
+    if memory_manager is None:
+        raise ToolCapabilityMaintenanceError("memory_manager is required for live execution")
+
+    written = 0
+    skipped = 0
+    for record in records:
+        result = _upsert_tool_memory_record(record, memory_manager=memory_manager, memory_vector=memory_vector, owner=owner)
+        if result == "written":
+            written += 1
+        else:
+            skipped += 1
+
+    report = ToolCapabilityMemoryWriteReport(
+        status="written",
+        reason="write_gate_open_and_records_upserted",
+        memory_records_planned=len(records),
+        memory_records_written=written,
+        memory_records_skipped=skipped,
+        dry_run=False,
+        writes_performed=bool(written),
+    )
+    _record_tool_capability_memory_write(intent, report, owner=owner, confirmation_source=confirmation_source)
+    return report
 
 
 def load_tool_capability_provider_payload(*, query: str = "", budget: int = 0) -> dict[str, Any]:
@@ -297,6 +435,89 @@ def _load_latest_payload(data_dir: str | Path | None = None) -> dict[str, Any]:
     return payload
 
 
+def _upsert_tool_memory_record(
+    record: Mapping[str, Any],
+    *,
+    memory_manager: Any,
+    memory_vector: Any = None,
+    owner: str = "system",
+) -> str:
+    _assert_safe_payload(record)
+    memory_id = _safe_label(record.get("memory_id") or "", field="memory_id")
+    if not memory_id:
+        raise ToolCapabilityMaintenanceError("memory record id is required")
+    text = _safe_text(record.get("text") or "", limit=5000).strip()
+    if not text:
+        raise ToolCapabilityMaintenanceError("memory record text is required")
+    metadata = record.get("metadata") if isinstance(record.get("metadata"), Mapping) else {}
+    entry = {
+        "id": memory_id,
+        "text": text,
+        "timestamp": int(time.time()),
+        "source": _safe_label(record.get("source") or "tool_capability_maintenance"),
+        "category": _safe_label(record.get("category") or "system_capability"),
+        "uses": 0,
+        "owner": _safe_label(owner or "system"),
+        "metadata": dict(metadata),
+    }
+    _assert_safe_payload(entry)
+    entries = list(memory_manager.load_all())
+    existing_index = next((idx for idx, item in enumerate(entries) if item.get("id") == memory_id), None)
+    if existing_index is not None:
+        current = entries[existing_index]
+        if current.get("text") == entry["text"] and current.get("metadata") == entry["metadata"] and current.get("owner") == entry["owner"]:
+            return "skipped"
+        entry["uses"] = int(current.get("uses") or 0)
+        entries[existing_index] = entry
+    else:
+        entries.append(entry)
+    memory_manager.save(entries)
+    if memory_vector is not None:
+        try:
+            if existing_index is not None and hasattr(memory_vector, "remove"):
+                memory_vector.remove(memory_id)
+            memory_vector.add(memory_id, text)
+        except Exception:
+            pass
+    return "written"
+
+
+def _record_tool_capability_memory_write(
+    intent: Mapping[str, Any],
+    report: ToolCapabilityMemoryWriteReport,
+    *,
+    owner: str,
+    confirmation_source: str,
+) -> None:
+    try:
+        from src.memory_provenance_ledger import record_memory_provenance
+
+        record_memory_provenance(
+            "memory_maintenance",
+            owner=owner,
+            surface="tool_capability_maintenance",
+            source="tool_capability_maintenance",
+            action="execute_tool_capability_memory_write",
+            status=report.status,
+            reason=report.reason,
+            source_hash=str(intent.get("source_fingerprint") or ""),
+            memory_record_ids=tuple(record.get("memory_id") for record in (intent.get("memory_records") or ()) if isinstance(record, Mapping)),
+            classification=str(intent.get("classification") or "system_capability"),
+            review_required=not bool(intent.get("ready_to_write")),
+            dry_run=report.dry_run,
+            writes_performed=report.writes_performed,
+            metadata={
+                "confirmation_source": _safe_label(confirmation_source or "system_capability_policy"),
+                "memory_records_planned": report.memory_records_planned,
+                "memory_records_written": report.memory_records_written,
+                "memory_records_skipped": report.memory_records_skipped,
+                "snapshot_id": _safe_label(intent.get("snapshot_id") or ""),
+            },
+        )
+    except Exception:
+        pass
+
+
 def _memory_record(snapshot: Mapping[str, Any], *, chunk: str, text: str, tool_names: Iterable[str]) -> dict[str, Any]:
     safe_chunk = _safe_label(chunk)
     safe_text = _safe_text(text, limit=5000)
@@ -378,7 +599,7 @@ def _fingerprint(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _safe_label(value: Any) -> str:
+def _safe_label(value: Any, *, field: str | None = None) -> str:
     raw = str(value or "").strip()
     raw = _SECRET_RE.sub("[redacted-secret]", raw)
     raw = _WINDOWS_PATH_RE.sub("[redacted-path]", raw)
