@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-4-gated-write-tools",
-    "reason": "CAL-MCP-0 through CAL-MCP-3 are complete; the next backend slice can add owner-scoped, confirmation-gated Calendar MCP writes."
+    "id": "CAL-MCP-5-telegram-remote-control",
+    "reason": "CAL-MCP-0 through CAL-MCP-4 are complete; the next backend slice routes Telegram reminder commands through the shared capability layer."
   }
 }

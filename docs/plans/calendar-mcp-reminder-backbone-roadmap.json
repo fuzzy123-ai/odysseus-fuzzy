@@ -131,7 +131,7 @@
       "id": "CAL-MCP-4-gated-write-tools",
       "class": "repo_only",
       "owner": "Alice",
-      "status": "planned",
+      "status": "done",
       "goal": "Expose MCP write tools for calendar events, reminders and digest schedules with confirmation gates for create/update/delete where appropriate.",
       "allowed_paths": [
         "mcp_servers/calendar_server.py",
@@ -141,7 +141,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_mcp_calendar_server.py tests/test_calendar_capability_service.py -q"
       ],
-      "done_when": "Writes require owner scope and confirmation for destructive changes, return structured content, and never persist chat ids, tokens or raw private prompts."
+      "done_when": "Writes require owner scope and confirmation for destructive changes, return structured content, and never persist chat ids, tokens or raw private prompts.",
+      "evidence": "Calendar MCP now exposes confirmation-gated event, reminder and todo-digest write tools, requires an owner for writes, routes through existing manage_calendar/manage_notes/manage_tasks logic, and tests cover confirmation blocking, owner-scoped event/reminder writes, delete gating and single cron digest creation without token/chat-id leakage."
     },
     {
       "id": "CAL-MCP-5-telegram-remote-control",

@@ -87,6 +87,31 @@ def _tool_json(name, args):
     return json.loads(result[0].text)
 
 
+def _tool_text(name, args):
+    result = asyncio.run(calendar_server.call_tool(name, args))
+    return result[0].text
+
+
+def _db_counts():
+    db = _TS()
+    try:
+        return {
+            "events": db.query(CalendarEvent).count(),
+            "notes": db.query(Note).count(),
+            "tasks": db.query(ScheduledTask).count(),
+        }
+    finally:
+        db.close()
+
+
+def _event_exists(uid):
+    db = _TS()
+    try:
+        return db.query(CalendarEvent).filter(CalendarEvent.uid == uid).first() is not None
+    finally:
+        db.close()
+
+
 def test_calendar_mcp_lists_readonly_tools_and_resources():
     tools = asyncio.run(calendar_server.list_tools())
     resources = asyncio.run(calendar_server.list_resources())
@@ -95,8 +120,10 @@ def test_calendar_mcp_lists_readonly_tools_and_resources():
         "calendar_agenda",
         "calendar_reminders",
         "calendar_readiness",
+        "calendar_write_event",
+        "calendar_write_reminder",
+        "calendar_write_todo_digest",
     }
-    assert all("write" not in tool.name for tool in tools)
     assert {resource.name for resource in resources} == {
         "calendar_agenda",
         "calendar_reminders",
@@ -151,3 +178,140 @@ def test_builtin_mcp_registers_calendar_server():
         "mcp_servers/calendar_server.py",
         "Built-in: Calendar",
     )
+
+
+def test_calendar_mcp_write_event_requires_confirmation(monkeypatch):
+    _reset_db()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+
+    payload = _tool_json("calendar_write_event", {
+        "action": "create_event",
+        "summary": "Blocked write",
+        "dtstart": "2026-07-04T09:00:00",
+    })
+
+    assert payload["status"] == "confirmation_required"
+    assert payload["requires_confirmation"] is True
+    assert _db_counts()["events"] == 0
+
+
+def test_calendar_mcp_write_event_confirmed_creates_owner_scoped_event(monkeypatch):
+    _reset_db()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+
+    payload = _tool_json("calendar_write_event", {
+        "action": "create_event",
+        "confirmed": True,
+        "summary": "Confirmed planning",
+        "dtstart": "2026-07-04T09:00:00",
+        "dtend": "2026-07-04T10:00:00",
+        "reminder_minutes": 15,
+    })
+
+    db = _TS()
+    try:
+        event = db.query(CalendarEvent).filter(CalendarEvent.uid == payload["uid"]).first()
+        note = db.query(Note).filter(Note.owner == "alice").first()
+        assert payload["status"] == "success"
+        assert event is not None
+        assert event.calendar.owner == "alice"
+        assert note is not None
+        assert note.owner == "alice"
+        assert payload["raw_content_visible"] is False
+    finally:
+        db.close()
+
+
+def test_calendar_mcp_delete_event_requires_confirmation_and_then_deletes(monkeypatch):
+    _seed_calendar_data()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+
+    blocked = _tool_json("calendar_write_event", {"action": "delete_event", "uid": "evt-alice"})
+    deleted = _tool_json("calendar_write_event", {
+        "action": "delete_event",
+        "uid": "evt-alice",
+        "confirmed": True,
+    })
+
+    assert blocked["status"] == "confirmation_required"
+    assert deleted["status"] == "success"
+    assert not _event_exists("evt-alice")
+    assert _event_exists("evt-bob")
+
+
+def test_calendar_mcp_write_requires_owner_even_without_existing_data():
+    _reset_db()
+
+    text = _tool_text("calendar_write_event", {
+        "action": "create_event",
+        "confirmed": True,
+        "summary": "No owner",
+        "dtstart": "2026-07-04T09:00:00",
+    })
+
+    assert text.startswith("Error: Calendar MCP writes require an authenticated owner context")
+    assert _db_counts()["events"] == 0
+
+
+def test_calendar_mcp_write_reminder_confirmed_creates_owner_scoped_note(monkeypatch):
+    _reset_db()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+
+    payload = _tool_json("calendar_write_reminder", {
+        "action": "add",
+        "confirmed": True,
+        "title": "Call dentist",
+        "due_date": "2026-07-04T09:00:00",
+    })
+
+    db = _TS()
+    try:
+        note = db.query(Note).filter(Note.id == payload["note_id"]).first()
+        assert payload["status"] == "success"
+        assert note is not None
+        assert note.owner == "alice"
+        assert note.label == "calendar"
+        assert payload["raw_content_visible"] is False
+    finally:
+        db.close()
+
+
+def test_calendar_mcp_write_todo_digest_confirmed_creates_single_cron_task(monkeypatch):
+    _reset_db()
+    monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+    db = _TS()
+    try:
+        db.add(CrewMember(
+            id="assistant-alice",
+            owner="alice",
+            name="Assistant",
+            is_default_assistant=True,
+            timezone="Europe/Berlin",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    payload = _tool_json("calendar_write_todo_digest", {
+        "action": "create",
+        "confirmed": True,
+        "scheduled_time": "09:00",
+        "weekdays": "mo,di,mi,do,fr",
+        "output_target": "telegram",
+    })
+
+    db = _TS()
+    try:
+        task = db.query(ScheduledTask).filter(ScheduledTask.id == payload["task_id"]).first()
+        encoded = json.dumps(payload, ensure_ascii=False)
+        assert payload["status"] == "success"
+        assert payload["single_task"] is True
+        assert payload["cron_expression"] == "0 9 * * 1,2,3,4,5"
+        assert task is not None
+        assert task.owner == "alice"
+        assert task.action == "todo_digest"
+        assert task.output_target == "telegram"
+        assert "chat_id" not in encoded.lower()
+        assert "token" not in encoded.lower()
+    finally:
+        db.close()

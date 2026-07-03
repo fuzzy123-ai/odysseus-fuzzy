@@ -152,7 +152,7 @@ def build_todo_digest_schedule_plan(
     """Build the canonical single scheduled task payload for a todo digest."""
 
     hour, minute = _parse_hhmm(scheduled_time)
-    weekday_tuple = _normalize_weekdays(weekdays)
+    weekday_tuple = _normalize_weekdays(_iter_weekday_values(weekdays))
     cron_days = ",".join(str(day + 1) for day in weekday_tuple)
     cron_expression = f"{minute} {hour} * * {cron_days}"
     task_payload = {
