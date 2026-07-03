@@ -482,7 +482,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "SIR-3-anomaly-classifiers",
-    "reason": "ULOG-0 through ULOG-4 plus ULOG-7 are complete; continue master-order execution with SIR-3 anomaly classifiers over redacted runtime events."
+    "id": "ULOG-5-mcp-diagnostic-contract",
+    "reason": "ULOG-0 through ULOG-4 plus ULOG-7 are complete; the next ULOG repo-only slice is the read-only MCP diagnostic contract."
   }
 }

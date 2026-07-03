@@ -304,7 +304,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "C",
-      "status": "planned",
+      "status": "done",
       "goal": "Build initial anomaly classifiers over unified events and observability summaries.",
       "allowed_paths": [
         "src/security_anomaly_classifier.py",
@@ -314,7 +314,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_security_anomaly_classifier.py tests/test_runtime_event_envelope.py -q"
       ],
-      "done_when": "Classifier can identify repeated auth failures, suspicious endpoint probing, Telegram abuse, service-down security events and secret-leak indicators from redacted events."
+      "done_when": "Classifier can identify repeated auth failures, suspicious endpoint probing, Telegram abuse, service-down security events and secret-leak indicators from redacted events.",
+      "evidence": "Implemented src/security_anomaly_classifier.py with deterministic anomaly families for repeated auth failures, endpoint probing, Telegram abuse/spam patterns, service-down security events and secret-leak indicators using only redacted runtime event fields and observability counters. It returns SecurityIncident candidates with read-only/gated recommended actions and rejects raw-content or secret-marked inputs. Focused tests passed on 2026-07-03: 13 passed, 1 warning."
     },
     {
       "id": "SIR-4-operator-notifications",
@@ -441,7 +442,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-3-anomaly-classifiers",
-    "reason": "SIR-0, SIR-1 and SIR-2 are complete; the next SIR repo-only slice is anomaly classification over redacted runtime events and observability summaries."
+    "id": "SIR-4-operator-notifications",
+    "reason": "SIR-0 through SIR-3 are complete; the next SIR repo-only slice is operator notification routing for incident summaries."
   }
 }
