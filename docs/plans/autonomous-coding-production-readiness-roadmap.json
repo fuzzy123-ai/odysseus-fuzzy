@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "planned",
+  "mode": "backend_logic_first",
+  "title": "Autonomous Coding Production Readiness Roadmap",
+  "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
+  "relationship_to_existing_roadmaps": {
+    "foundation": "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
+    "foundation_status": "done",
+    "this_track_focus": "Production orchestration, resumability, project scope, MCP workbench verification, remote status/control and deployment gates.",
+    "telegram_role": "Remote monitor and control channel, not the primary development workspace."
+  },
+  "hard_constraints": {
+    "workstation_first": true,
+    "telegram_remote_control_only_by_default": true,
+    "no_new_ui": true,
+    "no_ui_hotfiles_without_ui_agent": true,
+    "podman_pods": true,
+    "docker_default": false,
+    "no_host_shell_to_agents": true,
+    "no_default_network": true,
+    "no_default_secrets": true,
+    "commit_push_deploy_require_gates": true,
+    "push_remote": "fuzzy/dev only",
+    "raw_private_content_persistence": "forbidden"
+  },
+  "current_foundation": {
+    "coding_agent_routes": "routes/coding_agent_routes.py",
+    "coding_backend": "src/coding_agent_backend.py",
+    "sandbox_worker": "src/agent_sandbox_worker.py",
+    "sandbox_ledger": "src/sandbox_job_ledger.py",
+    "task_ledger": "src/agent_task_ledger.py",
+    "telegram_remote_status": "plugins/telegram/plugin.py",
+    "evidence_storage": "src/evidence_storage.py",
+    "memory_bridge": "src/coding_agent_memory_bridge.py"
+  },
+  "target_user_stories": [
+    {
+      "id": "workstation-roadmap-run",
+      "request": "Ich erstelle am Rechner eine Roadmap, Odysseus arbeitet Slice fuer Slice daran.",
+      "expected_result": "The project runner opens a scoped coding task, creates/uses an isolated worktree, runs sandbox checks, records evidence and waits at gates."
+    },
+    {
+      "id": "remote-monitor",
+      "request": "Ich frage unterwegs per Telegram: Wie weit ist der Lauf?",
+      "expected_result": "Telegram reads the redacted task ledger and reports current slice, blockers, progress and recommended next decision."
+    },
+    {
+      "id": "remote-control",
+      "request": "Per Telegram: Pause, weiter, abbrechen oder Gate freigeben.",
+      "expected_result": "Telegram writes safe control events that the runner consumes before starting the next action."
+    },
+    {
+      "id": "deploy-gated",
+      "request": "Wenn fertig, kann Odysseus deployen.",
+      "expected_result": "Commit, push and deployment are explicit gated phases with evidence, no automatic production mutation without operator Go."
+    }
+  ],
+  "slice_queue": [
+    {
+      "id": "ACPR-0-state-audit",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "status": "planned",
+      "goal": "Reconcile current coding-agent backend, sandbox, task ledger, Telegram remote controls and project runner state.",
+      "allowed_paths": [
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "tests": [],
+      "done_when": "Current capabilities and gaps are documented without changing runtime code."
+    },
+    {
+      "id": "ACPR-1-project-task-control-plane",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "partially_done",
+      "goal": "Make workstation-created coding tasks durable and queryable through a neutral task control plane.",
+      "allowed_paths": [
+        "src/agent_task_ledger.py",
+        "routes/coding_agent_routes.py",
+        "tests/test_agent_task_ledger.py",
+        "tests/test_coding_agent_backend.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_agent_task_ledger.py tests/test_coding_agent_backend.py -q"
+      ],
+      "done_when": "Workstation task-plan creation writes a redacted coding_agent_task record and /api/coding-agent/tasks can list it.",
+      "evidence": "Initial slice implemented in commit 4f9a767a: task-plan writes workstation surface records; safe repo target refs are preserved."
+    },
+    {
+      "id": "ACPR-2-runner-state-machine",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "Add a resumable coding runner state machine for planned, scoped, worktree_ready, checks_running, blocked, review_ready, publish_ready, done and failed.",
+      "allowed_paths": [
+        "src/coding_agent_runner_state.py",
+        "routes/coding_agent_routes.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_backend.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_runner_state.py tests/test_coding_agent_backend.py -q"
+      ],
+      "done_when": "Runner state survives restarts, blocks on gates, and records next_human_decision without raw diffs or private prompts."
+    },
+    {
+      "id": "ACPR-3-project-scope-resolver",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "planned",
+      "goal": "Resolve a project/roadmap slice into repo_id, allowed_paths, checks, branch policy and sandbox policy before coding starts.",
+      "allowed_paths": [
+        "src/coding_project_scope.py",
+        "src/repo_registry.py",
+        "routes/coding_agent_routes.py",
+        "tests/test_coding_project_scope.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_project_scope.py -q"
+      ],
+      "done_when": "Ambiguous project names block with a clear decision request; resolved scopes are bounded and owner-safe."
+    },
+    {
+      "id": "ACPR-4-sandbox-check-orchestration",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "Let the runner dispatch allowlisted checks to the Podman sandbox and consume evidence into the quality gate.",
+      "allowed_paths": [
+        "src/coding_agent_runner_state.py",
+        "src/coding_agent_sandbox_bridge.py",
+        "src/agent_result_observer.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_sandbox_bridge.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_runner_state.py tests/test_coding_agent_sandbox_bridge.py -q"
+      ],
+      "done_when": "Checks run in dry-run or approved live sandbox mode, artifacts are redacted, and failures become actionable blockers."
+    },
+    {
+      "id": "ACPR-5-mcp-workbench-verification",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "planned",
+      "goal": "Use the MCP workbench as an optional verification plane for local Odysseus readiness, browser evidence and read-only Podman status when available.",
+      "allowed_paths": [
+        "docs/plans/mcp-workbench-evidence-plan.md",
+        "docs/mcp-server-runbook.md",
+        "tests/test_mcp_server_tool_policy.py",
+        "tests/test_mcp_server_plugin.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q"
+      ],
+      "done_when": "The runner can reference MCP evidence contracts without exposing generic shell/filesystem/Docker control."
+    },
+    {
+      "id": "ACPR-6-telegram-remote-control-consumption",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "planned",
+      "goal": "Make Telegram pause/resume/cancel/status events first-class control inputs consumed by the coding runner.",
+      "allowed_paths": [
+        "plugins/telegram/plugin.py",
+        "src/agent_task_ledger.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_telegram_plugin.py",
+        "tests/test_coding_agent_runner_state.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_telegram_plugin.py tests/test_coding_agent_runner_state.py -q"
+      ],
+      "done_when": "Remote control affects only the selected task, never exposes raw content, and never starts unrestricted execution."
+    },
+    {
+      "id": "ACPR-7-publish-and-deploy-gates",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "planned",
+      "goal": "Standardize commit, push, deploy and Cloudflare-tunnel publish gates as explicit reviewed phases.",
+      "allowed_paths": [
+        "src/coding_agent_backend.py",
+        "src/coding_agent_runner_state.py",
+        "src/server_project_runner.py",
+        "tests/test_coding_agent_backend.py",
+        "tests/test_server_project_runner.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_server_project_runner.py tests/test_coding_agent_runner_state.py -q"
+      ],
+      "done_when": "Commit/push/deploy plans are generated with evidence and require explicit operator gate before mutation."
+    },
+    {
+      "id": "ACPR-8-memory-and-tool-knowledge-refresh",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "After coding-agent updates, refresh tool capability knowledge and Memory/RaptorGraph summaries so Odysseus knows its own current capabilities.",
+      "allowed_paths": [
+        "src/tool_capability_knowledge.py",
+        "src/tool_capability_refresh.py",
+        "src/coding_agent_memory_bridge.py",
+        "tests/test_tool_capability_knowledge.py",
+        "tests/test_coding_agent_memory_bridge.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_tool_capability_knowledge.py tests/test_coding_agent_memory_bridge.py -q"
+      ],
+      "done_when": "Maintenance AI can refresh tool index and capability memories after updates without raw private content."
+    },
+    {
+      "id": "ACPR-9-live-workstation-to-telegram-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "goal": "Run one harmless live flow: create coding task from workstation, query status and pause/resume through Telegram, no real deployment.",
+      "allowed_paths": [
+        "data/reports/autonomous_coding_production/**"
+      ],
+      "tests": [],
+      "gate_required": "autonomous-coding-live-remote-control-go",
+      "done_when": "The server records a workstation-started task, Telegram reports it, pause/resume is consumed, and evidence is stored redacted."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "autonomous-coding-live-remote-control-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": ["ACPR-9-live-workstation-to-telegram-smoke"],
+      "decision_needed": "Approve a harmless workstation-created coding task and Telegram status/control smoke on Debian.",
+      "risk_if_bypassed": "Remote controls could affect the wrong task or start work without reviewed scope."
+    },
+    {
+      "id": "deploy-live-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": ["real deploy or Cloudflare tunnel publish"],
+      "decision_needed": "Approve exact target, branch, service and rollback plan for any deploy.",
+      "risk_if_bypassed": "Production state could change without operator review."
+    },
+    {
+      "id": "mcp-service-availability",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": ["MCP workbench live usage"],
+      "decision_needed": "Install/enable corresponding MCP services in Codex/Odysseus when available, then run bounded smoke tests.",
+      "risk_if_bypassed": "The runner may rely on unverified MCP tools or overly broad control surfaces."
+    }
+  ],
+  "success_metrics": [
+    "Coding tasks are started primarily from workstation/project-runner state.",
+    "Telegram can monitor and control active tasks without being the main workspace.",
+    "Runner state is durable and resumable after restart.",
+    "Sandbox evidence feeds quality gates.",
+    "Commit, push and deploy are explicit gated phases.",
+    "Odysseus can refresh its tool/capability self-knowledge after updates."
+  ]
+}

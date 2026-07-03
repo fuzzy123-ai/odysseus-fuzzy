@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.autonomy_calendar_coding_master_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "planned",
+  "mode": "master_coordination",
+  "title": "Autonomy Calendar And Coding Master Roadmap",
+  "goal": "Bundle the remaining calendar/reminder automation work with autonomous coding production-readiness into a single backend-first execution plan.",
+  "source_roadmaps": [
+    {
+      "id": "CAL-MCP",
+      "path": "docs/plans/calendar-mcp-reminder-backbone-roadmap.json",
+      "title": "Calendar MCP And Reminder Backbone Roadmap",
+      "status": "planned",
+      "priority": "P0",
+      "why": "Reliable reminders, todo digests and calendar context are daily operator infrastructure and directly fix the Telegram 09:00 reminder weakness."
+    },
+    {
+      "id": "ACPR",
+      "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "title": "Autonomous Coding Production Readiness Roadmap",
+      "status": "planned",
+      "priority": "P0",
+      "why": "Autonomous coding backend exists, but needs production-grade runner state, workstation-first scope resolution and remote monitoring/control."
+    },
+    {
+      "id": "ACA",
+      "path": "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
+      "title": "Autonomous Coding Agent And Sandbox Execution Roadmap",
+      "status": "done",
+      "priority": "foundation",
+      "why": "Provides the completed sandbox, evidence and coding-agent foundation used by ACPR."
+    },
+    {
+      "id": "MCP-WB",
+      "path": "docs/plans/mcp-workbench-evidence-plan.md",
+      "title": "MCP Workbench Evidence Plan",
+      "status": "foundation_done_live_gated",
+      "priority": "P1",
+      "why": "Useful verification plane once available, but not a blocker for repo-only backend slices."
+    }
+  ],
+  "execution_order": [
+    {
+      "order": 1,
+      "slice": "CAL-MCP-0-state-audit",
+      "reason": "Confirm calendar/reminder current state before changing scheduler behavior."
+    },
+    {
+      "order": 2,
+      "slice": "CAL-MCP-1-capability-service-contract",
+      "reason": "Shared service first prevents Telegram, UI, native tools and MCP from diverging."
+    },
+    {
+      "order": 3,
+      "slice": "CAL-MCP-2-single-task-reminder-normalizer",
+      "reason": "Directly fixes the five-tasks-for-one-weekday-reminder class of bugs."
+    },
+    {
+      "order": 4,
+      "slice": "CAL-MCP-3-readonly-calendar-mcp",
+      "reason": "Read-only MCP gives safe observability before writes."
+    },
+    {
+      "order": 5,
+      "slice": "ACPR-2-runner-state-machine",
+      "reason": "Autonomous coding needs durable state before remote control matters."
+    },
+    {
+      "order": 6,
+      "slice": "ACPR-3-project-scope-resolver",
+      "reason": "Workstation-created roadmaps need bounded repo/path/check resolution."
+    },
+    {
+      "order": 7,
+      "slice": "ACPR-4-sandbox-check-orchestration",
+      "reason": "Runner state must execute and consume sandbox checks through existing evidence contracts."
+    },
+    {
+      "order": 8,
+      "slice": "ACPR-6-telegram-remote-control-consumption",
+      "reason": "Remote pause/resume/status should consume the durable runner state, not drive the whole design."
+    },
+    {
+      "order": 9,
+      "slice": "CAL-MCP-4-gated-write-tools",
+      "reason": "Calendar MCP writes become safe after read-only resources and normalizer are proven."
+    },
+    {
+      "order": 10,
+      "slice": "CAL-MCP-5-telegram-remote-control",
+      "reason": "Telegram reminder commands should use the capability layer once it exists."
+    },
+    {
+      "order": 11,
+      "slice": "ACPR-7-publish-and-deploy-gates",
+      "reason": "Publish/deploy is last among repo-only coding work because it carries the largest blast radius."
+    },
+    {
+      "order": 12,
+      "slice": "ACPR-8-memory-and-tool-knowledge-refresh",
+      "reason": "After capability changes, refresh Odysseus self-knowledge and tool memory."
+    },
+    {
+      "order": 13,
+      "slice": "live-gated-smokes",
+      "reason": "Run Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes only after repo tests pass and operator Go is explicit."
+    }
+  ],
+  "parallelization": {
+    "safe_parallel_tracks": [
+      {
+        "tracks": ["CAL-MCP-1", "ACPR-2"],
+        "condition": "different files except routes/coding_agent_routes.py; coordinate tests before commit"
+      },
+      {
+        "tracks": ["CAL-MCP-3", "ACPR-3"],
+        "condition": "calendar MCP server and coding project scope are disjoint"
+      }
+    ],
+    "avoid_parallel_tracks": [
+      {
+        "tracks": ["CAL-MCP-2", "task scheduler edits by any other roadmap"],
+        "reason": "scheduler/timezone behavior is fragile and should be edited serially"
+      },
+      {
+        "tracks": ["ACPR-6", "Telegram plugin edits from inbox or DSGVO tracks"],
+        "reason": "Telegram plugin is a hotspot and should be changed in narrow slices"
+      }
+    ]
+  },
+  "global_hard_constraints": {
+    "backend_logic_first": true,
+    "no_new_ui": true,
+    "no_ui_hotfiles_without_ui_agent": true,
+    "podman_pods_not_docker": true,
+    "push_remote": "fuzzy/dev only",
+    "live_go_required_for": [
+      "Telegram notification smoke",
+      "CalDAV/Nextcloud write smoke",
+      "Podman live job if not already bounded",
+      "real deploy or Cloudflare tunnel"
+    ],
+    "raw_private_content_persistence": "forbidden",
+    "tokens_chat_ids_host_paths_persistence": "forbidden"
+  },
+  "open_gates": [
+    {
+      "id": "telegram-reminder-live-go",
+      "source": "CAL-MCP",
+      "status": "open"
+    },
+    {
+      "id": "caldav-write-live-go",
+      "source": "CAL-MCP",
+      "status": "open"
+    },
+    {
+      "id": "autonomous-coding-live-remote-control-go",
+      "source": "ACPR",
+      "status": "open"
+    },
+    {
+      "id": "deploy-live-go",
+      "source": "ACPR",
+      "status": "open"
+    },
+    {
+      "id": "mcp-service-availability",
+      "source": "ACPR/MCP-WB",
+      "status": "open"
+    }
+  ],
+  "definition_of_done": [
+    "Calendar/reminder automation can create/update recurring Telegram reminders as one normalized task.",
+    "Calendar MCP exposes read resources and gated write tools.",
+    "CalDAV/Nextcloud readiness and pending writebacks are visible.",
+    "Autonomous coding tasks are workstation-first, durable, scoped and resumable.",
+    "Telegram can monitor/control coding tasks remotely without being the primary workspace.",
+    "Sandbox, quality, publish and deploy gates are explicit and auditable.",
+    "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
+  ],
+  "recommended_next_slice": {
+    "id": "CAL-MCP-0-state-audit",
+    "reason": "It is the smallest safe start and directly supports fixing the reminder/todo automation weakness before adding MCP writes."
+  }
+}

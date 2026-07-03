@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.calendar_mcp_reminder_backbone_roadmap",
+  "updated_at": "2026-07-03",
+  "status": "planned",
+  "mode": "backend_logic_first",
+  "title": "Calendar MCP And Reminder Backbone Roadmap",
+  "goal": "Turn calendar, todo reminders, scheduled digests and Telegram notifications into one coherent owner-scoped calendar/reminder capability with a built-in MCP server behind it.",
+  "why_now": [
+    "Telegram reminder and todo automation works, but it is still too easy for the AI to create multiple scheduled tasks for one user intent.",
+    "Calendar CRUD, CalDAV/Nextcloud sync, CalDAV writeback, note due reminders and scheduled task delivery already exist but are not exposed through one shared capability contract.",
+    "A calendar MCP server gives API and local models the same tool surface and makes later Codex/Odysseus verification cleaner."
+  ],
+  "current_foundation": {
+    "calendar_crud": "routes/calendar_routes.py",
+    "caldav_pull": "src/caldav_sync.py",
+    "caldav_writeback": "src/caldav_writeback.py",
+    "task_scheduler": "src/task_scheduler.py",
+    "task_delivery": "src/task_scheduler_delivery.py",
+    "native_tools": ["manage_calendar", "manage_tasks", "manage_notes"],
+    "builtin_mcp_pattern": ["mcp_servers/memory_server.py", "mcp_servers/email_server.py", "src/builtin_mcp.py"]
+  },
+  "target_architecture": {
+    "primary_storage": "SQLite calendar, notes and scheduled_tasks tables remain source of truth.",
+    "external_sync": "CalDAV/Nextcloud remains the calendar backbone for real calendars.",
+    "capability_layer": "src/calendar_capability_service.py normalizes calendar events, reminders and digests.",
+    "mcp_layer": "mcp_servers/calendar_server.py exposes read resources and gated write tools.",
+    "telegram_role": "Telegram is a remote operator channel for reminders, confirmations and status, not the storage backend.",
+    "ui_role": "No new UI in this track; future UI can call the same capability service and MCP-backed diagnostics."
+  },
+  "hard_constraints": {
+    "no_new_ui": true,
+    "owner_scope_required": true,
+    "timezone_required": true,
+    "caldav_private_network_requires_existing_policy": true,
+    "write_delete_requires_confirmation": true,
+    "telegram_tokens_or_chat_ids_must_not_persist": true,
+    "raw_private_content_persistence": "forbidden",
+    "docker_default": false,
+    "runtime_container_strategy": "podman_pods"
+  },
+  "target_user_stories": [
+    {
+      "id": "weekday-todo-digest",
+      "request": "Schick mir montags bis freitags um 9 Uhr meine Todo-Liste per Telegram.",
+      "expected_result": "One scheduled task with a cron or normalized weekday schedule, output_target=telegram, owner timezone resolved, and no duplicate per-day tasks."
+    },
+    {
+      "id": "calendar-reminder",
+      "request": "Erinnere mich 15 Minuten vor dem Zahnarzttermin.",
+      "expected_result": "Calendar event and reminder are linked, CalDAV writeback is attempted when applicable, and Telegram notification delivery is routed through the safe notification boundary."
+    },
+    {
+      "id": "agenda-question",
+      "request": "Was steht morgen an?",
+      "expected_result": "AI reads a bounded owner-scoped agenda resource, summarizes events and due notes, and does not mutate state."
+    },
+    {
+      "id": "mobile-control",
+      "request": "Aendere die Erinnerung auf 8:30.",
+      "expected_result": "Telegram can update the existing reminder/task after resolving the target and confirmation, instead of creating a duplicate."
+    }
+  ],
+  "slice_queue": [
+    {
+      "id": "CAL-MCP-0-state-audit",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "status": "planned",
+      "goal": "Inventory existing calendar, note reminder, scheduled task, Telegram delivery and CalDAV writeback behavior.",
+      "allowed_paths": [
+        "docs/plans/calendar-mcp-reminder-backbone-roadmap.json"
+      ],
+      "tests": [],
+      "done_when": "The roadmap has an accurate current-state section and lists reuse points instead of duplicating storage."
+    },
+    {
+      "id": "CAL-MCP-1-capability-service-contract",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "Add a pure backend calendar capability service that normalizes list/create/update/delete events, reminders, todo digest schedules and readiness reports.",
+      "allowed_paths": [
+        "src/calendar_capability_service.py",
+        "tests/test_calendar_capability_service.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py -q"
+      ],
+      "done_when": "The service returns structured owner-scoped results and can represent agenda, reminders, digest schedules and writeback readiness without Telegram-specific assumptions."
+    },
+    {
+      "id": "CAL-MCP-2-single-task-reminder-normalizer",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "Ensure weekday and recurring reminders collapse into one scheduled task when possible instead of creating one task per weekday.",
+      "allowed_paths": [
+        "src/calendar_capability_service.py",
+        "src/tool_domains/admin_runtime.py",
+        "src/task_scheduler_helpers.py",
+        "tests/test_calendar_capability_service.py",
+        "tests/test_manage_tasks_confirmation.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py tests/test_manage_tasks_confirmation.py -q"
+      ],
+      "done_when": "Mo-Fr 09:00 todo digest is represented as one cron/schedule task, target updates edit the existing task, and duplicate prevention is covered by tests."
+    },
+    {
+      "id": "CAL-MCP-3-readonly-calendar-mcp",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "goal": "Add a built-in calendar MCP server with read-only agenda, reminders and readiness resources first.",
+      "allowed_paths": [
+        "mcp_servers/calendar_server.py",
+        "src/builtin_mcp.py",
+        "tests/test_mcp_calendar_server.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_mcp_calendar_server.py -q"
+      ],
+      "done_when": "MCP tools/resources can list today's agenda, upcoming events, reminders and readiness without exposing private raw content or cross-owner data."
+    },
+    {
+      "id": "CAL-MCP-4-gated-write-tools",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "planned",
+      "goal": "Expose MCP write tools for calendar events, reminders and digest schedules with confirmation gates for create/update/delete where appropriate.",
+      "allowed_paths": [
+        "mcp_servers/calendar_server.py",
+        "src/calendar_capability_service.py",
+        "tests/test_mcp_calendar_server.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_mcp_calendar_server.py tests/test_calendar_capability_service.py -q"
+      ],
+      "done_when": "Writes require owner scope and confirmation for destructive changes, return structured content, and never persist chat ids, tokens or raw private prompts."
+    },
+    {
+      "id": "CAL-MCP-5-telegram-remote-control",
+      "class": "repo_only",
+      "owner": "Alice",
+      "status": "planned",
+      "goal": "Route Telegram reminder and todo automation through the capability service so mobile commands inspect/update existing reminders before creating new ones.",
+      "allowed_paths": [
+        "plugins/telegram/plugin.py",
+        "plugins/telegram/parsing.py",
+        "src/calendar_capability_service.py",
+        "tests/test_telegram_plugin.py",
+        "tests/test_calendar_capability_service.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_telegram_plugin.py tests/test_calendar_capability_service.py -q"
+      ],
+      "done_when": "Telegram can ask status, create a reminder, update a reminder and receive precise feedback when clarification or confirmation is needed."
+    },
+    {
+      "id": "CAL-MCP-6-caldav-nextcloud-readiness",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "planned",
+      "goal": "Expose CalDAV/Nextcloud sync and writeback health as calendar readiness diagnostics.",
+      "allowed_paths": [
+        "src/calendar_capability_service.py",
+        "mcp_servers/calendar_server.py",
+        "tests/test_calendar_capability_service.py",
+        "tests/test_mcp_calendar_server.py"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py tests/test_mcp_calendar_server.py -q"
+      ],
+      "done_when": "Readiness reports configured accounts, sync windows, pending writebacks and last errors in redacted form."
+    },
+    {
+      "id": "CAL-MCP-7-live-telegram-reminder-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "goal": "Run one bounded live smoke on Debian: create or update a harmless Telegram todo digest/reminder and verify delivery/status.",
+      "allowed_paths": [
+        "data/reports/calendar_mcp_reminder/**"
+      ],
+      "tests": [],
+      "gate_required": "telegram-reminder-live-go",
+      "done_when": "A harmless reminder/digest is scheduled, visible through MCP readiness/status, and Telegram receives the expected message without duplicate tasks."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "telegram-reminder-live-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": ["CAL-MCP-7-live-telegram-reminder-smoke"],
+      "decision_needed": "Approve a harmless live Telegram reminder/digest smoke on Debian with exact wording and delivery target.",
+      "risk_if_bypassed": "A test reminder could notify the wrong channel or duplicate real user tasks."
+    },
+    {
+      "id": "caldav-write-live-go",
+      "class": "needs_live_go",
+      "status": "open",
+      "blocks": ["CalDAV writeback smoke"],
+      "decision_needed": "Approve a harmless calendar create/update/delete against the intended Nextcloud/CalDAV test calendar.",
+      "risk_if_bypassed": "Calendar writes could modify a real calendar unexpectedly."
+    }
+  ],
+  "success_metrics": [
+    "Mo-Fr todo digest is one task, not five.",
+    "Agenda reads combine calendar events, due notes and scheduled reminders in one owner-scoped response.",
+    "Calendar MCP has read-only resources and gated write tools.",
+    "Telegram can remotely inspect and control reminders without becoming the primary backend.",
+    "Nextcloud/CalDAV readiness is visible and redacted.",
+    "No tokens, chat ids, host paths or raw private content are persisted."
+  ]
+}
