@@ -32,6 +32,10 @@
     ],
     "lc4_backend_contract": [
       "GET /api/review-gates/status"
+    ],
+    "lc6_backend_contract": [
+      "GET /api/universal-file-io/capabilities",
+      "POST /api/universal-file-io/export-plan"
     ]
   },
   "slices": [
@@ -123,12 +127,13 @@
       "id": "LC6",
       "title": "File export intent preview",
       "class": "repo_only",
-      "status": "planned",
+      "status": "backend_ready",
       "legacy_surface": "attachment follow-up result block",
       "requires": [
-        "Universal File IO plan endpoint without converter execution"
+        "GET /api/universal-file-io/capabilities",
+        "POST /api/universal-file-io/export-plan"
       ],
-      "why_not_100": "Planning contract exists in Python, but browser route is not confirmed."
+      "why_not_100": "Backend route contract is ready; attachment follow-up result block UI wiring is not implemented in this backend-first slice."
     },
     {
       "id": "LC7",
@@ -180,20 +185,13 @@
       "why_not_100": "Live delivery/converter actions require separate action-specific readiness gates."
     }
   ],
-  "open_backend_contracts": [
-    {
-      "id": "UNIVERSAL_FILE_IO_PLAN_ROUTE",
-      "blocks": [
-        "LC6"
-      ],
-      "decision": "Expose safe export plan without executing converters."
-    }
-  ],
+  "open_backend_contracts": [],
   "recommended_next": [
     "LC1: let the UI agent wire a compact legacy chat indicator against /api/security/dsgvo/status.",
     "LC2: let the UI agent render /api/universal-inbox/items/{source_ref}/status in attachment chips/user footers.",
     "LC3: let the UI agent route internal Memory/RaptorGraph links through /api/internal-refs/resolve.",
     "LC4: let the UI agent render /api/review-gates/status as compact redacted action rows.",
-    "LC6: continue backend-first with a Universal File IO plan route."
+    "LC6: let the UI agent render /api/universal-file-io/export-plan as an attachment follow-up preview.",
+    "LC5, LC7, LC8 or LC9: continue backend-first with compact read contracts where needed."
   ]
 }
