@@ -47,6 +47,8 @@ Primary sources:
 - `docs/plans/agent-autonomy-extensions-master-roadmap.json`
 - `docs/plans/agent-capability-expansion-master-roadmap.json`
 - `docs/plans/recent-changes-patch-notes-roadmap.md`
+- `docs/plans/legacy-chat-new-functions-master-roadmap.json`
+- `docs/plans/legacy-chat-new-functions-integration-roadmap.md`
 - `docs/plans/unified-odysseus-roadmap.md`
 - `docs/plans/mvp-master-roadmap.md`
 - `docs/plans/mvp-roadmap-runner-state.json`
@@ -99,7 +101,7 @@ Run at most three active implementation lanes at the same time.
 | L5 Universal File IO / Export Plans | P1/P2 | Limited | Safe offline plans can run; live converters/delivery need gates. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | P1 | Limited | Cross-cutting backend reliability for Inbox, Nextcloud import, Personal Docs/RAG and chat PDF flows. |
 | L7 Large File Refactoring | P2 | Carefully | Broad hotfiles; start only after P0 path is stable or on disjoint files. |
-| L8 UI/V2 Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions. |
+| L8 UI/V2 + Legacy Chat Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions; backend ABC only maintains redacted route contracts and manifests. |
 | L9 Calendar MCP + Autonomous Coding Control | P0/P1 | Limited | Reminder/calendar reliability and workstation-first coding automation are now bundled in a JSON master roadmap; repo slices are done, remaining smokes are live-gated. |
 | L10 Observability + Security Ops | P0/P1 | Limited | Unified logging, MCP debugging, incident response and Debian observability are repo-complete; remaining progress is live ops setup and smoke evidence. |
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
@@ -1918,7 +1920,7 @@ Open gates / next slices:
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
-| L8 UI/V2 Integration | separate UI-owned track | Backend ABC exposes contracts, diagnostics and handoff notes only; UI placement, legacy UI and v2 implementation are owned by the UI agent/user and are not backend-roadmap blockers. |
+| L8 UI/V2 + Legacy Chat Integration | backend contracts ready, UI/live-gated | Backend ABC exposes contracts, diagnostics, `GET /api/legacy-chat/contracts` and `GET /api/version-one/readiness`; LC1-LC9 are UI-agent wiring work, LC10 live affordances remain bounded operator-gated, and no legacy/V2 UI file should be edited by backend ABC. |
 | L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
@@ -1928,6 +1930,9 @@ Recommended next human decision:
 
 - Ship the new UI before claiming Version 1.0; use
   `GET /api/version-one/readiness` as the release gate.
+- Hand `docs/plans/legacy-chat-new-functions-master-roadmap.json` to the UI
+  agent when legacy chat wiring is desired; backend ABC should not edit legacy
+  or V2 UI files while those surfaces are actively owned elsewhere.
 - Keep L1 live writes bounded and review-driven. The Nextcloud copy-only smoke
   is already closed; new live write checks should be explicit regression
   requests, not recurring default work.

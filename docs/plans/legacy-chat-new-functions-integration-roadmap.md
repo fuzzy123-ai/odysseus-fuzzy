@@ -1,6 +1,6 @@
 # Legacy Chat New Functions Integration Roadmap
 
-Status: active
+Status: backend contracts ready; UI/live gated
 Date: 2026-07-02
 Owner: operator + Codex
 
@@ -69,6 +69,9 @@ Owner: operator + Codex
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
 - No legacy or V2 UI code has been changed for LC0-LC10 backend work.
+- Backend ABC has no remaining safe repo-only implementation slice in this
+  roadmap. LC1-LC9 are UI-agent wiring work against existing contracts; LC10 is
+  a live-action affordance and remains gated by bounded operator approval.
 
 ## Goal
 

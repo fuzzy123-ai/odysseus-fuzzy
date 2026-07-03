@@ -1,6 +1,6 @@
 {
   "schema": "odysseus.legacy_chat_new_functions_master.v1",
-  "status": "active",
+  "status": "backend_contracts_ready_ui_live_gated",
   "updated": "2026-07-03",
   "mode": "Standard ABC",
   "scope": {
@@ -91,7 +91,7 @@
       "id": "LC1",
       "title": "Secure mode chat indicator",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "inline + slash",
       "requires": [
         "GET /api/security/dsgvo/status",
@@ -104,7 +104,7 @@
       "id": "LC2",
       "title": "Attachment processing status",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "attachment chips + user message footer",
       "requires": [
         "GET /api/universal-inbox/items/{source_ref}/status"
@@ -115,7 +115,7 @@
       "id": "LC3",
       "title": "Memory and RaptorGraph clickable refs",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "AI message renderer + memory modal",
       "requires": [
         "GET /api/internal-refs/resolve?ref={internal_ref}"
@@ -126,7 +126,7 @@
       "id": "LC4",
       "title": "Review and write gates",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "compact inline action row",
       "requires": [
         "GET /api/review-gates/status"
@@ -137,7 +137,7 @@
       "id": "LC5",
       "title": "Task and reminder feedback",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "slash command + task result block",
       "requires": [
         "GET /api/tasks/summary"
@@ -148,7 +148,7 @@
       "id": "LC6",
       "title": "File export intent preview",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "attachment follow-up result block",
       "requires": [
         "GET /api/universal-file-io/capabilities",
@@ -160,7 +160,7 @@
       "id": "LC7",
       "title": "MCP and system health quick status",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "slash command result block",
       "requires": [
         "GET /api/diagnostics/quick-status"
@@ -171,7 +171,7 @@
       "id": "LC8",
       "title": "Coding-agent lightweight entry",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "slash command + chat task card",
       "requires": [
         "GET /api/coding-agent/quick-entry"
@@ -182,7 +182,7 @@
       "id": "LC9",
       "title": "Diagnostics surfaces",
       "class": "repo_only",
-      "status": "backend_ready",
+      "status": "backend_ready_ui_gated",
       "legacy_surface": "slash command summaries",
       "requires": [
         "GET /api/diagnostics/quick-summary"
