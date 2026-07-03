@@ -495,6 +495,42 @@ def test_task_control_status_and_pause_use_redacted_ledger(tmp_path, monkeypatch
     assert "123" not in json.dumps(pause["agent_task"], sort_keys=True)
 
 
+def test_task_control_events_are_filterable_for_coding_runner(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setattr(agent_task_ledger, "AGENT_TASK_LEDGER_DIR", str(tmp_path / "task-ledger"))
+    agent_task_ledger.record_task_event(
+        task_id="coding_task_abc",
+        task_type="coding_agent_task",
+        status="running",
+        surface="workstation",
+        target_ref="repo:demo",
+        progress_percent=20,
+    )
+    agent_task_ledger.record_task_event(
+        task_id="research_task",
+        task_type="website_research",
+        status="pause_requested",
+        surface="telegram",
+        progress_percent=20,
+    )
+    agent_task_ledger.record_task_event(
+        task_id="coding_task_abc",
+        task_type="coding_agent_task",
+        status="pause_requested",
+        surface="telegram",
+        target_ref="repo:demo",
+        progress_percent=20,
+    )
+
+    events = agent_task_ledger.read_task_control_events()
+
+    assert events["count"] == 1
+    assert events["records"][0]["task_id"] == "coding_task_abc"
+    assert events["records"][0]["status"] == "pause_requested"
+    assert events["raw_content_visible"] is False
+    assert "123" not in json.dumps(events, sort_keys=True)
+
+
 def test_parse_voice_update_marks_pending_stt():
     message = parse_telegram_update({
         "update_id": 8,

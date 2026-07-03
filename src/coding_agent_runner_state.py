@@ -236,6 +236,65 @@ def transition_from_sandbox_dispatch(
     )
 
 
+def transition_from_task_control_event(
+    *,
+    store: CodingRunnerStateStore,
+    event: Mapping[str, Any],
+) -> CodingRunnerState:
+    """Apply one redacted Telegram/workstation control event to a runner state."""
+
+    task_type = str(event.get("task_type") or "")
+    if task_type != "coding_agent_task":
+        raise CodingRunnerStateError("control event is not for a coding_agent_task")
+    task_id = _safe_label(event.get("task_id") or "", "task_id")
+    status = _safe_label(event.get("status") or "", "control_status")
+    current = store.read(task_id)
+    if current is None:
+        raise CodingRunnerStateError("runner state not found")
+    if status == "pause_requested":
+        if current.phase == "done":
+            raise CodingRunnerStateError("cannot pause a completed runner state")
+        return store.write(
+            current.transition(
+                phase="blocked",
+                progress_percent=current.progress_percent,
+                gates_waiting=("telegram_pause_requested",),
+                blockers=("telegram pause requested",),
+                next_human_decision="Runner is paused by remote control; send resume before continuing.",
+            )
+        )
+    if status == "cancel_requested":
+        if current.phase == "done":
+            raise CodingRunnerStateError("cannot cancel a completed runner state")
+        return store.write(
+            current.transition(
+                phase="blocked",
+                progress_percent=current.progress_percent,
+                gates_waiting=("telegram_cancel_requested",),
+                blockers=("telegram cancel requested",),
+                next_human_decision="Runner cancellation requested; confirm discard or create a new scoped task.",
+            )
+        )
+    if status == "resume_requested":
+        if current.phase != "blocked" or "telegram_pause_requested" not in current.gates_waiting:
+            return store.write(
+                current.transition(
+                    phase=current.phase,
+                    next_human_decision="Resume noted, but no Telegram pause gate was active.",
+                )
+            )
+        return store.write(
+            current.transition(
+                phase=_resume_phase_for_progress(current.progress_percent),
+                progress_percent=current.progress_percent,
+                gates_waiting=(),
+                blockers=(),
+                next_human_decision="Remote resume accepted; continue from the next gated runner action.",
+            )
+        )
+    raise CodingRunnerStateError("unsupported runner control event")
+
+
 def _gates_from_blockers(blockers: Iterable[Any]) -> tuple[str, ...]:
     gates: list[str] = []
     for blocker in blockers:
@@ -276,6 +335,17 @@ def _sandbox_dispatch_blockers(dispatch: Any, quality_gate: Mapping[str, Any]) -
             job_id = _safe_label(payload.get("job_id") or "sandbox_job", "sandbox_job")
             blockers.append(f"sandbox job {job_id} status {status_text}")
     return tuple(dict.fromkeys(blockers or ("sandbox checks failed",)))
+
+
+def _resume_phase_for_progress(progress_percent: int) -> str:
+    progress = _progress(progress_percent)
+    if progress >= 65:
+        return "review_ready"
+    if progress >= 35:
+        return "worktree_ready"
+    if progress >= 20:
+        return "scoped"
+    return "planned"
 
 
 def _phase(value: Any) -> str:

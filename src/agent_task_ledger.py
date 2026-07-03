@@ -15,6 +15,7 @@ from src.constants import DATA_DIR
 
 AGENT_TASK_LEDGER_DIR = os.path.join(DATA_DIR, "agent_task_ledger")
 AGENT_TASK_LEDGER_SCHEMA = "odysseus.agent_task_ledger.v1"
+TASK_CONTROL_STATUSES = ("pause_requested", "resume_requested", "cancel_requested")
 
 _SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9_.:@/-]{0,180}$")
 _SECRET_MARKERS = (
@@ -113,6 +114,25 @@ def read_task_records(*, day: str | None = None, task_id: str | None = None, lim
     summary = summarize_task_records(records)
     summary["skipped"] = skipped
     return {"status": "success", "count": len(recent), "records": recent, "summary": summary}
+
+
+def read_task_control_events(*, task_id: str | None = None, limit: int = 20) -> dict[str, Any]:
+    """Return recent metadata-only remote-control events for coding tasks."""
+
+    result = read_task_records(task_id=task_id, limit=max(1, min(int(limit or 20), 200)))
+    records = [
+        record
+        for record in result.get("records", [])
+        if record.get("status") in TASK_CONTROL_STATUSES
+        and record.get("task_type") == "coding_agent_task"
+    ]
+    return {
+        "status": "success",
+        "count": len(records),
+        "records": records,
+        "control_statuses": TASK_CONTROL_STATUSES,
+        "raw_content_visible": False,
+    }
 
 
 def summarize_task_records(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:

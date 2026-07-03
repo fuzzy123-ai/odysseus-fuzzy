@@ -47,7 +47,8 @@
       "plugins/telegram/plugin.py already records redacted task pause/resume/cancel/status control events in the agent task ledger.",
       "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations.",
       "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking.",
-      "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases."
+      "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases.",
+      "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution."
     ],
     "missing_or_not_yet_durable": [
       "Publish/deploy gates exist as plans, but should wait until runner-state and scope resolution are durable."
@@ -192,7 +193,7 @@
       "id": "ACPR-6-telegram-remote-control-consumption",
       "class": "repo_only",
       "owner": "Alice",
-      "status": "planned",
+      "status": "done",
       "goal": "Make Telegram pause/resume/cancel/status events first-class control inputs consumed by the coding runner.",
       "allowed_paths": [
         "plugins/telegram/plugin.py",
@@ -204,7 +205,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_telegram_plugin.py tests/test_coding_agent_runner_state.py -q"
       ],
-      "done_when": "Remote control affects only the selected task, never exposes raw content, and never starts unrestricted execution."
+      "done_when": "Remote control affects only the selected task, never exposes raw content, and never starts unrestricted execution.",
+      "evidence": "Implemented metadata-only read_task_control_events() for coding_agent_task pause/resume/cancel events and transition_from_task_control_event() in the runner state machine. Pause and cancel move the selected runner to blocked gates; resume clears a Telegram pause gate and returns to a progress-derived safe phase without launching work. Focused tests cover Telegram command event filtering, pause/resume/cancel runner transitions and non-coding task rejection."
     },
     {
       "id": "ACPR-7-publish-and-deploy-gates",

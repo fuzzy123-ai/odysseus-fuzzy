@@ -8,6 +8,7 @@ from src.coding_agent_runner_state import (
     CodingRunnerStateError,
     CodingRunnerStateStore,
     transition_from_sandbox_dispatch,
+    transition_from_task_control_event,
 )
 
 
@@ -122,3 +123,49 @@ def test_runner_state_refuses_sandbox_dispatch_after_done(tmp_path):
 
     with pytest.raises(CodingRunnerStateError, match="completed runner state"):
         transition_from_sandbox_dispatch(store=store, plan=plan, dispatch=dispatch)
+
+
+def test_runner_state_consumes_pause_and_resume_control_events(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    store.write(CodingRunnerState.create(task_id="task-remote", repo_id="demo", phase="review_ready", progress_percent=65))
+
+    paused = transition_from_task_control_event(
+        store=store,
+        event={"task_id": "task-remote", "task_type": "coding_agent_task", "status": "pause_requested"},
+    )
+    resumed = transition_from_task_control_event(
+        store=store,
+        event={"task_id": "task-remote", "task_type": "coding_agent_task", "status": "resume_requested"},
+    )
+
+    assert paused.phase == "blocked"
+    assert paused.gates_waiting == ("telegram_pause_requested",)
+    assert "telegram pause requested" in paused.blockers
+    assert resumed.phase == "review_ready"
+    assert resumed.gates_waiting == ()
+    assert resumed.blockers == ()
+
+
+def test_runner_state_consumes_cancel_control_event_as_blocked(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    store.write(CodingRunnerState.create(task_id="task-cancel", repo_id="demo", phase="scoped", progress_percent=20))
+
+    state = transition_from_task_control_event(
+        store=store,
+        event={"task_id": "task-cancel", "task_type": "coding_agent_task", "status": "cancel_requested"},
+    )
+
+    assert state.phase == "blocked"
+    assert state.gates_waiting == ("telegram_cancel_requested",)
+    assert "confirm discard" in state.next_human_decision
+
+
+def test_runner_state_rejects_control_events_for_other_task_types(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    store.write(CodingRunnerState.create(task_id="task-other", repo_id="demo", phase="scoped", progress_percent=20))
+
+    with pytest.raises(CodingRunnerStateError, match="not for a coding_agent_task"):
+        transition_from_task_control_event(
+            store=store,
+            event={"task_id": "task-other", "task_type": "website_research", "status": "pause_requested"},
+        )
