@@ -87,3 +87,32 @@ def test_audit_classifies_classless_gate_lists_by_id_and_path(tmp_path):
     assert [item["id"] for item in report["live_gates"]] == ["telegram-reminder-live-go"]
     assert [item["id"] for item in report["design_gates"]] == ["ui-placement"]
     assert [item["id"] for item in report["other_open_items"]] == ["ambiguous-followup"]
+
+
+def test_audit_groups_duplicate_gate_decisions_across_files(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "master.json",
+        {"open_gates": [{"id": "deploy-live-go", "status": "open"}]},
+    )
+    _write_json(
+        plans / "detail.json",
+        {"gate_queue": [{"id": "deploy-live-go", "class": "needs_live_go", "status": "open"}]},
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+    rendered = render_markdown(report)
+
+    assert report["live_gate_count"] == 2
+    assert report["unique_live_gate_count"] == 1
+    assert report["live_gate_groups"] == [
+        {
+            "id": "deploy-live-go",
+            "entry_count": 2,
+            "files": ["detail.json", "master.json"],
+            "statuses": ["open"],
+        }
+    ]
+    assert "Unique live gate ids: 1" in rendered
+    assert "| live | deploy-live-go | 2 | detail.json, master.json |" in rendered

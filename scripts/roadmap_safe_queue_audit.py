@@ -89,13 +89,17 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "files_scanned": files_scanned,
         "safe_open_count": len(safe_open),
         "live_gate_count": len(live_gates),
+        "unique_live_gate_count": len(_gate_groups(live_gates)),
         "design_gate_count": len(design_gates),
+        "unique_design_gate_count": len(_gate_groups(design_gates)),
         "other_open_count": len(other_open),
         "mvp": mvp,
         "queue_exhausted": len(safe_open) == 0 and mvp.get("active_slice") in (None, "none", ""),
         "safe_open_slices": [item.to_dict() for item in safe_open],
         "live_gates": [item.to_dict() for item in live_gates],
+        "live_gate_groups": _gate_groups(live_gates),
         "design_gates": [item.to_dict() for item in design_gates],
+        "design_gate_groups": _gate_groups(design_gates),
         "other_open_items": [item.to_dict() for item in other_open],
     }
 
@@ -108,7 +112,9 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"Files scanned: {report['files_scanned']}",
         f"Safe open slices: {report['safe_open_count']}",
         f"Live gates: {report['live_gate_count']}",
+        f"Unique live gate ids: {report['unique_live_gate_count']}",
         f"Design gates: {report['design_gate_count']}",
+        f"Unique design gate ids: {report['unique_design_gate_count']}",
         f"Queue exhausted: {'yes' if report['queue_exhausted'] else 'no'}",
         "",
         "## MVP Runner",
@@ -129,6 +135,17 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(f"| live | {item['file']} | {item['id']} | {item['status']} |")
         for item in report["design_gates"]:
             lines.append(f"| design | {item['file']} | {item['id']} | {item['status']} |")
+        lines.append("")
+    if report["live_gate_groups"] or report["design_gate_groups"]:
+        lines.extend(["## Unique Gate Decisions", "", "| Type | ID | Entries | Files |", "| - | - | -: | - |"])
+        for item in report["live_gate_groups"]:
+            lines.append(
+                f"| live | {item['id']} | {item['entry_count']} | {', '.join(item['files'])} |"
+            )
+        for item in report["design_gate_groups"]:
+            lines.append(
+                f"| design | {item['id']} | {item['entry_count']} | {', '.join(item['files'])} |"
+            )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -201,6 +218,31 @@ def _looks_like_design_gate(*, item_id: str, path: str) -> bool:
     if "gate" not in path and "gate" not in item_id:
         return False
     return any(marker in item_id for marker in ("ui", "design", "placement"))
+
+
+def _gate_groups(items: Iterable[RoadmapAuditItem]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in items:
+        group = grouped.setdefault(
+            item.item_id,
+            {"id": item.item_id, "entry_count": 0, "files": set(), "statuses": set()},
+        )
+        group["entry_count"] += 1
+        group["files"].add(item.file)
+        if item.status:
+            group["statuses"].add(item.status)
+    result: list[dict[str, Any]] = []
+    for item_id in sorted(grouped):
+        group = grouped[item_id]
+        result.append(
+            {
+                "id": group["id"],
+                "entry_count": group["entry_count"],
+                "files": sorted(group["files"]),
+                "statuses": sorted(group["statuses"]),
+            }
+        )
+    return result
 
 
 def _mvp_summary(path: Path) -> dict[str, Any]:
