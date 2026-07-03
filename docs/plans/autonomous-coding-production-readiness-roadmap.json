@@ -45,10 +45,10 @@
       "src/coding_agent_sandbox_bridge.py and tests/test_coding_agent_sandbox_bridge.py provide a sandbox check bridge and redacted evidence path.",
       "src/server_project_runner.py provides repo-only universal project runner planning with deploy/Cloudflare gates that do not execute live actions.",
       "plugins/telegram/plugin.py already records redacted task pause/resume/cancel/status control events in the agent task ledger.",
-      "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations."
+      "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations.",
+      "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking."
     ],
     "missing_or_not_yet_durable": [
-      "src/coding_project_scope.py is missing, so ACPR-3 project/slice scope resolution is still planned.",
       "Publish/deploy gates exist as plans, but should wait until runner-state and scope resolution are durable."
     ],
     "recommended_sequence": [
@@ -137,7 +137,7 @@
       "id": "ACPR-3-project-scope-resolver",
       "class": "repo_only",
       "owner": "Alice",
-      "status": "planned",
+      "status": "done",
       "goal": "Resolve a project/roadmap slice into repo_id, allowed_paths, checks, branch policy and sandbox policy before coding starts.",
       "allowed_paths": [
         "src/coding_project_scope.py",
@@ -148,7 +148,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_coding_project_scope.py -q"
       ],
-      "done_when": "Ambiguous project names block with a clear decision request; resolved scopes are bounded and owner-safe."
+      "done_when": "Ambiguous project names block with a clear decision request; resolved scopes are bounded and owner-safe.",
+      "evidence": "Implemented src/coding_project_scope.py with redacted project-query hashing, exact/fuzzy repo lookup, ambiguity blockers, bounded repo-relative paths, branch policy and dry-run sandbox policy. routes/coding_agent_routes.py exposes POST /api/coding-agent/project-scope. Focused tests cover exact resolution, ambiguous blocking, path rejection, branch-policy blockers, route redaction and unsafe check rejection."
     },
     {
       "id": "ACPR-4-sandbox-check-orchestration",

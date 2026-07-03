@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "ACPR-3-project-scope-resolver",
-    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0 and ACPR-2 are complete; CAL-MCP-7 remains live-gated, so the next safe backend slice is bounded project/slice scope resolution."
+    "id": "ACPR-4-sandbox-check-orchestration",
+    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2 and ACPR-3 are complete; CAL-MCP-7 remains live-gated, so the next safe backend slice is sandbox check orchestration."
   }
 }

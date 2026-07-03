@@ -26,6 +26,7 @@ from src.coding_agent_backend import (
     repo_git_snapshot_for_coding_task,
 )
 from src.coding_agent_runner_state import CodingRunnerStateError, CodingRunnerStateStore
+from src.coding_project_scope import CodingProjectScopeError, resolve_coding_project_scope
 from src.agent_sandbox_worker import SandboxWorker
 from src.coding_agent_sandbox_bridge import CodingAgentSandboxBridgeError, dispatch_coding_checks_to_sandbox
 from src.constants import BASE_DIR, DATA_DIR
@@ -107,6 +108,16 @@ class CodingSandboxChecksRequest(CodingTaskPlanRequest):
     sandbox_operator_go: bool = False
 
 
+class CodingProjectScopeRequest(BaseModel):
+    project: str = Field(min_length=1, max_length=180)
+    owner: str = Field(default="", max_length=180)
+    slice_id: str = Field(default="", max_length=100)
+    allowed_paths: list[str] = Field(default_factory=list)
+    blocked_paths: list[str] = Field(default_factory=list)
+    checks: list[CodingCheckRequest] = Field(default_factory=list)
+    sandbox_live_enabled: bool = False
+
+
 def setup_coding_agent_routes(
     *,
     registry_path: str | Path = REPO_REGISTRY_FILE,
@@ -151,6 +162,25 @@ def setup_coding_agent_routes(
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
         return {"success": True, "coding_snapshot": snapshot}
+
+    @router.post("/project-scope")
+    def resolve_project_scope(request: Request, body: CodingProjectScopeRequest) -> dict[str, Any]:
+        require_admin(request)
+        registry = _load_registry(registry_file)
+        try:
+            resolution = resolve_coding_project_scope(
+                registry=registry,
+                project=body.project,
+                owner=body.owner,
+                slice_id=body.slice_id,
+                allowed_paths=body.allowed_paths,
+                blocked_paths=body.blocked_paths,
+                checks=_checks_from_request(body.checks),
+                sandbox_live_enabled=body.sandbox_live_enabled,
+            )
+        except (CodingAgentBackendError, CodingProjectScopeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": resolution.resolved, "project_scope": resolution.to_dict()}
 
     @router.post("/repos/{repo_id}/task-plan")
     def create_task_plan(request: Request, repo_id: str, body: CodingTaskPlanRequest) -> dict[str, Any]:
