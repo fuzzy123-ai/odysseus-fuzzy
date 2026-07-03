@@ -2117,6 +2117,10 @@ Safe queue audit 2026-07-03:
   `calendar_reminders` (`3` / `5`), `autonomous_coding` (`4` / `6`),
   `observability_ops` (`11` / `14`), `security_ops` (`5` / `7`) and
   `ui_design` (`3` / `4`).
+- It also renders operator decision packets for each family with a plain
+  decision prompt, safe default and exact Go phrase, so future ABC ticks can
+  stop cleanly at live/design gates instead of inventing duplicate repo-only
+  work.
 - This confirms backend-safe autonomous ABC should not invent more repo slices
   from completed JSON roadmaps; the next meaningful work is a bounded live gate,
   a UI/design handoff, or a newly approved roadmap.

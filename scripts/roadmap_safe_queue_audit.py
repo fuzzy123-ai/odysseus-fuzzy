@@ -111,6 +111,44 @@ DECISION_FAMILIES = (
 DEFAULT_DECISION_FAMILY = "other_gate"
 DEFAULT_DECISION_PRIORITY = 90
 
+DECISION_PACKET_TEXT = {
+    "version_release": {
+        "decision_needed": "Decide whether to run bounded release/deploy readiness evidence or defer Version 1.0 until UI live.",
+        "safe_default": "defer_release_live_actions",
+        "go_phrase": "GO version_release bounded evidence",
+    },
+    "calendar_reminders": {
+        "decision_needed": "Choose one bounded live reminder path: Telegram reminder smoke or CalDAV writeback smoke.",
+        "safe_default": "keep_reminders_repo_ready_no_live_send",
+        "go_phrase": "GO calendar_reminders bounded smoke",
+    },
+    "autonomous_coding": {
+        "decision_needed": "Choose one bounded autonomous-coding live control path: workstation-to-Telegram smoke, MCP service availability, or network allowlist.",
+        "safe_default": "keep_autonomous_coding_dry_run",
+        "go_phrase": "GO autonomous_coding bounded smoke",
+    },
+    "observability_ops": {
+        "decision_needed": "Choose whether to run Debian observability inventory/setup, Grafana exposure, or log-retention evidence.",
+        "safe_default": "keep_observability_contracts_repo_only",
+        "go_phrase": "GO observability_ops bounded inventory",
+    },
+    "security_ops": {
+        "decision_needed": "Choose whether to run tabletop evidence or prepare explicit remediation/lockdown actions.",
+        "safe_default": "keep_security_actions_prepare_only",
+        "go_phrase": "GO security_ops bounded tabletop",
+    },
+    "ui_design": {
+        "decision_needed": "Hand UI placement and Version 1.0 UI-live evidence to the UI owner.",
+        "safe_default": "do_not_edit_ui_from_backend_abc",
+        "go_phrase": "GO ui_design handoff",
+    },
+    "other_gate": {
+        "decision_needed": "Review uncategorized gates and either classify them or approve a bounded next action.",
+        "safe_default": "defer_uncategorized_gate",
+        "go_phrase": "GO other_gate bounded review",
+    },
+}
+
 
 @dataclass(frozen=True)
 class RoadmapAuditItem:
@@ -157,6 +195,7 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
                 other_open.append(item)
 
     mvp = _mvp_summary(mvp_state_path)
+    recommended_decisions = _recommended_decisions(live_gates, design_gates)
     return {
         "schema_version": 1,
         "files_scanned": files_scanned,
@@ -173,7 +212,8 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "live_gate_groups": _gate_groups(live_gates),
         "design_gates": [item.to_dict() for item in design_gates],
         "design_gate_groups": _gate_groups(design_gates),
-        "recommended_decisions": _recommended_decisions(live_gates, design_gates),
+        "recommended_decisions": recommended_decisions,
+        "decision_packets": _decision_packets(recommended_decisions),
         "other_open_items": [item.to_dict() for item in other_open],
     }
 
@@ -234,6 +274,21 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(
                 f"| {item['priority']} | {item['family']} | {item['unique_gate_count']} | "
                 f"{item['entry_count']} | {', '.join(item['gate_ids'])} |"
+            )
+        lines.append("")
+    if report.get("decision_packets"):
+        lines.extend(
+            [
+                "## Operator Decision Packets",
+                "",
+                "| Priority | Family | Decision Needed | Safe Default | Go Phrase |",
+                "| -: | - | - | - | - |",
+            ]
+        )
+        for item in report["decision_packets"]:
+            lines.append(
+                f"| {item['priority']} | {item['family']} | {item['decision_needed']} | "
+                f"{item['safe_default']} | {item['go_phrase']} |"
             )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
@@ -379,6 +434,26 @@ def _recommended_decisions(
             }
         )
     return sorted(result, key=lambda item: (item["priority"], item["family"]))
+
+
+def _decision_packets(recommended_decisions: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    packets: list[dict[str, Any]] = []
+    for decision in recommended_decisions:
+        family = decision["family"]
+        text = DECISION_PACKET_TEXT.get(family, DECISION_PACKET_TEXT[DEFAULT_DECISION_FAMILY])
+        packets.append(
+            {
+                "family": family,
+                "priority": decision["priority"],
+                "unique_gate_count": decision["unique_gate_count"],
+                "entry_count": decision["entry_count"],
+                "gate_ids": decision["gate_ids"],
+                "decision_needed": text["decision_needed"],
+                "safe_default": text["safe_default"],
+                "go_phrase": text["go_phrase"],
+            }
+        )
+    return packets
 
 
 def _mvp_summary(path: Path) -> dict[str, Any]:

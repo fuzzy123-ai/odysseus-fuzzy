@@ -156,3 +156,29 @@ def test_audit_recommends_prioritized_decision_families(tmp_path):
     ]
     assert "## Recommended Next Decisions" in rendered
     assert "| 10 | version_release | 1 | 2 | deploy-live-go |" in rendered
+
+
+def test_audit_renders_operator_decision_packets(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "master.json",
+        {
+            "open_gates": [
+                {"id": "deploy-live-go", "status": "open"},
+                {"id": "telegram-reminder-live-go", "status": "open"},
+                {"id": "unknown-gate", "class": "needs_live_go", "status": "open"},
+            ]
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+    rendered = render_markdown(report)
+
+    packets = {item["family"]: item for item in report["decision_packets"]}
+    assert packets["version_release"]["safe_default"] == "defer_release_live_actions"
+    assert packets["version_release"]["go_phrase"] == "GO version_release bounded evidence"
+    assert packets["calendar_reminders"]["decision_needed"].startswith("Choose one bounded live reminder path")
+    assert packets["other_gate"]["safe_default"] == "defer_uncategorized_gate"
+    assert "## Operator Decision Packets" in rendered
+    assert "| 90 | other_gate | Review uncategorized gates" in rendered
