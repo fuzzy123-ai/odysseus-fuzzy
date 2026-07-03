@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_execution_roadmap",
   "updated_at": "2026-07-03",
-  "status": "in_progress",
+  "status": "done",
   "mode": "backend_logic_first",
   "title": "Tool Capability Maintenance Phase 2 Roadmap",
   "goal": "Make Odysseus' maintenance AI keep tool usage knowledge, tool index state, Memory chunks, and RaptorGraph tool-capability facts fresh after every update, without storing private content or relying on UI work.",
@@ -55,7 +55,7 @@
     {
       "id": "TCM2-1-live-post-update-smoke",
       "class": "live_gated",
-      "status": "planned",
+      "status": "done",
       "owner": "Charlie",
       "goal": "Run a bounded Debian smoke proving that the post-update hook can refresh ToolIndex and persist latest.json/history.jsonl after services are ready.",
       "allowed_paths": [
@@ -82,6 +82,14 @@
         "refresh_tool_capability_knowledge.py supports --read-diagnostics to include redacted latest snapshot, memory record and RaptorGraph readback in the same command output.",
         "refresh_tool_capability_knowledge.py supports --assert-acceptance to fail closed when diagnostics, memory record count, RaptorGraph event status or raw-content flags do not match acceptance criteria.",
         "Focused suite passed: tests/test_refresh_tool_capability_knowledge_cli.py tests/test_tool_capability_maintenance.py tests/test_tool_capability_diagnostics.py tests/test_context_orchestrator.py tests/test_homeserver_auto_update_timer.py tests/test_memory_provenance_ledger.py -> 32 passed."
+      ],
+      "evidence": [
+        "Live-Go received 2026-07-03.",
+        "fuzzy/dev deployed to Debian via odysseus-auto-update.service.",
+        "/api/version returned commit=8ff06571, latest_commit=8ff06571018f, status=current.",
+        "Container command passed: scripts/refresh_tool_capability_knowledge.py --reason live-acceptance --commit 8ff06571 --write-memory --write-raptorgraph --read-diagnostics --assert-acceptance.",
+        "Acceptance status=passed, snapshot_id=tool-capabilities-d3ee613d3767, ToolIndex status=ok, builtin_tools_indexed=79.",
+        "Memory write status=written with 10 records; RaptorGraph write status=written with event_id=tool-rg-4d1fe28c264037a5dc55deb1; diagnostics raw_content_visible=false."
       ]
     },
     {
@@ -187,7 +195,7 @@
     {
       "id": "TCM2-7-final-live-acceptance",
       "class": "live_gated",
-      "status": "planned",
+      "status": "done",
       "owner": "Charlie",
       "goal": "After repo tests pass and the feature is pushed, deploy to Debian and ask Odysseus via Telegram or chat what tools it has, verifying the answer is no longer stale.",
       "allowed_paths": [],
@@ -199,7 +207,13 @@
           "Telegram/chat test message"
         ]
       },
-      "done_when": "Odysseus correctly reports current file, shell, grep/glob/ls, repo, memory, and sandbox-related capabilities or clearly states which are gated/disabled."
+      "done_when": "Odysseus correctly reports current file, shell, grep/glob/ls, repo, memory, and sandbox-related capabilities or clearly states which are gated/disabled.",
+      "evidence": [
+        "The first local Gemma live chat attempts showed why the prompt-only guard was insufficient: gemma4:e4b returned only 'Bas' and gemma3:4b returned only 'Okay'.",
+        "Backend fix 8ff06571 added deterministic capability self-reporting from redacted diagnostics for /api/chat and /api/chat_stream.",
+        "Focused suite passed after the fix: tests/test_capability_self_report.py tests/test_tool_capability_diagnostics.py tests/test_tool_capability_maintenance.py tests/test_context_orchestrator.py tests/test_llm_core_ollama.py tests/test_llm_core_ollama_thinking.py -> 56 passed.",
+        "Live chat acceptance on Debian session 1a167aef-54e4-494e-b201-adfe827661f6 returned snapshot tool-capabilities-d3ee613d3767, commit 8ff06571, ToolIndex ok, read_file/write_file/edit_file/grep/glob/ls/bash/python/manage_repos/recent_changes available, risky actions gated, Memory=10 records, RaptorGraph event present, raw_content_visible=False."
+      ]
     }
   ],
   "global_acceptance": [
