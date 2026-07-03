@@ -322,7 +322,7 @@
       "class": "repo_only",
       "owner": "Alice",
       "parallel_group": "C",
-      "status": "planned",
+      "status": "done",
       "goal": "Create redacted incident notification formats for Telegram and future UI without exposing sensitive evidence.",
       "allowed_paths": [
         "src/security_incident_notifications.py",
@@ -333,7 +333,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_security_incident_notifications.py tests/test_telegram_plugin.py -q"
       ],
-      "done_when": "Operator receives concise incident summaries, action IDs and approve/deny instructions without raw secrets or private content."
+      "done_when": "Operator receives concise incident summaries, action IDs and approve/deny instructions without raw secrets or private content.",
+      "evidence": "Implemented src/security_incident_notifications.py with prepare-only redacted incident notification payloads for Telegram and future UI, compact action summaries, approve/deny command hints, debug bundle references and no delivery target handling. Focused tests passed on 2026-07-03: 89 passed, 1 warning."
     },
     {
       "id": "SIR-5-mcp-incident-tools",
@@ -442,7 +443,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-4-operator-notifications",
-    "reason": "SIR-0 through SIR-3 are complete; the next SIR repo-only slice is operator notification routing for incident summaries."
+    "id": "SIR-5-mcp-incident-tools",
+    "reason": "SIR-0 through SIR-4 are complete; the next SIR repo-only slice is the read-only MCP incident response surface."
   }
 }

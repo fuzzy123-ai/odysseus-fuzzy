@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "SIR-4-operator-notifications",
-    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-3 are complete; the next master-order repo-only slice is operator notification routing for incident summaries."
+    "id": "SIR-5-mcp-incident-tools",
+    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-4 are complete; the next master-order repo-only slice is the read-only MCP incident response surface."
   }
 }
