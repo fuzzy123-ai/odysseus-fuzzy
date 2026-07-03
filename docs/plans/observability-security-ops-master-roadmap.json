@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "SIR-1-incident-model",
-    "reason": "ULOG-0, ULOG-1, ULOG-7 and SIR-0 are complete; the next repo-only slice is the incident/action model that later policy, classifier, notification and MCP incident tools depend on."
+    "id": "SIR-2-policy-engine",
+    "reason": "ULOG-0, ULOG-1, ULOG-7, SIR-0 and SIR-1 are complete; the next repo-only slice is the incident response policy engine before classifiers, notifications or MCP incident tools."
   }
 }

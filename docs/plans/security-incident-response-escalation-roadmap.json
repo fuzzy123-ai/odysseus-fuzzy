@@ -269,7 +269,7 @@
       "class": "repo_only",
       "owner": "Alice",
       "parallel_group": "B",
-      "status": "planned",
+      "status": "done",
       "goal": "Implement the incident object, action object and escalation ladder as backend models.",
       "allowed_paths": [
         "src/security_incident_model.py",
@@ -278,7 +278,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_security_incident_model.py -q"
       ],
-      "done_when": "Incidents and recommended actions serialize safely, reject forbidden fields and enforce severity/level constraints."
+      "done_when": "Incidents and recommended actions serialize safely, reject forbidden fields and enforce severity/level constraints.",
+      "evidence": "Implemented src/security_incident_model.py with redacted incident and recommended-action builders, escalation levels 0-5, severity/status constraints, confidence validation, confirmation-required remediation action policy, never-allowed action rejection, sensitive evidence hashing and compact incident summaries. Focused tests passed on 2026-07-03: 8 passed, 1 warning."
     },
     {
       "id": "SIR-2-policy-engine",
@@ -439,7 +440,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-0-threat-and-response-inventory",
-    "reason": "Before implementation, map attacker scenarios to evidence sources and response limits."
+    "id": "SIR-2-policy-engine",
+    "reason": "SIR-0 and SIR-1 are complete; the next repo-only slice is the policy engine that decides observe, diagnose, recommend or gated action from incident severity, confidence and approvals."
   }
 }

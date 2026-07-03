@@ -479,7 +479,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-7-dashboard-label-contract",
-    "reason": "After the inventory and runtime event envelope, define the Loki/Grafana/Prometheus label contract before wiring hot-path Telegram, scheduler, inbox, memory or MCP adapters."
+    "id": "ULOG-2-telegram-flow-events",
+    "reason": "ULOG-0, ULOG-1 and ULOG-7 are complete; the next ULOG-specific repo-only slice is Telegram flow events, but it touches a hotfile and should be scheduled serially."
   }
 }
