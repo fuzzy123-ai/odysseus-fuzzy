@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "ACPR-8-memory-and-tool-knowledge-refresh",
-    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4, ACPR-6 and ACPR-7 are complete; remaining live smokes are gated, so the next safe backend slice is refreshing Odysseus tool/capability self-knowledge."
+    "id": "live-gated-smokes",
+    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4, ACPR-6, ACPR-7 and ACPR-8 are complete; the remaining meaningful work requires explicit live Go for Telegram reminder, CalDAV/Nextcloud writeback, autonomous coding remote-control smoke or real deploy/Cloudflare exposure."
   }
 }

@@ -59,6 +59,26 @@ def build_coding_agent_memory_write_intent(
     }
 
 
+def build_coding_agent_capability_memory_write_intent(
+    knowledge: Mapping[str, Any],
+    *,
+    model: str,
+    dsgvo_mode: bool = False,
+    operator_auto_write_enabled: bool = False,
+) -> dict[str, Any]:
+    """Build memory intent for system capability knowledge, never private content."""
+
+    from src.tool_capability_knowledge import coding_agent_capability_evidence
+
+    evidence = coding_agent_capability_evidence(knowledge)
+    return build_coding_agent_memory_write_intent(
+        evidence,
+        model=model,
+        dsgvo_mode=dsgvo_mode,
+        operator_auto_write_enabled=operator_auto_write_enabled,
+    )
+
+
 def _source_refs_from_evidence(evidence: Mapping[str, Any]) -> tuple[str, ...]:
     refs: list[str] = []
     for key in ("content_hash", "payload_hash", "evidence_hash"):

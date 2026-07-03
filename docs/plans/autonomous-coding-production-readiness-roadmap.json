@@ -49,7 +49,8 @@
       "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking.",
       "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases.",
       "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution.",
-      "src/coding_agent_backend.py and src/server_project_runner.py expose explicit operator_gate and evidence_summary metadata for commit, push, deploy and Cloudflare handoff plans."
+      "src/coding_agent_backend.py and src/server_project_runner.py expose explicit operator_gate and evidence_summary metadata for commit, push, deploy and Cloudflare handoff plans.",
+      "src/tool_capability_knowledge.py and src/tool_capability_refresh.py build safe autonomous-coding capability knowledge and Memory/RaptorGraph write intents."
     ],
     "missing_or_not_yet_durable": [
       "Live workstation-to-Telegram smoke and real deploy/Cloudflare exposure remain gated until explicit operator Go."
@@ -232,7 +233,7 @@
       "id": "ACPR-8-memory-and-tool-knowledge-refresh",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "After coding-agent updates, refresh tool capability knowledge and Memory/RaptorGraph summaries so Odysseus knows its own current capabilities.",
       "allowed_paths": [
         "src/tool_capability_knowledge.py",
@@ -244,7 +245,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_tool_capability_knowledge.py tests/test_coding_agent_memory_bridge.py -q"
       ],
-      "done_when": "Maintenance AI can refresh tool index and capability memories after updates without raw private content."
+      "done_when": "Maintenance AI can refresh tool index and capability memories after updates without raw private content.",
+      "evidence": "Implemented coding-agent capability knowledge packets, refresh packets and a Memory/RaptorGraph intent bridge. The packet lists project scope resolution, sandbox check evidence, Telegram runner controls and publish/deploy operator gates with live gates separated. Focused tests verify no raw content, secret rejection, memory author stamps and RaptorGraph mappings."
     },
     {
       "id": "ACPR-9-live-workstation-to-telegram-smoke",
