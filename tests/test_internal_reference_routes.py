@@ -137,6 +137,32 @@ def test_raptor_node_ref_falls_back_to_provenance_diagnostics():
     assert payload["target"]["node_id"] == "uix-raptor-missing"
 
 
+def test_rag_and_graph_refs_return_reference_only_targets_without_raw_content():
+    client = TestClient(_app([]))
+
+    rag_response = client.get(
+        "/api/internal-refs/resolve",
+        params={"ref": "odysseus://rag/source/source-1"},
+    )
+    graph_response = client.get(
+        "/api/internal-refs/resolve",
+        params={"ref": "odysseus://graph/node/node-1"},
+    )
+    rag_payload = rag_response.json()
+    graph_payload = graph_response.json()
+
+    assert rag_response.status_code == 200
+    assert rag_payload["status"] == "reference_only"
+    assert rag_payload["target"]["kind"] == "rag_reference"
+    assert rag_payload["target"]["read_route"] == "/api/rag/stats"
+    assert rag_payload["target"]["raw_content_visible"] is False
+    assert graph_response.status_code == 200
+    assert graph_payload["status"] == "reference_only"
+    assert graph_payload["target"]["kind"] == "graph_reference"
+    assert graph_payload["target"]["read_route"] == "/api/diagnostics/memory-provenance"
+    assert graph_payload["target"]["content_redacted"] is True
+
+
 def test_rejects_unsafe_internal_ref():
     response = TestClient(_app([])).get(
         "/api/internal-refs/resolve",

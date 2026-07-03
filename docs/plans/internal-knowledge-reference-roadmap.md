@@ -1,6 +1,6 @@
 # Internal Knowledge Reference Roadmap
 
-Status: active backend contract, UI handler deferred
+Status: backend complete, UI handler deferred
 
 Mode: Standard ABC
 
@@ -12,10 +12,19 @@ knowledge entities without leaking raw content or host paths.
 
 ## Current Evidence
 
-- Chat navigation already handles several hash-link families, but not a
-  complete knowledge reference family.
-- Memory records, Universal Inbox Memory Write Intent and RaptorGraph events
-  already carry stable IDs.
+- `src/internal_references.py` builds canonical `odysseus://...` refs and safe
+  chat hrefs for Memory, RAG, RaptorGraph and Graph families, including
+  base64url anchors for non-anchor-safe IDs.
+- `routes/internal_reference_routes.py` resolves Memory refs to the existing
+  Memory modal target, RaptorGraph refs to redacted provenance/event targets,
+  and RAG/Graph refs to redacted `reference_only` targets instead of returning
+  unsupported.
+- Memory records, Universal Inbox Memory Write Intent, web-research memory
+  intents, native `manage_memory` output and RaptorGraph candidates carry
+  internal refs with no raw content.
+- Focused tests cover helper round-trips, unsafe id rejection, owner-scoped
+  Memory resolution, RaptorGraph fallback and RAG/Graph `reference_only`
+  resolution.
 - Telegram formatting is out of scope; this track is Odysseus-internal only.
 
 ## Non-Goals
@@ -31,10 +40,11 @@ knowledge entities without leaking raw content or host paths.
 
 | Slice | Class | Owner | Goal | Allowed Paths | Tests |
 | --- | --- | --- | --- | --- | --- |
-| IKR-1 Contract | safe_offline | Alice | Define canonical refs and UI/rendering boundary. | `docs/plans/internal-knowledge-reference-roadmap.md` | docs-only |
-| IKR-2 Reference Helper | repo_only | Bob | Implement `odysseus://` refs plus safe `#...` chat hrefs. | `src/internal_references.py`, `tests/test_internal_references.py` | `pytest tests/test_internal_references.py` |
-| IKR-3 Memory/Raptor Payloads | repo_only | Bob | Attach internal refs to memory write intent and native `manage_memory` output. | `src/universal_inbox_memory_write_intent.py`, `src/ai_interaction.py`, focused tests | focused tests |
-| IKR-4 UI Handler | needs_design | UI Agent | Open the correct window/panel for memory, rag, raptor and graph links. | UI files only after design handoff | UI tests |
+| IKR-1 Contract | safe_offline | Alice | Done: canonical refs and UI/rendering boundary are defined. | `docs/plans/internal-knowledge-reference-roadmap.md` | docs-only |
+| IKR-2 Reference Helper | repo_only | Bob | Done: `odysseus://` refs plus safe `#...` chat hrefs are implemented and tested. | `src/internal_references.py`, `tests/test_internal_references.py` | `pytest tests/test_internal_references.py` |
+| IKR-3 Memory/Raptor Payloads | repo_only | Bob | Done: internal refs are attached to memory write intent, native `manage_memory` output and RaptorGraph candidates. | `src/universal_inbox_memory_write_intent.py`, `src/ai_interaction.py`, focused tests | focused tests |
+| IKR-3B RAG/Graph Resolver Fallback | repo_only | Bob | Done: RAG and Graph refs resolve as redacted `reference_only` targets until concrete UI/data targets exist. | `routes/internal_reference_routes.py`, `tests/test_internal_reference_routes.py` | focused tests |
+| IKR-4 UI Handler | needs_design | UI Agent | Deferred: open the correct window/panel for memory, rag, raptor and graph links. | UI files only after design handoff | UI tests |
 
 ## Reference Contract
 

@@ -31,6 +31,8 @@ def setup_internal_reference_routes(memory_manager: Any = None) -> APIRouter:
             return _resolve_memory_ref(request, parsed, memory_manager)
         if parsed.kind in {"raptor_node", "raptor_edge"}:
             return _resolve_raptor_ref(parsed)
+        if parsed.kind in {"rag_source", "rag_chunk", "graph_node", "graph_edge", "graph_query"}:
+            return _resolve_reference_only_ref(parsed)
         return _base_resolution(parsed, status="unsupported", exists=False, reason="unsupported_ref_kind")
 
     return router
@@ -114,6 +116,28 @@ def _resolve_raptor_ref(ref: InternalReference) -> dict[str, Any]:
             "node_id": ref.entity_id if ref.kind == "raptor_node" else "",
         },
     }
+
+
+def _resolve_reference_only_ref(ref: InternalReference) -> dict[str, Any]:
+    target_family = "rag" if ref.kind.startswith("rag_") else "graph"
+    return {
+        **_base_resolution(ref, status="reference_only", exists=False, reason=f"{target_family}_target_not_bound"),
+        "target": {
+            "kind": f"{target_family}_reference",
+            "read_route": _reference_only_route(target_family),
+            "open_mode": f"{target_family}_reference_pending_ui",
+            "entity_kind": ref.kind,
+            "entity_id": ref.entity_id,
+            "raw_content_visible": False,
+            "content_redacted": True,
+        },
+    }
+
+
+def _reference_only_route(target_family: str) -> str:
+    if target_family == "rag":
+        return "/api/rag/stats"
+    return "/api/diagnostics/memory-provenance"
 
 
 def _read_raptor_event(entity_id: str) -> dict[str, Any] | None:
