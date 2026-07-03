@@ -1883,14 +1883,15 @@ Current evidence:
   rendered `Areas` output and stronger noisy-path filtering.
 - 2026-07-03 RCH7 collector/route privacy hardening removed absolute
   `repo_root` persistence, hashes repo identity and keeps admin-gated routes.
+- 2026-07-03 RCH5 retention/automation added snapshot triggers, bounded
+  history retention, startup/update-check trigger wiring and pre/post-update
+  local snapshot helpers.
 - Focused verification passed:
   `tests/test_recent_changes.py tests/test_system_update_status.py tests/test_repo_recent_memory.py`
-  returned `20 passed, 1 warning`.
+  returned `22 passed, 1 warning`.
 
 Open gates / next slices:
 
-- `RCH5-retention-and-automation`: define startup/update/pre-update/post-update
-  retention and dedupe policy without live update execution.
 - `RCH6-agent-behavior-gates`: add focused tests that "letzte 12h",
   "Neuerungen", "Patch Notes" and update questions route to `recent_changes`.
 - `RCH3-patch-notes-button`: design/UI-owned; do not implement from backend
@@ -1911,7 +1912,7 @@ Open gates / next slices:
 | L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
-| L12 Recent Changes + Patch Notes | in progress | Foundation and RCH4/RCH7 collector privacy are implemented and tested; retention/automation policy and agent behavior routing tests remain repo-only follow-ups, while the patch-notes button is UI-owned. |
+| L12 Recent Changes + Patch Notes | in progress | Foundation, RCH4 quality, RCH5 retention/automation and RCH7 collector privacy are implemented and tested; agent behavior routing tests remain the next repo-only follow-up, while the patch-notes button is UI-owned. |
 
 Recommended next human decision:
 
@@ -1942,6 +1943,5 @@ Recommended next human decision:
 - For L11, use the existing autonomy pipeline for a concrete bounded pilot only
   after target/crawl/sandbox/memory-write constraints are stated; otherwise
   hand UI/operator placement to the UI track.
-- For L12, continue with `RCH5-retention-and-automation` or
-  `RCH6-agent-behavior-gates`; do not build the patch-notes button in this
-  backend track.
+- For L12, continue with `RCH6-agent-behavior-gates`; do not build the
+  patch-notes button in this backend track.

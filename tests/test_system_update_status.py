@@ -84,7 +84,9 @@ def test_collect_status_links_recent_changes_and_forces_on_update_check():
                 "since": "2026-06-22T22:00:00Z",
                 "hours": 12,
                 "summary": ["local changes found"],
+                "trigger": "update_check",
                 "persisted": True,
+                "retention": {"limit": 200, "trimmed": 0, "history_count": 1},
                 "patch_notes": "Patch notes snapshot",
                 "repo_root": "/secret/repo",
                 "tracked_changes": [{"path": "src/x.py"}],
@@ -103,6 +105,8 @@ def test_collect_status_links_recent_changes_and_forces_on_update_check():
 
     assert calls == [True]
     assert status["recent_changes"]["latest"]["id"] == "snap-1"
+    assert status["recent_changes"]["latest"]["trigger"] == "update_check"
+    assert status["recent_changes"]["latest"]["retention"]["history_count"] == 1
     assert status["recent_changes"]["latest"]["patch_notes"] == "Patch notes snapshot"
     assert "repo_root" not in status["recent_changes"]["latest"]
     assert "tracked_changes" not in status["recent_changes"]["latest"]

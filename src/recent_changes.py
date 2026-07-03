@@ -24,6 +24,16 @@ DEFAULT_HOURS = 12
 MAX_HISTORY_LIMIT = 100
 MAX_LIST_ITEMS = 200
 MAX_RENDERED_ITEMS = 30
+DEFAULT_RETENTION_LIMIT = 200
+_ALLOWED_TRIGGERS = {
+    "manual",
+    "api",
+    "tool",
+    "startup",
+    "update_check",
+    "pre_update",
+    "post_update",
+}
 
 _SKIP_DIRS = {
     ".agents",
@@ -123,6 +133,11 @@ def _redact_git_error(text: str, repo: Path) -> str:
     redacted = (text or "").replace(str(repo), "<repo>")
     redacted = redacted.replace(str(repo).replace("\\", "/"), "<repo>")
     return redacted[:500]
+
+
+def _normalize_trigger(trigger: str | None) -> str:
+    normalized = str(trigger or "manual").strip().lower().replace("-", "_")
+    return normalized if normalized in _ALLOWED_TRIGGERS else "manual"
 
 
 def _parse_log(output: str) -> list[dict[str, str]]:
@@ -273,6 +288,7 @@ def render_patch_notes(snapshot: dict[str, Any]) -> str:
     lines = [
         f"Patch notes snapshot `{snapshot.get('id')}`",
         f"Window: {snapshot.get('since')} to {snapshot.get('generated_at')} ({snapshot.get('hours')}h)",
+        f"Trigger: {snapshot.get('trigger') or 'manual'}",
         "",
     ]
     for summary in snapshot.get("summary") or []:
@@ -354,20 +370,54 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _write_snapshot(snapshot: dict[str, Any], history_dir: str | os.PathLike[str] | None = None, *, force: bool = False) -> dict[str, Any]:
+def _retention_limit(value: int | None = None) -> int:
+    if value is None:
+        return DEFAULT_RETENTION_LIMIT
+    return max(1, min(int(value or DEFAULT_RETENTION_LIMIT), 5000))
+
+
+def _persist_history(rows: list[dict[str, Any]], history_path: Path) -> None:
+    with history_path.open("w", encoding="utf-8") as handle:
+        for item in rows:
+            handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def _write_snapshot(
+    snapshot: dict[str, Any],
+    history_dir: str | os.PathLike[str] | None = None,
+    *,
+    force: bool = False,
+    retention_limit: int | None = None,
+) -> dict[str, Any]:
     target_dir = _history_dir(history_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    history = _read_jsonl(_history_path(target_dir))
+    history_path = _history_path(target_dir)
+    history = _read_jsonl(history_path)
     latest = history[-1] if history else None
     duplicate = bool(latest and latest.get("fingerprint") == snapshot.get("fingerprint"))
     if duplicate and not force:
         snapshot["persisted"] = False
         snapshot["duplicate_of"] = latest.get("id")
+        snapshot["retention"] = {
+            "limit": _retention_limit(retention_limit),
+            "trimmed": 0,
+            "history_count": len(history),
+        }
         _latest_path(target_dir).write_text(json.dumps(latest, indent=2, ensure_ascii=False), encoding="utf-8")
         return snapshot
     snapshot["persisted"] = True
-    with _history_path(target_dir).open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(snapshot, ensure_ascii=False, sort_keys=True) + "\n")
+    updated_history = [*history, snapshot]
+    limit = _retention_limit(retention_limit)
+    trimmed = max(0, len(updated_history) - limit)
+    if trimmed:
+        updated_history = updated_history[-limit:]
+    snapshot["retention"] = {
+        "limit": limit,
+        "trimmed": trimmed,
+        "history_count": len(updated_history),
+    }
+    updated_history[-1] = snapshot
+    _persist_history(updated_history, history_path)
     _latest_path(target_dir).write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
     return snapshot
 
@@ -379,6 +429,8 @@ def collect_recent_changes(
     history_dir: str | os.PathLike[str] | None = None,
     persist: bool = True,
     force: bool = False,
+    trigger: str | None = "manual",
+    retention_limit: int | None = None,
 ) -> dict[str, Any]:
     hours = max(1, min(int(hours or DEFAULT_HOURS), 24 * 30))
     repo = _repo_path(repo_root)
@@ -400,6 +452,7 @@ def collect_recent_changes(
         "hours": hours,
         "repo_name": repo.name,
         "repo_fingerprint": _repo_fingerprint(repo),
+        "trigger": _normalize_trigger(trigger),
         "git_available": all(result.ok for result in (log, name_status, numstat, diff_stat, untracked)),
         "git_errors": [
             _redact_git_error(result.stderr, repo)
@@ -423,8 +476,13 @@ def collect_recent_changes(
     payload["id"] = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{payload['fingerprint'][:10]}"
     payload["patch_notes"] = render_patch_notes(payload)
     if persist:
-        return _write_snapshot(payload, history_dir, force=force)
+        return _write_snapshot(payload, history_dir, force=force, retention_limit=retention_limit)
     payload["persisted"] = False
+    payload["retention"] = {
+        "limit": _retention_limit(retention_limit),
+        "trimmed": 0,
+        "history_count": None,
+    }
     return payload
 
 
@@ -443,6 +501,7 @@ def list_change_history(
                 "generated_at": item.get("generated_at"),
                 "since": item.get("since"),
                 "hours": item.get("hours"),
+                "trigger": item.get("trigger"),
                 "summary": item.get("summary") or [],
                 "fingerprint": item.get("fingerprint"),
             }
@@ -469,6 +528,16 @@ def read_change_snapshot(
 def maybe_record_startup_snapshot() -> None:
     """Best-effort startup capture used to keep history warm across restarts."""
     try:
-        collect_recent_changes(hours=24, persist=True)
+        collect_recent_changes(hours=24, persist=True, trigger="startup")
     except Exception:
         pass
+
+
+def record_pre_update_snapshot(*, hours: int = 24, force: bool = True) -> dict[str, Any]:
+    """Create a local pre-update patch-note snapshot without running the update."""
+    return collect_recent_changes(hours=hours, persist=True, force=force, trigger="pre_update")
+
+
+def record_post_update_snapshot(*, hours: int = 24, force: bool = True) -> dict[str, Any]:
+    """Create a local post-update patch-note snapshot without running live host actions."""
+    return collect_recent_changes(hours=hours, persist=True, force=force, trigger="post_update")

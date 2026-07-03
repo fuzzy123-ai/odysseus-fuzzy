@@ -259,7 +259,7 @@ def _default_recent_changes_provider(force_collect: bool) -> dict[str, Any]:
     from src.recent_changes import collect_recent_changes, list_change_history, read_change_snapshot
 
     if force_collect:
-        snapshot = collect_recent_changes(hours=24, persist=True)
+        snapshot = collect_recent_changes(hours=24, persist=True, trigger="update_check")
     else:
         snapshot = read_change_snapshot("latest")
     history = list_change_history(limit=5)
@@ -291,9 +291,11 @@ def _recent_changes_status(
             "generated_at": latest.get("generated_at"),
             "since": latest.get("since"),
             "hours": latest.get("hours"),
+            "trigger": latest.get("trigger"),
             "summary": latest.get("summary") or [],
             "persisted": latest.get("persisted"),
             "duplicate_of": latest.get("duplicate_of"),
+            "retention": latest.get("retention") if isinstance(latest.get("retention"), Mapping) else None,
             "patch_notes": latest.get("patch_notes"),
         }
     else:

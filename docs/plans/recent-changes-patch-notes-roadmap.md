@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **backend quality/privacy hardening in progress; RCH4 done, RCH7 collector/route privacy done**
+Status: **backend quality/privacy hardening in progress; RCH4 and RCH5 done, RCH7 collector/route privacy done**
 
 Mode: **Standard ABC**
 
@@ -13,8 +13,8 @@ Master Chat, bitte diese Roadmap in die aktive Master-Roadmap aufnehmen:
 - Ziel: Odysseus soll Fragen wie "Was gab es in den letzten 12h Neues?" ohne externe Recherche korrekt beantworten und dieselbe Aenderungshistorie spaeter als Patch-Notes-Interface anzeigen.
 - Roadmap: `docs/plans/recent-changes-patch-notes-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/unified-odysseus-roadmap.md`, `docs/plans/mvp-master-roadmap.md`, `docs/plans/updater-live-boundary-contract.md` und `docs/plans/updates-backups-ui-operator-contract.md`.
-- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality/Privacy wurden weiter gehaertet; UI, Retention und weitergehende Agent-Behavior-Gates bleiben Follow-up.
-- Naechster sicherer Slice: `RCH5-retention-and-automation` oder `RCH6-agent-behavior-gates`.
+- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality, Retention/Automation und Collector-Privacy wurden weiter gehaertet; UI und weitergehende Agent-Behavior-Gates bleiben Follow-up.
+- Naechster sicherer Slice: `RCH6-agent-behavior-gates`.
 - Owner-Vorschlag: Charlie koordiniert Roadmap/Status, Bob haertet Backend/Tests, Alice definiert UI- und Patch-Notes-Sprache.
 
 ## Goal
@@ -46,7 +46,7 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH2-master-roadmap-intake` | `repo_only` | Charlie | Track in `unified-odysseus-roadmap.md` und/oder `mvp-master-roadmap.md` einsortieren, ohne laufende Hotfiles zu ueberschreiben. | `docs/plans/` | docs-only/no tests | Master Chat decision |
 | `RCH3-patch-notes-button` | `needs_design` | Alice/Bob | Nutzer- oder Admin-Button fuer Patch Notes bauen: latest, history, read snapshot, optional "collect now". | `static/`, `routes/`, `src/`, `tests/` narrow UI/API files | focused route tests plus browser/static smoke if UI touched | design_go |
 | `RCH4-change-quality` | `done` | Bob | Zusammenfassung, Filter, Kategorien und File-Link-Evidence verbessern; untracked Noise weiter reduzieren. | `src/recent_changes.py`, `tests/test_recent_changes.py` | done: `3 passed, 1 warning` | none |
-| `RCH5-retention-and-automation` | `repo_only` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | focused pytest | no live update action |
+| `RCH5-retention-and-automation` | `done` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | done: `22 passed, 1 warning` | no live update action |
 | `RCH6-agent-behavior-gates` | `repo_only` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop.py`, tool schema/tests | focused intent/tool-selection tests | none |
 | `RCH7-security-privacy-closeout` | `partial_done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/`, `routes/`, `tests/`, `docs/plans/` | collector/route privacy done: `3 passed, 1 warning`; broader agent-route privacy static review remains | none |
 
@@ -75,6 +75,31 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_chan
 ```
 
 Result: `3 passed, 1 warning`.
+
+### RCH5 Retention And Automation
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- Recent-change snapshots now carry a normalized `trigger`: `manual`, `api`,
+  `tool`, `startup`, `update_check`, `pre_update` or `post_update`.
+- History writes apply a bounded retention policy and rewrite `history.jsonl`
+  after trimming old rows.
+- Duplicate snapshots still avoid new history rows unless `force=True`.
+- Startup snapshots use `trigger=startup`; update-status forced refreshes use
+  `trigger=update_check`; tool/API callers can pass a trigger safely.
+- Local-only `record_pre_update_snapshot()` and `record_post_update_snapshot()`
+  helpers create patch-note snapshots without running host update actions.
+- Update status summaries include `trigger` and redacted retention metadata.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_changes.py tests\test_system_update_status.py tests\test_repo_recent_memory.py -q
+```
+
+Result: `22 passed, 1 warning`.
 
 ### RCH7 Collector/Route Privacy Closeout
 

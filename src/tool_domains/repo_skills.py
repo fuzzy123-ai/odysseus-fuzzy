@@ -320,6 +320,8 @@ async def do_recent_changes(content: str, owner: Optional[str] = None) -> Dict:
                 hours=int(args.get("hours") or 12),
                 persist=bool(args.get("persist", True)),
                 force=bool(args.get("force", False)),
+                trigger=str(args.get("trigger") or "tool"),
+                retention_limit=int(args.get("retention_limit") or 0) or None,
             )
             if snapshot.get("persisted"):
                 note = "stored"

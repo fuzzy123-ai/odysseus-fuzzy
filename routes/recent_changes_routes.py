@@ -18,9 +18,10 @@ def setup_recent_changes_routes() -> APIRouter:
         hours: int = 12,
         persist: bool = True,
         force: bool = False,
+        trigger: str = "api",
     ) -> dict[str, Any]:
         require_admin(request)
-        return collect_recent_changes(hours=hours, persist=persist, force=force)
+        return collect_recent_changes(hours=hours, persist=persist, force=force, trigger=trigger)
 
     @router.get("/api/system/recent-changes/history")
     async def get_recent_changes_history(request: Request, limit: int = 20) -> dict[str, Any]:
