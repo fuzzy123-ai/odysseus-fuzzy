@@ -1,6 +1,6 @@
 # Gemma4 E4B Maintenance / Universal Inbox Roadmap
 
-Status: **in Umsetzung**
+Status: **backend complete; live smoke gated**
 
 Modus: **Standard ABC, backend/logik-first**
 
@@ -38,6 +38,15 @@ kanonische Wahrheit.
 | T4 Raptor Write Executor | repo_only | Bob | Ready/review Intents schreiben nur redigierte Abstraktionen in Memory/RaptorGraph | done |
 | T5 Queue/Worker Status | repo_only | Bob | Telegram-Events enthalten Queue-Status, Concurrency und geplante Memory/Raptor-Arbeit | done |
 | T6 Auto-Write Ready Memory | repo_only | Bob | Ready-Intents aus Telegram schreiben redigierte Abstraktionen automatisch; Review bleibt nur fuer unsichere Faelle | done |
+
+## Current Evidence
+
+- Repo-only Slices M1-M5 and T1-T6 are implemented.
+- Live Slices M6 and T3 remain bounded operator-gated work, not backend
+  implementation blockers.
+- Focused verification on 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_maintenance_model_policy.py tests\test_gemma4_maintenance_router.py tests\test_universal_inbox_worker.py tests\test_universal_inbox_memory_write_intent.py tests\test_universal_inbox_memory_write_executor.py tests\test_telegram_plugin.py::test_ready_memory_intent_auto_writes_without_manual_review -q`
+  returned `32 passed, 1 warning`.
 
 ## Gate Queue
 
