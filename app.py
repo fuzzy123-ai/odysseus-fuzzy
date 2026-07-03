@@ -666,6 +666,10 @@ app.include_router(setup_server_project_routes())
 from routes.repo_routes import setup_repo_routes
 app.include_router(setup_repo_routes())
 
+# GitHub issue intelligence route contracts
+from routes.github_issue_routes import setup_github_issue_routes
+app.include_router(setup_github_issue_routes())
+
 # Coding Agent backend
 from routes.coding_agent_routes import setup_coding_agent_routes
 app.include_router(setup_coding_agent_routes())

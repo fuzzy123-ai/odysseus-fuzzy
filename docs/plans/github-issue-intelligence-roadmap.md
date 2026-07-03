@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS5 repo slices complete; route contracts, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS6 repo slices complete; projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -567,6 +567,27 @@ Done when:
 - API caller can draft an issue and see top 3 duplicate candidates.
 - API caller can request internal field/write plans without provider writes.
 - UI placement, text fit and visual behavior are tracked outside backend ABC.
+
+Status: done.
+
+Evidence:
+
+- `routes/github_issue_routes.py` defines backend-only route contracts under
+  `/api/github-issues`.
+- `GET /api/github-issues/readiness` reports owner/repo-local issue counts plus
+  sync/write live gates without provider calls.
+- `POST /api/github-issues/duplicates` returns local duplicate previews from
+  already synced issue records.
+- `POST /api/github-issues/write-plan` returns confirmation/live-gated
+  `set_fields` and `create_triaged` plans without provider writes and blocks
+  high-confidence duplicate creation until explicitly acknowledged.
+- `app.py` registers the router; no `static/`, legacy UI or V2 UI files are part
+  of this backend slice.
+- `tests/test_github_issue_routes.py` verifies readiness counts/gates, duplicate
+  previews, field write plans and duplicate blocking.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py tests\test_github_issue_index.py tests\test_github_issue_duplicates.py tests\test_github_issue_tools.py tests\test_github_issue_routes.py tests\test_tool_index_schema_parity.py tests\test_mcp_server_tool_policy.py -q`
+  -> `42 passed, 1 warning`.
 
 ### GHISS7 GitHub Issue Fields Projection
 

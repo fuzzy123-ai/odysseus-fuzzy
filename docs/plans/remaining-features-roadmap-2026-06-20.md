@@ -207,8 +207,12 @@ Current status 2026-07-03:
   prompt/admin surfaces and deterministic discovery hints. Local duplicate
   search is read-only; sync and write-like actions return confirmation/live
   gates instead of provider calls.
-- Remaining P9 work starts at GHISS6 backend route contracts. No GitHub token,
-  network call or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3/GHISS4/GHISS5.
+- GHISS6 is complete: `routes/github_issue_routes.py` and
+  `tests/test_github_issue_routes.py` implement and verify backend route
+  contracts for readiness, local duplicate preview and write-plan gates without
+  touching legacy/V2 UI files.
+- Remaining P9 work starts at GHISS7 GitHub Issue Fields projection. No GitHub
+  token, network call or write action is enabled by GHISS0-GHISS6.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the
