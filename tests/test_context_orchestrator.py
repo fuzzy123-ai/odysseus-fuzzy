@@ -230,3 +230,21 @@ def test_tool_capability_provider_injects_for_capability_questions():
     content = "\n".join(message["content"] for message in assembly.messages)
     assert "read_file" in content
     assert "manage_repos" in content
+
+
+def test_tool_capability_provider_adds_self_report_guard():
+    assembly = assemble_context(
+        system_messages=[],
+        history_messages=[{"role": "user", "content": "Was kannst du mit Dateien, Shell und Git?"}],
+        owner="alice",
+        query="Was kannst du mit Dateien, Shell und Git?",
+        total_budget=2000,
+        mode="agent",
+    )
+
+    content = "\n".join(message["content"] for message in assembly.messages)
+    assert "Tool capability self-report guard:" in content
+    assert "Do not claim a listed tool is missing because of stale memory" in content
+    assert "read_file" in content
+    assert "bash" in content
+    assert "manage_repos" in content

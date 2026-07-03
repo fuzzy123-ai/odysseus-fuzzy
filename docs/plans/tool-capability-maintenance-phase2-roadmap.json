@@ -124,7 +124,7 @@
     {
       "id": "TCM2-4-agent-self-report-guard",
       "class": "repo_only",
-      "status": "planned",
+      "status": "done",
       "owner": "Alice",
       "goal": "Prevent stale capability answers by adding a small self-report guard: if the user asks what Odysseus can do, the answer must be grounded in the current tool capability provider payload.",
       "allowed_paths": [
@@ -132,7 +132,13 @@
         "src/agent_loop_prompts.py",
         "tests/test_context_orchestrator.py"
       ],
-      "done_when": "Regression tests prove capability questions receive tool capability context and mention current tools such as read_file, write_file, grep, bash, python, and manage_repos when available."
+      "done_when": "Regression tests prove capability questions receive tool capability context and mention current tools such as read_file, write_file, grep, bash, python, and manage_repos when available.",
+      "evidence": [
+        "Capability questions now receive a Tool capability self-report guard system message grounded in core.tool_capability_knowledge.",
+        "The guard instructs Odysseus to distinguish available, gated/disabled, and absent tools and not to repeat stale negative capability claims from memory.",
+        "Regression test proves the guard is injected with read_file, bash, and manage_repos context.",
+        "Focused suite passed: tests/test_context_orchestrator.py tests/test_tool_capability_maintenance.py tests/test_tool_capability_diagnostics.py -> 21 passed."
+      ]
     },
     {
       "id": "TCM2-5-diagnostics-and-audit-readback",

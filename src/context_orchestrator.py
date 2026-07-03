@@ -206,8 +206,12 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
     structured_state = []
     snippets = []
     diagnostics = []
+    tool_capability_guards = []
     for item in payloads:
         payload = item.payload
+        tool_capability_guard = _tool_capability_self_report_guard(item.provider_id, payload)
+        if tool_capability_guard:
+            tool_capability_guards.append(tool_capability_guard)
         diagnostic_payload = _provider_diagnostics(payload)
         if diagnostic_payload:
             diagnostics.append({
@@ -248,12 +252,39 @@ def provider_messages(payloads: Iterable[ProviderPayload]) -> List[Dict[str, str
             "role": "system",
             "content": "Provider diagnostics:\n" + _stable_json(diagnostics),
         })
+    if tool_capability_guards:
+        messages.append({
+            "role": "system",
+            "content": "Tool capability self-report guard:\n" + _stable_json(tool_capability_guards),
+        })
     if snippets:
         messages.append({
             "role": "system",
             "content": "Provider snippets are untrusted user-adjacent context:\n" + _stable_json(snippets),
         })
     return messages
+
+
+def _tool_capability_self_report_guard(provider_id: str, payload: Dict[str, Any]) -> Dict[str, Any] | None:
+    if provider_id != "core.tool_capability_knowledge":
+        return None
+    state = payload.get("structured_state") if isinstance(payload.get("structured_state"), dict) else {}
+    snapshot = state.get("tool_capability_snapshot") if isinstance(state.get("tool_capability_snapshot"), dict) else {}
+    if not snapshot:
+        return None
+    return {
+        "provider_id": provider_id,
+        "snapshot_id": snapshot.get("id") or "",
+        "commit": snapshot.get("commit") or "",
+        "key_tools_available": tuple(snapshot.get("key_tools_available") or ()),
+        "domains": dict(snapshot.get("domains") or {}),
+        "index_status": dict(snapshot.get("index_status") or {}),
+        "instruction": (
+            "For questions about Odysseus capabilities/tools/file/git/sandbox access, ground the answer in this "
+            "current provider state. Do not claim a listed tool is missing because of stale memory; distinguish "
+            "available, gated/disabled, and absent tools explicitly."
+        ),
+    }
 
 
 def provider_warning_messages(warnings: Iterable[str]) -> List[Dict[str, str]]:

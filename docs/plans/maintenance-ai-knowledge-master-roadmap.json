@@ -86,12 +86,14 @@
       "id": "MAK-5",
       "name": "Agent Self-Report Freshness Guard",
       "priority": "P1",
-      "status": "partially_done",
+      "status": "repo_done_live_gate_pending",
       "depends_on": ["MAK-2"],
       "evidence": [
-        "Context orchestrator injects tool capability provider payload for capability/tool/file/git questions."
+        "Context orchestrator injects tool capability provider payload for capability/tool/file/git questions.",
+        "Capability questions now receive a Tool capability self-report guard system message grounded in core.tool_capability_knowledge.",
+        "Regression coverage proves the guard includes current read_file, bash, and manage_repos context."
       ],
-      "remaining": "Add stronger answer guard and regression around stale negative claims."
+      "remaining": "Confirm via live Telegram/chat acceptance after Debian deploy."
     },
     {
       "id": "MAK-5A",
@@ -162,6 +164,7 @@
     "Add/verify updater regression tests.",
     "Memory write executor binding is repo-done; run live gated smoke later.",
     "RaptorGraph/event-store integration is repo-done; run live gated smoke later.",
+    "Agent self-report guard is repo-done; verify with Telegram/chat after deploy.",
     "Diagnostics readback is repo-done; run live readback after deploy.",
     "Commit and push to fuzzy/dev.",
     "Deploy to Debian after operator Go.",
