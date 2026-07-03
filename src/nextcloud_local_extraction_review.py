@@ -28,6 +28,7 @@ from src.universal_inbox_extraction import (
 
 
 LOCAL_EXTRACTION_REVIEW_RUN_SCHEMA = "odysseus.nextcloud.local_only_extraction_review_run.v1"
+LOCAL_EXTRACTION_REVIEW_GATE_SCHEMA = "odysseus.nextcloud.local_only_extraction_review_gate.v1"
 LOCAL_EXTRACTION_REVIEW_PLANNER = "nextcloud_local_only_extraction_review_executor"
 
 
@@ -104,6 +105,46 @@ class NextcloudLocalExtractionReviewRun:
             "review_required_count": self.review_required_count,
             "reasons": self.reasons,
             "items": tuple(item.to_dict() for item in self.items),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NextcloudLocalExtractionReviewGate:
+    source_id: str
+    status: str
+    reviewed_count: int
+    completed_count: int
+    needs_review_count: int
+    failed_count: int
+    by_suffix: Mapping[str, int]
+    by_classification: Mapping[str, int]
+    blockers: tuple[str, ...]
+    next_allowed_actions: tuple[str, ...]
+    schema: str = LOCAL_EXTRACTION_REVIEW_GATE_SCHEMA
+    selected_items_redacted: bool = True
+    raw_content_visible: bool = False
+    raw_content_persisted: bool = False
+    memory_auto_write_allowed: bool = False
+    raptor_auto_write_allowed: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source_id": self.source_id,
+            "status": self.status,
+            "selected_items_redacted": True,
+            "raw_content_visible": False,
+            "raw_content_persisted": False,
+            "memory_auto_write_allowed": False,
+            "raptor_auto_write_allowed": False,
+            "reviewed_count": self.reviewed_count,
+            "completed_count": self.completed_count,
+            "needs_review_count": self.needs_review_count,
+            "failed_count": self.failed_count,
+            "by_suffix": dict(sorted(self.by_suffix.items())),
+            "by_classification": dict(sorted(self.by_classification.items())),
+            "blockers": self.blockers,
+            "next_allowed_actions": self.next_allowed_actions,
         }
 
 
@@ -251,6 +292,72 @@ def run_nextcloud_local_only_extraction_review(
     )
 
 
+def build_nextcloud_local_extraction_review_gate(
+    *,
+    ledger_path: str | Path,
+    source_id: str,
+) -> NextcloudLocalExtractionReviewGate:
+    """Summarize redacted local extraction review records for the next gate.
+
+    The summary is deliberately aggregate-only. It exists to tell the operator
+    and later automation whether a local-only review run produced enough safe
+    metadata to consider a separate Memory/RaptorGraph decision. It never
+    exposes selected item refs, paths, raw text, tool output or host material.
+    """
+
+    source = str(source_id or "").strip()
+    ledger = AppendOnlyBigDataLedger(ledger_path)
+    records = tuple(_review_records(ledger.latest_state().values(), source_id=source))
+    by_suffix: dict[str, int] = {}
+    by_classification: dict[str, int] = {}
+    completed = needs_review = failed = 0
+    for record in records:
+        status = str(record.status or "").strip().lower()
+        if status == "completed":
+            completed += 1
+        elif status == "failed":
+            failed += 1
+        else:
+            needs_review += 1
+        suffix = _safe_bucket(record.metadata.get("suffix") or "(none)")
+        by_suffix[suffix] = by_suffix.get(suffix, 0) + 1
+        classification = _safe_bucket(record.metadata.get("classification") or "unknown")
+        by_classification[classification] = by_classification.get(classification, 0) + 1
+
+    blockers: list[str] = []
+    if not records:
+        blockers.append("no_local_extraction_review_records")
+    if failed:
+        blockers.append("failed_extractions_require_review")
+    if needs_review:
+        blockers.append("redacted_reviews_require_operator_decision")
+    blockers.extend(
+        [
+            "memory_write_gate_not_open",
+            "raptorgraph_write_gate_not_open",
+            "local_only_subset_not_approved_for_memory",
+        ]
+    )
+    status = "empty" if not records else "blocked"
+    next_allowed_actions = (
+        "review_redacted_aggregate_summary",
+        "select_explicit_local_only_subset",
+        "open_separate_memory_raptorgraph_gate_after_review",
+    )
+    return NextcloudLocalExtractionReviewGate(
+        source_id=source,
+        status=status,
+        reviewed_count=len(records),
+        completed_count=completed,
+        needs_review_count=needs_review,
+        failed_count=failed,
+        by_suffix=by_suffix,
+        by_classification=by_classification,
+        blockers=tuple(dict.fromkeys(blockers)),
+        next_allowed_actions=next_allowed_actions,
+    )
+
+
 def _candidate_records(records: tuple[BigDataLedgerRecord, ...], *, source_id: str) -> tuple[BigDataLedgerRecord, ...]:
     selected: list[BigDataLedgerRecord] = []
     for record in records:
@@ -265,6 +372,17 @@ def _candidate_records(records: tuple[BigDataLedgerRecord, ...], *, source_id: s
             continue
         selected.append(record)
     return tuple(sorted(selected, key=lambda item: item.item.item_id))
+
+
+def _review_records(records: tuple[BigDataLedgerRecord, ...], *, source_id: str) -> tuple[BigDataLedgerRecord, ...]:
+    selected: list[BigDataLedgerRecord] = []
+    for record in records:
+        if record.stage != "extraction" or record.item.source_id != source_id:
+            continue
+        if record.metadata.get("planner") != LOCAL_EXTRACTION_REVIEW_PLANNER:
+            continue
+        selected.append(record)
+    return tuple(sorted(selected, key=lambda item: item.item.relative_path))
 
 
 def _source_ref(record: BigDataLedgerRecord) -> str:
@@ -282,6 +400,12 @@ def _extension(record: BigDataLedgerRecord) -> str:
     if value and not value.startswith("."):
         value = "." + value
     return value or Path(record.item.relative_path).suffix.casefold() or "(none)"
+
+
+def _safe_bucket(value: Any) -> str:
+    text = str(value or "").strip().casefold()
+    safe = "".join(ch if ch.isalnum() or ch in "._:-" else "_" for ch in text)
+    return safe[:80] or "unknown"
 
 
 def _positive_int(value: Any, *, field: str) -> int:

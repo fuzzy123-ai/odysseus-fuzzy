@@ -1,7 +1,10 @@
 import json
 
 from src.bigdata_ledger_contract import AppendOnlyBigDataLedger, BigDataLedgerItem, BigDataLedgerRecord
-from src.nextcloud_local_extraction_review import run_nextcloud_local_only_extraction_review
+from src.nextcloud_local_extraction_review import (
+    build_nextcloud_local_extraction_review_gate,
+    run_nextcloud_local_only_extraction_review,
+)
 
 
 def _inventory(
@@ -91,3 +94,53 @@ def test_local_extraction_review_persists_redacted_runtime_only_records(tmp_path
     assert "Privat/private.md" not in encoded_extraction
     assert "PRIVATE FIXTURE BODY" not in encoded_result
     assert "PRIVATE FIXTURE BODY" not in encoded_extraction
+
+
+def test_local_extraction_review_gate_summarizes_redacted_records_without_unlocking_memory(tmp_path):
+    root = tmp_path / "source"
+    private_dir = root / "Privat"
+    private_dir.mkdir(parents=True)
+    (private_dir / "private.md").write_text("PRIVATE FIXTURE BODY Rechnung 123", encoding="utf-8")
+    ledger_path = tmp_path / "events.jsonl"
+    AppendOnlyBigDataLedger(ledger_path).append_record(_inventory("Privat/private.md"))
+    run_nextcloud_local_only_extraction_review(
+        root=root,
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        operator_local_extraction_go=True,
+    )
+
+    gate = build_nextcloud_local_extraction_review_gate(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+    )
+    payload = gate.to_dict()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert payload["status"] == "blocked"
+    assert payload["reviewed_count"] == 1
+    assert payload["memory_auto_write_allowed"] is False
+    assert payload["raptor_auto_write_allowed"] is False
+    assert "memory_write_gate_not_open" in payload["blockers"]
+    assert "raptorgraph_write_gate_not_open" in payload["blockers"]
+    assert payload["selected_items_redacted"] is True
+    assert payload["raw_content_visible"] is False
+    assert payload["raw_content_persisted"] is False
+    assert "Privat/private.md" not in encoded
+    assert "PRIVATE FIXTURE BODY" not in encoded
+
+
+def test_local_extraction_review_gate_reports_empty_without_records(tmp_path):
+    ledger_path = tmp_path / "events.jsonl"
+    AppendOnlyBigDataLedger(ledger_path).append_record(_inventory("Privat/private.md"))
+
+    gate = build_nextcloud_local_extraction_review_gate(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+    )
+    payload = gate.to_dict()
+
+    assert payload["status"] == "empty"
+    assert payload["reviewed_count"] == 0
+    assert payload["by_suffix"] == {}
+    assert "no_local_extraction_review_records" in payload["blockers"]

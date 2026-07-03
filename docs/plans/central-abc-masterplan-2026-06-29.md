@@ -233,6 +233,15 @@ Current evidence:
   files only at runtime, writes only synthetic redacted review records, and
   keeps Memory/RaptorGraph writes disabled. Fixture tests cover both blocked
   and allowed runs without leaking private paths or contents.
+- 2026-07-03: Local-only extraction review gate summary is implemented. It
+  summarizes only redacted review records by status, suffix and classification,
+  keeps Memory/RaptorGraph auto-write disabled, and reports the remaining
+  blockers without selected items, private paths or raw contents. Focused
+  verification returned `18 passed, 1 warning` for
+  `tests/test_nextcloud_local_extraction_review.py`,
+  `tests/test_nextcloud_document_pilot_import.py`,
+  `tests/test_nextcloud_raptorgraph_provenance.py` and
+  `tests/test_memory_write_policy.py`.
 
 Primary allowed paths:
 
@@ -268,6 +277,7 @@ Slice queue:
 | L1-13-local-only-extraction-review-plan | repo_only | Charlie | Done: CLI can append an aggregate-only local extraction/review plan for supported document extractors while keeping Memory/RaptorGraph writes blocked. |
 | L1-14-bounded-local-only-extraction-smoke | safe_offline | Charlie | Done: bounded 5k metadata-only local sync smoke selected 98 local-only extraction/review candidates and deleted its temporary ledger. |
 | L1-15-local-only-extraction-review-executor | repo_only | Charlie | Done: fixture-verified executor can run local-only extraction/review behind an explicit operator Go while persisting only synthetic redacted review records. |
+| L1-16-local-only-review-gate-summary | repo_only | Charlie | Done: aggregate-only gate summary reports redacted review counts and blockers while keeping Memory/RaptorGraph auto-write disabled. |
 
 Gate queue:
 
@@ -1920,7 +1930,7 @@ Open gates / next slices:
 | Lane | Status | Why not complete |
 | --- | --- | --- |
 | L3 MCP Workbench + Podman Checks | backend complete, live-gated | Local MCP contracts, tool-policy evidence, workbench setup plan and Podman read-only command planner are done; Codex-side service setup, live MCP activation and host probes remain gated operational tracks. |
-| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory, redacted pilot profiling and Gemma4 maintenance routing are implemented and verified; local-only extraction/review now has a fixture-tested executor behind explicit operator Go, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
+| L1 Nextcloud Live Write + Universal Inbox | backend complete, live-gated | Safe backend path, review loop, WebDAV copy-only live gate, Telegram review-transfer smoke, bounded import smokes, full local metadata-only inventory, redacted pilot profiling and Gemma4 maintenance routing are implemented and verified; local-only extraction/review now has a fixture-tested executor and aggregate gate summary behind explicit operator Go, but actual private-content extraction/review and Memory/RaptorGraph writes remain gated until a subset or refined safe-area rule is selected. Future delete/move/overwrite behavior remains separately gated. |
 | L2 Coding Agent + Repo Control + Project Runner | backend complete, live-gated | Safe backend contracts, route registration, repo policy links, GameDev mount/project access contracts and UI handoff are done; provider repo creation, live server execution, stored runtime mount validation, reversible write smoke, deploy and Cloudflare exposure remain gated operational tracks. |
 | L4 Memory/RaptorGraph Stabilization | backend complete, live-gated | Readiness, AI activity audit, graph maintenance evidence, Gemma4 maintenance policy, provenance logging and read-only memory storage stats are tested; live graph writes, rebuild/fullbuild, runtime migration, live Gemma smoke and accelerators remain gated operational tracks, and visible memory labels remain UI-owned. |
 | L5 Universal File IO | backend complete, live-gated | Safe export plans and Telegram delivery prep are implemented; live converters, Telegram delivery and Nextcloud export writes remain gated operational tracks. |
@@ -1950,7 +1960,8 @@ Recommended next human decision:
   are privacy-gated; local-only extraction/review is possible, but
   Memory/RaptorGraph writes need either an explicit local-only pilot subset
   with review or a refined rule for areas no longer treated as
-  `unknown_private`.
+  `unknown_private`; the new gate summary can then report aggregate blockers
+  before any write gate opens.
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.

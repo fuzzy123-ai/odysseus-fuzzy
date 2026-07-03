@@ -1,6 +1,6 @@
 # Nextcloud Import Preparation Roadmap
 
-Status: safe backend path partial; bounded local inventory smoke passed; live upload smoke remains operator-gated; P0/P1/P3 backend prep advanced
+Status: safe backend prep complete; document pilot and Memory/RaptorGraph writes remain live/privacy-gated
 Owner: operator + Odysseus
 Scope: `C:\Users\nkatz\Nextcloud` local synced source
 Mode: dry-run first, review-gated execution, no delete by default
@@ -189,13 +189,28 @@ Local-only Extraktions-/Review-Executor 2026-07-03:
 - Verifiziert ist der Executor aktuell mit synthetischen Fixture-Dateien, nicht
   mit echten privaten Nextcloud-Inhalten.
 
+Local-only Review-Gate-Summary 2026-07-03:
+
+- `src/nextcloud_local_extraction_review.py` kann jetzt aus den bereits
+  redigierten Review-Records eine aggregate Gate-Zusammenfassung bauen.
+- Die Zusammenfassung enthaelt nur Zaehler nach Status, Endung und
+  Klassifikation. Sie enthaelt keine ausgewaehlten Items, keine privaten
+  relativen Pfade, keine Host-Pfade und keine Rohinhalte.
+- Memory- und RaptorGraph-Auto-Writes bleiben darin immer `false`, solange
+  nicht separat eine explizite lokale Teilmenge reviewed und ein eigenes
+  Memory/RaptorGraph-Gate geoeffnet wurde.
+- Fokussierte Verifikation:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_nextcloud_local_extraction_review.py tests\test_nextcloud_document_pilot_import.py tests\test_nextcloud_raptorgraph_provenance.py tests\test_memory_write_policy.py -q`
+  returned `18 passed, 1 warning`.
+
 Offen:
 
 - Copy-only Live-Smokes gegen die echte Nextcloud sind fuer den Transferpfad
   erledigt; ein echter Dokument-Pilot mit Extraktion/Review/Memory-Entscheid
   wurde noch nicht ausgefuehrt.
 - Der Dokument-Pilot braucht eine bewusst ausgewaehlte lokale-only Teilmenge
-  oder eine verfeinerte Safe-Area-Regel. Memory/RaptorGraph-Writes brauchen
+  oder eine verfeinerte Safe-Area-Regel. Die Review-Gate-Summary kann danach
+  aggregate Entscheidungsdaten liefern; Memory/RaptorGraph-Writes brauchen
   weiterhin ein separates Gate.
 - Der ZIP-Executor ist als review-gated Backend-Baustein vorhanden; ein
   Live-run gegen echte Nextcloud-/Nutzerdateien bleibt operator-gated.
