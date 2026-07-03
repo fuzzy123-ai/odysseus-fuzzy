@@ -40,6 +40,12 @@ Primary sources:
 - `docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json`
 - `docs/plans/autonomy-calendar-coding-master-roadmap.json`
 - `docs/plans/maintenance-ai-knowledge-master-roadmap.json`
+- `docs/plans/observability-security-ops-master-roadmap.json`
+- `docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json`
+- `docs/plans/security-incident-response-escalation-roadmap.json`
+- `docs/plans/debian-observability-security-handoff-roadmap.json`
+- `docs/plans/agent-autonomy-extensions-master-roadmap.json`
+- `docs/plans/agent-capability-expansion-master-roadmap.json`
 - `docs/plans/unified-odysseus-roadmap.md`
 - `docs/plans/mvp-master-roadmap.md`
 - `docs/plans/mvp-roadmap-runner-state.json`
@@ -94,6 +100,8 @@ Run at most three active implementation lanes at the same time.
 | L7 Large File Refactoring | P2 | Carefully | Broad hotfiles; start only after P0 path is stable or on disjoint files. |
 | L8 UI/V2 Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions. |
 | L9 Calendar MCP + Autonomous Coding Control | P0/P1 | Limited | Reminder/calendar reliability and workstation-first coding automation are now bundled in a JSON master roadmap; repo slices are done, remaining smokes are live-gated. |
+| L10 Observability + Security Ops | P0/P1 | Limited | Unified logging, MCP debugging, incident response and Debian observability are repo-complete; remaining progress is live ops setup and smoke evidence. |
+| L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
 
 Integration rule:
 
@@ -1767,6 +1775,87 @@ Recommended next backend action:
   bounded CalDAV writeback smoke, or a bounded workstation-to-Telegram coding
   control smoke with concrete operator input.
 
+## Active Lane L10: Observability + Security Ops
+
+Goal:
+
+Odysseus has a unified redacted event and diagnostics program across runtime
+logging, MCP debugging, incident response and Debian operations, with live
+observability setup and remediation actions behind explicit gates.
+
+Primary source docs:
+
+- `docs/plans/observability-security-ops-master-roadmap.json`
+- `docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json`
+- `docs/plans/security-incident-response-escalation-roadmap.json`
+- `docs/plans/debian-observability-security-handoff-roadmap.json`
+- `docs/plans/unified-runtime-logging-dashboard-label-contract.json`
+
+Current evidence:
+
+- The observability/security master reports ULOG, SIR and DEB-OBS repo-only
+  contracts complete through ULOG-8 and OBS-7.
+- Unified runtime logging, redacted event envelopes, diagnostics readback,
+  incident model/policy and read-only MCP debugging contracts are prepared.
+- Debian observability remains Podman/pods-first. Promtail is explicitly not a
+  new component; Alloy, Fluent Bit or OpenTelemetry Collector remain preferred.
+
+Open gates:
+
+- `observability-live-go`: Debian read-only inventory and metrics/logging setup.
+- `log-retention-policy-go`: retention/cardinality rules before broad Loki
+  ingestion.
+- `mcp-debug-server-exposure-go`: any remote MCP debugging exposure.
+- `security-incident-tabletop-go`: synthetic live incident/tabletop smoke.
+- `crowdsec-remediation-go`: any ban/unban/restart/remediation action.
+
+Recommended next backend action:
+
+- Do not add more repo-only ULOG/SIR/DEB-OBS implementation unless a regression
+  is found. The next useful progress is bounded live Debian observability setup
+  or a tabletop smoke with exact scope and operator Go.
+
+## Active Lane L11: Agent Autonomy Extensions
+
+Goal:
+
+Odysseus agents can inspect approved websites, read browser/DevTools style
+evidence, observe visual output without a GPU, execute bounded sandbox jobs and
+write reviewed source-linked Memory/RaptorGraph knowledge.
+
+Primary source docs:
+
+- `docs/plans/agent-autonomy-extensions-master-roadmap.json`
+- `docs/plans/agent-capability-expansion-master-roadmap.json`
+- `docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json`
+- `docs/plans/agent-extension-website-research-roadmap.json`
+- `docs/plans/agent-extension-browser-devtools-roadmap.json`
+- `docs/plans/agent-extension-nogpu-visual-observer-roadmap.json`
+- `docs/plans/agent-extension-sandbox-execution-roadmap.json`
+- `docs/plans/agent-extension-memory-ingestion-roadmap.json`
+
+Current evidence:
+
+- Agent capability and autonomy master roadmaps are marked done with Debian live
+  evidence at commit `28cd4bb2`.
+- Live evidence records an approved ASV BW public-site browser smoke, a
+  no-network Podman sandbox smoke and a reviewed Memory/RaptorGraph write.
+- The implementation assumes no GPU, Podman pods, bounded crawls, redacted
+  artifacts and DSGVO/local-only routing for sensitive content.
+
+Open gates:
+
+- UI/operator placement for task monitor, review windows and long-running
+  research controls remains outside this backend track.
+- Future website pilots need target domain, page/depth/rate limits and memory
+  write policy.
+- Future sandbox jobs need bounded mounts, resources and artifact policy.
+
+Recommended next backend action:
+
+- Treat L11 as implemented for backend capability. Start a new L11 slice only
+  for a concrete bounded pilot, regression, or UI-agent backend contract gap.
+
 ## Current Master Status
 
 | Lane | Status | Why not complete |
@@ -1780,6 +1869,8 @@ Recommended next backend action:
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
 | L8 UI/V2 Integration | separate UI-owned track | Backend ABC exposes contracts, diagnostics and handoff notes only; UI placement, legacy UI and v2 implementation are owned by the UI agent/user and are not backend-roadmap blockers. |
 | L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
+| L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
+| L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 
 Recommended next human decision:
 
@@ -1804,3 +1895,9 @@ Recommended next human decision:
   CalDAV writeback, or workstation-to-Telegram coding status/control. Without
   those concrete inputs, the backend repo work is complete and should not be
   inflated with duplicate slices.
+- For L10, choose whether to run Debian observability setup/live inventory or a
+  tabletop incident smoke next. Without that explicit live scope, the repo-only
+  observability/security roadmap work is complete.
+- For L11, use the existing autonomy pipeline for a concrete bounded pilot only
+  after target/crawl/sandbox/memory-write constraints are stated; otherwise
+  hand UI/operator placement to the UI track.
