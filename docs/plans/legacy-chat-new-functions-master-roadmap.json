@@ -1,0 +1,209 @@
+{
+  "schema": "odysseus.legacy_chat_new_functions_master.v1",
+  "status": "active",
+  "updated": "2026-07-03",
+  "mode": "Standard ABC",
+  "scope": {
+    "goal": "Expose new backend capabilities in the existing legacy chat with compact status, slash replies, message actions and redacted result blocks.",
+    "non_goals": [
+      "Do not edit static/frontpage-v2/*.",
+      "Do not redesign legacy chat or build new V2 windows.",
+      "Do not render raw private document text, chat ids, tokens, absolute host paths or provider outputs.",
+      "Do not execute live delivery, converter, Nextcloud write, deploy or host actions from this roadmap without a separate live-ready backend gate."
+    ],
+    "ui_policy": "Small legacy chat affordances only; full workbenches stay with the UI agent/V2."
+  },
+  "evidence": {
+    "mvp_runner_status": "queue_exhausted",
+    "mvp_roadmaps_1_to_10_percent": 100,
+    "version_1_0_ui_live": false,
+    "lc0_inventory": "docs/plans/legacy-chat-new-functions-endpoint-inventory.md",
+    "legacy_roadmap": "docs/plans/legacy-chat-new-functions-integration-roadmap.md"
+  },
+  "slices": [
+    {
+      "id": "LC0",
+      "title": "Endpoint and UI-hook inventory",
+      "class": "safe_offline",
+      "status": "done",
+      "legacy_surface": "docs only",
+      "allowed_paths": [
+        "docs/plans/legacy-chat-new-functions-integration-roadmap.md",
+        "docs/plans/legacy-chat-new-functions-endpoint-inventory.md",
+        "docs/plans/legacy-chat-new-functions-master-roadmap.json"
+      ],
+      "backend_contracts": [
+        "routes/memory_routes.py",
+        "routes/task_routes.py",
+        "routes/diagnostics_routes.py",
+        "routes/mcp_routes.py",
+        "routes/document_routes.py",
+        "routes/server_project_routes.py",
+        "routes/sandbox_worker_routes.py",
+        "plugins/telegram/plugin.py",
+        "plugins/mcp_server/plugin.py",
+        "plugins/system_health_checker/plugin.py",
+        "src/universal_inbox_pipeline.py",
+        "src/universal_file_io.py"
+      ],
+      "why_not_100": ""
+    },
+    {
+      "id": "LC1",
+      "title": "Secure mode chat indicator",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "inline + slash",
+      "requires": [
+        "Browser-safe DSGVO status/toggle route or confirmed existing equivalent"
+      ],
+      "why_not_100": "Backend browser status/toggle contract is not confirmed."
+    },
+    {
+      "id": "LC2",
+      "title": "Attachment processing status",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "attachment chips + user message footer",
+      "requires": [
+        "Redacted Universal Inbox status in chat attachment event or read endpoint"
+      ],
+      "why_not_100": "Attachment processing status is not yet exposed as a compact browser contract."
+    },
+    {
+      "id": "LC3",
+      "title": "Memory and RaptorGraph clickable refs",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "AI message renderer + memory modal",
+      "requires": [
+        "Canonical RaptorGraph detail/read route or diagnostics fallback"
+      ],
+      "why_not_100": "Memory refs have a modal target, but RaptorGraph detail routing is not confirmed."
+    },
+    {
+      "id": "LC4",
+      "title": "Review and write gates",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "compact inline action row",
+      "requires": [
+        "Redacted pending-review state for Memory, RaptorGraph, Nextcloud and export gates"
+      ],
+      "why_not_100": "Pending review state needs a compact read contract before buttons are wired."
+    },
+    {
+      "id": "LC5",
+      "title": "Task and reminder feedback",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "slash command + task result block",
+      "requires": [
+        "Existing /api/tasks routes"
+      ],
+      "why_not_100": "Renderer and slash summaries are not implemented yet."
+    },
+    {
+      "id": "LC6",
+      "title": "File export intent preview",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "attachment follow-up result block",
+      "requires": [
+        "Universal File IO plan endpoint without converter execution"
+      ],
+      "why_not_100": "Planning contract exists in Python, but browser route is not confirmed."
+    },
+    {
+      "id": "LC7",
+      "title": "MCP and system health quick status",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "slash command result block",
+      "requires": [
+        "Read-only MCP, diagnostics, system health and version endpoints"
+      ],
+      "why_not_100": "Compact slash summaries are not implemented yet."
+    },
+    {
+      "id": "LC8",
+      "title": "Coding-agent lightweight entry",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "slash command + chat task card",
+      "requires": [
+        "Project and sandbox actions classified as preview, gated mutation or live action"
+      ],
+      "why_not_100": "Action safety classification is not yet surfaced to legacy chat."
+    },
+    {
+      "id": "LC9",
+      "title": "Diagnostics surfaces",
+      "class": "repo_only",
+      "status": "planned",
+      "legacy_surface": "slash command summaries",
+      "requires": [
+        "/api/diagnostics/ai-activity",
+        "/api/diagnostics/memory-provenance",
+        "/api/diagnostics/tool-capabilities"
+      ],
+      "why_not_100": "Compact redacted summaries are not implemented yet."
+    },
+    {
+      "id": "LC10",
+      "title": "Live delivery and converter affordances",
+      "class": "needs_live_go",
+      "status": "gated",
+      "legacy_surface": "disabled/gated buttons only",
+      "requires": [
+        "Explicit live Go",
+        "Backend readiness for Telegram delivery",
+        "Backend readiness for Nextcloud copy",
+        "Backend readiness for converter execution"
+      ],
+      "why_not_100": "Live delivery/converter actions require separate action-specific readiness gates."
+    }
+  ],
+  "open_backend_contracts": [
+    {
+      "id": "SECURITY_DSGVO_BROWSER_ROUTE",
+      "blocks": [
+        "LC1"
+      ],
+      "decision": "Add or confirm browser-safe DSGVO status/toggle endpoints."
+    },
+    {
+      "id": "UIX_ATTACHMENT_STATUS_ROUTE",
+      "blocks": [
+        "LC2"
+      ],
+      "decision": "Expose redacted Universal Inbox processing status for uploaded files."
+    },
+    {
+      "id": "RAPTORGRAPH_REF_ROUTE",
+      "blocks": [
+        "LC3"
+      ],
+      "decision": "Confirm canonical internal RaptorGraph detail route or diagnostics fallback."
+    },
+    {
+      "id": "REVIEW_GATE_STATE_ROUTE",
+      "blocks": [
+        "LC4"
+      ],
+      "decision": "Expose pending review/write gate state as redacted metadata."
+    },
+    {
+      "id": "UNIVERSAL_FILE_IO_PLAN_ROUTE",
+      "blocks": [
+        "LC6"
+      ],
+      "decision": "Expose safe export plan without executing converters."
+    }
+  ],
+  "recommended_next": [
+    "LC1: confirm or add DSGVO browser status route, then wire a compact legacy chat indicator.",
+    "LC2: expose redacted Universal Inbox attachment status, then render it in attachment chips/user footer.",
+    "LC5: improve task/reminder summaries because the backend routes already exist."
+  ]
+}
