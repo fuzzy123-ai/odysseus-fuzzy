@@ -48,10 +48,7 @@
       "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations."
     ],
     "missing_or_not_yet_durable": [
-      "src/coding_agent_runner_state.py is missing, so runner phases are not yet a durable state machine.",
-      "tests/test_coding_agent_runner_state.py is missing, so ACPR-2/4/6/7 tests cannot run as written.",
       "src/coding_project_scope.py is missing, so ACPR-3 project/slice scope resolution is still planned.",
-      "Telegram control events exist, but no runner-state consumer exists yet.",
       "Publish/deploy gates exist as plans, but should wait until runner-state and scope resolution are durable."
     ],
     "recommended_sequence": [
@@ -122,7 +119,7 @@
       "id": "ACPR-2-runner-state-machine",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Add a resumable coding runner state machine for planned, scoped, worktree_ready, checks_running, blocked, review_ready, publish_ready, done and failed.",
       "allowed_paths": [
         "src/coding_agent_runner_state.py",
@@ -133,7 +130,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_coding_agent_runner_state.py tests/test_coding_agent_backend.py -q"
       ],
-      "done_when": "Runner state survives restarts, blocks on gates, and records next_human_decision without raw diffs or private prompts."
+      "done_when": "Runner state survives restarts, blocks on gates, and records next_human_decision without raw diffs or private prompts.",
+      "evidence": "Implemented src/coding_agent_runner_state.py with a JSON-persisted phase machine, safe transitions, gate/blocker metadata and raw-content redaction; routes/coding_agent_routes.py now writes runner state on task-plan, worktree and publish-plan and exposes a redacted runner-state read endpoint. Focused tests cover persistence, invalid transitions, secret/path rejection, no raw objective persistence and route integration."
     },
     {
       "id": "ACPR-3-project-scope-resolver",

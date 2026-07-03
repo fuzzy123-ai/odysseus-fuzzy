@@ -25,6 +25,7 @@ from src.coding_agent_backend import (
     evaluate_coding_worktree_gate,
     repo_git_snapshot_for_coding_task,
 )
+from src.coding_agent_runner_state import CodingRunnerStateError, CodingRunnerStateStore
 from src.agent_sandbox_worker import SandboxWorker
 from src.coding_agent_sandbox_bridge import CodingAgentSandboxBridgeError, dispatch_coding_checks_to_sandbox
 from src.constants import BASE_DIR, DATA_DIR
@@ -111,17 +112,30 @@ def setup_coding_agent_routes(
     registry_path: str | Path = REPO_REGISTRY_FILE,
     workspace_base: str | Path = BASE_DIR,
     worktree_base: str | Path | None = None,
+    runner_state_dir: str | Path | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/coding-agent", tags=["coding-agent"])
     registry_file = Path(registry_path)
     configured_workspace_base = Path(workspace_base)
     configured_worktree_base = Path(worktree_base) if worktree_base is not None else Path(DATA_DIR) / "coding-worktrees"
+    runner_states = CodingRunnerStateStore(runner_state_dir)
     sandbox_worker = SandboxWorker(ledger=SandboxJobLedger(Path(DATA_DIR) / "sandbox_job_ledger"))
 
     @router.get("/tasks")
     def list_coding_tasks(request: Request, limit: int = 25) -> dict[str, Any]:
         require_admin(request)
         return agent_task_ledger.read_task_records(limit=limit)
+
+    @router.get("/runner-state/{task_id}")
+    def get_runner_state(request: Request, task_id: str) -> dict[str, Any]:
+        require_admin(request)
+        try:
+            state = runner_states.read(task_id)
+        except CodingRunnerStateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if state is None:
+            raise HTTPException(status_code=404, detail="runner state not found")
+        return {"success": True, "runner_state": state.to_dict()}
 
     @router.get("/repos/{repo_id}/snapshot")
     def get_repo_snapshot(request: Request, repo_id: str) -> dict[str, Any]:
@@ -161,7 +175,13 @@ def setup_coding_agent_routes(
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
         task_record = _record_coding_task_plan(plan)
-        return {"success": plan.decision == "plan_ready", "coding_task": plan.to_dict(), "agent_task": task_record}
+        runner_state = runner_states.upsert_from_task_plan(plan)
+        return {
+            "success": plan.decision == "plan_ready",
+            "coding_task": plan.to_dict(),
+            "agent_task": task_record,
+            "runner_state": runner_state.to_dict(),
+        }
 
     @router.post("/repos/{repo_id}/worktree")
     def create_worktree(request: Request, repo_id: str, body: CodingTaskPlanRequest) -> dict[str, Any]:
@@ -185,7 +205,12 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": report.status == "created", "coding_worktree": report.to_dict()}
+        runner_state = _record_runner_state_from_worktree(runner_states, report)
+        return {
+            "success": report.status == "created",
+            "coding_worktree": report.to_dict(),
+            "runner_state": runner_state.to_dict(),
+        }
 
     @router.post("/repos/{repo_id}/patch-set")
     def apply_patch_set(request: Request, repo_id: str, body: CodingPatchSetRequest) -> dict[str, Any]:
@@ -417,7 +442,8 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": report.ready, "publish_plan": report.to_dict()}
+        runner_state = _record_runner_state_from_publish(runner_states, plan, report)
+        return {"success": report.ready, "publish_plan": report.to_dict(), "runner_state": runner_state.to_dict()}
 
     @router.post("/repos/{repo_id}/subagents-plan")
     def create_subagents_plan(request: Request, repo_id: str, body: CodingSubagentPlanRequest) -> dict[str, Any]:
@@ -522,3 +548,55 @@ def _coding_plan_gates(blockers: tuple[str, ...]) -> tuple[str, ...]:
         else:
             gates.append("coding_task_review")
     return tuple(dict.fromkeys(gates))
+
+
+def _record_runner_state_from_worktree(store: CodingRunnerStateStore, report: Any):
+    plan = getattr(report, "plan", None)
+    if plan is None:
+        raise CodingRunnerStateError("worktree report has no plan")
+    current = store.read(getattr(plan, "task_id", ""))
+    if current is None:
+        current = store.upsert_from_task_plan(plan)
+    if getattr(report, "status", "") == "created":
+        return store.transition(
+            getattr(plan, "task_id", ""),
+            phase="worktree_ready",
+            progress_percent=35,
+            gates_waiting=(),
+            blockers=(),
+            next_human_decision="Run focused quality checks before review.",
+        )
+    return store.transition(
+        getattr(plan, "task_id", ""),
+        phase="blocked",
+        progress_percent=current.progress_percent,
+        gates_waiting=("worktree_gate",),
+        blockers=tuple(getattr(report, "blockers", ()) or ("worktree creation blocked",)),
+        next_human_decision="Resolve the worktree blocker before continuing.",
+    )
+
+
+def _record_runner_state_from_publish(store: CodingRunnerStateStore, plan: Any, report: Any):
+    current = store.read(getattr(plan, "task_id", ""))
+    if current is None:
+        current = store.upsert_from_task_plan(plan)
+    if getattr(report, "ready", False):
+        phase = "publish_ready"
+        progress = 85
+        gates = ("operator_publish_go",)
+        blockers = ()
+        decision = "Review commit/push/deploy plan and grant explicit operator Go."
+    else:
+        phase = "blocked"
+        progress = current.progress_percent
+        gates = ("publish_gate",)
+        blockers = tuple(getattr(report, "blockers", ()) or ("publish plan blocked",))
+        decision = "Resolve publish blockers before any commit or push."
+    return store.transition(
+        getattr(plan, "task_id", ""),
+        phase=phase,
+        progress_percent=progress,
+        gates_waiting=gates,
+        blockers=blockers,
+        next_human_decision=decision,
+    )

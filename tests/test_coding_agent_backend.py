@@ -326,6 +326,7 @@ def _client(registry_path: Path, *, workspace_base: Path, worktree_base: Path) -
             registry_path=registry_path,
             workspace_base=workspace_base,
             worktree_base=worktree_base,
+            runner_state_dir=workspace_base / "runner-state",
         )
     )
     return TestClient(app)
@@ -370,6 +371,8 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert plan.status_code == 200
     assert plan.json()["success"] is True
     assert plan.json()["coding_task"]["worktree_ref"] == "coding-worktrees/demo/add-route"
+    assert plan.json()["runner_state"]["phase"] == "scoped"
+    assert plan.json()["runner_state"]["progress_percent"] == 20
     assert plan.json()["agent_task"]["surface"] == "workstation"
     assert plan.json()["agent_task"]["target_ref"] == "repo:demo"
     assert plan.json()["agent_task"]["status"] == "planned"
@@ -377,6 +380,9 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert tasks.status_code == 200
     assert tasks.json()["records"][0]["task_id"] == "add-route"
     assert tasks.json()["records"][0]["task_type"] == "coding_agent_task"
+    state = client.get("/api/coding-agent/runner-state/add-route")
+    assert state.status_code == 200
+    assert state.json()["runner_state"]["phase"] == "scoped"
     assert gate.status_code == 200
     assert gate.json()["success"] is True
     dumped = json.dumps({"plan": plan.json(), "gate": gate.json()})
@@ -447,6 +453,8 @@ def test_coding_agent_routes_cover_patch_done_publish_and_subagents(tmp_path: Pa
     assert done.json()["success"] is True
     assert publish.status_code == 200
     assert publish.json()["success"] is True
+    assert publish.json()["runner_state"]["phase"] == "publish_ready"
+    assert publish.json()["runner_state"]["gates_waiting"] == ["operator_publish_go"]
     assert subagents.status_code == 200
     assert subagents.json()["subagents_plan"]["contracts"][0]["role"] == "worker"
     dumped = json.dumps(
