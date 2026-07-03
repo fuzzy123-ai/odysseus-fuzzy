@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.abc_execution_roadmap",
-  "updated_at": "2026-07-02",
-  "status": "backend_complete_live_on_debian_external_user_smoke_recommended",
+  "updated_at": "2026-07-03",
+  "status": "done",
   "mode": "Standard ABC",
   "title": "Autonomous Coding Agent And Sandbox Execution Roadmap",
   "goal": "Make Odysseus able to accept a bounded coding task, create an isolated worktree, run checks in a disposable Podman sandbox, collect redacted evidence, and prepare reviewed publish steps without broad host-shell access.",
@@ -35,7 +35,8 @@
       "telegram_coding_task_evidence_ref": "autonomous_coding_agent/telegram-coding-task-live-smoke.json",
       "external_real_user_message": "recommended acceptance check; Codex cannot originate a genuine user Telegram message from the user's client"
     },
-    "known_gap_summary": "Backend and safe repo implementation are complete, Debian is current, one live Podman sandbox worker smoke passed, and ACA-12 is proven through a live-container synthetic Telegram polling/bridge smoke. A true user-originated Telegram message remains a recommended external acceptance check because Codex cannot create that input autonomously."
+    "known_gap_summary": "Backend and safe repo implementation are complete, Debian live sandbox execution is proven, and ACA-12 is proven through a live-container synthetic Telegram polling/bridge smoke. A true user-originated Telegram message remains a recommended external acceptance check because Codex cannot create that input autonomously; it is not a backend-roadmap blocker.",
+    "completion_rationale": "All 12 required slices are done, progress_model.current_progress_percent is 100, repo/live evidence exists for the backend runtime, and UI placement plus true user-originated Telegram acceptance are explicitly outside or recommended acceptance checks rather than required backend slices."
   },
   "hard_constraints": {
     "runtime": "podman_pods",
