@@ -41,6 +41,12 @@ read-only by default and auditable.
   `4 passed, 1 warning`, and
   `python -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
   returned `16 passed, 2 warnings`.
+- 2026-07-03 ACPR-5 repo-only verification passed:
+  `venv/Scripts/python.exe -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q`
+  returned `16 passed, 1 warning`. This confirms the current evidence
+  contract still excludes generic shell/filesystem/Docker control while keeping
+  local MCP readiness, policy filtering, resources and redacted audit checks
+  testable.
 
 ## Workbench Components
 

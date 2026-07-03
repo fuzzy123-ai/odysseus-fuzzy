@@ -178,7 +178,7 @@
       "id": "ACPR-5-mcp-workbench-verification",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "goal": "Use the MCP workbench as an optional verification plane for local Odysseus readiness, browser evidence and read-only Podman status when available.",
       "allowed_paths": [
         "docs/plans/mcp-workbench-evidence-plan.md",
@@ -189,7 +189,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q"
       ],
-      "done_when": "The runner can reference MCP evidence contracts without exposing generic shell/filesystem/Docker control."
+      "done_when": "The runner can reference MCP evidence contracts without exposing generic shell/filesystem/Docker control.",
+      "evidence": "MCP Workbench evidence plan and runbook define local-only readiness, tools/list, resources/read, redacted audit, Codex-side service setup gates and Podman read-only checks while explicitly excluding broad filesystem, shell/Python, Docker, generic remote-control and expose_all surfaces. Focused tests on 2026-07-03 passed: venv/Scripts/python.exe -m pytest tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py -q returned 16 passed, 1 warning."
     },
     {
       "id": "ACPR-6-telegram-remote-control-consumption",

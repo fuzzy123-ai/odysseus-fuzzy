@@ -19,7 +19,7 @@
       "id": "ACPR",
       "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
       "title": "Autonomous Coding Production Readiness Roadmap",
-      "status": "planned",
+      "status": "repo_slices_done_live_gated",
       "priority": "P0",
       "why": "Autonomous coding backend exists, but needs production-grade runner state, workstation-first scope resolution and remote monitoring/control."
     },
@@ -103,6 +103,11 @@
     },
     {
       "order": 13,
+      "slice": "ACPR-5-mcp-workbench-verification",
+      "reason": "Optional MCP workbench evidence should be available before live-gated smokes depend on external verification planes."
+    },
+    {
+      "order": 14,
       "slice": "live-gated-smokes",
       "reason": "Run Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes only after repo tests pass and operator Go is explicit."
     }
@@ -182,6 +187,6 @@
   ],
   "recommended_next_slice": {
     "id": "live-gated-smokes",
-    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4, ACPR-6, ACPR-7 and ACPR-8 are complete; the remaining meaningful work requires explicit live Go for Telegram reminder, CalDAV/Nextcloud writeback, autonomous coding remote-control smoke or real deploy/Cloudflare exposure."
+    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4, ACPR-5, ACPR-6, ACPR-7 and ACPR-8 are complete; the remaining meaningful work requires explicit live Go for Telegram reminder, CalDAV/Nextcloud writeback, autonomous coding remote-control smoke or real deploy/Cloudflare exposure."
   }
 }
