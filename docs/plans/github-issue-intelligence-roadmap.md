@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS1 repo slices complete; sync, duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS2 repo slices complete; duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -412,6 +412,24 @@ Done when:
 - Fake GitHub client tests cover pagination, updates, closed issues, labels.
 - Token errors are redacted.
 - Sync can be run incrementally.
+
+Status: done.
+
+Evidence:
+
+- `src/github_issue_sync.py` defines a read-only, client-supplied sync adapter
+  that upserts provider issues into owner/repo-scoped `GitHubIssueRecord`
+  rows. It does not handle tokens, perform network calls or write to GitHub.
+- The adapter supports pagination, local update detection, closed issue state,
+  label persistence and an incremental `last_synced_at` watermark.
+- Provider/client failures are rolled back and reported through
+  `GitHubIssueSyncError` with secret markers redacted.
+- `tests/test_github_issue_sync.py` verifies pagination, updates, closed issue
+  handling, label roundtrips, explicit and implicit incremental watermarks,
+  token-error redaction and no partial commits after client failure.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py -q`
+  -> `15 passed, 1 warning`.
 
 ### GHISS3 Embedding Index
 

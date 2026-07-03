@@ -190,9 +190,13 @@ Current status 2026-07-03:
   and duplicate-candidate models; `tests/test_github_issue_models.py` verifies
   JSON roundtrips, owner scope and accept/reject decisions without deleting
   evidence.
-- Remaining P9 work starts at GHISS2 read-only sync, then duplicate index and
+- GHISS2 is complete: `src/github_issue_sync.py` and
+  `tests/test_github_issue_sync.py` implement and verify fake-client read-only
+  issue sync with pagination, updates, closed issue state, labels, incremental
+  watermarks and redacted token/client errors.
+- Remaining P9 work starts at GHISS3 issue embedding index, then duplicate
   preview. No GitHub token, network call or write action is enabled by
-  GHISS0/GHISS1.
+  GHISS0/GHISS1/GHISS2.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the
