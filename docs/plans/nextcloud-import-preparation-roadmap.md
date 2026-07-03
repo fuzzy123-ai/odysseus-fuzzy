@@ -138,6 +138,37 @@ Pfade. `--ephemeral-ledger` loeschte das temporaere Ledger nach der
 Report-Erstellung; `Test-Path` bestaetigte danach, dass keine Ledgerdatei
 verblieb.
 
+Local-only Extraktions-/Review-Plan 2026-07-03:
+
+- `src/nextcloud_document_pilot_import.py` kann jetzt einen redaktierten
+  `local_only_extraction_review_plan` aus Inventory-Metadaten bauen.
+- Der Plan unterscheidet aggregiert zwischen `extractable_now_count`,
+  `pending_extractor_count`, `selected_count`, `review_only_candidates` und
+  `memory_write_candidates`.
+- Unterstuetzt fuer die naechste lokale Runtime-Extraktion sind aktuell:
+  `.txt`, `.md`, `.markdown`, `.json`, `.csv`, `.tsv`, `.html`, `.htm`,
+  `.xml`, `.docx`, `.pdf`.
+- Der persistierte Analyse-Record enthaelt keine ausgewaehlten Items, keine
+  Item-IDs, keine privaten relativen Pfade und keine Rohinhalte. Memory- und
+  RaptorGraph-Writes bleiben darin explizit nicht erlaubt.
+- `scripts/nextcloud_import_dry_run.py` unterstuetzt dazu
+  `--local-only-extraction-review-plan` und unterdrueckt in diesem Modus
+  Report-Samples.
+
+Bounded Local-only Extraktions-/Review-Smoke 2026-07-03:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\nextcloud_import_dry_run.py --root <runtime-nextcloud-root> --ledger-path .tmp\nextcloud-dryrun\local-only-extraction-review-20260703-b5000.jsonl --scan-profile full --batch-limit 5000 --pilot-batch-limit 100 --skip-software-plan --local-only-extraction-review-plan --ephemeral-ledger --format markdown
+```
+
+Ergebnis: `5.000` Dateien metadata-only gescannt, `4.995`
+Inventory-Datensaetze, `4.995` Review-Kandidaten, `98` local-only
+Extraktions-/Review-Auswahl, `0` safe Dokument-Pilot-Auswahl und `0` Long
+Paths. Der Markdown-Report enthielt keine Samples, Rohinhalte, Secrets oder
+privaten Pfade. `--ephemeral-ledger` loeschte das temporaere Ledger nach der
+Report-Erstellung; `Test-Path` bestaetigte danach, dass keine Ledgerdatei
+verblieb.
+
 Offen:
 
 - Copy-only Live-Smokes gegen die echte Nextcloud sind fuer den Transferpfad

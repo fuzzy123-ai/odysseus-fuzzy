@@ -17,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.nextcloud_import_config import load_nextcloud_import_config
 from src.nextcloud_import_report import build_nextcloud_import_dry_run_report
 from src.nextcloud_document_pilot_import import append_nextcloud_document_pilot_plan
+from src.nextcloud_document_pilot_import import append_nextcloud_local_only_extraction_review_plan
 from src.nextcloud_document_pilot_import import append_nextcloud_local_only_document_pilot_profile
 from src.nextcloud_resumable_scanner import run_nextcloud_scanner_dry_run
 from src.nextcloud_software_archives import plan_nextcloud_software_archive_metadata
@@ -67,6 +68,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--local-only-document-pilot-profile",
         action="store_true",
         help="Append an aggregate-only profile for private/local document pilot review.",
+    )
+    parser.add_argument(
+        "--local-only-extraction-review-plan",
+        action="store_true",
+        help="Append an aggregate-only local extraction/review plan for private/local documents.",
     )
     parser.add_argument("--max-samples", type=int, default=10, help="Maximum sample paths in reports.")
     parser.add_argument(
@@ -132,7 +138,21 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         )
         local_only_document_pilot_payload = local_only_result.to_dict()
 
-    report_max_samples = 0 if bool(getattr(args, "local_only_document_pilot_profile", False)) else args.max_samples
+    local_only_extraction_review_payload: dict[str, Any] | None = None
+    if bool(getattr(args, "local_only_extraction_review_plan", False)):
+        extraction_review_result = append_nextcloud_local_only_extraction_review_plan(
+            ledger_path=ledger_path,
+            source_id=source_id,
+            plan_id=f"{args.pilot_id}-local-extraction-review",
+            batch_limit=args.pilot_batch_limit,
+        )
+        local_only_extraction_review_payload = extraction_review_result.to_dict()
+
+    redact_local_samples = bool(
+        getattr(args, "local_only_document_pilot_profile", False)
+        or getattr(args, "local_only_extraction_review_plan", False)
+    )
+    report_max_samples = 0 if redact_local_samples else args.max_samples
     report = build_nextcloud_import_dry_run_report(
         ledger_path=ledger_path,
         source_id=source_id,
@@ -147,6 +167,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         "software_archives": software_payload,
         "document_pilot": document_pilot_payload,
         "local_only_document_pilot": local_only_document_pilot_payload,
+        "local_only_extraction_review": local_only_extraction_review_payload,
         "report": report.to_dict(),
         "ephemeral_ledger": {
             "enabled": ephemeral_ledger,
@@ -187,6 +208,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     software = payload.get("software_archives") or {}
     document_pilot = ((payload.get("document_pilot") or {}).get("plan") or {})
     local_only_pilot = ((payload.get("local_only_document_pilot") or {}).get("profile") or {})
+    local_only_extraction = ((payload.get("local_only_extraction_review") or {}).get("plan") or {})
     ephemeral = payload.get("ephemeral_ledger") or {}
     lines = [
         "# Nextcloud Import Pipeline Dry-run",
@@ -201,6 +223,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         f"- Software plans appended: `{software.get('planned', 'skipped')}`",
         f"- Document pilot selected: `{document_pilot.get('selected_count', 'skipped')}`",
         f"- Local-only document pilot selected: `{local_only_pilot.get('selected_count', 'skipped')}`",
+        f"- Local-only extraction review selected: `{local_only_extraction.get('selected_count', 'skipped')}`",
         f"- Ephemeral ledger deleted: `{ephemeral.get('deleted', False)}`",
         "",
         "Private contents and secret values are intentionally not included.",

@@ -155,6 +155,43 @@ def test_cli_can_emit_local_only_document_pilot_profile(tmp_path, capsys):
     assert "private.docx" not in encoded
 
 
+def test_cli_can_emit_local_only_extraction_review_plan(tmp_path, capsys):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "Privat").mkdir()
+    (root / "Privat" / "private.docx").write_text("private body", encoding="utf-8")
+    ledger_path = tmp_path / "ledger" / "events.jsonl"
+    config_path = _open_test_config(tmp_path)
+
+    rc = main(
+        [
+            "--config",
+            str(config_path),
+            "--root",
+            str(root),
+            "--ledger-path",
+            str(ledger_path),
+            "--skip-software-plan",
+            "--local-only-extraction-review-plan",
+            "--format",
+            "json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    encoded = json.dumps(payload, sort_keys=True)
+    plan = payload["local_only_extraction_review"]["plan"]
+
+    assert rc == 0
+    assert payload["document_pilot"]["plan"]["selected_count"] == 0
+    assert plan["selected_count"] == 1
+    assert plan["extractable_now_count"] == 1
+    assert plan["raw_content_persisted"] is False
+    assert plan["memory_writes_permitted"] is False
+    assert plan["raptor_writes_permitted"] is False
+    assert "private body" not in encoded
+    assert "private.docx" not in encoded
+
+
 def test_ephemeral_ledger_is_blocked_for_skip_scan_reports(tmp_path):
     try:
         run_pipeline(
@@ -187,6 +224,7 @@ def _args(**overrides):
         "pilot_batch_limit": 100,
         "include_private_pilot_documents": False,
         "local_only_document_pilot_profile": False,
+        "local_only_extraction_review_plan": False,
         "max_samples": 10,
         "ephemeral_ledger": False,
         "format": "json",

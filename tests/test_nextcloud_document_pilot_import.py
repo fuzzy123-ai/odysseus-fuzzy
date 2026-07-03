@@ -2,8 +2,10 @@ import json
 
 from src.bigdata_ledger_contract import AppendOnlyBigDataLedger, BigDataLedgerItem, BigDataLedgerRecord
 from src.nextcloud_document_pilot_import import (
+    append_nextcloud_local_only_extraction_review_plan,
     append_nextcloud_local_only_document_pilot_profile,
     append_nextcloud_document_pilot_plan,
+    build_nextcloud_local_only_extraction_review_plan,
     build_nextcloud_local_only_document_pilot_profile,
     build_nextcloud_document_pilot_plan,
 )
@@ -212,3 +214,70 @@ def test_append_local_only_document_pilot_profile_omits_selected_paths(tmp_path)
     assert "Privat/private.docx" not in encoded_analysis
     assert '"selected_items":' not in encoded_analysis
     assert "selected_items_redacted" in encoded
+
+
+def test_local_only_extraction_review_plan_is_redacted_and_counts_supported_extractors():
+    plan = build_nextcloud_local_only_extraction_review_plan(
+        [
+            _inventory("Privat/private.docx", file_category="document_extractable", privacy_class="local_sensitive"),
+            _inventory("Privat/report.pdf", file_category="document_extractable", privacy_class="local_sensitive"),
+            _inventory("Privat/slides.pptx", file_category="document_extractable", privacy_class="local_sensitive"),
+            _inventory("Daten/public.md", file_category="text_extractable"),
+            _inventory("Daten/photo.jpg", file_category="media_metadata"),
+        ],
+        source_id="nextcloud-main",
+        batch_limit=1,
+    )
+    payload = plan.to_dict()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert payload["candidate_count"] == 3
+    assert payload["extractable_now_count"] == 2
+    assert payload["selected_count"] == 1
+    assert payload["pending_extractor_count"] == 1
+    assert payload["memory_write_candidates"] == 0
+    assert payload["review_only_candidates"] == 3
+    assert payload["interrupted"] is True
+    assert payload["selected_items_redacted"] is True
+    assert payload["private_path_material_required_at_runtime"] is True
+    assert payload["memory_writes_permitted"] is False
+    assert payload["raptor_writes_permitted"] is False
+    assert payload["by_extension"] == {
+        ".docx": {"total": 1, "extractable_now": 1, "pending_extractor": 0, "selected": 1},
+        ".pdf": {"total": 1, "extractable_now": 1, "pending_extractor": 0, "selected": 0},
+        ".pptx": {"total": 1, "extractable_now": 0, "pending_extractor": 1, "selected": 0},
+    }
+    assert "Privat/private.docx" not in encoded
+    assert "Privat/report.pdf" not in encoded
+    assert "Privat/slides.pptx" not in encoded
+
+
+def test_append_local_only_extraction_review_plan_omits_paths_and_blocks_writes(tmp_path):
+    ledger_path = tmp_path / "events.jsonl"
+    ledger = AppendOnlyBigDataLedger(ledger_path)
+    ledger.append_record(
+        _inventory("Privat/private.docx", file_category="document_extractable", privacy_class="local_sensitive")
+    )
+
+    result = append_nextcloud_local_only_extraction_review_plan(
+        ledger_path=ledger_path,
+        source_id="nextcloud-main",
+        batch_limit=10,
+    )
+    latest = AppendOnlyBigDataLedger(ledger_path).latest_state()
+    analysis_records = [
+        record
+        for record in latest.values()
+        if record.stage == "analysis"
+        and record.metadata.get("planner") == "nextcloud_local_only_extraction_review_plan"
+    ]
+    encoded_analysis = json.dumps(analysis_records[0].to_dict(), sort_keys=True)
+
+    assert result.appended is True
+    assert result.plan.selected_count == 1
+    assert analysis_records[0].metadata["extraction_runtime_only"] is True
+    assert analysis_records[0].metadata["derived_material_persisted"] is False
+    assert analysis_records[0].metadata["memory_writes_permitted"] is False
+    assert analysis_records[0].metadata["raptor_writes_permitted"] is False
+    assert "Privat/private.docx" not in encoded_analysis
+    assert '"selected_items":' not in encoded_analysis

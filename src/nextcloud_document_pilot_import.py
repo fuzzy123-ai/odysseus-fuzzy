@@ -23,13 +23,30 @@ from src.nextcloud_import_report import DOCUMENT_CATEGORIES, PRIVATE_PRIVACY_CLA
 
 PILOT_PLAN_SCHEMA = "odysseus.nextcloud.document_pilot_plan.v1"
 LOCAL_ONLY_PILOT_PROFILE_SCHEMA = "odysseus.nextcloud.local_only_document_pilot_profile.v1"
+LOCAL_ONLY_EXTRACTION_REVIEW_PLAN_SCHEMA = "odysseus.nextcloud.local_only_extraction_review_plan.v1"
 PILOT_PLANNER = "nextcloud_document_pilot_import"
 LOCAL_ONLY_PILOT_PROFILE_PLANNER = "nextcloud_local_only_document_pilot_profile"
+LOCAL_ONLY_EXTRACTION_REVIEW_PLANNER = "nextcloud_local_only_extraction_review_plan"
 DEFAULT_PILOT_ACTIONS = (
     "copy_to_staging",
     "extract_runtime_only",
     "persist_chunk_refs",
     "review_memory_write_intent",
+)
+LOCAL_EXTRACTION_SUPPORTED_EXTENSIONS = frozenset(
+    {
+        ".txt",
+        ".md",
+        ".markdown",
+        ".json",
+        ".csv",
+        ".tsv",
+        ".html",
+        ".htm",
+        ".xml",
+        ".docx",
+        ".pdf",
+    }
 )
 
 
@@ -162,6 +179,69 @@ class NextcloudLocalOnlyDocumentPilotProfileResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "profile": self.profile.to_dict(),
+            "appended": self.appended,
+            "ledger_summary": dict(self.ledger_summary),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NextcloudLocalOnlyExtractionReviewPlan:
+    plan_id: str
+    source_id: str
+    candidate_count: int
+    extractable_now_count: int
+    selected_count: int
+    pending_extractor_count: int
+    memory_write_candidates: int
+    review_only_candidates: int
+    skipped_non_document: int
+    interrupted: bool
+    by_extension: Mapping[str, Mapping[str, int]]
+    actions: tuple[str, ...] = (
+        "extract_runtime_only",
+        "build_redacted_analysis_packet",
+        "review_memory_write_intent",
+    )
+    dry_run: bool = True
+    writes_performed: bool = False
+    schema: str = LOCAL_ONLY_EXTRACTION_REVIEW_PLAN_SCHEMA
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "plan_id": self.plan_id,
+            "source_id": self.source_id,
+            "candidate_count": self.candidate_count,
+            "extractable_now_count": self.extractable_now_count,
+            "selected_count": self.selected_count,
+            "pending_extractor_count": self.pending_extractor_count,
+            "memory_write_candidates": self.memory_write_candidates,
+            "review_only_candidates": self.review_only_candidates,
+            "skipped_non_document": self.skipped_non_document,
+            "interrupted": self.interrupted,
+            "by_extension": {str(key): dict(value) for key, value in sorted(self.by_extension.items())},
+            "actions": self.actions,
+            "dry_run": self.dry_run,
+            "writes_performed": self.writes_performed,
+            "selected_items_redacted": True,
+            "private_path_material_required_at_runtime": True,
+            "raw_content_visible": False,
+            "raw_content_persisted": False,
+            "memory_writes_permitted": False,
+            "raptor_writes_permitted": False,
+            "secret_values_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NextcloudLocalOnlyExtractionReviewPlanResult:
+    plan: NextcloudLocalOnlyExtractionReviewPlan
+    appended: bool
+    ledger_summary: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "plan": self.plan.to_dict(),
             "appended": self.appended,
             "ledger_summary": dict(self.ledger_summary),
         }
@@ -382,6 +462,139 @@ def append_nextcloud_local_only_document_pilot_profile(
     )
 
 
+def build_nextcloud_local_only_extraction_review_plan(
+    records: Iterable[BigDataLedgerRecord | Mapping[str, Any]],
+    *,
+    source_id: str,
+    plan_id: str = "local-only-extraction-review",
+    batch_limit: int = 100,
+) -> NextcloudLocalOnlyExtractionReviewPlan:
+    """Build a redacted local extraction/review plan from inventory metadata.
+
+    This is the safe precursor to reading private/local-only files. It never
+    includes selected paths, item IDs, source text, provider output or memory
+    write payloads.
+    """
+
+    source = _safe_label(source_id, field="source_id")
+    plan = _safe_label(plan_id, field="plan_id")
+    limit = _positive_int(batch_limit, field="batch_limit")
+    candidate_count = extractable_now_count = pending_extractor_count = 0
+    memory_write_candidates = review_only_candidates = skipped_non_document = 0
+    selected_remaining = limit
+    by_extension: dict[str, dict[str, int]] = {}
+
+    for record in _inventory_records(records, source_id=source):
+        category = str(record.metadata.get("file_category") or "unknown")
+        if category not in DOCUMENT_CATEGORIES:
+            skipped_non_document += 1
+            continue
+        privacy = _privacy_payload(record)
+        if not bool(privacy.get("local_model_only")):
+            continue
+        candidate_count += 1
+        extension = _extension(record)
+        supported = _local_extraction_supported(extension)
+        bucket = by_extension.setdefault(
+            extension,
+            {"total": 0, "extractable_now": 0, "pending_extractor": 0, "selected": 0},
+        )
+        bucket["total"] += 1
+        if supported:
+            extractable_now_count += 1
+            bucket["extractable_now"] += 1
+            if selected_remaining > 0:
+                selected_remaining -= 1
+                bucket["selected"] += 1
+        else:
+            pending_extractor_count += 1
+            bucket["pending_extractor"] += 1
+        if bool(privacy.get("memory_write_candidate")):
+            memory_write_candidates += 1
+        else:
+            review_only_candidates += 1
+
+    selected_count = limit - selected_remaining
+    return NextcloudLocalOnlyExtractionReviewPlan(
+        plan_id=plan,
+        source_id=source,
+        candidate_count=candidate_count,
+        extractable_now_count=extractable_now_count,
+        selected_count=selected_count,
+        pending_extractor_count=pending_extractor_count,
+        memory_write_candidates=memory_write_candidates,
+        review_only_candidates=review_only_candidates,
+        skipped_non_document=skipped_non_document,
+        interrupted=extractable_now_count > selected_count,
+        by_extension=dict(sorted(by_extension.items())),
+    )
+
+
+def append_nextcloud_local_only_extraction_review_plan(
+    *,
+    ledger_path: str | Path,
+    source_id: str,
+    plan_id: str = "local-only-extraction-review",
+    batch_limit: int = 100,
+) -> NextcloudLocalOnlyExtractionReviewPlanResult:
+    """Append one aggregate-only local extraction/review plan."""
+
+    ledger = AppendOnlyBigDataLedger(ledger_path)
+    plan = build_nextcloud_local_only_extraction_review_plan(
+        ledger.latest_state().values(),
+        source_id=source_id,
+        plan_id=plan_id,
+        batch_limit=batch_limit,
+    )
+    if plan.selected_count <= 0:
+        return NextcloudLocalOnlyExtractionReviewPlanResult(
+            plan=plan,
+            appended=False,
+            ledger_summary=ledger.summary(),
+        )
+
+    record = BigDataLedgerRecord.create(
+        BigDataLedgerItem(
+            provider="nextcloud",
+            source_id=plan.source_id,
+            relative_path=f"Pilot Plans/{plan.plan_id}.json",
+            size_bytes=0,
+            mtime=_now_iso(),
+            content_hash="sha256:" + _local_extraction_plan_digest(plan),
+        ),
+        stage="analysis",
+        status="needs_review",
+        metadata={
+            "planner": LOCAL_ONLY_EXTRACTION_REVIEW_PLANNER,
+            "dry_run": True,
+            "review_required": True,
+            "selected_items_redacted": True,
+            "private_path_material_required_at_runtime": True,
+            "plan_id": plan.plan_id,
+            "selected_count": plan.selected_count,
+            "candidate_count": plan.candidate_count,
+            "extractable_now_count": plan.extractable_now_count,
+            "pending_extractor_count": plan.pending_extractor_count,
+            "memory_write_candidates": plan.memory_write_candidates,
+            "review_only_candidates": plan.review_only_candidates,
+            "skipped_non_document": plan.skipped_non_document,
+            "interrupted": plan.interrupted,
+            "actions": plan.actions,
+            "by_extension": dict(plan.by_extension),
+            "extraction_runtime_only": True,
+            "derived_material_persisted": False,
+            "memory_writes_permitted": False,
+            "raptor_writes_permitted": False,
+        },
+    )
+    ledger.append_record(record)
+    return NextcloudLocalOnlyExtractionReviewPlanResult(
+        plan=plan,
+        appended=True,
+        ledger_summary=ledger.summary(),
+    )
+
+
 def _inventory_records(
     records: Iterable[BigDataLedgerRecord | Mapping[str, Any]],
     *,
@@ -465,12 +678,31 @@ def _local_profile_digest(profile: NextcloudLocalOnlyDocumentPilotProfile) -> st
     ).hexdigest()
 
 
+def _local_extraction_plan_digest(plan: NextcloudLocalOnlyExtractionReviewPlan) -> str:
+    payload = "|".join(
+        f"{key}:{value.get('total', 0)}:{value.get('extractable_now', 0)}:{value.get('selected', 0)}"
+        for key, value in sorted(plan.by_extension.items())
+    )
+    return hashlib.sha256(
+        f"{plan.source_id}|{plan.plan_id}|{plan.candidate_count}|{plan.extractable_now_count}|{payload}".encode(
+            "utf-8"
+        )
+    ).hexdigest()
+
+
 def _extension(record: BigDataLedgerRecord) -> str:
     extension = str(record.metadata.get("extension") or "").strip().casefold()
     if extension:
         return extension if extension.startswith(".") else "." + extension
     suffix = Path(record.item.relative_path).suffix.casefold()
     return suffix or "(none)"
+
+
+def _local_extraction_supported(extension: str) -> bool:
+    normalized = str(extension or "").strip().casefold()
+    if normalized and not normalized.startswith("."):
+        normalized = "." + normalized
+    return normalized in LOCAL_EXTRACTION_SUPPORTED_EXTENSIONS
 
 
 def _safe_label(value: Any, *, field: str) -> str:
