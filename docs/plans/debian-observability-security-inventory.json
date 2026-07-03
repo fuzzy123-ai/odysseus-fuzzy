@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.debian_observability_security_inventory",
+  "updated_at": "2026-07-03",
+  "status": "repo_prepared_live_unverified",
+  "source_scope": "repo_only_redacted_inventory",
+  "live_observed": false,
+  "raw_content_visible": false,
+  "summary": "Safe offline inventory for the Debian Odysseus homeserver observability track. It records known service names, expected Podman groups, log sources, scrape candidates and privacy-sensitive classes without reading the live host.",
+  "runtime_assumptions": {
+    "host_profile": "debian_homeserver",
+    "container_runtime": "podman_pods",
+    "docker_default": false,
+    "promtail_new_install_allowed": false,
+    "log_agent_preference": [
+      "grafana_alloy",
+      "fluent_bit",
+      "opentelemetry_collector"
+    ],
+    "live_inventory_gate_required": true
+  },
+  "known_user_systemd_units": [
+    {
+      "unit": "odysseus-podman.service",
+      "kind": "odysseus_app_runtime",
+      "source": "mvp-master-roadmap and ops/homeserver context",
+      "live_status": "unverified"
+    },
+    {
+      "unit": "odysseus-auto-update.timer",
+      "kind": "scheduled_update",
+      "source": "ops/homeserver context and updater docs",
+      "live_status": "unverified"
+    },
+    {
+      "unit": "odysseus-auto-update.service",
+      "kind": "scheduled_update_worker",
+      "source": "ops/homeserver context and updater docs",
+      "live_status": "unverified"
+    },
+    {
+      "unit": "odysseus-homeserver-backup.timer",
+      "kind": "backup_timer",
+      "source": "mvp-master-roadmap and backup docs",
+      "live_status": "unverified"
+    },
+    {
+      "unit": "odysseus-homeserver-backup.service",
+      "kind": "backup_worker",
+      "source": "system_update_status contract",
+      "live_status": "unverified"
+    },
+    {
+      "unit": "nextcloud-podman.service",
+      "kind": "nextcloud_runtime",
+      "source": "mvp-master-roadmap and ops/homeserver nextcloud podman docs",
+      "live_status": "unverified"
+    }
+  ],
+  "expected_podman_target_groups": [
+    {
+      "group": "odysseus_core",
+      "candidate_names": [
+        "odysseus",
+        "odysseus-app",
+        "odysseus_odysseus_1"
+      ],
+      "purpose": "web api, telegram bridge, scheduler, universal inbox, memory and agent runtime",
+      "live_status": "unverified"
+    },
+    {
+      "group": "vector_memory",
+      "candidate_names": [
+        "chromadb",
+        "odysseus-chroma",
+        "odysseus_chromadb_1"
+      ],
+      "purpose": "RAG and memory vector store",
+      "live_status": "unverified"
+    },
+    {
+      "group": "search",
+      "candidate_names": [
+        "searxng",
+        "odysseus-searxng",
+        "odysseus_searxng_1"
+      ],
+      "purpose": "local search provider",
+      "live_status": "unverified"
+    },
+    {
+      "group": "notifications",
+      "candidate_names": [
+        "ntfy",
+        "odysseus-ntfy",
+        "odysseus_ntfy_1"
+      ],
+      "purpose": "optional notification backend",
+      "live_status": "unverified"
+    },
+    {
+      "group": "nextcloud",
+      "candidate_names": [
+        "nextcloud",
+        "nextcloud-app",
+        "nextcloud-db",
+        "nextcloud-redis"
+      ],
+      "purpose": "Nextcloud target and import source integration",
+      "live_status": "unverified"
+    },
+    {
+      "group": "local_models",
+      "candidate_names": [
+        "ollama",
+        "llama-cpp",
+        "vllm",
+        "gemma-maintenance"
+      ],
+      "purpose": "local maintenance and privacy-sensitive model processing",
+      "live_status": "unverified"
+    }
+  ],
+  "log_sources": [
+    {
+      "id": "systemd_user_journal",
+      "source_kind": "journal",
+      "candidate_units": [
+        "odysseus-podman.service",
+        "odysseus-auto-update.service",
+        "odysseus-homeserver-backup.service",
+        "nextcloud-podman.service"
+      ],
+      "safe_for_loki": "after_redaction_and_retention_policy",
+      "privacy_class": "service_metadata_and_error_summaries"
+    },
+    {
+      "id": "odysseus_app_log",
+      "source_kind": "file_or_container_log",
+      "candidate_refs": [
+        "data/logs/app.log",
+        "podman logs odysseus-app"
+      ],
+      "safe_for_loki": "redacted_events_preferred",
+      "privacy_class": "may_include_user_request_metadata"
+    },
+    {
+      "id": "ai_activity_ledger",
+      "source_kind": "jsonl",
+      "candidate_refs": [
+        "data/ai_activity_ledger/YYYY-MM-DD.jsonl"
+      ],
+      "safe_for_loki": "metadata_only",
+      "privacy_class": "model_provider_surface_metadata"
+    },
+    {
+      "id": "agent_run_ledger",
+      "source_kind": "jsonl",
+      "candidate_refs": [
+        "data/agent_run_ledger/*.jsonl"
+      ],
+      "safe_for_loki": "summary_only",
+      "privacy_class": "agent_tool_and_run_metadata"
+    },
+    {
+      "id": "scheduler_and_bg_jobs",
+      "source_kind": "json_and_log",
+      "candidate_refs": [
+        "data/bg_jobs.json",
+        "data/bg_jobs/*.log"
+      ],
+      "safe_for_loki": "status_summary_only",
+      "privacy_class": "task_timing_and_failure_metadata"
+    },
+    {
+      "id": "telegram_flow",
+      "source_kind": "runtime_event",
+      "candidate_refs": [
+        "runtime_event_envelope telegram surface",
+        "telegram plugin redacted flow events"
+      ],
+      "safe_for_loki": "redacted_event_metadata_only",
+      "privacy_class": "chat_bridge_metadata_without_chat_ids"
+    },
+    {
+      "id": "universal_inbox_nextcloud",
+      "source_kind": "runtime_event",
+      "candidate_refs": [
+        "universal inbox worker events",
+        "nextcloud import events"
+      ],
+      "safe_for_loki": "status_and_hashes_only",
+      "privacy_class": "document_source_metadata_sensitive"
+    },
+    {
+      "id": "raptorgraph_memory",
+      "source_kind": "runtime_event",
+      "candidate_refs": [
+        "memory provenance events",
+        "raptorgraph maintenance events"
+      ],
+      "safe_for_loki": "metadata_only",
+      "privacy_class": "memory_topology_and_provenance_sensitive"
+    },
+    {
+      "id": "crowdsec",
+      "source_kind": "security_log_or_metrics",
+      "candidate_refs": [
+        "crowdsec alerts",
+        "crowdsec decisions",
+        "crowdsec prometheus metrics"
+      ],
+      "safe_for_loki": "after_observe_only_review",
+      "privacy_class": "security_event_metadata"
+    }
+  ],
+  "candidate_scrape_endpoints": [
+    {
+      "id": "node_exporter",
+      "port": 9100,
+      "bind_policy": "localhost_or_private_network_only",
+      "status": "not_configured_by_repo"
+    },
+    {
+      "id": "prometheus",
+      "port": 9090,
+      "bind_policy": "localhost_or_private_network_only",
+      "status": "not_configured_by_repo"
+    },
+    {
+      "id": "grafana",
+      "port": 3000,
+      "bind_policy": "not_public_without_auth",
+      "status": "not_configured_by_repo"
+    },
+    {
+      "id": "loki",
+      "port": 3100,
+      "bind_policy": "localhost_or_private_network_only",
+      "status": "not_configured_by_repo"
+    },
+    {
+      "id": "odysseus_app",
+      "port": 7000,
+      "bind_policy": "authenticated_app_entrypoint_only",
+      "status": "existing_app_convention"
+    },
+    {
+      "id": "chromadb",
+      "port": 8100,
+      "bind_policy": "internal_only",
+      "status": "existing_vector_store_convention"
+    },
+    {
+      "id": "searxng",
+      "port": 8080,
+      "bind_policy": "internal_only",
+      "status": "existing_search_convention"
+    },
+    {
+      "id": "ntfy",
+      "port": 8091,
+      "bind_policy": "internal_only_or_authenticated",
+      "status": "existing_notification_convention"
+    }
+  ],
+  "privacy_sensitive_log_classes": [
+    "telegram_chat_identifiers",
+    "provider_tokens_or_authorization_headers",
+    "private_document_text",
+    "private_email_body",
+    "image_base64_or_raw_media",
+    "absolute_host_paths",
+    "nextcloud_file_names_or_paths",
+    "memory_graph_node_text",
+    "raw_tool_outputs",
+    "high_cardinality_request_values"
+  ],
+  "readonly_live_inventory_plan": {
+    "operator_gate": "debian-observability-live-go",
+    "mutation_allowed": false,
+    "commands": [
+      "systemctl --user --no-pager status <known-unit>",
+      "journalctl --user -u <known-unit> --no-pager -n 100",
+      "podman ps --format json",
+      "podman logs --tail 120 <safe-target>",
+      "podman inspect --format json <safe-target>",
+      "podman port <safe-target>"
+    ],
+    "forbidden_commands": [
+      "podman exec",
+      "podman run",
+      "podman restart",
+      "podman stop",
+      "systemctl restart",
+      "apt install",
+      "firewall mutation",
+      "crowdsec remediation"
+    ]
+  },
+  "gates": [
+    {
+      "id": "debian-observability-live-go",
+      "status": "open",
+      "blocks": "confirming live unit, pod, log and port evidence",
+      "safe_preparation_done": "repo-only redacted inventory and read-only evidence plan are prepared",
+      "risk_if_bypassed": "Live observability could expose private logs, internal ports or security topology."
+    },
+    {
+      "id": "log-retention-policy-go",
+      "status": "open",
+      "blocks": "broad Loki ingestion",
+      "safe_preparation_done": "sensitive log classes and redaction requirements are listed",
+      "risk_if_bypassed": "Private operational metadata may be retained longer than intended."
+    }
+  ]
+}

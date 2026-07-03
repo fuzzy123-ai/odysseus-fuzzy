@@ -62,7 +62,7 @@
       "id": "OBS-0-current-state-inventory",
       "class": "safe_offline",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "goal": "Inventory the Debian server runtime layout, Podman pods, systemd services, current log paths, ports and existing health endpoints without changing live services.",
       "allowed_actions": [
         "read-only SSH/systemd/podman status commands after operator Go",
@@ -72,7 +72,8 @@
       "done_when": "A redacted inventory lists services, pod names, log sources, candidate scrape endpoints and privacy-sensitive log classes.",
       "outputs": [
         "docs/plans/debian-observability-security-inventory.json"
-      ]
+      ],
+      "evidence": "Created docs/plans/debian-observability-security-inventory.json as a repo-only redacted inventory contract. It lists known user systemd units, expected Podman target groups, candidate log sources, scrape endpoints, privacy-sensitive log classes and a read-only live inventory plan. The inventory is marked live_observed=false; server confirmation remains gated by debian-observability-live-go."
     },
     {
       "id": "OBS-1-host-metrics",
@@ -279,8 +280,8 @@
     "All live installs and exposure decisions are documented as operator gates."
   ],
   "recommended_next_action": {
-    "id": "OBS-0-current-state-inventory",
-    "mode": "read-only live gate",
-    "reason": "Before installing anything, confirm the Debian server's actual Podman pods, systemd services, current log locations and existing ports."
+    "id": "OBS-4-odysseus-runtime-metrics",
+    "mode": "repo_only",
+    "reason": "OBS-0 safe-offline inventory is prepared and live confirmation is gated; the next safe slice is Odysseus runtime metrics contracts."
   }
 }

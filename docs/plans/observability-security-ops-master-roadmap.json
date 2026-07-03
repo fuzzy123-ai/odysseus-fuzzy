@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "DEB-OBS OBS-0-current-state-inventory",
-    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-7 are complete; remaining master work is live-gated observability inventory or synthetic incident tabletop validation."
+    "id": "DEB-OBS OBS-4-odysseus-runtime-metrics",
+    "reason": "ULOG-0 through ULOG-7, SIR-0 through SIR-7 and OBS-0 safe-offline inventory are complete; earlier observability install/log/CrowdSec work is live-gated, so the next safe slice is repo-only runtime metrics."
   }
 }
