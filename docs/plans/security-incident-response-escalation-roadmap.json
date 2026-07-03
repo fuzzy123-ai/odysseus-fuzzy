@@ -379,7 +379,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "E",
-      "status": "planned",
+      "status": "done",
       "goal": "Implement safe preparation of remediation actions without executing live changes.",
       "allowed_paths": [
         "src/security_remediation_actions.py",
@@ -389,7 +389,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_security_remediation_actions.py tests/test_security_response_policy.py -q"
       ],
-      "done_when": "Odysseus can prepare redacted action plans for CrowdSec temp block, restart request, scheduler pause/retry and token-rotation prep, but cannot execute them without a live gate."
+      "done_when": "Odysseus can prepare redacted action plans for CrowdSec temp block, restart request, scheduler pause/retry and token-rotation prep, but cannot execute them without a live gate.",
+      "evidence": "Implemented src/security_remediation_actions.py with prepare-only remediation plans for CrowdSec, service restart, scheduler, RaptorGraph, Nextcloud retry, token/session, Cloudflare, deploy rollback and log-level actions. Plans stay dry_run, writes_performed=false and allowed_to_execute=false even when gates are approved. Focused tests passed on 2026-07-03: 13 passed, 1 warning."
     },
     {
       "id": "SIR-8-live-tabletop-smoke",
@@ -445,7 +446,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-7-gated-remediation",
-    "reason": "SIR-0 through SIR-6 are complete; the next SIR repo-only slice is prepare-only remediation action planning."
+    "id": "SIR-8-live-tabletop-smoke",
+    "reason": "SIR-0 through SIR-7 are complete; the remaining SIR slice is live-gated synthetic tabletop validation."
   }
 }
