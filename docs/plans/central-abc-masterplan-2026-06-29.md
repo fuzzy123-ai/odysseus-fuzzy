@@ -46,6 +46,7 @@ Primary sources:
 - `docs/plans/debian-observability-security-handoff-roadmap.json`
 - `docs/plans/agent-autonomy-extensions-master-roadmap.json`
 - `docs/plans/agent-capability-expansion-master-roadmap.json`
+- `docs/plans/recent-changes-patch-notes-roadmap.md`
 - `docs/plans/unified-odysseus-roadmap.md`
 - `docs/plans/mvp-master-roadmap.md`
 - `docs/plans/mvp-roadmap-runner-state.json`
@@ -102,6 +103,7 @@ Run at most three active implementation lanes at the same time.
 | L9 Calendar MCP + Autonomous Coding Control | P0/P1 | Limited | Reminder/calendar reliability and workstation-first coding automation are now bundled in a JSON master roadmap; repo slices are done, remaining smokes are live-gated. |
 | L10 Observability + Security Ops | P0/P1 | Limited | Unified logging, MCP debugging, incident response and Debian observability are repo-complete; remaining progress is live ops setup and smoke evidence. |
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
+| L12 Recent Changes + Patch Notes | P1 | Yes | Local patch-note history helps Odysseus answer "what changed" from repo evidence; quality/privacy hardening can continue without UI work. |
 
 Integration rule:
 
@@ -1856,6 +1858,44 @@ Recommended next backend action:
 - Treat L11 as implemented for backend capability. Start a new L11 slice only
   for a concrete bounded pilot, regression, or UI-agent backend contract gap.
 
+## Active Lane L12: Recent Changes + Patch Notes
+
+Goal:
+
+Odysseus can answer questions about recent local changes, patch notes and
+updates from persistent repo snapshots instead of stale memory or external
+research, while keeping private paths, generated output and attachment noise
+out of agent-visible summaries.
+
+Primary source docs:
+
+- `docs/plans/recent-changes-patch-notes-roadmap.md`
+- `src/recent_changes.py`
+- `routes/recent_changes_routes.py`
+- `src/tool_domains/repo_skills.py`
+- `src/system_update_status.py`
+
+Current evidence:
+
+- Foundation collection, history, read APIs, update-status integration and
+  agent tool wiring exist.
+- 2026-07-03 RCH4 quality hardening added low-cardinality `change_evidence`,
+  rendered `Areas` output and stronger noisy-path filtering.
+- 2026-07-03 RCH7 collector/route privacy hardening removed absolute
+  `repo_root` persistence, hashes repo identity and keeps admin-gated routes.
+- Focused verification passed:
+  `tests/test_recent_changes.py tests/test_system_update_status.py tests/test_repo_recent_memory.py`
+  returned `20 passed, 1 warning`.
+
+Open gates / next slices:
+
+- `RCH5-retention-and-automation`: define startup/update/pre-update/post-update
+  retention and dedupe policy without live update execution.
+- `RCH6-agent-behavior-gates`: add focused tests that "letzte 12h",
+  "Neuerungen", "Patch Notes" and update questions route to `recent_changes`.
+- `RCH3-patch-notes-button`: design/UI-owned; do not implement from backend
+  ABC while the UI agent owns placement.
+
 ## Current Master Status
 
 | Lane | Status | Why not complete |
@@ -1871,6 +1911,7 @@ Recommended next backend action:
 | L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
+| L12 Recent Changes + Patch Notes | in progress | Foundation and RCH4/RCH7 collector privacy are implemented and tested; retention/automation policy and agent behavior routing tests remain repo-only follow-ups, while the patch-notes button is UI-owned. |
 
 Recommended next human decision:
 
@@ -1901,3 +1942,6 @@ Recommended next human decision:
 - For L11, use the existing autonomy pipeline for a concrete bounded pilot only
   after target/crawl/sandbox/memory-write constraints are stated; otherwise
   hand UI/operator placement to the UI track.
+- For L12, continue with `RCH5-retention-and-automation` or
+  `RCH6-agent-behavior-gates`; do not build the patch-notes button in this
+  backend track.

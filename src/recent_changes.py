@@ -28,9 +28,11 @@ MAX_RENDERED_ITEMS = 30
 _SKIP_DIRS = {
     ".agents",
     ".codex",
+    ".codex-remote-attachments",
     ".git",
     ".impeccable",
     ".pytest_cache",
+    ".tmp",
     "__pycache__",
     "backups",
     "data",
@@ -43,6 +45,7 @@ _SKIP_DIRS = {
 _SKIP_PREFIXES = (
     ".agents/",
     ".codex/",
+    ".codex-remote-attachments/",
     ".impeccable/",
     ".pytest-tmp",
     ".tmp",
@@ -110,6 +113,16 @@ def _should_skip_rel(rel_path: str) -> bool:
         any(normalized.startswith(prefix) for prefix in _SKIP_PREFIXES)
         or any(normalized.endswith(suffix) for suffix in _SKIP_SUFFIXES)
     )
+
+
+def _repo_fingerprint(repo: Path) -> str:
+    return hashlib.sha256(str(repo).lower().encode("utf-8")).hexdigest()[:16]
+
+
+def _redact_git_error(text: str, repo: Path) -> str:
+    redacted = (text or "").replace(str(repo), "<repo>")
+    redacted = redacted.replace(str(repo).replace("\\", "/"), "<repo>")
+    return redacted[:500]
 
 
 def _parse_log(output: str) -> list[dict[str, str]]:
@@ -199,7 +212,7 @@ def _domain_for_path(path: str) -> str:
     if path.startswith("plugins/telegram/") or "telegram" in path:
         return "Telegram"
     if path.startswith("plugins/obsidian/") or "obsidian" in path or "orca" in path:
-        return "Obsidian"
+        return "Memory/RaptorGraph"
     if path.startswith("static/") or path.startswith("routes/") or path.startswith("app.py"):
         return "UI/API"
     if path.startswith("docs/"):
@@ -217,22 +230,40 @@ def _domain_for_path(path: str) -> str:
     return "Core"
 
 
+def _change_evidence(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    domains: dict[str, dict[str, Any]] = {}
+
+    def add_path(path: str, *, status: str) -> None:
+        if not path or _should_skip_rel(path):
+            return
+        domain = _domain_for_path(path)
+        entry = domains.setdefault(domain, {"domain": domain, "count": 0, "paths": []})
+        entry["count"] += 1
+        if len(entry["paths"]) < 6 and path not in entry["paths"]:
+            entry["paths"].append(path)
+
+    for item in snapshot.get("tracked_changes") or []:
+        add_path(str(item.get("path") or ""), status=str(item.get("status") or "tracked"))
+    for path in snapshot.get("untracked_files") or []:
+        add_path(str(path), status="untracked")
+    for item in snapshot.get("recent_files") or []:
+        add_path(str(item.get("path") or ""), status="recent")
+
+    return sorted(domains.values(), key=lambda item: (-int(item["count"]), str(item["domain"])))[:10]
+
+
 def _summarize(snapshot: dict[str, Any]) -> list[str]:
     commits = snapshot.get("commits") or []
     tracked = snapshot.get("tracked_changes") or []
     untracked = snapshot.get("untracked_files") or []
     recent = snapshot.get("recent_files") or []
-    domains: dict[str, int] = {}
-    for item in [*tracked, *({"path": p} for p in untracked), *recent]:
-        path = str(item.get("path") or "")
-        if path:
-            domains[_domain_for_path(path)] = domains.get(_domain_for_path(path), 0) + 1
+    evidence = snapshot.get("change_evidence") or _change_evidence(snapshot)
     lines = [
         f"{len(commits)} commit(s), {len(tracked)} tracked file(s), {len(untracked)} new untracked file(s), {len(recent)} recently modified file(s)."
     ]
-    if domains:
-        top = sorted(domains.items(), key=lambda item: (-item[1], item[0]))[:8]
-        lines.append("Main areas: " + ", ".join(f"{name} ({count})" for name, count in top) + ".")
+    if evidence:
+        top = evidence[:8]
+        lines.append("Main areas: " + ", ".join(f"{item['domain']} ({item['count']})" for item in top) + ".")
     if commits:
         lines.append("Latest commits: " + "; ".join(c["subject"] for c in commits[:5]) + ".")
     return lines
@@ -246,6 +277,13 @@ def render_patch_notes(snapshot: dict[str, Any]) -> str:
     ]
     for summary in snapshot.get("summary") or []:
         lines.append(f"- {summary}")
+    evidence = snapshot.get("change_evidence") or []
+    if evidence:
+        lines.extend(["", "Areas:"])
+        for item in evidence[:MAX_RENDERED_ITEMS]:
+            paths = ", ".join(item.get("paths") or [])
+            suffix = f": {paths}" if paths else ""
+            lines.append(f"- {item.get('domain')} ({item.get('count')}){suffix}")
     commits = snapshot.get("commits") or []
     if commits:
         lines.extend(["", "Commits:"])
@@ -360,9 +398,14 @@ def collect_recent_changes(
         "generated_at": _iso(now),
         "since": _iso(since),
         "hours": hours,
-        "repo_root": str(repo),
+        "repo_name": repo.name,
+        "repo_fingerprint": _repo_fingerprint(repo),
         "git_available": all(result.ok for result in (log, name_status, numstat, diff_stat, untracked)),
-        "git_errors": [result.stderr for result in (log, name_status, numstat, diff_stat, untracked) if not result.ok and result.stderr],
+        "git_errors": [
+            _redact_git_error(result.stderr, repo)
+            for result in (log, name_status, numstat, diff_stat, untracked)
+            if not result.ok and result.stderr
+        ],
         "commits": _parse_log(log.stdout if log.ok else ""),
         "tracked_changes": tracked_changes,
         "numstat": _parse_numstat(numstat.stdout if numstat.ok else ""),
@@ -374,6 +417,7 @@ def collect_recent_changes(
         ][:MAX_LIST_ITEMS],
         "recent_files": _recent_files(repo, since),
     }
+    payload["change_evidence"] = _change_evidence(payload)
     payload["summary"] = _summarize(payload)
     payload["fingerprint"] = _fingerprint(payload)
     payload["id"] = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{payload['fingerprint'][:10]}"

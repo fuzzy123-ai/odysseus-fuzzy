@@ -38,6 +38,11 @@ def test_recent_changes_collects_dirty_and_untracked_files(tmp_path):
     assert snapshot["persisted"] is True
     assert any(item["path"] == "src/feature.py" for item in snapshot["tracked_changes"])
     assert "docs/patch.md" in snapshot["untracked_files"]
+    assert "repo_root" not in snapshot
+    assert snapshot["repo_name"] == "repo"
+    assert snapshot["repo_fingerprint"]
+    assert any(item["domain"] == "Docs/Roadmaps" for item in snapshot["change_evidence"])
+    assert "Areas:" in snapshot["patch_notes"]
     assert "Tracked changes:" in snapshot["patch_notes"]
     assert "New files:" in snapshot["patch_notes"]
 
@@ -66,3 +71,38 @@ def test_recent_changes_history_dedupes_and_reads_latest(tmp_path):
     latest = read_change_snapshot("latest", history_dir=history_dir)
     assert latest is not None
     assert latest["id"] == first["id"]
+
+
+def test_recent_changes_skips_private_attachment_and_output_noise(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    readme = repo / "README.md"
+    readme.write_text("one\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+
+    private_attachment = repo / ".codex-remote-attachments" / "secret" / "photo.jpg"
+    private_attachment.parent.mkdir(parents=True)
+    private_attachment.write_bytes(b"private")
+    generated_output = repo / "output" / "debug.txt"
+    generated_output.parent.mkdir()
+    generated_output.write_text("noise\n", encoding="utf-8")
+    useful = repo / "src" / "new_feature.py"
+    useful.parent.mkdir()
+    useful.write_text("print('ok')\n", encoding="utf-8")
+
+    snapshot = collect_recent_changes(
+        repo_root=repo,
+        history_dir=tmp_path / "history",
+        hours=12,
+        persist=False,
+    )
+
+    rendered = snapshot["patch_notes"]
+    assert ".codex-remote-attachments" not in rendered
+    assert "output/debug.txt" not in rendered
+    assert "src/new_feature.py" in rendered
+    assert str(repo) not in rendered

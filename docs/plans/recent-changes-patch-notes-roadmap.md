@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **ready for Master Chat intake**
+Status: **backend quality/privacy hardening in progress; RCH4 done, RCH7 collector/route privacy done**
 
 Mode: **Standard ABC**
 
@@ -13,8 +13,8 @@ Master Chat, bitte diese Roadmap in die aktive Master-Roadmap aufnehmen:
 - Ziel: Odysseus soll Fragen wie "Was gab es in den letzten 12h Neues?" ohne externe Recherche korrekt beantworten und dieselbe Aenderungshistorie spaeter als Patch-Notes-Interface anzeigen.
 - Roadmap: `docs/plans/recent-changes-patch-notes-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/unified-odysseus-roadmap.md`, `docs/plans/mvp-master-roadmap.md`, `docs/plans/updater-live-boundary-contract.md` und `docs/plans/updates-backups-ui-operator-contract.md`.
-- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; UI, Retention und Master-Roadmap-Closeout bleiben Follow-up.
-- Naechster sicherer Slice: `RCH2-master-roadmap-intake`.
+- Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation ist bereits umgesetzt; Change-Quality/Privacy wurden weiter gehaertet; UI, Retention und weitergehende Agent-Behavior-Gates bleiben Follow-up.
+- Naechster sicherer Slice: `RCH5-retention-and-automation` oder `RCH6-agent-behavior-gates`.
 - Owner-Vorschlag: Charlie koordiniert Roadmap/Status, Bob haertet Backend/Tests, Alice definiert UI- und Patch-Notes-Sprache.
 
 ## Goal
@@ -23,7 +23,7 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 
 ## Current Evidence
 
-- `src/recent_changes.py` sammelt und speichert Snapshots unter `data/recent_changes`.
+- `src/recent_changes.py` sammelt und speichert Snapshots unter `data/recent_changes`, ohne absolute Repo-Pfade im Snapshot zu persistieren.
 - `routes/recent_changes_routes.py` stellt Admin-APIs fuer aktuelle Aenderungen, Historie und einzelne Snapshots bereit.
 - `src/tool_implementations.py`, `src/tool_schemas.py`, `src/tool_execution.py`, `src/agent_loop.py` und `src/tool_index.py` verdrahten das Tool `recent_changes` fuer Agent-Fragen nach Neuerungen, Aenderungen und Patch Notes.
 - `src/system_update_status.py` verknuepft Recent Changes mit Update-Status und Update-Check.
@@ -45,10 +45,57 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH1-foundation` | `done` | Bob/Charlie | Persistente Snapshots, API, Agent-Tool, Update-Status-Link und Basistests bereitstellen. | `src/`, `routes/`, `tests/`, `static/js/admin.js` | `pytest tests/test_recent_changes.py tests/test_system_update_status.py`, `py_compile`, `node --check` | done |
 | `RCH2-master-roadmap-intake` | `repo_only` | Charlie | Track in `unified-odysseus-roadmap.md` und/oder `mvp-master-roadmap.md` einsortieren, ohne laufende Hotfiles zu ueberschreiben. | `docs/plans/` | docs-only/no tests | Master Chat decision |
 | `RCH3-patch-notes-button` | `needs_design` | Alice/Bob | Nutzer- oder Admin-Button fuer Patch Notes bauen: latest, history, read snapshot, optional "collect now". | `static/`, `routes/`, `src/`, `tests/` narrow UI/API files | focused route tests plus browser/static smoke if UI touched | design_go |
-| `RCH4-change-quality` | `repo_only` | Bob | Zusammenfassung, Filter, Kategorien und File-Link-Evidence verbessern; untracked Noise weiter reduzieren. | `src/recent_changes.py`, `tests/test_recent_changes.py` | focused pytest | none |
+| `RCH4-change-quality` | `done` | Bob | Zusammenfassung, Filter, Kategorien und File-Link-Evidence verbessern; untracked Noise weiter reduzieren. | `src/recent_changes.py`, `tests/test_recent_changes.py` | done: `3 passed, 1 warning` | none |
 | `RCH5-retention-and-automation` | `repo_only` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | focused pytest | no live update action |
 | `RCH6-agent-behavior-gates` | `repo_only` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop.py`, tool schema/tests | focused intent/tool-selection tests | none |
-| `RCH7-security-privacy-closeout` | `repo_only` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/`, `routes/`, `tests/`, `docs/plans/` | focused pytest/static review | none |
+| `RCH7-security-privacy-closeout` | `partial_done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/`, `routes/`, `tests/`, `docs/plans/` | collector/route privacy done: `3 passed, 1 warning`; broader agent-route privacy static review remains | none |
+
+## Progress Evidence
+
+### RCH4 Change Quality
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- Recent-change snapshots now include `change_evidence` with low-cardinality
+  domain buckets and representative repo-relative paths.
+- Rendered patch notes include an `Areas` section before commits/tracked/new
+  files, so agent and future UI answers can point to concrete changed areas
+  without reading raw diffs.
+- Private/noisy paths such as `.codex-remote-attachments/`, `.tmp/` and
+  `output/` are skipped from untracked and recently-touched evidence.
+- Legacy `Obsidian` display vocabulary in the domain classifier was replaced
+  with `Memory/RaptorGraph`.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_recent_changes.py -q
+```
+
+Result: `3 passed, 1 warning`.
+
+### RCH7 Collector/Route Privacy Closeout
+
+Status: partial done 2026-07-03.
+
+Implemented:
+
+- Snapshots no longer persist `repo_root`; they store `repo_name` and a short
+  `repo_fingerprint` instead.
+- Git error diagnostics replace the absolute repo path with `<repo>` before
+  persistence.
+- `routes/recent_changes_routes.py` remains admin-gated through
+  `require_admin(request)` for collect, history and read endpoints.
+- Tests assert that rendered patch notes do not expose the absolute test repo
+  path, private remote-attachment noise or generated `output/` files.
+
+Remaining:
+
+- Broader RCH7 static review can still inspect agent-tool return payloads,
+  update-status summaries and route tests together before closing the slice
+  completely.
 
 ## Done Definition
 
