@@ -265,6 +265,24 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
         if first_arg in {"status", "state", "info", ""}:
             return "agent_task_status"
         return "agent_task_help"
+    if command in {"/calendar", "/kalender"}:
+        if arg in {"agenda", "today", "heute", "morgen"}:
+            return "calendar_agenda"
+        if arg in {"reminder", "reminders", "erinnerung", "erinnerungen"}:
+            return "calendar_reminders_status"
+        return "calendar_readiness"
+    if command in {"/agenda", "/termine"}:
+        return "calendar_agenda"
+    if command in {"/remind", "/reminder", "/reminders", "/erinnerung", "/erinnerungen"}:
+        if arg in {"status", "state", "info", "list", "liste", ""}:
+            return "calendar_reminders_status"
+        if arg in {"update", "edit", "aendere"}:
+            return "calendar_reminder_update"
+        return "calendar_reminder_create"
+    if command in {"/todo", "/todos", "/todo_digest", "/tododigest"}:
+        if arg in {"status", "state", "info", "list", "liste", ""}:
+            return "calendar_todo_status"
+        return "calendar_todo_digest_create"
     if command in {"/dsgvo", "/gdpr", "/privacy", "/datenschutz"}:
         if arg in {"on", "an", "1", "true", "aktiv", "active", "enable", "enabled", "aktivieren"}:
             return "dsgvo_enable"

@@ -148,7 +148,7 @@
       "id": "CAL-MCP-5-telegram-remote-control",
       "class": "repo_only",
       "owner": "Alice",
-      "status": "planned",
+      "status": "done",
       "goal": "Route Telegram reminder and todo automation through the capability service so mobile commands inspect/update existing reminders before creating new ones.",
       "allowed_paths": [
         "plugins/telegram/plugin.py",
@@ -160,7 +160,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_telegram_plugin.py tests/test_calendar_capability_service.py -q"
       ],
-      "done_when": "Telegram can ask status, create a reminder, update a reminder and receive precise feedback when clarification or confirmation is needed."
+      "done_when": "Telegram can ask status, create a reminder, update a reminder and receive precise feedback when clarification or confirmation is needed.",
+      "evidence": "Telegram control commands now cover /calendar, /agenda, /reminders, /remind create/update and /todo digest; they use calendar capability service helpers, avoid agent turns for control commands, create one canonical Telegram todo-digest task for Mo-Fr schedules, and focused tests cover status, create, update and duplicate-safe digest behavior."
     },
     {
       "id": "CAL-MCP-6-caldav-nextcloud-readiness",

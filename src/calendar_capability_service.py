@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
+import re
+import uuid
 
 
 CALENDAR_CAPABILITY_SCHEMA = "odysseus.calendar_capability.v1"
@@ -189,6 +191,198 @@ def build_todo_digest_schedule_plan(
         "next_run": next_run.isoformat() if next_run else None,
         "raw_content_visible": False,
     }
+
+
+def write_reminder_note(
+    *,
+    owner: str | None = None,
+    action: str = "add",
+    note_id: str = "",
+    title: str = "",
+    due_date: Any | None = None,
+    label: str = "calendar",
+) -> dict[str, Any]:
+    """Create or update a due note reminder through the calendar capability."""
+
+    normalized_action = str(action or "add").replace("-", "_").strip().lower()
+    normalized_action = {"create": "add", "new": "add", "remind": "add", "edit": "update"}.get(
+        normalized_action,
+        normalized_action,
+    )
+    if normalized_action not in {"add", "update"}:
+        return _write_error("Unsupported reminder action. Use add or update.")
+
+    safe_title = _safe_text(title, max_len=180)
+    due_iso = _normalize_due_date(due_date) if due_date not in (None, "") else ""
+    if normalized_action == "add" and (not safe_title or not due_iso):
+        return _write_error("Reminder create needs title and due_date.", status="clarification_required")
+    if normalized_action == "update" and (not note_id or (not safe_title and not due_iso)):
+        return _write_error(
+            "Reminder update needs an id and at least a new title or due_date.",
+            status="clarification_required",
+        )
+
+    from core.database import Note, SessionLocal
+
+    db = SessionLocal()
+    try:
+        if normalized_action == "add":
+            existing_q = db.query(Note).filter(
+                Note.archived == False,  # noqa: E712
+                Note.due_date == due_iso,
+            )
+            if owner is not None:
+                existing_q = existing_q.filter(Note.owner == owner)
+            target_title = _normalize_reminder_title(safe_title)
+            for existing in existing_q.limit(25).all():
+                if _normalize_reminder_title(getattr(existing, "title", "") or "") == target_title:
+                    return {
+                        "schema": CALENDAR_CAPABILITY_SCHEMA,
+                        "status": "duplicate",
+                        "action": "add",
+                        "note_id": existing.id,
+                        "title": _safe_text(existing.title or safe_title, max_len=180),
+                        "due_date": due_iso,
+                        "raw_content_visible": False,
+                    }
+            note = Note(
+                id=str(uuid.uuid4()),
+                owner=owner,
+                title=safe_title,
+                content=None,
+                note_type="todo",
+                label=_safe_text(label, max_len=80),
+                due_date=due_iso,
+                source="telegram",
+            )
+            db.add(note)
+            db.commit()
+            return {
+                "schema": CALENDAR_CAPABILITY_SCHEMA,
+                "status": "created",
+                "action": "add",
+                "note_id": note.id,
+                "title": safe_title,
+                "due_date": due_iso,
+                "raw_content_visible": False,
+            }
+
+        note = _note_by_prefix(db, Note, note_id, owner=owner)
+        if note is None:
+            return _write_error("Reminder not found.", status="not_found")
+        if safe_title:
+            note.title = safe_title
+        if due_iso:
+            note.due_date = due_iso
+        db.commit()
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "status": "updated",
+            "action": "update",
+            "note_id": note.id,
+            "title": _safe_text(note.title or "", max_len=180),
+            "due_date": str(note.due_date or ""),
+            "raw_content_visible": False,
+        }
+    finally:
+        db.close()
+
+
+def write_todo_digest_schedule(
+    *,
+    owner: str | None = None,
+    scheduled_time: str = "09:00",
+    weekdays: Iterable[int] | str = (0, 1, 2, 3, 4),
+    output_target: str = "telegram",
+    name: str = "Weekday todo digest",
+    label: str = "",
+    list_filter: str = "",
+) -> dict[str, Any]:
+    """Create or update the canonical single Telegram todo-digest task."""
+
+    from core.database import ScheduledTask, SessionLocal
+    from src.task_scheduler import compute_next_run
+    from src.task_scheduler_helpers import resolve_task_timezone
+
+    try:
+        plan = build_todo_digest_schedule_plan(
+            owner=owner,
+            scheduled_time=scheduled_time,
+            weekdays=weekdays,
+            output_target=output_target,
+            name=name,
+            label=label,
+            list_filter=list_filter,
+        )
+    except CalendarCapabilityError as exc:
+        return _write_error(str(exc), status="clarification_required")
+
+    payload = dict(plan["task_payload"])
+    db = SessionLocal()
+    try:
+        existing = find_compatible_weekday_task(db, ScheduledTask, owner=owner, args=payload)
+        if existing is not None:
+            payload, merge_info = merge_weekday_task_args(existing, payload)
+            existing.name = payload.get("name") or existing.name
+            existing.prompt = payload.get("prompt") or existing.prompt
+            existing.output_target = payload.get("output_target") or existing.output_target
+            existing.task_type = payload.get("task_type", "action")
+            existing.action = payload.get("action_name")
+            existing.trigger_type = payload.get("trigger_type", "schedule")
+            existing.schedule = payload.get("schedule")
+            existing.scheduled_time = payload.get("scheduled_time")
+            existing.scheduled_day = payload.get("scheduled_day")
+            existing.cron_expression = payload.get("cron_expression")
+            existing.next_run = compute_next_run(
+                existing.schedule,
+                existing.scheduled_time,
+                existing.scheduled_day,
+                cron_expression=existing.cron_expression,
+                tz_name=resolve_task_timezone(db, existing),
+            )
+            db.commit()
+            return {
+                "schema": CALENDAR_CAPABILITY_SCHEMA,
+                "status": "updated",
+                "kind": "todo_digest_schedule",
+                "task_id": existing.id,
+                "single_task": True,
+                "cron_expression": existing.cron_expression,
+                "merge_info": merge_info,
+                "raw_content_visible": False,
+            }
+
+        task_id = str(uuid.uuid4())
+        next_run = _parse_datetime(plan.get("next_run"))
+        task = ScheduledTask(
+            id=task_id,
+            owner=owner,
+            name=payload.get("name") or "Weekday todo digest",
+            prompt=payload.get("prompt"),
+            task_type=payload.get("task_type", "action"),
+            action=payload.get("action_name"),
+            schedule=payload.get("schedule"),
+            scheduled_time=payload.get("scheduled_time"),
+            scheduled_day=payload.get("scheduled_day"),
+            cron_expression=payload.get("cron_expression"),
+            trigger_type=payload.get("trigger_type", "schedule"),
+            next_run=next_run,
+            status="active",
+            output_target=payload.get("output_target", "telegram"),
+        )
+        db.add(task)
+        db.commit()
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "status": "created",
+            "kind": "todo_digest_schedule",
+            "task_id": task.id,
+            "single_task": True,
+            "cron_expression": task.cron_expression,
+            "raw_content_visible": False,
+        }
+    finally:
+        db.close()
 
 
 def normalize_task_create_args(args: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -383,6 +577,43 @@ def _safe_text(value: Any, *, max_len: int) -> str:
     return text
 
 
+def _write_error(message: str, *, status: str = "error") -> dict[str, Any]:
+    return {
+        "schema": CALENDAR_CAPABILITY_SCHEMA,
+        "status": status,
+        "error": _safe_text(message, max_len=180),
+        "raw_content_visible": False,
+    }
+
+
+def _normalize_due_date(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        from routes.calendar_routes import parse_due_for_user
+
+        parsed = parse_due_for_user(text)
+        return str(parsed or text)
+    except Exception:
+        return text
+
+
+def _normalize_reminder_title(value: str) -> str:
+    text = re.sub(r"^\s*reminder\s*:\s*", "", str(value or "").strip().lower())
+    return re.sub(r"\s+", " ", text)
+
+
+def _note_by_prefix(db: Any, note_model: Any, note_id: str, *, owner: str | None) -> Any | None:
+    prefix = str(note_id or "").strip()
+    if not prefix:
+        return None
+    query = db.query(note_model).filter(note_model.id.startswith(prefix))
+    if owner is not None:
+        query = query.filter(note_model.owner == owner)
+    return query.first()
+
+
 def _safe_output_target(value: Any) -> str:
     text = str(value or "session").strip().lower()
     if text in {"telegram", "notification:telegram", "session", "notification"}:
@@ -436,11 +667,28 @@ def _normalize_weekdays(values: Iterable[int]) -> tuple[int, ...]:
 def _iter_weekday_values(values: Any) -> Iterable[int]:
     if isinstance(values, str):
         parts = [part.strip() for part in values.replace(";", ",").split(",")]
-        return [_weekday_value(part) for part in parts if part]
+        expanded: list[int] = []
+        for part in parts:
+            if not part:
+                continue
+            expanded.extend(_expand_weekday_part(part))
+        return expanded
     try:
         return [_weekday_value(value) for value in values]
     except TypeError:
         return [_weekday_value(values)]
+
+
+def _expand_weekday_part(value: str) -> list[int]:
+    text = str(value or "").strip()
+    if "-" not in text:
+        return [_weekday_value(text)]
+    start_text, end_text = (part.strip() for part in text.split("-", 1))
+    start = _weekday_value(start_text)
+    end = _weekday_value(end_text)
+    if end < start:
+        raise CalendarCapabilityError("weekday ranges must be ascending")
+    return list(range(start, end + 1))
 
 
 def _weekday_value(value: Any) -> int:

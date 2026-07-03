@@ -13,7 +13,7 @@ import os
 import hashlib
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -461,6 +461,215 @@ def _public_agent_task_record(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _telegram_control_owner(memory_owner: str | None) -> str | None:
+    owner = str(memory_owner or "").strip()
+    return owner or None
+
+
+def _telegram_command_tail(message: dict[str, Any]) -> str:
+    text = str(message.get("text") or "").strip()
+    return text.split(maxsplit=1)[1].strip() if len(text.split(maxsplit=1)) > 1 else ""
+
+
+def _strip_action_word(value: str, words: set[str]) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    parts = text.split(maxsplit=1)
+    first = parts[0].lower()
+    return parts[1].strip() if first in words and len(parts) > 1 else ("" if first in words else text)
+
+
+def _parse_reminder_tail(tail: str) -> dict[str, str]:
+    text = str(tail or "").strip()
+    if not text:
+        return {}
+    if "|" in text:
+        due, title = (part.strip() for part in text.split("|", 1))
+        return {"due_date": due, "title": title}
+    iso_match = re.match(r"^(\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2})?)\s+(.+)$", text)
+    if iso_match:
+        return {"due_date": iso_match.group(1), "title": iso_match.group(2).strip()}
+    time_match = re.match(r"^(\d{1,2}:\d{2})\s+(.+)$", text)
+    if time_match:
+        return {"due_date": f"today at {time_match.group(1)}", "title": time_match.group(2).strip()}
+    return {"title": text}
+
+
+def _parse_reminder_update_tail(tail: str) -> dict[str, str]:
+    text = _strip_action_word(tail, {"update", "edit", "aendere"}).strip()
+    if not text:
+        return {}
+    parts = text.split(maxsplit=1)
+    note_id = parts[0].strip()
+    parsed = _parse_reminder_tail(parts[1] if len(parts) > 1 else "")
+    parsed["note_id"] = note_id
+    return parsed
+
+
+def _parse_todo_digest_tail(tail: str) -> dict[str, str]:
+    text = _strip_action_word(tail, {"digest", "liste", "todo", "todos"}).strip()
+    if not text:
+        return {"scheduled_time": "09:00", "weekdays": "mo-fr"}
+    time_match = re.search(r"\b(\d{1,2}:\d{2})\b", text)
+    weekdays_match = re.search(
+        r"\b(mo(?:ntag)?|di(?:enstag)?|mi(?:ttwoch)?|do(?:nnerstag)?|fr(?:eitag)?|sa(?:mstag)?|so(?:nntag)?)(?:\s*-\s*(mo(?:ntag)?|di(?:enstag)?|mi(?:ttwoch)?|do(?:nnerstag)?|fr(?:eitag)?|sa(?:mstag)?|so(?:nntag)?))?\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if weekdays_match and weekdays_match.group(2):
+        weekdays = f"{weekdays_match.group(1)}-{weekdays_match.group(2)}"
+    elif weekdays_match:
+        weekdays = weekdays_match.group(1)
+    else:
+        weekdays = "mo-fr"
+    return {"scheduled_time": time_match.group(1) if time_match else "09:00", "weekdays": weekdays.lower()}
+
+
+def _format_calendar_readiness_for_telegram(readiness: dict[str, Any]) -> str:
+    return (
+        "Kalender-Status: bereit. "
+        f"{int(readiness.get('calendars') or 0)} Kalender, "
+        f"{int(readiness.get('events') or 0)} Termine, "
+        f"{int(readiness.get('due_notes') or 0)} Erinnerungen, "
+        f"{int(readiness.get('active_telegram_tasks') or 0)} aktive Telegram-Tasks. "
+        f"CalDAV Writebacks offen: {int(readiness.get('pending_caldav_writebacks') or 0)}."
+    )
+
+
+def _format_agenda_for_telegram(packet: dict[str, Any], *, reminders_only: bool = False) -> str:
+    counts = packet.get("counts") if isinstance(packet.get("counts"), dict) else {}
+    if reminders_only:
+        notes = packet.get("due_notes") if isinstance(packet.get("due_notes"), list) else []
+        tasks = packet.get("scheduled_tasks") if isinstance(packet.get("scheduled_tasks"), list) else []
+        lines = [
+            f"Erinnerungen: {int(counts.get('due_notes') or 0)} due notes, {int(counts.get('scheduled_tasks') or 0)} geplante Tasks."
+        ]
+        for item in notes[:5]:
+            lines.append(f"- {item.get('title') or 'Reminder'}: {item.get('due_date') or ''}")
+        for item in tasks[:5]:
+            lines.append(f"- {item.get('name') or 'Task'}: {item.get('next_run') or ''}")
+        return "\n".join(lines)
+
+    lines = [
+        f"Agenda: {int(counts.get('events') or 0)} Termine, {int(counts.get('due_notes') or 0)} Erinnerungen, {int(counts.get('scheduled_tasks') or 0)} Tasks."
+    ]
+    for item in (packet.get("events") if isinstance(packet.get("events"), list) else [])[:5]:
+        lines.append(f"- {item.get('summary') or 'Termin'}: {item.get('dtstart') or ''}")
+    for item in (packet.get("due_notes") if isinstance(packet.get("due_notes"), list) else [])[:5]:
+        lines.append(f"- {item.get('title') or 'Reminder'}: {item.get('due_date') or ''}")
+    return "\n".join(lines)
+
+
+def _format_calendar_write_for_telegram(result: dict[str, Any], *, noun: str) -> str:
+    status = str(result.get("status") or "error")
+    if status == "clarification_required":
+        return f"{noun}: Ich brauche noch genauere Angaben. {result.get('error') or ''}".strip()
+    if status == "not_found":
+        return f"{noun}: Ziel nicht gefunden. Nutze /reminders fuer die aktuelle Liste."
+    if status in {"created", "updated", "duplicate"}:
+        verb = {"created": "erstellt", "updated": "aktualisiert", "duplicate": "existiert bereits"}[status]
+        ident = str(result.get("note_id") or result.get("task_id") or "")[:8]
+        suffix = f" ID {ident}." if ident else "."
+        return f"{noun} {verb}.{suffix}"
+    return f"{noun}: blockiert ({result.get('error') or status})."
+
+
+def _handle_calendar_control_command(
+    command: str,
+    *,
+    message: dict[str, Any],
+    raw_chat_id: str,
+    reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None,
+    memory_owner: str | None,
+) -> dict[str, Any] | None:
+    if not command.startswith("calendar_"):
+        return None
+    from src.calendar_capability_service import (
+        build_agenda_packet,
+        build_calendar_readiness,
+        write_reminder_note,
+        write_todo_digest_schedule,
+    )
+
+    owner = _telegram_control_owner(memory_owner)
+    bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    reply_text = ""
+    payload: dict[str, Any] = {}
+    status = command
+    try:
+        if command == "calendar_readiness":
+            payload = build_calendar_readiness(owner=owner)
+            reply_text = _format_calendar_readiness_for_telegram(payload)
+            status = "calendar_ready"
+        elif command == "calendar_agenda":
+            payload = build_agenda_packet(owner=owner, start=now, end=now + timedelta(days=7))
+            reply_text = _format_agenda_for_telegram(payload)
+            status = "calendar_agenda"
+        elif command in {"calendar_reminders_status", "calendar_todo_status"}:
+            payload = build_agenda_packet(owner=owner, start=now, end=now + timedelta(days=30))
+            reply_text = _format_agenda_for_telegram(payload, reminders_only=True)
+            status = command
+        elif command == "calendar_reminder_create":
+            parsed = _parse_reminder_tail(_strip_action_word(
+                _telegram_command_tail(message),
+                {"add", "create", "new", "set", "erinnere"},
+            ))
+            payload = write_reminder_note(
+                owner=owner,
+                action="add",
+                title=parsed.get("title", ""),
+                due_date=parsed.get("due_date", ""),
+            )
+            reply_text = _format_calendar_write_for_telegram(payload, noun="Erinnerung")
+            status = f"calendar_reminder_{payload.get('status') or 'error'}"
+        elif command == "calendar_reminder_update":
+            parsed = _parse_reminder_update_tail(_telegram_command_tail(message))
+            payload = write_reminder_note(
+                owner=owner,
+                action="update",
+                note_id=parsed.get("note_id", ""),
+                title=parsed.get("title", ""),
+                due_date=parsed.get("due_date", ""),
+            )
+            reply_text = _format_calendar_write_for_telegram(payload, noun="Erinnerung")
+            status = f"calendar_reminder_{payload.get('status') or 'error'}"
+        elif command == "calendar_todo_digest_create":
+            parsed = _parse_todo_digest_tail(_telegram_command_tail(message))
+            payload = write_todo_digest_schedule(
+                owner=owner,
+                scheduled_time=parsed.get("scheduled_time", "09:00"),
+                weekdays=parsed.get("weekdays", "mo-fr"),
+                output_target="telegram",
+            )
+            reply_text = _format_calendar_write_for_telegram(payload, noun="Todo-Digest")
+            status = f"calendar_todo_digest_{payload.get('status') or 'error'}"
+        else:
+            reply_text = "Kalender-Kommando nicht erkannt. Nutze /calendar, /agenda, /reminders oder /todo 09:00 mo-fr."
+            status = "calendar_unknown_command"
+    except Exception as exc:
+        payload = {"status": "error", "error": exc.__class__.__name__, "raw_content_visible": False}
+        reply_text = f"Kalender-Kommando blockiert: {exc.__class__.__name__}."
+        status = "calendar_command_error"
+
+    reply_result = None
+    if reply_handler is not None and bridge["chat_id"]:
+        reply_result = reply_handler(
+            bridge["chat_id"],
+            reply_text,
+            bridge.get("source_message_id"),
+        )
+    return {
+        "command": command,
+        "status": status,
+        "binding": {},
+        "reply_text": reply_text,
+        "reply": reply_result,
+        "calendar": payload,
+    }
+
+
 def _handle_telegram_control_command(
     command: str,
     *,
@@ -547,6 +756,14 @@ def _handle_telegram_control_command(
             "reply": reply_result,
             "agent_task": result.get("agent_task") or {},
         }
+    if command.startswith("calendar_"):
+        return _handle_calendar_control_command(
+            command,
+            message=message,
+            raw_chat_id=raw_chat_id,
+            reply_handler=reply_handler,
+            memory_owner=memory_owner,
+        )
     if command == "universal_inbox_status":
         snapshot = build_universal_inbox_readiness()
         reply_text = format_universal_inbox_readiness_for_telegram(snapshot)

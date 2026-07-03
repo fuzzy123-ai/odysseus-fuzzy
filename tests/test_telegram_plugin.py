@@ -1077,6 +1077,175 @@ def test_telegram_control_command_detects_universal_inbox_status():
     assert _telegram_control_command({"kind": "text", "text": "/universalinbox status"}) == "universal_inbox_status"
 
 
+def test_telegram_control_command_detects_calendar_commands():
+    assert _telegram_control_command({"kind": "text", "text": "/calendar"}) == "calendar_readiness"
+    assert _telegram_control_command({"kind": "text", "text": "/agenda"}) == "calendar_agenda"
+    assert _telegram_control_command({"kind": "text", "text": "/reminders"}) == "calendar_reminders_status"
+    assert _telegram_control_command({"kind": "text", "text": "/remind 2026-07-04T09:00 Test"}) == "calendar_reminder_create"
+    assert _telegram_control_command({"kind": "text", "text": "/remind update abc123 09:00 Test"}) == "calendar_reminder_update"
+    assert _telegram_control_command({"kind": "text", "text": "/todo 09:00 mo-fr"}) == "calendar_todo_digest_create"
+
+
+def _bind_calendar_temp_db(monkeypatch):
+    import core.database as cdb
+    from tests.helpers.sqlite_db import make_temp_sqlite
+
+    ts, _engine, _tmpdb = make_temp_sqlite(cdb.Base.metadata)
+    monkeypatch.setattr(cdb, "SessionLocal", ts)
+    return cdb, ts
+
+
+def test_polling_cycle_calendar_status_replies_without_agent_turn(tmp_path, monkeypatch):
+    cdb, ts = _bind_calendar_temp_db(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    db = ts()
+    try:
+        db.add(cdb.CalendarCal(id="cal-alice", owner="alice", name="Alice"))
+        db.commit()
+    finally:
+        db.close()
+    replies = []
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 101,
+            "message": {
+                "message_id": 1001,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/calendar",
+            },
+        }],
+        memory_owner="alice",
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["control_commands"] == 1
+    assert result["agent_turns"] == 0
+    assert turns == []
+    assert replies[0][0] == "123"
+    assert replies[0][2] == 1001
+    assert "Kalender-Status" in replies[0][1]
+    history = TelegramInboxStore(tmp_path).history(limit=20)
+    assert any(item.get("kind") == "control_command" and item.get("status") == "calendar_ready" for item in history)
+
+
+def test_polling_cycle_calendar_reminder_create_and_update(tmp_path, monkeypatch):
+    cdb, ts = _bind_calendar_temp_db(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    replies = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 102,
+            "message": {
+                "message_id": 1002,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/remind 2026-07-04T09:00 OctoGate pruefen",
+            },
+        }],
+        memory_owner="alice",
+        agent_turn_handler=lambda _bridge: {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    db = ts()
+    try:
+        note = db.query(cdb.Note).filter(cdb.Note.owner == "alice").one()
+        note_id = note.id[:8]
+    finally:
+        db.close()
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 103,
+            "message": {
+                "message_id": 1003,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": f"/remind update {note_id} 2026-07-05T08:30 OctoGate final pruefen",
+            },
+        }],
+        memory_owner="alice",
+        agent_turn_handler=lambda _bridge: {"status": "accepted", "reply_text": "nope"},
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert first["control_commands"] == 1
+    assert second["control_commands"] == 1
+    assert first["agent_turns"] == 0
+    assert second["agent_turns"] == 0
+    db = ts()
+    try:
+        notes = db.query(cdb.Note).filter(cdb.Note.owner == "alice").all()
+        assert len(notes) == 1
+        assert notes[0].title == "OctoGate final pruefen"
+        assert "2026-07-05" in str(notes[0].due_date)
+    finally:
+        db.close()
+    assert any("Erinnerung erstellt" in reply[1] for reply in replies)
+    assert any("Erinnerung aktualisiert" in reply[1] for reply in replies)
+
+
+def test_polling_cycle_calendar_todo_digest_creates_single_task(tmp_path, monkeypatch):
+    cdb, ts = _bind_calendar_temp_db(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    replies = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 104,
+            "message": {
+                "message_id": 1004,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/todo 09:00 mo-fr",
+            },
+        }],
+        memory_owner="alice",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 105,
+            "message": {
+                "message_id": 1005,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "/todo 09:00 mo-fr",
+            },
+        }],
+        memory_owner="alice",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert first["control_commands"] == 1
+    assert second["control_commands"] == 1
+    db = ts()
+    try:
+        tasks = db.query(cdb.ScheduledTask).filter(cdb.ScheduledTask.owner == "alice").all()
+        assert len(tasks) == 1
+        assert tasks[0].action == "todo_digest"
+        assert tasks[0].output_target == "telegram"
+        assert tasks[0].cron_expression == "0 9 * * 1,2,3,4,5"
+    finally:
+        db.close()
+    assert any("Todo-Digest erstellt" in reply[1] for reply in replies)
+    assert any("Todo-Digest aktualisiert" in reply[1] for reply in replies)
+
+
 def test_polling_cycle_universal_inbox_command_replies_without_agent_turn(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")

@@ -127,6 +127,18 @@ def test_todo_digest_schedule_plan_uses_one_weekday_cron_task():
     assert plan["raw_content_visible"] is False
 
 
+def test_todo_digest_schedule_plan_accepts_weekday_ranges():
+    from src.calendar_capability_service import build_todo_digest_schedule_plan
+
+    _reset_db()
+
+    plan = build_todo_digest_schedule_plan(owner="alice", scheduled_time="09:00", weekdays="mo-fr")
+
+    assert plan["single_task"] is True
+    assert plan["weekdays"] == [0, 1, 2, 3, 4]
+    assert plan["cron_expression"] == "0 9 * * 1,2,3,4,5"
+
+
 def test_calendar_readiness_reports_redacted_counts():
     from src.calendar_capability_service import build_calendar_readiness
 

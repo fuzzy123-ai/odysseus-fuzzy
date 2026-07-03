@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-5-telegram-remote-control",
-    "reason": "CAL-MCP-0 through CAL-MCP-4 are complete; the next backend slice routes Telegram reminder commands through the shared capability layer."
+    "id": "CAL-MCP-6-caldav-nextcloud-readiness",
+    "reason": "CAL-MCP-0 through CAL-MCP-5 are complete; the next backend-safe calendar slice exposes CalDAV/Nextcloud readiness and pending writebacks in redacted diagnostics before live smokes."
   }
 }
