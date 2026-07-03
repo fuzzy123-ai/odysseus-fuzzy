@@ -2,7 +2,24 @@
 
 Date: 2026-06-29
 Audience: next AI/agent continuing implementation
-Status: planning handoff, no implementation yet
+Status: implemented; handoff consumed
+
+Implementation note:
+
+- The executable roadmap is
+  `docs/plans/workflow-skills-universal-inbox-roadmap.md` and is marked
+  implemented.
+- `src/workflow_skills.py` implements deterministic workflow-skill binding and
+  eligibility checks from trusted runtime metadata only.
+- `plugins/telegram/parsing.py`, `plugins/telegram/plugin.py`, `app.py` and
+  `src/agent_loop.py` pass sanitized workflow context into the agent loop and
+  inject required workflow skills before fuzzy skills.
+- Admin-reviewed workflow skills exist under `data/skills/workflows/`.
+- Focused verification is covered by `tests/test_workflow_skills.py` and the
+  related Telegram bridge/agent-loop tests.
+- 2026-07-03 verification:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_workflow_skills.py tests\test_telegram_plugin.py::test_telegram_workflow_context_normalizes_memory_status tests\test_telegram_plugin.py::test_agent_bridge_workflow_context_classifies_export_without_raw_prompt -q`
+  returned `18 passed, 1 warning`.
 
 ## Goal
 
