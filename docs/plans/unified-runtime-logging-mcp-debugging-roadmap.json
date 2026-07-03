@@ -282,7 +282,7 @@
       "class": "repo_only",
       "owner": "Bob",
       "parallel_group": "B",
-      "status": "planned",
+      "status": "done",
       "goal": "Emit unified events for the complete Telegram flow from inbound update to reply, including STT, OCR, Inbox, Agent turn and control commands.",
       "allowed_paths": [
         "plugins/telegram/plugin.py",
@@ -299,7 +299,8 @@
         "Do not store raw chat IDs as event fields.",
         "Use stable hashed chat/message references for correlation.",
         "This slice must not run in parallel with other Telegram plugin edits."
-      ]
+      ],
+      "evidence": "Implemented Telegram runtime_event envelopes and stable correlation_id fields in plugins/telegram/stores.py for inbound messages, system/control events and outbound reply delivery. Existing polling paths for control commands, Universal Inbox attachments/exports, voice retries, session bridge, agent turns and replies all persist through the store event layer, so they are traceable by redacted correlation metadata without raw chat IDs or raw message text in the runtime_event. Focused tests passed on 2026-07-03: 91 passed, 1 warning."
     },
     {
       "id": "ULOG-3-scheduler-inbox-memory-adapters",
@@ -479,7 +480,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-2-telegram-flow-events",
-    "reason": "ULOG-0, ULOG-1 and ULOG-7 are complete; the next ULOG-specific repo-only slice is Telegram flow events, but it touches a hotfile and should be scheduled serially."
+    "id": "ULOG-3-scheduler-inbox-memory-adapters",
+    "reason": "ULOG-0, ULOG-1, ULOG-2 and ULOG-7 are complete; the next repo-only slice is event adapters for scheduler, Universal Inbox, Nextcloud transfer and memory write-intent flows."
   }
 }

@@ -13,10 +13,13 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
+
 _HISTORY_FILE = "telegram_history.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
+_SAFE_EVENT_VALUE_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:@/-")
 
 
 def _stable_handle(prefix: str, value: Any) -> str:
@@ -25,6 +28,109 @@ def _stable_handle(prefix: str, value: Any) -> str:
         return ""
     digest = hashlib.sha256(f"{prefix}:{raw}".encode("utf-8")).hexdigest()[:12]
     return f"{prefix}_{digest}"
+
+
+def _message_correlation_id(*, chat_handle: str = "", update_id: Any = "", message_id: Any = "") -> str:
+    seed = f"{chat_handle}:{update_id}:{message_id}"
+    if not seed.strip(":"):
+        return ""
+    return "telegram:" + hashlib.sha256(seed.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def _runtime_status(status: Any) -> str:
+    text = str(status or "").strip().lower()
+    if not text:
+        return "unknown"
+    if "fail" in text or "error" in text:
+        return "failed"
+    if "block" in text or "denied" in text:
+        return "blocked"
+    if "pending" in text or "queued" in text or "retry" in text:
+        return "queued"
+    if text in {"sent", "processed", "transcribed", "bound", "handled", "accepted", "ready", "go", "ok", "poll_ok"}:
+        return "success"
+    if text in {"skipped", "duplicate_ignored"}:
+        return "skipped"
+    return "unknown"
+
+
+def _safe_event_metadata(values: dict[str, Any]) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    for key, value in values.items():
+        if value is None or key in {"text", "reply_text", "chat_id", "token"}:
+            continue
+        if isinstance(value, bool) or isinstance(value, int):
+            metadata[key] = value
+            continue
+        if isinstance(value, (tuple, list)):
+            safe_items = []
+            for item in value[:20]:
+                text = str(item or "").strip()
+                if len(text) <= 120 and all(ch in _SAFE_EVENT_VALUE_CHARS for ch in text):
+                    safe_items.append(text)
+                else:
+                    safe_items.append(stable_payload_hash(text))
+            metadata[key] = tuple(safe_items)
+            continue
+        text = str(value or "").strip()
+        if not text:
+            continue
+        if len(text) <= 120 and all(ch in _SAFE_EVENT_VALUE_CHARS for ch in text):
+            metadata[key] = text
+        else:
+            metadata[f"{key}_hash"] = stable_payload_hash(text)
+    return metadata
+
+
+def _build_telegram_runtime_event(
+    *,
+    kind: str,
+    status: str,
+    chat_handle: str = "",
+    update_id: Any = "",
+    message_id: Any = "",
+    direction: str = "",
+    component: str = "store",
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    correlation_id = _message_correlation_id(
+        chat_handle=chat_handle,
+        update_id=update_id,
+        message_id=message_id,
+    )
+    metadata = _safe_event_metadata({
+        "telegram_status": status,
+        "direction": direction,
+        **(extra or {}),
+    })
+    try:
+        return build_runtime_event(
+            surface="telegram",
+            component=component,
+            event_type=str(kind or "event"),
+            status=_runtime_status(status),
+            severity="warn" if _runtime_status(status) in {"blocked", "failed"} else "info",
+            owner_scope="telegram",
+            correlation_id=correlation_id,
+            privacy_level="private_metadata",
+            message_ref=_message_correlation_id(
+                chat_handle=chat_handle,
+                update_id=update_id,
+                message_id=message_id,
+            ),
+            metadata=metadata,
+        )
+    except RuntimeEventEnvelopeError:
+        return {
+            "schema": "odysseus.runtime_event.v1",
+            "surface": "telegram",
+            "component": "store",
+            "event_type": "runtime_event_rejected",
+            "status": "blocked",
+            "severity": "warn",
+            "correlation_id": correlation_id,
+            "raw_content_visible": False,
+        }
 
 
 def _chat_handle(chat_id: Any) -> str:
@@ -140,16 +246,34 @@ class TelegramInboxStore:
 
     def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
         data = self._read()
+        chat_handle = _chat_handle(chat_id)
         event = {
             "direction": "system",
             "kind": kind,
             "status": status,
-            "chat_handle": _chat_handle(chat_id),
+            "chat_handle": chat_handle,
             "stored_at": int(time.time()),
             "token_value_visible": False,
             "chat_id_value_visible": False,
         }
         event.update({key: value for key, value in extra.items() if value is not None})
+        event["correlation_id"] = str(event.get("correlation_id") or _message_correlation_id(
+            chat_handle=chat_handle,
+            update_id=event.get("update_id"),
+            message_id=event.get("message_id"),
+        ))
+        event["runtime_event"] = _build_telegram_runtime_event(
+            kind=kind,
+            status=status,
+            chat_handle=chat_handle,
+            update_id=event.get("update_id"),
+            message_id=event.get("message_id"),
+            direction="system",
+            component="store",
+            extra={key: value for key, value in event.items() if key not in {"runtime_event"}},
+        )
+        event["raw_content_visible"] = False
+        event["raw_identifiers_visible"] = False
         data["messages"].append(event)
         self._write(data)
         return event
@@ -182,6 +306,28 @@ class TelegramInboxStore:
 
         stored = _sanitize_persisted_message(message)
         stored["stored_at"] = int(time.time())
+        stored["correlation_id"] = _message_correlation_id(
+            chat_handle=str(stored.get("chat_handle") or ""),
+            update_id=stored.get("update_id"),
+            message_id=stored.get("message_id"),
+        )
+        stored["runtime_event"] = _build_telegram_runtime_event(
+            kind=str(stored.get("kind") or "inbound"),
+            status=str(stored.get("intake_status") or "received"),
+            chat_handle=str(stored.get("chat_handle") or ""),
+            update_id=stored.get("update_id"),
+            message_id=stored.get("message_id"),
+            direction="inbound",
+            component="inbound",
+            extra={
+                "kind": stored.get("kind"),
+                "intake_status": stored.get("intake_status"),
+                "transcript_status": stored.get("transcript_status"),
+                "universal_inbox_status": stored.get("universal_inbox_status"),
+            },
+        )
+        stored["raw_content_visible"] = False
+        stored["raw_identifiers_visible"] = False
         messages.append(stored)
         self._write(data)
         if stored.get("intake_status") == "blocked_chat":
@@ -262,6 +408,26 @@ class TelegramInboxStore:
             "chat_id_value_visible": False,
             "raw_rich_payload_visible": False,
         }
+        message["correlation_id"] = _message_correlation_id(
+            chat_handle=str(message.get("chat_handle") or ""),
+            message_id=message.get("source_message_id") or message.get("message_id"),
+        )
+        message["runtime_event"] = _build_telegram_runtime_event(
+            kind="reply_delivery",
+            status=delivery_status,
+            chat_handle=str(message.get("chat_handle") or ""),
+            message_id=message.get("source_message_id") or message.get("message_id"),
+            direction="outbound",
+            component="reply",
+            extra={
+                "delivery_status": delivery_status,
+                "delivery_mode": delivery_mode,
+                "formatting_mode": formatting_mode,
+                "failure_reason": failure_reason or "",
+            },
+        )
+        message["raw_content_visible"] = False
+        message["raw_identifiers_visible"] = False
         data["messages"].append(message)
         self._write(data)
         return message

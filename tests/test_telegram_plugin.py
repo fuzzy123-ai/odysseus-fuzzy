@@ -380,6 +380,44 @@ def test_parse_text_update_and_bridge_request(monkeypatch):
     assert bridge["session_scope"] == "normal"
 
 
+def test_telegram_store_adds_redacted_runtime_events(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    store = TelegramInboxStore(tmp_path)
+    message = parse_telegram_update({
+        "update_id": 7,
+        "message": {
+            "message_id": 11,
+            "date": 123456,
+            "chat": {"id": 123},
+            "from": {"id": 42, "first_name": "Nina", "username": "nina"},
+            "text": "Hallo Odysseus",
+        },
+    })
+
+    stored = store.append_inbound(message)["message"]
+    event = store.append_event(
+        kind="control_command",
+        status="dsgvo_enabled",
+        chat_id="123",
+        update_id=7,
+        message_id=11,
+        command="dsgvo_toggle",
+    )
+    outbound = store.append_outbound("123", "Antwort", source_message_id=11, delivery_status="sent")
+
+    for item in (stored, event, outbound):
+        runtime_event = item["runtime_event"]
+        assert runtime_event["schema"] == "odysseus.runtime_event.v1"
+        assert runtime_event["surface"] == "telegram"
+        assert runtime_event["correlation_id"].startswith("telegram:")
+        assert runtime_event["raw_content_visible"] is False
+        assert not _json_contains_exact_value(runtime_event, "123")
+        assert not _json_contains_exact_value(runtime_event, "Hallo Odysseus")
+        assert not _json_contains_exact_value(runtime_event, "Antwort")
+    assert event["runtime_event"]["event_type"] == "control_command"
+    assert outbound["runtime_event"]["event_type"] == "reply_delivery"
+
+
 def test_telegram_workflow_context_normalizes_memory_status():
     from plugins.telegram.parsing import build_telegram_workflow_context
 
