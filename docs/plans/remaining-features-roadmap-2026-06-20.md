@@ -194,9 +194,12 @@ Current status 2026-07-03:
   `tests/test_github_issue_sync.py` implement and verify fake-client read-only
   issue sync with pagination, updates, closed issue state, labels, incremental
   watermarks and redacted token/client errors.
-- Remaining P9 work starts at GHISS3 issue embedding index, then duplicate
-  preview. No GitHub token, network call or write action is enabled by
-  GHISS0/GHISS1/GHISS2.
+- GHISS3 is complete: `src/github_issue_index.py` and
+  `tests/test_github_issue_index.py` implement and verify bounded issue text
+  normalization, owner/repo-scoped index queries, closed-issue filtering and
+  idempotent reindexing through a backend protocol.
+- Remaining P9 work starts at GHISS4 duplicate preview. No GitHub token,
+  network call or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the

@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS2 repo slices complete; duplicate index, tools, routes, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS3 repo slices complete; duplicate candidate service, tools, routes, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -446,6 +446,24 @@ Done when:
 - Issue text is normalized and bounded.
 - Owner/repo filters are applied during query.
 - Reindexing is idempotent.
+
+Status: done.
+
+Evidence:
+
+- `src/github_issue_index.py` defines issue index documents, matches, a backend
+  protocol, a deterministic in-memory backend and reindex/query helpers.
+- `build_issue_index_document()` normalizes issue title/body/state/labels into
+  bounded text and owner/repo/provider metadata without provider calls.
+- `reindex_github_issues()` reindexes only the requested owner/repository and
+  uses backend upsert semantics so repeated runs are idempotent.
+- `query_github_issue_index()` applies owner/repository and closed-issue filters
+  at query time.
+- `tests/test_github_issue_index.py` verifies text normalization/bounding,
+  owner/repo scoping, closed filtering and idempotent reindexing.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py tests\test_github_issue_index.py -q`
+  -> `19 passed, 1 warning`.
 
 ### GHISS4 Duplicate Candidate Service
 
