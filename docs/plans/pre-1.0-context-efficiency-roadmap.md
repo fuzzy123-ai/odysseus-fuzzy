@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **CTXE1-CTXE6 done; context efficiency contracts and simple routing policy ready; CTXE7 next**
+Status: **CTXE1-CTXE7 done; context efficiency contracts, routing policy and redacted evidence records ready; CTXE8 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE7-truth-and-telemetry-evidence`.
+- Naechster sicherer Slice: `CTXE8-master-roadmap-closeout`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -61,7 +61,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/session_envelope.py`, `tests/test_session_envelope.py` | done: `24 passed, 1 warning` | none |
 | `CTXE5-context-provider-manifest-first` | `repo_only` | Bob | Context-Provider auf manifest-first vorbereiten: erst Diagnostik/Refs/Snippet-Budget, dann gezielte Snippets. | `src/context_orchestrator.py`, `tests/test_context_orchestrator.py` | done: `24 passed, 1 warning` | no live source access |
 | `CTXE6-simple-task-router-policy` | `safe_offline` | Alice/Charlie | Vor-1.0-Routing-Sprache festlegen: simple summarization/classification/focused edit vs. deep reasoning/multi-file/debug/tool orchestration. | `src/simple_task_router_policy.py`, `tests/test_simple_task_router_policy.py`, `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: `7 passed, 1 warning` | no live model calls |
-| `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/`, `tests/`, `docs/plans/` narrow evidence files | focused pytest | none |
+| `CTXE7-truth-and-telemetry-evidence` | `repo_only` | Bob/Charlie | Tool selection, cache-boundary decisions and routing decisions als Truth/Evidence records modellieren, ohne Raw Logs oder private Inhalte. | `src/context_efficiency_evidence.py`, `tests/test_context_efficiency_evidence.py`, `docs/plans/pre-1.0-context-efficiency-roadmap.md` | done: `35 passed, 1 warning` | none |
 | `CTXE8-master-roadmap-closeout` | `repo_only` | Charlie | Fortschritt in MVP-/Release-Status einsortieren: Go/Partial/Deferred, keine 1.0-Ueberzeichnung. | `docs/plans/` only | docs-only | may defer if MVP hotfile dirty |
 
 ## Gate Queue
@@ -333,6 +333,36 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_simple_task
 Result: `7 passed, 1 warning`.
 
 Next safe slice: `CTXE7-truth-and-telemetry-evidence`.
+
+### CTXE7 Truth And Telemetry Evidence
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- `ContextEfficiencyEvidenceRecord` in `src/context_efficiency_evidence.py`
+  for redacted evidence summaries across context-efficiency decisions.
+- Evidence kinds for tool-schema selection, cache-boundary policy and task
+  routing.
+- Adapter helpers:
+  - `evidence_from_tool_schema_selection(...)`
+  - `evidence_from_cache_boundary_decision(...)`
+  - `evidence_from_task_routing_decision(...)`
+- Metrics-only audit summaries with reason codes, status, decision refs and
+  counts, without raw prompts, raw schemas, private content, host paths or token
+  values.
+- Focused tests for tool-selection counts, blocked cache-boundary changes,
+  routing evidence redaction and host-path hashing.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_context_efficiency_evidence.py tests\test_simple_task_router_policy.py tests\test_session_envelope.py tests\test_tool_catalog.py -q
+```
+
+Result: `35 passed, 1 warning`.
+
+Next safe slice: `CTXE8-master-roadmap-closeout`.
 
 ## Go Language
 
