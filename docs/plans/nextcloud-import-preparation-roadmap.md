@@ -1,6 +1,6 @@
 # Nextcloud Import Preparation Roadmap
 
-Status: safe backend path partial; live upload smoke remains operator-gated; P0/P1/P3 backend prep advanced
+Status: safe backend path partial; bounded local inventory smoke passed; live upload smoke remains operator-gated; P0/P1/P3 backend prep advanced
 Owner: operator + Odysseus
 Scope: `C:\Users\nkatz\Nextcloud` local synced source
 Mode: dry-run first, review-gated execution, no delete by default
@@ -37,6 +37,18 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_nextcloud_w
 ```
 
 Ergebnis am 2026-06-29: `103 passed, 1 warning`.
+
+Lokaler Inventory-Smoke 2026-07-03:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\nextcloud_import_dry_run.py --root <runtime-nextcloud-root> --ledger-path .tmp\nextcloud-dryrun\odysseus-nextcloud-import-dryrun-20260703.jsonl --batch-limit 25 --scan-profile documents_only --pilot-batch-limit 10 --max-samples 0 --format markdown
+```
+
+Ergebnis: `25` Dateien metadata-only gescannt, `20` Inventory-Datensaetze,
+`20` Review-Kandidaten, `0` Dokument-Pilot-Auswahl, `0` Long Paths. Der
+Report enthielt keine Samples, Rohinhalte oder Secrets. Das temporaere Ledger
+wurde nach dem Smoke entfernt, damit keine privaten Pfad-Metadaten im Repo
+oder Arbeitsbaum verbleiben.
 
 Offen:
 
@@ -691,8 +703,9 @@ Erst nach erfolgreichem Import:
 
 1. Import-Konfigurationsdatei anlegen. Done.
 2. Scanner um Exclusions und File-Type-Metadaten erweitern. Done.
-3. Dry-run Inventory gegen die echte Nextcloud laufen lassen. Offen,
-   live/local-source-gated.
+3. Dry-run Inventory gegen die lokale Nextcloud-Quelle laufen lassen. Done fuer
+   bounded metadata-only Batch-Smoke am 2026-07-03; Vollinventar bleibt
+   operator-gated.
 4. Software-Bundle-Planner gegen das Inventory laufen lassen. Done fuer
    vorhandene Ledger/Dry-run-Pipeline.
 5. Report erzeugen: Software ZIP-Kandidaten, Dokumentkandidaten,
@@ -753,7 +766,7 @@ Erst nach erfolgreichem Import:
 
 ## 19. Aktueller naechster Schritt
 
-Als naechstes sollte ein bounded Dry-run gegen die lokale Nextcloud-Quelle
-laufen, ohne Inhalte zu lesen und ohne Dateien zu veraendern. Danach koennen
-Pilotimport und Live-Upload-Smoke separat freigegeben werden. UI bleibt
-ausserhalb dieser Backend-Roadmap.
+Als naechstes sollte der lokale Inventory-Dry-run bewusst auf ein groesseres,
+aber weiter metadata-only Batch-Fenster erweitert werden. Danach koennen
+Dokument-Pilotimport und Live-Upload-Smoke separat freigegeben werden. UI
+bleibt ausserhalb dieser Backend-Roadmap.
