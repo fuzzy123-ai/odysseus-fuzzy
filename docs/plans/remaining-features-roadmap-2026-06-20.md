@@ -198,8 +198,12 @@ Current status 2026-07-03:
   `tests/test_github_issue_index.py` implement and verify bounded issue text
   normalization, owner/repo-scoped index queries, closed-issue filtering and
   idempotent reindexing through a backend protocol.
-- Remaining P9 work starts at GHISS4 duplicate preview. No GitHub token,
-  network call or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3.
+- GHISS4 is complete: `src/github_issue_duplicates.py` and
+  `tests/test_github_issue_duplicates.py` implement and verify top-3 duplicate
+  previews with score/reason, sensible open/closed ranking, high-confidence
+  auto-create blocking and local pending duplicate evidence persistence.
+- Remaining P9 work starts at GHISS5 agent tools. No GitHub token, network call
+  or write action is enabled by GHISS0/GHISS1/GHISS2/GHISS3/GHISS4.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the

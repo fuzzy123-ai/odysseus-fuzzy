@@ -53,7 +53,7 @@ def test_issue_index_document_normalizes_and_bounds_text():
     assert document.id == "github_issue:alice:fuzzy123-ai/odysseus-fuzzy:1"
     assert len(document.text) <= 120
     assert "\n\n" not in document.text
-    assert document.text.endswith("…")
+    assert document.text.endswith("...")
     assert document.metadata["owner"] == "alice"
     assert document.metadata["repository"] == "fuzzy123-ai/odysseus-fuzzy"
     assert document.metadata["labels"] == ("area/inbox", "priority/high")

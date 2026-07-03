@@ -227,7 +227,7 @@ def _compact_text(value: Any, *, limit: int) -> str:
     text = _optional_text(value)
     if len(text) <= limit:
         return text
-    return text[: max(limit - 1, 0)].rstrip() + "…"
+    return text[: max(limit - 3, 0)].rstrip() + "..."
 
 
 def _tokens(value: str) -> set[str]:

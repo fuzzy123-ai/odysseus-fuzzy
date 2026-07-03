@@ -127,7 +127,7 @@ Run at most three active implementation lanes at the same time.
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
 | L12 Recent Changes + Patch Notes | P1 | Limited | Local patch-note history helps Odysseus answer "what changed" from repo evidence; backend-safe slices are implemented and tested; UI placement remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | P1 | Limited | Native Alice/Bob/Charlie orchestration foundation is implemented as safe stores, dry-run bridges, quality gates and evidence models; real thread sends, command execution and scheduler activation remain gated. |
-| L14 GitHub Issue Intelligence | Post-MVP P1 | Limited | Provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync and repo-only issue index start the track without GitHub tokens or network writes; duplicate candidate service, tools, routes, projection and MCP exposure continue as gated backend slices. |
+| L14 GitHub Issue Intelligence | Post-MVP P1 | Limited | Provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index and duplicate preview service start the track without GitHub tokens or network writes; tools, routes, projection and MCP exposure continue as gated backend slices. |
 
 Integration rule:
 
@@ -2046,13 +2046,21 @@ Current evidence:
   backend, idempotent reindex helper and owner/repo-filtered query helper.
 - `tests/test_github_issue_index.py` covers text normalization/bounding,
   owner/repo scoping, closed filtering and idempotent reindexing.
+- `GHISS4 Duplicate Candidate Service` is implemented as a repo-only backend
+  slice.
+- `src/github_issue_duplicates.py` returns top duplicate previews with score,
+  reason, state, labels and auto-create blocking. It can persist local pending
+  duplicate evidence without overwriting accepted/rejected decisions and does
+  not perform GitHub writes.
+- `tests/test_github_issue_duplicates.py` covers top-3 reports,
+  open-over-closed ranking, high-confidence auto-create blocking, existing
+  draft exclusion and decision preservation.
 - Focused verification passed:
-  `tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py`
-  returned `19 passed, 1 warning`.
+  `tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py tests/test_github_issue_duplicates.py`
+  returned `24 passed, 1 warning`.
 
 Open gates / next slices:
 
-- `GHISS4`: duplicate candidate service.
 - `GHISS5`/`GHISS8`: agent tools and MCP exposure; write surfaces must remain
   confirmation- and policy-gated.
 - `GHISS6`: UI is outside this backend ABC lane unless only route contracts are
@@ -2060,7 +2068,7 @@ Open gates / next slices:
 
 Recommended next backend action:
 
-- Continue with `GHISS4 Duplicate Candidate Service` as the next safe repo-only slice when this
+- Continue with `GHISS5 Tools` as the next safe repo-only slice when this
   lane is selected again. Do not start GitHub network sync, token handling,
   issue creation or MCP write exposure from roadmap text alone.
 
@@ -2081,7 +2089,7 @@ Recommended next backend action:
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness, dry-run live bridge/command plans and Subagent Runtime v1 fake backend/tool/status path are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
-| L14 GitHub Issue Intelligence | GHISS0-GHISS3 complete, next repo slice pending | Provider-neutral issue field contract, default mappings, label fallback, fail-closed validation, owner-scoped persistence, fake-client read-only sync and repo-only issue index are implemented and tested; duplicate candidate service, tools, routes, projection and MCP exposure remain future backend slices, with live GitHub writes/token use gated. |
+| L14 GitHub Issue Intelligence | GHISS0-GHISS4 complete, next repo slice pending | Provider-neutral issue field contract, default mappings, label fallback, fail-closed validation, owner-scoped persistence, fake-client read-only sync, repo-only issue index and duplicate preview service are implemented and tested; tools, routes, projection and MCP exposure remain future backend slices, with live GitHub writes/token use gated. |
 
 Recommended next human decision:
 
@@ -2122,6 +2130,6 @@ Recommended next human decision:
   a focused command-runner approval path, or heartbeat scheduler activation.
   Without that explicit operator scope, the repo foundation is complete and
   should remain dry-run/readiness-only.
-- For L14, continue with `GHISS4 Duplicate Candidate Service` when GitHub Issue Intelligence is
+- For L14, continue with `GHISS5 Tools` when GitHub Issue Intelligence is
   selected next; do not run GitHub network sync or write issues until token,
   repo and confirmation gates are explicit.

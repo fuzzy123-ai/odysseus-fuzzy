@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS3 repo slices complete; duplicate candidate service, tools, routes, projection and MCP exposure remain planned/gated**
+Status: **GHISS0-GHISS4 repo slices complete; tools, routes, projection and MCP exposure remain planned/gated**
 
 ## Goal
 
@@ -480,6 +480,28 @@ Done when:
 - Top 3 candidates include score and reason.
 - Closed and open issues are ranked sensibly.
 - High-confidence candidates block auto-create unless confirmed.
+
+Status: done.
+
+Evidence:
+
+- `src/github_issue_duplicates.py` defines a draft duplicate service that reads
+  from the repo-local issue index and returns compact candidate previews. It
+  does not create, close, label or update GitHub issues.
+- Candidate previews include external issue id, integer score, reason, state,
+  labels, URL and `blocks_auto_create`.
+- Similar open issues are ranked ahead of equivalent closed issues, while closed
+  issues remain visible when requested.
+- High-confidence candidates block auto-create until a future confirmed write
+  tool explicitly proceeds.
+- Existing source issues can persist pending duplicate evidence in
+  `GitHubIssueDuplicateCandidate` without overwriting accepted/rejected
+  decisions.
+- `src/github_issue_index.py` and `tests/test_github_issue_index.py` were also
+  normalized to ASCII truncation suffixes (`...`).
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py tests\test_github_issue_index.py tests\test_github_issue_duplicates.py -q`
+  -> `24 passed, 1 warning`.
 
 ### GHISS5 Tools
 
