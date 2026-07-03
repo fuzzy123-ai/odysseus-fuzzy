@@ -133,7 +133,7 @@
       "id": "OBS-4-odysseus-runtime-metrics",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Expose Odysseus-specific health and runtime counters suitable for Prometheus scraping.",
       "candidate_metrics": [
         "telegram_poll_success_total",
@@ -155,7 +155,8 @@
         "metrics are owner-safe and content-free",
         "high-cardinality labels are rejected",
         "existing ai_activity_ledger and app logs remain the forensic source for detailed redacted events"
-      ]
+      ],
+      "evidence": "Implemented src/observability_metrics.py with a fixed content-free Prometheus metric contract, low-cardinality label allowlist, forbidden marker/path rejection and diagnostic summary adapters. Added admin-gated GET /api/diagnostics/runtime-metrics in routes/diagnostics_routes.py. Verified with tests/test_observability_metrics.py and py_compile for the touched backend files."
     },
     {
       "id": "OBS-5-crowdsec-active-security",
@@ -280,8 +281,8 @@
     "All live installs and exposure decisions are documented as operator gates."
   ],
   "recommended_next_action": {
-    "id": "OBS-4-odysseus-runtime-metrics",
+    "id": "OBS-6-alerting-and-operator-routing",
     "mode": "repo_only",
-    "reason": "OBS-0 safe-offline inventory is prepared and live confirmation is gated; the next safe slice is Odysseus runtime metrics contracts."
+    "reason": "OBS-0 and OBS-4 are complete. OBS-1, OBS-2, OBS-3 and OBS-5 remain live-gated, so the next safe repo-only slice is alerting and operator routing policy."
   }
 }

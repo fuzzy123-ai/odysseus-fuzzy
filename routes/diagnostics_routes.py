@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException, Form, Query, Request
+from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
 
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
@@ -149,6 +149,32 @@ def setup_diagnostics_routes(
         except Exception as e:
             logger.error(f"Diagnostics quick summary retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve diagnostics quick summary")
+
+    @router.get("/api/diagnostics/runtime-metrics")
+    async def get_runtime_metrics(
+        request: Request,
+        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    ) -> Response:
+        """Return content-free Odysseus runtime metrics in Prometheus text format."""
+        require_admin(request)
+        try:
+            from src.ai_activity_ledger import read_ai_activity
+            from src.memory_provenance_ledger import read_memory_provenance
+            from src.observability_metrics import build_runtime_metrics_from_diagnostics, render_prometheus_text
+
+            snapshot = build_runtime_metrics_from_diagnostics(
+                ai_activity=read_ai_activity(day=day, limit=1000),
+                memory_provenance=read_memory_provenance(day=day, limit=1000),
+            )
+            return Response(
+                render_prometheus_text(snapshot),
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"Runtime metrics retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve runtime metrics")
 
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
