@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "DEB-OBS OBS-7-odysseus-diagnostics-bridge",
-    "reason": "ULOG-0 through ULOG-7, SIR-0 through SIR-7, OBS-0, OBS-4 and OBS-6 are complete. OBS-1, OBS-2, OBS-3 and OBS-5 are live-gated, so the next safe repo-only slice is the Odysseus diagnostics bridge."
+    "id": "observability-live-go",
+    "reason": "All current repo-only ULOG, SIR and DEB-OBS observability contracts are complete through OBS-7. The remaining backend progress needs bounded live Go for Debian metrics/logging/CrowdSec setup and log-retention/exposure decisions."
   }
 }

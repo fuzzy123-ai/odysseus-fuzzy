@@ -176,6 +176,44 @@ def setup_diagnostics_routes(
             logger.error(f"Runtime metrics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve runtime metrics")
 
+    @router.get("/api/diagnostics/observability-bridge")
+    async def get_observability_bridge(
+        request: Request,
+        question: str = Query("", max_length=500),
+        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    ) -> Dict[str, Any]:
+        """Return a bounded diagnostic packet for an operational question."""
+        require_admin(request)
+        try:
+            from src.ai_activity_ledger import read_ai_activity
+            from src.diagnostics_quick_summary import build_diagnostics_quick_summary
+            from src.memory_provenance_ledger import read_memory_provenance
+            from src.observability_diagnostics_bridge import build_observability_diagnostic_packet
+            from src.observability_metrics import build_runtime_metrics_from_diagnostics
+            from src.tool_capability_maintenance import read_tool_capability_diagnostics
+
+            ai_activity = read_ai_activity(day=day, limit=1000)
+            memory_provenance = read_memory_provenance(day=day, limit=1000)
+            quick_summary = build_diagnostics_quick_summary(
+                ai_activity=ai_activity,
+                memory_provenance=memory_provenance,
+                tool_capabilities=read_tool_capability_diagnostics(),
+            )
+            metrics = build_runtime_metrics_from_diagnostics(
+                ai_activity=ai_activity,
+                memory_provenance=memory_provenance,
+            )
+            return build_observability_diagnostic_packet(
+                question=question,
+                metrics_snapshot=metrics,
+                quick_summary=quick_summary,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            logger.error(f"Observability bridge retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve observability bridge diagnostics")
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)

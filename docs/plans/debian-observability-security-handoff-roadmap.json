@@ -205,7 +205,7 @@
       "id": "OBS-7-odysseus-diagnostics-bridge",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Allow Odysseus to answer operational questions from bounded observability data instead of guessing.",
       "example_questions": [
         "Warum kam heute um 9 keine Telegram To-Do Liste?",
@@ -218,7 +218,8 @@
         "no raw private logs are sent to external models in DSGVO mode",
         "diagnostic packets are redacted and bounded",
         "live Grafana/Loki/Prometheus queries are read-only"
-      ]
+      ],
+      "evidence": "Implemented src/observability_diagnostics_bridge.py and admin-gated GET /api/diagnostics/observability-bridge. The bridge classifies operational questions without returning raw query text, builds bounded packets from redacted metrics, alert routes and quick summaries, and recommends next diagnostic actions for Telegram/reminders, file imports, memory/RaptorGraph and local model runtime. Verified with tests/test_observability_diagnostics_bridge.py."
     }
   ],
   "gate_queue": [
@@ -282,8 +283,8 @@
     "All live installs and exposure decisions are documented as operator gates."
   ],
   "recommended_next_action": {
-    "id": "OBS-7-odysseus-diagnostics-bridge",
-    "mode": "repo_only",
-    "reason": "OBS-0, OBS-4 and OBS-6 are complete. OBS-1, OBS-2, OBS-3 and OBS-5 remain live-gated, so the next safe repo-only slice is the Odysseus diagnostics bridge."
+    "id": "debian-observability-live-go",
+    "mode": "needs_live_go",
+    "reason": "OBS-0, OBS-4, OBS-6 and OBS-7 are complete. The remaining observability slices OBS-1, OBS-2, OBS-3 and OBS-5 require bounded live server work plus retention/exposure decisions."
   }
 }
