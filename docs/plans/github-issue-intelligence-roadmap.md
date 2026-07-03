@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **GHISS0-GHISS7 repo slices complete; MCP exposure remains planned/gated**
+Status: **GHISS0-GHISS8 repo slices complete; live GitHub sync/write rollout remains gated**
 
 ## Goal
 
@@ -641,6 +641,28 @@ Done when:
 - Read-only duplicate lookup appears when policy allows.
 - Write tools remain absent unless owner-scoped writes are enabled.
 - Generic raw GitHub passthrough remains absent.
+
+Status: done.
+
+Evidence:
+
+- `src/mcp_server_tool_policy.py` exposes only the narrow
+  `github_issue_find_duplicates` read-only MCP tool for GitHub Issue
+  Intelligence; the mixed `manage_github_issues` tool remains high-risk hidden.
+- `plugins/mcp_server/plugin.py` adds a synthetic MCP-only
+  `github_issue_find_duplicates` schema and routes calls internally to
+  `duplicate_search`, without provider sync, issue creation, field writes or
+  token handling.
+- Raw/generic GitHub passthrough remains absent; generic Odysseus API remains
+  hidden unless separately enabled by MCP policy.
+- `tests/test_mcp_server_tool_policy.py` verifies the read-only GitHub issue
+  MCP policy and hidden write/raw surfaces.
+- `tests/test_mcp_server_plugin.py` verifies the read-only tool appears in
+  `tools/list`, write/mixed tools are absent and `tools/call` routes only to
+  the safe duplicate-search action.
+- Verification 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_mcp_server_tool_policy.py tests\test_mcp_server_plugin.py tests\test_github_issue_fields.py tests\test_github_issue_models.py tests\test_github_issue_sync.py tests\test_github_issue_index.py tests\test_github_issue_duplicates.py tests\test_github_issue_tools.py tests\test_github_issue_routes.py tests\test_github_issue_projection.py -q`
+  -> `57 passed, 1 warning`.
 
 ## Verification Bundle
 

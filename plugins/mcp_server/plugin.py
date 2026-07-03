@@ -78,6 +78,32 @@ def _mcp_tool_from_openai_schema(schema: Mapping[str, Any]) -> dict[str, Any] | 
     }
 
 
+def _github_issue_find_duplicates_tool() -> dict[str, Any]:
+    return {
+        "name": "github_issue_find_duplicates",
+        "description": (
+            "Read-only duplicate preview over already-synced GitHubIssueRecord rows. "
+            "Does not sync GitHub, create issues, set fields, or accept tokens."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "repository": {"type": "string", "description": "Repository in owner/repo form."},
+                "title": {"type": "string", "description": "Draft issue title."},
+                "body": {"type": "string", "description": "Optional draft issue body."},
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional draft labels for local duplicate matching.",
+                },
+                "top_k": {"type": "integer", "minimum": 1, "maximum": 10, "default": 3},
+                "include_closed": {"type": "boolean", "default": True},
+            },
+            "required": ["repository", "title"],
+        },
+    }
+
+
 class McpServerState:
     def __init__(self, data_dir: str | Path, logger: Any) -> None:
         self.data_dir = Path(data_dir)
@@ -161,12 +187,20 @@ class McpServerState:
                 continue
             seen.add(tool["name"])
             tools.append(tool)
+        github_issue_tool = _github_issue_find_duplicates_tool()
+        if (
+            classify_mcp_tool(github_issue_tool["name"], options).exposed
+            and github_issue_tool["name"] not in seen
+        ):
+            tools.append(github_issue_tool)
         return tools
 
     async def call_tool(self, name: str, arguments: Mapping[str, Any], options: McpToolPolicyOptions) -> tuple[str, bool]:
         decision = classify_mcp_tool(name, options)
         if not decision.exposed:
             return (f"Tool {name!r} is not exposed: {decision.reason}", True)
+        if name == "github_issue_find_duplicates":
+            return await self._call_github_issue_find_duplicates(arguments)
         try:
             import src.agent_tools  # noqa: F401 - initialize tool subsystem first
             from src.tool_execution import execute_tool_block
@@ -184,6 +218,21 @@ class McpServerState:
         is_error = bool(result.get("error")) or result.get("exit_code") not in (0, None)
         if text is None:
             text = result.get("error")
+        if text is None:
+            text = json.dumps(result, ensure_ascii=False, default=str)
+        return (str(text)[:60000], is_error)
+
+    async def _call_github_issue_find_duplicates(self, arguments: Mapping[str, Any]) -> tuple[str, bool]:
+        try:
+            from src.tool_domains.github_issues import do_manage_github_issues
+
+            payload = dict(arguments or {})
+            payload["action"] = "duplicate_search"
+            result = await do_manage_github_issues(json.dumps(payload))
+        except Exception as exc:
+            return (f"GitHub issue duplicate lookup failed: {type(exc).__name__}", True)
+        is_error = bool(result.get("error")) or result.get("exit_code") not in (0, None)
+        text = result.get("error")
         if text is None:
             text = json.dumps(result, ensure_ascii=False, default=str)
         return (str(text)[:60000], is_error)

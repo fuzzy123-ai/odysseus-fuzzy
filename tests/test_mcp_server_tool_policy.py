@@ -103,3 +103,16 @@ def test_mcp_policy_allows_debug_readonly_tools_without_write_flags():
 
     names = exposed_mcp_tool_names(["debug_recent_failures", "podman_debug_status_readonly", "service_restart"])
     assert names == ("debug_recent_failures", "podman_debug_status_readonly")
+
+
+def test_mcp_policy_exposes_only_github_issue_duplicate_lookup():
+    duplicate_lookup = classify_mcp_tool("github_issue_find_duplicates")
+    mixed_agent_tool = classify_mcp_tool("manage_github_issues")
+    write_tool = classify_mcp_tool("github_issue_create_triaged")
+
+    assert duplicate_lookup.exposed is True
+    assert duplicate_lookup.category == "github_issue_readonly"
+    assert mixed_agent_tool.exposed is False
+    assert mixed_agent_tool.category == "high_risk"
+    assert write_tool.exposed is False
+    assert write_tool.category == "unclassified"

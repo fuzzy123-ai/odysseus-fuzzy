@@ -104,6 +104,9 @@ def test_mcp_tools_list_is_policy_filtered_and_includes_notification(tmp_path, m
     assert "write_file" not in names
     assert "app_api" not in names
     assert "odysseus_call" not in names
+    assert "github_issue_find_duplicates" in names
+    assert "manage_github_issues" not in names
+    assert "github_issue_create_triaged" not in names
 
 
 def test_mcp_tools_list_excludes_runbook_high_risk_tools_when_registered(tmp_path, monkeypatch):
@@ -167,6 +170,44 @@ def test_mcp_tools_call_denies_hidden_high_risk_tool(tmp_path, monkeypatch):
     result = response.json()["result"]
     assert result["isError"] is True
     assert "high_risk_tool_hidden" in result["content"][0]["text"]
+
+
+def test_mcp_github_issue_duplicate_lookup_routes_to_readonly_action(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    calls = []
+
+    async def _fake_manage_github_issues(content, owner=None):
+        payload = json.loads(content)
+        calls.append((payload, owner))
+        return {
+            "github_issue_duplicates": {"candidates": [], "blocks_auto_create": False},
+            "exit_code": 0,
+        }
+
+    monkeypatch.setattr("src.tool_domains.github_issues.do_manage_github_issues", _fake_manage_github_issues)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={"enabled": True})
+
+    response = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "github_issue_find_duplicates",
+        "arguments": {
+            "repository": "fuzzy123-ai/odysseus-fuzzy",
+            "title": "Duplicate candidate",
+        },
+    }))
+
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["isError"] is False
+    assert calls == [(
+        {
+            "repository": "fuzzy123-ai/odysseus-fuzzy",
+            "title": "Duplicate candidate",
+            "action": "duplicate_search",
+        },
+        None,
+    )]
+    assert "github_issue_duplicates" in result["content"][0]["text"]
 
 
 def test_mcp_notify_user_tool_call_requires_trusted_execution_owner(tmp_path, monkeypatch):

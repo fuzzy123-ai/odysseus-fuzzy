@@ -215,8 +215,15 @@ Current status 2026-07-03:
   `tests/test_github_issue_projection.py` implement and verify token-free
   GitHub Issue Fields projection contracts with owner/repo field-ID cache,
   label/local-only fallback and redacted per-field results.
-- Remaining P9 work starts at GHISS8 MCP exposure. No GitHub token, network
-  call or provider write action is enabled by GHISS0-GHISS7.
+- GHISS8 is complete: `src/mcp_server_tool_policy.py`,
+  `plugins/mcp_server/plugin.py`, `tests/test_mcp_server_tool_policy.py` and
+  `tests/test_mcp_server_plugin.py` expose only the read-only
+  `github_issue_find_duplicates` MCP tool while keeping the mixed/write/raw
+  GitHub surfaces hidden.
+- P9 backend repo work is complete. Live GitHub token setup, bounded provider
+  sync/write rollout and optional scheduled sync remain explicit live gates.
+  No GitHub token, network call or provider write action is enabled by
+  GHISS0-GHISS8.
 
 Done when:
 - `docs/plans/github-issue-intelligence-roadmap.md` is implemented through the

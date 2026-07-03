@@ -143,6 +143,10 @@ DEBUG_READONLY_TOOLS = frozenset({
     "telegram_debug_voice_pipeline",
 })
 
+GITHUB_ISSUE_READONLY_TOOLS = frozenset({
+    "github_issue_find_duplicates",
+})
+
 
 @dataclass(frozen=True)
 class McpToolPolicyOptions:
@@ -194,6 +198,8 @@ def classify_mcp_tool(
         return McpToolDecision(name, True, "default_allowed", "mvp_allowed_tool")
     if name in DEBUG_READONLY_TOOLS:
         return McpToolDecision(name, True, "debug_readonly", "debug_readonly_tool_allowed")
+    if name in GITHUB_ISSUE_READONLY_TOOLS:
+        return McpToolDecision(name, True, "github_issue_readonly", "github_issue_readonly_tool_allowed")
     if name in OWNER_SCOPED_WRITE_TOOLS:
         return McpToolDecision(
             name,

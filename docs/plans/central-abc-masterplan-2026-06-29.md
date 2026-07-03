@@ -127,7 +127,7 @@ Run at most three active implementation lanes at the same time.
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
 | L12 Recent Changes + Patch Notes | P1 | Limited | Local patch-note history helps Odysseus answer "what changed" from repo evidence; backend-safe slices are implemented and tested; UI placement remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | P1 | Limited | Native Alice/Bob/Charlie orchestration foundation is implemented as safe stores, dry-run bridges, quality gates and evidence models; real thread sends, command execution and scheduler activation remain gated. |
-| L14 GitHub Issue Intelligence | Post-MVP P1 | Limited | Provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend route contracts and token-free projection contracts are implemented without GitHub tokens or network writes; MCP exposure continues as a gated backend slice. |
+| L14 GitHub Issue Intelligence | Post-MVP P1 | Limited | Provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend route contracts, token-free projection contracts and narrow read-only MCP exposure are implemented without GitHub tokens or network writes; live rollout remains gated. |
 
 Integration rule:
 
@@ -2076,20 +2076,31 @@ Current evidence:
   label/local-only fallback and redacted per-field results.
 - `tests/test_github_issue_projection.py` covers cache scoping, field writes,
   label fallback, local-only skips and token-like upstream error redaction.
+- `GHISS8 MCP Exposure` is implemented as a repo-only backend slice.
+- `src/mcp_server_tool_policy.py` exposes only the narrow
+  `github_issue_find_duplicates` read-only MCP tool for GitHub Issue
+  Intelligence; the mixed `manage_github_issues` tool remains high-risk hidden.
+- `plugins/mcp_server/plugin.py` adds the synthetic MCP-only read tool and routes
+  calls internally to `duplicate_search` without provider sync, issue creation,
+  field writes or token handling.
+- `tests/test_mcp_server_tool_policy.py` and `tests/test_mcp_server_plugin.py`
+  verify read-only exposure, hidden write/raw surfaces and safe tool-call
+  routing.
 - Focused verification passed:
-  `tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py tests/test_github_issue_duplicates.py tests/test_github_issue_tools.py tests/test_github_issue_routes.py tests/test_github_issue_projection.py tests/test_tool_index_schema_parity.py tests/test_mcp_server_tool_policy.py`
-  returned `47 passed, 1 warning`.
+  `tests/test_mcp_server_tool_policy.py tests/test_mcp_server_plugin.py tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py tests/test_github_issue_duplicates.py tests/test_github_issue_tools.py tests/test_github_issue_routes.py tests/test_github_issue_projection.py`
+  returned `57 passed, 1 warning`.
 
 Open gates / next slices:
 
-- `GHISS8`: MCP exposure; write surfaces must remain confirmation- and
-  policy-gated.
+- Backend repo slices GHISS0-GHISS8 are complete.
+- Live GitHub token setup, bounded provider sync/write rollout and optional
+  scheduled sync remain explicit live/operator gates.
 
 Recommended next backend action:
 
-- Continue with `GHISS8 MCP Exposure` as the next safe repo-only slice when this
-  lane is selected again. Do not start GitHub network sync, token handling,
-  issue creation or MCP write exposure from roadmap text alone.
+- Do not add more repo-only GHISS slices unless a new capability gap appears.
+  Next action is a bounded live rollout decision if GitHub Issue Intelligence
+  should sync or write to a real repository.
 
 ## Current Master Status
 
@@ -2108,7 +2119,7 @@ Recommended next backend action:
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness, dry-run live bridge/command plans and Subagent Runtime v1 fake backend/tool/status path are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
-| L14 GitHub Issue Intelligence | GHISS0-GHISS7 complete, next repo slice pending | Provider-neutral issue field contract, default mappings, label fallback, fail-closed validation, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend route contracts and token-free projection contracts are implemented and tested; MCP exposure remains the next backend slice, with live GitHub writes/token use gated. |
+| L14 GitHub Issue Intelligence | backend complete, live-gated | GHISS0-GHISS8 are implemented and tested: provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend routes, token-free projection contracts and narrow read-only MCP exposure. Live GitHub token setup, provider sync/write rollout and optional scheduled sync remain gated. |
 
 Recommended next human decision:
 
@@ -2149,6 +2160,6 @@ Recommended next human decision:
   a focused command-runner approval path, or heartbeat scheduler activation.
   Without that explicit operator scope, the repo foundation is complete and
   should remain dry-run/readiness-only.
-- For L14, continue with `GHISS8 MCP Exposure` when GitHub Issue Intelligence is
-  selected next; do not run GitHub network sync or write issues until token,
-  repo and confirmation gates are explicit.
+- For L14, make a bounded live rollout decision only when GitHub Issue
+  Intelligence should touch a real repository. Until then the backend repo work
+  is complete and no GitHub network sync/write should run.
