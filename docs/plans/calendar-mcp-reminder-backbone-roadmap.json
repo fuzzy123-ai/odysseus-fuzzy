@@ -114,7 +114,7 @@
       "id": "CAL-MCP-3-readonly-calendar-mcp",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Add a built-in calendar MCP server with read-only agenda, reminders and readiness resources first.",
       "allowed_paths": [
         "mcp_servers/calendar_server.py",
@@ -124,7 +124,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_mcp_calendar_server.py -q"
       ],
-      "done_when": "MCP tools/resources can list today's agenda, upcoming events, reminders and readiness without exposing private raw content or cross-owner data."
+      "done_when": "MCP tools/resources can list today's agenda, upcoming events, reminders and readiness without exposing private raw content or cross-owner data.",
+      "evidence": "Implemented mcp_servers/calendar_server.py with read-only agenda, reminders and readiness tools/resources, fail-closed owner scoping, and Built-in: Calendar registration; tests/test_mcp_calendar_server.py covers tools, resources, owner scope and registration."
     },
     {
       "id": "CAL-MCP-4-gated-write-tools",

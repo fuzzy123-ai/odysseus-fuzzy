@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-3-readonly-calendar-mcp",
-    "reason": "CAL-MCP-0 through CAL-MCP-2 are complete; the next safe backend slice adds read-only Calendar MCP observability before any gated writes."
+    "id": "CAL-MCP-4-gated-write-tools",
+    "reason": "CAL-MCP-0 through CAL-MCP-3 are complete; the next backend slice can add owner-scoped, confirmation-gated Calendar MCP writes."
   }
 }
