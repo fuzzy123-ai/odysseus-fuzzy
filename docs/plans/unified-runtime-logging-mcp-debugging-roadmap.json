@@ -380,7 +380,7 @@
       "class": "repo_only",
       "owner": "Alice",
       "parallel_group": "D",
-      "status": "planned",
+      "status": "done",
       "goal": "Build a redacted debug bundle generator that collects correlated events, summaries and counters for one incident.",
       "allowed_paths": [
         "src/debug_bundle.py",
@@ -390,7 +390,8 @@
       "done_when": "A missing Telegram reply, failed reminder or blocked memory write can produce a compact redacted bundle for review or GitHub issue attachment.",
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_debug_bundle.py tests/test_mcp_debug_server.py -q"
-      ]
+      ],
+      "evidence": "Implemented src/debug_bundle.py to generate compact redacted debug bundles from already-redacted runtime events and summaries, including timeline, event/status/surface counters, correlation IDs and evidence refs without raw content or identifiers. Wired debug_bundle_create_redacted in mcp_servers/debug_server.py while list/read remain readiness-blocked until a store exists. Focused tests passed on 2026-07-03: 9 passed, 1 warning."
     },
     {
       "id": "ULOG-7-dashboard-label-contract",
@@ -483,7 +484,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-6-debug-bundle",
-    "reason": "ULOG-0 through ULOG-5 plus ULOG-7 are complete; the next ULOG repo-only slice is the redacted debug bundle generator."
+    "id": "ULOG-8-loki-prometheus-read-adapters",
+    "reason": "ULOG-0 through ULOG-7 are complete; the next ULOG repo-only slice is optional read-only Loki/Prometheus adapters, gated by configuration."
   }
 }

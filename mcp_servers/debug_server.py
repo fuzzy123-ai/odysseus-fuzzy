@@ -83,12 +83,47 @@ def call_debug_tool_contract(name: str, arguments: Mapping[str, Any] | None = No
             reason="unknown_debug_tool",
             arguments=arguments or {},
         )
+    if name == "debug_bundle_create_redacted":
+        return _create_debug_bundle(arguments or {})
     return _response(
         name=name,
         status="blocked",
         reason="event_index_not_configured",
         arguments=arguments or {},
     )
+
+
+def _create_debug_bundle(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    events = arguments.get("events") if isinstance(arguments, Mapping) else None
+    if not isinstance(events, list):
+        return _response(
+            name="debug_bundle_create_redacted",
+            status="blocked",
+            reason="events_required",
+            arguments=arguments,
+        )
+    from src.debug_bundle import build_redacted_debug_bundle, summarize_debug_bundle
+
+    bundle = build_redacted_debug_bundle(
+        incident_ref=str(arguments.get("incident_ref") or "incident-candidate"),
+        events=events,
+        summaries=arguments.get("summaries") if isinstance(arguments.get("summaries"), list) else (),
+        limit=_safe_limit(arguments.get("limit")),
+    )
+    return {
+        "schema": DEBUG_SERVER_SCHEMA,
+        "tool": "debug_bundle_create_redacted",
+        "status": "success",
+        "reason": "bundle_created",
+        "read_only": True,
+        "redacted_output": True,
+        "bounded": True,
+        "raw_content_visible": False,
+        "raw_identifiers_visible": False,
+        "writes_performed": False,
+        "bundle": bundle,
+        "summary": summarize_debug_bundle(bundle),
+    }
 
 
 def _tool_contract(name: str) -> dict[str, Any]:

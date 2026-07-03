@@ -268,7 +268,7 @@
     "No live remediation or public exposure is enabled without explicit gates."
   ],
   "recommended_next_action": {
-    "id": "ULOG-6-debug-bundle",
-    "reason": "ULOG-0, ULOG-1, ULOG-2, ULOG-3, ULOG-4, ULOG-5, ULOG-7, SIR-0, SIR-1, SIR-2 and SIR-3 are complete; the next master-order repo-only slice is the redacted debug bundle generator."
+    "id": "SIR-4-operator-notifications",
+    "reason": "ULOG-0 through ULOG-7 and SIR-0 through SIR-3 are complete; the next master-order repo-only slice is operator notification routing for incident summaries."
   }
 }
