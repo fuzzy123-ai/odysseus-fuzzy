@@ -2,7 +2,7 @@
 
 Stand: 2026-06-20
 
-Status: **integrierter Runtime-Follow-up fuer `0.18.x` Orchestration**
+Status: **repo complete; fake backend, tool surface, status snapshots and gates implemented; live thread backend remains operator-gated**
 
 ## Goal
 
@@ -24,9 +24,21 @@ Thread/JobRef -> scoped execution -> Handoff -> Gates -> Status/UI.
   queue'n Handoffs/Dispatches trocken; sie senden nicht in echte Threads.
 - `src/runtime_quality_gates.py` wertet injizierte Git-/Test-/Scope-Snapshots
   aus; es fuehrt keine Kommandos aus und bereinigt keinen Worktree.
-- `docs/plans/automated-agent-handoff-orchestration-mvp.md` beschreibt die
-  bestehende Orchestration-Foundation, aber markiert echte Thread-/Git-/Test-
-  Hooks weiterhin als offen.
+- `src/subagent_runtime.py` implementiert `SubagentRunSpec`,
+  `SubagentRunState`, Fake Execution Backend, operator-gated delegate wrapper,
+  spawn/read/pause/resume/cancel/retry/status helpers, Handoff+Gate-Anwendung
+  und redaktierte Status-Snapshots.
+- `src/subagent_plan_binding.py` bindet PlanRuntime-Knoten an
+  Subagent-Specs/Context Capsules.
+- `src/tool_schema_definitions.py`, `src/chat_agent_tool_discovery_map.py`,
+  `src/tool_policy.py`, `src/tool_security.py` und `src/agent_tools/__init__.py`
+  kennen `spawn_subagent` und `manage_subagents` als Fake-Backend-Surface; MCP
+  Public Policy blockiert diese Tools.
+- `docs/agents/master-implementation-agent.md` unterscheidet `delegate` als
+  Lightweight-Analyse von langlebigen Subagents.
+- Verifikation 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_subagent_runtime_contract.py tests\test_subagent_runtime.py tests\test_subagent_tool_selection.py tests\test_subagent_runtime_status.py tests\test_subagent_plan_binding.py tests\test_orchestration_runtime_loop.py tests\test_handoff_mailbox.py -q`
+  -> `68 passed, 3 warnings`.
 
 ## Non-Goals
 
@@ -96,6 +108,8 @@ Done when:
 - Master-Agent-Doku unterscheidet `delegate` und durable Subagents.
 - No-goals und Stop-Regeln sind kanonisch dokumentiert.
 
+Status: done.
+
 ### ABC1 Runtime Contract
 
 Owner: Bob.
@@ -114,6 +128,8 @@ Done when:
   `failed`, `cancelled`.
 - Done ohne Evidence oder Gate-Signal wird blockiert.
 
+Status: done.
+
 ### ABC2 Spawn API
 
 Owner: Bob.
@@ -131,6 +147,8 @@ Done when:
 - Capsule- und AgentRun-Summary enthalten keine Secrets oder absolute Hostpfade.
 - Ambiguous thread/job assignment blockiert.
 
+Status: done.
+
 ### ABC3 Execution Bridge
 
 Owner: Bob/Charlie.
@@ -142,6 +160,8 @@ Done when:
 - Fake backend kann Runs starten, Handoff simulieren und Fehler/Blocker liefern.
 - Backend-Interface ist schmal: spawn/read/cancel/retry/status.
 - Echtes Thread-Backend ist nur als Interface/No-Go dokumentiert.
+
+Status: done.
 
 ### ABC4 Handoff + Gates
 
@@ -156,6 +176,8 @@ Done when:
 - Scope-Verletzung blockiert.
 - Ambiguous thread/job blockiert.
 - Test-/Git-Snapshots bleiben injiziert und offline fakebar.
+
+Status: done.
 
 ### ABC5 Tool Discovery
 
@@ -175,6 +197,8 @@ Done when:
 - Tool Discovery schickt langlebige Worker-Anfragen nicht mehr zu `delegate`.
 - `delegate` bleibt fuer lightweight Analyse erreichbar.
 - Orchestrator-Allowlist bleibt eng und enthaelt keine freie Shell.
+
+Status: done.
 
 ### ABC6 UI / Status
 
@@ -196,6 +220,8 @@ Forbidden actions:
 Done when:
 - UI/API zeigt Fake-Backend-Runs ohne Live-Thread-Aktionen.
 - Status unterscheidet `claimed done`, `gate blocked` und `verified done`.
+
+Status: done for backend/API/status snapshot. Visual placement remains UI-owned.
 
 ### ABC7 E2E Smoke
 
@@ -219,6 +245,8 @@ Done when:
 - Keine Live-Thread-Ausfuehrung, kein Netzwerk, keine Host-Mutation.
 - No-goals sind in Tests/Docs sichtbar.
 
+Status: done.
+
 ## Execution Order
 
 1. `ABC0-reconciliation`
@@ -241,3 +269,15 @@ Done when:
   gates.
 - **Deferred**: real Codex/Odysseus thread backend, real test-command runner,
   real git gates, production auto-dispatch, and arbitrary N-agent scaling.
+
+## Remaining Gates
+
+- Real Thread Backend Gate: approve exact Codex/Odysseus thread bridge, target
+  resolution, message envelope, redaction policy and rollback/stop behavior.
+- Real Command Runner Gate: approve exact focused command classes, output
+  redaction, timeouts and workspace scope before runtime-owned tests/git checks
+  execute.
+- Production Scheduler Gate: approve heartbeat cadence, ownership, pause/resume
+  behavior and stuck-run notifications before automatic dispatch.
+- UI Placement Gate: UI agent owns visual placement for long-running Subagent
+  status cards or dashboards.

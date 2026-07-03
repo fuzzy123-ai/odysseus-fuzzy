@@ -1956,6 +1956,7 @@ Primary source docs:
 - `docs/plans/orchestration-e2e-smoke-runbook.md`
 - `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md`
 - `docs/plans/automated-agent-n-scaling-design.md`
+- `docs/plans/subagent-runtime-v1-roadmap.md`
 
 Current evidence:
 
@@ -1969,9 +1970,16 @@ Current evidence:
   commands; these models explicitly block live thread sends, automatic agent
   starts, command execution, raw output capture, destructive git and network
   actions.
+- `SUB0` through `SUB7` are repo-complete: Subagent Runtime v1 provides
+  ContextCapsule-backed specs, fake backend, PlanRuntime binding, spawn/manage
+  tool surface, Handoff+Gate lifecycle, redacted status snapshots and a fake
+  E2E smoke while keeping real thread/command backends gated.
 - Focused verification passed:
   `tests/test_live_orchestration_runtime_bridge.py tests/test_live_quality_gate_command_runner.py tests/test_orchestration_runtime_readiness.py tests/test_orchestration_operator_activation.py tests/test_orchestration_operator_activation_packet.py`
   returned `27 passed, 1 warning`.
+- Subagent Runtime verification passed:
+  `tests/test_subagent_runtime_contract.py tests/test_subagent_runtime.py tests/test_subagent_tool_selection.py tests/test_subagent_runtime_status.py tests/test_subagent_plan_binding.py tests/test_orchestration_runtime_loop.py tests/test_handoff_mailbox.py`
+  returned `68 passed, 3 warnings`.
 
 Open gates:
 
@@ -2006,7 +2014,7 @@ Recommended next backend action:
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |
-| L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness and dry-run live bridge/command plans are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
+| L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness, dry-run live bridge/command plans and Subagent Runtime v1 fake backend/tool/status path are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
 
 Recommended next human decision:
 

@@ -39,7 +39,7 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/development-orchestration-foundation-roadmap.md` | Detailplan fuer Orchestration v1 |
 | `docs/plans/development-orchestration-plan-graph.md` | Produktkonzept fuer Planning Canvas und Plan Graph |
 | `docs/plans/automated-agent-handoff-orchestration-mvp.md` | neuer Runtime-Track fuer vollautomatisches Agent-Handoff und verified Orchestration |
-| `docs/plans/subagent-runtime-v1-roadmap.md` | aktueller Follow-up-Track fuer langlebige Subagent-Runs mit Fake Backend, Gates und Status/UI; `delegate` bleibt lightweight Analyst |
+| `docs/plans/subagent-runtime-v1-roadmap.md` | repo-complete Follow-up-Track fuer langlebige Subagent-Runs mit Fake Backend, Gates, Tool-Surface und Status-Snapshots; `delegate` bleibt lightweight Analyst, echte Thread-/Command-Backends bleiben live-gated |
 | `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md` | AUTO7-Runbook fuer deterministischen Zwei-Agenten-Smoke ohne echte Thread-Sends |
 | `docs/plans/automated-agent-n-scaling-design.md` | AUTO8-Design fuer registrierte Agent-Pools, Budgets, Queueing und Locks |
 | `docs/plans/memory-scale-foundation-roadmap.md` | Detailplan fuer Postgres/pgvector und Scale Foundation |
@@ -61,7 +61,7 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.15.x` | Odysseus Lens UI & Memory Interaction | Lens als klare Arbeitsoberflaeche ueber Memory: Lesen, Pflegen, Insights, Diagnostics, Activity | weitgehend umgesetzt, harte Rename-Stufe bleibt freigabepflichtig |
 | `0.16.x` | Isolated Image Tools Worker | Background Removal und spaetere Image-AI-Tools laufen isoliert statt in der Core-venv | Worker/Client/Route-MVP umgesetzt, finaler manueller Image-Smoke offen |
 | `0.17.x` | Secure Data Mode & Local-Only Policy | sensible Quellen, immutable Secure Chats und zentrale Policy Gates vorbereiten | Foundation SEC1-SEC8 umgesetzt, Runtime-Hooks separat |
-| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO8 vorbereitet; Subagent Runtime v1 ist naechster Fake-Backend-Track, echte Thread-/Git-/Test-Hooks bleiben Live-Gates |
+| `0.18.x` | Automated Agent Handoff & Orchestration MVP | aus Plan Graph, Agent Runs, Thread Bridge, Heartbeat und Quality Gates wird echte Runtime | AUTO1-AUTO11 plus Subagent Runtime v1 repo-seitig abgeschlossen; echte Thread-/Git-/Test-/Scheduler-Hooks bleiben Live-Gates |
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | aktivierbar, da Nextcloud-Infrastruktur laeuft |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
@@ -673,15 +673,19 @@ Detailplaene:
 
 Ziel: Der manuell bewiesene Alice/Bob/Charlie-Prozess wird native Odysseus-Runtime. `0.12.x` hat die Modelle und Contracts vorbereitet; `0.18.x` verdrahtet sie mit echter Persistenz, Thread-Zuordnung, Handoff-Parsing, Heartbeat-Ausfuehrung, Quality Gates und Dashboard-Sicht.
 
-Aktueller Befund 2026-06-20:
+Aktueller Befund 2026-07-03:
 
-- Die Orchestration-Foundation hat viele trockene Bausteine: ContextCapsule,
-  AgentRunStore, ThreadRegistry, HandoffMailbox, RuntimeLoop und QualityGates.
+- Die Orchestration-Foundation hat die trockenen Bausteine umgesetzt:
+  ContextCapsule, AgentRunStore, ThreadRegistry, HandoffMailbox, RuntimeLoop,
+  QualityGates, Runtime Readiness, Operator Activation, dry-run Live Bridge
+  und dry-run Quality-Gate Command Planner.
 - `delegate` ist absichtlich nur ein fokussierter LLM-Call und darf keine
   Dateiaenderungen oder externen Zustand behaupten.
-- Der naechste Track ist deshalb `Subagent Runtime v1`: ein eigener Runtime-
-  Layer mit Fake Backend zuerst. Echte Odysseus/Codex-Thread-Ausfuehrung bleibt
-  ein separates Live-Go.
+- `Subagent Runtime v1` ist repo-seitig umgesetzt: Fake Backend,
+  PlanRuntime-Binding, spawn/manage Tool-Surface, Handoff+Gate-Anwendung,
+  Status-Snapshots und E2E-Fake-Smoke sind getestet. Echte
+  Odysseus/Codex-Thread-Ausfuehrung, runtime-owned Command Runner und
+  Scheduler-Aktivierung bleiben separate Live-Gates.
 
 ### MVP-Pfad
 
@@ -708,6 +712,15 @@ Approved Plan Graph -> Agent Run created -> Thread assigned -> Heartbeat reads s
 15. `SUB5-tool-discovery`
 16. `SUB6-ui-status`
 17. `SUB7-e2e-fake-smoke`
+
+Repo-Status 2026-07-03:
+
+- `SUB0` bis `SUB7` sind repo-seitig abgeschlossen.
+- Fokussierte Verifikation:
+  `tests/test_subagent_runtime_contract.py tests/test_subagent_runtime.py tests/test_subagent_tool_selection.py tests/test_subagent_runtime_status.py tests/test_subagent_plan_binding.py tests/test_orchestration_runtime_loop.py tests/test_handoff_mailbox.py`
+  -> `68 passed, 3 warnings`.
+- Offene Arbeit ist live-/operator-gated: echter Thread-Backend-Adapter,
+  echter Command Runner, Produktions-Scheduler und UI-Platzierung.
 
 ### Alice/Bob/Charlie Matrix
 
