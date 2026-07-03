@@ -2,8 +2,7 @@
 
 Stand: 2026-06-17
 
-Status: pre-implementation user and operator contract for agent timer, watch,
-clock, and overlay behavior
+Status: backend contract consumed; AAF1-AAF3 implemented and tested, live activation remains gated
 
 Dieses Dokument definiert die Nutzer- und Operator-Sprache fuer Agent-Timer,
 Watch-Modi, die Timer-Uhr und ein read-only Overlay. Es aktiviert keinen
@@ -34,7 +33,8 @@ Dieser Slice deckt bewusst nicht ab:
 - keine Agentenstarts
 - keine Hidden-Worker-Ausfuehrung
 - keine Netzwerk-, Provider-, Telegram-, Plugin- oder UI-Hotfile-Arbeit
-- keine Behauptung, dass AAF2 oder AAF3 bereits implementiert sind
+- keine Behauptung, dass Timer-, Watch- oder Overlay-Sprache schon Live-
+  Scheduler-Jobs schreibt oder Threads sendet
 
 ## Beziehung Zu Bestehenden Fundamenten
 
@@ -44,6 +44,13 @@ Die Agent-Automation-Sprache baut auf bestehenden Fundamenten auf:
 - die Team-Card-Surface darf einen Timer-Hinweis tragen
 - Scheduler-Fundamente existieren technisch bereits, werden in diesem Slice
   aber nicht angesprochen oder aktiviert
+- `src/agent_automation_spec.py` modelliert die read-only Automation-Spec fuer
+  `manual`, `watch`, `interval`, `once` und `recurring`.
+- `src/agent_team_card_api.py` kann diese Spezifikation als reduzierten
+  Timer-/Watch-Hinweis in die Team-Card-Payload aufnehmen.
+- Fokussierte Verifikation am 2026-07-03:
+  `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_automation_spec.py tests\test_agent_team_card_api.py tests\test_agent_profile.py tests\test_agent_team_card.py tests\test_agent_profile_registry.py -q`
+  returned `38 passed, 1 warning`.
 
 Wichtig:
 
