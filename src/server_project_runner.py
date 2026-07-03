@@ -124,6 +124,8 @@ class ServerProjectRunnerPlan:
     decision: str
     blockers: tuple[str, ...]
     planned_steps: tuple[Mapping[str, Any], ...]
+    operator_gate: Mapping[str, Any]
+    evidence_summary: Mapping[str, Any]
     next_human_decision: str
 
     @property
@@ -149,7 +151,10 @@ class ServerProjectRunnerPlan:
             "decision": self.decision,
             "blockers": list(self.blockers),
             "planned_steps": [dict(step) for step in self.planned_steps],
+            "operator_gate": dict(self.operator_gate),
+            "evidence_summary": dict(self.evidence_summary),
             "next_human_decision": self.next_human_decision,
+            "raw_content_visible": False,
         }
 
     def to_markdown(self) -> str:
@@ -354,6 +359,16 @@ def build_server_project_runner_plan(
     elif blockers:
         next_human_decision = "Clear the listed gates before any active server-side project execution."
 
+    planned_steps = _build_steps(
+        project_spec=project_spec,
+        push_remote=normalized_remote,
+        base_branch=normalized_base,
+        worker_branch=normalized_worker,
+        quality_gate_commands=normalized_commands,
+        deploy_target=normalized_target,
+        smoke_target=normalized_smoke,
+    )
+
     return ServerProjectRunnerPlan(
         project_spec=project_spec,
         project_id=normalized_project,
@@ -370,14 +385,24 @@ def build_server_project_runner_plan(
         live_go=bool(live_go),
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(blockers),
-        planned_steps=_build_steps(
-            project_spec=project_spec,
-            push_remote=normalized_remote,
-            base_branch=normalized_base,
-            worker_branch=normalized_worker,
-            quality_gate_commands=normalized_commands,
-            deploy_target=normalized_target,
-            smoke_target=normalized_smoke,
-        ),
+        planned_steps=planned_steps,
+        operator_gate={
+            "live_go": bool(live_go),
+            "operator_decision": normalized_operator,
+            "push_remote": normalized_remote,
+            "deploy_target": normalized_target,
+            "commit_push_deploy_requires_gate": True,
+            "cloudflare_tunnel_requested": bool(cloudflare_tunnel_requested),
+            "mutation_allowed": decision == "ready_for_operator_go",
+            "raw_content_visible": False,
+        },
+        evidence_summary={
+            "backup_evidence_green": bool(backup_evidence_green),
+            "smoke_target_present": bool(normalized_smoke),
+            "rollback_plan_present": bool(normalized_rollback),
+            "quality_gate_count": len(normalized_commands),
+            "planned_step_count": len(planned_steps),
+            "raw_content_visible": False,
+        },
         next_human_decision=next_human_decision,
     )

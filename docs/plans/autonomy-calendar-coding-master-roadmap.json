@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "ACPR-7-publish-and-deploy-gates",
-    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4 and ACPR-6 are complete; CAL-MCP-7 remains live-gated and ACPR-5 is optional MCP availability work, so the next safe backend slice is publish/deploy gate hardening."
+    "id": "ACPR-8-memory-and-tool-knowledge-refresh",
+    "reason": "CAL-MCP-0 through CAL-MCP-6 plus ACPR-0, ACPR-2, ACPR-3, ACPR-4, ACPR-6 and ACPR-7 are complete; remaining live smokes are gated, so the next safe backend slice is refreshing Odysseus tool/capability self-knowledge."
   }
 }

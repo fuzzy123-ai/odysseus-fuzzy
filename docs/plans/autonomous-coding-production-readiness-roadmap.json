@@ -48,10 +48,11 @@
       "src/tool_capability_maintenance.py and related tests cover post-update capability knowledge refresh foundations.",
       "src/coding_project_scope.py resolves repo/project references into bounded allowed_paths, checks, branch policy and sandbox policy with ambiguous-name blocking.",
       "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases.",
-      "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution."
+      "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution.",
+      "src/coding_agent_backend.py and src/server_project_runner.py expose explicit operator_gate and evidence_summary metadata for commit, push, deploy and Cloudflare handoff plans."
     ],
     "missing_or_not_yet_durable": [
-      "Publish/deploy gates exist as plans, but should wait until runner-state and scope resolution are durable."
+      "Live workstation-to-Telegram smoke and real deploy/Cloudflare exposure remain gated until explicit operator Go."
     ],
     "recommended_sequence": [
       "ACPR-2-runner-state-machine",
@@ -212,7 +213,7 @@
       "id": "ACPR-7-publish-and-deploy-gates",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "goal": "Standardize commit, push, deploy and Cloudflare-tunnel publish gates as explicit reviewed phases.",
       "allowed_paths": [
         "src/coding_agent_backend.py",
@@ -224,7 +225,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_server_project_runner.py tests/test_coding_agent_runner_state.py -q"
       ],
-      "done_when": "Commit/push/deploy plans are generated with evidence and require explicit operator gate before mutation."
+      "done_when": "Commit/push/deploy plans are generated with evidence and require explicit operator gate before mutation.",
+      "evidence": "CodingPublishPlan now serializes operator_gate, evidence_summary, mutation_allowed and raw_content_visible=false. ServerProjectRunnerPlan now serializes operator_gate and evidence_summary for push remote, deploy target, backup/smoke/rollback evidence and Cloudflare tunnel request state. Focused tests verify dry-run plans remain non-mutating, operator-go plans expose explicit mutation gates and private/host content remains redacted."
     },
     {
       "id": "ACPR-8-memory-and-tool-knowledge-refresh",

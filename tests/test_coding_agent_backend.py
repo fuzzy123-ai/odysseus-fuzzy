@@ -314,7 +314,12 @@ def test_done_publish_and_subagent_contracts_chain_from_verified_gate(tmp_path: 
 
     assert done.done is True
     assert publish.ready is True
+    assert publish.mutation_allowed is True
     assert publish.remote_name == "fuzzy"
+    assert publish.to_dict()["operator_gate"]["operator_go"] is True
+    assert publish.to_dict()["operator_gate"]["requires_separate_review"] is True
+    assert publish.to_dict()["evidence_summary"]["done_gate_complete"] is True
+    assert publish.to_dict()["raw_content_visible"] is False
     assert subagents.ready is True
     assert [contract.role for contract in subagents.contracts] == ["worker", "reviewer"]
 

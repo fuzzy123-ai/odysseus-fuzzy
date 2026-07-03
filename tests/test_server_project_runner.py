@@ -10,6 +10,8 @@ def test_default_plan_is_hold_until_live_gates_are_supplied():
 
     assert plan.decision == "hold"
     assert plan.live_execution_allowed is False
+    assert plan.to_dict()["operator_gate"]["mutation_allowed"] is False
+    assert plan.to_dict()["raw_content_visible"] is False
     assert "backup evidence is not green" in plan.blockers
     assert "smoke target is missing" in plan.blockers
     assert "rollback or hold plan is missing" in plan.blockers
@@ -27,6 +29,9 @@ def test_complete_dry_run_plan_is_plan_ready_but_not_live_execution():
 
     assert plan.decision == "plan_ready"
     assert plan.live_execution_allowed is False
+    assert plan.to_dict()["operator_gate"]["commit_push_deploy_requires_gate"] is True
+    assert plan.to_dict()["evidence_summary"]["quality_gate_count"] == 1
+    assert plan.to_dict()["evidence_summary"]["planned_step_count"] == len(plan.planned_steps)
     assert plan.blockers == ()
     assert [step["step_id"] for step in plan.planned_steps] == [
         "project_intake",
@@ -55,6 +60,8 @@ def test_ready_for_operator_go_requires_all_gates_and_operator_go():
 
     assert plan.decision == "ready_for_operator_go"
     assert plan.live_execution_allowed is True
+    assert plan.to_dict()["operator_gate"]["mutation_allowed"] is True
+    assert plan.to_dict()["operator_gate"]["operator_decision"] == "go"
     assert plan.blockers == ()
 
 

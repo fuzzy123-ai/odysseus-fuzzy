@@ -455,11 +455,17 @@ class CodingPublishPlan:
     commit_sha: str
     commit_decision: str
     push_decision: str
+    operator_gate: dict[str, Any]
+    evidence_summary: dict[str, Any]
     blockers: tuple[str, ...]
 
     @property
     def ready(self) -> bool:
         return self.commit_decision == "plan_ready" and self.push_decision == "plan_ready"
+
+    @property
+    def mutation_allowed(self) -> bool:
+        return self.ready and bool(self.operator_gate.get("operator_go"))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -473,7 +479,11 @@ class CodingPublishPlan:
             "commit_decision": self.commit_decision,
             "push_decision": self.push_decision,
             "ready": self.ready,
+            "mutation_allowed": self.mutation_allowed,
+            "operator_gate": dict(self.operator_gate),
+            "evidence_summary": dict(self.evidence_summary),
             "blockers": list(self.blockers),
+            "raw_content_visible": False,
         }
 
 
@@ -1117,6 +1127,25 @@ def build_coding_publish_plan(
         commit_sha=sha,
         commit_decision=decision,
         push_decision=decision,
+        operator_gate={
+            "commit_confirmed": bool(commit_confirmed),
+            "push_confirmed": bool(push_confirmed),
+            "operator_go": bool(operator_go),
+            "remote_name": remote,
+            "branch_name": branch,
+            "requires_separate_review": True,
+            "mutation_allowed": decision == "plan_ready",
+            "raw_content_visible": False,
+        },
+        evidence_summary={
+            "changed_path_count": len(changed),
+            "quality_gate_verified": done_gate.quality_gate.verified,
+            "done_gate_complete": done_gate.done,
+            "review_decision": done_gate.review_decision,
+            "reviewed_by_present": bool(done_gate.reviewed_by),
+            "commit_sha_present": bool(sha),
+            "raw_content_visible": False,
+        },
         blockers=tuple(dict.fromkeys(blockers)),
     )
 
