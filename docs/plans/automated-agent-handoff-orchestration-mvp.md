@@ -2,7 +2,7 @@
 
 Stand: 2026-06-16
 
-Status: **AUTO1-AUTO8 gestartet; Runtime-Vorbereitung inklusive N-Agent-Scaling-Modell abgeschlossen, echte Thread-/Git-/Test-Hooks offen**
+Status: **Repo-Fundament abgeschlossen; AUTO1-AUTO8 plus Aktivierungs-/Readiness-Vertraege vorhanden; echte Thread-Sends, Command-Ausfuehrung, Scheduler-Aktivierung und UI/API-Livebetrieb bleiben operator-gated**
 
 Dieser Plan macht aus dem manuell bewiesenen Alice/Bob/Charlie-Prozess eine native Odysseus-Runtime. Er ersetzt nicht die abgeschlossene `0.12.x Development Orchestration v1`, sondern baut darauf auf: Die vorhandenen Store-/Model-/Contract-Bausteine werden persistent, verdrahtet, pruefbar und sichtbar.
 
@@ -31,14 +31,28 @@ Schon vorhanden bzw. stark vorbereitet:
 - `src/quality_gates.py`: Gates fuer Tests, Git, Evidence, Scope, Hotfile, Handoff.
 - `src/orchestration_status.py`: Dashboard-/Statussnapshot-Modell.
 
-Noch nicht vollautomatisch verdrahtet:
+Noch nicht vollautomatisch live verdrahtet:
 
 - echte persistente Registry/API fuer Plan Graph + Runs.
 - echtes Thread-Lesen/Schreiben aus Odysseus heraus.
-- Heartbeat-Loop, der Entscheidungen ausfuehrt.
-- Git/Test-Gates, die real laufen.
+- Heartbeat-Loop, der Entscheidungen live ausfuehrt statt nur dry-run plant.
+- Git/Test-Gates, die real Kommandos ausfuehren statt Snapshot-/Dry-run-Plans zu bewerten.
 - UI-Dashboard, das Live-Status zeigt.
-- Runtime-Policy fuer Stop-Regeln, Hotfiles und destruktive Aktionen.
+- Operator-aktivierte Scheduler-/Thread-/Command-Bruecken fuer Produktionsbetrieb.
+
+Repo-seitig inzwischen vorbereitet:
+
+- `src/live_orchestration_runtime_bridge.py` und
+  `tests/test_live_orchestration_runtime_bridge.py` planen Thread-/Mailbox-
+  Bridge-Aktivierung konservativ als Dry-run und blockieren Live-Sends.
+- `src/live_quality_gate_command_runner.py` und
+  `tests/test_live_quality_gate_command_runner.py` planen Quality-Gate-
+  Commands mit Klassen, Timeouts, Redaktionspolicy und Operator-Approval,
+  ohne Kommandos auszufuehren.
+- `docs/plans/orchestration-runtime-readiness-contract.md`,
+  `docs/plans/orchestration-operator-activation-contract.md` und die
+  `orchestration-activation-*` Contracts definieren Readiness, Handoff,
+  Operator-Freigabe, Audit Trail, Bundles und Regression-Indizes.
 
 ## Current Evidence
 
@@ -50,7 +64,11 @@ Noch nicht vollautomatisch verdrahtet:
 - `AUTO6-mini-orchestration-dashboard-v2`: `src/orchestration_dashboard_v2.py`, `tests/test_orchestration_dashboard_v2.py`.
 - `AUTO7-end-to-end-two-agent-smoke`: `src/orchestration_e2e_smoke.py`, `tests/test_orchestration_e2e_smoke.py`, `docs/plans/automated-agent-handoff-e2e-smoke-runbook.md`.
 - `AUTO8-n-agent-scaling-design`: `src/agent_pool_scaling.py`, `tests/test_agent_pool_scaling.py`, `docs/plans/automated-agent-n-scaling-design.md`.
+- `AUTO9-runtime-readiness`: `src/orchestration_runtime_readiness.py`, `tests/test_orchestration_runtime_readiness.py`, `docs/plans/orchestration-runtime-readiness-contract.md`.
+- `AUTO10-operator-activation`: `src/orchestration_operator_activation.py`, `src/orchestration_operator_activation_packet.py`, `tests/test_orchestration_operator_activation.py`, `tests/test_orchestration_operator_activation_packet.py`, `docs/plans/orchestration-operator-activation-contract.md`.
+- `AUTO11-live-bridge-dry-runs`: `src/live_orchestration_runtime_bridge.py`, `src/live_quality_gate_command_runner.py`, `tests/test_live_orchestration_runtime_bridge.py`, `tests/test_live_quality_gate_command_runner.py`.
 - Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_agent_pool_scaling.py` -> `8 passed, 1 warning`.
+- Test: `C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_live_orchestration_runtime_bridge.py tests\test_live_quality_gate_command_runner.py tests\test_orchestration_runtime_readiness.py tests\test_orchestration_operator_activation.py tests\test_orchestration_operator_activation_packet.py -q` -> `27 passed, 1 warning`.
 - Boundary: Registry persists validated PlanGraph and AgentRun payloads to JSON only; it does not read threads, run git, run tests, or dispatch agents.
 - Boundary: Thread registry validates assignments and dispatch targets only; it does not read or send real thread messages.
 - Boundary: Handoff mailbox parses and queues dispatch envelopes only; it does not send messages into real Codex threads.
@@ -59,6 +77,8 @@ Noch nicht vollautomatisch verdrahtet:
 - Boundary: Dashboard v2 builds an API-ready snapshot only; it does not touch frontend hotfiles or serve HTTP.
 - Boundary: E2E smoke uses fake ThreadRefs and injected evidence only; it does not wake agents or send messages.
 - Boundary: Agent pool scaling assigns only registered agents under budgets and locks; it does not create agents or threads.
+- Boundary: Live runtime bridge and live quality-gate command runner are dry-run planning models; they do not send thread messages or execute shell/test/git commands.
+- Boundary: Activation/readiness contracts make operator gates explicit; they do not enable unattended production orchestration.
 
 ## Arbeitsprinzip
 
@@ -127,3 +147,15 @@ Nicht Teil des MVP:
 - Dashboard zeigt aktive Slices, Blocker, Gate-Status und naechste Aktion.
 - Zwei-Agenten-Smoke belegt den Vollpfad.
 - `AUTO8` beschreibt N-Agent-Skalierung, startet aber keine ungebremste Agentenfabrik.
+
+## Remaining Gates
+
+- Real Thread Send Gate: approve exact Codex/Odysseus thread bridge target,
+  message envelope, redaction policy and rollback behavior.
+- Real Command Execution Gate: approve exact focused command classes, timeout,
+  output redaction and workspace scope before tests/git checks run from the
+  runtime instead of the operator shell.
+- Scheduler Activation Gate: approve heartbeat cadence, stop rules and owner of
+  stuck-run notifications before enabling automatic ticks.
+- UI/API Live Gate: UI agent owns visual placement; backend may expose read-only
+  snapshots, but no new UI is built in this ABC backend lane.

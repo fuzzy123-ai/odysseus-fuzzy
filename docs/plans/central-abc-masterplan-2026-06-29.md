@@ -2,7 +2,7 @@
 
 Date: 2026-06-29
 
-Status: active planning baseline
+Status: active implementation baseline; current safe repo slices reconciled
 
 ## Goal
 
@@ -13,6 +13,15 @@ operator gates.
 
 This is an integration plan, not a replacement for the source roadmaps. The
 source roadmaps remain the detailed contracts for their domains.
+
+Current `/goal` alignment, updated 2026-07-03:
+
+- Keep implementing the integrated roadmaps with ABC in Standard mode.
+- Prefer repo-only backend/logik slices and stop at live gates.
+- Treat Calendar/Coding, Observability/Security and Automated Orchestration
+  as current active master tracks; their remaining meaningful work is live
+  evidence, not speculative UI or broad refactoring.
+- Do not touch legacy or v2 UI hotfiles from this backend track.
 
 ## Source Roadmaps
 
@@ -34,6 +43,9 @@ Primary sources:
 - `docs/plans/repo-control-roadmap.md`
 - `docs/plans/server-project-runner-roadmap.md`
 - `docs/plans/gamedev-project-access-roadmap.md`
+- `docs/plans/automated-agent-handoff-orchestration-mvp.md`
+- `docs/plans/orchestration-runtime-readiness-contract.md`
+- `docs/plans/orchestration-operator-activation-contract.md`
 - `docs/plans/odysseus-mcp-server-roadmap.md`
 - `docs/plans/mcp-workbench-evidence-plan.md`
 - `docs/mcp-server-runbook.md`
@@ -112,6 +124,7 @@ Run at most three active implementation lanes at the same time.
 | L10 Observability + Security Ops | P0/P1 | Limited | Unified logging, MCP debugging, incident response and Debian observability are repo-complete; remaining progress is live ops setup and smoke evidence. |
 | L11 Agent Autonomy Extensions | P1 | Limited | Browser senses, sandbox execution, no-GPU observation and research-to-memory flows are implemented with live evidence; remaining work is UI/operator polish and future bounded pilots. |
 | L12 Recent Changes + Patch Notes | P1 | Limited | Local patch-note history helps Odysseus answer "what changed" from repo evidence; backend-safe slices are implemented and tested; UI placement remains UI-owned. |
+| L13 Automated Agent Handoff Orchestration | P1 | Limited | Native Alice/Bob/Charlie orchestration foundation is implemented as safe stores, dry-run bridges, quality gates and evidence models; real thread sends, command execution and scheduler activation remain gated. |
 
 Integration rule:
 
