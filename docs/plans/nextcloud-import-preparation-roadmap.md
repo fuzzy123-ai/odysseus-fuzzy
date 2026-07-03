@@ -50,6 +50,17 @@ Report enthielt keine Samples, Rohinhalte oder Secrets. Das temporaere Ledger
 wurde nach dem Smoke entfernt, damit keine privaten Pfad-Metadaten im Repo
 oder Arbeitsbaum verbleiben.
 
+Erweiterter lokaler Inventory-Smoke 2026-07-03:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\nextcloud_import_dry_run.py --root <runtime-nextcloud-root> --ledger-path .tmp\nextcloud-dryrun\odysseus-nextcloud-import-dryrun-20260703-b250.jsonl --batch-limit 250 --scan-profile documents_only --pilot-batch-limit 25 --max-samples 0 --format markdown
+```
+
+Ergebnis: `250` Dateien metadata-only gescannt, `245` Inventory-Datensaetze,
+`245` Review-Kandidaten, `0` Dokument-Pilot-Auswahl, `0` Long Paths. Auch
+dieser Report enthielt keine Samples, Rohinhalte oder Secrets. Das temporaere
+Ledger wurde nach dem Smoke entfernt.
+
 Offen:
 
 - Ein bounded Live-Smoke gegen die echte Nextcloud ist noch nicht ausgefuehrt.
@@ -704,8 +715,8 @@ Erst nach erfolgreichem Import:
 1. Import-Konfigurationsdatei anlegen. Done.
 2. Scanner um Exclusions und File-Type-Metadaten erweitern. Done.
 3. Dry-run Inventory gegen die lokale Nextcloud-Quelle laufen lassen. Done fuer
-   bounded metadata-only Batch-Smoke am 2026-07-03; Vollinventar bleibt
-   operator-gated.
+   bounded metadata-only Batch-Smokes `25` und `250` am 2026-07-03;
+   Vollinventar bleibt operator-gated.
 4. Software-Bundle-Planner gegen das Inventory laufen lassen. Done fuer
    vorhandene Ledger/Dry-run-Pipeline.
 5. Report erzeugen: Software ZIP-Kandidaten, Dokumentkandidaten,
@@ -766,7 +777,8 @@ Erst nach erfolgreichem Import:
 
 ## 19. Aktueller naechster Schritt
 
-Als naechstes sollte der lokale Inventory-Dry-run bewusst auf ein groesseres,
-aber weiter metadata-only Batch-Fenster erweitert werden. Danach koennen
-Dokument-Pilotimport und Live-Upload-Smoke separat freigegeben werden. UI
-bleibt ausserhalb dieser Backend-Roadmap.
+Als naechstes sollte der Dokument-Pilot gegen eine bewusst ausgewaehlte
+extrahierbare Teilmenge freigegeben werden. Falls der Operator vorher
+Vollinventar moechte, bleibt das metadata-only und mit `--max-samples 0`
+moeglich. Live-Upload-Smoke und echte Memory/RaptorGraph-Writes bleiben
+separat gegated. UI bleibt ausserhalb dieser Backend-Roadmap.
