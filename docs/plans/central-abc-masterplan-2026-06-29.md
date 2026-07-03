@@ -35,6 +35,11 @@ Primary sources:
 - `docs/mcp-server-runbook.md`
 - `docs/plans/large-file-refactoring-abc-plan.md`
 - `docs/plans/large-file-refactoring-overview.md`
+- `docs/plans/calendar-mcp-reminder-backbone-roadmap.json`
+- `docs/plans/autonomous-coding-production-readiness-roadmap.json`
+- `docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json`
+- `docs/plans/autonomy-calendar-coding-master-roadmap.json`
+- `docs/plans/maintenance-ai-knowledge-master-roadmap.json`
 - `docs/plans/unified-odysseus-roadmap.md`
 - `docs/plans/mvp-master-roadmap.md`
 - `docs/plans/mvp-roadmap-runner-state.json`
@@ -88,6 +93,7 @@ Run at most three active implementation lanes at the same time.
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | P1 | Limited | Cross-cutting backend reliability for Inbox, Nextcloud import, Personal Docs/RAG and chat PDF flows. |
 | L7 Large File Refactoring | P2 | Carefully | Broad hotfiles; start only after P0 path is stable or on disjoint files. |
 | L8 UI/V2 Integration | P2/P3 | No in this backend run | UI agent owns placement and visual decisions. |
+| L9 Calendar MCP + Autonomous Coding Control | P0/P1 | Limited | Reminder/calendar reliability and workstation-first coding automation are now bundled in a JSON master roadmap; repo slices are done, remaining smokes are live-gated. |
 
 Integration rule:
 
@@ -1701,6 +1707,65 @@ Stop or defer the active slice if:
 8. Do not start PDF-specific live/provider/OCR, CSS, legacy UI or v2 UI work
    from this backend ABC track. UI placement and implementation are a separate
    UI-owned release track.
+9. Treat `docs/plans/autonomy-calendar-coding-master-roadmap.json` as the
+   active JSON master for calendar/reminder automation plus autonomous coding
+   production readiness. Repo-only implementation is complete there; the next
+   meaningful work is bounded live evidence, not more speculative backend code.
+
+## Active Lane L9: Calendar MCP + Autonomous Coding Control
+
+Goal:
+
+Calendar/reminder automation and autonomous coding control are unified around
+backend capability contracts: reminders collapse into durable scheduled tasks,
+Calendar MCP exposes owner-scoped read/write surfaces with gates, coding tasks
+are workstation-first and resumable, and Telegram is a remote monitor/control
+channel rather than the primary development workspace.
+
+Primary source docs:
+
+- `docs/plans/autonomy-calendar-coding-master-roadmap.json`
+- `docs/plans/calendar-mcp-reminder-backbone-roadmap.json`
+- `docs/plans/autonomous-coding-production-readiness-roadmap.json`
+- `docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json`
+- `docs/plans/maintenance-ai-knowledge-master-roadmap.json`
+
+Current evidence:
+
+- Calendar capability service, recurring reminder normalizer, read/write
+  Calendar MCP server, Telegram reminder commands and CalDAV/Nextcloud
+  readiness diagnostics are implemented and tested.
+- Autonomous coding runner state, project scope resolution, sandbox evidence
+  consumption, Telegram remote control consumption, publish/deploy gates and
+  tool/capability self-knowledge refresh are implemented and tested.
+- Maintenance AI knowledge freshness is complete: post-update ToolIndex refresh,
+  Memory/RaptorGraph capability records, diagnostics readback and live
+  acceptance are recorded in the source JSON.
+
+Open gates:
+
+- `CAL-MCP-7-live-telegram-reminder-smoke`: needs exact harmless live reminder
+  or digest target and operator Go.
+- `caldav-write-live-go`: needs exact test calendar/writeback target and
+  operator Go.
+- `ACPR-9-live-workstation-to-telegram-smoke`: needs a harmless
+  workstation-created coding task and Telegram status/control smoke target.
+- Real deploy or Cloudflare exposure remains a separate explicit deploy gate.
+
+Non-goals for this backend ABC lane:
+
+- No new UI and no legacy/v2 UI edits.
+- No live Telegram/CalDAV/Nextcloud/provider/deploy action from roadmap text
+  alone; live runs need bounded inputs.
+- No broad shell/filesystem exposure to agents; sandbox and publish actions
+  remain gated.
+
+Recommended next backend action:
+
+- Do not add more repo-only feature slices for L9 unless a regression is found.
+  The next useful work is either a bounded live Telegram reminder smoke, a
+  bounded CalDAV writeback smoke, or a bounded workstation-to-Telegram coding
+  control smoke with concrete operator input.
 
 ## Current Master Status
 
@@ -1714,6 +1779,7 @@ Stop or defer the active slice if:
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
 | L8 UI/V2 Integration | separate UI-owned track | Backend ABC exposes contracts, diagnostics and handoff notes only; UI placement, legacy UI and v2 implementation are owned by the UI agent/user and are not backend-roadmap blockers. |
+| L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
 
 Recommended next human decision:
 
@@ -1734,3 +1800,7 @@ Recommended next human decision:
 - Continue only backend/live-gated tracks that add new capability evidence; L6
   is backend-complete and L7 is parked at the accepted 1200-line backend
   threshold unless a concrete backend hotfile is selected.
+- For L9, choose one bounded live smoke next: Telegram todo digest/reminder,
+  CalDAV writeback, or workstation-to-Telegram coding status/control. Without
+  those concrete inputs, the backend repo work is complete and should not be
+  inflated with duplicate slices.
