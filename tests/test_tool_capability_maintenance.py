@@ -1,6 +1,8 @@
 import json
 
+from src import memory_provenance_ledger
 from src.tool_capability_maintenance import (
+    append_tool_capability_raptorgraph_event,
     build_tool_capability_memory_write_intent,
     build_tool_capability_snapshot,
     build_tool_memory_records,
@@ -9,6 +11,7 @@ from src.tool_capability_maintenance import (
     load_tool_capability_provider_payload,
     persist_tool_capability_knowledge,
     refresh_tool_capability_knowledge,
+    normalize_tool_capability_raptorgraph_event,
 )
 
 
@@ -184,3 +187,32 @@ def test_tool_capability_memory_write_upserts_idempotently():
     assert len(manager.entries) == len(records)
     assert all(entry["owner"] == "system" for entry in manager.entries)
     assert len(vector.added) == len(records)
+
+
+def test_tool_capability_raptorgraph_event_normalizes_and_dedupes(tmp_path, monkeypatch):
+    ledger_dir = tmp_path / "ledger"
+    graph_dir = tmp_path / "graph"
+    monkeypatch.setattr(memory_provenance_ledger, "MEMORY_PROVENANCE_LEDGER_DIR", str(ledger_dir))
+    snapshot = build_tool_capability_snapshot(index_status={"status": "ok"}, generated_at="2026-07-03T00:00:00+00:00")
+    records = build_tool_memory_records(snapshot)
+    event = build_tool_raptorgraph_event(snapshot, memory_records=records)
+
+    normalized = normalize_tool_capability_raptorgraph_event(event)
+    first = append_tool_capability_raptorgraph_event(event, root=graph_dir).to_dict()
+    second = append_tool_capability_raptorgraph_event(event, root=graph_dir).to_dict()
+
+    assert normalized["event"] == "tool_capability_knowledge_refresh"
+    assert normalized["event_id"].startswith("tool-rg-")
+    assert first["status"] == "written"
+    assert second["status"] == "duplicate"
+    rows = [json.loads(line) for line in (graph_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["source_provider"] == "tool_capability_maintenance"
+    assert rows[0]["raw_content_visible"] is False
+    provenance_rows = [
+        json.loads(line)
+        for line in memory_provenance_ledger.ledger_path().read_text(encoding="utf-8").splitlines()
+    ]
+    assert [row["event_type"] for row in provenance_rows] == ["raptorgraph_mutation", "raptorgraph_mutation"]
+    assert [row["status"] for row in provenance_rows] == ["written", "duplicate"]
+    assert provenance_rows[0]["graph_event_id"].startswith("tool-rg-")

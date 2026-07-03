@@ -70,10 +70,17 @@
       "id": "MAK-4",
       "name": "RaptorGraph Tool Capability Integration",
       "priority": "P0",
-      "status": "planned",
+      "status": "repo_done_live_gate_pending",
       "depends_on": ["MAK-2", "MAK-3"],
       "roadmap_slice": "TCM2-3-raptorgraph-tool-event-store",
-      "done_when": "Every accepted refresh creates or dedupes a RaptorGraph capability event linked to snapshot id, commit, and memory record ids."
+      "done_when": "Every accepted refresh creates or dedupes a RaptorGraph capability event linked to snapshot id, commit, and memory record ids.",
+      "evidence": [
+        "Tool capability RaptorGraph append store writes redacted JSONL events with stable tool-rg ids and duplicate detection.",
+        "RaptorGraph appends record raptorgraph_mutation provenance without raw private content.",
+        "refresh_tool_capability_knowledge.py supports gated --write-raptorgraph execution and dry-run proof.",
+        "Focused suite passed with 27 tests."
+      ],
+      "remaining": "Enable the RaptorGraph write gate on Debian and run a live bounded smoke only after operator Go."
     },
     {
       "id": "MAK-5",
@@ -148,7 +155,7 @@
     "Run TCM2-0 state check.",
     "Add/verify updater regression tests.",
     "Memory write executor binding is repo-done; run live gated smoke later.",
-    "Implement RaptorGraph/event-store integration or explicit blocked ledger.",
+    "RaptorGraph/event-store integration is repo-done; run live gated smoke later.",
     "Add diagnostics readback.",
     "Commit and push to fuzzy/dev.",
     "Deploy to Debian after operator Go.",

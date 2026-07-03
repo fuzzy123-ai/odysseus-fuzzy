@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from core.atomic_io import atomic_write_json
-from src.constants import TOOL_CAPABILITY_KNOWLEDGE_DIR
+from src.constants import TOOL_CAPABILITY_KNOWLEDGE_DIR, TOOL_CAPABILITY_RAPTORGRAPH_DIR
 from src.tool_index import ALWAYS_AVAILABLE, ASSISTANT_ALWAYS_AVAILABLE, BUILTIN_TOOL_DESCRIPTIONS
 from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
 
@@ -34,6 +34,7 @@ LATEST_FILE = "latest.json"
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer|credential)\b\s*[:=]\s*\S+")
 _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
+_HEX_RE = re.compile(r"^[0-9a-fA-F]{32,128}$")
 
 
 class ToolCapabilityMaintenanceError(ValueError):
@@ -82,6 +83,26 @@ class ToolCapabilityMemoryWriteReport:
             "memory_records_skipped": self.memory_records_skipped,
             "dry_run": self.dry_run,
             "writes_performed": self.writes_performed,
+            "raw_content_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCapabilityRaptorGraphAppendResult:
+    status: str
+    event_id: str
+    duplicate: bool
+    path: str
+    raw_content_visible: bool = False
+    schema: str = TOOL_CAPABILITY_RAPTORGRAPH_EVENT_SCHEMA
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "status": self.status,
+            "event_id": self.event_id,
+            "duplicate": self.duplicate,
+            "path": self.path,
             "raw_content_visible": False,
         }
 
@@ -400,6 +421,72 @@ def build_tool_raptorgraph_event(
     return event
 
 
+def append_tool_capability_raptorgraph_event(
+    event: Mapping[str, Any],
+    *,
+    root: str | Path | None = None,
+) -> ToolCapabilityRaptorGraphAppendResult:
+    """Append a deduped redacted RaptorGraph maintenance event."""
+
+    normalized = normalize_tool_capability_raptorgraph_event(event)
+    event_id = str(normalized["event_id"])
+    base = Path(root or TOOL_CAPABILITY_RAPTORGRAPH_DIR)
+    path = base / "events.jsonl"
+    base.mkdir(parents=True, exist_ok=True)
+    if _jsonl_contains_event(path, event_id):
+        _record_tool_raptorgraph_mutation(normalized, status="duplicate", duplicate=True)
+        return ToolCapabilityRaptorGraphAppendResult(
+            status="duplicate",
+            event_id=event_id,
+            duplicate=True,
+            path=str(path),
+        )
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(normalized, ensure_ascii=False, sort_keys=True))
+        handle.write("\n")
+    _record_tool_raptorgraph_mutation(normalized, status="written", duplicate=False)
+    return ToolCapabilityRaptorGraphAppendResult(
+        status="written",
+        event_id=event_id,
+        duplicate=False,
+        path=str(path),
+    )
+
+
+def normalize_tool_capability_raptorgraph_event(event: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(event, Mapping):
+        raise ToolCapabilityMaintenanceError("raptorgraph event must be a mapping")
+    source_fingerprint = _safe_hash(event.get("source_fingerprint") or event.get("source_hash"))
+    memory_record_ids = _safe_id_tuple(event.get("memory_record_ids") or ())
+    if not memory_record_ids:
+        raise ToolCapabilityMaintenanceError("memory_record_ids are required")
+    normalized = {
+        "schema": TOOL_CAPABILITY_RAPTORGRAPH_EVENT_SCHEMA,
+        "event_id": _tool_raptorgraph_event_id(source_fingerprint=source_fingerprint, memory_record_ids=memory_record_ids),
+        "event": "tool_capability_knowledge_refresh",
+        "source_provider": "tool_capability_maintenance",
+        "source_fingerprint": source_fingerprint,
+        "commit": _safe_label(event.get("commit") or ""),
+        "snapshot_id": _safe_label(event.get("snapshot_id") or ""),
+        "memory_record_ids": memory_record_ids,
+        "builtin_tool_count": int(event.get("builtin_tool_count") or 0),
+        "schema_tool_count": int(event.get("schema_tool_count") or 0),
+        "domains": _safe_domain_counts(event.get("domains") or {}),
+        "index_status": _safe_index_status(event.get("index_status") or {}),
+        "classification": "system_capability",
+        "local_only": False,
+        "dsgvo_mode": False,
+        "raw_content_stored": False,
+        "raw_content_visible": False,
+        "created_at": int(time.time()),
+    }
+    _assert_safe_payload(normalized)
+    encoded = json.dumps(normalized, ensure_ascii=False)
+    if len(encoded) > 5000:
+        raise ToolCapabilityMaintenanceError("raptorgraph event exceeds safe length")
+    return normalized
+
+
 def persist_tool_capability_knowledge(
     *,
     snapshot: Mapping[str, Any],
@@ -539,6 +626,108 @@ def _memory_record(snapshot: Mapping[str, Any], *, chunk: str, text: str, tool_n
     }
     _assert_safe_payload(record)
     return record
+
+
+def _jsonl_contains_event(path: Path, event_id: str) -> bool:
+    if not path.exists():
+        return False
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, Mapping) and row.get("event_id") == event_id:
+                return True
+    return False
+
+
+def _record_tool_raptorgraph_mutation(event: Mapping[str, Any], *, status: str, duplicate: bool) -> None:
+    try:
+        from src.memory_provenance_ledger import record_memory_provenance
+
+        record_memory_provenance(
+            "raptorgraph_mutation",
+            owner="system",
+            surface="tool_capability_maintenance",
+            source="tool_capability_raptorgraph_store",
+            action="append_event",
+            status=status,
+            reason="duplicate" if duplicate else "event_appended",
+            source_hash=str(event.get("source_fingerprint") or ""),
+            memory_record_ids=event.get("memory_record_ids") or (),
+            graph_event_id=str(event.get("event_id") or ""),
+            node_count=len(tuple(event.get("memory_record_ids") or ())),
+            edge_count=1 if event.get("memory_record_ids") else 0,
+            dsgvo_mode=False,
+            local_only=False,
+            classification="system_capability",
+            writes_performed=status == "written" and not duplicate,
+        )
+    except Exception:
+        pass
+
+
+def _tool_raptorgraph_event_id(*, source_fingerprint: str, memory_record_ids: tuple[str, ...]) -> str:
+    digest = hashlib.sha256(
+        json.dumps(
+            {"source_fingerprint": source_fingerprint, "memory_record_ids": memory_record_ids},
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()[:24]
+    return f"tool-rg-{digest}"
+
+
+def _safe_hash(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if not _HEX_RE.fullmatch(text):
+        raise ToolCapabilityMaintenanceError("source_fingerprint must be sha-like")
+    return text
+
+
+def _safe_id_tuple(values: Any) -> tuple[str, ...]:
+    if isinstance(values, str):
+        values = (values,)
+    if not isinstance(values, (tuple, list)):
+        raise ToolCapabilityMaintenanceError("memory_record_ids must be a list")
+    result = tuple(str(value or "").strip() for value in values)
+    if not result or any(not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", value) for value in result):
+        raise ToolCapabilityMaintenanceError("memory_record_ids contain unsafe values")
+    return result
+
+
+def _safe_domain_counts(value: Any) -> dict[str, int]:
+    if not isinstance(value, Mapping):
+        return {}
+    domains: dict[str, int] = {}
+    for key, raw_count in value.items():
+        label = _safe_label(key)
+        if not label or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", label):
+            continue
+        try:
+            count = max(0, min(int(raw_count or 0), 10000))
+        except (TypeError, ValueError):
+            continue
+        domains[label] = count
+    return domains
+
+
+def _safe_index_status(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    allowed = {"status", "reason", "error_class", "message", "healthy", "builtin_tools_indexed"}
+    result: dict[str, Any] = {}
+    for key in allowed:
+        if key not in value:
+            continue
+        raw = value.get(key)
+        if isinstance(raw, bool):
+            result[key] = raw
+        elif isinstance(raw, int):
+            result[key] = max(0, min(raw, 10000))
+        else:
+            result[key] = _safe_label(raw)
+    return result
 
 
 def _schema_tool_names() -> set[str]:

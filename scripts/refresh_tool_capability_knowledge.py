@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.tool_capability_maintenance import (
+    append_tool_capability_raptorgraph_event,
     build_tool_capability_memory_write_intent,
     execute_tool_capability_memory_write,
     refresh_tool_capability_knowledge,
@@ -31,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-memory", action="store_true")
     parser.add_argument("--dry-run-memory-write", action="store_true")
     parser.add_argument("--memory-owner", default=os.getenv("ODYSSEUS_TOOL_CAPABILITY_MEMORY_OWNER", "system"))
+    parser.add_argument("--write-raptorgraph", action="store_true")
+    parser.add_argument("--dry-run-raptorgraph-write", action="store_true")
+    parser.add_argument("--raptorgraph-dir", default="")
     args = parser.parse_args(argv)
 
     report = refresh_tool_capability_knowledge(
@@ -68,6 +72,22 @@ def main(argv: list[str] | None = None) -> int:
             confirmation_source="tool_capability_update_gate",
         )
         memory_write = write_report.to_dict()
+    raptorgraph_write = {"status": "not_requested"}
+    raptorgraph_requested = args.write_raptorgraph or os.getenv("ODYSSEUS_TOOL_CAPABILITY_RAPTOR_WRITE", "").strip().lower() in {"1", "true", "yes", "on"}
+    if raptorgraph_requested:
+        if args.dry_run_raptorgraph_write:
+            raptorgraph_write = {
+                "status": "planned",
+                "reason": "dry_run_only",
+                "event": report.raptorgraph_event.get("event"),
+                "memory_record_ids": list(report.raptorgraph_event.get("memory_record_ids") or ()),
+                "raw_content_visible": False,
+            }
+        else:
+            raptorgraph_write = append_tool_capability_raptorgraph_event(
+                report.raptorgraph_event,
+                root=args.raptorgraph_dir or None,
+            ).to_dict()
     summary = {
         "status": report.status,
         "snapshot_id": report.snapshot.get("id"),
@@ -78,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         "persisted": report.persisted,
         "index_status": report.index_status,
         "memory_write": memory_write,
+        "raptorgraph_write": raptorgraph_write,
     }
     print(json.dumps(summary, ensure_ascii=True, sort_keys=True))
     if not args.allow_index_failure and report.index_status.get("status") not in {"ok", "skipped"}:

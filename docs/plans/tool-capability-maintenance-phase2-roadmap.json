@@ -102,15 +102,24 @@
     {
       "id": "TCM2-3-raptorgraph-tool-event-store",
       "class": "repo_only",
-      "status": "planned",
+      "status": "done",
       "owner": "Bob",
       "goal": "Route tool capability RaptorGraph events into the graph/event store or an equivalent redacted maintenance ledger so graph memory can link tool facts to update commits.",
       "allowed_paths": [
+        "scripts/refresh_tool_capability_knowledge.py",
+        "src/constants.py",
         "src/tool_capability_maintenance.py",
-        "src/universal_inbox_raptorgraph_store.py",
         "tests/test_tool_capability_maintenance.py"
       ],
-      "done_when": "A tool capability refresh can create or dedupe a graph event with snapshot id, commit, memory record ids, and no raw private data."
+      "done_when": "A tool capability refresh can create or dedupe a graph event with snapshot id, commit, memory record ids, and no raw private data.",
+      "evidence": [
+        "append_tool_capability_raptorgraph_event writes redacted JSONL events under data/tool_capability_raptorgraph.",
+        "normalize_tool_capability_raptorgraph_event derives stable tool-rg event ids from source_fingerprint plus memory_record_ids.",
+        "Duplicate append returns duplicate without writing a second row.",
+        "RaptorGraph appends record redacted raptorgraph_mutation provenance.",
+        "CLI supports --write-raptorgraph plus --dry-run-raptorgraph-write and ODYSSEUS_TOOL_CAPABILITY_RAPTOR_WRITE for gated update integration.",
+        "Focused suite passed: tests/test_tool_capability_maintenance.py tests/test_homeserver_auto_update_timer.py tests/test_context_orchestrator.py tests/test_memory_provenance_ledger.py -> 27 passed."
+      ]
     },
     {
       "id": "TCM2-4-agent-self-report-guard",
@@ -185,7 +194,6 @@
   "tomorrow_start": {
     "recommended_first_slice": "TCM2-0-state-check",
     "then": [
-      "TCM2-3-raptorgraph-tool-event-store",
       "TCM2-5-diagnostics-and-audit-readback",
       "TCM2-1-live-post-update-smoke",
       "TCM2-7-final-live-acceptance"
