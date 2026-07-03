@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.calendar_mcp_reminder_backbone_roadmap",
   "updated_at": "2026-07-03",
-  "status": "planned",
+  "status": "in_progress",
   "mode": "backend_logic_first",
   "title": "Calendar MCP And Reminder Backbone Roadmap",
   "goal": "Turn calendar, todo reminders, scheduled digests and Telegram notifications into one coherent owner-scoped calendar/reminder capability with a built-in MCP server behind it.",
@@ -66,19 +66,20 @@
       "id": "CAL-MCP-0-state-audit",
       "class": "safe_offline",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "goal": "Inventory existing calendar, note reminder, scheduled task, Telegram delivery and CalDAV writeback behavior.",
       "allowed_paths": [
         "docs/plans/calendar-mcp-reminder-backbone-roadmap.json"
       ],
       "tests": [],
-      "done_when": "The roadmap has an accurate current-state section and lists reuse points instead of duplicating storage."
+      "done_when": "The roadmap has an accurate current-state section and lists reuse points instead of duplicating storage.",
+      "evidence": "Current foundation mapped to calendar_routes, caldav_sync/writeback, task_scheduler, task delivery, native tools and built-in MCP server patterns."
     },
     {
       "id": "CAL-MCP-1-capability-service-contract",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Add a pure backend calendar capability service that normalizes list/create/update/delete events, reminders, todo digest schedules and readiness reports.",
       "allowed_paths": [
         "src/calendar_capability_service.py",
@@ -87,7 +88,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py -q"
       ],
-      "done_when": "The service returns structured owner-scoped results and can represent agenda, reminders, digest schedules and writeback readiness without Telegram-specific assumptions."
+      "done_when": "The service returns structured owner-scoped results and can represent agenda, reminders, digest schedules and writeback readiness without Telegram-specific assumptions.",
+      "evidence": "Implemented src/calendar_capability_service.py with agenda, readiness and todo-digest schedule-plan contracts; tests/test_calendar_capability_service.py covers owner scope, single weekday cron plan and redacted readiness."
     },
     {
       "id": "CAL-MCP-2-single-task-reminder-normalizer",

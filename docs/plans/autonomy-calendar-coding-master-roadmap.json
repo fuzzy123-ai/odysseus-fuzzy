@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.autonomy_calendar_coding_master_roadmap",
   "updated_at": "2026-07-03",
-  "status": "planned",
+  "status": "in_progress",
   "mode": "master_coordination",
   "title": "Autonomy Calendar And Coding Master Roadmap",
   "goal": "Bundle the remaining calendar/reminder automation work with autonomous coding production-readiness into a single backend-first execution plan.",
@@ -11,7 +11,7 @@
       "id": "CAL-MCP",
       "path": "docs/plans/calendar-mcp-reminder-backbone-roadmap.json",
       "title": "Calendar MCP And Reminder Backbone Roadmap",
-      "status": "planned",
+      "status": "in_progress",
       "priority": "P0",
       "why": "Reliable reminders, todo digests and calendar context are daily operator infrastructure and directly fix the Telegram 09:00 reminder weakness."
     },
@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-0-state-audit",
-    "reason": "It is the smallest safe start and directly supports fixing the reminder/todo automation weakness before adding MCP writes."
+    "id": "CAL-MCP-2-single-task-reminder-normalizer",
+    "reason": "CAL-MCP-0 and CAL-MCP-1 are complete; the next backend slice directly prevents duplicate per-weekday reminder tasks."
   }
 }
