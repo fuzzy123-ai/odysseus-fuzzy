@@ -898,6 +898,7 @@ def _telegram_rebind_local_session(bridge: Dict) -> Dict:
             chat_id=chat_id,
             session_alias=str(bridge.get("session_alias") or ""),
             recommended_session_name=str(bridge.get("recommended_session_name") or "Telegram Bot"),
+            scope="secure",
             creator=_telegram_session_bridge,
         )
         session_id = str(result.get("session_id") or "").strip()

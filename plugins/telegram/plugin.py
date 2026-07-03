@@ -343,6 +343,8 @@ def build_agent_bridge_request(
         "session_alias": f"telegram:{chat_handle}",
         "recommended_session_name": f"Telegram {display_name}",
         "session_id": (session_binding or {}).get("session_id") or "",
+        "session_scope": (session_binding or {}).get("last_selected_scope") or ("secure" if local_only_required else "normal"),
+        "desired_session_scope": "secure" if local_only_required else "normal",
         "chat_id": chat_id,
         "chat_handle": chat_handle,
         "source_message_id": message.get("message_id"),
@@ -795,6 +797,7 @@ def _handle_telegram_control_command(
         chat_id=bridge["chat_id"],
         session_alias=bridge["session_alias"],
         recommended_session_name=bridge["recommended_session_name"],
+        scope=str(bridge.get("desired_session_scope") or "normal"),
         creator=session_creator,
     )
     created = bool(binding.get("session_id"))
@@ -2014,6 +2017,7 @@ def setup(ctx):
                 chat_id=bridge["chat_id"],
                 session_alias=bridge["session_alias"],
                 recommended_session_name=bridge["recommended_session_name"],
+                scope=str(bridge.get("desired_session_scope") or "normal"),
                 creator=session_creator,
             )
         bridge = build_agent_bridge_request(

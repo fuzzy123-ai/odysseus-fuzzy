@@ -134,6 +134,8 @@ def test_voice_transcript_forces_local_only_in_dsgvo(monkeypatch):
     assert bridge["note"] == "voice_transcribed"
     assert bridge["local_only_required"] is True
     assert bridge["security_mode"] == "secure"
+    assert bridge["desired_session_scope"] == "secure"
+    assert bridge["session_scope"] == "secure"
     assert bridge["telegram_voice_dsgvo_exempt"] is False
     assert bridge["sensitivity_delegation"]["mode"] == "local_raw_worker"
     assert bridge["sensitivity_delegation"]["local_worker_required"] is True
@@ -373,6 +375,8 @@ def test_parse_text_update_and_bridge_request(monkeypatch):
     assert bridge["prompt"] == "Hallo Odysseus"
     assert bridge["ready_for_agent"] is True
     assert bridge["reply_required"] is True
+    assert bridge["desired_session_scope"] == "normal"
+    assert bridge["session_scope"] == "normal"
 
 
 def test_telegram_workflow_context_normalizes_memory_status():
@@ -910,6 +914,60 @@ def test_session_bridge_reuses_existing_mapping(tmp_path):
     assert '"chat_id"' not in persisted_text
     assert second["mapping"]["chat_handle"].startswith("chat_")
     assert second["mapping"]["session_alias"].startswith("telegram:chat_")
+    assert second["mapping"]["normal_session_id"] == "session-a"
+    assert second["mapping"]["secure_session_id"] == ""
+    assert second["mapping"]["last_selected_scope"] == "normal"
+
+
+def test_session_bridge_keeps_normal_and_secure_slots_separate(tmp_path):
+    store = TelegramSessionBridgeStore(tmp_path)
+    created = []
+    raw_chat_id = "chat-raw-123"
+
+    def _creator(**kwargs):
+        created.append(kwargs)
+        return {"session_id": f"session-{kwargs['session_scope']}-{len(created)}"}
+
+    normal = store.bind_chat(
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
+        recommended_session_name="Telegram nina",
+        scope="normal",
+        creator=_creator,
+    )
+    secure = store.bind_chat(
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
+        recommended_session_name="Telegram nina",
+        scope="secure",
+        creator=_creator,
+    )
+    normal_again = store.bind_chat(
+        chat_id=raw_chat_id,
+        session_alias=f"telegram:{raw_chat_id}",
+        recommended_session_name="Telegram nina",
+        scope="normal",
+        creator=_creator,
+    )
+
+    assert normal["session_id"] == "session-normal-1"
+    assert secure["session_id"] == "session-secure-2"
+    assert normal_again["session_id"] == "session-normal-1"
+    assert len(created) == 2
+    assert created[0]["session_scope"] == "normal"
+    assert created[0]["local_only_required"] is False
+    assert created[1]["session_scope"] == "secure"
+    assert created[1]["local_only_required"] is True
+    mapping = store.get(raw_chat_id)
+    assert mapping is not None
+    assert mapping["normal_session_id"] == "session-normal-1"
+    assert mapping["secure_session_id"] == "session-secure-2"
+    assert mapping["session_id"] == "session-normal-1"
+    assert mapping["last_selected_scope"] == "normal"
+    persisted = json.loads((tmp_path / "telegram_session_bridge.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert raw_chat_id not in persisted_text
+    assert '"chat_id"' not in persisted_text
 
 
 def test_session_bridge_rebinds_existing_mapping_for_new_chat(tmp_path):
@@ -999,6 +1057,7 @@ def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, 
     mapping = TelegramSessionBridgeStore(tmp_path).get("123")
     assert mapping is not None
     assert mapping["session_id"] == "new-session"
+    assert mapping["last_selected_scope"] == "normal"
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "control_command" and item.get("status") == "new_chat_bound" for item in history)
 
@@ -1399,6 +1458,54 @@ def test_poll_route_uses_app_state_hooks_without_event_loop_collision(tmp_path, 
     assert turns[0]["session_id"] == "session-poll"
     history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
+
+
+def test_polling_cycle_dsgvo_text_uses_secure_session_slot(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setattr("plugins.telegram.plugin._dsgvo_mode_active", lambda: True)
+    created = []
+    turns = []
+
+    def _creator(**kwargs):
+        created.append(kwargs)
+        return {"session_id": f"session-{kwargs['session_scope']}"}
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 10,
+            "message": {
+                "message_id": 91,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "Bitte analysiere diese Notiz.",
+            },
+        }],
+        session_creator=_creator,
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {"status": "accepted", "reply_text": ""},
+    )
+
+    assert result["ok"] is True
+    assert result["agent_turns"] == 1
+    assert created == [{
+        "chat_id": "123",
+        "session_alias": turns[0]["session_alias"],
+        "recommended_session_name": "Telegram Nina",
+        "session_scope": "secure",
+        "local_only_required": True,
+    }]
+    assert turns[0]["session_id"] == "session-secure"
+    assert turns[0]["desired_session_scope"] == "secure"
+    assert turns[0]["session_scope"] == "secure"
+    mapping = TelegramSessionBridgeStore(tmp_path).get("123")
+    assert mapping is not None
+    assert mapping["normal_session_id"] == ""
+    assert mapping["secure_session_id"] == "session-secure"
+    assert mapping["session_id"] == "session-secure"
+    persisted_text = (tmp_path / "telegram_session_bridge.json").read_text(encoding="utf-8")
+    assert '"chat_id"' not in persisted_text
+    assert "Bitte analysiere" not in persisted_text
 
 
 def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):

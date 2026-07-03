@@ -497,7 +497,41 @@ class TelegramSessionBridgeStore:
         data = self._read()
         sessions = data["sessions"]
         mapping = sessions.get(_chat_handle(chat_id)) or sessions.get(str(chat_id))
-        return dict(mapping) if isinstance(mapping, dict) else None
+        return self._normalize_mapping(mapping) if isinstance(mapping, dict) else None
+
+    def _normalize_scope(self, scope: str | None) -> str:
+        return "secure" if str(scope or "").strip().lower() == "secure" else "normal"
+
+    def _normalize_mapping(self, mapping: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not isinstance(mapping, dict):
+            return None
+        normalized = dict(mapping)
+        legacy_session_id = str(normalized.get("session_id") or "").strip()
+        normal_session_id = str(normalized.get("normal_session_id") or "").strip()
+        secure_session_id = str(normalized.get("secure_session_id") or "").strip()
+        active_session_id = str(normalized.get("active_session_id") or "").strip()
+        selected_scope = self._normalize_scope(str(normalized.get("last_selected_scope") or ""))
+        if legacy_session_id and not normal_session_id and not secure_session_id:
+            normal_session_id = legacy_session_id
+            selected_scope = "normal"
+        if selected_scope == "secure" and secure_session_id:
+            active_session_id = secure_session_id
+        elif normal_session_id:
+            selected_scope = "normal"
+            active_session_id = normal_session_id
+        elif secure_session_id:
+            selected_scope = "secure"
+            active_session_id = secure_session_id
+        normalized["normal_session_id"] = normal_session_id
+        normalized["secure_session_id"] = secure_session_id
+        normalized["active_session_id"] = active_session_id
+        normalized["session_id"] = active_session_id
+        normalized["last_selected_scope"] = selected_scope
+        normalized["session_slots"] = {
+            "normal": bool(normal_session_id),
+            "secure": bool(secure_session_id),
+        }
+        return normalized
 
     def bind_chat(
         self,
@@ -505,18 +539,27 @@ class TelegramSessionBridgeStore:
         chat_id: str,
         session_alias: str,
         recommended_session_name: str,
+        scope: str = "normal",
         creator: Callable[..., Any] | None = None,
     ) -> dict[str, Any]:
         data = self._read()
         sessions = data["sessions"]
         handle = _chat_handle(chat_id)
         safe_session_alias = f"telegram:{handle}" if handle else session_alias
-        existing = sessions.get(handle) or sessions.get(str(chat_id))
-        if isinstance(existing, dict) and existing.get("session_id"):
+        selected_scope = self._normalize_scope(scope)
+        existing = self._normalize_mapping(sessions.get(handle) or sessions.get(str(chat_id)))
+        slot_key = f"{selected_scope}_session_id"
+        if isinstance(existing, dict) and existing.get(slot_key):
+            existing["active_session_id"] = str(existing.get(slot_key) or "")
+            existing["session_id"] = existing["active_session_id"]
+            existing["last_selected_scope"] = selected_scope
+            existing["session_alias"] = safe_session_alias
+            existing["recommended_session_name"] = recommended_session_name
             if str(chat_id) in sessions and handle not in sessions:
                 sessions[handle] = dict(existing)
                 sessions.pop(str(chat_id), None)
             existing["last_seen_at"] = int(time.time())
+            sessions[handle] = existing
             self._write(data)
             return {"session_id": existing["session_id"], "created": False, "mapping": dict(existing)}
 
@@ -526,18 +569,31 @@ class TelegramSessionBridgeStore:
                 chat_id=str(chat_id),
                 session_alias=session_alias,
                 recommended_session_name=recommended_session_name,
+                session_scope=selected_scope,
+                local_only_required=selected_scope == "secure",
             )
             if isinstance(created, dict):
                 session_id = created.get("session_id") or created.get("id")
             else:
                 session_id = created
-        mapping = {
+        now = int(time.time())
+        mapping = existing or {
             "chat_handle": handle,
-            "session_id": str(session_id or ""),
             "session_alias": safe_session_alias,
             "recommended_session_name": recommended_session_name,
-            "created_at": int(time.time()),
-            "last_seen_at": int(time.time()),
+            "created_at": now,
+        }
+        mapping["chat_handle"] = handle
+        mapping["session_alias"] = safe_session_alias
+        mapping["recommended_session_name"] = recommended_session_name
+        mapping[slot_key] = str(session_id or "")
+        mapping["active_session_id"] = str(session_id or "")
+        mapping["session_id"] = str(session_id or "")
+        mapping["last_selected_scope"] = selected_scope
+        mapping["last_seen_at"] = now
+        mapping["session_slots"] = {
+            "normal": bool(mapping.get("normal_session_id")),
+            "secure": bool(mapping.get("secure_session_id")),
         }
         sessions.pop(str(chat_id), None)
         sessions[handle] = mapping
@@ -550,31 +606,45 @@ class TelegramSessionBridgeStore:
         chat_id: str,
         session_alias: str,
         recommended_session_name: str,
+        scope: str = "normal",
         creator: Callable[..., Any] | None = None,
     ) -> dict[str, Any]:
         data = self._read()
         sessions = data["sessions"]
         handle = _chat_handle(chat_id)
         safe_session_alias = f"telegram:{handle}" if handle else session_alias
+        selected_scope = self._normalize_scope(scope)
+        slot_key = f"{selected_scope}_session_id"
+        existing = self._normalize_mapping(sessions.get(handle) or sessions.get(str(chat_id))) or {}
         session_id = None
         if creator is not None:
             created = creator(
                 chat_id=str(chat_id),
                 session_alias=session_alias,
                 recommended_session_name=recommended_session_name,
+                session_scope=selected_scope,
+                local_only_required=selected_scope == "secure",
             )
             if isinstance(created, dict):
                 session_id = created.get("session_id") or created.get("id")
             else:
                 session_id = created
         mapping = {
+            **existing,
             "chat_handle": handle,
-            "session_id": str(session_id or ""),
             "session_alias": safe_session_alias,
             "recommended_session_name": recommended_session_name,
-            "created_at": int(time.time()),
             "last_seen_at": int(time.time()),
             "rebound_at": int(time.time()),
+        }
+        mapping.setdefault("created_at", int(time.time()))
+        mapping[slot_key] = str(session_id or "")
+        mapping["active_session_id"] = str(session_id or "")
+        mapping["session_id"] = str(session_id or "")
+        mapping["last_selected_scope"] = selected_scope
+        mapping["session_slots"] = {
+            "normal": bool(mapping.get("normal_session_id")),
+            "secure": bool(mapping.get("secure_session_id")),
         }
         sessions.pop(str(chat_id), None)
         sessions[handle] = mapping

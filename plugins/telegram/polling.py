@@ -453,6 +453,7 @@ def run_telegram_polling_cycle_impl(
                     chat_id=bridge["chat_id"],
                     session_alias=bridge["session_alias"],
                     recommended_session_name=bridge["recommended_session_name"],
+                    scope=str(bridge.get("desired_session_scope") or "normal"),
                     creator=session_creator,
                 )
                 bridge = build_agent_bridge_request(
