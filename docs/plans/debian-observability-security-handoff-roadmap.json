@@ -181,7 +181,7 @@
       "id": "OBS-6-alerting-and-operator-routing",
       "class": "repo_only",
       "owner": "Alice",
-      "status": "planned",
+      "status": "done",
       "goal": "Define alert rules and route important incidents to the operator without alert fatigue.",
       "alert_candidates": [
         "Odysseus service down",
@@ -198,7 +198,8 @@
         "alerts have severity levels",
         "Telegram notifications are gated and do not leak secrets",
         "maintenance windows and local model heavy jobs can suppress noisy alerts"
-      ]
+      ],
+      "evidence": "Implemented src/observability_alert_routing.py with a content-free alert rule catalog and dry-run operator routing decisions for Telegram polling, scheduler, Universal Inbox, memory writes, RaptorGraph maintenance, LLM failures and local model latency. Routing supports severity, dedupe/cooldown suppression and maintenance-window suppression without live dispatch. Verified with tests/test_observability_alert_routing.py."
     },
     {
       "id": "OBS-7-odysseus-diagnostics-bridge",
@@ -281,8 +282,8 @@
     "All live installs and exposure decisions are documented as operator gates."
   ],
   "recommended_next_action": {
-    "id": "OBS-6-alerting-and-operator-routing",
+    "id": "OBS-7-odysseus-diagnostics-bridge",
     "mode": "repo_only",
-    "reason": "OBS-0 and OBS-4 are complete. OBS-1, OBS-2, OBS-3 and OBS-5 remain live-gated, so the next safe repo-only slice is alerting and operator routing policy."
+    "reason": "OBS-0, OBS-4 and OBS-6 are complete. OBS-1, OBS-2, OBS-3 and OBS-5 remain live-gated, so the next safe repo-only slice is the Odysseus diagnostics bridge."
   }
 }
