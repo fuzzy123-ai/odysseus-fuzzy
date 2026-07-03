@@ -1,5 +1,6 @@
 from src.mcp_server_tool_policy import (
     ALWAYS_DENIED_TOOLS,
+    DEBUG_READONLY_TOOLS,
     McpToolPolicyOptions,
     classify_mcp_tool,
     exposed_mcp_tool_names,
@@ -91,3 +92,14 @@ def test_mcp_policy_filters_openai_function_schemas():
     exposed = filter_mcp_tools(tools)
 
     assert [tool["function"]["name"] for tool in exposed] == ["odysseus_notify_user"]
+
+
+def test_mcp_policy_allows_debug_readonly_tools_without_write_flags():
+    for tool_name in DEBUG_READONLY_TOOLS:
+        decision = classify_mcp_tool(tool_name)
+        assert decision.exposed is True, tool_name
+        assert decision.category == "debug_readonly"
+        assert decision.reason == "debug_readonly_tool_allowed"
+
+    names = exposed_mcp_tool_names(["debug_recent_failures", "podman_debug_status_readonly", "service_restart"])
+    assert names == ("debug_recent_failures", "podman_debug_status_readonly")

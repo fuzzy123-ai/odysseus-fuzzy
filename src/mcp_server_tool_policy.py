@@ -97,6 +97,37 @@ FILESYSTEM_READ_TOOLS = frozenset({
     "read_file",
 })
 
+DEBUG_READONLY_TOOLS = frozenset({
+    "agent_debug_run_trace",
+    "agent_debug_tool_failures",
+    "debug_bundle_create_redacted",
+    "debug_bundle_list",
+    "debug_bundle_read_summary",
+    "debug_recent_failures",
+    "debug_trace_by_correlation_id",
+    "debug_trace_by_doc_id",
+    "debug_trace_by_task_id",
+    "debug_trace_by_telegram_message",
+    "inbox_debug_document_flow",
+    "inbox_debug_extraction_status",
+    "inbox_debug_memory_write_intent",
+    "llm_debug_activity_summary",
+    "local_model_debug_latency",
+    "memory_debug_write_flow",
+    "nextcloud_debug_transfer_status",
+    "podman_debug_status_readonly",
+    "raptorgraph_debug_maintenance",
+    "raptorgraph_debug_provenance",
+    "raptorgraph_debug_rebuild_readiness",
+    "scheduler_debug_delivery_failures",
+    "scheduler_debug_due_tasks",
+    "telegram_debug_control_commands",
+    "telegram_debug_image_ocr_pipeline",
+    "telegram_debug_message_flow",
+    "telegram_debug_reply_status",
+    "telegram_debug_voice_pipeline",
+})
+
 
 @dataclass(frozen=True)
 class McpToolPolicyOptions:
@@ -146,6 +177,8 @@ def classify_mcp_tool(
         )
     if name in DEFAULT_ALLOWED_TOOLS:
         return McpToolDecision(name, True, "default_allowed", "mvp_allowed_tool")
+    if name in DEBUG_READONLY_TOOLS:
+        return McpToolDecision(name, True, "debug_readonly", "debug_readonly_tool_allowed")
     if name in OWNER_SCOPED_WRITE_TOOLS:
         return McpToolDecision(
             name,

@@ -351,7 +351,7 @@
       "class": "repo_only",
       "owner": "Charlie",
       "parallel_group": "D",
-      "status": "planned",
+      "status": "done",
       "goal": "Define and implement the read-only MCP diagnostic tool contract for unified logs, metrics, Telegram, scheduler, inbox, memory, RaptorGraph, models and ops summaries.",
       "allowed_paths": [
         "mcp_servers/debug_server.py",
@@ -372,7 +372,8 @@
         "no raw secrets",
         "no raw chat IDs",
         "operator confirmation required for any future write/remediation tool"
-      ]
+      ],
+      "evidence": "Implemented mcp_servers/debug_server.py with a read-only, bounded and redacted diagnostic contract covering event traces, Telegram, scheduler, inbox, Nextcloud, memory, RaptorGraph, model/agent, Podman and debug bundle summary tools. Added the debug server to built-in MCP registration and allowed only the explicit debug_readonly tool category in src/mcp_server_tool_policy.py; unknown or remediation-like tools remain blocked. Focused tests passed on 2026-07-03: 11 passed, 1 warning."
     },
     {
       "id": "ULOG-6-debug-bundle",
@@ -482,7 +483,7 @@
     "A redacted debug bundle can be generated for one incident."
   ],
   "recommended_next_action": {
-    "id": "ULOG-5-mcp-diagnostic-contract",
-    "reason": "ULOG-0 through ULOG-4 plus ULOG-7 are complete; the next ULOG repo-only slice is the read-only MCP diagnostic contract."
+    "id": "ULOG-6-debug-bundle",
+    "reason": "ULOG-0 through ULOG-5 plus ULOG-7 are complete; the next ULOG repo-only slice is the redacted debug bundle generator."
   }
 }
