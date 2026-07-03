@@ -2,7 +2,7 @@
 
 Stand: 2026-06-23
 
-Status: **ready for Master Chat intake**
+Status: **CTXE1 done; manifest-first backend model started; CTXE2 next**
 
 Mode: **Standard ABC**
 
@@ -14,7 +14,7 @@ Master Chat, bitte diese Roadmap als neuen Vor-1.0-Integrationspfad aufnehmen:
 - Roadmap: `docs/plans/pre-1.0-context-efficiency-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/mvp-master-roadmap.md`, `docs/plans/dynamic-tool-loading-contract.md`, `docs/plans/fallback-routing-contract.md`, `docs/plans/small-model-evaluation-gates-contract.md` und `docs/plans/tool-result-truth-contract.md`.
 - Prioritaet: vor `1.0.0`, aber unterhalb laufender Sicherheits-, Runtime- und Release-Gates. Diese Roadmap darf keine Live-Smokes, Provider-Aufrufe, Deploys, Pushes oder neue UI-Neugestaltung erzwingen.
-- Naechster sicherer Slice: `CTXE0-tool-inventory-and-budget-baseline`.
+- Naechster sicherer Slice: `CTXE2-deferred-tool-schema-selection`.
 - Owner-Vorschlag: Charlie koordiniert, Bob implementiert kleine Backend-/Testmodelle, Alice dokumentiert Operator-Sprache und Go/Partial/No-Go-Wording.
 
 ## Goal
@@ -55,7 +55,7 @@ Stoppe oder erstelle ein Gate, wenn:
 | Slice | Class | Owner | Ziel | Allowed Paths | Tests | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
 | `CTXE0-tool-inventory-and-budget-baseline` | `repo_only` | Charlie/Bob | Inventar der aktuellen agent-callable Tools, MCP-Tools, Plugin-Tools und Context-Provider plus grobe Prompt-Budget-Schaetzung erstellen. | `src/`, `routes/`, `plugins/`, `mcp_servers/`, `tests/`, `docs/plans/` | Focused static/unit tests if model added; otherwise docs-only. | none |
-| `CTXE1-tool-manifest-model` | `repo_only` | Bob | Kleines Backend-Modell fuer Tool-Manifeste bauen: id, family, short description, capabilities, risk class, schema ref, visibility state. | new `src/*tool*manifest*.py`, matching tests | focused pytest for new model | none |
+| `CTXE1-tool-manifest-model` | `repo_only` | Bob | Kleines Backend-Modell fuer Tool-Manifeste bauen: id, family, short description, capabilities, risk class, schema ref, visibility state. | `src/tool_catalog.py`, `tests/test_tool_catalog.py` | done: `9 passed, 1 warning` | none |
 | `CTXE2-deferred-tool-schema-selection` | `repo_only` | Bob | Auswahlfunktion bauen, die fuer eine Capsule/Session zuerst kompakte Tool-Manifeste liefert und volle Schemata nur fuer relevante Tools markiert. | `src/`, `tests/` only within tool selection scope | focused pytest | none |
 | `CTXE3-session-envelope-hash` | `repo_only` | Bob | Session-Envelope modellieren: model ref, reasoning/context budget, active tool manifest set, system prompt version, MCP/plugin selection, cache boundary marker. | `src/`, `core/`, `tests/` narrow session/envelope files | focused pytest | none |
 | `CTXE4-cache-boundary-policy` | `repo_only` | Charlie/Bob | Policy definieren und testen: Modell-/Toolset-/Reasoning-/Context-Budget-Wechsel nur am Session-Start, nach Compaction oder nach explizitem Operator-Go. | `src/`, `core/`, `routes/`, `tests/` narrow session policy files | focused pytest | needs_design only if user-facing wording unclear |
@@ -162,6 +162,34 @@ Minimum verification before claiming Go:
 - Roadmap closeout with Go/Partial/Deferred language.
 
 Docs-only slices require no pytest, but must state `docs-only/no tests`.
+
+## Progress Evidence
+
+### CTXE1 Tool Manifest Model
+
+Status: done 2026-07-03.
+
+Implemented:
+
+- `ToolManifest` in `src/tool_catalog.py` with `tool_id`, `family`,
+  `short_description`, `capabilities`, `risk_level`, `schema_ref`,
+  `visibility_state` and compact prompt budget estimate.
+- Function-schema adapter that emits a manifest with `schema_ref` such as
+  `function:write_file` instead of embedding full parameter schemas.
+- Deterministic manifest builder with duplicate suppression.
+- Conservative family, capability and risk inference for built-in and MCP-like
+  tools.
+- Redacted audit summary flags: no raw schema, raw content or token value.
+
+Evidence:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_tool_catalog.py -q
+```
+
+Result: `9 passed, 1 warning`.
+
+Next safe slice: `CTXE2-deferred-tool-schema-selection`.
 
 ## Go Language
 

@@ -5,9 +5,12 @@ from src.context_capsule import ContextCapsule
 from src.tool_catalog import (
     ToolCatalogError,
     ToolDescriptor,
+    ToolManifest,
     ToolRiskLevel,
     ToolSelectionRequest,
     ToolSelectionResult,
+    ToolVisibility,
+    build_tool_manifests_from_function_schemas,
 )
 
 
@@ -212,4 +215,64 @@ def test_descriptor_requires_nonempty_capabilities():
             allowed_roles=[],
             blocked_scopes=[],
             summary="No capabilities.",
+        )
+
+
+def test_tool_manifest_from_function_schema_is_compact_and_schema_referenced():
+    schema = {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Write a file to disk with exact content.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "content": {"type": "string"},
+                },
+            },
+        },
+    }
+
+    manifest = ToolManifest.from_function_schema(schema, visibility_state=ToolVisibility.VISIBLE)
+    payload = manifest.compact_prompt_dict()
+    audit = manifest.audit_summary()
+
+    assert manifest.tool_id == "write_file"
+    assert manifest.family == "filesystem"
+    assert manifest.risk_level == ToolRiskLevel.DANGEROUS
+    assert manifest.schema_ref == "function:write_file"
+    assert "write" in manifest.capabilities
+    assert payload["visibility_state"] == "visible"
+    assert "parameters" not in payload
+    assert "properties" not in repr(payload)
+    assert audit["raw_schema_visible"] is False
+    assert audit["raw_content_visible"] is False
+    assert audit["token_value_visible"] is False
+
+
+def test_tool_manifest_builder_sorts_and_deduplicates_function_schemas():
+    schemas = [
+        {"type": "function", "function": {"name": "web_search", "description": "Search the web.", "parameters": {}}},
+        {"type": "function", "function": {"name": "ask_user", "description": "Ask for a decision.", "parameters": {}}},
+        {"type": "function", "function": {"name": "web_search", "description": "Duplicate.", "parameters": {}}},
+    ]
+
+    manifests = build_tool_manifests_from_function_schemas(schemas)
+
+    assert [item.tool_id for item in manifests] == ["ask_user", "web_search"]
+    assert manifests[0].visibility_state == ToolVisibility.HIDDEN
+    assert manifests[1].family == "network"
+    assert manifests[1].risk_level == ToolRiskLevel.ELEVATED
+
+
+def test_tool_manifest_rejects_unsafe_tool_ids():
+    with pytest.raises(ToolCatalogError):
+        ToolManifest.create(
+            tool_id="../secret",
+            family="filesystem",
+            short_description="Unsafe id.",
+            capabilities=["read"],
+            risk_level=ToolRiskLevel.SAFE,
+            schema_ref="function:secret",
         )

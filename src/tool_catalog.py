@@ -13,7 +13,9 @@ from src.context_capsule import ContextCapsule
 
 _MAX_ID_LENGTH = 80
 _MAX_SUMMARY_CHARS = 140
+_MAX_SCHEMA_REF_LENGTH = 120
 _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
+_TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
 
 
 class ToolCatalogError(ValueError):
@@ -56,6 +58,15 @@ def _normalize_text(value: Any, *, field_name: str, allow_empty: bool, limit: in
     return text
 
 
+def _normalize_tool_id(value: Any, *, field_name: str = "tool_id") -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise ToolCatalogError(f"{field_name} must not be empty")
+    if not _TOOL_ID_RE.fullmatch(text):
+        raise ToolCatalogError(f"{field_name} contains unsafe characters")
+    return text[:_MAX_SCHEMA_REF_LENGTH]
+
+
 def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty: bool) -> tuple[str, ...]:
     normalized: list[str] = []
     seen: set[str] = set()
@@ -71,6 +82,10 @@ def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty:
 
 def _budget_for(tool: "ToolDescriptor") -> int:
     return 20 + len(tool.capabilities) * 12 + len(tool.label) // 4
+
+
+def _manifest_budget(capability_count: int, description: str) -> int:
+    return 12 + capability_count * 8 + max(1, len(description) // 16)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +122,215 @@ class ToolDescriptor:
             blocked_scopes=_normalize_slug_list(blocked_scopes, field_name="blocked_scope", allow_empty=True),
             summary=_normalize_text(summary, field_name="summary", allow_empty=False),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ToolManifest:
+    tool_id: str
+    family: str
+    short_description: str
+    capabilities: tuple[str, ...]
+    risk_level: ToolRiskLevel
+    schema_ref: str
+    visibility_state: ToolVisibility
+    prompt_budget_estimate: int
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        tool_id: str,
+        family: str,
+        short_description: str,
+        capabilities: Iterable[Any],
+        risk_level: ToolRiskLevel | str,
+        schema_ref: str,
+        visibility_state: ToolVisibility | str = ToolVisibility.HIDDEN,
+    ) -> "ToolManifest":
+        normalized_capabilities = _normalize_slug_list(
+            capabilities,
+            field_name="capability",
+            allow_empty=False,
+        )
+        description = _normalize_text(
+            short_description,
+            field_name="short_description",
+            allow_empty=False,
+            limit=120,
+        )
+        return cls(
+            tool_id=_normalize_tool_id(tool_id),
+            family=_normalize_slug(family, field_name="family"),
+            short_description=description,
+            capabilities=normalized_capabilities,
+            risk_level=risk_level if isinstance(risk_level, ToolRiskLevel) else ToolRiskLevel(str(risk_level)),
+            schema_ref=_normalize_text(schema_ref, field_name="schema_ref", allow_empty=False, limit=_MAX_SCHEMA_REF_LENGTH),
+            visibility_state=visibility_state
+            if isinstance(visibility_state, ToolVisibility)
+            else ToolVisibility(str(visibility_state)),
+            prompt_budget_estimate=_manifest_budget(len(normalized_capabilities), description),
+        )
+
+    @classmethod
+    def from_function_schema(
+        cls,
+        schema: dict[str, Any],
+        *,
+        visibility_state: ToolVisibility | str = ToolVisibility.HIDDEN,
+    ) -> "ToolManifest":
+        fn = schema.get("function") if isinstance(schema, dict) else None
+        payload = fn if isinstance(fn, dict) else schema
+        if not isinstance(payload, dict):
+            raise ToolCatalogError("schema must be a mapping")
+        name = str(payload.get("name") or "")
+        description = str(payload.get("description") or "")
+        if not name:
+            raise ToolCatalogError("schema function name must not be empty")
+        return cls.create(
+            tool_id=name,
+            family=infer_tool_family(name),
+            short_description=description or f"{name} tool",
+            capabilities=infer_tool_capabilities(name, description),
+            risk_level=infer_tool_risk_level(name),
+            schema_ref=f"function:{name}",
+            visibility_state=visibility_state,
+        )
+
+    def compact_prompt_dict(self) -> dict[str, Any]:
+        return {
+            "tool_id": self.tool_id,
+            "family": self.family,
+            "description": self.short_description,
+            "capabilities": self.capabilities,
+            "risk_level": self.risk_level.value,
+            "visibility_state": self.visibility_state.value,
+            "schema_ref": self.schema_ref,
+            "prompt_budget_estimate": self.prompt_budget_estimate,
+        }
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            **self.compact_prompt_dict(),
+            "raw_schema_visible": False,
+            "raw_content_visible": False,
+            "token_value_visible": False,
+        }
+
+
+def build_tool_manifests_from_function_schemas(
+    schemas: Iterable[dict[str, Any]],
+    *,
+    visibility_state: ToolVisibility | str = ToolVisibility.HIDDEN,
+) -> tuple[ToolManifest, ...]:
+    manifests: list[ToolManifest] = []
+    seen: set[str] = set()
+    for schema in schemas:
+        manifest = ToolManifest.from_function_schema(schema, visibility_state=visibility_state)
+        if manifest.tool_id in seen:
+            continue
+        seen.add(manifest.tool_id)
+        manifests.append(manifest)
+    return tuple(sorted(manifests, key=lambda item: item.tool_id))
+
+
+def infer_tool_family(tool_id: str) -> str:
+    name = str(tool_id or "").lower()
+    if name.startswith("mcp__"):
+        return "mcp"
+    if name in {"bash", "python", "manage_bg_jobs"}:
+        return "execution"
+    if name in {"read_file", "write_file", "edit_file", "ls", "glob", "grep", "get_workspace"}:
+        return "filesystem"
+    if "email" in name or name in {"send_email", "reply_to_email", "bulk_email"}:
+        return "email"
+    if "calendar" in name or "task" in name or "note" in name:
+        return "planning"
+    if "memory" in name or "research" in name or "rag" in name:
+        return "knowledge"
+    if "web" in name or name in {"api_call", "manage_webhooks"}:
+        return "network"
+    if "image" in name or "document" in name:
+        return "content"
+    if "session" in name or "subagent" in name or name in {"delegate", "ask_user"}:
+        return "orchestration"
+    if "settings" in name or "token" in name or "mcp" in name or "plugin" in name:
+        return "admin"
+    return "general"
+
+
+def infer_tool_capabilities(tool_id: str, description: str = "") -> tuple[str, ...]:
+    text = f"{tool_id} {description}".lower()
+    capabilities: list[str] = []
+    for needle, capability in (
+        ("read", "read"),
+        ("list", "read"),
+        ("search", "search"),
+        ("fetch", "network"),
+        ("web", "network"),
+        ("write", "write"),
+        ("edit", "write"),
+        ("delete", "destructive"),
+        ("send", "external-send"),
+        ("reply", "external-send"),
+        ("manage", "manage"),
+        ("create", "write"),
+        ("run", "execute"),
+        ("execute", "execute"),
+        ("bash", "execute"),
+        ("python", "execute"),
+        ("memory", "memory"),
+        ("task", "schedule"),
+        ("calendar", "calendar"),
+        ("document", "document"),
+        ("image", "image"),
+    ):
+        if needle in text and capability not in capabilities:
+            capabilities.append(capability)
+    if not capabilities:
+        capabilities.append("use")
+    return tuple(capabilities)
+
+
+def infer_tool_risk_level(tool_id: str) -> ToolRiskLevel:
+    name = str(tool_id or "").lower()
+    dangerous_exact = {
+        "bash",
+        "python",
+        "write_file",
+        "edit_file",
+        "send_email",
+        "reply_to_email",
+        "bulk_email",
+        "delete_email",
+        "manage_tokens",
+        "manage_settings",
+        "manage_mcp",
+        "manage_plugins",
+        "manage_repos",
+        "api_call",
+    }
+    dangerous_prefixes = ("mcp__",)
+    elevated_exact = {
+        "read_file",
+        "web_search",
+        "web_fetch",
+        "manage_calendar",
+        "manage_tasks",
+        "manage_notes",
+        "manage_memory",
+        "manage_personal_docs",
+        "manage_documents",
+        "manage_contact",
+        "list_emails",
+        "read_email",
+        "archive_email",
+        "mark_email_read",
+    }
+    if name in dangerous_exact or name.startswith(dangerous_prefixes):
+        return ToolRiskLevel.DANGEROUS
+    if name in elevated_exact or name.startswith("manage_"):
+        return ToolRiskLevel.ELEVATED
+    return ToolRiskLevel.SAFE
 
 
 @dataclass(frozen=True, slots=True)
