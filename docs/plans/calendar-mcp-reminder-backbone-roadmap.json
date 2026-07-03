@@ -95,7 +95,7 @@
       "id": "CAL-MCP-2-single-task-reminder-normalizer",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "goal": "Ensure weekday and recurring reminders collapse into one scheduled task when possible instead of creating one task per weekday.",
       "allowed_paths": [
         "src/calendar_capability_service.py",
@@ -107,7 +107,8 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_calendar_capability_service.py tests/test_manage_tasks_confirmation.py -q"
       ],
-      "done_when": "Mo-Fr 09:00 todo digest is represented as one cron/schedule task, target updates edit the existing task, and duplicate prevention is covered by tests."
+      "done_when": "Mo-Fr 09:00 todo digest is represented as one cron/schedule task, target updates edit the existing task, and duplicate prevention is covered by tests.",
+      "evidence": "manage_tasks create now normalizes weekly/weekday creates into one canonical cron task and merges repeated compatible weekday creates into the existing task; focused tests cover cron normalization, five weekly creates collapsing to one task, and duplicate todo_digest reuse."
     },
     {
       "id": "CAL-MCP-3-readonly-calendar-mcp",

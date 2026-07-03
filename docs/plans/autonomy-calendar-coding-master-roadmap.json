@@ -181,7 +181,7 @@
     "Maintenance self-knowledge refresh tells Odysseus about new calendar/coding capabilities."
   ],
   "recommended_next_slice": {
-    "id": "CAL-MCP-2-single-task-reminder-normalizer",
-    "reason": "CAL-MCP-0 and CAL-MCP-1 are complete; the next backend slice directly prevents duplicate per-weekday reminder tasks."
+    "id": "CAL-MCP-3-readonly-calendar-mcp",
+    "reason": "CAL-MCP-0 through CAL-MCP-2 are complete; the next safe backend slice adds read-only Calendar MCP observability before any gated writes."
   }
 }

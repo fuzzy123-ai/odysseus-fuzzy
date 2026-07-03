@@ -20,6 +20,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
     """Handle manage_tasks tool calls: CRUD on scheduled tasks."""
     import uuid as _uuid
     from core.database import SessionLocal, ScheduledTask
+    from src.calendar_capability_service import (
+        find_compatible_weekday_task,
+        merge_weekday_task_args,
+        normalize_task_create_args,
+    )
     from src.task_scheduler import compute_next_run
     from src.task_scheduler_helpers import resolve_task_timezone
 
@@ -66,6 +71,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             return {"response": f"Found {len(task_list)} tasks", "tasks": task_list, "exit_code": 0}
 
         elif action == "create":
+            args, _weekday_merge = normalize_task_create_args(args)
             task_type = args.get("task_type", "llm")
             trigger_type = args.get("trigger_type", "schedule")
 
@@ -73,6 +79,36 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 return {"error": "Prompt is required for llm/research tasks", "exit_code": 1}
             if task_type == "action" and not args.get("action_name"):
                 return {"error": "action_name is required for action tasks", "exit_code": 1}
+
+            existing = find_compatible_weekday_task(db, ScheduledTask, owner=owner, args=args)
+            if existing is not None:
+                args, merge_info = merge_weekday_task_args(existing, args)
+                for field in ("name", "prompt", "output_target"):
+                    if args.get(field) is not None:
+                        setattr(existing, field, args[field])
+                existing.task_type = task_type
+                existing.action = args.get("action_name")
+                existing.trigger_type = trigger_type
+                existing.schedule = args.get("schedule") if trigger_type == "schedule" else None
+                existing.scheduled_time = args.get("scheduled_time", "09:00") if trigger_type == "schedule" else None
+                existing.scheduled_day = args.get("scheduled_day")
+                existing.cron_expression = args.get("cron_expression")
+                if trigger_type == "schedule":
+                    existing.next_run = compute_next_run(
+                        existing.schedule,
+                        existing.scheduled_time,
+                        existing.scheduled_day,
+                        cron_expression=existing.cron_expression,
+                        tz_name=resolve_task_timezone(db, existing),
+                    )
+                db.commit()
+                return {
+                    "response": f"Updated existing task '{existing.name}' (id: {existing.id})",
+                    "task_id": existing.id,
+                    "deduplicated": True,
+                    "merge_info": merge_info,
+                    "exit_code": 0,
+                }
 
             # Compute next_run for schedule triggers
             next_run = None

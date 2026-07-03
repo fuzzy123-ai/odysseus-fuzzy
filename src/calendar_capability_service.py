@@ -191,6 +191,119 @@ def build_todo_digest_schedule_plan(
     }
 
 
+def normalize_task_create_args(args: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Normalize weekday recurring task args into one canonical cron schedule.
+
+    This is intentionally pure so both manage_tasks and future MCP tools can use
+    the same contract. It accepts the shapes models already tend to produce:
+    weekly scheduled_day, explicit weekdays, or a five-field cron expression.
+    """
+
+    normalized = dict(args)
+    if str(normalized.get("trigger_type", "schedule") or "schedule").lower() != "schedule":
+        return normalized, None
+
+    schedule = str(normalized.get("schedule", "daily") or "daily").strip().lower()
+    scheduled_time = str(normalized.get("scheduled_time") or "09:00").strip()
+    weekdays: tuple[int, ...] | None = None
+    hour_minute: tuple[int, int] | None = None
+
+    if normalized.get("weekdays") is not None:
+        weekdays = _normalize_weekdays(_iter_weekday_values(normalized.get("weekdays")))
+        hour_minute = _parse_hhmm(scheduled_time)
+    elif schedule == "weekly" and normalized.get("scheduled_day") is not None:
+        weekdays = _normalize_weekdays([normalized.get("scheduled_day")])
+        hour_minute = _parse_hhmm(scheduled_time)
+    elif schedule == "cron" and normalized.get("cron_expression"):
+        cron_info = _parse_simple_weekday_cron(str(normalized.get("cron_expression") or ""))
+        if cron_info:
+            hour_minute = (cron_info["hour"], cron_info["minute"])
+            weekdays = tuple(cron_info["weekdays"])
+            scheduled_time = f"{hour_minute[0]:02d}:{hour_minute[1]:02d}"
+
+    if weekdays is None or hour_minute is None:
+        return normalized, None
+
+    cron_expression = _weekday_cron_expression(hour_minute[0], hour_minute[1], weekdays)
+    normalized["schedule"] = "cron"
+    normalized["scheduled_time"] = scheduled_time
+    normalized["scheduled_day"] = None
+    normalized["cron_expression"] = cron_expression
+    normalized.pop("weekdays", None)
+    merge = {
+        "weekdays": weekdays,
+        "scheduled_time": scheduled_time,
+        "cron_expression": cron_expression,
+    }
+    return normalized, merge
+
+
+def find_compatible_weekday_task(db: Any, scheduled_task_model: Any, *, owner: str | None, args: dict[str, Any]) -> Any | None:
+    """Find an existing scheduled task that should absorb a weekday create."""
+
+    _, merge = normalize_task_create_args(args)
+    if not merge:
+        return None
+
+    query = db.query(scheduled_task_model).filter(
+        scheduled_task_model.trigger_type == "schedule",
+        scheduled_task_model.status.in_(("active", "paused")),
+        scheduled_task_model.scheduled_time == merge["scheduled_time"],
+    )
+    if owner:
+        query = query.filter(scheduled_task_model.owner == owner)
+    else:
+        query = query.filter(scheduled_task_model.owner.is_(None))
+
+    task_type = str(args.get("task_type", "llm") or "llm")
+    output_target = str(args.get("output_target", "session") or "session")
+    query = query.filter(
+        scheduled_task_model.task_type == task_type,
+        scheduled_task_model.output_target == output_target,
+    )
+
+    if task_type == "action":
+        action_name = args.get("action_name")
+        if not action_name:
+            return None
+        query = query.filter(scheduled_task_model.action == action_name)
+    else:
+        prompt = _safe_text(args.get("prompt") or "", max_len=2000)
+        if prompt:
+            query = query.filter(scheduled_task_model.prompt == prompt)
+        else:
+            query = query.filter(scheduled_task_model.name == (args.get("name") or "Task"))
+
+    for task in query.order_by(scheduled_task_model.created_at.asc()).all():
+        if _task_weekdays(task):
+            return task
+    return None
+
+
+def merge_weekday_task_args(task: Any, args: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return normalized args merged with an existing task's weekday schedule."""
+
+    normalized, merge = normalize_task_create_args(args)
+    if not merge:
+        return normalized, {"merged": False}
+    existing_days = set(_task_weekdays(task))
+    incoming_days = set(merge["weekdays"])
+    merged_days = tuple(sorted(existing_days | incoming_days))
+    hour, minute = _parse_hhmm(merge["scheduled_time"])
+    cron_expression = _weekday_cron_expression(hour, minute, merged_days)
+    normalized["schedule"] = "cron"
+    normalized["scheduled_day"] = None
+    normalized["scheduled_time"] = merge["scheduled_time"]
+    normalized["cron_expression"] = cron_expression
+    return normalized, {
+        "merged": bool(existing_days),
+        "existing_weekdays": sorted(existing_days),
+        "incoming_weekdays": sorted(incoming_days),
+        "merged_weekdays": list(merged_days),
+        "cron_expression": cron_expression,
+    }
+
+
 def _window(start: Any | None, end: Any | None) -> tuple[datetime, datetime]:
     start_dt = _parse_datetime(start) if start is not None else datetime.utcnow()
     if start_dt is None:
@@ -318,6 +431,128 @@ def _normalize_weekdays(values: Iterable[int]) -> tuple[int, ...]:
     if not normalized:
         raise CalendarCapabilityError("at least one weekday is required")
     return normalized
+
+
+def _iter_weekday_values(values: Any) -> Iterable[int]:
+    if isinstance(values, str):
+        parts = [part.strip() for part in values.replace(";", ",").split(",")]
+        return [_weekday_value(part) for part in parts if part]
+    try:
+        return [_weekday_value(value) for value in values]
+    except TypeError:
+        return [_weekday_value(values)]
+
+
+def _weekday_value(value: Any) -> int:
+    text = str(value).strip().lower()
+    names = {
+        "mon": 0,
+        "monday": 0,
+        "mo": 0,
+        "montag": 0,
+        "tue": 1,
+        "tuesday": 1,
+        "di": 1,
+        "dienstag": 1,
+        "wed": 2,
+        "wednesday": 2,
+        "mi": 2,
+        "mittwoch": 2,
+        "thu": 3,
+        "thursday": 3,
+        "do": 3,
+        "donnerstag": 3,
+        "fri": 4,
+        "friday": 4,
+        "fr": 4,
+        "freitag": 4,
+        "sat": 5,
+        "saturday": 5,
+        "sa": 5,
+        "samstag": 5,
+        "sun": 6,
+        "sunday": 6,
+        "so": 6,
+        "sonntag": 6,
+    }
+    if text in names:
+        return names[text]
+    return int(value)
+
+
+def _weekday_cron_expression(hour: int, minute: int, weekdays: Iterable[int]) -> str:
+    normalized = _normalize_weekdays(weekdays)
+    cron_days = ",".join(str(day + 1) for day in normalized)
+    return f"{minute} {hour} * * {cron_days}"
+
+
+def _parse_simple_weekday_cron(expression: str) -> dict[str, Any] | None:
+    fields = expression.strip().split()
+    if len(fields) != 5:
+        return None
+    minute_text, hour_text, day_month, month, day_week = fields
+    if day_month != "*" or month != "*":
+        return None
+    try:
+        minute = int(minute_text)
+        hour = int(hour_text)
+    except ValueError:
+        return None
+    if not (0 <= minute <= 59 and 0 <= hour <= 23):
+        return None
+    weekdays = _parse_cron_weekday_field(day_week)
+    if weekdays is None:
+        return None
+    return {"hour": hour, "minute": minute, "weekdays": weekdays}
+
+
+def _parse_cron_weekday_field(field: str) -> tuple[int, ...] | None:
+    days: set[int] = set()
+    for raw_part in field.split(","):
+        part = raw_part.strip()
+        if not part:
+            return None
+        if "-" in part:
+            start_text, end_text = part.split("-", 1)
+            start = _cron_day_to_weekday(start_text)
+            end = _cron_day_to_weekday(end_text)
+            if start is None or end is None or end < start:
+                return None
+            days.update(range(start, end + 1))
+        else:
+            day = _cron_day_to_weekday(part)
+            if day is None:
+                return None
+            days.add(day)
+    if not days:
+        return None
+    return tuple(sorted(days))
+
+
+def _cron_day_to_weekday(value: str) -> int | None:
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    if parsed == 0 or parsed == 7:
+        return 6
+    if 1 <= parsed <= 6:
+        return parsed - 1
+    return None
+
+
+def _task_weekdays(task: Any) -> tuple[int, ...]:
+    schedule = str(getattr(task, "schedule", "") or "").lower()
+    if schedule == "weekly" and getattr(task, "scheduled_day", None) is not None:
+        try:
+            return _normalize_weekdays([getattr(task, "scheduled_day")])
+        except CalendarCapabilityError:
+            return ()
+    if schedule == "cron" and getattr(task, "cron_expression", None):
+        parsed = _parse_simple_weekday_cron(str(getattr(task, "cron_expression") or ""))
+        if parsed:
+            return tuple(parsed["weekdays"])
+    return ()
 
 
 def _compute_next_run_for_plan(*, owner: str | None, scheduled_time: str, cron_expression: str) -> datetime | None:
