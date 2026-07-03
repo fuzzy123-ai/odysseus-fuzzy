@@ -2,7 +2,7 @@
 
 Stand: 2026-06-19
 
-Status: **Partial; origin is correct, local credentials still block upstream push**
+Status: **credential-gated; active ABC publish target is fuzzy/dev**
 
 ## Goal
 
@@ -13,9 +13,11 @@ Keep Odysseus publishing unambiguous while the local GitHub credential mismatch 
 - Current branch: `dev`.
 - `origin` points to the intended original repository: `https://github.com/pewdiepie-archdaemon/odysseus.git`.
 - `fuzzy` points to the intended fork: `https://github.com/fuzzy123-ai/odysseus-fuzzy.git`.
-- Branch config tracks `origin/dev`.
-- `git push origin dev` currently fails with GitHub `403` because the local credential manager authenticates as `fuzzy123-ai`.
-- `git push fuzzy dev` succeeds and is the current publish fallback.
+- The central ABC masterplan now defines `fuzzy/dev` as the only active
+  publish target for this fork.
+- `git push origin dev` historically failed with GitHub `403` because the
+  local credential manager authenticated as `fuzzy123-ai`.
+- `git push fuzzy dev` succeeds and is the active publish path.
 - Latest known pushed fork commit before this document: `935d11f6 Unify ABC execution roadmap`.
 
 ## Decision
@@ -23,27 +25,29 @@ Keep Odysseus publishing unambiguous while the local GitHub credential mismatch 
 Until the local credential manager authenticates as an account with write access to `pewdiepie-archdaemon/odysseus`, Charlie may:
 
 - keep `origin` configured as the original repo;
-- attempt `git push origin dev` once during publish;
-- treat a repeated `403` as a credential blocker, not a repository-target ambiguity;
-- push the same commit to `fuzzy/dev`;
-- report `dev...origin/dev [ahead N]` as expected while origin is blocked.
+- treat `origin` as read-only for ABC work;
+- push completed scoped roadmap commits to `fuzzy/dev`;
+- report any origin write as credential-gated, not as an implementation task.
 
 Charlie must not:
 
 - rename `origin` to the fork;
+- push ABC work to `origin`;
 - force-push;
 - rewrite history to compensate for a credential problem;
 - claim that the original repo was updated when only `fuzzy/dev` accepted the push.
 
-## Go / Partial / No-Go
+## Go / Gated / No-Go
 
 Go:
 - `origin/dev` accepts normal non-force pushes from the intended account.
 - The fork remains available as a secondary remote.
 
-Partial:
-- Current state. Remotes are correctly named, but local credentials block origin writes.
-- Fork publishing is working and explicit.
+Gated:
+- Current state. Remotes are correctly named, origin writes are outside the
+  active ABC publish path, and fork publishing is working and explicit.
+- No repo implementation work is blocked by this gate because `fuzzy/dev` is
+  the active target.
 
 No-Go:
 - Remote target is ambiguous.
@@ -67,8 +71,7 @@ Safe next steps for a human operator:
 For ABC roadmap work:
 
 ```text
-try origin/dev once
-if origin returns 403 with fuzzy123-ai, push fuzzy/dev
-record origin as blocked by local credentials
+push scoped commits to fuzzy/dev
+record origin as credential-gated/read-only
 never force-push
 ```
