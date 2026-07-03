@@ -53,9 +53,14 @@ Owner: operator + Codex
   activity, Memory/RaptorGraph provenance and tool-capability diagnostics into
   compact counts and status summaries without raw records, prompts, outputs,
   private document text, host paths, provider headers or chat IDs.
+- LC10 backend route contract is available for UI wiring:
+  `GET /api/live-affordances/readiness`. It reports Telegram delivery,
+  Nextcloud copy and converter execution readiness as redacted gates. It does
+  not send, copy, convert, probe the network, reveal tokens/chat IDs/paths, or
+  start external converter processes.
 - MVP Roadmap Runner reports roadmaps 1-10 at 100%; Version 1.0 is still gated
   by the new UI going live.
-- No legacy or V2 UI code has been changed for LC0-LC9 backend work.
+- No legacy or V2 UI code has been changed for LC0-LC10 backend work.
 
 ## Goal
 

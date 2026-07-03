@@ -48,6 +48,9 @@
     ],
     "lc9_backend_contract": [
       "GET /api/diagnostics/quick-summary"
+    ],
+    "lc10_backend_contract": [
+      "GET /api/live-affordances/readiness"
     ]
   },
   "slices": [
@@ -184,15 +187,12 @@
       "id": "LC10",
       "title": "Live delivery and converter affordances",
       "class": "needs_live_go",
-      "status": "gated",
+      "status": "backend_ready_live_gated",
       "legacy_surface": "disabled/gated buttons only",
       "requires": [
-        "Explicit live Go",
-        "Backend readiness for Telegram delivery",
-        "Backend readiness for Nextcloud copy",
-        "Backend readiness for converter execution"
+        "GET /api/live-affordances/readiness"
       ],
-      "why_not_100": "Live delivery/converter actions require separate action-specific readiness gates."
+      "why_not_100": "Backend readiness route is ready; actual Telegram delivery, Nextcloud copy and converter execution remain disabled until concrete bounded live actions are approved and wired."
     }
   ],
   "open_backend_contracts": [],
@@ -206,6 +206,6 @@
     "LC7: let the UI agent render /api/diagnostics/quick-status for compact MCP/system summaries.",
     "LC8: let the UI agent render /api/coding-agent/quick-entry as a compact coding task entry/status card.",
     "LC9: let the UI agent render /api/diagnostics/quick-summary as compact redacted diagnostics blocks.",
-    "LC10: keep live delivery/converter affordances gated until action-specific live readiness is available."
+    "LC10: let the UI agent render /api/live-affordances/readiness as disabled/gated live-action affordances; real execution remains action-specific live work."
   ]
 }

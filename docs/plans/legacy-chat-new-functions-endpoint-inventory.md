@@ -39,7 +39,7 @@ Scope: safe_offline inventory only
 | LC7 MCP/system health quick status | slash | Compact redacted quick status: `GET /api/diagnostics/quick-status`; MCP manager: `/api/mcp/servers`, `/api/mcp/tools`, `/api/mcp/servers/{id}/tools`; local MCP plugin: `/api/plugins/mcp/info`, `/api/plugins/mcp/config`; system health plugin: `/api/plugins/system_health_checker/health`; app health `/api/health`, `/api/ready`, `/api/version`; diagnostics services `/api/diagnostics/services`. | `static/js/slashCommands.js` `/mcp`, `/status` style slash replies. | No backend blocker. UI wiring remains intentionally separate. |
 | LC8 coding-agent lightweight entry | slash + task card | Compact redacted action classifier: `GET /api/coding-agent/quick-entry`; Projects: `/api/projects`, intake preview/apply/merge, project task-run/planner-task-run/commit-run/push-run; Sandbox worker: `/api/sandbox-worker/submit`, `/status/{job_id}`, `/artifacts/{job_id}`, `/cancel/{job_id}`. | `static/js/slashCommands.js` and compact chat task card in `static/js/chatRenderer.js`. | No backend blocker. UI wiring remains intentionally separate. |
 | LC9 diagnostics surfaces | slash | Compact redacted summary: `GET /api/diagnostics/quick-summary`; detailed diagnostics remain available at `/api/diagnostics/services`, `/api/diagnostics/logs`, `/api/diagnostics/ai-activity`, `/api/diagnostics/memory-provenance`, `/api/diagnostics/tool-capabilities`, `/api/db/stats`, `/api/rag/stats`. | `static/js/slashCommands.js` compact summaries. | No backend blocker. UI wiring remains intentionally separate. Logs must stay redacted and bounded. |
-| LC10 live delivery/converter affordances | gated buttons | Telegram status/history/poll/reply under `/api/plugins/telegram/*`; Universal Export/File IO contracts; Nextcloud transfer and write gate modules exist. | Disabled buttons only in `static/js/chatRenderer.js` until backend readiness says go. | Needs explicit live Go plus backend readiness route for each send/copy/convert action. |
+| LC10 live delivery/converter affordances | gated buttons | Redacted readiness contract: `GET /api/live-affordances/readiness`; Telegram status/history/poll/reply under `/api/plugins/telegram/*`; Universal Export/File IO contracts; Nextcloud transfer and write gate modules exist. | Disabled buttons only in `static/js/chatRenderer.js` until backend readiness says go. | No backend blocker for readiness display. Actual send/copy/convert execution remains action-specific live work. |
 
 ## Backend Contracts Worth Reusing
 
@@ -70,8 +70,8 @@ Scope: safe_offline inventory only
 
 These should be resolved before touching the corresponding legacy UI slice:
 
-1. Per-action live readiness payload for Telegram delivery, Nextcloud copy and
-   converter execution.
+None for backend-first readiness display. Actual live execution endpoints remain
+separate action-specific work and require concrete live Go plus bounded inputs.
 
 ## Recommended Next Slice
 
@@ -83,8 +83,9 @@ states from `/api/review-gates/status`. LC5 UI wiring can render task/reminder
 summaries from `/api/tasks/summary`. LC6 UI wiring can render safe export
 plans from `/api/universal-file-io/export-plan`. LC7 UI wiring can render
 MCP/system quick status from `/api/diagnostics/quick-status`. LC8 UI wiring can
-render coding-agent action classes from `/api/coding-agent/quick-entry`. The
-LC9 UI wiring can render compact diagnostics from
-`/api/diagnostics/quick-summary`. The next backend-first slice is LC10, but it
-remains live-gated unless action-specific delivery/converter readiness is
-implemented first.
+render coding-agent action classes from `/api/coding-agent/quick-entry`. LC9 UI
+wiring can render compact diagnostics from
+`/api/diagnostics/quick-summary`. LC10 UI wiring can render disabled/gated
+Telegram delivery, Nextcloud copy and converter actions from
+`/api/live-affordances/readiness`. Real live execution remains a separate
+operator-gated track.

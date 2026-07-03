@@ -607,6 +607,8 @@ from routes.universal_inbox_routes import setup_universal_inbox_routes
 app.include_router(setup_universal_inbox_routes(upload_handler))
 from routes.universal_file_io_routes import setup_universal_file_io_routes
 app.include_router(setup_universal_file_io_routes())
+from routes.live_affordance_routes import setup_live_affordance_routes
+app.include_router(setup_live_affordance_routes())
 upload_cleanup_task = None
 
 # Emoji SVG proxy (same-origin, lazy-cached Twemoji) — lets the chat render
