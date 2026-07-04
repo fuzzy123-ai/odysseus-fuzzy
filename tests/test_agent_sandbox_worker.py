@@ -49,3 +49,27 @@ def test_sandbox_worker_live_execution_uses_runner_and_records_artifact(tmp_path
     assert calls[1][:2] == ("podman", "run")
     assert calls[2][:3] == ("podman", "pod", "rm")
     assert worker.artifacts("pytest_live") == ("data/reports/autonomous_coding_agent/pytest_live.log",)
+
+
+def test_sandbox_worker_live_runner_exception_records_failed_status(tmp_path: Path):
+    calls: list[tuple[str, ...]] = []
+
+    def missing_runner(argv, timeout_seconds):
+        calls.append(tuple(argv))
+        raise FileNotFoundError("podman")
+
+    worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path), command_runner=missing_runner)
+    job = build_sandbox_job_from_template("python_pytest", job_id="pytest_missing_podman")
+
+    result = worker.submit(job, live_enabled=True, operator_go=True)
+    status = worker.status("pytest_missing_podman")
+
+    assert result.executed_live is True
+    assert result.status.status == "failed"
+    assert result.status.exit_code == 127
+    assert "pod_create_error:FileNotFoundError" in result.status.stderr_preview
+    assert status.status == "failed"
+    assert status.exit_code == 127
+    assert "pod_create_error" in status.stdout_preview
+    assert calls[0][:3] == ("podman", "pod", "create")
+    assert calls[1][:3] == ("podman", "pod", "rm")

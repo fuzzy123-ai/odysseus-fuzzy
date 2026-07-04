@@ -126,7 +126,7 @@ class SandboxWorker:
         return self._execute_live(job, plan)
 
     def status(self, job_id: str) -> SandboxWorkerStatus:
-        latest = self.ledger.latest(job_id)
+        latest = self._latest_status_event(job_id)
         if not latest:
             return SandboxWorkerStatus.create(job_id=job_id, status="missing")
         return SandboxWorkerStatus.create(
@@ -136,6 +136,13 @@ class SandboxWorker:
             stdout_preview=latest.get("preview") or "",
             artifact_count=len(latest.get("artifact_refs") or ()),
         )
+
+    def _latest_status_event(self, job_id: str) -> dict[str, Any] | None:
+        events = self.ledger.events(job_id=job_id, limit=1000)
+        for event in reversed(events):
+            if event.get("event_type") != "cleanup":
+                return event
+        return events[-1] if events else None
 
     def cancel(self, job_id: str) -> SandboxWorkerStatus:
         self.ledger.record(
@@ -162,10 +169,16 @@ class SandboxWorker:
         )
         cleanup_result: SandboxCommandResult | None = None
         try:
-            pod = self.command_runner(tuple(plan.pod_create_argv), job.limits.timeout_seconds)
+            try:
+                pod = self.command_runner(tuple(plan.pod_create_argv), job.limits.timeout_seconds)
+            except Exception as exc:
+                return self._live_exception(job, plan, exc, "pod_create_error")
             if not pod.ok:
                 return self._live_failed(job, plan, pod, "pod_create_failed")
-            run = self.command_runner(tuple(plan.run_argv), job.limits.timeout_seconds)
+            try:
+                run = self.command_runner(tuple(plan.run_argv), job.limits.timeout_seconds)
+            except Exception as exc:
+                return self._live_exception(job, plan, exc, "run_error")
             artifact_ref = f"data/reports/autonomous_coding_agent/{job.job_id}.log"
             evidence = build_sandbox_result_evidence(
                 job_id=job.job_id,
@@ -194,7 +207,10 @@ class SandboxWorker:
             return SandboxWorkerSubmitResult(job.job_id, status, plan, True, evidence)
         finally:
             if plan.cleanup_argv:
-                cleanup_result = self.command_runner(tuple(plan.cleanup_argv), 60)
+                try:
+                    cleanup_result = self.command_runner(tuple(plan.cleanup_argv), 60)
+                except Exception as exc:
+                    cleanup_result = SandboxCommandResult(exit_code=127, stderr=type(exc).__name__[:120])
                 self.ledger.record(
                     job_id=job.job_id,
                     status="cleanup_done" if cleanup_result.ok else "cleanup_failed",
@@ -222,6 +238,31 @@ class SandboxWorker:
             exit_code=result.exit_code,
         )
         status = SandboxWorkerStatus.create(job_id=job.job_id, status="failed", exit_code=result.exit_code, stderr_preview=reason)
+        return SandboxWorkerSubmitResult(job.job_id, status, plan, True)
+
+    def _live_exception(
+        self,
+        job: SandboxJobRequest,
+        plan: PodmanSandboxPlan,
+        exc: Exception,
+        reason: str,
+    ) -> SandboxWorkerSubmitResult:
+        error_class = type(exc).__name__[:120]
+        self.ledger.record(
+            job_id=job.job_id,
+            status="failed",
+            event_type=reason,
+            correlation_id=job.job_id,
+            payload={"error_class": error_class},
+            preview=reason,
+            exit_code=127,
+        )
+        status = SandboxWorkerStatus.create(
+            job_id=job.job_id,
+            status="failed",
+            exit_code=127,
+            stderr_preview=f"{reason}:{error_class}",
+        )
         return SandboxWorkerSubmitResult(job.job_id, status, plan, True)
 
 
