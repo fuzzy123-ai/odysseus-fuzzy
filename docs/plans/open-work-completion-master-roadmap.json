@@ -10,7 +10,7 @@
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 24,
+    "unique_live_gates": 27,
     "unique_design_gates": 4,
     "queue_status": "safe_repo_queue_exhausted"
   },
@@ -21,6 +21,10 @@
     "docs/plans/autonomy-calendar-coding-master-roadmap.json",
     "docs/plans/observability-security-ops-master-roadmap.json",
     "docs/plans/agent-capability-expansion-master-roadmap.json",
+    "docs/plans/agent-autonomy-extensions-master-roadmap.json",
+    "docs/plans/agent-extension-browser-devtools-roadmap.json",
+    "docs/plans/agent-extension-nogpu-visual-observer-roadmap.json",
+    "docs/plans/agent-result-observer-roadmap.json",
     "docs/plans/legacy-chat-new-functions-master-roadmap.json",
     "docs/plans/maintenance-ai-knowledge-master-roadmap.json",
     "docs/plans/mcp-workbench-evidence-plan.md",
@@ -86,6 +90,24 @@
       "safe_default": "keep_autonomous_coding_dry_run",
       "operator_go_phrase": "GO autonomous_coding bounded smoke",
       "done_when": "A bounded coding task can be started/observed/paused from the approved control surface, checked in the sandbox, and reported over Telegram without Telegram becoming the primary development UI."
+    },
+    {
+      "id": "OWM-3A",
+      "name": "AI GUI Tooling And Visual Operation",
+      "priority": 32,
+      "status": "needs_live_go_and_design_handoff",
+      "why_open": "Browser Sense, DevTools evidence and no-GPU visual observer contracts exist, but AI-facing GUI tools still need one consolidated tool surface for observe/click/type/wait/screenshot/OCR/console/network evidence, including software-project screenshots that can be sent back to the operator through Telegram.",
+      "source_gate_family": "ai_gui_tools",
+      "gate_ids": [
+        "ai-gui-tool-surface-go",
+        "browser-network-live-go",
+        "gui-sandbox-runtime-go",
+        "telegram-screenshot-delivery-go",
+        "ui-agent-placement"
+      ],
+      "safe_default": "keep_gui_tools_readonly_evidence_only",
+      "operator_go_phrase": "GO ai_gui_tools bounded smoke",
+      "done_when": "Odysseus can request an approved GUI observation or bounded interaction job for a software project, capture redacted screenshots plus DOM/accessibility/OCR/console/network evidence, attach the result to coding, website research and Memory/RaptorGraph workflows, and send selected screenshot artifacts to Telegram without broad host-GUI access."
     },
     {
       "id": "OWM-4",
@@ -265,6 +287,7 @@
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
     "OWM-2 Calendar/Reminder live smoke: fixes the missed 09:00 todo/reminder class first.",
     "OWM-3 Autonomous Coding runtime control: prove remote supervision after reminder reliability.",
+    "OWM-3A AI GUI Tooling: consolidate browser/DevTools/no-GPU observation into safe agent tools, including project screenshots and Telegram delivery, before broad autonomous GUI operation.",
     "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
     "OWM-5 Nextcloud local-only pilot: only after subset/policy decision.",
     "OWM-6 Observability Ops: Debian metrics/logging before broad security automation.",
@@ -310,6 +333,13 @@
       "open_gate_count": 3,
       "next_decision": "Workstation-to-Telegram smoke, MCP availability, or network allowlist",
       "safe_default": "keep_autonomous_coding_dry_run"
+    },
+    {
+      "family": "ai_gui_tools",
+      "priority": 35,
+      "open_gate_count": 5,
+      "next_decision": "Approve a bounded GUI observation/interaktion smoke with target URL/app, viewport, allowed actions, screenshot artifact retention and Telegram delivery policy.",
+      "safe_default": "keep_gui_tools_readonly_evidence_only"
     },
     {
       "family": "observability_ops",
