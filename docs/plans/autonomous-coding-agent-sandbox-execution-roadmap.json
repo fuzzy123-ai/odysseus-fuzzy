@@ -113,13 +113,13 @@
       "id": "ACA-0-state-check",
       "class": "safe_offline",
       "owner": "Charlie",
-      "status": "gated",
+      "status": "done",
       "goal": "Confirm current coding-agent and sandbox contracts, tests and known gaps before starting implementation.",
       "allowed_paths": [],
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py -q"
       ],
-      "evidence": "2026-07-02 focused suite returned 27 passed, 1 existing SQLAlchemy warning."
+      "evidence": "2026-07-04 focused suite returned 29 passed, 1 existing SQLAlchemy warning."
     },
     {
       "id": "ACA-1-sandbox-job-ledger",

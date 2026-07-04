@@ -244,6 +244,21 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_calendar_capability_service.py tests\\test_task_summary_routes.py"
       ],
       "done_when": "A redacted owner-scoped Telegram todo-digest live-gate packet reports ready/missing/duplicate/paused/schedule-mismatch before any bounded live smoke."
+    },
+    {
+      "id": "OWM-3-autonomous-coding-state-check-closeout",
+      "class": "safe_offline",
+      "owner": "Charlie",
+      "status": "done_in_this_slice",
+      "allowed_paths": [
+        "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest tests\\test_coding_agent_backend.py tests\\test_agent_sandbox_contract.py tests\\test_agent_sandbox_podman_plan.py tests\\test_agent_sandbox_worker_api.py tests\\test_sandbox_job_templates.py tests\\test_sandbox_artifact_policy.py tests\\test_sandbox_resource_guard.py tests\\test_agent_result_observer.py -q",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json"
+      ],
+      "done_when": "The stale ACA-0 safe_offline gated entry is closed with current focused evidence so the open-work audit has no non-gate leftovers."
     }
   ],
   "recommended_execution_order": [
