@@ -27,7 +27,10 @@ _CAPABILITY_SELF_REPORT_RE = re.compile(
     r"\b("
     r"capabilit(?:y|ies)|tools?|werkzeuge?|faehig(?:keit|keiten)|fähigkeit(?:en)?|"
     r"was kannst du|what can you do|kannst du|dateien? lesen|dateien? schreiben|"
-    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo|nextcloud"
+    r"was fehlt(?: dir)?|fehl(?:t|en)|autonom(?:e|er|es|ous)|coding|entwicklung|"
+    r"terminal|compiler|kompil(?:ieren|ierst|er)|ausfuehren|ausführen|"
+    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo|"
+    r"nextcloud(?: write)?|upload|push|hochladen"
     r")\b",
     re.IGNORECASE,
 )

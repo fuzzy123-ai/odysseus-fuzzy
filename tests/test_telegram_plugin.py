@@ -863,7 +863,7 @@ def test_webhook_capability_question_uses_diagnostics_not_model_memory(tmp_path,
             "message_id": 59,
             "chat": {"id": 123},
             "from": {"id": 1, "first_name": "User"},
-            "text": "Hast du Tools fuer Sandbox, Coding, Terminal und Nextcloud Write?",
+            "text": "Was fehlt dir als autonomous coding assistant fuer Sandbox, Terminal und Nextcloud Write?",
         },
     })
 
@@ -1342,7 +1342,7 @@ def test_polling_cycle_capability_question_uses_diagnostics_not_model_memory(tmp
                 "message_id": 190,
                 "chat": {"id": 123},
                 "from": {"id": 1, "first_name": "Nina"},
-                "text": "Welche Sandbox Terminal Coding und Nextcloud Write Tools hast du?",
+                "text": "Was fehlt dir noch fuer Sandbox Terminal Coding und Nextcloud Write?",
             },
         }],
         session_creator=lambda **_kwargs: {"session_id": "polling-capability"},
