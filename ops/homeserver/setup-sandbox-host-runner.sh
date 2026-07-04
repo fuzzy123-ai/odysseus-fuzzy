@@ -31,22 +31,23 @@ config_path="$ssh_dir/config"
 host_alias="odysseus-sandbox-host"
 host_user="$(id -un)"
 runner_path="/opt/odysseus/ops/homeserver/run-sandbox-job.py"
+container="${ODYSSEUS_CONTAINER_NAME:-odysseus_odysseus_1}"
+
+safe_chmod() {
+  chmod "$@" 2>/dev/null || true
+}
 
 mkdir -p "$ssh_dir" "$HOME/.ssh"
-chmod 700 "$ssh_dir" "$HOME/.ssh"
+safe_chmod 700 "$ssh_dir" "$HOME/.ssh"
 
-if [ ! -f "$key_path" ]; then
-  ssh-keygen -q -t ed25519 -N "" -C "odysseus-sandbox-host-runner" -f "$key_path"
-fi
-chmod 600 "$key_path"
-chmod 644 "$key_path.pub"
-
-if ! grep -qF "$(cat "$key_path.pub")" "$HOME/.ssh/authorized_keys" 2>/dev/null; then
-  cat "$key_path.pub" >> "$HOME/.ssh/authorized_keys"
-fi
-chmod 600 "$HOME/.ssh/authorized_keys"
-
-cat > "$config_path" <<EOF
+if [ -w "$ssh_dir" ]; then
+  if [ ! -f "$key_path" ]; then
+    ssh-keygen -q -t ed25519 -N "" -C "odysseus-sandbox-host-runner" -f "$key_path"
+  fi
+  safe_chmod 600 "$key_path"
+  safe_chmod 644 "$key_path.pub"
+  public_key="$(cat "$key_path.pub")"
+  cat > "$config_path" <<EOF
 Host ${host_alias}
   HostName host.containers.internal
   User ${host_user}
@@ -56,7 +57,39 @@ Host ${host_alias}
   ConnectTimeout 10
   StrictHostKeyChecking accept-new
 EOF
-chmod 600 "$config_path"
+  safe_chmod 600 "$config_path"
+else
+  if ! podman container exists "$container"; then
+    echo "ERROR: $ssh_dir is not writable and Odysseus container is not running: $container" >&2
+    exit 1
+  fi
+  podman exec "$container" sh -lc '
+    set -e
+    mkdir -p /app/.ssh
+    if [ ! -f /app/.ssh/id_ed25519_sandbox_host_runner ]; then
+      ssh-keygen -q -t ed25519 -N "" -C "odysseus-sandbox-host-runner" -f /app/.ssh/id_ed25519_sandbox_host_runner
+    fi
+    chmod 600 /app/.ssh/id_ed25519_sandbox_host_runner 2>/dev/null || true
+    chmod 644 /app/.ssh/id_ed25519_sandbox_host_runner.pub 2>/dev/null || true
+  '
+  public_key="$(podman exec "$container" cat /app/.ssh/id_ed25519_sandbox_host_runner.pub)"
+  podman exec -i "$container" sh -c 'cat > /app/.ssh/config' <<EOF
+Host ${host_alias}
+  HostName host.containers.internal
+  User ${host_user}
+  IdentityFile /app/.ssh/id_ed25519_sandbox_host_runner
+  IdentitiesOnly yes
+  BatchMode yes
+  ConnectTimeout 10
+  StrictHostKeyChecking accept-new
+EOF
+  podman exec "$container" sh -lc 'chmod 600 /app/.ssh/config 2>/dev/null || true'
+fi
+
+if ! grep -qF "$public_key" "$HOME/.ssh/authorized_keys" 2>/dev/null; then
+  printf '%s\n' "$public_key" >> "$HOME/.ssh/authorized_keys"
+fi
+chmod 600 "$HOME/.ssh/authorized_keys"
 
 chmod +x "$runner_path"
 

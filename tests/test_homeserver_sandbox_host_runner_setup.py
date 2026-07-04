@@ -17,6 +17,7 @@ def test_sandbox_host_runner_setup_wires_narrow_backend_env():
     assert "host.containers.internal" in script
     assert "IdentityFile /app/.ssh/id_ed25519_sandbox_host_runner" in script
     assert "/opt/odysseus/ops/homeserver/run-sandbox-job.py" in script
+    assert "ODYSSEUS_CONTAINER_NAME:-odysseus_odysseus_1" in script
 
 
 def test_sandbox_host_runner_setup_installs_dedicated_key_without_printing_it():
@@ -26,11 +27,22 @@ def test_sandbox_host_runner_setup_installs_dedicated_key_without_printing_it():
     assert "ssh-keygen" in script
     assert "id_ed25519_sandbox_host_runner" in script
     assert "authorized_keys" in script
-    assert "cat \"$key_path.pub\" >> \"$HOME/.ssh/authorized_keys\"" in script
+    assert "public_key=" in script
+    assert "printf '%s\\n' \"$public_key\" >> \"$HOME/.ssh/authorized_keys\"" in script
     assert "cat \"$key_path\"" not in script
     assert "echo \"$key_path" not in script
     assert "token" not in lower
     assert "password" not in lower
+
+
+def test_sandbox_host_runner_setup_handles_rootless_podman_volume_permissions():
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "safe_chmod()" in script
+    assert 'if [ -w "$ssh_dir" ]; then' in script
+    assert 'podman exec "$container" sh -lc' in script
+    assert "cat > /app/.ssh/config" in script
+    assert "podman container exists" in script
 
 
 def test_sandbox_host_runner_setup_does_not_recreate_or_expose_general_shell():
