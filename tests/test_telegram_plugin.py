@@ -2,6 +2,7 @@ import importlib.util
 import asyncio
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -763,6 +764,57 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
 
 
+def test_webhook_keeps_typing_indicator_until_agent_reply(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_TYPING_KEEPALIVE_SECONDS", "0.05")
+    typing_calls: list[tuple[str, str]] = []
+    replies: list[tuple[str, str]] = []
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "sess-typing"}
+
+    async def _agent_turn(bridge):
+        await asyncio.sleep(0.13)
+        return {"status": "accepted", "reply_text": "Antwort nach Arbeit"}
+
+    def _typing(chat_id, action="typing"):
+        typing_calls.append((chat_id, action))
+        return {"ok": True, "action": action, "token_value_visible": False}
+
+    def _send(chat_id, text):
+        replies.append((chat_id, text))
+        return {"ok": True, "telegram_message_id": 90, "token_value_visible": False}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_chat_action", _typing)
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _send)
+    app = FastAPI()
+    app.state.telegram_session_bridge = _session_bridge
+    app.state.telegram_agent_turn_handler = _agent_turn
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 47,
+        "message": {
+            "message_id": 58,
+            "chat": {"id": 123},
+            "from": {"id": 1, "first_name": "User"},
+            "text": "Bitte arbeite kurz",
+        },
+    })
+
+    assert response.status_code == 200
+    assert len(typing_calls) >= 2
+    assert all(call == ("123", "typing") for call in typing_calls)
+    assert replies == [("123", "Antwort nach Arbeit")]
+    stopped_count = len(typing_calls)
+    time.sleep(0.12)
+    assert len(typing_calls) == stopped_count
+
+
 def test_webhook_allowed_text_reaches_coding_agent_task_bridge(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
@@ -1135,6 +1187,57 @@ def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, 
     assert mapping["last_selected_scope"] == "normal"
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "control_command" and item.get("status") == "new_chat_bound" for item in history)
+
+
+def test_polling_cycle_keeps_typing_indicator_until_agent_reply(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_TYPING_KEEPALIVE_SECONDS", "0.05")
+    typing_calls: list[tuple[str, str]] = []
+    replies: list[tuple[str, str, int | None]] = []
+
+    def _typing(chat_id, action="typing"):
+        typing_calls.append((chat_id, action))
+        return {"ok": True, "action": action, "token_value_visible": False}
+
+    def _agent_turn(_bridge):
+        time.sleep(0.13)
+        return {"status": "accepted", "reply_text": "Antwort nach Polling-Arbeit"}
+
+    def _reply(chat_id, text, source_message_id=None):
+        time.sleep(0.08)
+        replies.append((chat_id, text, source_message_id))
+        return {"ok": True, "telegram_message_id": 91}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_chat_action", _typing)
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 18,
+            "message": {
+                "message_id": 180,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "Bitte arbeite per polling",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "polling-typing"},
+        agent_turn_handler=_agent_turn,
+        reply_handler=_reply,
+    )
+
+    assert result["ok"] is True
+    assert result["agent_turns"] == 1
+    assert result["replies"] == 1
+    assert len(typing_calls) >= 2
+    assert all(call == ("123", "typing") for call in typing_calls)
+    assert replies == [("123", "Antwort nach Polling-Arbeit", 180)]
+    stopped_count = len(typing_calls)
+    time.sleep(0.12)
+    assert len(typing_calls) == stopped_count
 
 
 def test_telegram_control_command_detects_dsgvo_aliases():

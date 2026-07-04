@@ -200,6 +200,7 @@ from plugins.telegram.polling import (
     _run_agent_turn_async,
     fetch_telegram_updates,
     run_telegram_polling_cycle_impl,
+    telegram_typing_keepalive_seconds,
 )
 from plugins.telegram.project_intake import (
     _apply_telegram_project_intake_review,
@@ -1672,6 +1673,29 @@ def send_telegram_typing_indicator(
         return None
 
 
+async def _telegram_typing_pulse_async(
+    chat_id: str,
+    *,
+    store: TelegramInboxStore | None = None,
+) -> tuple[asyncio.Event, asyncio.Task[None]]:
+    stop = asyncio.Event()
+
+    async def _pulse() -> None:
+        interval = telegram_typing_keepalive_seconds()
+        while not stop.is_set():
+            try:
+                await asyncio.to_thread(send_telegram_typing_indicator, chat_id, store=store)
+            except Exception:
+                pass
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=interval)
+            except asyncio.TimeoutError:
+                continue
+
+    task = asyncio.create_task(_pulse())
+    return stop, task
+
+
 def _parse_tool_payload(content: str | dict[str, Any]) -> dict[str, Any]:
     if isinstance(content, dict):
         return content
@@ -2249,24 +2273,35 @@ def setup(ctx):
             voice_agent_turn=voice_agent_turn,
             recent_attachment_context=recent_attachment_context,
         )
-        if bridge["ready_for_agent"]:
-            send_telegram_typing_indicator(bridge["chat_id"], store=store)
-        agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
-        if agent_turn is not None:
-            store.append_event(
-                kind="agent_turn",
-                status=str(agent_turn.get("status") or "accepted"),
-                chat_id=bridge["chat_id"],
-                session_id=bridge.get("session_id") or "",
-                reply_text_present=bool(agent_turn.get("reply_text_present")),
-            )
-            reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
-            if reply_text:
-                reply_result = _reply_with_gate(
-                    bridge["chat_id"],
-                    reply_text,
-                    source_message_id=bridge.get("source_message_id"),
+        typing_stop: asyncio.Event | None = None
+        typing_task: asyncio.Task[None] | None = None
+        if bridge["ready_for_agent"] and callable(agent_turn_handler):
+            typing_stop, typing_task = await _telegram_typing_pulse_async(bridge["chat_id"], store=store)
+        try:
+            agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
+            if agent_turn is not None:
+                store.append_event(
+                    kind="agent_turn",
+                    status=str(agent_turn.get("status") or "accepted"),
+                    chat_id=bridge["chat_id"],
+                    session_id=bridge.get("session_id") or "",
+                    reply_text_present=bool(agent_turn.get("reply_text_present")),
                 )
+                reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+                if reply_text:
+                    reply_result = _reply_with_gate(
+                        bridge["chat_id"],
+                        reply_text,
+                        source_message_id=bridge.get("source_message_id"),
+                    )
+        finally:
+            if typing_stop is not None:
+                typing_stop.set()
+            if typing_task is not None:
+                try:
+                    await asyncio.wait_for(typing_task, timeout=0.5)
+                except asyncio.TimeoutError:
+                    typing_task.cancel()
         return {
             "stored": stored["stored"],
             "message": stored["message"],

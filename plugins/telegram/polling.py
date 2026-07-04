@@ -10,6 +10,7 @@ from pathlib import Path
 import asyncio
 import json
 import os
+import threading
 import urllib.parse
 import urllib.request
 from typing import Any, Callable
@@ -48,6 +49,50 @@ def _run_agent_turn(
         "reply_text": reply_text,
         "reply_text_present": bool(reply_text.strip()),
     }
+
+
+def telegram_typing_keepalive_seconds() -> float:
+    try:
+        value = float((os.getenv("TELEGRAM_TYPING_KEEPALIVE_SECONDS") or "").strip())
+    except ValueError:
+        value = 4.0
+    return max(0.05, min(value or 4.0, 5.0))
+
+
+class TelegramTypingPulse:
+    def __init__(
+        self,
+        *,
+        chat_id: str,
+        send_typing_indicator: Callable[..., Any],
+        store: TelegramInboxStore | None = None,
+    ) -> None:
+        self.chat_id = str(chat_id or "")
+        self.send_typing_indicator = send_typing_indicator
+        self.store = store
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> "TelegramTypingPulse":
+        if not self.chat_id or not callable(self.send_typing_indicator):
+            return self
+        self._thread = threading.Thread(target=self._run, name="telegram-typing-pulse", daemon=True)
+        self._thread.start()
+        return self
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=0.5)
+
+    def _run(self) -> None:
+        interval = telegram_typing_keepalive_seconds()
+        while not self._stop.is_set():
+            try:
+                self.send_typing_indicator(self.chat_id, store=self.store)
+            except Exception:
+                pass
+            self._stop.wait(interval)
 
 
 async def _run_agent_turn_async(
@@ -469,25 +514,33 @@ def run_telegram_polling_cycle_impl(
                     chat_id=bridge["chat_id"],
                     session_id=binding.get("session_id") or "",
                 )
-                send_typing_indicator(bridge["chat_id"], store=store)
-                agent_turn = _run_agent_turn(agent_turn_handler, bridge)
-                if agent_turn is not None:
-                    agent_turns += 1
-                    store.append_event(
-                        kind="agent_turn",
-                        status=str(agent_turn.get("status") or "accepted"),
-                        chat_id=bridge["chat_id"],
-                        session_id=bridge.get("session_id") or "",
-                        reply_text_present=bool(agent_turn.get("reply_text_present")),
-                    )
-                    reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
-                    if reply_text and reply_handler is not None:
-                        reply_handler(
-                            bridge["chat_id"],
-                            reply_text,
-                            bridge.get("source_message_id"),
+                typing_pulse = TelegramTypingPulse(
+                    chat_id=bridge["chat_id"],
+                    send_typing_indicator=send_typing_indicator,
+                    store=store,
+                ).start() if callable(agent_turn_handler) else None
+                try:
+                    agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+                    if agent_turn is not None:
+                        agent_turns += 1
+                        store.append_event(
+                            kind="agent_turn",
+                            status=str(agent_turn.get("status") or "accepted"),
+                            chat_id=bridge["chat_id"],
+                            session_id=bridge.get("session_id") or "",
+                            reply_text_present=bool(agent_turn.get("reply_text_present")),
                         )
-                        replies += 1
+                        reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+                        if reply_text and reply_handler is not None:
+                            reply_handler(
+                                bridge["chat_id"],
+                                reply_text,
+                                bridge.get("source_message_id"),
+                            )
+                            replies += 1
+                finally:
+                    if typing_pulse is not None:
+                        typing_pulse.stop()
             processed += 1
     next_offset = offset if hold_offset_for_retry else (last_update_id + 1 if last_update_id else offset)
     polling.record(
