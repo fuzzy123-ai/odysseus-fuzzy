@@ -10,7 +10,7 @@
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 26,
+    "unique_live_gates": 24,
     "unique_design_gates": 4,
     "queue_status": "safe_repo_queue_exhausted"
   },

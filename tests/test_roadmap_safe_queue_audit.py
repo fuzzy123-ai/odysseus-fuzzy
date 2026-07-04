@@ -76,6 +76,8 @@ def test_audit_classifies_classless_gate_lists_by_id_and_path(tmp_path):
         {
             "open_gates": [
                 {"id": "telegram-reminder-live-go", "status": "open"},
+                {"id": "mcp-debug-server-exposure-go", "status": "open"},
+                {"id": "security-incident-tabletop-go", "status": "open"},
                 {"id": "ui-placement", "status": "open"},
                 {"id": "ambiguous-followup", "status": "open"},
             ]
@@ -84,7 +86,11 @@ def test_audit_classifies_classless_gate_lists_by_id_and_path(tmp_path):
 
     report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
 
-    assert [item["id"] for item in report["live_gates"]] == ["telegram-reminder-live-go"]
+    assert [item["id"] for item in report["live_gates"]] == [
+        "telegram-reminder-live-go",
+        "mcp-debug-server-exposure-go",
+        "security-incident-tabletop-go",
+    ]
     assert [item["id"] for item in report["design_gates"]] == ["ui-placement"]
     assert [item["id"] for item in report["other_open_items"]] == ["ambiguous-followup"]
 
@@ -182,3 +188,59 @@ def test_audit_renders_operator_decision_packets(tmp_path):
     assert packets["other_gate"]["safe_default"] == "defer_uncategorized_gate"
     assert "## Operator Decision Packets" in rendered
     assert "| 90 | other_gate | Review uncategorized gates" in rendered
+
+
+def test_audit_ignores_abc_execution_queue_router_waits(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "open-work-completion-master-roadmap.json",
+        {
+            "abc_execution_queue": [
+                {
+                    "id": "OWM-1-next-decision-router",
+                    "class": "needs_live_go",
+                    "status": "waiting_for_operator_choice",
+                }
+            ],
+            "completion_lanes": [
+                {
+                    "id": "OWM-2",
+                    "status": "needs_live_go",
+                    "gate_ids": ["telegram-reminder-live-go"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        plans / "calendar.json",
+        {"gate_queue": [{"id": "telegram-reminder-live-go", "class": "needs_live_go", "status": "open"}]},
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert [item["id"] for item in report["live_gates"]] == ["telegram-reminder-live-go"]
+    assert report["unique_live_gate_count"] == 1
+    assert report["other_open_items"] == []
+
+
+def test_audit_treats_live_evidence_and_done_slice_statuses_as_closed(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "roadmap.json",
+        {
+            "gate_queue": [
+                {"id": "debian-live-sandbox-worker-go", "class": "needs_live_go", "status": "resolved_with_live_evidence"},
+                {"id": "next-live-go", "class": "needs_live_go", "status": "open"},
+            ],
+            "abc_execution_queue": [
+                {"id": "OWM-0-masterroadmap-artifact", "class": "repo_only", "status": "done_in_this_slice"}
+            ],
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert [item["id"] for item in report["live_gates"]] == ["next-live-go"]
+    assert report["other_open_items"] == []

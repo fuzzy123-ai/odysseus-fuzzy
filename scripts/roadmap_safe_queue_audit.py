@@ -21,7 +21,9 @@ DONE_STATUSES = {
     "completed",
     "go",
     "resolved",
+    "resolved_with_live_evidence",
     "resolved_with_synthetic_live_evidence",
+    "done_in_this_slice",
     "implemented",
     "repo_complete",
     "backend_complete",
@@ -37,6 +39,7 @@ GATED_DONE_STATUSES = {
     "repo_prepared_live_unverified",
 }
 OPEN_STATUSES = {"open", "planned", "running", "todo", "pending"}
+META_ROUTER_STATUSES = {"waiting_for_operator_choice"}
 
 DECISION_FAMILIES = (
     (
@@ -319,6 +322,8 @@ def _classify_item(item: RoadmapAuditItem) -> str:
     item_class = item.item_class.lower()
     item_id = item.item_id.lower()
     path = item.path.lower()
+    if _is_meta_router_item(status=status, path=path):
+        return "closed"
     if status in DONE_STATUSES or status in GATED_DONE_STATUSES:
         return "closed"
     if item_class in SAFE_CLASSES:
@@ -338,6 +343,12 @@ def _classify_item(item: RoadmapAuditItem) -> str:
     return "closed"
 
 
+def _is_meta_router_item(*, status: str, path: str) -> bool:
+    """Ignore roadmap-internal router waits that merely point to real gates."""
+
+    return status in META_ROUTER_STATUSES and "/abc_execution_queue" in path
+
+
 def _looks_like_live_gate(*, item_id: str, path: str) -> bool:
     if "gate" not in path and "gate" not in item_id:
         return False
@@ -349,7 +360,10 @@ def _looks_like_live_gate(*, item_id: str, path: str) -> bool:
         "deploy",
         "cloudflare",
         "mcp-service",
+        "mcp-debug",
         "observability",
+        "security-incident",
+        "tabletop",
         "crowdsec",
         "remediation",
         "lockdown",
