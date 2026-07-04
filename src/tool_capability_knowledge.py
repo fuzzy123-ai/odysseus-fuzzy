@@ -33,7 +33,7 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
         {
             "id": "sandbox_check_evidence",
             "status": "available",
-            "summary": "Dispatches allowlisted checks to dry-run or approved Podman sandbox mode and stores redacted evidence.",
+            "summary": "Dispatches allowlisted checks to dry-run or approved Podman sandbox mode, including the narrow homeserver host-runner backend, and stores redacted evidence.",
             "surfaces": ("coding_runner", "api"),
             "live_gate_required": True,
         },
@@ -47,7 +47,7 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
         {
             "id": "sandbox_terminal_commands",
             "status": "available",
-            "summary": "Runs allowlisted test/build commands through the Podman sandbox worker with resource limits; unrestricted host bash remains unavailable to agents.",
+            "summary": "Runs allowlisted test/build commands through the Podman sandbox worker or homeserver host runner with resource limits; unrestricted host bash remains unavailable to agents.",
             "surfaces": ("coding_runner", "sandbox_worker"),
             "live_gate_required": True,
         },

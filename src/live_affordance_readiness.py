@@ -6,6 +6,8 @@ import os
 import shutil
 from typing import Any, Callable, Mapping
 
+from src.agent_sandbox_worker import sandbox_runner_readiness
+
 
 LIVE_AFFORDANCE_READINESS_SCHEMA = "odysseus.live_affordance_readiness.v1"
 
@@ -44,9 +46,14 @@ def build_live_affordance_readiness(
 
 
 def _sandbox_execution(env: Mapping[str, str], lookup: Callable[[str], str | None]) -> dict[str, Any]:
+    runner = sandbox_runner_readiness(env=env, tool_lookup=lookup)
+    runner_gates = tuple(
+        _gate(gate_id, bool(runner.get("runner_available")), _sandbox_runner_gate_summary(gate_id, runner.get("backend")))
+        for gate_id in tuple(runner.get("required_gates") or ("podman_available",))
+    )
     gates = (
         _gate("sandbox_worker_route_available", True, "Sandbox worker admin route is registered in the runtime"),
-        _gate("podman_available", bool(lookup("podman")), "Podman is discoverable without starting a job"),
+        *runner_gates,
         _gate("sandbox_live_enabled_request_required", False, "A concrete request must set live_enabled=true"),
         _gate("operator_live_go_required", False, "A concrete bounded sandbox execution Go is still required"),
         _gate("bounded_sandbox_job_required", False, "A reviewed SandboxJobRequest with no secrets, scoped mounts and resource limits is still required"),
@@ -58,6 +65,18 @@ def _sandbox_execution(env: Mapping[str, str], lookup: Callable[[str], str | Non
         gates,
         blocked_live_actions=("podman_pod_create", "podman_run", "sandbox_worker_submit_live"),
     )
+
+
+def _sandbox_runner_gate_summary(gate_id: str, backend: Any) -> str:
+    if gate_id == "podman_available":
+        return "Podman is discoverable without starting a job"
+    if gate_id == "ssh_available":
+        return "SSH client is discoverable for the configured host sandbox runner"
+    if gate_id == "sandbox_host_runner_target_configured":
+        return "Host sandbox runner SSH target is configured server-side"
+    if gate_id == "sandbox_host_runner_remote_command_configured":
+        return "Host sandbox runner remote command is configured server-side"
+    return f"Sandbox runner backend {backend or 'unknown'} gate is configured"
 
 
 def _telegram_delivery(env: Mapping[str, str]) -> dict[str, Any]:

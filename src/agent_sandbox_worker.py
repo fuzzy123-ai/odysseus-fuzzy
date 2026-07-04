@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import time
 from typing import Any, Callable, Mapping
@@ -64,7 +68,7 @@ class SandboxWorker:
         command_runner: SandboxCommandRunner | None = None,
     ):
         self.ledger = ledger or SandboxJobLedger()
-        self.command_runner = command_runner or run_podman_command
+        self.command_runner = command_runner or build_sandbox_command_runner_from_env()
 
     def submit(
         self,
@@ -293,3 +297,182 @@ def run_podman_command(argv: tuple[str, ...], timeout_seconds: int) -> SandboxCo
             timed_out=True,
             duration_seconds=time.monotonic() - started,
         )
+
+
+_TRUE_VALUES = {"1", "true", "yes", "on", "y"}
+_SSH_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@:-]{0,120}$")
+_SAFE_REMOTE_COMMAND_RE = re.compile(r"^/[A-Za-z0-9._/-]{1,220}$")
+
+
+class SandboxSshHostRunner:
+    """Run approved Podman sandbox argv through the homeserver host runner.
+
+    This intentionally does not expose SSH as an agent tool. The only payload
+    crossing the boundary is the already validated Podman argv plus a timeout.
+    """
+
+    def __init__(
+        self,
+        *,
+        target: str,
+        remote_command: str,
+        ssh_config: str = "",
+        process_runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+    ):
+        self.target = _safe_ssh_target(target)
+        self.remote_command = _safe_remote_command(remote_command)
+        self.ssh_config = _safe_optional_container_path(ssh_config)
+        self.process_runner = process_runner or subprocess.run
+
+    def __call__(self, argv: tuple[str, ...], timeout_seconds: int) -> SandboxCommandResult:
+        if not argv or argv[0] != "podman":
+            raise SandboxWorkerError("host sandbox runner only accepts podman argv")
+        payload = {
+            "schema": "odysseus.agent.sandbox_host_runner_command.v1",
+            "argv": list(argv),
+            "timeout_seconds": max(1, min(int(timeout_seconds), 7200)),
+        }
+        ssh_argv = self._ssh_argv()
+        started = time.monotonic()
+        try:
+            completed = self.process_runner(
+                ssh_argv,
+                input=json.dumps(payload, separators=(",", ":")),
+                text=True,
+                capture_output=True,
+                timeout=payload["timeout_seconds"] + 20,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return SandboxCommandResult(
+                exit_code=124,
+                stdout=str(exc.stdout or "")[:2000],
+                stderr=str(exc.stderr or "host runner timed out")[:2000],
+                timed_out=True,
+                duration_seconds=time.monotonic() - started,
+            )
+        if completed.returncode != 0:
+            return SandboxCommandResult(
+                exit_code=max(1, min(int(completed.returncode), 255)),
+                stdout="",
+                stderr=_redact_runner_text(completed.stderr or "host runner failed"),
+                duration_seconds=time.monotonic() - started,
+            )
+        try:
+            data = json.loads(completed.stdout or "{}")
+        except json.JSONDecodeError:
+            return SandboxCommandResult(
+                exit_code=126,
+                stdout="",
+                stderr="host runner returned invalid json",
+                duration_seconds=time.monotonic() - started,
+            )
+        return SandboxCommandResult(
+            exit_code=max(0, min(int(data.get("exit_code", 126)), 255)),
+            stdout=_redact_runner_text(data.get("stdout", "")),
+            stderr=_redact_runner_text(data.get("stderr", "")),
+            timed_out=bool(data.get("timed_out", False)),
+            duration_seconds=float(data.get("duration_seconds") or (time.monotonic() - started)),
+        )
+
+    def _ssh_argv(self) -> list[str]:
+        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+        if self.ssh_config:
+            argv.extend(["-F", self.ssh_config])
+        argv.extend([self.target, self.remote_command])
+        return argv
+
+
+class SandboxUnavailableRunner:
+    def __init__(self, reason: str):
+        self.reason = reason[:200]
+
+    def __call__(self, argv: tuple[str, ...], timeout_seconds: int) -> SandboxCommandResult:
+        raise SandboxWorkerError(self.reason)
+
+
+def build_sandbox_command_runner_from_env(
+    *,
+    env: Mapping[str, str] | None = None,
+    tool_lookup: Callable[[str], str | None] | None = None,
+) -> SandboxCommandRunner:
+    source_env = env if env is not None else os.environ
+    backend = str(source_env.get("ODYSSEUS_SANDBOX_RUNNER_BACKEND") or "local_podman").strip().lower()
+    if backend == "host_ssh":
+        try:
+            return SandboxSshHostRunner(
+                target=str(source_env.get("ODYSSEUS_SANDBOX_HOST_RUNNER_SSH_TARGET") or ""),
+                ssh_config=str(source_env.get("ODYSSEUS_SANDBOX_HOST_RUNNER_SSH_CONFIG") or ""),
+                remote_command=str(
+                    source_env.get("ODYSSEUS_SANDBOX_HOST_RUNNER_REMOTE_COMMAND")
+                    or "/opt/odysseus/ops/homeserver/run-sandbox-job.py"
+                ),
+            )
+        except SandboxWorkerError as exc:
+            return SandboxUnavailableRunner(str(exc))
+    lookup = tool_lookup or shutil.which
+    if backend not in {"", "local_podman"}:
+        return SandboxUnavailableRunner("unsupported sandbox runner backend")
+    if not lookup("podman"):
+        return run_podman_command
+    return run_podman_command
+
+
+def sandbox_runner_readiness(
+    *,
+    env: Mapping[str, str] | None = None,
+    tool_lookup: Callable[[str], str | None] | None = None,
+) -> dict[str, Any]:
+    source_env = env if env is not None else os.environ
+    lookup = tool_lookup or shutil.which
+    backend = str(source_env.get("ODYSSEUS_SANDBOX_RUNNER_BACKEND") or "local_podman").strip().lower()
+    if backend == "host_ssh":
+        return {
+            "backend": "host_ssh",
+            "runner_available": bool(lookup("ssh"))
+            and bool(str(source_env.get("ODYSSEUS_SANDBOX_HOST_RUNNER_SSH_TARGET") or "").strip())
+            and bool(str(source_env.get("ODYSSEUS_SANDBOX_HOST_RUNNER_REMOTE_COMMAND") or "/opt/odysseus/ops/homeserver/run-sandbox-job.py").strip()),
+            "required_gates": (
+                "ssh_available",
+                "sandbox_host_runner_target_configured",
+                "sandbox_host_runner_remote_command_configured",
+            ),
+            "values_visible": False,
+        }
+    return {
+        "backend": "local_podman",
+        "runner_available": bool(lookup("podman")),
+        "required_gates": ("podman_available",),
+        "values_visible": False,
+    }
+
+
+def _safe_ssh_target(value: str) -> str:
+    text = str(value or "").strip()
+    if not text or text.startswith("-") or not _SSH_TARGET_RE.fullmatch(text):
+        raise SandboxWorkerError("sandbox host runner ssh target is unsafe or missing")
+    return text
+
+
+def _safe_remote_command(value: str) -> str:
+    text = str(value or "").strip()
+    if not text or not _SAFE_REMOTE_COMMAND_RE.fullmatch(text) or ".." in text.split("/"):
+        raise SandboxWorkerError("sandbox host runner remote command is unsafe or missing")
+    return text
+
+
+def _safe_optional_container_path(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if not text.startswith("/app/") or ".." in text.split("/") or not _SAFE_REMOTE_COMMAND_RE.fullmatch(text):
+        raise SandboxWorkerError("sandbox host runner ssh config path is unsafe")
+    return text
+
+
+def _redact_runner_text(value: Any) -> str:
+    text = str(value or "")
+    lowered = text.lower()
+    if any(marker in lowered for marker in ("token", "secret", "password", "api_key", "bearer ")):
+        return "[redacted]"
+    return text[:2000]

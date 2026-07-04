@@ -84,6 +84,27 @@ def test_live_affordance_readiness_reports_gates_without_values():
     assert "C:/tools" not in encoded
 
 
+def test_live_affordance_readiness_supports_host_ssh_sandbox_runner_without_podman():
+    env = {
+        "ODYSSEUS_SANDBOX_RUNNER_BACKEND": "host_ssh",
+        "ODYSSEUS_SANDBOX_HOST_RUNNER_SSH_TARGET": "odysseus-homeserver",
+        "ODYSSEUS_SANDBOX_HOST_RUNNER_REMOTE_COMMAND": "/opt/odysseus/ops/homeserver/run-sandbox-job.py",
+    }
+    payload = build_live_affordance_readiness(
+        env=env,
+        tool_lookup=lambda tool: "/usr/bin/ssh" if tool == "ssh" else None,
+    )
+    encoded = json.dumps(payload, sort_keys=True)
+    by_id = {action["action_id"]: action for action in payload["actions"]}
+
+    assert by_id["sandbox_execution"]["ready"] is False
+    assert "ssh_available" not in by_id["sandbox_execution"]["readiness_gap_names"]
+    assert "podman_available" not in by_id["sandbox_execution"]["readiness_gap_names"]
+    assert "bounded_sandbox_job_required" in by_id["sandbox_execution"]["readiness_gap_names"]
+    assert "odysseus-homeserver" not in encoded
+    assert "/opt/odysseus" not in encoded
+
+
 def test_live_affordance_readiness_route_requires_admin():
     response = TestClient(_app(user="alice", admins=("admin",))).get("/api/live-affordances/readiness")
 

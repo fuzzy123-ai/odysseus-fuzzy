@@ -1,6 +1,13 @@
 from pathlib import Path
+import subprocess
 
-from src.agent_sandbox_worker import SandboxCommandResult, SandboxWorker
+from src.agent_sandbox_worker import (
+    SandboxCommandResult,
+    SandboxSshHostRunner,
+    SandboxWorker,
+    build_sandbox_command_runner_from_env,
+    sandbox_runner_readiness,
+)
 from src.sandbox_job_ledger import SandboxJobLedger
 from src.sandbox_job_templates import build_sandbox_job_from_template
 
@@ -73,3 +80,68 @@ def test_sandbox_worker_live_runner_exception_records_failed_status(tmp_path: Pa
     assert "pod_create_error" in status.stdout_preview
     assert calls[0][:3] == ("podman", "pod", "create")
     assert calls[1][:3] == ("podman", "pod", "rm")
+
+
+def test_sandbox_worker_builds_unavailable_runner_for_incomplete_host_backend(tmp_path: Path):
+    runner = build_sandbox_command_runner_from_env(env={"ODYSSEUS_SANDBOX_RUNNER_BACKEND": "host_ssh"})
+    worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path), command_runner=runner)
+    job = build_sandbox_job_from_template("python_pytest", job_id="pytest_host_backend_missing")
+
+    result = worker.submit(job, live_enabled=True, operator_go=True)
+
+    assert result.status.status == "failed"
+    assert result.status.exit_code == 127
+    assert "pod_create_error:SandboxWorkerError" in result.status.stderr_preview
+
+
+def test_sandbox_ssh_host_runner_uses_fixed_ssh_command_and_json_payload():
+    calls = []
+
+    def fake_process(argv, **kwargs):
+        calls.append((list(argv), dict(kwargs)))
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=0,
+            stdout='{"exit_code":0,"stdout":"ok","stderr":"","timed_out":false,"duration_seconds":0.02}',
+            stderr="",
+        )
+
+    runner = SandboxSshHostRunner(
+        target="odysseus-homeserver",
+        ssh_config="/app/.ssh/config",
+        remote_command="/opt/odysseus/ops/homeserver/run-sandbox-job.py",
+        process_runner=fake_process,
+    )
+
+    result = runner(("podman", "pod", "rm", "-f", "odysseus-agent-demo"), 30)
+
+    assert result.ok is True
+    argv, kwargs = calls[0]
+    assert argv == [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "-F",
+        "/app/.ssh/config",
+        "odysseus-homeserver",
+        "/opt/odysseus/ops/homeserver/run-sandbox-job.py",
+    ]
+    assert kwargs["capture_output"] is True
+    assert kwargs["text"] is True
+    assert '"argv":["podman","pod","rm","-f","odysseus-agent-demo"]' in kwargs["input"]
+
+
+def test_sandbox_runner_readiness_accepts_host_ssh_without_local_podman():
+    env = {
+        "ODYSSEUS_SANDBOX_RUNNER_BACKEND": "host_ssh",
+        "ODYSSEUS_SANDBOX_HOST_RUNNER_SSH_TARGET": "odysseus-homeserver",
+        "ODYSSEUS_SANDBOX_HOST_RUNNER_REMOTE_COMMAND": "/opt/odysseus/ops/homeserver/run-sandbox-job.py",
+    }
+
+    readiness = sandbox_runner_readiness(env=env, tool_lookup=lambda tool: "/usr/bin/ssh" if tool == "ssh" else None)
+
+    assert readiness["backend"] == "host_ssh"
+    assert readiness["runner_available"] is True
+    assert "ssh_available" in readiness["required_gates"]
