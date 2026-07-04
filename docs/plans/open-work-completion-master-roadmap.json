@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.open_work_completion_master_roadmap",
+  "updated_at": "2026-07-04",
+  "status": "live_and_design_gated",
+  "abc_mode": "Standard ABC",
+  "goal_command": "/goal Neue konsolidierte Masterroadmap fertigstellen und danach alle offenen Odysseus-Punkte gate-getrieben mit ABC abschliessen, ohne neue Backend-Scheinslices zu erfinden.",
+  "goal": "Finish all remaining non-UI Odysseus work by converting the completed backend roadmaps into bounded live/design decision packets, then execute one approved gate at a time with redacted evidence.",
+  "current_position": {
+    "mvp_backend_roadmaps_1_to_10": "100%",
+    "version_1_0_gate": "blocked_until_new_ui_live",
+    "safe_open_json_slices": 0,
+    "unique_live_gates": 26,
+    "unique_design_gates": 4,
+    "queue_status": "safe_repo_queue_exhausted"
+  },
+  "source_of_truth": [
+    "docs/plans/central-abc-masterplan-2026-06-29.md",
+    "docs/plans/mvp-master-roadmap.md",
+    "docs/plans/mvp-roadmap-runner-state.json",
+    "docs/plans/autonomy-calendar-coding-master-roadmap.json",
+    "docs/plans/observability-security-ops-master-roadmap.json",
+    "docs/plans/agent-capability-expansion-master-roadmap.json",
+    "docs/plans/legacy-chat-new-functions-master-roadmap.json",
+    "docs/plans/maintenance-ai-knowledge-master-roadmap.json",
+    "docs/plans/mcp-workbench-evidence-plan.md",
+    "docs/plans/nextcloud-import-preparation-roadmap.md",
+    "docs/plans/pdf-long-document-extraction-roadmap.md",
+    "docs/plans/rag-memory-tokenization-roadmap.md"
+  ],
+  "hard_rules": [
+    "No legacy UI or v2 UI implementation from this backend ABC track.",
+    "No Docker-first assumptions; Odysseus runtime uses Podman/pods.",
+    "No broad shell/filesystem/MCP exposure.",
+    "No private raw content, private paths, chat IDs, tokens, provider outputs or secrets in repo artifacts.",
+    "No live Telegram, Nextcloud, provider, host, deploy, backup, restore, Cloudflare, GitHub sync/write or remediation action without a bounded operator Go.",
+    "Push only to fuzzy/dev; never push to origin.",
+    "Do not touch unrelated dirty files unless the selected slice explicitly owns them."
+  ],
+  "completion_lanes": [
+    {
+      "id": "OWM-1",
+      "name": "Version 1.0 Release Gate",
+      "priority": 10,
+      "status": "needs_design_and_release_go",
+      "why_open": "Backend MVP is complete, but official Version 1.0 requires the new UI to be live; deploy/tag/distribution remains separate live release work.",
+      "source_gate_family": "version_release",
+      "gate_ids": [
+        "VERSION-1-UI-LIVE",
+        "deploy-live-go",
+        "r8-release-target-decision"
+      ],
+      "safe_default": "defer_release_live_actions",
+      "operator_go_phrase": "GO version_release bounded evidence",
+      "done_when": "New UI is live, /api/version-one/readiness is Go, rollback target is named, and release/deploy/tag/distribution decision is explicitly approved or consciously deferred."
+    },
+    {
+      "id": "OWM-2",
+      "name": "Calendar And Reminder Live Reliability",
+      "priority": 20,
+      "status": "needs_live_go",
+      "why_open": "Calendar/reminder repo slices are complete, but the 09:00 Telegram todo digest/reminder and CalDAV writeback paths still need bounded live evidence.",
+      "source_gate_family": "calendar_reminders",
+      "gate_ids": [
+        "CAL-MCP-7-live-telegram-reminder-smoke",
+        "telegram-reminder-live-go",
+        "caldav-write-live-go"
+      ],
+      "safe_default": "keep_reminders_repo_ready_no_live_send",
+      "operator_go_phrase": "GO calendar_reminders bounded smoke",
+      "done_when": "One harmless recurring Telegram reminder/todo digest and, separately if approved, one CalDAV writeback smoke are created, delivered/observed, redacted and documented without multiplying one weekday reminder into multiple tasks."
+    },
+    {
+      "id": "OWM-3",
+      "name": "Autonomous Coding Runtime Control",
+      "priority": 30,
+      "status": "needs_live_go",
+      "why_open": "Autonomous coding contracts, sandbox evidence and runner state are repo-ready; real workstation-to-Telegram supervision, MCP availability and network/deploy gates remain operational decisions.",
+      "source_gate_family": "autonomous_coding",
+      "gate_ids": [
+        "autonomous-coding-live-remote-control-go",
+        "mcp-service-availability",
+        "network-allowlist-go",
+        "deploy-live-go"
+      ],
+      "safe_default": "keep_autonomous_coding_dry_run",
+      "operator_go_phrase": "GO autonomous_coding bounded smoke",
+      "done_when": "A bounded coding task can be started/observed/paused from the approved control surface, checked in the sandbox, and reported over Telegram without Telegram becoming the primary development UI."
+    },
+    {
+      "id": "OWM-4",
+      "name": "MCP Workbench Activation",
+      "priority": 35,
+      "status": "needs_service_availability",
+      "why_open": "Local MCP contracts and policy tests are ready, but Codex-side MCP services and local Odysseus MCP live smoke need explicit setup/evidence.",
+      "source_gate_family": "autonomous_coding",
+      "gate_ids": [
+        "mcp-service-availability",
+        "mcp-debug-server-exposure-go"
+      ],
+      "safe_default": "keep_mcp_workbench_readonly_and_disabled_by_default",
+      "operator_go_phrase": "GO mcp_workbench bounded setup",
+      "done_when": "Available Codex-side services are configured in the safe order: Playwright/browser, GitHub connector/MCP, docs MCPs, local Odysseus MCP smoke, Podman read-only probes; each has redacted read/write classification."
+    },
+    {
+      "id": "OWM-5",
+      "name": "Nextcloud Import Pilot And Memory Decision",
+      "priority": 40,
+      "status": "needs_operator_subset_or_policy_rule",
+      "why_open": "Copy-only Nextcloud live smoke is closed, full metadata inventory is complete, and local-only extraction/review executor exists; actual private-content extraction/review and Memory/RaptorGraph writes need a selected subset or refined safe-area rule.",
+      "source_gate_family": "nextcloud_import",
+      "gate_ids": [
+        "nextcloud-local-only-extraction-go",
+        "nextcloud-memory-raptor-write-go"
+      ],
+      "safe_default": "keep_local_only_extraction_review_planned_no_memory_writes",
+      "operator_go_phrase": "GO nextcloud_import bounded local-only pilot",
+      "done_when": "A bounded local-only document subset is extracted/reviewed by local model, aggregate gate summary is produced, and Memory/RaptorGraph writes are either explicitly approved for safe abstractions or deferred."
+    },
+    {
+      "id": "OWM-6",
+      "name": "Observability Ops On Debian",
+      "priority": 50,
+      "status": "needs_live_go",
+      "why_open": "Unified runtime logging, MCP debugging, incident models and Debian observability contracts are repo-ready; host metrics, Podman metrics, Loki/log shipping, Grafana exposure, CrowdSec and live smokes require operational Go.",
+      "source_gate_family": "observability_ops",
+      "gate_ids": [
+        "observability-live-go",
+        "debian-observability-live-go",
+        "OBS-1-host-metrics",
+        "OBS-2-podman-runtime-metrics",
+        "OBS-3-logs-to-loki",
+        "ULOG-9-live-observability-smoke",
+        "grafana-exposure-go",
+        "log-retention-policy-go"
+      ],
+      "safe_default": "keep_observability_contracts_repo_only",
+      "operator_go_phrase": "GO observability_ops bounded inventory",
+      "done_when": "Debian host and Podman metrics/logs are collected with redaction, retention/exposure decisions are documented, and live observability smoke proves diagnosis without enabling unsafe remediation."
+    },
+    {
+      "id": "OWM-7",
+      "name": "Security Ops And Incident Tabletop",
+      "priority": 60,
+      "status": "needs_live_go",
+      "why_open": "Security incident response models and MCP debug surfaces are prepared; tabletop evidence and any CrowdSec/remediation/lockdown actions need explicit operator gates.",
+      "source_gate_family": "security_ops",
+      "gate_ids": [
+        "SIR-8-live-tabletop-smoke",
+        "security-incident-tabletop-go",
+        "crowdsec-remediation-go",
+        "lockdown-mode-go",
+        "mcp-remediation-tools-go"
+      ],
+      "safe_default": "keep_security_actions_prepare_only",
+      "operator_go_phrase": "GO security_ops bounded tabletop",
+      "done_when": "A synthetic/redacted incident tabletop creates, diagnoses and resolves an incident through policy-gated actions; remediation remains disabled unless separately approved."
+    },
+    {
+      "id": "OWM-8",
+      "name": "UI-Owned Integration Handoff",
+      "priority": 70,
+      "status": "needs_design",
+      "why_open": "Backend contracts for legacy chat, internal refs, diagnostics, live affordances, PDF warnings and Version 1.0 readiness are ready; UI placement and implementation are owned by the UI agent.",
+      "source_gate_family": "ui_design",
+      "gate_ids": [
+        "ui-placement",
+        "r6-lens-wording-ui",
+        "r7-browser-editor-ui"
+      ],
+      "safe_default": "do_not_edit_ui_from_backend_abc",
+      "operator_go_phrase": "GO ui_design handoff",
+      "done_when": "UI agent wires the existing backend contracts, new UI goes live, and backend ABC only verifies routes/readiness without changing legacy/v2 UI hotfiles."
+    },
+    {
+      "id": "OWM-9",
+      "name": "Memory/Raptor Runtime Reindex And Scale Foundation",
+      "priority": 80,
+      "status": "post_backend_live_gated",
+      "why_open": "Tokenizer/chunking, Raptor cache and diagnostics are repo-complete; live reindex of real collections and Postgres/pgvector scale foundation are post-1.0 or evidence-driven.",
+      "source_gate_family": "memory_scale",
+      "gate_ids": [
+        "RMT-LIVE-REINDEX",
+        "memory-scale-foundation-go"
+      ],
+      "safe_default": "do_not_migrate_or_reindex_real_collections_without_go",
+      "operator_go_phrase": "GO memory_scale bounded reindex plan",
+      "done_when": "A live reindex/migration plan has rollback evidence and quality gates, or the track is explicitly deferred until diagnostics show a real scale problem."
+    },
+    {
+      "id": "OWM-10",
+      "name": "GitHub Issue Intelligence Live Rollout",
+      "priority": 90,
+      "status": "post_mvp_live_gated",
+      "why_open": "GHISS0-GHISS8 are repo-complete; live token setup, provider sync/write and optional schedule remain explicit post-MVP gates.",
+      "source_gate_family": "github_issue_intelligence",
+      "gate_ids": [
+        "github-token-setup-go",
+        "github-provider-sync-go",
+        "github-issue-write-go"
+      ],
+      "safe_default": "keep_github_issue_intelligence_local_and_readonly",
+      "operator_go_phrase": "GO github_issue_intelligence bounded rollout",
+      "done_when": "A bounded repository sync/read path is approved and verified, and any write actions remain separately previewed and confirmed."
+    }
+  ],
+  "abc_execution_queue": [
+    {
+      "id": "OWM-0-masterroadmap-artifact",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done_in_this_slice",
+      "allowed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/open-work-completion-master-roadmap.json",
+        "python scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "done_when": "The consolidated JSON roadmap exists, validates, and reflects the audited open gate families."
+    },
+    {
+      "id": "OWM-1-next-decision-router",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "waiting_for_operator_choice",
+      "allowed_paths": [],
+      "tests": [],
+      "done_when": "Operator selects exactly one gate family and one bounded smoke/action to execute next."
+    }
+  ],
+  "recommended_execution_order": [
+    "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
+    "OWM-2 Calendar/Reminder live smoke: fixes the missed 09:00 todo/reminder class first.",
+    "OWM-3 Autonomous Coding runtime control: prove remote supervision after reminder reliability.",
+    "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
+    "OWM-5 Nextcloud local-only pilot: only after subset/policy decision.",
+    "OWM-6 Observability Ops: Debian metrics/logging before broad security automation.",
+    "OWM-7 Security tabletop: synthetic incident before real remediation.",
+    "OWM-8 UI handoff: UI agent owns actual UI implementation.",
+    "OWM-9 Memory scale: live reindex/migration only with rollback and quality evidence.",
+    "OWM-10 GitHub live rollout: post-MVP, bounded and token-gated."
+  ],
+  "abc_report_format": {
+    "include": [
+      "Gesamtstatus offene Punkte",
+      "Aktiver OWM-Slice",
+      "Ergebnis",
+      "Warum nicht fertig",
+      "Naechster Operator-Entscheid",
+      "Gate-Familien-Tabelle"
+    ],
+    "exclude": [
+      "routine passing test logs",
+      "private path details",
+      "tokens or chat ids",
+      "unrelated dirty worktree files"
+    ]
+  },
+  "gate_family_table": [
+    {
+      "family": "version_release",
+      "priority": 10,
+      "open_gate_count": 3,
+      "next_decision": "UI live or release-live actions deferred",
+      "safe_default": "defer_release_live_actions"
+    },
+    {
+      "family": "calendar_reminders",
+      "priority": 20,
+      "open_gate_count": 3,
+      "next_decision": "Telegram reminder smoke or CalDAV writeback smoke",
+      "safe_default": "keep_reminders_repo_ready_no_live_send"
+    },
+    {
+      "family": "autonomous_coding",
+      "priority": 30,
+      "open_gate_count": 3,
+      "next_decision": "Workstation-to-Telegram smoke, MCP availability, or network allowlist",
+      "safe_default": "keep_autonomous_coding_dry_run"
+    },
+    {
+      "family": "observability_ops",
+      "priority": 40,
+      "open_gate_count": 11,
+      "next_decision": "Debian observability inventory/setup, Grafana exposure, or log-retention evidence",
+      "safe_default": "keep_observability_contracts_repo_only"
+    },
+    {
+      "family": "security_ops",
+      "priority": 50,
+      "open_gate_count": 5,
+      "next_decision": "Synthetic tabletop or explicit remediation/lockdown action",
+      "safe_default": "keep_security_actions_prepare_only"
+    },
+    {
+      "family": "ui_design",
+      "priority": 60,
+      "open_gate_count": 3,
+      "next_decision": "Hand backend contracts to UI owner",
+      "safe_default": "do_not_edit_ui_from_backend_abc"
+    }
+  ],
+  "recommended_next_human_decision": "Choose the next bounded live/design family. Safe recommendation: GO calendar_reminders bounded smoke, because the missed 09:00 Telegram todo/reminder is the freshest user-visible failure and the backend is already repo-ready."
+}
