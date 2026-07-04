@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
   "updated_at": "2026-07-03",
-  "status": "repo_slices_done_live_gated",
+  "status": "remote_control_live_smoke_done_deploy_gated",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -37,7 +37,7 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "foundation_live_smoke_done",
+    "status": "remote_control_live_smoke_done",
     "updated_at": "2026-07-04",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
@@ -55,7 +55,7 @@
       "Debian live evidence on commit eb43519d proves host_ssh sandbox terminal execution and a scoped rw mount write with network none, no secrets and redacted durable evidence."
     ],
     "missing_or_not_yet_durable": [
-      "Live workstation-to-Telegram smoke and real deploy/Cloudflare exposure remain gated until explicit operator Go."
+      "Real deploy/Cloudflare exposure remains gated until explicit operator Go."
     ],
     "recommended_sequence": [
       "ACPR-2-runner-state-machine",
@@ -255,21 +255,22 @@
       "id": "ACPR-9-live-workstation-to-telegram-smoke",
       "class": "needs_live_go",
       "owner": "Charlie",
-      "status": "gated",
+      "status": "done",
       "goal": "Run one harmless live flow: create coding task from workstation, query status and pause/resume through Telegram, no real deployment.",
       "allowed_paths": [
         "data/reports/autonomous_coding_production/**"
       ],
       "tests": [],
       "gate_required": "autonomous-coding-live-remote-control-go",
-      "done_when": "The server records a workstation-started task, Telegram reports it, pause/resume is consumed, and evidence is stored redacted."
+      "done_when": "The server records a workstation-started task, Telegram reports it, pause/resume is consumed, and evidence is stored redacted.",
+      "evidence": "Debian live-container smoke on 2026-07-04 used ops/homeserver/run-autonomous-coding-remote-control-smoke.sh. It recorded workstation task acpr9_remote_control_1783179355, parsed Telegram /task status, /task pause and /task weiter commands, wrote pause_requested and resume_requested control events, consumed them through CodingRunnerStateStore, moved the runner from scoped to blocked with telegram_pause_requested and back to scoped, and wrote data/reports/autonomous_coding_production/workstation-telegram-control-live-smoke.json with status=succeeded, telegram_network_delivery=false, deploy_performed=false, raw_content_visible=false, tokens_visible=false, chat_ids_visible=false and host_paths_visible=false."
     }
   ],
   "gate_queue": [
     {
       "id": "autonomous-coding-live-remote-control-go",
       "class": "needs_live_go",
-      "status": "open",
+      "status": "resolved_with_live_evidence",
       "blocks": ["ACPR-9-live-workstation-to-telegram-smoke"],
       "decision_needed": "Approve a harmless workstation-created coding task and Telegram status/control smoke on Debian.",
       "risk_if_bypassed": "Remote controls could affect the wrong task or start work without reviewed scope."
