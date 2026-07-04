@@ -54,7 +54,7 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
         {
             "id": "nextcloud_copy_push",
             "status": "available",
-            "summary": "Can prepare and execute review-gated, copy-only Nextcloud writes for approved Universal Inbox placement plans; delete, move and overwrite stay blocked.",
+            "summary": "Can prepare and execute review-gated, copy-only Nextcloud writes for approved Universal Inbox placement plans using server-side Nextcloud Zugangsdaten only; delete, move and overwrite stay blocked.",
             "surfaces": ("universal_inbox", "telegram_review", "nextcloud_webdav"),
             "live_gate_required": True,
         },
@@ -90,7 +90,7 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
         "live_gates": live_gates,
         "summary": (
             "Odysseus can plan workstation-first coding tasks, resolve bounded project scopes, run gated sandbox checks, use sandbox-bound file and command capabilities, consume Telegram controls and prepare publish/deploy gates.",
-            "Nextcloud writes are available only as review-gated copy-only pushes through the Universal Inbox transfer boundary.",
+            "Nextcloud writes are available only as review-gated copy-only pushes through the Universal Inbox transfer boundary; chat-supplied Nextcloud Zugangsdaten are never requested.",
             "Unrestricted host bash, host-wide file writes, deletes, moves, overwrites, real deployment and Cloudflare exposure still require explicit operator Go or remain blocked by policy.",
         ),
         "raw_content_visible": False,

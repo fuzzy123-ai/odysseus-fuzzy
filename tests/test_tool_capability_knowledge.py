@@ -31,6 +31,8 @@ def test_coding_agent_capability_knowledge_lists_new_runner_features():
     assert "host bash remains unavailable" in encoded
     assert "homeserver host runner" in encoded
     assert "copy-only Nextcloud writes" in encoded
+    assert "server-side Nextcloud Zugangsdaten" in encoded
+    assert "chat-supplied Nextcloud Zugangsdaten are never requested" in encoded
     assert "delete, move and overwrite stay blocked" in encoded
 
 

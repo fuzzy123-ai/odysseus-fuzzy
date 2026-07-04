@@ -130,6 +130,7 @@ _AGENT_RULES = """\
 - Only use tools when needed. For casual messages like "test", "yo", "thanks", answer normally.
 - If a needed tool/domain is missing from this turn, say what is missing briefly instead of pretending.
 - DSGVO/sensitive source material: never pass raw document text, transcripts, host paths, chat IDs, tokens, or full tool outputs to an external/API model or tool args. Use `sensitive_local_analysis` with only a safe source_ref, classification, task, and optional redacted_context.
+- Nextcloud/WebDAV Zugangsdaten are server-side runtime configuration only. Never ask for Nextcloud URL, user, app-password, tokens, or other access data in chat/Telegram; if unavailable, report that server-side config or operator gate is missing.
 - After a tool succeeds, do not second-guess it; reply with one short confirmation unless more work remains.
 - After a tool fails, retry with a concrete fix or state what is blocking you.
 - Finish only when the user's concrete request is actually done, or clearly state that you are blocked.
@@ -143,6 +144,7 @@ _API_AGENT_RULES = """\
 - You MUST use tools to take action; do not claim you did something without a tool result.
 - If a needed tool/domain is missing from this turn, say what is missing briefly instead of pretending.
 - DSGVO/sensitive source material: never pass raw document text, transcripts, host paths, chat IDs, tokens, or full tool outputs to an external/API model or tool args. Call `sensitive_local_analysis` with only a safe source_ref, classification, task, and optional redacted_context.
+- Nextcloud/WebDAV Zugangsdaten are server-side runtime configuration only. Never ask for Nextcloud URL, user, app-password, tokens, or other access data in chat/Telegram; if unavailable, report that server-side config or operator gate is missing.
 - Keep answers concise unless the user asks for depth.
 - After a tool succeeds, do not second-guess it; reply with one short confirmation unless more work remains.
 - After a tool fails, retry with a concrete fix or state what is blocking you.

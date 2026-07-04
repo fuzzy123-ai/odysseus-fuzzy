@@ -843,8 +843,7 @@ def _handle_telegram_control_command(
                     "Live-Copy wartet auf Operator-Go."
                 )
             else:
-                reason = str(transfer.get("reason") or transfer.get("status") or "unknown")
-                reply_text = f"Review bestaetigt. Nextcloud-Ablage ist noch blockiert: {reason}."
+                reply_text = _format_nextcloud_transfer_blocked_reply(transfer)
             status = "universal_inbox_review_confirmed"
         else:
             reply_text = _format_universal_inbox_review_status(review)
@@ -1332,7 +1331,7 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
         return {"status": "blocked", "reason": "spool_file_missing", "dry_run": True, "writes_performed": False}
 
     try:
-        from src.nextcloud_webdav_client import build_nextcloud_webdav_client_from_env
+        from src.nextcloud_webdav_client import NextcloudWebDAVClientError, build_nextcloud_webdav_client_from_env
         from src.universal_inbox_nextcloud_transfer import (
             UniversalInboxNextcloudTransferRequest,
             execute_universal_inbox_nextcloud_transfer,
@@ -1354,7 +1353,10 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
             dry_run=not operator_live_go,
             actor="telegram",
         )
-        client = build_nextcloud_webdav_client_from_env() if operator_live_go else None
+        try:
+            client = build_nextcloud_webdav_client_from_env() if operator_live_go else None
+        except NextcloudWebDAVClientError:
+            return _nextcloud_server_config_missing_transfer()
         try:
             return execute_universal_inbox_nextcloud_transfer(request, client=client).to_dict()
         finally:
@@ -1363,10 +1365,33 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
     except Exception as exc:
         return {
             "status": "blocked",
-            "reason": f"nextcloud_transfer_plan_failed:{str(exc)[:80]}",
+            "reason": "nextcloud_transfer_plan_failed",
+            "error_class": exc.__class__.__name__,
             "dry_run": True,
             "writes_performed": False,
         }
+
+
+def _nextcloud_server_config_missing_transfer() -> dict[str, Any]:
+    return {
+        "status": "blocked",
+        "reason": "nextcloud_server_config_missing",
+        "dry_run": True,
+        "writes_performed": False,
+        "server_config_required": True,
+        "secret_input_allowed": False,
+    }
+
+
+def _format_nextcloud_transfer_blocked_reply(transfer: Mapping[str, Any]) -> str:
+    reason = str(transfer.get("reason") or transfer.get("status") or "unknown")
+    if reason == "nextcloud_server_config_missing":
+        return (
+            "Review bestaetigt. Nextcloud-Ablage ist blockiert: Die serverseitige "
+            "Nextcloud-Konfiguration ist nicht verfuegbar. Bitte keine Zugangsdaten "
+            "in Telegram senden; Nextcloud-Zugangsdaten werden nur serverseitig hinterlegt."
+        )
+    return f"Review bestaetigt. Nextcloud-Ablage ist noch blockiert: {reason}."
 
 
 def _telegram_nextcloud_live_write_enabled() -> bool:

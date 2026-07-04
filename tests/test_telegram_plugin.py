@@ -2615,6 +2615,70 @@ def test_review_ok_confirms_latest_partial_universal_inbox_attachment(tmp_path, 
     assert "AI Inbox/Needs Review" not in persisted_text
 
 
+def test_review_ok_blocks_nextcloud_live_copy_without_chat_credentials(tmp_path, monkeypatch):
+    from src.nextcloud_webdav_client import NextcloudWebDAVClientError
+
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED", "true")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO", "true")
+    monkeypatch.setattr(
+        "src.nextcloud_webdav_client.build_nextcloud_webdav_client_from_env",
+        lambda: (_ for _ in ()).throw(NextcloudWebDAVClientError("missing runtime config")),
+    )
+    replies = []
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 40,
+            "message": {
+                "message_id": 44,
+                "chat": {"id": "document-chat-999"},
+                "document": {
+                    "file_id": "partial-document-file-id",
+                    "file_unique_id": "partial-document-unique",
+                    "file_name": "scan.pdf",
+                    "mime_type": "application/pdf",
+                    "file_size": 15,
+                },
+            },
+        }],
+        attachment_bytes_provider=lambda _message, max_bytes=None: b"%PDF-1.4 no text",
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+    assert first["processed"] == 1
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 41,
+            "message": {
+                "message_id": 45,
+                "chat": {"id": "document-chat-999"},
+                "text": "/review ok",
+            },
+        }],
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert second["control_commands"] == 1
+    reply_text = replies[-1][1]
+    assert "serverseitige Nextcloud-Konfiguration" in reply_text
+    assert "Bitte keine Zugangsdaten in Telegram senden" in reply_text
+    assert "NEXTCLOUD_WEBDAV" not in reply_text
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    transfer = next(item for item in history if item.get("kind") == "universal_inbox_nextcloud_transfer")
+    assert transfer["status"] == "blocked"
+    assert transfer["reason"] == "nextcloud_server_config_missing"
+    assert transfer["dry_run"] is True
+    assert transfer["writes_performed"] is False
+    persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    assert "NEXTCLOUD_WEBDAV_APP_PASSWORD" not in persisted_text
+    assert "partial-document-file-id" not in persisted_text
+    assert "scan.pdf" not in persisted_text
+
+
 def test_review_ok_executes_nextcloud_copy_only_with_explicit_live_gates(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")

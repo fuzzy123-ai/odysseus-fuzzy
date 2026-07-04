@@ -835,7 +835,7 @@ def _summary_lines(*, tool_names: Iterable[str], domains: Mapping[str, int], ind
         f"Tool registry exposes {len(names)} described built-in tools.",
         "Key file/code tools include read_file, write_file, edit_file, grep, glob, ls, bash, and python.",
         "Autonomous coding must use sandbox-bound file and terminal capabilities with owned paths, resource limits, review gates, and no unrestricted host shell.",
-        "Nextcloud writes are available only as review-gated copy-only Universal Inbox transfers; delete, move, rename, overwrite, and broad push semantics stay blocked.",
+        "Nextcloud writes are available only as review-gated copy-only Universal Inbox transfers with server-side Nextcloud Zugangsdaten; chat-supplied access data must never be requested, and delete, move, rename, overwrite, and broad push semantics stay blocked.",
         "Repository automation tools include manage_repos, recent_changes, and gated commit/push planning.",
         "System capability memory is generated from trusted registry metadata only, never private chat or document content.",
         f"Domains: {', '.join(f'{name}={count}' for name, count in sorted(domains.items()))}.",

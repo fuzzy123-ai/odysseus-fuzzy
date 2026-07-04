@@ -57,6 +57,8 @@ def test_tool_capability_snapshot_mentions_file_and_repo_tools():
     summary = "\n".join(snapshot["summary"])
     assert "sandbox-bound file and terminal capabilities" in summary
     assert "copy-only Universal Inbox transfers" in summary
+    assert "server-side Nextcloud Zugangsdaten" in summary
+    assert "chat-supplied access data must never be requested" in summary
     assert "delete, move, rename, overwrite" in summary
 
 
