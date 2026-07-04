@@ -8,7 +8,7 @@
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
   "relationship_to_existing_roadmaps": {
     "foundation": "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
-    "foundation_status": "repo_done_live_smoke_blocked",
+    "foundation_status": "done",
     "this_track_focus": "Production orchestration, resumability, project scope, MCP workbench verification, remote status/control and deployment gates.",
     "telegram_role": "Remote monitor and control channel, not the primary development workspace."
   },
@@ -37,7 +37,7 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "live_smoke_blocked",
+    "status": "foundation_live_smoke_done",
     "updated_at": "2026-07-04",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
@@ -51,10 +51,10 @@
       "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution.",
       "src/coding_agent_backend.py and src/server_project_runner.py expose explicit operator_gate and evidence_summary metadata for commit, push, deploy and Cloudflare handoff plans.",
       "src/tool_capability_knowledge.py and src/tool_capability_refresh.py build safe autonomous-coding capability knowledge and Memory/RaptorGraph write intents.",
-      "src/agent_sandbox_worker.py and ops/homeserver/run-sandbox-job.py now support a narrow homeserver SSH host-runner backend for Podman sandbox jobs without exposing generic host shell, Docker, or Podman socket access."
+      "src/agent_sandbox_worker.py and ops/homeserver/run-sandbox-job.py now support a narrow homeserver SSH host-runner backend for Podman sandbox jobs without exposing generic host shell, Docker, or Podman socket access.",
+      "Debian live evidence on commit eb43519d proves host_ssh sandbox terminal execution and a scoped rw mount write with network none, no secrets and redacted durable evidence."
     ],
     "missing_or_not_yet_durable": [
-      "Fresh Debian host-runner sandbox live smoke is blocked until the configured homeserver SSH alias is accepted again; Codex currently receives Permission denied and HTTP /api/version is unreachable.",
       "Live workstation-to-Telegram smoke and real deploy/Cloudflare exposure remain gated until explicit operator Go."
     ],
     "recommended_sequence": [
