@@ -34,6 +34,7 @@ def _app(*, user="admin", admins=("admin",)) -> FastAPI:
 def test_live_affordance_readiness_is_conservative_without_live_inputs():
     payload = build_live_affordance_readiness(env={}, tool_lookup=lambda _tool: None)
     encoded = json.dumps(payload, sort_keys=True)
+    by_id = {action["action_id"]: action for action in payload["actions"]}
 
     assert payload["schema"] == "odysseus.live_affordance_readiness.v1"
     assert payload["status"] == "blocked"
@@ -42,7 +43,10 @@ def test_live_affordance_readiness_is_conservative_without_live_inputs():
     assert payload["network_probe_performed"] is False
     assert payload["telegram_send_performed"] is False
     assert payload["nextcloud_write_performed"] is False
+    assert payload["sandbox_execution_performed"] is False
     assert payload["converter_process_started"] is False
+    assert "podman_available" in by_id["sandbox_execution"]["readiness_gap_names"]
+    assert "operator_live_go_required" in by_id["sandbox_execution"]["readiness_gap_names"]
     assert "TOKEN_VALUE" not in encoded
     assert "C:" not in encoded
 
@@ -65,9 +69,12 @@ def test_live_affordance_readiness_reports_gates_without_values():
     by_id = {action["action_id"]: action for action in payload["actions"]}
 
     assert payload["status"] == "blocked"
+    assert by_id["sandbox_execution"]["ready"] is False
     assert by_id["telegram_delivery"]["ready"] is False
     assert by_id["nextcloud_copy"]["ready"] is False
     assert by_id["converter_execution"]["ready"] is False
+    assert "podman_available" not in by_id["sandbox_execution"]["readiness_gap_names"]
+    assert "bounded_sandbox_job_required" in by_id["sandbox_execution"]["readiness_gap_names"]
     assert "operator_live_go_required" in by_id["telegram_delivery"]["readiness_gap_names"]
     assert "bounded_copy_request_required" in by_id["nextcloud_copy"]["readiness_gap_names"]
     assert "bounded_conversion_request_required" in by_id["converter_execution"]["readiness_gap_names"]
@@ -91,5 +98,5 @@ def test_live_affordance_readiness_route_returns_contract(monkeypatch):
 
     assert response.status_code == 200
     assert payload["schema"] == "odysseus.live_affordance_readiness.v1"
-    assert len(payload["actions"]) == 3
+    assert len(payload["actions"]) == 4
     assert payload["tokens_visible"] is False

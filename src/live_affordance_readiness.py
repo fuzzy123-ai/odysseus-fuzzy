@@ -21,6 +21,7 @@ def build_live_affordance_readiness(
     source_env = env if env is not None else os.environ
     lookup = tool_lookup or shutil.which
     actions = (
+        _sandbox_execution(source_env, lookup),
         _telegram_delivery(source_env),
         _nextcloud_copy(source_env),
         _converter_execution(source_env, lookup),
@@ -33,12 +34,30 @@ def build_live_affordance_readiness(
         "network_probe_performed": False,
         "telegram_send_performed": False,
         "nextcloud_write_performed": False,
+        "sandbox_execution_performed": False,
         "converter_process_started": False,
         "tokens_visible": False,
         "chat_ids_visible": False,
         "host_paths_visible": False,
         "raw_content_visible": False,
     }
+
+
+def _sandbox_execution(env: Mapping[str, str], lookup: Callable[[str], str | None]) -> dict[str, Any]:
+    gates = (
+        _gate("sandbox_worker_route_available", True, "Sandbox worker admin route is registered in the runtime"),
+        _gate("podman_available", bool(lookup("podman")), "Podman is discoverable without starting a job"),
+        _gate("sandbox_live_enabled_request_required", False, "A concrete request must set live_enabled=true"),
+        _gate("operator_live_go_required", False, "A concrete bounded sandbox execution Go is still required"),
+        _gate("bounded_sandbox_job_required", False, "A reviewed SandboxJobRequest with no secrets, scoped mounts and resource limits is still required"),
+    )
+    return _action(
+        "sandbox_execution",
+        "Sandbox execution",
+        "run reviewed agent file, test and terminal jobs in a disposable Podman sandbox",
+        gates,
+        blocked_live_actions=("podman_pod_create", "podman_run", "sandbox_worker_submit_live"),
+    )
 
 
 def _telegram_delivery(env: Mapping[str, str]) -> dict[str, Any]:
