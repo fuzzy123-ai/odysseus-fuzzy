@@ -51,6 +51,28 @@ def _run_agent_turn(
     }
 
 
+def deterministic_telegram_agent_turn(bridge: dict[str, Any]) -> dict[str, Any] | None:
+    """Answer trusted runtime capability questions from diagnostics, not model memory."""
+
+    if not bridge.get("ready_for_agent"):
+        return None
+    prompt = str(bridge.get("prompt") or bridge.get("persisted_prompt") or "")
+    try:
+        from routes.chat_helpers import build_deterministic_capability_self_report
+
+        reply_text = build_deterministic_capability_self_report(prompt)
+    except Exception:
+        reply_text = None
+    if not reply_text:
+        return None
+    return {
+        "status": "accepted",
+        "reply_text": reply_text,
+        "reply_text_present": True,
+        "source": "tool_capability_diagnostics",
+    }
+
+
 def telegram_typing_keepalive_seconds() -> float:
     try:
         value = float((os.getenv("TELEGRAM_TYPING_KEEPALIVE_SECONDS") or "").strip())
@@ -514,13 +536,15 @@ def run_telegram_polling_cycle_impl(
                     chat_id=bridge["chat_id"],
                     session_id=binding.get("session_id") or "",
                 )
+                agent_turn = deterministic_telegram_agent_turn(bridge)
                 typing_pulse = TelegramTypingPulse(
                     chat_id=bridge["chat_id"],
                     send_typing_indicator=send_typing_indicator,
                     store=store,
-                ).start() if callable(agent_turn_handler) else None
+                ).start() if agent_turn is None and callable(agent_turn_handler) else None
                 try:
-                    agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+                    if agent_turn is None:
+                        agent_turn = _run_agent_turn(agent_turn_handler, bridge)
                     if agent_turn is not None:
                         agent_turns += 1
                         store.append_event(

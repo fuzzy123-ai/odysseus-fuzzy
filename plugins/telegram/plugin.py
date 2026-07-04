@@ -198,6 +198,7 @@ from plugins.telegram.polling import (
     _reply_result_telegram_message_id,
     _run_agent_turn,
     _run_agent_turn_async,
+    deterministic_telegram_agent_turn,
     fetch_telegram_updates,
     run_telegram_polling_cycle_impl,
     telegram_typing_keepalive_seconds,
@@ -2275,10 +2276,12 @@ def setup(ctx):
         )
         typing_stop: asyncio.Event | None = None
         typing_task: asyncio.Task[None] | None = None
-        if bridge["ready_for_agent"] and callable(agent_turn_handler):
+        agent_turn = deterministic_telegram_agent_turn(bridge)
+        if agent_turn is None and bridge["ready_for_agent"] and callable(agent_turn_handler):
             typing_stop, typing_task = await _telegram_typing_pulse_async(bridge["chat_id"], store=store)
         try:
-            agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
+            if agent_turn is None:
+                agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
             if agent_turn is not None:
                 store.append_event(
                     kind="agent_turn",

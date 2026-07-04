@@ -815,6 +815,70 @@ def test_webhook_keeps_typing_indicator_until_agent_reply(tmp_path, monkeypatch)
     assert len(typing_calls) == stopped_count
 
 
+def test_webhook_capability_question_uses_diagnostics_not_model_memory(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    turns: list[dict[str, Any]] = []
+    typing_calls: list[tuple[str, str]] = []
+    replies: list[tuple[str, str]] = []
+
+    def fake_diagnostics():
+        return {
+            "status": "success",
+            "snapshot": {
+                "id": "tool-capabilities-telegram",
+                "commit": "cap123",
+                "builtin_tool_count": 91,
+                "index_status": {"status": "ok"},
+                "domains": {"filesystem_code": 9, "agent_development": 7},
+            },
+            "memory_records": {"count": 10},
+            "raptorgraph": {"event_present": True},
+            "raw_content_visible": False,
+        }
+
+    monkeypatch.setattr("src.tool_capability_maintenance.read_tool_capability_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_chat_action",
+        lambda chat_id, action="typing": typing_calls.append((chat_id, action)) or {"ok": True},
+    )
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda chat_id, text: replies.append((chat_id, text)) or {"ok": True, "telegram_message_id": 93},
+    )
+    app = FastAPI()
+    app.state.telegram_session_bridge = lambda **_kwargs: {"session_id": "sess-capability"}
+    app.state.telegram_agent_turn_handler = lambda bridge: turns.append(bridge) or {
+        "status": "accepted",
+        "reply_text": "Falsch: keine Tools vorhanden",
+    }
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 48,
+        "message": {
+            "message_id": 59,
+            "chat": {"id": 123},
+            "from": {"id": 1, "first_name": "User"},
+            "text": "Hast du Tools fuer Sandbox, Coding, Terminal und Nextcloud Write?",
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert turns == []
+    assert typing_calls == []
+    assert payload["agent_turn"]["source"] == "tool_capability_diagnostics"
+    assert "tool-capabilities-telegram" in replies[0][1]
+    assert "sandbox-bound Worker/Runner" in replies[0][1]
+    assert "copy-only Universal-Inbox-Transfer" in replies[0][1]
+    assert "nichts davon ist grunds" in replies[0][1]
+    assert "keine Tools vorhanden" not in replies[0][1]
+
+
 def test_webhook_allowed_text_reaches_coding_agent_task_bridge(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
@@ -1238,6 +1302,68 @@ def test_polling_cycle_keeps_typing_indicator_until_agent_reply(tmp_path, monkey
     stopped_count = len(typing_calls)
     time.sleep(0.12)
     assert len(typing_calls) == stopped_count
+
+
+def test_polling_cycle_capability_question_uses_diagnostics_not_model_memory(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    turns: list[dict[str, Any]] = []
+    typing_calls: list[tuple[str, str]] = []
+    replies: list[tuple[str, str, int | None]] = []
+
+    def fake_diagnostics():
+        return {
+            "status": "success",
+            "snapshot": {
+                "id": "tool-capabilities-polling",
+                "commit": "cap456",
+                "builtin_tool_count": 91,
+                "index_status": {"status": "ok"},
+                "domains": {"filesystem_code": 9, "agent_development": 7},
+            },
+            "memory_records": {"count": 10},
+            "raptorgraph": {"event_present": True},
+            "raw_content_visible": False,
+        }
+
+    monkeypatch.setattr("src.tool_capability_maintenance.read_tool_capability_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_chat_action",
+        lambda chat_id, action="typing": typing_calls.append((chat_id, action)) or {"ok": True},
+    )
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 19,
+            "message": {
+                "message_id": 190,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "Nina"},
+                "text": "Welche Sandbox Terminal Coding und Nextcloud Write Tools hast du?",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "polling-capability"},
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {
+            "status": "accepted",
+            "reply_text": "Falsch: keine Tools vorhanden",
+        },
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {"ok": True},
+    )
+
+    assert result["ok"] is True
+    assert result["agent_turns"] == 1
+    assert result["replies"] == 1
+    assert turns == []
+    assert typing_calls == []
+    assert replies[0][0] == "123"
+    assert replies[0][2] == 190
+    assert "tool-capabilities-polling" in replies[0][1]
+    assert "sandbox-bound Worker/Runner" in replies[0][1]
+    assert "copy-only Universal-Inbox-Transfer" in replies[0][1]
+    assert "keine Tools vorhanden" not in replies[0][1]
 
 
 def test_telegram_control_command_detects_dsgvo_aliases():
