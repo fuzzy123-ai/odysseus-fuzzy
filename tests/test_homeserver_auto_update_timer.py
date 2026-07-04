@@ -56,7 +56,12 @@ def test_auto_update_wrapper_refreshes_tool_capability_after_readiness():
 def test_auto_update_wrapper_uses_podman_and_never_docker():
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert "podman compose up -d --build" in script
-    assert "podman-compose up -d --build" in script
+    assert 'compose_args=(-f docker-compose.yml)' in script
+    assert 'compose_args+=(-f docker-compose.nextcloud.yml)' in script
+    assert 'podman compose "${compose_args[@]}" up -d --build' in script
+    assert 'podman-compose "${compose_args[@]}" up -d --build' in script
     assert "podman image prune -f" in script
-    assert "docker" not in script.lower()
+    assert "docker compose" not in script.lower()
+    assert "docker-compose up" not in script.lower()
+    assert "docker image" not in script.lower()
+    assert "docker run" not in script.lower()
