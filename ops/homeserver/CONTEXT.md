@@ -105,3 +105,24 @@ If SSH from the current agent environment fails with
 `Permission denied (publickey,password)`, stop and ask for working SSH access or
 for the command output from the Debian server. Do not continue debugging the
 Windows checkout as if it were production.
+
+If SSH fails before authentication, for example
+`ssh: connect to host 192.168.178.122 port 22: Permission denied`, first verify
+TCP reachability from the workstation:
+
+```powershell
+Test-NetConnection -ComputerName 192.168.178.122 -Port 22 -InformationLevel Detailed
+```
+
+When ping works but TCP/22 is closed and no alternate management port is open,
+the fix must happen from a local Debian console or another trusted management
+path. Use:
+
+```bash
+cd /opt/odysseus
+ops/homeserver/repair-ssh-access.sh
+```
+
+That script restores `openssh-server`, validates `sshd`, enables `ssh.service`
+or `sshd.service`, allows only the `OpenSSH` UFW profile when UFW is active, and
+ensures the canonical Odysseus public key is present for `homebase`.
