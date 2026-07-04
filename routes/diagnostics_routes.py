@@ -214,6 +214,18 @@ def setup_diagnostics_routes(
             logger.error(f"Observability bridge retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve observability bridge diagnostics")
 
+    @router.get("/api/diagnostics/open-work")
+    async def get_open_work_status(request: Request) -> Dict[str, Any]:
+        """Return the consolidated open-work roadmap status and gate packets."""
+        require_admin(request)
+        try:
+            from src.open_work_status import build_open_work_completion_status
+
+            return build_open_work_completion_status()
+        except Exception as e:
+            logger.error(f"Open-work diagnostics retrieval error: {e}")
+            raise HTTPException(500, "Failed to retrieve open-work diagnostics")
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)
