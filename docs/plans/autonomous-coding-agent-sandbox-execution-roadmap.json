@@ -36,7 +36,7 @@
       "telegram_coding_task_evidence_ref": "autonomous_coding_agent/telegram-coding-task-live-smoke.json",
       "external_real_user_message": "recommended acceptance check; Codex cannot originate a genuine user Telegram message from the user's client"
     },
-    "known_gap_summary": "Backend and safe repo implementation are complete. The previous direct Podman live evidence is stale for the current app-container topology because Podman is not installed in the Odysseus container; the new host-runner backend and homeserver setup script are implemented and need one fresh Debian live smoke after homeserver access is restored.",
+    "known_gap_summary": "Backend and safe repo implementation are complete. The previous direct Podman live evidence is stale for the current app-container topology because Podman is not installed in the Odysseus container; the new host-runner backend, homeserver setup script and bounded smoke script are implemented and need one fresh Debian live smoke after homeserver access is restored.",
     "completion_rationale": "11 of 12 required slices are done. ACA-11 remains gated until a harmless host-runner sandbox job succeeds on Debian with network none, no secrets and durable redacted evidence."
   },
   "hard_constraints": {
@@ -315,7 +315,7 @@
       "tests": [],
       "gate_required": "debian-live-sandbox-worker-go",
       "done_when": "Debian executes a harmless sandbox worker job through the configured host-runner backend with network none, no secrets, resource limits and durable evidence under data/reports.",
-      "evidence": "Repo commit 64220ad3 implements the host-runner backend and ops/homeserver/run-sandbox-job.py. Commit pending after 64220ad3 adds ops/homeserver/setup-sandbox-host-runner.sh to configure the dedicated container-to-host SSH alias and host_ssh env gates. Current live smoke is blocked because the configured homeserver SSH alias returns Permission denied and HTTP /api/version is unreachable from Codex."
+      "evidence": "Repo commit 64220ad3 implements the host-runner backend and ops/homeserver/run-sandbox-job.py. Commit 3c39790d adds ops/homeserver/setup-sandbox-host-runner.sh to configure the dedicated container-to-host SSH alias and host_ssh env gates. Commit pending after 3c39790d adds ops/homeserver/run-sandbox-host-runner-smoke.sh for the bounded live evidence job. Current live smoke is blocked because the configured homeserver SSH alias returns Permission denied and HTTP /api/version is unreachable from Codex."
     },
     {
       "id": "ACA-12-telegram-to-coding-task-live-smoke",
@@ -339,7 +339,7 @@
       "status": "open",
       "blocks": ["ACA-11-debian-live-sandbox-worker-smoke"],
       "decision_needed": "Approve one harmless live Podman sandbox worker job on Debian with network none, no secrets, fixed timeout and durable evidence path.",
-      "safe_preparation_done": "Contracts, templates, host-runner backend, homeserver setup script, Compose env wiring and focused tests exist; final host-runner smoke is pending restored homeserver access.",
+      "safe_preparation_done": "Contracts, templates, host-runner backend, homeserver setup script, bounded smoke script, Compose env wiring and focused tests exist; final host-runner smoke is pending restored homeserver access.",
       "risk_if_bypassed": "Agent code could execute outside the intended operator-approved live boundary."
     },
     {
