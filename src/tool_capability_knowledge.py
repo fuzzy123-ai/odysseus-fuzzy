@@ -38,6 +38,27 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
             "live_gate_required": True,
         },
         {
+            "id": "sandbox_file_read_write",
+            "status": "available",
+            "summary": "Reads and writes project files only through bounded workspace/sandbox policy, owned paths and review gates; host-wide file tools remain blocked.",
+            "surfaces": ("coding_runner", "project_runner", "sandbox_worker"),
+            "live_gate_required": True,
+        },
+        {
+            "id": "sandbox_terminal_commands",
+            "status": "available",
+            "summary": "Runs allowlisted test/build commands through the Podman sandbox worker with resource limits; unrestricted host bash remains unavailable to agents.",
+            "surfaces": ("coding_runner", "sandbox_worker"),
+            "live_gate_required": True,
+        },
+        {
+            "id": "nextcloud_copy_push",
+            "status": "available",
+            "summary": "Can prepare and execute review-gated, copy-only Nextcloud writes for approved Universal Inbox placement plans; delete, move and overwrite stay blocked.",
+            "surfaces": ("universal_inbox", "telegram_review", "nextcloud_webdav"),
+            "live_gate_required": True,
+        },
+        {
             "id": "telegram_runner_controls",
             "status": "available",
             "summary": "Consumes metadata-only Telegram pause, resume and cancel controls for selected coding tasks.",
@@ -54,8 +75,11 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
     )
     live_gates = (
         "autonomous-coding-live-remote-control-go",
+        "debian-live-sandbox-worker-go",
         "deploy-live-go",
         "mcp-service-availability",
+        "network-allowlist-go",
+        "universal-inbox-nextcloud-operator-live-go",
     )
     packet = {
         "schema": CODING_AGENT_CAPABILITY_SCHEMA,
@@ -65,8 +89,9 @@ def build_coding_agent_capability_knowledge(*, commit: Any = "", generated_at: A
         "capabilities": capabilities,
         "live_gates": live_gates,
         "summary": (
-            "Odysseus can plan workstation-first coding tasks, resolve bounded project scopes, run gated sandbox checks, consume Telegram controls and prepare publish/deploy gates.",
-            "Live Telegram smokes, real deployment and Cloudflare exposure still require explicit operator Go.",
+            "Odysseus can plan workstation-first coding tasks, resolve bounded project scopes, run gated sandbox checks, use sandbox-bound file and command capabilities, consume Telegram controls and prepare publish/deploy gates.",
+            "Nextcloud writes are available only as review-gated copy-only pushes through the Universal Inbox transfer boundary.",
+            "Unrestricted host bash, host-wide file writes, deletes, moves, overwrites, real deployment and Cloudflare exposure still require explicit operator Go or remain blocked by policy.",
         ),
         "raw_content_visible": False,
     }

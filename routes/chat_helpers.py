@@ -27,7 +27,7 @@ _CAPABILITY_SELF_REPORT_RE = re.compile(
     r"\b("
     r"capabilit(?:y|ies)|tools?|werkzeuge?|faehig(?:keit|keiten)|fähigkeit(?:en)?|"
     r"was kannst du|what can you do|kannst du|dateien? lesen|dateien? schreiben|"
-    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo"
+    r"read_file|write_file|edit_file|grep|glob|bash|shell|sandbox|git|repo|nextcloud"
     r")\b",
     re.IGNORECASE,
 )
@@ -409,6 +409,8 @@ def build_deterministic_capability_self_report(message: str) -> str | None:
             f"- Snapshot: {snapshot.get('id') or 'unknown'}; Commit: {snapshot.get('commit') or 'unknown'}",
             f"- ToolIndex: {_status_label(index_status.get('status'))}; Built-ins: {snapshot.get('builtin_tool_count') or 0}",
             "- Verfügbar: read_file, write_file, edit_file, grep, glob, ls, bash, python, manage_repos, recent_changes.",
+            "- Sandbox: Datei- und Terminalaktionen für autonome Entwicklung laufen über sandbox-bound Worker/Runner, owned paths, Resource-Limits und Review-/Live-Gates; keine freie Host-Shell für Agenten.",
+            "- Nextcloud: Push/Write ist als review-gated copy-only Universal-Inbox-Transfer bekannt; delete, move, rename, overwrite und breite Sync-Mutationen bleiben blockiert.",
             "- Ebenfalls verfügbar: Memory-/Skill-Werkzeuge und admin-/runtime-nahe Backend-Werkzeuge laut ToolIndex.",
             "- Gated/disabled: riskante Datei-, Shell-, Git-, Sandbox- und Admin-Aktionen laufen nur über Policy, Rechte, Live-Go oder Sandbox-Gates.",
             "- Fehlend: nichts davon ist grundsätzlich unbekannt; wenn ein Tool blockiert, ist es eine Gate-/Policy-Entscheidung, kein fehlendes Tool.",

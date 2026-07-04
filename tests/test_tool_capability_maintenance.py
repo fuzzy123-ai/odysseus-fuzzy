@@ -54,6 +54,10 @@ def test_tool_capability_snapshot_mentions_file_and_repo_tools():
     assert "manage_repos" in snapshot["tool_names"]
     assert snapshot["index_status"]["status"] == "ok"
     assert snapshot["redaction_policy"]["stores_private_content"] is False
+    summary = "\n".join(snapshot["summary"])
+    assert "sandbox-bound file and terminal capabilities" in summary
+    assert "copy-only Universal Inbox transfers" in summary
+    assert "delete, move, rename, overwrite" in summary
 
 
 def test_tool_capability_memory_records_and_raptor_event_are_safe(tmp_path):

@@ -247,7 +247,7 @@
         "venv/Scripts/python.exe -m pytest tests/test_tool_capability_knowledge.py tests/test_coding_agent_memory_bridge.py -q"
       ],
       "done_when": "Maintenance AI can refresh tool index and capability memories after updates without raw private content.",
-      "evidence": "Implemented coding-agent capability knowledge packets, refresh packets and a Memory/RaptorGraph intent bridge. The packet lists project scope resolution, sandbox check evidence, Telegram runner controls and publish/deploy operator gates with live gates separated. Focused tests verify no raw content, secret rejection, memory author stamps and RaptorGraph mappings."
+      "evidence": "Implemented coding-agent capability knowledge packets, refresh packets and a Memory/RaptorGraph intent bridge. The packet lists project scope resolution, sandbox check evidence, sandbox-bound file read/write, sandbox terminal commands, Nextcloud copy-only push, Telegram runner controls and publish/deploy operator gates with live gates separated. Focused tests verify no raw content, secret rejection, memory author stamps, RaptorGraph mappings, blocked host bash wording and copy-only Nextcloud push boundaries."
     },
     {
       "id": "ACPR-9-live-workstation-to-telegram-smoke",

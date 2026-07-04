@@ -33,6 +33,9 @@ def test_capability_self_report_answers_from_diagnostics(monkeypatch):
     assert "grep" in answer
     assert "bash" in answer
     assert "manage_repos" in answer
+    assert "sandbox-bound Worker/Runner" in answer
+    assert "copy-only Universal-Inbox-Transfer" in answer
+    assert "keine freie Host-Shell" in answer
     assert "Gated/disabled" in answer
     assert "RaptorGraph-Event: ja" in answer
     assert "raw_content_visible=False" in answer

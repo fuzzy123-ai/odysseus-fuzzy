@@ -16,11 +16,21 @@ def test_coding_agent_capability_knowledge_lists_new_runner_features():
     ids = {item["id"] for item in packet["capabilities"]}
     assert "project_scope_resolution" in ids
     assert "sandbox_check_evidence" in ids
+    assert "sandbox_file_read_write" in ids
+    assert "sandbox_terminal_commands" in ids
+    assert "nextcloud_copy_push" in ids
     assert "telegram_runner_controls" in ids
     assert "publish_deploy_operator_gates" in ids
     assert "deploy-live-go" in packet["live_gates"]
+    assert "debian-live-sandbox-worker-go" in packet["live_gates"]
+    assert "universal-inbox-nextcloud-operator-live-go" in packet["live_gates"]
     assert packet["fingerprint"].startswith("sha256:")
     assert packet["raw_content_visible"] is False
+
+    encoded = json.dumps(packet, sort_keys=True)
+    assert "host bash remains unavailable" in encoded
+    assert "copy-only Nextcloud writes" in encoded
+    assert "delete, move and overwrite stay blocked" in encoded
 
 
 def test_coding_agent_capability_knowledge_rejects_secret_or_host_path():
