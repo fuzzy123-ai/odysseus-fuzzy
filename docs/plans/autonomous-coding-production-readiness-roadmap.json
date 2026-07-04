@@ -8,7 +8,7 @@
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
   "relationship_to_existing_roadmaps": {
     "foundation": "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
-    "foundation_status": "done",
+    "foundation_status": "repo_done_live_smoke_blocked",
     "this_track_focus": "Production orchestration, resumability, project scope, MCP workbench verification, remote status/control and deployment gates.",
     "telegram_role": "Remote monitor and control channel, not the primary development workspace."
   },
@@ -37,8 +37,8 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "done",
-    "updated_at": "2026-07-03",
+    "status": "live_smoke_blocked",
+    "updated_at": "2026-07-04",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
       "src/coding_agent_backend.py already provides task plans, worktree creation gates, patch-set application gates, quality/done gates, publish plans and subagent contracts.",
@@ -50,9 +50,11 @@
       "src/coding_agent_sandbox_bridge.py now emits redacted evidence bundles and src/coding_agent_runner_state.py consumes sandbox dispatch results into review_ready or blocked runner phases.",
       "src/agent_task_ledger.py exposes metadata-only coding-agent control events and src/coding_agent_runner_state.py consumes pause/resume/cancel events without starting unrestricted execution.",
       "src/coding_agent_backend.py and src/server_project_runner.py expose explicit operator_gate and evidence_summary metadata for commit, push, deploy and Cloudflare handoff plans.",
-      "src/tool_capability_knowledge.py and src/tool_capability_refresh.py build safe autonomous-coding capability knowledge and Memory/RaptorGraph write intents."
+      "src/tool_capability_knowledge.py and src/tool_capability_refresh.py build safe autonomous-coding capability knowledge and Memory/RaptorGraph write intents.",
+      "src/agent_sandbox_worker.py and ops/homeserver/run-sandbox-job.py now support a narrow homeserver SSH host-runner backend for Podman sandbox jobs without exposing generic host shell, Docker, or Podman socket access."
     ],
     "missing_or_not_yet_durable": [
+      "Fresh Debian host-runner sandbox live smoke is blocked until the configured homeserver SSH alias is accepted again; Codex currently receives Permission denied and HTTP /api/version is unreachable.",
       "Live workstation-to-Telegram smoke and real deploy/Cloudflare exposure remain gated until explicit operator Go."
     ],
     "recommended_sequence": [

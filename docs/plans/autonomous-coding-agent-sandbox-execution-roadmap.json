@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "kind": "odysseus.abc_execution_roadmap",
-  "updated_at": "2026-07-03",
-  "status": "done",
+  "updated_at": "2026-07-04",
+  "status": "repo_done_live_smoke_blocked",
   "mode": "Standard ABC",
   "title": "Autonomous Coding Agent And Sandbox Execution Roadmap",
   "goal": "Make Odysseus able to accept a bounded coding task, create an isolated worktree, run checks in a disposable Podman sandbox, collect redacted evidence, and prepare reviewed publish steps without broad host-shell access.",
   "current_evidence": {
     "latest_verified_commit": "fuzzy/dev-current-on-debian",
-    "latest_code_commit": "b161b100",
-    "local_status": "Coding-agent worker, sandbox bridge, evidence storage, Telegram coding intent and local E2E dry-run are implemented, committed and pushed; Debian is current with fuzzy/dev, live sandbox execution is proven, and the live Telegram polling/bridge path creates a coding-agent task intent.",
+    "latest_code_commit": "64220ad3",
+    "local_status": "Coding-agent worker, sandbox bridge, evidence storage, Telegram coding intent and local E2E dry-run are implemented. Commit 64220ad3 adds a narrow homeserver SSH host-runner backend so Odysseus does not need Podman inside the app container or a broad Podman socket. The final Debian live smoke is currently blocked by homeserver access: SSH returns Permission denied and HTTP /api/version is unreachable from Codex.",
     "focused_tests": {
       "command": "venv/Scripts/python.exe -m pytest tests/test_sandbox_job_ledger.py tests/test_agent_sandbox_worker.py tests/test_sandbox_worker_routes.py tests/test_coding_agent_sandbox_bridge.py tests/test_autonomous_coding_agent_e2e.py tests/test_coding_agent_memory_bridge.py tests/test_sandbox_network_policy.py tests/test_evidence_storage.py tests/test_coding_agent_backend.py tests/test_agent_sandbox_contract.py tests/test_agent_sandbox_podman_plan.py tests/test_agent_sandbox_worker_api.py tests/test_sandbox_job_templates.py tests/test_sandbox_artifact_policy.py tests/test_sandbox_resource_guard.py tests/test_agent_result_observer.py tests/test_telegram_task_orchestrator.py tests/test_telegram_plugin.py::test_telegram_workflow_context_detects_coding_agent_tasks tests/test_telegram_plugin.py::test_agent_bridge_includes_redacted_long_running_task_intent tests/test_telegram_plugin.py::test_task_control_commands_are_detected tests/test_telegram_plugin.py::test_task_control_status_and_pause_use_redacted_ledger -q",
       "result": "61 passed, 1 SQLAlchemy deprecation warning"
@@ -28,15 +28,16 @@
     ],
     "live_status": {
       "debian_version_commit": "fuzzy/dev-current-on-debian",
-      "sandbox_worker_smoke": "passed",
-      "sandbox_worker_evidence_ref": "autonomous_coding_agent/live-sandbox-worker-smoke.json",
+      "sandbox_worker_smoke": "blocked_current_access",
+      "sandbox_worker_evidence_ref": "pending fresh host-runner smoke after SSH access is restored",
+      "current_blocker": "Homeserver SSH key access is denied for the configured alias and HTTP version probe is unreachable, so the new host-runner backend cannot be final-smoked yet.",
       "telegram_polling": "passed via live container synthetic update on the production polling/bridge code path",
       "telegram_coding_task_smoke": "passed with synthetic Telegram update, no Telegram network reply, no raw identifiers in evidence",
       "telegram_coding_task_evidence_ref": "autonomous_coding_agent/telegram-coding-task-live-smoke.json",
       "external_real_user_message": "recommended acceptance check; Codex cannot originate a genuine user Telegram message from the user's client"
     },
-    "known_gap_summary": "Backend and safe repo implementation are complete, Debian live sandbox execution is proven, and ACA-12 is proven through a live-container synthetic Telegram polling/bridge smoke. The primary coding workflow is workstation/project-runner first; Telegram is a remote monitoring and control surface, with full Telegram task creation remaining optional.",
-    "completion_rationale": "All 12 required slices are done, progress_model.current_progress_percent is 100, repo/live evidence exists for the backend runtime, and UI placement plus true user-originated Telegram acceptance are explicitly outside or recommended acceptance checks rather than required backend slices."
+    "known_gap_summary": "Backend and safe repo implementation are complete. The previous direct Podman live evidence is stale for the current app-container topology because Podman is not installed in the Odysseus container; the new host-runner backend is implemented and needs one fresh Debian live smoke after homeserver access is restored.",
+    "completion_rationale": "11 of 12 required slices are done. ACA-11 remains gated until a harmless host-runner sandbox job succeeds on Debian with network none, no secrets and durable redacted evidence."
   },
   "hard_constraints": {
     "runtime": "podman_pods",
@@ -110,7 +111,7 @@
       "id": "ACA-0-state-check",
       "class": "safe_offline",
       "owner": "Charlie",
-      "status": "done",
+      "status": "gated",
       "goal": "Confirm current coding-agent and sandbox contracts, tests and known gaps before starting implementation.",
       "allowed_paths": [],
       "tests": [
@@ -313,8 +314,8 @@
       ],
       "tests": [],
       "gate_required": "debian-live-sandbox-worker-go",
-      "done_when": "Debian executes a harmless sandbox worker job with network none, no secrets, resource limits and durable evidence under data/reports.",
-      "evidence": "Debian /api/version reports commit 03539ef6 current. SandboxWorker live job aca_live_python_version_03539ef6 succeeded with network none, no secrets, 512MB memory, 0.5 CPU, pids limit, exit_code 0 and durable evidence ref autonomous_coding_agent/live-sandbox-worker-smoke.json."
+      "done_when": "Debian executes a harmless sandbox worker job through the configured host-runner backend with network none, no secrets, resource limits and durable evidence under data/reports.",
+      "evidence": "Repo commit 64220ad3 implements the host-runner backend and ops/homeserver/run-sandbox-job.py. Current live smoke is blocked because the configured homeserver SSH alias returns Permission denied and HTTP /api/version is unreachable from Codex."
     },
     {
       "id": "ACA-12-telegram-to-coding-task-live-smoke",
@@ -335,10 +336,10 @@
     {
       "id": "debian-live-sandbox-worker-go",
       "class": "needs_live_go",
-      "status": "resolved",
+      "status": "open",
       "blocks": ["ACA-11-debian-live-sandbox-worker-smoke"],
       "decision_needed": "Approve one harmless live Podman sandbox worker job on Debian with network none, no secrets, fixed timeout and durable evidence path.",
-      "safe_preparation_done": "Contracts, templates and prior disposable Podman smoke exist; approved live smoke has passed.",
+      "safe_preparation_done": "Contracts, templates, host-runner backend, Compose env wiring and focused tests exist; final host-runner smoke is pending restored homeserver access.",
       "risk_if_bypassed": "Agent code could execute outside the intended operator-approved live boundary."
     },
     {
@@ -436,10 +437,10 @@
   ],
   "progress_model": {
     "total_required_slices": 12,
-    "completed_slices": 12,
-    "gated_live_slices": 0,
+    "completed_slices": 11,
+    "gated_live_slices": 1,
     "repo_safe_open_slices": 0,
-    "current_progress_percent": 100,
+    "current_progress_percent": 92,
     "version_ready_when": "All repo_only, safe_offline and live evidence slices are done. UI placement remains owned by the UI agent and is consciously deferred as non-blocking backend status.",
     "external_acceptance_checks": [
       "Create a harmless coding task from the workstation/project-runner and verify /task status reports it through Telegram.",
