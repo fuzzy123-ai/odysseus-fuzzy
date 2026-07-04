@@ -59,7 +59,7 @@
       "name": "Calendar And Reminder Live Reliability",
       "priority": 20,
       "status": "needs_live_go",
-      "why_open": "Calendar/reminder repo slices are complete, but the 09:00 Telegram todo digest/reminder and CalDAV writeback paths still need bounded live evidence.",
+      "why_open": "Calendar/reminder repo slices are complete, and the Telegram todo-digest live-gate packet is now available at GET /api/tasks/reminder-live-gate; the 09:00 Telegram todo digest/reminder and CalDAV writeback paths still need bounded live evidence.",
       "source_gate_family": "calendar_reminders",
       "gate_ids": [
         "CAL-MCP-7-live-telegram-reminder-smoke",
@@ -227,6 +227,23 @@
       "allowed_paths": [],
       "tests": [],
       "done_when": "Operator selects exactly one gate family and one bounded smoke/action to execute next."
+    },
+    {
+      "id": "OWM-2-reminder-live-gate-packet",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done_in_this_slice",
+      "allowed_paths": [
+        "src/calendar_capability_service.py",
+        "routes/task_summary_routes.py",
+        "tests/test_calendar_capability_service.py",
+        "tests/test_task_summary_routes.py",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_calendar_capability_service.py tests\\test_task_summary_routes.py"
+      ],
+      "done_when": "A redacted owner-scoped Telegram todo-digest live-gate packet reports ready/missing/duplicate/paused/schedule-mismatch before any bounded live smoke."
     }
   ],
   "recommended_execution_order": [

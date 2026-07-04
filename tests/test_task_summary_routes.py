@@ -107,6 +107,52 @@ def test_task_summary_route_is_owner_scoped_and_redacted(tmp_path, monkeypatch):
     assert "Bob private" not in encoded
 
 
+def test_reminder_live_gate_route_is_owner_scoped_and_redacted(tmp_path, monkeypatch):
+    session_factory = _isolated_db(tmp_path, monkeypatch)
+    _seed_task(
+        session_factory,
+        id="alice-private-live-gate",
+        owner="alice",
+        name="Alice private task",
+        prompt="alice private prompt",
+        task_type="action",
+        action="todo_digest",
+        schedule="cron",
+        scheduled_time="09:00",
+        cron_expression="0 9 * * 1,2,3,4,5",
+        output_target="telegram",
+        webhook_token="alice-secret-token",
+    )
+    _seed_task(
+        session_factory,
+        id="bob-task",
+        owner="bob",
+        name="Bob private task",
+        task_type="action",
+        action="todo_digest",
+        schedule="cron",
+        scheduled_time="09:00",
+        cron_expression="0 9 * * 1,2,3,4,5",
+        output_target="telegram",
+    )
+
+    response = TestClient(_app()).get("/api/tasks/reminder-live-gate")
+    payload = response.json()
+    encoded = response.text
+
+    assert response.status_code == 200
+    assert payload["kind"] == "telegram_todo_digest_live_gate"
+    assert payload["status"] == "ready_for_live_smoke"
+    assert payload["counts"]["telegram_todo_digest_tasks"] == 1
+    assert payload["operator_live_go_required"] is True
+    assert payload["live_actions_performed"] is False
+    assert "Alice private" not in encoded
+    assert "alice private prompt" not in encoded
+    assert "alice-secret-token" not in encoded
+    assert "alice-private-live-gate" not in encoded
+    assert "Bob private" not in encoded
+
+
 def test_task_summary_route_requires_auth_when_configured(tmp_path, monkeypatch):
     _isolated_db(tmp_path, monkeypatch)
     monkeypatch.setenv("AUTH_ENABLED", "true")

@@ -202,6 +202,110 @@ def build_todo_digest_schedule_plan(
     }
 
 
+def build_telegram_todo_digest_live_gate(
+    *,
+    owner: str | None = None,
+    scheduled_time: str = "09:00",
+    weekdays: Iterable[int] | str = "mo-fr",
+) -> dict[str, Any]:
+    """Return a read-only live-gate packet for the Telegram todo digest smoke."""
+
+    try:
+        plan = build_todo_digest_schedule_plan(
+            owner=owner,
+            scheduled_time=scheduled_time,
+            weekdays=weekdays,
+            output_target="telegram",
+        )
+    except CalendarCapabilityError as exc:
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "kind": "telegram_todo_digest_live_gate",
+            "status": "blocked",
+            "reason": _safe_text(str(exc), max_len=180),
+            "operator_live_go_required": True,
+            "live_actions_performed": False,
+            "raw_content_visible": False,
+        }
+
+    from core.database import ScheduledTask, SessionLocal
+
+    desired_cron = str(plan.get("cron_expression") or "")
+    db = SessionLocal()
+    try:
+        query = db.query(ScheduledTask).filter(
+            ScheduledTask.task_type == "action",
+            ScheduledTask.action == "todo_digest",
+            ScheduledTask.output_target.in_(("telegram", "notification:telegram")),
+            ScheduledTask.status.in_(("active", "paused")),
+        )
+        if owner:
+            query = query.filter(ScheduledTask.owner == owner)
+        else:
+            query = query.filter(ScheduledTask.owner.is_(None))
+
+        candidates = query.order_by(ScheduledTask.created_at.asc()).all()
+        exact = [task for task in candidates if str(getattr(task, "cron_expression", "") or "") == desired_cron]
+        active_exact = [task for task in exact if str(getattr(task, "status", "") or "") == "active"]
+
+        if len(active_exact) == 1 and len(exact) == 1:
+            status = "ready_for_live_smoke"
+            reason = "canonical_telegram_todo_digest_task_ready"
+            next_action = "With explicit operator Go, observe one scheduled Telegram todo digest delivery and record redacted evidence."
+        elif len(exact) > 1 or len(active_exact) > 1:
+            status = "duplicate_tasks_need_cleanup"
+            reason = "multiple_matching_todo_digest_tasks"
+            next_action = "Pause or merge duplicate matching todo digest tasks before any live smoke."
+        elif exact and not active_exact:
+            status = "paused_task"
+            reason = "matching_todo_digest_task_is_not_active"
+            next_action = "Resume the matching task only after operator approval, then run the bounded live smoke."
+        elif candidates:
+            status = "schedule_mismatch"
+            reason = "telegram_todo_digest_task_exists_but_not_for_requested_schedule"
+            next_action = "Update the todo digest schedule through /todo HH:MM mo-fr or the task API before live smoke."
+        else:
+            status = "missing_task"
+            reason = "no_telegram_todo_digest_task_found"
+            next_action = "Create the canonical task first, for example /todo 09:00 mo-fr, then re-check this gate."
+
+        gates = {
+            "canonical_single_task": "go" if len(active_exact) == 1 and len(exact) == 1 else "blocked",
+            "schedule_matches": "go" if exact else "blocked",
+            "telegram_delivery_target": "go" if exact or candidates else "blocked",
+            "live_evidence_recorded": "needs_live_go",
+        }
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "kind": "telegram_todo_digest_live_gate",
+            "status": status,
+            "reason": reason,
+            "owner_scoped": bool(owner),
+            "desired": {
+                "scheduled_time": str(plan["task_payload"].get("scheduled_time") or ""),
+                "weekdays": plan.get("weekdays") or [],
+                "cron_expression": desired_cron,
+                "output_target": "telegram",
+                "single_task": True,
+                "next_run": plan.get("next_run"),
+            },
+            "counts": {
+                "telegram_todo_digest_tasks": len(candidates),
+                "matching_schedule_tasks": len(exact),
+                "active_matching_schedule_tasks": len(active_exact),
+            },
+            "matching_tasks": [_task_gate_packet(task) for task in exact[:5]],
+            "candidate_tasks": [_task_gate_packet(task) for task in candidates[:5]],
+            "gates": gates,
+            "operator_live_go_required": True,
+            "live_actions_performed": False,
+            "next_action": next_action,
+            "raw_content_visible": False,
+        }
+    finally:
+        db.close()
+
+
 def write_reminder_note(
     *,
     owner: str | None = None,
@@ -579,6 +683,24 @@ def _task_to_packet(task: Any) -> dict[str, Any]:
     }
 
 
+def _task_gate_packet(task: Any) -> dict[str, Any]:
+    task_id = str(getattr(task, "id", "") or "")
+    return {
+        "id_hash": _stable_short_hash(task_id),
+        "status": _safe_text(getattr(task, "status", "") or "", max_len=40),
+        "task_type": _safe_text(getattr(task, "task_type", "") or "", max_len=40),
+        "action": _safe_text(getattr(task, "action", "") or "", max_len=80),
+        "schedule": _safe_text(getattr(task, "schedule", "") or "", max_len=40),
+        "scheduled_time": _safe_text(getattr(task, "scheduled_time", "") or "", max_len=20),
+        "cron_expression": _safe_text(getattr(task, "cron_expression", "") or "", max_len=80),
+        "next_run": _iso(getattr(task, "next_run", None)),
+        "last_run": _iso(getattr(task, "last_run", None)),
+        "output_target": _safe_output_target(getattr(task, "output_target", "") or ""),
+        "run_count": _safe_int(getattr(task, "run_count", 0)),
+        "raw_content_visible": False,
+    }
+
+
 def _safe_text(value: Any, *, max_len: int) -> str:
     text = " ".join(str(value or "").split())
     if len(text) > max_len:
@@ -640,6 +762,13 @@ def _safe_limit(value: Any) -> int:
     except (TypeError, ValueError):
         return 50
     return max(1, min(parsed, 200))
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _parse_hhmm(value: Any) -> tuple[int, int]:

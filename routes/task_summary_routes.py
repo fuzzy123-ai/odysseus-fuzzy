@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, Request
 
 from core.database import ScheduledTask, SessionLocal
 from src.auth_helpers import require_user
+from src.calendar_capability_service import build_telegram_todo_digest_live_gate
 from src.task_summary import summarize_tasks
 
 
@@ -35,5 +36,18 @@ def setup_task_summary_routes() -> APIRouter:
             return payload
         finally:
             db.close()
+
+    @router.get("/reminder-live-gate")
+    async def reminder_live_gate(
+        request: Request,
+        scheduled_time: str = Query("09:00", pattern=r"^\d{1,2}:\d{2}$"),
+        weekdays: str = Query("mo-fr", max_length=80),
+    ):
+        user = require_user(request)
+        return build_telegram_todo_digest_live_gate(
+            owner=user,
+            scheduled_time=scheduled_time,
+            weekdays=weekdays,
+        )
 
     return router

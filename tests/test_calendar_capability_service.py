@@ -139,6 +139,87 @@ def test_todo_digest_schedule_plan_accepts_weekday_ranges():
     assert plan["cron_expression"] == "0 9 * * 1,2,3,4,5"
 
 
+def test_telegram_todo_digest_live_gate_reports_ready_without_live_action():
+    from src.calendar_capability_service import build_telegram_todo_digest_live_gate
+
+    _reset_db()
+    db = _TS()
+    try:
+        db.add(ScheduledTask(
+            id="private-task-id",
+            owner="alice",
+            name="Private task name must not leak",
+            prompt="private prompt must not leak",
+            task_type="action",
+            action="todo_digest",
+            schedule="cron",
+            scheduled_time="09:00",
+            cron_expression="0 9 * * 1,2,3,4,5",
+            status="active",
+            output_target="telegram",
+            next_run=datetime(2026, 7, 6, 7, 0),
+            run_count=1,
+            webhook_token="secret-token",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    packet = build_telegram_todo_digest_live_gate(owner="alice")
+    encoded = str(packet)
+
+    assert packet["status"] == "ready_for_live_smoke"
+    assert packet["counts"] == {
+        "telegram_todo_digest_tasks": 1,
+        "matching_schedule_tasks": 1,
+        "active_matching_schedule_tasks": 1,
+    }
+    assert packet["gates"]["canonical_single_task"] == "go"
+    assert packet["gates"]["live_evidence_recorded"] == "needs_live_go"
+    assert packet["operator_live_go_required"] is True
+    assert packet["live_actions_performed"] is False
+    assert packet["matching_tasks"][0]["id_hash"]
+    assert "Private task name" not in encoded
+    assert "private prompt" not in encoded
+    assert "secret-token" not in encoded
+    assert "private-task-id" not in encoded
+
+
+def test_telegram_todo_digest_live_gate_detects_missing_and_duplicates():
+    from src.calendar_capability_service import build_telegram_todo_digest_live_gate
+
+    _reset_db()
+
+    missing = build_telegram_todo_digest_live_gate(owner="alice")
+    assert missing["status"] == "missing_task"
+    assert missing["next_action"].startswith("Create the canonical task")
+
+    db = _TS()
+    try:
+        for task_id in ("task-a", "task-b"):
+            db.add(ScheduledTask(
+                id=task_id,
+                owner="alice",
+                name=f"Duplicate {task_id}",
+                task_type="action",
+                action="todo_digest",
+                schedule="cron",
+                scheduled_time="09:00",
+                cron_expression="0 9 * * 1,2,3,4,5",
+                status="active",
+                output_target="telegram",
+            ))
+        db.commit()
+    finally:
+        db.close()
+
+    duplicate = build_telegram_todo_digest_live_gate(owner="alice")
+
+    assert duplicate["status"] == "duplicate_tasks_need_cleanup"
+    assert duplicate["counts"]["matching_schedule_tasks"] == 2
+    assert duplicate["gates"]["canonical_single_task"] == "blocked"
+
+
 def test_calendar_readiness_reports_redacted_counts(monkeypatch):
     from src.calendar_capability_service import build_calendar_readiness
 
