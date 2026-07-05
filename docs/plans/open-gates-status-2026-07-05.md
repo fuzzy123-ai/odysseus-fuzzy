@@ -18,6 +18,8 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 - `load_version_one_readiness()`: backend contracts ready, release actions disabled, `version_1_0_ready=false` because UI live is required.
 - `build_live_affordance_readiness()`: Telegram delivery, sandbox execution, Nextcloud copy and converter execution are blocked by live/config/bounded-request gates; no tokens, chat IDs or host paths are exposed.
 - `build_telegram_todo_digest_live_gate(owner="fuzzy", scheduled_time="09:00", weekdays="mo-fr")`: `ready_for_live_smoke`; one active canonical Telegram todo digest task exists for `0 9 * * 1,2,3,4,5`, next run `2026-07-06T09:00:00`.
+- Homeserver redacted Nextcloud env presence check: `/opt/odysseus/.env` and container env both contain `UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED`, `UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO`, `NEXTCLOUD_WEBDAV_BASE_URL`, `NEXTCLOUD_WEBDAV_USERNAME`, `NEXTCLOUD_WEBDAV_APP_PASSWORD`, and `NEXTCLOUD_WEBDAV_ROOT`; no values were printed.
+- Odysseus AI tool surface: `manage_nextcloud_transfer` is available for readiness, smoke planning and copy-only Universal Inbox writes; it stays admin-only, disabled in Plan Mode and hidden from public MCP exposure by default.
 - Focused verification: `python -m pytest tests/test_telegram_screenshot_delivery.py tests/test_runtime_tool_status.py tests/test_version_one_readiness.py tests/test_calendar_capability_service.py tests/test_task_summary_routes.py -q` passed with 23 tests.
 
 ## Gate Families
@@ -29,7 +31,7 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 | 30 | Autonomous coding | Blocked | Dry-run/runtime contracts are repo-ready. | Needs bounded live control path: Telegram supervision, MCP availability or network allowlist. |
 | 32 | AI GUI tools | Blocked | Screenshot artifact integrity and Telegram live-gate packets are implemented and tested. | Needs consolidated GUI tool surface, screenshot artifact, Telegram target config and explicit screenshot-delivery Go. |
 | 35 | MCP workbench | Blocked | Local contracts are ready. | Needs service availability/setup decision and a bounded smoke. |
-| 40 | Nextcloud import | Blocked | Local-only executor exists. | Needs a selected private-data subset or policy rule; Memory/Raptor writes need separate Go. |
+| 40 | Nextcloud import | Partially open | WebDAV env and live switches are present on the homeserver and visible in the container; Odysseus AI has `manage_nextcloud_transfer` for readiness/smoke/copy-only writes. | Needs a bounded target/source request for live smoke; private-content import subset and Memory/Raptor writes remain separate. |
 | 50 | Observability ops | Blocked | Repo contracts and gate queue exist. | Needs Debian/Podman/log/Grafana/CrowdSec live inventory decisions. |
 | 60 | Security ops | Blocked | Incident response models are prepared. | Needs synthetic tabletop Go; remediation/lockdown remain separate gates. |
 | 70 | UI design | Blocked | Backend route contracts are ready. | UI owner must decide placement and wire the UI; backend ABC must not invent UI placement. |

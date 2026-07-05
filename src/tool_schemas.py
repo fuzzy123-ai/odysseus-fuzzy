@@ -294,6 +294,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         else:
             content = action
     elif tool_type in ("manage_tasks", "manage_skills", "api_call", "recent_changes", "manage_repos", "manage_github_issues",
+                        "manage_nextcloud_transfer",
                         "manage_endpoints", "manage_mcp", "manage_webhooks",
                         "manage_tokens", "manage_presets", "manage_personal_docs", "manage_embeddings", "manage_assistant", "manage_plugins", "manage_documents", "manage_settings",
                         "manage_research"):

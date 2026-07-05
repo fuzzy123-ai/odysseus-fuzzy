@@ -1079,6 +1079,29 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_nextcloud_transfer",
+            "description": "Universal Inbox Nextcloud transfer tool. Use for Nextcloud WebDAV readiness, safe smoke planning, and copy-only Universal Inbox writes. readiness checks server-side env gates without exposing secrets; smoke_plan prepares a harmless test transfer without writing; execute writes only after review_approved/confirmed=true, operator_live_go=true, live env gates, and server-side WebDAV config. Never accept Nextcloud credentials in chat; deletes, moves and overwrites stay blocked.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["readiness", "smoke_plan", "execute"], "description": "readiness checks server-side gates; smoke_plan prepares a no-write test transfer; execute performs dry-run or live copy-only transfer under explicit gates."},
+                    "target_path": {"type": "string", "description": "Relative Nextcloud target path. Must not be absolute and must not contain traversal."},
+                    "sidecar_path": {"type": "string", "description": "Relative Nextcloud metadata sidecar path. Must not be absolute and must not contain traversal."},
+                    "source_path": {"type": "string", "description": "Optional local reviewed source artifact path for execute. Omit for the built-in harmless smoke text."},
+                    "smoke_text": {"type": "string", "description": "Optional harmless smoke text used when source_path is omitted."},
+                    "dry_run": {"type": "boolean", "description": "Defaults true. When true, never builds a WebDAV client and never writes."},
+                    "review_approved": {"type": "boolean", "description": "Required true for execute to write; means human/document review approved this transfer."},
+                    "confirmed": {"type": "boolean", "description": "Alias for review_approved."},
+                    "operator_live_go": {"type": "boolean", "description": "Required true for execute with dry_run=false."},
+                    "live_go": {"type": "boolean", "description": "Alias for operator_live_go."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "download_model",
             "description": "Download a HuggingFace model to a server. If `host` is omitted, defaults to the cookbook's currently-selected server (NOT localhost) — call list_cookbook_servers first if you're unsure where it should go.",
             "parameters": {
