@@ -38,13 +38,13 @@ Neu implementiert in diesem Slice:
 - Telegram-Run-State-Contract erzeugt die Sequenz `accepted`, `checking_capabilities`, `running`, `artifact_ready`, `sent`, `verified_done`, `blocked`, `failed`.
 - Effectful-Tool-Matrix erweitert den Completion-Verifier um Sandbox-, Telegram-, Browser/Playwright-, Quality-Gate- und Git-Side-Effects.
 - Regression-Metriken messen unsupported success, Delegate-Alibi, Repeated-Confirmation und Tone-Gate-Verletzungen.
-- Telegram-Screenshot-Delivery-Packets verbinden Bildartefakt-Integrity, sicheren Filename/Caption und den Photo-Reply-Gate, bevor ein Screenshot-Transport versucht wird.
+- Telegram-Screenshot-Delivery-Packets verbinden Bildartefakt-Integrity, sicheren Filename/Caption, Dry-run-Preview und den Photo-Reply-Gate, bevor ein Screenshot-Transport versucht wird.
 
 Noch offen fuer Live:
 
 - Kein echter Telegram-End-to-End-Smoke ohne separates Operator-Go.
 - Der Tool-Transaction-Ledger ist aktuell in-memory/metrics-basiert; persistente externe Audit-Speicherung bleibt ein separates Haertungsthema.
-- Der echte Telegram-Screenshot-Versand bleibt operator-gated; repo-side ist nur das Integrity-/Delivery-Packet aktiv.
+- Der echte Telegram-Screenshot-Versand bleibt operator-gated; repo-side sind Preview und Integrity-/Delivery-Packet aktiv.
 
 ## Nicht-Ziele
 

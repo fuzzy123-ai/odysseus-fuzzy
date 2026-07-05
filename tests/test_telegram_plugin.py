@@ -239,6 +239,7 @@ def test_plugin_routes_call_admin_gate(tmp_path):
         ("post", "/api/plugins/telegram/webhook", {"message": {"chat": {"id": "fake"}, "text": "hi"}}),
         ("post", "/api/plugins/telegram/reply", {"chat_id": "fake", "text": "hi"}),
         ("post", "/api/plugins/telegram/document-reply", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
+        ("post", "/api/plugins/telegram/document-reply/preview", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
     ]
 
     for method, path, body in checks:
@@ -291,6 +292,33 @@ def test_setup_registers_safe_notification_tool_without_target_parameter(tmp_pat
     assert payload["dispatch_allowed"] is False
     assert payload["token_value_visible"] is False
     assert payload["chat_target_value_visible"] is False
+
+
+def test_document_reply_tool_supports_preview_only_without_dispatch(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.delenv("TELEGRAM_AGENT_REPLY_ENABLED", raising=False)
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    setup(ctx)
+
+    tool = {item.name: item for item in ctx.registered_tools}["telegram_document_reply"]
+    assert tool.parameters["properties"]["preview_only"]["type"] == "boolean"
+
+    result = asyncio.run(tool.execute(json.dumps({
+        "chat_id": "123",
+        "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        "preview_only": True,
+    })))
+    payload = json.loads(result["output"])
+
+    assert result["exit_code"] == 0
+    assert payload["preview_only"] is True
+    assert payload["delivery_packet"]["integrity_status"] == "verified"
+    assert payload["delivery_packet"]["dispatch_allowed"] is False
 
 
 def test_notification_tool_rejects_secret_or_target_arguments(tmp_path):
@@ -2127,6 +2155,69 @@ def test_document_reply_route_blocks_corrupt_screenshot_before_transport(tmp_pat
     )
 
     assert response.status_code == 403
+
+
+def test_document_reply_preview_reports_screenshot_packet_without_transport(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.delenv("TELEGRAM_AGENT_REPLY_ENABLED", raising=False)
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+
+    def _photo(*_args, **_kwargs):
+        raise AssertionError("preview must not call Telegram transport")
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_photo", _photo)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/preview",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+            "filename": "pong-screenshot.png",
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["preview_only"] is True
+    assert payload["delivery_packet"]["integrity_status"] == "verified"
+    assert payload["delivery_packet"]["dispatch_allowed"] is False
+    assert payload["delivery_packet"]["blocker"] == "reply_gate_disabled"
+    assert payload["token_value_visible"] is False
+    assert payload["chat_target_value_visible"] is False
+
+
+def test_document_reply_preview_returns_blocked_packet_for_corrupt_screenshot(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("not an image", encoding="utf-8")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/preview",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["delivery_packet"]["dispatch_allowed"] is False
+    assert payload["delivery_packet"]["integrity_status"] == "blocked"
+    assert "supported image" in payload["delivery_packet"]["blocker"]
 
 
 def test_document_reply_route_rejects_non_artifact_paths(tmp_path, monkeypatch):

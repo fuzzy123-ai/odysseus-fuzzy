@@ -1985,6 +1985,7 @@ def setup(ctx):
             payload = {**payload, **kwargs}
         chat_id = str(payload.get("chat_id") or "")
         artifact_ref = str(payload.get("artifact_ref") or "")
+        preview_only = bool(payload.get("preview_only"))
         artifact_path = _resolve_telegram_artifact_ref(artifact_ref)
         delivery_packet = None
         if _is_telegram_photo_artifact(artifact_ref):
@@ -1996,12 +1997,42 @@ def setup(ctx):
                 reply_enabled=_bool_env("TELEGRAM_AGENT_REPLY_ENABLED"),
                 target_configured=_chat_allowed(chat_id),
             )
+            if preview_only:
+                return {
+                    "output": json.dumps(
+                        {
+                            "preview_only": True,
+                            "delivery_packet": delivery_packet.to_dict(),
+                            "token_value_visible": False,
+                            "chat_target_value_visible": False,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    "exit_code": 0,
+                    "delivery_packet": delivery_packet.to_dict(),
+                }
             if delivery_packet.integrity_status != "verified":
                 return {
                     "error": delivery_packet.blocker or "telegram screenshot artifact failed integrity",
                     "exit_code": 1,
                     "delivery_packet": delivery_packet.to_dict(),
                 }
+        elif preview_only:
+            return {
+                "output": json.dumps(
+                    {
+                        "preview_only": True,
+                        "artifact_ref": artifact_ref,
+                        "delivery_mode": "document",
+                        "dispatch_allowed": False,
+                        "blocker": "document_preview_only",
+                        "token_value_visible": False,
+                        "chat_target_value_visible": False,
+                    },
+                    ensure_ascii=False,
+                ),
+                "exit_code": 0,
+            }
         result = _document_reply_with_gate(
             chat_id,
             str(artifact_path),
@@ -2445,6 +2476,18 @@ def setup(ctx):
             raise HTTPException(403, str(result.get("error") or "Telegram document reply refused"))
         return json.loads(str(result["output"]))
 
+    @router.post("/document-reply/preview")
+    async def document_reply_preview(request: Request):
+        _require_admin(request)
+        body = await request.json()
+        try:
+            result = await _telegram_document_reply_tool("", **{**dict(body), "preview_only": True})
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if result.get("exit_code") != 0:
+            raise HTTPException(400, str(result.get("error") or "Telegram document reply preview refused"))
+        return json.loads(str(result["output"]))
+
     @router.get("/app")
     async def app_page(request: Request):
         _require_admin(request)
@@ -2489,6 +2532,7 @@ def setup(ctx):
                     "filename": {"type": "string", "description": "Optional safe filename for Telegram."},
                     "caption": {"type": "string", "description": "Optional short caption."},
                     "source_message_id": {"type": "integer", "description": "Optional Telegram source message id."},
+                    "preview_only": {"type": "boolean", "description": "Build a redacted delivery preview without sending to Telegram."},
                 },
                 "required": ["chat_id", "artifact_ref"],
             },
