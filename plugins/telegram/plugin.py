@@ -23,7 +23,10 @@ from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_on
 from src.secure_channel_policy import ChannelContext, decide_channel_access
 from src.telegram_truth_gate import gate_telegram_reply_text
 from src.telegram_image_actions import run_telegram_image_action
-from src.telegram_screenshot_delivery import build_telegram_screenshot_delivery_packet
+from src.telegram_screenshot_delivery import (
+    build_telegram_screenshot_delivery_packet,
+    build_telegram_screenshot_live_gate_packet,
+)
 from src.telegram_voice_pipeline import (
     VoiceAgentTurn,
     build_voice_agent_turn,
@@ -2487,6 +2490,22 @@ def setup(ctx):
         if result.get("exit_code") != 0:
             raise HTTPException(400, str(result.get("error") or "Telegram document reply preview refused"))
         return json.loads(str(result["output"]))
+
+    @router.post("/document-reply/live-gate")
+    async def document_reply_live_gate(request: Request):
+        _require_admin(request)
+        body = await request.json()
+        try:
+            result = await _telegram_document_reply_tool("", **{**dict(body), "preview_only": True})
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if result.get("exit_code") != 0:
+            raise HTTPException(400, str(result.get("error") or "Telegram document reply live gate refused"))
+        preview = json.loads(str(result["output"]))
+        packet = preview.get("delivery_packet")
+        if not packet:
+            raise HTTPException(400, "Telegram screenshot live gate requires a photo artifact")
+        return build_telegram_screenshot_live_gate_packet(packet)
 
     @router.get("/app")
     async def app_page(request: Request):

@@ -240,6 +240,7 @@ def test_plugin_routes_call_admin_gate(tmp_path):
         ("post", "/api/plugins/telegram/reply", {"chat_id": "fake", "text": "hi"}),
         ("post", "/api/plugins/telegram/document-reply", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
         ("post", "/api/plugins/telegram/document-reply/preview", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
+        ("post", "/api/plugins/telegram/document-reply/live-gate", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
     ]
 
     for method, path, body in checks:
@@ -2218,6 +2219,93 @@ def test_document_reply_preview_returns_blocked_packet_for_corrupt_screenshot(tm
     assert payload["delivery_packet"]["dispatch_allowed"] is False
     assert payload["delivery_packet"]["integrity_status"] == "blocked"
     assert "supported image" in payload["delivery_packet"]["blocker"]
+
+
+def test_document_reply_live_gate_ready_does_not_send(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+
+    def _photo(*_args, **_kwargs):
+        raise AssertionError("live-gate must not call Telegram transport")
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_photo", _photo)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/live-gate",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["kind"] == "telegram_screenshot_delivery_live_gate"
+    assert payload["status"] == "ready_for_operator_go"
+    assert payload["operator_go_phrase"] == "GO telegram_screenshot_delivery bounded smoke"
+    assert payload["live_actions_performed"] is False
+    assert payload["delivery_packet"]["dispatch_allowed"] is True
+    assert payload["token_value_visible"] is False
+    assert payload["chat_target_value_visible"] is False
+
+
+def test_document_reply_live_gate_reports_missing_reply_gate(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.delenv("TELEGRAM_AGENT_REPLY_ENABLED", raising=False)
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/live-gate",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "needs_reply_gate"
+
+
+def test_document_reply_live_gate_reports_blocked_artifact(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("not an image", encoding="utf-8")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/live-gate",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["status"] == "blocked"
+    assert payload["decision"] == "fix_or_regenerate_artifact"
+    assert payload["delivery_packet"]["integrity_status"] == "blocked"
 
 
 def test_document_reply_route_rejects_non_artifact_paths(tmp_path, monkeypatch):

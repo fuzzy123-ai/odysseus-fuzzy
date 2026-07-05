@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from src.telegram_screenshot_delivery import build_telegram_screenshot_delivery_packet
+from src.telegram_screenshot_delivery import (
+    build_telegram_screenshot_delivery_packet,
+    build_telegram_screenshot_live_gate_packet,
+)
 from src.visual_observer_evidence import build_screenshot_evidence
 
 
@@ -80,3 +83,40 @@ def test_screenshot_delivery_packet_rejects_outside_roots(tmp_path: Path):
             reply_enabled=True,
             target_configured=True,
         )
+
+
+def test_screenshot_live_gate_reaches_ready_only_after_delivery_gates(tmp_path: Path):
+    artifact = tmp_path / "reports" / "screen.png"
+    artifact.parent.mkdir()
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+    delivery = build_telegram_screenshot_delivery_packet(
+        "reports/screen.png",
+        repo_root=tmp_path,
+        reply_enabled=True,
+        target_configured=True,
+    )
+
+    gate = build_telegram_screenshot_live_gate_packet(delivery)
+
+    assert gate["status"] == "ready_for_operator_go"
+    assert gate["operator_live_go_required"] is True
+    assert gate["live_actions_performed"] is False
+    assert gate["delivery_packet"]["dispatch_allowed"] is True
+    assert gate["raw_content_visible"] is False
+
+
+def test_screenshot_live_gate_reports_closed_reply_gate(tmp_path: Path):
+    artifact = tmp_path / "reports" / "screen.png"
+    artifact.parent.mkdir()
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\npayload")
+    delivery = build_telegram_screenshot_delivery_packet(
+        "reports/screen.png",
+        repo_root=tmp_path,
+        reply_enabled=False,
+        target_configured=True,
+    )
+
+    gate = build_telegram_screenshot_live_gate_packet(delivery)
+
+    assert gate["status"] == "needs_reply_gate"
+    assert gate["decision"] == "enable_reply_gate_before_operator_go"

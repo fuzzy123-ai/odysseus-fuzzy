@@ -52,6 +52,46 @@ class TelegramScreenshotDeliveryPacket:
         }
 
 
+def build_telegram_screenshot_live_gate_packet(
+    delivery_packet: TelegramScreenshotDeliveryPacket | Mapping[str, Any],
+    *,
+    operator_go_phrase: str = "GO telegram_screenshot_delivery bounded smoke",
+) -> dict[str, Any]:
+    """Return a redacted operator gate packet without performing live dispatch."""
+
+    packet = delivery_packet.to_dict() if isinstance(delivery_packet, TelegramScreenshotDeliveryPacket) else dict(delivery_packet)
+    blocker = str(packet.get("blocker") or "")
+    integrity_status = str(packet.get("integrity_status") or "")
+    if integrity_status != "verified":
+        status = "blocked"
+        decision = "fix_or_regenerate_artifact"
+    elif blocker == "reply_gate_disabled":
+        status = "needs_reply_gate"
+        decision = "enable_reply_gate_before_operator_go"
+    elif blocker == "telegram_target_not_configured":
+        status = "needs_target"
+        decision = "configure_allowed_telegram_target"
+    elif packet.get("dispatch_allowed") is True:
+        status = "ready_for_operator_go"
+        decision = "operator_go_required"
+    else:
+        status = "blocked"
+        decision = "review_delivery_packet"
+    return {
+        "schema": "odysseus.telegram_screenshot_live_gate.v1",
+        "kind": "telegram_screenshot_delivery_live_gate",
+        "status": status,
+        "decision": decision,
+        "operator_live_go_required": True,
+        "operator_go_phrase": operator_go_phrase,
+        "live_actions_performed": False,
+        "delivery_packet": packet,
+        "raw_content_visible": False,
+        "token_value_visible": False,
+        "chat_target_value_visible": False,
+    }
+
+
 def build_telegram_screenshot_delivery_packet(
     artifact_ref: Any,
     *,
