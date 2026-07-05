@@ -14,7 +14,9 @@ Purpose: close every gate that is safely closable, and make every remaining gate
   Odysseus container recreate with the Nextcloud compose overlay, and one bounded
   Universal Inbox to Nextcloud copy-only smoke test. Later 0.99 activation added
   Telegram polling/reply/image gates, one Playwright GUI screenshot smoke, one
-  Telegram photo delivery smoke, and one sandbox host-runner smoke.
+  Telegram photo delivery smoke, one sandbox host-runner smoke, one local
+  Odysseus MCP workbench smoke, one read-only observability inventory, and one
+  synthetic security incident tabletop.
 
 ## Verified Readiness
 
@@ -29,6 +31,9 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 - Homeserver Telegram live activation: `/opt/odysseus/.env` and the running container have Telegram token/allowed chat, agent chat, reply, polling and image actions enabled. `odysseus-telegram-poll.timer` is active and a manual poll smoke returned `status=poll_ok` without exposing token or chat values.
 - Homeserver GUI/screenshot live smoke: Playwright CLI is available in the Odysseus container, a local browser screenshot was written to `data/reports/autonomous_coding_agent/gui-smoke/gui-smoke.png`, the Telegram screenshot live gate returned `ready_for_operator_go`, and the artifact was sent through `telegram_document_reply` as `delivery_mode=photo` with Telegram message id present.
 - Homeserver sandbox live smoke: `ODYSSEUS_SANDBOX_RUNNER_BACKEND=host_ssh` is active; sandbox default capabilities include `python`, `node`, `playwright`, `browser_gui` and `screenshot_artifacts`; the host-runner live smoke succeeded for a terminal job and an RW report artifact job with `network_mode=none`, `secrets_attached=false`, and no token/host-path exposure.
+- Homeserver MCP workbench live smoke: local `plugins/mcp_server` runtime gate was enabled without `expose_all` or remote exposure. JSON-RPC `initialize`, `tools/list`, and `resources/read` readiness succeeded over container loopback. `tools/list` exposed 12 bounded tools; high-risk tools such as `bash`, `python`, file writes, generic API, settings/token management, raw GitHub writes and `odysseus_call` were absent; `github_issue_find_duplicates` was present as the narrow read-only helper.
+- Homeserver observability read-only inventory: systemd user services for Odysseus, Telegram polling, backups and Nextcloud were loaded/healthy enough for read-only status; Odysseus/Nextcloud Podman containers were listed without logs or secrets; local ports `7000`, `8080` and `8100` were listening while `3000`, `9090` and `3100` were not. Redacted metrics, alert routing and diagnostic bridge packets are ready; Prometheus/Loki/Grafana/CrowdSec endpoints remain not configured and no install or mutation was performed.
+- Homeserver security tabletop: a synthetic `service_down_security_relevant` incident was classified at level 3/high, policy returned `gated_action`, notification payload stayed dry-run, and remediation planning prepared one service-restart action with `allowed_to_execute=false`, `writes_performed=false`, and operator gate required. No CrowdSec/firewall/restart/token/deploy action was executed.
 - Focused verification: `python -m pytest tests/test_telegram_screenshot_delivery.py tests/test_runtime_tool_status.py tests/test_version_one_readiness.py tests/test_calendar_capability_service.py tests/test_task_summary_routes.py -q` passed with 23 tests.
 
 ## Gate Families
@@ -39,10 +44,10 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 | 20 | Calendar reminders | Partially open | Canonical 09:00 Mo-Fr Telegram todo digest task exists for owner `fuzzy`; read-only gate is `ready_for_live_smoke`. | Observe one live Telegram delivery and record redacted evidence; CalDAV writeback remains separate. |
 | 30 | Autonomous coding | Partially live | Dry-run/runtime contracts are repo-ready; Telegram polling/reply gates are active; sandbox host-runner smoke succeeded. | UI placement and broader autonomous task supervision remain separate gates. |
 | 32 | AI GUI tools | Live smoke completed | Screenshot artifact integrity, Playwright CLI smoke, Telegram live-gate packet and Telegram photo delivery smoke are verified. | Consolidated UI tool surface and product UI placement remain separate gates. |
-| 35 | MCP workbench | Blocked | Local contracts are ready. | Needs service availability/setup decision and a bounded smoke. |
+| 35 | MCP workbench | Live smoke completed | Local MCP runtime gate is enabled for loopback; initialize/tools/list/readiness succeeded; high-risk tools remain absent. | Remote/LAN/tunnel exposure and any additional MCP service installation remain separate explicit gates. |
 | 40 | Nextcloud import | Live smoke completed | WebDAV env and live switches are present on the homeserver and visible in the container; Odysseus AI has `manage_nextcloud_transfer` for readiness/smoke/copy-only writes; one bounded copy-only live write was verified in Nextcloud. | Private-content import subset, recurring ingestion, and Memory/Raptor writes remain separate gates. |
-| 50 | Observability ops | Blocked | Repo contracts and gate queue exist. | Needs Debian/Podman/log/Grafana/CrowdSec live inventory decisions. |
-| 60 | Security ops | Blocked | Incident response models are prepared. | Needs synthetic tabletop Go; remediation/lockdown remain separate gates. |
+| 50 | Observability ops | Read-only inventory completed | Debian/systemd/Podman/port inventory and redacted metrics/diagnostic packets were verified without logs/secrets or writes. | Prometheus/Loki/Grafana/CrowdSec installation/configuration and log shipping remain separate live gates. |
+| 60 | Security ops | Tabletop completed | Synthetic incident classification, policy, notification dry-run and prepare-only remediation plan were verified. | Real incident notification dispatch, CrowdSec/firewall/restart/token/deploy remediation and lockdown remain separate gated actions. |
 | 70 | UI design | Blocked for 1.0 | Backend route contracts are ready; 0.99 live backends are active. | UI owner must decide placement and wire the UI; 1.0 must not be claimed until `VERSION-1-UI-LIVE` is true. |
 | 80 | Memory scale | Deferred/post-backend | Tokenization, cache and diagnostics are complete. | Live reindex/migration needs rollback and quality evidence or explicit deferral. |
 | 90 | GitHub issue intelligence | Deferred/post-MVP | Local duplicate/write-plan contracts are complete. | Needs token setup, bounded repo sync and separate write confirmation. |
