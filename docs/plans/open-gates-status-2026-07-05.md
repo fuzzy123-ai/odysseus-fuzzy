@@ -17,7 +17,7 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 - `build_open_work_completion_status()`: `safe_open_slices=0`, `queue_exhausted=true`, status `live_and_design_gated`.
 - `load_version_one_readiness()`: backend contracts ready, release actions disabled, `version_1_0_ready=false` because UI live is required.
 - `build_live_affordance_readiness()`: Telegram delivery, sandbox execution, Nextcloud copy and converter execution are blocked by live/config/bounded-request gates; no tokens, chat IDs or host paths are exposed.
-- `build_telegram_todo_digest_live_gate(owner=None, scheduled_time="09:00", weekdays="mo-fr")`: `missing_task`; no active canonical Telegram todo digest task exists for `0 9 * * 1,2,3,4,5`.
+- `build_telegram_todo_digest_live_gate(owner="fuzzy", scheduled_time="09:00", weekdays="mo-fr")`: `ready_for_live_smoke`; one active canonical Telegram todo digest task exists for `0 9 * * 1,2,3,4,5`, next run `2026-07-06T09:00:00`.
 - Focused verification: `python -m pytest tests/test_telegram_screenshot_delivery.py tests/test_runtime_tool_status.py tests/test_version_one_readiness.py tests/test_calendar_capability_service.py tests/test_task_summary_routes.py -q` passed with 23 tests.
 
 ## Gate Families
@@ -25,7 +25,7 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 | Priority | Family | Status | Safe preparation done | Gate condition |
 | -: | - | - | - | - |
 | 10 | Version release | Blocked | Backend readiness packet exists and tests pass. | UI must be live; release/deploy/tag target and rollback decision need explicit Go. |
-| 20 | Calendar reminders | Blocked | Read-only reminder gate exists and was checked. | Create one canonical 09:00 Mo-Fr Telegram todo digest task for the correct owner, then observe one live delivery with explicit Go. |
+| 20 | Calendar reminders | Partially open | Canonical 09:00 Mo-Fr Telegram todo digest task exists for owner `fuzzy`; read-only gate is `ready_for_live_smoke`. | Observe one live Telegram delivery and record redacted evidence; CalDAV writeback remains separate. |
 | 30 | Autonomous coding | Blocked | Dry-run/runtime contracts are repo-ready. | Needs bounded live control path: Telegram supervision, MCP availability or network allowlist. |
 | 32 | AI GUI tools | Blocked | Screenshot artifact integrity and Telegram live-gate packets are implemented and tested. | Needs consolidated GUI tool surface, screenshot artifact, Telegram target config and explicit screenshot-delivery Go. |
 | 35 | MCP workbench | Blocked | Local contracts are ready. | Needs service availability/setup decision and a bounded smoke. |
@@ -38,13 +38,13 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 
 ## Next Executable Gate
 
-Recommended first live/design decision:
+Completed first Calendar/Reminder action:
 
 ```text
-GO calendar_reminders create canonical task for owner=<owner> schedule=Mo-Fr 09:00 output=telegram; no CalDAV writeback; no delivery claim until observed.
+Created canonical task for owner=fuzzy schedule=Mo-Fr 09:00 output=telegram; no CalDAV writeback; no delivery claim until observed.
 ```
 
-After that task exists, the next bounded smoke is:
+Next bounded smoke:
 
 ```text
 GO calendar_reminders observe one 09:00 Telegram todo digest delivery and record redacted evidence.
