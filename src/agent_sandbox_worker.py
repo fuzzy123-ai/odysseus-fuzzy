@@ -173,6 +173,7 @@ class SandboxWorker:
         )
         cleanup_result: SandboxCommandResult | None = None
         try:
+            self._ensure_rw_mount_sources(job)
             try:
                 pod = self.command_runner(tuple(plan.pod_create_argv), job.limits.timeout_seconds)
             except Exception as exc:
@@ -184,6 +185,7 @@ class SandboxWorker:
             except Exception as exc:
                 return self._live_exception(job, plan, exc, "run_error")
             artifact_ref = f"data/reports/autonomous_coding_agent/{job.job_id}.log"
+            self._write_command_artifact(artifact_ref, run)
             evidence = build_sandbox_result_evidence(
                 job_id=job.job_id,
                 exit_code=run.exit_code,
@@ -224,6 +226,37 @@ class SandboxWorker:
                     preview="Sandbox cleanup completed." if cleanup_result.ok else "Sandbox cleanup failed.",
                     exit_code=cleanup_result.exit_code,
                 )
+
+    def _ensure_rw_mount_sources(self, job: SandboxJobRequest) -> None:
+        root = Path.cwd().resolve()
+        for mount in job.mounts:
+            if mount.mode != "rw":
+                continue
+            target = Path.cwd() / mount.source
+            resolved = target.resolve()
+            if root != resolved and root not in resolved.parents:
+                raise SandboxWorkerError("rw mount source escapes workspace")
+            target.mkdir(parents=True, exist_ok=True)
+
+    def _write_command_artifact(self, artifact_ref: str, result: SandboxCommandResult) -> None:
+        root = Path.cwd().resolve()
+        target = Path.cwd() / artifact_ref
+        resolved = target.resolve()
+        if root != resolved and root not in resolved.parents:
+            raise SandboxWorkerError("artifact path escapes workspace")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            (
+                f"exit_code={result.exit_code}\n"
+                f"timed_out={str(result.timed_out).lower()}\n"
+                f"duration_seconds={result.duration_seconds:.3f}\n\n"
+                "[stdout]\n"
+                f"{result.stdout}\n\n"
+                "[stderr]\n"
+                f"{result.stderr}\n"
+            ),
+            encoding="utf-8",
+        )
 
     def _live_failed(
         self,

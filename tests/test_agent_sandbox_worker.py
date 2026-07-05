@@ -27,7 +27,15 @@ def test_sandbox_worker_dry_run_records_plan(tmp_path: Path):
 
 def test_sandbox_worker_blocks_unsafe_rw_mount_without_gate(tmp_path: Path):
     worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path))
-    job = build_sandbox_job_from_template("browser_smoke", job_id="browser_smoke")
+    job = build_sandbox_job_from_template("document_convert", job_id="unsafe_rw")
+    job = type(job).create(
+        job_id="unsafe_rw",
+        argv=job.argv,
+        image=job.image,
+        mounts=[{"source": "src", "target": "/workspace/repo/src", "mode": "rw"}],
+        limits=job.limits,
+        capabilities=job.capabilities,
+    )
 
     result = worker.submit(job)
 
@@ -36,7 +44,18 @@ def test_sandbox_worker_blocks_unsafe_rw_mount_without_gate(tmp_path: Path):
     assert "rw_mount_not_allowed" in result.status.stderr_preview
 
 
-def test_sandbox_worker_live_execution_uses_runner_and_records_artifact(tmp_path: Path):
+def test_sandbox_worker_allows_default_screenshot_artifact_mount(tmp_path: Path):
+    worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path))
+    job = build_sandbox_job_from_template("browser_smoke", job_id="browser_smoke")
+
+    result = worker.submit(job)
+
+    assert result.executed_live is False
+    assert result.status.status == "dry_run"
+
+
+def test_sandbox_worker_live_execution_uses_runner_and_records_artifact(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     calls: list[tuple[str, ...]] = []
 
     def fake_runner(argv, timeout_seconds):
@@ -56,6 +75,7 @@ def test_sandbox_worker_live_execution_uses_runner_and_records_artifact(tmp_path
     assert calls[1][:2] == ("podman", "run")
     assert calls[2][:3] == ("podman", "pod", "rm")
     assert worker.artifacts("pytest_live") == ("data/reports/autonomous_coding_agent/pytest_live.log",)
+    assert (Path.cwd() / "data/reports/autonomous_coding_agent/pytest_live.log").exists()
 
 
 def test_sandbox_worker_live_runner_exception_records_failed_status(tmp_path: Path):

@@ -311,6 +311,54 @@ def send_telegram_document(
     }
 
 
+def send_telegram_photo(
+    chat_id: str,
+    file_path: str | Path,
+    *,
+    filename: str = "screenshot.png",
+    caption: str = "",
+    token: str | None = None,
+    http_post_multipart: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Send a Telegram photo. Callers must enforce env and chat gates first."""
+
+    token = token or os.getenv("TELEGRAM_BOT_TOKEN") or ""
+    if not token:
+        raise ValueError("telegram token is missing")
+    if not chat_id:
+        raise ValueError("telegram chat id is missing")
+    path = Path(file_path)
+    if not path.exists() or not path.is_file() or path.is_symlink():
+        raise ValueError("telegram photo path is invalid")
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]+", "-", str(filename or path.name or "screenshot.png")).strip(".-")
+    suffix = Path(safe_filename).suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise ValueError("telegram photo must be jpg, png, or webp")
+    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    payload: dict[str, Any] = {"chat_id": str(chat_id)}
+    if caption.strip():
+        payload["caption"] = caption.strip()[:1024]
+    post = http_post_multipart or _telegram_http_post_multipart
+    result = post(
+        url,
+        payload,
+        "photo",
+        path,
+        filename=safe_filename,
+        mime_type=mimetypes.guess_type(safe_filename)[0] or "image/png",
+    )
+    return {
+        "ok": bool(result.get("ok")),
+        "telegram_message_id": ((result.get("result") or {}).get("message_id")),
+        "delivery_mode": "photo",
+        "formatting_mode": "photo_caption",
+        "token_value_visible": False,
+        "raw_file_payload_visible": False,
+        "filename_visible": False,
+        "host_paths_visible": False,
+    }
+
+
 def send_telegram_pin_message(
     chat_id: str,
     message_id: int,

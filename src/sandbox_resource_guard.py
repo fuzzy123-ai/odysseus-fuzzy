@@ -7,6 +7,12 @@ from typing import Any
 from src.agent_sandbox_contract import SandboxJobRequest, evaluate_sandbox_job
 from src.sandbox_network_policy import network_policy_from_job
 
+_DEFAULT_RW_ARTIFACT_SOURCES = {
+    "reports",
+    "data/reports",
+    "data/reports/autonomous_coding_agent",
+}
+
 
 def evaluate_sandbox_resource_guard(
     job: SandboxJobRequest,
@@ -25,7 +31,7 @@ def evaluate_sandbox_resource_guard(
         reasons.extend(network_policy.reasons)
     if job.network_mode != "none" and not allow_network:
         reasons.append("network_not_allowed")
-    if any(mount.mode == "rw" for mount in job.mounts) and not allow_rw_mounts:
+    if any(mount.mode == "rw" for mount in job.mounts) and not allow_rw_mounts and not _rw_mounts_are_default_artifacts(job):
         reasons.append("rw_mount_not_allowed")
     if job.limits.memory_mb > max_memory_mb:
         reasons.append("memory_limit_exceeded")
@@ -43,3 +49,19 @@ def evaluate_sandbox_resource_guard(
         "timeout_seconds": job.limits.timeout_seconds,
         "raw_content_visible": False,
     }
+
+
+def _rw_mounts_are_default_artifacts(job: SandboxJobRequest) -> bool:
+    if "screenshot_artifacts" not in job.capabilities:
+        return False
+    rw_mounts = tuple(mount for mount in job.mounts if mount.mode == "rw")
+    if not rw_mounts:
+        return False
+    for mount in rw_mounts:
+        source = str(mount.source or "").strip().replace("\\", "/")
+        target = str(mount.target or "").strip().replace("\\", "/")
+        if source not in _DEFAULT_RW_ARTIFACT_SOURCES:
+            return False
+        if not target.startswith("/workspace/repo/reports"):
+            return False
+    return True

@@ -186,6 +186,7 @@ from plugins.telegram.outbound import (
     send_telegram_chat_action,
     send_telegram_document,
     send_telegram_pin_message,
+    send_telegram_photo,
     send_telegram_rich_draft,
     send_telegram_rich_message,
     send_telegram_text,
@@ -1890,7 +1891,10 @@ def setup(ctx):
             )
             return {"error": "Telegram chat id is not allowed", "exit_code": 1, "message": outbound}
         try:
-            sent = send_telegram_document(chat_id, file_path, filename=filename, caption=caption)
+            if _is_telegram_photo_artifact(filename or file_path):
+                sent = send_telegram_photo(chat_id, file_path, filename=filename, caption=caption)
+            else:
+                sent = send_telegram_document(chat_id, file_path, filename=filename, caption=caption)
         except Exception as exc:
             outbound = store.append_outbound(
                 chat_id,
@@ -1918,14 +1922,38 @@ def setup(ctx):
             caption or "Dokument-Export gesendet.",
             source_message_id=source_message_id,
             delivery_status="sent",
-            delivery_mode="document",
-            formatting_mode="document_caption",
+            delivery_mode=str(sent.get("delivery_mode") or "document"),
+            formatting_mode=str(sent.get("formatting_mode") or "document_caption"),
         )
         return {
             "output": json.dumps({"sent": sent, "message": outbound}, ensure_ascii=False),
             "exit_code": 0,
             "ok": bool(sent.get("ok")),
         }
+
+    def _is_telegram_photo_artifact(value: str) -> bool:
+        suffix = Path(str(value or "")).suffix.lower()
+        return suffix in {".jpg", ".jpeg", ".png", ".webp"}
+
+    def _resolve_telegram_artifact_ref(artifact_ref: str) -> Path:
+        ref = str(artifact_ref or "").strip().replace("\\", "/")
+        if (
+            not ref
+            or ref.startswith("/")
+            or re.match(r"^[A-Za-z]:", ref)
+            or ".." in ref.split("/")
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,220}", ref)
+        ):
+            raise ValueError("telegram artifact_ref is unsafe")
+        if not (ref.startswith("data/reports/autonomous_coding_agent/") or ref.startswith("reports/")):
+            raise ValueError("telegram artifact_ref is outside allowed artifact roots")
+        root = Path.cwd().resolve()
+        path = (Path.cwd() / ref).resolve()
+        if root != path and root not in path.parents:
+            raise ValueError("telegram artifact_ref escapes workspace")
+        if not path.exists() or not path.is_file() or path.is_symlink():
+            raise ValueError("telegram artifact_ref does not exist")
+        return path
 
     def _notification_target() -> str:
         return str(_ctx_attr("telegram_notification_target") or os.getenv("TELEGRAM_NOTIFICATION_CHAT_ID") or "")
@@ -1943,6 +1971,21 @@ def setup(ctx):
             security_mode=payload.get("security_mode") or "",
             secure_transport=bool(payload.get("secure_transport")),
             can_start_secure_flow=bool(payload.get("can_start_secure_flow")),
+        )
+
+    async def _telegram_document_reply_tool(content: str, **kwargs):
+        payload = _parse_tool_payload(content)
+        if kwargs:
+            payload = {**payload, **kwargs}
+        chat_id = str(payload.get("chat_id") or "")
+        artifact_ref = str(payload.get("artifact_ref") or "")
+        artifact_path = _resolve_telegram_artifact_ref(artifact_ref)
+        return _document_reply_with_gate(
+            chat_id,
+            str(artifact_path),
+            str(payload.get("filename") or artifact_path.name),
+            str(payload.get("caption") or "Sandbox-Artefakt"),
+            source_message_id=payload.get("source_message_id"),
         )
 
     async def _odysseus_notify_user_tool(content: str, **kwargs):
@@ -2361,6 +2404,18 @@ def setup(ctx):
             raise HTTPException(403, str(result.get("error") or "Telegram reply refused"))
         return json.loads(str(result["output"]))
 
+    @router.post("/document-reply")
+    async def document_reply(request: Request):
+        _require_admin(request)
+        body = await request.json()
+        try:
+            result = await _telegram_document_reply_tool("", **dict(body))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if result.get("exit_code") != 0:
+            raise HTTPException(403, str(result.get("error") or "Telegram document reply refused"))
+        return json.loads(str(result["output"]))
+
     @router.get("/app")
     async def app_page(request: Request):
         _require_admin(request)
@@ -2388,6 +2443,27 @@ def setup(ctx):
                 "required": ["chat_id", "text"],
             },
             execute=_telegram_reply_tool,
+            permission="admin",
+        ))
+        ctx.register_tool(ToolSpec(
+            name="telegram_document_reply",
+            description=(
+                "Send a reviewed sandbox/export artifact through Telegram. "
+                "Accepts only repo-relative artifact_ref values under data/reports/autonomous_coding_agent or reports; "
+                "PNG/JPG/WebP artifacts are sent as Telegram photos."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "chat_id": {"type": "string", "description": "Telegram chat id from the stored inbound message."},
+                    "artifact_ref": {"type": "string", "description": "Repo-relative artifact path, for example data/reports/autonomous_coding_agent/demo/screen.png."},
+                    "filename": {"type": "string", "description": "Optional safe filename for Telegram."},
+                    "caption": {"type": "string", "description": "Optional short caption."},
+                    "source_message_id": {"type": "integer", "description": "Optional Telegram source message id."},
+                },
+                "required": ["chat_id", "artifact_ref"],
+            },
+            execute=_telegram_document_reply_tool,
             permission="admin",
         ))
         ctx.register_tool(ToolSpec(

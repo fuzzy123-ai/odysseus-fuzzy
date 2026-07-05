@@ -60,6 +60,12 @@ def render_podman_sandbox_plan(job: SandboxJobRequest, *, pod_name_prefix: str =
         "256",
         "--security-opt",
         "no-new-privileges",
+        "--env",
+        f"ODYSSEUS_SANDBOX_CAPABILITIES={','.join(job.capabilities)}",
+        "--env",
+        "PLAYWRIGHT_HEADLESS=1",
+        "--env",
+        "ODYSSEUS_SCREENSHOT_DIR=/workspace/repo/reports/screenshots",
     ]
     for mount in job.mounts:
         run_args.extend(["--mount", f"type=bind,src={mount.source},dst={mount.target},{mount.mode}"])

@@ -12,11 +12,13 @@ import json
 import re
 import time
 import logging
+from pathlib import Path
 from typing import AsyncGenerator, List, Dict, Optional, Set
 
 from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native_url
 from src.model_context import estimate_tokens
 from src.settings import get_setting
+from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
     blocked_tools_for_owner,
@@ -1642,6 +1644,18 @@ async def stream_agent_loop(
     if _fallback_chunk:
         yield _fallback_chunk
 
+    claim_evidence_gate = {}
+    try:
+        _claim_report = evaluate_response_claims(full_response, tool_events, repo_root=Path.cwd())
+        claim_evidence_gate = _claim_report.to_dict()
+        _claim_correction = build_claim_evidence_correction(_claim_report)
+        if _claim_correction:
+            full_response += _claim_correction
+            yield f'data: {json.dumps({"delta": _claim_correction})}\n\n'
+    except Exception as _claim_err:
+        logger.warning("[agent] claim evidence gate skipped: %s", _claim_err, exc_info=True)
+        claim_evidence_gate = {"ok": False, "error": "claim_evidence_gate_skipped"}
+
     # --- Final metrics ---
     total_duration = time.time() - total_start
     metrics = _compute_final_metrics(
@@ -1654,6 +1668,7 @@ async def stream_agent_loop(
         backend_prefill_tps=backend_prefill_tps,
     )
     metrics["requested_model"] = requested_model
+    metrics["claim_evidence_gate"] = claim_evidence_gate
     yield f"data: {json.dumps({'type': 'metrics', 'data': metrics})}\n\n"
 
     # Teacher-escalation: inline takeover visible in the chat stream.

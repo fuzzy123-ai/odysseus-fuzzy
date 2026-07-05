@@ -37,9 +37,10 @@ def setup_sandbox_worker_routes(*, ledger_root: str | Path | None = None, worker
         require_admin(request)
         try:
             job = _job_from_payload(body.job)
+            effective_live_enabled = bool(body.live_enabled or body.operator_go)
             result = sandbox_worker.submit(
                 job,
-                live_enabled=body.live_enabled,
+                live_enabled=effective_live_enabled,
                 operator_go=body.operator_go,
                 allow_network=body.allow_network,
                 allow_rw_mounts=body.allow_rw_mounts,
@@ -89,6 +90,7 @@ def _job_from_payload(payload: dict[str, Any]) -> SandboxJobRequest:
         raise SandboxWorkerError("job must be an object")
     mounts = tuple(SandboxMount.create(**dict(item)) for item in payload.get("mounts") or ())
     limits_payload = payload.get("limits") if isinstance(payload.get("limits"), dict) else {}
+    capabilities_payload = payload.get("capabilities") if "capabilities" in payload else None
     return SandboxJobRequest.create(
         job_id=payload.get("job_id"),
         argv=tuple(payload.get("argv") or ()),
@@ -98,4 +100,5 @@ def _job_from_payload(payload: dict[str, Any]) -> SandboxJobRequest:
         network_mode=payload.get("network_mode") or "none",
         network_allowlist=tuple(payload.get("network_allowlist") or ()),
         secrets_attached=bool(payload.get("secrets_attached", False)),
+        capabilities=tuple(capabilities_payload or ()) if capabilities_payload is not None else None,
     )

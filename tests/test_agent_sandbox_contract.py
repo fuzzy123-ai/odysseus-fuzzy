@@ -21,6 +21,19 @@ def test_sandbox_job_allows_argv_with_scoped_mounts():
 
     assert decision.allowed is True
     assert job.to_dict()["secrets_attached"] is False
+    assert "playwright" in job.to_dict()["capabilities"]
+    assert "browser_gui" in job.to_dict()["capabilities"]
+    assert "screenshot_artifacts" in job.to_dict()["capabilities"]
+
+
+def test_sandbox_job_rejects_unsafe_capabilities():
+    with pytest.raises(SandboxContractError):
+        SandboxJobRequest.create(
+            job_id="badcap",
+            argv=["python", "--version"],
+            image="image:dev",
+            capabilities=["playwright", "../secret"],
+        )
 
 
 def test_sandbox_job_blocks_shell_and_forbidden_executable():

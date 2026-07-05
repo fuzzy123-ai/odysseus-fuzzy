@@ -5,7 +5,7 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "delegate",
-            "description": "Delegate a focused subtask to an isolated worker agent. The worker receives bounded provider context and returns a compact JSON result; it does not mutate host files or keep conversation history.",
+            "description": "Delegate a focused read-only analysis subtask to an isolated worker agent. The worker receives bounded provider context and returns compact JSON; it does not mutate host files, create files, run GUI/browser checks, execute tests, or keep conversation history. Do not use this for implementation tasks such as creating pong.py; use sandbox/coding tools instead.",
             "parameters": {
                 "type": "object",
                 "properties": {

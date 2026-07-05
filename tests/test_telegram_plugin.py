@@ -238,6 +238,7 @@ def test_plugin_routes_call_admin_gate(tmp_path):
         ("post", "/api/plugins/telegram/poll", None),
         ("post", "/api/plugins/telegram/webhook", {"message": {"chat": {"id": "fake"}, "text": "hi"}}),
         ("post", "/api/plugins/telegram/reply", {"chat_id": "fake", "text": "hi"}),
+        ("post", "/api/plugins/telegram/document-reply", {"chat_id": "fake", "artifact_ref": "data/reports/autonomous_coding_agent/x.png"}),
     ]
 
     for method, path, body in checks:
@@ -2013,6 +2014,67 @@ def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert "123" not in persisted_text
     assert '"chat_id"' not in persisted_text
+
+
+def test_document_reply_route_sends_screenshot_artifact_as_photo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x89PNG\r\n\x1a\n")
+    calls = []
+
+    def _photo(chat_id, file_path, *, filename, caption):
+        calls.append((chat_id, Path(file_path), filename, caption))
+        return {
+            "ok": True,
+            "telegram_message_id": 88,
+            "delivery_mode": "photo",
+            "formatting_mode": "photo_caption",
+            "token_value_visible": False,
+        }
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_photo", _photo)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+            "filename": "pong-screenshot.png",
+            "caption": "Pong screenshot",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["sent"]["delivery_mode"] == "photo"
+    assert calls[0][0] == "123"
+    assert calls[0][1] == artifact
+    history = TelegramInboxStore(tmp_path).history(chat_id="123")
+    assert history[0]["delivery_mode"] == "photo"
+    assert history[0]["formatting_mode"] == "photo_caption"
+
+
+def test_document_reply_route_rejects_non_artifact_paths(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply",
+        json={"chat_id": "123", "artifact_ref": "src/private.png"},
+    )
+
+    assert response.status_code == 400
 
 
 def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypatch):

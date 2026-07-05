@@ -8,6 +8,7 @@ from plugins.telegram.plugin import (
     TelegramInboxStore,
     build_telegram_draft_id,
     build_telegram_readiness,
+    send_telegram_photo,
     send_telegram_rich_draft,
     send_telegram_rich_message,
     send_telegram_text,
@@ -157,6 +158,33 @@ def test_rich_draft_helpers_are_disabled_by_default(monkeypatch):
         send_telegram_rich_draft("chat-1", "partial", http_post=lambda url, payload: calls.append(payload))
 
     assert calls == []
+
+
+def test_send_telegram_photo_uses_send_photo_transport(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    image = tmp_path / "screen.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    calls = []
+
+    def _post(url, payload, file_field, file_path, *, filename, mime_type):
+        calls.append((url, dict(payload), file_field, str(file_path), filename, mime_type))
+        return {"ok": True, "result": {"message_id": 44}}
+
+    result = send_telegram_photo(
+        "chat-1",
+        image,
+        filename="program-screenshot.png",
+        caption="Screenshot",
+        http_post_multipart=_post,
+    )
+
+    assert result["ok"] is True
+    assert result["delivery_mode"] == "photo"
+    assert result["formatting_mode"] == "photo_caption"
+    assert calls[0][0].endswith("/sendPhoto")
+    assert calls[0][2] == "photo"
+    assert calls[0][4] == "program-screenshot.png"
+    assert calls[0][5] == "image/png"
 
 
 def test_rich_draft_uses_stable_nonzero_draft_id(monkeypatch):

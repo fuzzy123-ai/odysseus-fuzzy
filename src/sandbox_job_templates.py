@@ -27,7 +27,7 @@ _TEMPLATES = {
     "browser_smoke": {
         "argv": ("node", "scripts/browser-smoke.js"),
         "image": "localhost/odysseus_odysseus:latest",
-        "mounts": ({"source": "reports", "target": "/workspace/repo/reports", "mode": "rw"},),
+        "mounts": ({"source": "data/reports/autonomous_coding_agent", "target": "/workspace/repo/reports", "mode": "rw"},),
         "limits": {"timeout_seconds": 300, "memory_mb": 1536, "cpu_count": 1.0},
     },
     "document_convert": {

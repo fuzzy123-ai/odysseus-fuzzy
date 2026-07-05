@@ -16,4 +16,7 @@ def test_podman_plan_is_argv_only_and_not_executed():
     assert payload["pod_create_argv"][:3] == ("podman", "pod", "create")
     assert "--privileged" not in payload["run_argv"]
     assert "--entrypoint" in payload["run_argv"]
+    assert "ODYSSEUS_SANDBOX_CAPABILITIES=python,node,playwright,browser_gui,screenshot_artifacts" in payload["run_argv"]
+    assert "PLAYWRIGHT_HEADLESS=1" in payload["run_argv"]
+    assert "ODYSSEUS_SCREENSHOT_DIR=/workspace/repo/reports/screenshots" in payload["run_argv"]
     assert payload["decision"]["allowed"] is True

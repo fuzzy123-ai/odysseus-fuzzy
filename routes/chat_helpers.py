@@ -34,6 +34,22 @@ _CAPABILITY_SELF_REPORT_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_CAPABILITY_QUESTION_RE = re.compile(
+    r"\b("
+    r"welche tools?|welche werkzeuge?|was kannst du|what can you do|"
+    r"was fehlt(?: dir)?|fehl(?:t|en) dir|"
+    r"kannst du .*?(?:dateien?|terminal|sandbox|git|repo|nextcloud|browser|screenshot|testen|ausfuehren|ausfÃ¼hren)|"
+    r"(?:tools?|werkzeuge?|faehig(?:keit|keiten)|fÃ¤higkeit(?:en)|capabilit(?:y|ies)).*?(?:verfuegbar|verfÃ¼gbar|hast du|installed|available)"
+    r")\b",
+    re.IGNORECASE,
+)
+_IMPLEMENTATION_INTENT_RE = re.compile(
+    r"\b("
+    r"baue|bau|implementiere|implement|fixe|fix|erstelle|mach|aendere|Ã¤ndere|"
+    r"schreib(?:e)?|teste|pytest|programmiere|entwickle"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 # Strong references to in-flight fire-and-forget tasks scheduled from this
@@ -383,7 +399,12 @@ def build_deterministic_capability_self_report(message: str) -> str | None:
     answer them from the trusted maintenance snapshot instead of asking an LLM
     to restate them.
     """
-    if not _CAPABILITY_SELF_REPORT_RE.search(str(message or "")):
+    text = str(message or "")
+    if not _CAPABILITY_SELF_REPORT_RE.search(text):
+        return None
+    if _IMPLEMENTATION_INTENT_RE.search(text) and not _CAPABILITY_QUESTION_RE.search(text):
+        return None
+    if not _CAPABILITY_QUESTION_RE.search(text):
         return None
     try:
         from src.tool_capability_maintenance import read_tool_capability_diagnostics
