@@ -32,14 +32,16 @@ Neu implementiert in diesem Slice:
 - Telegram-Pre-Send-Truth-Gate vor `send_telegram_text`/Rich-Fallback.
 - Outbound-History speichert den gegateten Sendetext plus redigierte Truth-Gate-Metadaten.
 - Tone-Gate entfernt Jubel-/Emoji-Sprache bei nicht verifizierten Erfolgsclaims.
+- Tool-Transaction-Ledger modelliert wirkungsvolle Toolausfuehrungen als `succeeded`, `failed`, `blocked` oder `verified`.
+- ClaimEvidenceGate kann Erfolgsaussagen gegen Tool-Transaktionen statt nur gegen freie Tool-Output-Prosa pruefen.
 
 Noch kritisch:
 
 - Der Claim-Gate korrigiert noch nachtraeglich; er verhindert nicht alle schon gestreamten Tokens.
-- Es gibt noch keinen einheitlichen Tool-Transaction-Ledger mit `planned -> started -> succeeded/failed/blocked -> verified`.
 - Capability-Checks fuer GUI/Screenshot-Aufgaben sind noch nicht als Pflichtphase vor Umsetzung modelliert.
 - Tonalitaet ist fuer Telegram-Pre-Send-Erfolgsclaims gegatet; ein allgemeiner Agent-Tone-Ledger fehlt noch.
 - Die schlechte Telegram-Konversation ist teilweise als synthetischer Corpus formalisiert; Repeated-Confirmation-Loop braucht noch eine eigene Metrik.
+- Der Tool-Transaction-Ledger ist aktuell in-memory/metrics-basiert; persistente Run-State-UX folgt in TTR-5/TTR-6.
 
 ## Nicht-Ziele
 
@@ -104,6 +106,8 @@ Akzeptanz:
 Class: `repo_only`
 
 Owner: Bob
+
+Status: implemented repo-side as redacted in-memory transaction ledger exposed through final metrics.
 
 Goal: Jede wirkungsvolle Aktion hat einen maschinenlesbaren Status.
 
@@ -260,7 +264,7 @@ Akzeptanz:
 1. TTR-0 Failure Corpus. Done repo-side.
 2. TTR-1 Pre-Send Claim Gate fuer Telegram. Done repo-side for text replies.
 3. TTR-4 Tone Gate. Done repo-side for unverified Telegram success claims.
-4. TTR-2 Tool Transaction Ledger.
+4. TTR-2 Tool Transaction Ledger. Done repo-side for agent tool events and ClaimEvidenceGate.
 5. TTR-3 Capability-First Execution Gate.
 6. TTR-5 Telegram Run-State UX.
 7. TTR-6 Effectful Tool Matrix.

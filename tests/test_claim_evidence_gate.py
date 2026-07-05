@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
+from src.tool_transaction_ledger import ToolTransaction
 
 
 def test_file_creation_claim_requires_file_or_tool_evidence(tmp_path: Path):
@@ -61,3 +62,46 @@ def test_correction_mentions_unsupported_claim_types(tmp_path: Path):
 
     assert "file_changed" in correction
     assert "nicht verifiziert" in correction
+
+
+def test_test_success_claim_accepts_verified_transaction_without_raw_tool_event(tmp_path: Path):
+    tx = ToolTransaction.create(
+        surface="agent",
+        tool="bash",
+        claim_type="command_passed",
+        status="succeeded",
+        evidence_refs=["exit_code:0", "command:sha256:abc123"],
+        exit_code=0,
+        command="python -m pytest tests/test_demo.py",
+    )
+
+    report = evaluate_response_claims(
+        "Ich habe die Tests ausgefuehrt, sie sind durchgelaufen.",
+        [],
+        repo_root=tmp_path,
+        tool_transactions=[tx.to_dict()],
+    )
+
+    assert report.ok is True
+
+
+def test_failed_transaction_does_not_support_success_claim(tmp_path: Path):
+    tx = ToolTransaction.create(
+        surface="agent",
+        tool="bash",
+        claim_type="command_passed",
+        status="failed",
+        evidence_refs=["exit_code:1"],
+        exit_code=1,
+        command="python -m pytest tests/test_demo.py",
+    )
+
+    report = evaluate_response_claims(
+        "Ich habe die Tests ausgefuehrt, sie sind durchgelaufen.",
+        [],
+        repo_root=tmp_path,
+        tool_transactions=[tx.to_dict()],
+    )
+
+    assert report.ok is False
+    assert report.unsupported[0].claim_type == "command_passed"

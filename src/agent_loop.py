@@ -19,6 +19,7 @@ from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native
 from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
+from src.tool_transaction_ledger import transactions_from_tool_events
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
     blocked_tools_for_owner,
@@ -1645,8 +1646,14 @@ async def stream_agent_loop(
         yield _fallback_chunk
 
     claim_evidence_gate = {}
+    tool_transactions = tuple(item.to_dict() for item in transactions_from_tool_events(tool_events, surface="agent"))
     try:
-        _claim_report = evaluate_response_claims(full_response, tool_events, repo_root=Path.cwd())
+        _claim_report = evaluate_response_claims(
+            full_response,
+            tool_events,
+            repo_root=Path.cwd(),
+            tool_transactions=tool_transactions,
+        )
         claim_evidence_gate = _claim_report.to_dict()
         _claim_correction = build_claim_evidence_correction(_claim_report)
         if _claim_correction:
@@ -1669,6 +1676,8 @@ async def stream_agent_loop(
     )
     metrics["requested_model"] = requested_model
     metrics["claim_evidence_gate"] = claim_evidence_gate
+    if tool_transactions:
+        metrics["tool_transactions"] = tool_transactions
     yield f"data: {json.dumps({'type': 'metrics', 'data': metrics})}\n\n"
 
     # Teacher-escalation: inline takeover visible in the chat stream.

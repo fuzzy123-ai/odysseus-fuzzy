@@ -7,6 +7,8 @@ from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Iterable, Mapping
 
+from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
+
 
 _FIRST_PERSON_ACTION_RE = re.compile(
     r"\b("
@@ -88,6 +90,7 @@ def evaluate_response_claims(
     tool_events: Iterable[Mapping[str, Any]] = (),
     *,
     repo_root: Path | str | None = None,
+    tool_transactions: Iterable[Mapping[str, Any]] = (),
 ) -> ClaimEvidenceReport:
     """Return unsupported concrete action claims found in an assistant reply.
 
@@ -98,6 +101,9 @@ def evaluate_response_claims(
 
     text = str(response or "")
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
+    transactions = tuple(item for item in tool_transactions if isinstance(item, Mapping))
+    if not transactions and events:
+        transactions = tuple(item.to_dict() for item in transactions_from_tool_events(events, surface="claim_evidence"))
     root = Path(repo_root or Path.cwd()).resolve()
     findings: list[ClaimEvidenceFinding] = []
 
@@ -107,14 +113,16 @@ def evaluate_response_claims(
     if _FILE_ACTION_RE.search(text):
         paths = _extract_repo_paths(text)
         if paths:
+            tx_evidence = transaction_evidence_for_claim(transactions, "file_changed", paths)
             evidence = tuple(path for path in paths if _repo_file_exists(root, path) or _event_mentions_success(events, path))
+            evidence = tuple(dict.fromkeys((*evidence, *tx_evidence)))
             if evidence:
                 findings.append(ClaimEvidenceFinding("file_changed", "supported", "mentioned file path has filesystem or tool evidence", evidence))
             else:
                 findings.append(ClaimEvidenceFinding("file_changed", "unsupported", "file claim mentions paths without filesystem or tool evidence", paths))
 
     if _TEST_ACTION_RE.search(text):
-        evidence = _successful_test_events(events)
+        evidence = tuple(dict.fromkeys((*_successful_test_events(events), *transaction_evidence_for_claim(transactions, "command_passed"))))
         findings.append(
             ClaimEvidenceFinding(
                 "command_passed",
@@ -125,7 +133,7 @@ def evaluate_response_claims(
         )
 
     if _SANDBOX_ACTION_RE.search(text):
-        evidence = _successful_sandbox_events(events)
+        evidence = tuple(dict.fromkeys((*_successful_sandbox_events(events), *transaction_evidence_for_claim(transactions, "sandbox_succeeded"))))
         findings.append(
             ClaimEvidenceFinding(
                 "sandbox_succeeded",
@@ -136,7 +144,7 @@ def evaluate_response_claims(
         )
 
     if _TELEGRAM_SENT_RE.search(text):
-        evidence = _successful_telegram_events(events)
+        evidence = tuple(dict.fromkeys((*_successful_telegram_events(events), *transaction_evidence_for_claim(transactions, "telegram_sent"))))
         findings.append(
             ClaimEvidenceFinding(
                 "telegram_sent",
@@ -149,6 +157,8 @@ def evaluate_response_claims(
     if _SCREENSHOT_RE.search(text) and _TELEGRAM_SENT_RE.search(text):
         paths = tuple(path for path in _extract_repo_paths(text) if path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")))
         evidence = tuple(path for path in paths if _repo_file_exists(root, path))
+        tx_evidence = transaction_evidence_for_claim(transactions, "artifact_exists", paths)
+        evidence = tuple(dict.fromkeys((*evidence, *tx_evidence)))
         if paths:
             findings.append(
                 ClaimEvidenceFinding(
