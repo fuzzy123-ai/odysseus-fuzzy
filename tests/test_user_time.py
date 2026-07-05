@@ -271,6 +271,8 @@ def test_agent_system_prompt_includes_runtime_snapshot_outside_system(monkeypatc
     assert "claim_evidence_gate: active_post_stream" in snapshot_messages[0]["content"]
     assert "capability_first_gate: active_repo_side_program_screenshot" in snapshot_messages[0]["content"]
     assert "telegram_screenshot_delivery: active_preview_live_gate_integrity_packet_photo_artifacts" in snapshot_messages[0]["content"]
+    assert "change_source=recent_changes_not_memory" in snapshot_messages[0]["content"]
+    assert "memory_boundary=memory_is_not_authoritative_for_runtime_capabilities" in snapshot_messages[0]["content"]
     assert "playwright" in snapshot_messages[0]["content"]
 
 

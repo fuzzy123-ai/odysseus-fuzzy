@@ -4,6 +4,12 @@ Stand: 2026-07-05
 
 Status: Roadmap nach Code-/Doc-Pruefung fuer Telegram, Sandbox, Delegate und Coding-Agent-Flows.
 
+Update 2026-07-05:
+
+- Die Telegram-Truth-Runtime-Slices TTR-0 bis TTR-7 sind repo-side umgesetzt.
+- Runtime-Snapshot, Recent Changes, Tool-Transaction-Ledger, Telegram-Run-State, Screenshot-Preview und Screenshot-Live-Gate sind aktiv dokumentiert.
+- Live Telegram, MCP-Service-Smokes, Provider-, Host- und Deploy-Aktionen bleiben Operator-Gates.
+
 ## Ziel
 
 Odysseus soll keine erledigten Arbeiten, gesendeten Dateien, bestandenen Tests oder vorhandenen Artefakte behaupten, wenn dafuer keine maschinenlesbare Evidence vorliegt.
@@ -35,12 +41,44 @@ Die Leitregel:
 - Sandbox-Jobs tragen Default-Capabilities fuer Python, Node, Playwright, Browser-GUI und Screenshot-Artefakte.
 - Telegram kann Sandbox-Screenshots als Foto aus erlaubten Artefaktpfaden senden.
 - Capability-Self-Reports werden enger erkannt, damit Coding-/Implementierungsauftraege nicht als reine Diagnoseantwort abgefangen werden.
+- `runtime_snapshot` wird in Agent-Turns injiziert und nennt Version, Sandbox, Telegram, Delegate, Evidence-Gates, Screenshot-Delivery und Selbstwissen-Quellen.
+- `recent_changes` ist als Changelog-/Patch-Notes-Quelle fuer lokale Odysseus-Neuerungen vorhanden und soll Runtime-Neuerungen nicht aus Memory rekonstruieren.
+- `tool_registry`/`tool_index` sind die aktuelle Tool-Inventar-Quelle; ein allgemeiner live Tool-/Endpoint-Status bleibt noch ein eigener Follow-up-Vertrag.
+- `tool_transaction_ledger` und `ClaimEvidenceGate` binden Erfolgsclaims an Tool-Transaktionen, Exit-Codes, Artefakt-Refs und Dateisystem-Evidence.
+- `telegram_truth_runtime` modelliert Capability-First-Checks, Run-State-Sequenzen und Regression-Metriken fuer unsupported success, Delegate-Alibi, Rueckfrage-Loops und Tone-Gate-Verletzungen.
+- `telegram_screenshot_delivery` bietet Preview, Integrity-Packet und Live-Gate-Packet fuer Screenshot-Artefakte; der echte Versand bleibt operator-gated.
 
-## Noch noetige Arbeit
+## Tool- und Selbstwissen-Coverage aus dem Telegram-Review
+
+Diese Tabelle uebernimmt die aktuelle Tool-Bestandsanalyse in die Roadmap. Wichtig: Runtime-Faehigkeiten werden nicht als langlebiger Memory-Fakt behandelt, sondern aus aktuellen Systemquellen gelesen.
+
+| Punkt | Status | Quelle/Umsetzung | Naechster sicherer Schritt |
+| --- | --- | --- | --- |
+| Runtime-Snapshot mit Version, Features, Limits und Timestamp | repo-side aktiv | `src/runtime_snapshot.py`, Agent-Kontext-Injection, `/api/version` live pruefbar | Snapshot bei neuen Systemfaehigkeiten aktualisieren und testen |
+| Live Tool Registry mit Schema, Side-Effect-Klasse und Gate-Status | teilweise aktiv | `src/tool_registry.py`, `src/tool_index.py`, Tool-Schemas, Effectful-Tool-Matrix | redigierten Runtime-Tool-Status ohne Secrets/Raw-Endpoints als separates Contract-Slice bauen |
+| Capability Probe fuer Python, Playwright/GUI, Screenshot-Artefakte, Telegram und MCP | teilweise aktiv | Sandbox defaults, Telegram screenshot live-gate, capability-first program/screenshot check | MCP-Service-Status und allgemeine GUI-/Playwright-Probe bleiben live/service-gated |
+| Evidence Ledger fuer Tool-Ausfuehrungen | repo-side aktiv | `src/tool_transaction_ledger.py`, `ClaimEvidenceGate`, Verifier machine evidence | Persistente externe Audit-Speicherung separat haerten |
+| Recent Changes / Changelog Injection | repo-side aktiv | `src/recent_changes.py`, Recent-Changes-Routing, Runtime-Snapshot verweist darauf | Nicht in Memory speichern; bei Neuerungsfragen `recent_changes` nutzen |
+| Run-State-Modell | repo-side aktiv | `src/telegram_truth_runtime.py` mit `accepted`, `checking_capabilities`, `running`, `artifact_ready`, `sent`, `verified_done`, `blocked`, `failed` | Live-Telegram-Smoke nur nach Operator-Go |
+| Ask-User Policy gegen Rueckfrage-Spam | repo-side teilweise aktiv | Regression-Metrik `repeated_confirmation_count`, Runtime-Snapshot-Policy `one_clarification_then_act_or_block` | allgemeine Agent-Policy breiter in Tool-/Prompt-Tests absichern |
+| Tool-Failure-Transparenz | repo-side teilweise aktiv | Tool-Transaction-Status, exit_code, blocker, screenshot live-gate statuses | fuer alle grossen Tool-Domaenen konsistente `blocked/failed/next_step` Packets vereinheitlichen |
+
+Nicht als Memory speichern:
+
+- aktuelle Tool-Liste
+- aktuelle Systemversion
+- aktuelle Env-/Live-Gates
+- MCP-/Endpoint-Verfuegbarkeit
+
+Memory darf hoechstens merken: "Runtime-Faehigkeiten sind aus Runtime-Snapshot, Recent Changes und Tool Registry zu lesen; Memory ist dafuer nicht autoritativ." Runtime-Token: `memory_is_not_authoritative_for_runtime_capabilities`.
+
+## Noch noetige Arbeit nach aktuellem Stand
 
 ### Luecke 1: Kein zentraler Claim-to-Evidence-Check fuer finale Antworten
 
-Aktuell existieren viele einzelne Gates, aber keine zentrale Schicht, die finale Aussagen wie diese klassifiziert:
+Status: repo-side umgesetzt fuer kritische Datei-, Test-, Sandbox-, Telegram- und Screenshot-Claims; weiter ausbauen fuer weitere Domaenen.
+
+Aktuell existieren viele einzelne Gates. Die zentrale Schicht klassifiziert bereits Aussagen wie diese:
 
 - "Ich habe `pong.py` erstellt."
 - "Die Tests sind durchgelaufen."
@@ -48,9 +86,11 @@ Aktuell existieren viele einzelne Gates, aber keine zentrale Schicht, die finale
 - "Der Sandbox-Run war erfolgreich."
 - "Die GUI ist verfuegbar."
 
-Noetig ist ein `ClaimEvidenceGate`, das finale Antwortentwuerfe oder strukturierte Abschlussberichte gegen Tool-/Ledger-Evidence prueft. Unbelegte Claims muessen automatisch auf die bestehende Truth-Sprache abgebildet werden: `partial`, `unknown` oder `blocked`, statt als `success` oder `verified_done` zu erscheinen.
+Weiter noetig: Claim-Typen fuer weitere Domaenen wie Memory/RAG-Writes, Provider-Sync, Calendar/CalDAV und GitHub-Issues schrittweise anbinden.
 
 ### Luecke 2: Evidence-Artefakte werden nicht ueberall inhaltlich verifiziert
+
+Status: repo-side umgesetzt fuer Sandbox-Log-Evidence und Telegram-Foto-/Screenshot-Artefakte; weitere Artefaktarten bleiben Follow-up.
 
 Einige Komponenten validieren sichere Pfade und Status, aber nicht durchgaengig:
 
@@ -59,11 +99,13 @@ Einige Komponenten validieren sichere Pfade und Status, aber nicht durchgaengig:
 - Passt `exit_code=0` zur behaupteten Zusammenfassung?
 - Ist ein Screenshot wirklich ein Bild und kein leeres oder falsches Artefakt?
 
-Noetig ist ein Artefakt-Integrity-Layer, der sichere Refs, Existenz, Dateityp, Groesse und optional Content-Hash prueft.
+Der Artefakt-Integrity-Layer prueft sichere Refs, Existenz, Dateityp, Groesse und Content-Hash fuer die bereits angebundenen Pfade.
 
 ### Luecke 3: Completion-Verifier deckt neue effectful Tools nicht voll ab
 
-Der bestehende Verifier schaut auf eine kleine Tool-Liste (`create_document`, `update_document`, `edit_document`, `bash`, `python`, `write_file`). Fuer die aktuellen Problemfaelle muessen zusaetzlich erfasst werden:
+Status: repo-side umgesetzt mit Effectful-Tool-Matrix und maschinenlesbarer Evidence im Actions Snapshot.
+
+Der Verifier soll fuer die aktuellen Problemfaelle erfassen:
 
 - Sandbox-Worker-Submits und Sandbox-Ledger-Events
 - `telegram_document_reply`
@@ -71,9 +113,11 @@ Der bestehende Verifier schaut auf eine kleine Tool-Liste (`create_document`, `u
 - Coding-Agent-Handoff-, Quality- und Done-Gates
 - Repo-/Git-Status-Aktionen
 
-Noetig ist eine erweiterte Tool-Effekt-Matrix mit deterministischen Validators vor dem Modell-Verifier.
+Weiter noetig: neue Tool-Domaenen muessen in die Matrix aufgenommen werden, sobald sie wirkungsvolle Side Effects bekommen.
 
 ### Luecke 4: Telegram-Status braucht maschinenlesbare Run- und Artefaktbindung
+
+Status: repo-side umgesetzt als Run-State-Contract; echter End-to-End-Telegram-Smoke bleibt Operator-Go.
 
 Telegram soll nicht nur Text wie "ich arbeite dran" erhalten, sondern Status aus einem Job-/Run-Ledger:
 
@@ -88,6 +132,8 @@ Telegram soll nicht nur Text wie "ich arbeite dran" erhalten, sondern Status aus
 Jede Nachricht ueber erstellte Programme oder Screenshots sollte `run_id`, `job_id` oder `artifact_ref` im internen Audit tragen.
 
 ### Luecke 5: Rueckfragen/Confirmations brauchen eine Policy
+
+Status: repo-side teilweise umgesetzt ueber Regression-Metrik und Runtime-Snapshot-Policy.
 
 Das beobachtete Verhalten "fragt immer wieder, faengt nicht an" deutet auf unscharfe Confirmation- und Tool-Policy hin. Noetig ist eine Regel:
 
