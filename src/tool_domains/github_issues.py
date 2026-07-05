@@ -8,12 +8,15 @@ return explicit gates until future live adapters are approved.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Dict, Optional
 
 from core.database import SessionLocal
 from src.github_issue_duplicates import GitHubIssueDraft, find_duplicate_candidates, record_duplicate_candidates
 from src.github_issue_fields import build_issue_field_projection, projection_to_write_report, validate_issue_fields
 from src.github_issue_index import InMemoryGitHubIssueIndexBackend, reindex_github_issues
+from src.github_issue_live_client import GitHubRestIssueReadClient
+from src.github_issue_sync import GitHubIssueSyncError, sync_github_issues
 from src.tool_domains.common import _parse_tool_args
 
 
@@ -39,7 +42,7 @@ async def do_manage_github_issues(content: str, owner: Optional[str] = None) -> 
         return {"error": "repository is required", "exit_code": 1}
 
     if action == "sync":
-        return _sync_gate(repository=repository)
+        return _sync(args, owner=caller_owner, repository=repository)
     if action == "duplicate_search":
         return _duplicate_search(args, owner=caller_owner, repository=repository)
     if action == "set_fields":
@@ -47,16 +50,65 @@ async def do_manage_github_issues(content: str, owner: Optional[str] = None) -> 
     return _create_triaged(args, owner=caller_owner, repository=repository)
 
 
-def _sync_gate(*, repository: str) -> Dict[str, Any]:
+def _sync_gate(*, repository: str, reason: str = "") -> Dict[str, Any]:
     return {
         "status": "needs_live_go",
         "requires_confirmation": True,
         "requires_live_go": True,
         "repository": repository,
+        "reason": reason or "live_read_sync_not_confirmed_or_not_enabled",
         "next_action": (
-            "Approve a bounded GitHub read-only sync with server-side credentials. "
-            "This tool will not accept provider tokens in chat."
+            "Approve a bounded GitHub read-only sync with server-side credentials or "
+            "an explicit public unauthenticated read gate. This tool will not accept "
+            "provider tokens in chat."
         ),
+        "exit_code": 0,
+    }
+
+
+def _sync(args: dict[str, Any], *, owner: str, repository: str) -> Dict[str, Any]:
+    if not _confirmed(args):
+        return _sync_gate(repository=repository, reason="confirmation_required")
+    if not _env_bool("GITHUB_ISSUE_SYNC_LIVE_ENABLED"):
+        return _sync_gate(repository=repository, reason="server_live_sync_disabled")
+    if not _repository_allowed(repository):
+        return _sync_gate(repository=repository, reason="repository_not_allowlisted")
+
+    max_items = _bounded_int(
+        args.get("max_items") or args.get("limit") or os.environ.get("GITHUB_ISSUE_SYNC_MAX_ITEMS"),
+        default=50,
+        minimum=1,
+        maximum=500,
+    )
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    allow_public = _env_bool("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED")
+    try:
+        client = _make_live_read_client(token=token, allow_public=allow_public, max_items=max_items)
+        with SessionLocal() as db:
+            result = sync_github_issues(
+                db,
+                owner=owner,
+                repository=repository,
+                client=client,
+            )
+    except GitHubIssueSyncError as exc:
+        return {
+            "status": "blocked",
+            "requires_confirmation": True,
+            "requires_live_go": True,
+            "repository": repository,
+            "error": str(exc),
+            "exit_code": 1,
+        }
+
+    return {
+        "status": "synced",
+        "repository": repository,
+        "owner": owner,
+        "sync": result.to_dict(),
+        "auth_mode": "server_token" if bool(token) else "public_unauthenticated",
+        "max_items": max_items,
+        "provider_writes_performed": 0,
         "exit_code": 0,
     }
 
@@ -255,3 +307,31 @@ def _required_arg(args: dict[str, Any], name: str) -> str:
 
 def _confirmed(args: dict[str, Any]) -> bool:
     return bool(args.get("confirmed") or args.get("confirm"))
+
+
+def _env_bool(name: str) -> bool:
+    return str(os.environ.get(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _repository_allowed(repository: str) -> bool:
+    raw = str(os.environ.get("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES") or "").strip()
+    if not raw:
+        return False
+    allowed = {item.strip() for item in raw.split(",") if item.strip()}
+    return "*" in allowed or repository in allowed
+
+
+def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(minimum, min(number, maximum))
+
+
+def _make_live_read_client(*, token: str, allow_public: bool, max_items: int) -> GitHubRestIssueReadClient:
+    return GitHubRestIssueReadClient(
+        token=token,
+        allow_unauthenticated_public=allow_public,
+        max_items=max_items,
+    )

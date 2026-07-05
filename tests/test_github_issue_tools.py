@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from core.database import Base, GitHubIssueRecord
 from src.agent_tools import TOOL_TAGS, ToolBlock
 from src.github_issue_fields import default_issue_field_definitions
+from src.github_issue_sync import GitHubIssueSyncItem, GitHubIssueSyncPage
 from src.mcp_server_tool_policy import classify_mcp_tool
 from src.tool_execution import execute_tool_block
 from src.tool_implementations import do_manage_github_issues
@@ -154,6 +155,76 @@ async def test_sync_and_write_actions_are_gated_without_live_go(monkeypatch):
     )
     assert confirmed["status"] == "needs_live_go"
     assert confirmed["requires_live_go"] is True
+
+
+@pytest.mark.asyncio
+async def test_sync_runs_when_server_live_gate_and_repo_allowlist_are_set(monkeypatch):
+    monkeypatch.setattr("src.tool_domains.github_issues.SessionLocal", _session_factory())
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_LIVE_ENABLED", "true")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES", "fuzzy123-ai/odysseus-fuzzy")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED", "true")
+
+    class FakeLiveReadClient:
+        def __init__(self, *, token, allow_public, max_items):
+            self.calls = []
+
+        def list_issues_page(self, *, repository, since, cursor):
+            self.calls.append((repository, since, cursor))
+            return GitHubIssueSyncPage(
+                issues=(
+                    GitHubIssueSyncItem(
+                        external_id="9",
+                        title="Live synced issue",
+                        labels=("area/github",),
+                    ),
+                )
+            )
+
+    monkeypatch.setattr(
+        "src.tool_domains.github_issues._make_live_read_client",
+        lambda *, token, allow_public, max_items: FakeLiveReadClient(
+            token=token,
+            allow_public=allow_public,
+            max_items=max_items,
+        ),
+    )
+
+    result = await do_manage_github_issues(
+        json.dumps(
+            {
+                "action": "sync",
+                "repository": "fuzzy123-ai/odysseus-fuzzy",
+                "confirmed": True,
+                "max_items": 5,
+            }
+        ),
+        owner="alice",
+    )
+
+    assert result["status"] == "synced"
+    assert result["provider_writes_performed"] == 0
+    assert result["sync"]["fetched"] == 1
+    assert result["sync"]["created"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sync_blocks_when_repository_is_not_allowlisted(monkeypatch):
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_LIVE_ENABLED", "true")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES", "other/repo")
+
+    result = await do_manage_github_issues(
+        json.dumps(
+            {
+                "action": "sync",
+                "repository": "fuzzy123-ai/odysseus-fuzzy",
+                "confirmed": True,
+            }
+        ),
+        owner="alice",
+    )
+
+    assert result["status"] == "needs_live_go"
+    assert result["reason"] == "repository_not_allowlisted"
 
 
 @pytest.mark.asyncio

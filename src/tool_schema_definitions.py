@@ -1041,11 +1041,11 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_github_issues",
-            "description": "GitHub Issue Intelligence. Use for local duplicate issue preview, provider sync planning, triaged issue creation planning, and GitHub Issue Fields/label fallback planning. duplicate_search is local/read-only over already-synced issue records. sync requires a bounded live read gate and never accepts provider tokens in chat. create_triaged and set_fields are write-like and require confirmed=true plus future live/auth gates; without those gates they return a safe plan/blocker instead of writing to GitHub.",
+            "description": "GitHub Issue Intelligence. Use for local duplicate issue preview, bounded provider sync, triaged issue creation planning, and GitHub Issue Fields/label fallback planning. duplicate_search is local/read-only over already-synced issue records. sync is read-only against GitHub and writes only local IssueRecord rows when confirmed=true and server-side env gates plus repository allowlist are enabled; it never accepts provider tokens in chat. create_triaged and set_fields are write-like and require confirmed=true plus future live/auth gates; without those gates they return a safe plan/blocker instead of writing to GitHub.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["sync", "duplicate_search", "create_triaged", "set_fields"], "description": "sync returns the live read gate; duplicate_search returns local top duplicate candidates; create_triaged plans a confirmed issue create; set_fields plans GitHub Issue Fields or label fallback updates."},
+                    "action": {"type": "string", "enum": ["sync", "duplicate_search", "create_triaged", "set_fields"], "description": "sync performs bounded read-only provider sync only when confirmed and server-side gates are enabled; duplicate_search returns local top duplicate candidates; create_triaged plans a confirmed issue create; set_fields plans GitHub Issue Fields or label fallback updates."},
                     "repository": {"type": "string", "description": "Provider repository slug, e.g. fuzzy123-ai/odysseus-fuzzy."},
                     "title": {"type": "string", "description": "Draft issue title for duplicate_search or create_triaged."},
                     "body": {"type": "string", "description": "Draft issue body. The duplicate report returns body length, not raw private provider content."},
@@ -1056,6 +1056,8 @@ FUNCTION_TOOL_SCHEMAS = [
                     "persist": {"type": "boolean", "description": "For duplicate_search, persist pending local duplicate evidence when source_issue_id is provided."},
                     "record": {"type": "boolean", "description": "Alias for persist."},
                     "top_k": {"type": "integer", "description": "Max duplicate candidates, default 3."},
+                    "max_items": {"type": "integer", "description": "For sync, maximum provider issues to read in one bounded run, capped server-side."},
+                    "limit": {"type": "integer", "description": "Alias for max_items on sync."},
                     "include_closed": {"type": "boolean", "description": "Whether duplicate_search includes closed issues, default true."},
                     "fields": {"type": "object", "description": "Canonical issue fields: type, priority, effort, area, status, start_date, target_date, duplicate_of."},
                     "type": {"type": "string", "description": "Canonical issue type field."},
@@ -1067,7 +1069,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "target_date": {"type": "string", "description": "YYYY-MM-DD target date."},
                     "duplicate_of": {"type": "string", "description": "Duplicate reference such as #123."},
                     "duplicate_confirmed": {"type": "boolean", "description": "For create_triaged, acknowledges high-confidence duplicate candidates."},
-                    "confirmed": {"type": "boolean", "description": "Required true for write-like create_triaged and set_fields after explicit user confirmation."},
+                    "confirmed": {"type": "boolean", "description": "Required true for live-read sync and for write-like create_triaged/set_fields after explicit user confirmation."},
                     "operator_go": {"type": "boolean", "description": "Future live write gate; this repo-only slice only reports the gate."},
                     "live_enabled": {"type": "boolean", "description": "Future live write gate; this repo-only slice only reports the gate."},
                     "auth_ready": {"type": "boolean", "description": "Future provider credential gate; never pass tokens in chat."}

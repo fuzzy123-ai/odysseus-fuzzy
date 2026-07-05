@@ -88,6 +88,26 @@ def test_github_issue_duplicates_route_returns_top_candidates():
     assert all("possible duplicate" in candidate["reason"] for candidate in candidates)
 
 
+def test_github_issue_sync_route_uses_gated_tool(monkeypatch):
+    async def fake_manage(content, owner=None):
+        return {"status": "needs_live_go", "owner": owner, "exit_code": 0}
+
+    monkeypatch.setattr("routes.github_issue_routes.do_manage_github_issues", fake_manage)
+    response = _client().post(
+        "/api/github-issues/sync",
+        json={
+            "repository": "fuzzy123-ai/odysseus-fuzzy",
+            "max_items": 5,
+            "confirmed": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "needs_live_go"
+    assert payload["owner"] == "default"
+
+
 def test_github_issue_write_plan_set_fields_does_not_write_provider():
     response = _client().post(
         "/api/github-issues/write-plan",

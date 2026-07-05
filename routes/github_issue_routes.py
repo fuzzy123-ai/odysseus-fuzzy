@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Callable
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +15,7 @@ from src.auth_helpers import get_current_user
 from src.github_issue_duplicates import GitHubIssueDraft, find_duplicate_candidates
 from src.github_issue_fields import build_issue_field_projection, projection_to_write_report, validate_issue_fields
 from src.github_issue_index import InMemoryGitHubIssueIndexBackend, reindex_github_issues
+from src.tool_domains.github_issues import do_manage_github_issues
 
 
 SessionFactory = Callable[[], Session]
@@ -28,6 +30,12 @@ class GitHubIssueDuplicateRequest(BaseModel):
     external_id: str = ""
     top_k: int = 3
     include_closed: bool = True
+
+
+class GitHubIssueSyncRequest(BaseModel):
+    repository: str = Field(min_length=1, max_length=260)
+    max_items: int = Field(default=50, ge=1, le=500)
+    confirmed: bool = False
 
 
 class GitHubIssueWritePlanRequest(BaseModel):
@@ -79,6 +87,22 @@ def setup_github_issue_routes(
             "sync": _sync_gate(repository),
             "writes": _write_gate(repository),
         }
+
+    @router.post("/sync")
+    async def github_issue_sync(request: Request, body: GitHubIssueSyncRequest) -> dict[str, Any]:
+        require_admin_fn(request)
+        owner = _owner(request)
+        return await do_manage_github_issues(
+            json.dumps(
+                {
+                    "action": "sync",
+                    "repository": body.repository,
+                    "max_items": body.max_items,
+                    "confirmed": body.confirmed,
+                }
+            ),
+            owner=owner,
+        )
 
     @router.post("/duplicates")
     def github_issue_duplicates(request: Request, body: GitHubIssueDuplicateRequest) -> dict[str, Any]:
