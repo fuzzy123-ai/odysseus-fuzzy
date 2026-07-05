@@ -269,6 +269,7 @@ def test_agent_system_prompt_includes_runtime_snapshot_outside_system(monkeypatc
     ]
     assert len(snapshot_messages) == 1
     assert "claim_evidence_gate: active_post_stream" in snapshot_messages[0]["content"]
+    assert "capability_first_gate: active_repo_side_program_screenshot" in snapshot_messages[0]["content"]
     assert "playwright" in snapshot_messages[0]["content"]
 
 

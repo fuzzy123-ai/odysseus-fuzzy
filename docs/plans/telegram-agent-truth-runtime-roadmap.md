@@ -34,14 +34,15 @@ Neu implementiert in diesem Slice:
 - Tone-Gate entfernt Jubel-/Emoji-Sprache bei nicht verifizierten Erfolgsclaims.
 - Tool-Transaction-Ledger modelliert wirkungsvolle Toolausfuehrungen als `succeeded`, `failed`, `blocked` oder `verified`.
 - ClaimEvidenceGate kann Erfolgsaussagen gegen Tool-Transaktionen statt nur gegen freie Tool-Output-Prosa pruefen.
+- Capability-First-Gate modelliert Programm-/Screenshot-Aufgaben vor dem Start als `ready` oder `blocked`.
+- Telegram-Run-State-Contract erzeugt die Sequenz `accepted`, `checking_capabilities`, `running`, `artifact_ready`, `sent`, `verified_done`, `blocked`, `failed`.
+- Effectful-Tool-Matrix erweitert den Completion-Verifier um Sandbox-, Telegram-, Browser/Playwright-, Quality-Gate- und Git-Side-Effects.
+- Regression-Metriken messen unsupported success, Delegate-Alibi, Repeated-Confirmation und Tone-Gate-Verletzungen.
 
-Noch kritisch:
+Noch offen fuer Live:
 
-- Der Claim-Gate korrigiert noch nachtraeglich; er verhindert nicht alle schon gestreamten Tokens.
-- Capability-Checks fuer GUI/Screenshot-Aufgaben sind noch nicht als Pflichtphase vor Umsetzung modelliert.
-- Tonalitaet ist fuer Telegram-Pre-Send-Erfolgsclaims gegatet; ein allgemeiner Agent-Tone-Ledger fehlt noch.
-- Die schlechte Telegram-Konversation ist teilweise als synthetischer Corpus formalisiert; Repeated-Confirmation-Loop braucht noch eine eigene Metrik.
-- Der Tool-Transaction-Ledger ist aktuell in-memory/metrics-basiert; persistente Run-State-UX folgt in TTR-5/TTR-6.
+- Kein echter Telegram-End-to-End-Smoke ohne separates Operator-Go.
+- Der Tool-Transaction-Ledger ist aktuell in-memory/metrics-basiert; persistente externe Audit-Speicherung bleibt ein separates Haertungsthema.
 
 ## Nicht-Ziele
 
@@ -137,6 +138,8 @@ Class: `repo_only`
 
 Owner: Charlie
 
+Status: implemented repo-side.
+
 Goal: GUI/Screenshot/Coding-Aufgaben starten mit einem realen Capability-Check.
 
 Arbeit:
@@ -187,6 +190,8 @@ Class: `repo_only`
 
 Owner: Charlie
 
+Status: implemented repo-side as deterministic run-state contract.
+
 Goal: Telegram zeigt nachvollziehbare Run-Zustaende statt freier Arbeitsprosa.
 
 Arbeit:
@@ -214,6 +219,8 @@ Class: `repo_only`
 
 Owner: Bob
 
+Status: implemented repo-side for verifier snapshots.
+
 Goal: Der Completion-Verifier sieht moderne Side Effects.
 
 Arbeit:
@@ -237,6 +244,8 @@ Akzeptanz:
 Class: `safe_offline`
 
 Owner: Charlie
+
+Status: implemented repo-side using the redacted Telegram review corpus.
 
 Goal: Die beobachteten Fehler werden dauerhaft messbar.
 
@@ -265,10 +274,10 @@ Akzeptanz:
 2. TTR-1 Pre-Send Claim Gate fuer Telegram. Done repo-side for text replies.
 3. TTR-4 Tone Gate. Done repo-side for unverified Telegram success claims.
 4. TTR-2 Tool Transaction Ledger. Done repo-side for agent tool events and ClaimEvidenceGate.
-5. TTR-3 Capability-First Execution Gate.
-6. TTR-5 Telegram Run-State UX.
-7. TTR-6 Effectful Tool Matrix.
-8. TTR-7 Regression Suite als CI-/Nightly-Basis.
+5. TTR-3 Capability-First Execution Gate. Done repo-side for program/screenshot prerequisites.
+6. TTR-5 Telegram Run-State UX. Done repo-side as deterministic run-state contract.
+7. TTR-6 Effectful Tool Matrix. Done repo-side for verifier snapshots.
+8. TTR-7 Regression Suite als CI-/Nightly-Basis. Done repo-side for redacted review failures.
 
 ## Gate Queue
 
@@ -284,15 +293,20 @@ Safe preparation done: Repo-only Gates, Fixtures und Tests koennen vorher gebaut
 
 Risk if bypassed: echte Telegram-Nachrichten oder Chat-/Token-Leaks ohne Freigabe.
 
-Next safe slice: TTR-0 oder TTR-1.
+Next safe slice: optional live smoke only after explicit Operator-Go.
 
 ## Done Definition
 
-Diese Roadmap ist done, wenn:
+Diese Roadmap ist repo-side done, wenn:
 
 - Telegram-Antworten pre-send gegated sind.
 - Tool-Transaktionen Evidence-gebunden sind.
 - GUI/Screenshot-Aufgaben erst nach Capability-Check starten.
 - Tonalitaet an Truth-Status gebunden ist.
 - Der schlechte Telegram-Chat als Regressionstest abgedeckt ist.
-- Ein optionaler Live-Smoke nach separatem Go die Sequenz `accepted -> checking_capabilities -> running -> artifact_ready -> sent -> verified_done` oder einen korrekten Blocker zeigt.
+
+Repo-side Status: done.
+
+Optionaler Live-Abschluss nach separatem Go:
+
+- Ein bounded Live-Smoke zeigt die Sequenz `accepted -> checking_capabilities -> running -> artifact_ready -> sent -> verified_done` oder einen korrekten Blocker.

@@ -5,16 +5,15 @@ import logging
 import re
 from typing import Dict, List, Optional
 
+from src.effectful_tool_matrix import build_effectful_action_snapshot, effectful_tool_names
+
 logger = logging.getLogger(__name__)
 
 # ── Completion verifier ──
 # Tools whose effects produce a checkable artifact. A turn that used one of
 # these is "effectful" and worth an independent completion check; pure
 # read-only / Q&A turns are not.
-_VERIFIER_EFFECTFUL_TOOLS = {
-    "create_document", "update_document", "edit_document",
-    "bash", "python", "write_file",
-}
+_VERIFIER_EFFECTFUL_TOOLS = set(effectful_tool_names())
 _VERIFIER_MAX_ROUNDS = 2  # cap re-verify cycles per turn — never loop forever
 
 
@@ -32,6 +31,12 @@ def _build_actions_snapshot(tool_events: list, limit: int = 8000) -> str:
         rc_s = f" (exit {rc})" if rc not in (None, 0) else ""
         body = (out[:1200] + " …") if len(out) > 1200 else (out or "(no output)")
         parts.append(f"{head}{rc_s}\n-> {body}")
+    evidence_snapshot = build_effectful_action_snapshot(tool_events)
+    if evidence_snapshot.get("transactions") or evidence_snapshot.get("categories"):
+        parts.append(
+            "[machine_evidence]\n-> "
+            + json.dumps(evidence_snapshot, ensure_ascii=True, sort_keys=True)[:3000]
+        )
     snap = "\n\n".join(parts)
     return snap[:limit] if len(snap) > limit else snap
 

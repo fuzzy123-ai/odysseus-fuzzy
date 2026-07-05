@@ -23,8 +23,11 @@ def build_runtime_snapshot(*, repo_root: Path | str | None = None) -> dict[str, 
         "delegate": "read_only_analysis_only",
         "claim_evidence_gate": "active_post_stream",
         "artifact_integrity": "active_sandbox_logs_and_telegram_images",
+        "tool_transaction_ledger": "active_agent_metrics_claim_gate",
+        "capability_first_gate": "active_repo_side_program_screenshot",
+        "telegram_run_state": "active_repo_side_contract",
         "limits": (
-            "no_pre_send_claim_blocking_yet",
+            "live_telegram_smoke_requires_operator_go",
             "live_actions_still_operator_gated",
         ),
     }
@@ -53,6 +56,9 @@ def render_runtime_snapshot(snapshot: dict[str, Any]) -> str:
         f"- delegate: {snapshot.get('delegate') or 'unknown'}\n"
         f"- claim_evidence_gate: {snapshot.get('claim_evidence_gate') or 'unknown'}\n"
         f"- artifact_integrity: {snapshot.get('artifact_integrity') or 'unknown'}\n"
+        f"- tool_transaction_ledger: {snapshot.get('tool_transaction_ledger') or 'unknown'}\n"
+        f"- capability_first_gate: {snapshot.get('capability_first_gate') or 'unknown'}\n"
+        f"- telegram_run_state: {snapshot.get('telegram_run_state') or 'unknown'}\n"
         f"- limits: {limits}\n"
         "- local changes/patch notes source: use recent_changes"
     )
