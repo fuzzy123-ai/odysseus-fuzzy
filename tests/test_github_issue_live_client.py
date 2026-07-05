@@ -95,6 +95,33 @@ def test_live_client_redacts_http_token_errors():
     assert "[redacted-secret]" in message
 
 
+def test_live_client_can_fallback_to_public_read_when_server_token_is_bad():
+    seen_auth = []
+
+    def opener(request, timeout):
+        seen_auth.append(request.headers.get("Authorization"))
+        if request.headers.get("Authorization"):
+            raise HTTPError(
+                request.full_url,
+                401,
+                "bad",
+                {},
+                _Response({"message": "bad Authorization: Bearer ghp_secret"}),
+            )
+        return _Response([{"number": 3, "title": "Public issue"}])
+
+    client = GitHubRestIssueReadClient(
+        token="ghp_server_side",
+        allow_unauthenticated_public=True,
+        opener=opener,
+    )
+    page = client.list_issues_page(repository="fuzzy123-ai/odysseus-fuzzy", since=None, cursor=None)
+
+    assert seen_auth == ["Bearer ghp_server_side", None]
+    assert client.auth_mode == "public_unauthenticated"
+    assert [issue.external_id for issue in page.issues] == ["3"]
+
+
 def test_live_client_rejects_non_slug_repository():
     client = GitHubRestIssueReadClient(allow_unauthenticated_public=True)
     with pytest.raises(GitHubIssueSyncError, match="owner/repo"):

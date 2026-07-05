@@ -41,6 +41,7 @@ class GitHubRestIssueReadClient:
         self.timeout = max(1, min(int(timeout), 60))
         self._opener = opener or self._default_open
         self._returned = 0
+        self.auth_mode = "server_token" if self.token else "public_unauthenticated"
         if not self.token and not self.allow_unauthenticated_public:
             raise GitHubIssueSyncError("server-side GitHub credentials are not configured")
 
@@ -82,26 +83,32 @@ class GitHubRestIssueReadClient:
         return GitHubIssueSyncPage(issues=tuple(issues), next_cursor=next_cursor)
 
     def _request_json(self, url: str) -> Any:
+        raw = self._request_raw(url, token=self.token)
+        try:
+            return json.loads(raw or "null")
+        except json.JSONDecodeError as exc:
+            raise GitHubIssueSyncError("GitHub issue sync returned invalid JSON") from exc
+
+    def _request_raw(self, url: str, *, token: str) -> str:
         headers = {
             "Accept": "application/vnd.github+json",
             "User-Agent": "odysseus-github-issue-sync",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         request = urllib.request.Request(url, headers=headers, method="GET")
         try:
             with self._opener(request, self.timeout) as response:
-                raw = response.read().decode("utf-8", errors="replace")
+                self.auth_mode = "server_token" if token else "public_unauthenticated"
+                return response.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:240]
+            if exc.code == 401 and token and self.allow_unauthenticated_public:
+                return self._request_raw(url, token="")
             raise GitHubIssueSyncError(f"GitHub issue sync failed with HTTP {exc.code}: {_redact(body)}") from exc
         except Exception as exc:
             raise GitHubIssueSyncError(_redact(str(exc))) from exc
-        try:
-            return json.loads(raw or "null")
-        except json.JSONDecodeError as exc:
-            raise GitHubIssueSyncError("GitHub issue sync returned invalid JSON") from exc
 
     @staticmethod
     def _default_open(request: urllib.request.Request, timeout: int) -> Any:

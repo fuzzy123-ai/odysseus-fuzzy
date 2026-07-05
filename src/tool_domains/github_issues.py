@@ -106,7 +106,7 @@ def _sync(args: dict[str, Any], *, owner: str, repository: str) -> Dict[str, Any
         "repository": repository,
         "owner": owner,
         "sync": result.to_dict(),
-        "auth_mode": "server_token" if bool(token) else "public_unauthenticated",
+        "auth_mode": getattr(client, "auth_mode", "server_token" if bool(token) else "public_unauthenticated"),
         "max_items": max_items,
         "provider_writes_performed": 0,
         "exit_code": 0,
