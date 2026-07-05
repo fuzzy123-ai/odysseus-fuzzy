@@ -247,6 +247,23 @@ async def test_sync_reports_readiness_when_confirmed_is_missing(monkeypatch):
     assert result["reason"] == "confirmation_required"
 
 
+def test_sync_readiness_does_not_claim_server_token_is_validated(monkeypatch):
+    from src.tool_domains.github_issues import build_github_issue_sync_readiness
+
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_LIVE_ENABLED", "true")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES", "fuzzy123-ai/odysseus-fuzzy")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED", "true")
+    monkeypatch.setenv("GITHUB_TOKEN", "server-side-token")
+
+    readiness = build_github_issue_sync_readiness("fuzzy123-ai/odysseus-fuzzy")
+
+    assert readiness["status"] == "ready_for_confirmed_sync"
+    assert readiness["auth_mode"] == "server_token_or_public_unauthenticated"
+    assert readiness["server_token_present"] is True
+    assert readiness["server_token_validated"] is False
+    assert readiness["public_fallback_enabled"] is True
+
+
 @pytest.mark.asyncio
 async def test_create_triaged_blocks_on_high_confidence_duplicate(monkeypatch):
     monkeypatch.setattr("src.tool_domains.github_issues.SessionLocal", _session_factory())

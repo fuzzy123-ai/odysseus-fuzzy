@@ -32,13 +32,22 @@ def build_github_issue_sync_readiness(repository: str) -> Dict[str, Any]:
         return _sync_gate(repository=repository, reason="repository_not_allowlisted")
     if not token_present and not allow_public:
         return _sync_gate(repository=repository, reason="server_auth_not_ready")
+    if token_present and allow_public:
+        auth_mode = "server_token_or_public_unauthenticated"
+    elif token_present:
+        auth_mode = "server_token_unverified"
+    else:
+        auth_mode = "public_unauthenticated"
     return {
         "status": "ready_for_confirmed_sync",
         "repository": repository,
         "requires_confirmation": True,
         "requires_live_go": True,
         "auth_ready": True,
-        "auth_mode": "server_token" if token_present else "public_unauthenticated",
+        "auth_mode": auth_mode,
+        "server_token_present": token_present,
+        "server_token_validated": False,
+        "public_fallback_enabled": allow_public,
         "max_items": _bounded_int(os.environ.get("GITHUB_ISSUE_SYNC_MAX_ITEMS"), default=50, minimum=1, maximum=500),
         "provider_writes_performed": 0,
         "next_action": "Call sync with confirmed=true and a bounded max_items value. Never pass provider tokens in chat.",

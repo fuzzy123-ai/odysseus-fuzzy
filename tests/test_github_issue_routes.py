@@ -80,6 +80,7 @@ def test_github_issue_readiness_reports_ready_sync_when_env_is_configured(monkey
     payload = response.json()
     assert payload["sync"]["status"] == "ready_for_confirmed_sync"
     assert payload["sync"]["auth_ready"] is True
+    assert payload["sync"]["auth_mode"] == "public_unauthenticated"
     assert payload["sync"]["provider_writes_performed"] == 0
 
 
