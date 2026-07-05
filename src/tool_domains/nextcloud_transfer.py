@@ -183,7 +183,21 @@ def _execute_with_source(
                     "raw_content_visible": False,
                     "exit_code": 0,
                 }
-        result = execute_universal_inbox_nextcloud_transfer(request, client=client)
+        try:
+            result = execute_universal_inbox_nextcloud_transfer(request, client=client)
+        except Exception as exc:
+            return {
+                "status": "blocked",
+                "reason": "nextcloud_webdav_request_failed",
+                "error_class": type(exc).__name__,
+                "dry_run": dry_run,
+                "writes_performed": False,
+                "nextcloud_write_performed": False,
+                "secret_values_visible": False,
+                "host_paths_visible": False,
+                "raw_content_visible": False,
+                "exit_code": 0,
+            }
     finally:
         close = getattr(client, "close", None)
         if callable(close):

@@ -150,3 +150,39 @@ async def test_nextcloud_execute_dispatches_and_live_copy_uses_webdav_adapter(mo
     assert "secret-app-password" not in encoded
     assert result["secret_values_visible"] is False
     assert result["host_paths_visible"] is False
+
+
+@pytest.mark.asyncio
+async def test_nextcloud_execute_reports_webdav_runtime_failure_without_traceback(monkeypatch):
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED", "true")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO", "true")
+
+    class FailingClient:
+        def stat(self, _relative_path):
+            raise RuntimeError("dns failure with private details")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("src.nextcloud_webdav_client.build_nextcloud_webdav_client_from_env", lambda: FailingClient())
+
+    result = await do_manage_nextcloud_transfer(
+        json.dumps(
+            {
+                "action": "execute",
+                "target_path": "Odysseus/Test/smoke.txt",
+                "sidecar_path": "Odysseus/Test/smoke.odysseus.json",
+                "dry_run": False,
+                "review_approved": True,
+                "operator_live_go": True,
+            }
+        ),
+        owner="alice",
+    )
+
+    assert result["status"] == "blocked"
+    assert result["reason"] == "nextcloud_webdav_request_failed"
+    assert result["error_class"] == "RuntimeError"
+    assert result["writes_performed"] is False
+    encoded = json.dumps(result, sort_keys=True)
+    assert "dns failure with private details" not in encoded
