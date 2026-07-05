@@ -45,12 +45,14 @@ def test_auto_update_wrapper_refreshes_tool_capability_after_readiness():
     chroma_wait_index = script.index('wait_http "$CHROMA_URL" "chromadb"')
     version_check_index = script.index("version API does not report deployed commit")
     refresh_log_index = script.index("refreshing tool capability knowledge")
-    refresh_index = script.index("scripts/refresh_tool_capability_knowledge.py")
+    refresh_index = script.index('refresh_tool_capability_knowledge "$short_commit"')
     completed_index = script.index("scheduled update completed")
 
     assert app_wait_index < chroma_wait_index < version_check_index
     assert version_check_index < refresh_log_index < refresh_index < completed_index
-    assert 'python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$short_commit"' in script
+    assert "podman exec odysseus_odysseus_1" in script
+    assert 'python scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$commit"' in script
+    assert 'python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$commit"' in script
 
 
 def test_auto_update_wrapper_uses_podman_and_never_docker():

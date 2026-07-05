@@ -100,6 +100,16 @@ compose_up() {
   fi
 }
 
+refresh_tool_capability_knowledge() {
+  local commit="$1"
+  if podman container exists odysseus_odysseus_1 >/dev/null 2>&1; then
+    podman exec odysseus_odysseus_1 \
+      python scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$commit"
+  else
+    python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$commit"
+  fi
+}
+
 wait_http() {
   local url="$1"
   local label="$2"
@@ -186,7 +196,7 @@ case "$version_json" in
 esac
 
 log "refreshing tool capability knowledge"
-python3 scripts/refresh_tool_capability_knowledge.py --reason post-update --commit "$short_commit"
+refresh_tool_capability_knowledge "$short_commit"
 
 log "scheduled update completed at $short_commit"
 EOF
