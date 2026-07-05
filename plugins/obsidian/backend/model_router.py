@@ -11,7 +11,11 @@ from src.endpoint_resolver import (
     resolve_endpoint_by_id,
 )
 from src.llm_core import llm_call_async
+from src.model_episode_store import append_model_episode
 from src.model_context import DEFAULT_CONTEXT, get_context_length, is_local_endpoint
+from src.model_reward_contract import ModelEpisode, ModelEpisodeAction, ModelEpisodeOutcome, ModelEpisodeState
+from src.model_reward_scorer import score_episode
+from src.model_routing_policy import ModelRoutingCandidate, recommend_model_routing
 from src.settings import get_user_setting
 
 logger = logging.getLogger(__name__)
@@ -281,6 +285,99 @@ def _ordered_answer_candidates(owner: Optional[str], requested_mode: str) -> Lis
     return []
 
 
+def _rl_policy_mode(owner: Optional[str]) -> str:
+    mode = str(get_user_setting("model_rl_policy_mode", owner or "", "off") or "off").strip().lower()
+    return mode if mode in {"off", "shadow", "active"} else "off"
+
+
+def _rl_policy_shadow_summary(
+    *,
+    owner: Optional[str],
+    candidates: Sequence[_Candidate],
+    citation_required: bool = False,
+    local_only_required: bool = False,
+) -> Dict[str, Any]:
+    if _rl_policy_mode(owner) != "shadow" or not candidates:
+        return {}
+    routing_candidates = [
+        ModelRoutingCandidate.create(
+            candidate_id=_candidate_policy_id(candidate),
+            provider=candidate.provider,
+            model=candidate.model,
+            answer_mode=candidate.mode,
+        )
+        for candidate in candidates
+    ]
+    decision = recommend_model_routing(
+        state=ModelEpisodeState.create(
+            surface="memory.answer",
+            task_type="evidence_summary",
+            owner_label="owner",
+            citation_required=citation_required,
+            local_only_required=local_only_required,
+        ),
+        candidates=routing_candidates,
+        reward_history=(),
+    )
+    return decision.audit_summary()
+
+
+def _candidate_policy_id(candidate: _Candidate) -> str:
+    return candidate.endpoint_id or f"{candidate.mode}:{candidate.provider}:{candidate.model}"
+
+
+def _record_memory_episode_safely(
+    *,
+    owner: Optional[str],
+    candidate: Optional[_Candidate],
+    status: str,
+    citation_count: int,
+    confidence: str,
+    fallback_reason: str = "",
+    warning_codes: Sequence[str] = (),
+    duration_ms: int = 0,
+    requested_mode: str = "auto",
+) -> None:
+    try:
+        action = ModelEpisodeAction.create(
+            answer_mode=candidate.mode if candidate else "extractive",
+            provider=candidate.provider if candidate else "extractive",
+            model=candidate.model if candidate else "extractive",
+            endpoint_ref=_candidate_policy_id(candidate) if candidate else "extractive",
+            prompt_template_id="memory-answer-v1",
+            retrieval_depth=citation_count,
+            max_tokens=500 if candidate else 0,
+        )
+        outcome = ModelEpisodeOutcome.create(
+            status=status,
+            citation_count=citation_count,
+            confidence=_confidence_ratio(confidence),
+            fallback_reason=fallback_reason,
+            warning_codes=tuple(warning_codes),
+            duration_ms=duration_ms,
+        )
+        episode = ModelEpisode.create(
+            state=ModelEpisodeState.create(
+                surface="memory.answer",
+                task_type="evidence_summary",
+                owner_label="owner" if owner else "unknown",
+                retrieval_doc_count=citation_count,
+                citation_required=bool(citation_count),
+                local_only_required=_normalize_mode(requested_mode) == "local",
+                context_budget_tokens=candidate.context_tokens if candidate else 0,
+            ),
+            action=action,
+            outcome=outcome,
+        )
+        append_model_episode(score_episode(episode))
+    except Exception as exc:  # pragma: no cover - defensive, no answer-path breakage
+        logger.warning("Failed to record redacted memory model episode: %s", _sanitize_warning_text(exc))
+
+
+def _confidence_ratio(confidence: str) -> float:
+    return {"high": 0.9, "medium": 0.65, "low": 0.25}.get(str(confidence or "").lower(), 0.0)
+
+
 def resolve_memory_role_status(owner: Optional[str] = None) -> Dict[str, Any]:
     roles: Dict[str, Any] = {}
     configured_warnings: List[str] = []
@@ -333,6 +430,7 @@ def resolve_memory_role_status(owner: Optional[str] = None) -> Dict[str, Any]:
         roles[role] = role_payload
 
     fallbacks = _ordered_answer_candidates(owner, "auto")[1:]
+    all_answer_candidates = _ordered_answer_candidates(owner, "auto")
     return {
         "roles": roles,
         "answer_fallback_chain": [
@@ -346,6 +444,11 @@ def resolve_memory_role_status(owner: Optional[str] = None) -> Dict[str, Any]:
             }
             for candidate in fallbacks
         ],
+        "rl_policy_shadow": _rl_policy_shadow_summary(
+            owner=owner,
+            candidates=all_answer_candidates,
+            citation_required=True,
+        ),
         "warnings": configured_warnings,
     }
 
@@ -407,6 +510,15 @@ async def synthesize_answer(
 ) -> Dict[str, Any]:
     mode = _normalize_mode(requested_mode)
     if mode == "extractive":
+        _record_memory_episode_safely(
+            owner=owner,
+            candidate=None,
+            status="fallback",
+            citation_count=len(citations),
+            confidence=confidence,
+            fallback_reason="requested_extractive",
+            requested_mode=requested_mode,
+        )
         return {
             "answer_mode": "extractive",
             "provider": "",
@@ -420,6 +532,16 @@ async def synthesize_answer(
             "answer": "",
         }
     if not citations:
+        _record_memory_episode_safely(
+            owner=owner,
+            candidate=None,
+            status="fallback",
+            citation_count=0,
+            confidence=confidence,
+            fallback_reason="no_citations",
+            warning_codes=("no_citations",),
+            requested_mode=requested_mode,
+        )
         return {
             "answer_mode": "extractive",
             "provider": "",
@@ -433,6 +555,16 @@ async def synthesize_answer(
             "answer": "",
         }
     if mode == "auto" and confidence == "low":
+        _record_memory_episode_safely(
+            owner=owner,
+            candidate=None,
+            status="fallback",
+            citation_count=len(citations),
+            confidence=confidence,
+            fallback_reason="low_confidence_retrieval",
+            warning_codes=("low_confidence_retrieval",),
+            requested_mode=requested_mode,
+        )
         return {
             "answer_mode": "extractive",
             "provider": "",
@@ -447,7 +579,23 @@ async def synthesize_answer(
         }
 
     candidates = _ordered_answer_candidates(owner, mode)
+    rl_policy_shadow = _rl_policy_shadow_summary(
+        owner=owner,
+        candidates=candidates,
+        citation_required=True,
+        local_only_required=mode == "local",
+    )
     if not candidates:
+        _record_memory_episode_safely(
+            owner=owner,
+            candidate=None,
+            status="fallback",
+            citation_count=len(citations),
+            confidence=confidence,
+            fallback_reason="no_model_available",
+            warning_codes=("no_model_available",),
+            requested_mode=requested_mode,
+        )
         return {
             "answer_mode": "extractive",
             "provider": "",
@@ -458,6 +606,7 @@ async def synthesize_answer(
             "model_context_tokens": 0,
             "model_capability_warnings": ["no_model_available"],
             "warnings": ["no_model_available"],
+            "rl_policy_shadow": rl_policy_shadow,
             "answer": "",
         }
 
@@ -478,6 +627,16 @@ async def synthesize_answer(
                 surface="legacy_vault",
                 prompt_type="legacy_vault_memory_answer",
             )
+            _record_memory_episode_safely(
+                owner=owner,
+                candidate=candidate,
+                status="success",
+                citation_count=len(citations),
+                confidence=confidence,
+                fallback_reason=last_reason,
+                warning_codes=tuple(warnings + list(candidate.warnings)),
+                requested_mode=requested_mode,
+            )
             return {
                 "answer_mode": candidate.mode,
                 "provider": candidate.provider,
@@ -488,6 +647,7 @@ async def synthesize_answer(
                 "model_context_tokens": candidate.context_tokens,
                 "model_capability_warnings": list(candidate.warnings),
                 "warnings": warnings + list(candidate.warnings),
+                "rl_policy_shadow": rl_policy_shadow,
                 "answer": str(answer or "").strip(),
             }
         except Exception as exc:  # pragma: no cover - exercised via tests
@@ -495,6 +655,16 @@ async def synthesize_answer(
             warnings.append(last_reason)
             logger.warning("Memory answer candidate failed: %s", _sanitize_warning_text(exc))
 
+    _record_memory_episode_safely(
+        owner=owner,
+        candidate=None,
+        status="fallback",
+        citation_count=len(citations),
+        confidence=confidence,
+        fallback_reason=last_reason or "all_candidates_failed",
+        warning_codes=tuple(warnings or ["all_candidates_failed"]),
+        requested_mode=requested_mode,
+    )
     return {
         "answer_mode": "extractive",
         "provider": "",
@@ -505,5 +675,6 @@ async def synthesize_answer(
         "model_context_tokens": 0,
         "model_capability_warnings": warnings or ["all_candidates_failed"],
         "warnings": warnings or ["all_candidates_failed"],
+        "rl_policy_shadow": rl_policy_shadow,
         "answer": "",
     }

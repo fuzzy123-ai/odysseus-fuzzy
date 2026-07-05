@@ -50,6 +50,42 @@ def test_model_router_status_uses_defaults_and_hides_secrets(monkeypatch):
     assert status["roles"]["memory.answer"]["provider"] == "DeepSeek"
     assert "secret" not in str(status).lower()
     assert status["warnings"] == []
+    assert status["rl_policy_shadow"] == {}
+
+
+def test_model_router_shadow_policy_reports_without_reordering(monkeypatch):
+    settings = {
+        "memory.answer_model": "default",
+        "memory.answer_fallback_models": [{"endpoint_id": "endpoint-local", "model": "gemma-4"}],
+        "default_endpoint_id": "endpoint-cloud",
+        "model_rl_policy_mode": "shadow",
+    }
+
+    def fake_get_user_setting(key, owner="", default=None):
+        return settings.get(key, default)
+
+    def fake_resolve_endpoint(prefix, owner=None):
+        return "https://api.deepseek.com/v1/chat/completions", "deepseek-chat", {}
+
+    def fake_resolve_endpoint_by_id(endpoint_id, model, owner=None):
+        if endpoint_id == "endpoint-local":
+            return "http://localhost:11434/v1/chat/completions", "gemma-4", {}
+        return None
+
+    monkeypatch.setattr(model_router, "get_user_setting", fake_get_user_setting)
+    monkeypatch.setattr(model_router, "resolve_endpoint", fake_resolve_endpoint)
+    monkeypatch.setattr(model_router, "resolve_chat_fallback_candidates", lambda owner=None: [])
+    monkeypatch.setattr(model_router, "resolve_endpoint_by_id", fake_resolve_endpoint_by_id)
+    monkeypatch.setattr(model_router, "get_context_length", lambda url, model: 64000)
+    monkeypatch.setattr(model_router, "is_local_endpoint", lambda url: "localhost" in url)
+
+    candidates = model_router._ordered_answer_candidates("alice", "auto")
+    status = model_router.resolve_memory_role_status("alice")
+
+    assert [item.endpoint_id for item in candidates] == ["endpoint-cloud", "endpoint-local"]
+    assert status["rl_policy_shadow"]["shadow_only"] is True
+    assert status["rl_policy_shadow"]["ordered_candidate_ids"] == ("endpoint-cloud", "endpoint-local")
+    assert status["roles"]["memory.answer"]["selected_endpoint_id"] == "endpoint-cloud"
 
 
 def test_model_router_falls_back_from_primary_to_local(monkeypatch):
@@ -82,6 +118,8 @@ def test_model_router_falls_back_from_primary_to_local(monkeypatch):
     monkeypatch.setattr(model_router, "get_context_length", lambda url, model: 64000 if "deepseek" in url else 32000)
     monkeypatch.setattr(model_router, "is_local_endpoint", lambda url: "localhost" in url)
     monkeypatch.setattr(model_router, "llm_call_async", fake_llm_call_async)
+    recorded = []
+    monkeypatch.setattr(model_router, "append_model_episode", lambda episode: recorded.append(episode.to_record()))
 
     result = asyncio.run(
         model_router.synthesize_answer(
@@ -98,6 +136,10 @@ def test_model_router_falls_back_from_primary_to_local(monkeypatch):
     assert result["selected_endpoint_id"] == "endpoint-local"
     assert result["fallback_reason"] == "provider_timeout"
     assert result["answer"] == "Local grounded answer."
+    assert recorded[0]["action"]["model"] == "gemma-4"
+    assert recorded[0]["outcome"]["status"] == "success"
+    assert recorded[0]["raw_prompt_visible"] is False
+    assert "Blob" not in str(recorded[0])
 
 
 def test_model_router_degrades_to_extractive_when_every_candidate_fails(monkeypatch):
@@ -120,6 +162,8 @@ def test_model_router_degrades_to_extractive_when_every_candidate_fails(monkeypa
     monkeypatch.setattr(model_router, "get_context_length", lambda url, model: 64000)
     monkeypatch.setattr(model_router, "is_local_endpoint", lambda url: False)
     monkeypatch.setattr(model_router, "llm_call_async", fake_llm_call_async)
+    recorded = []
+    monkeypatch.setattr(model_router, "append_model_episode", lambda episode: recorded.append(episode.to_record()))
 
     result = asyncio.run(
         model_router.synthesize_answer(
@@ -135,3 +179,5 @@ def test_model_router_degrades_to_extractive_when_every_candidate_fails(monkeypa
     assert result["selected_model"] == "extractive"
     assert result["fallback_reason"] == "provider_rate_limited"
     assert "provider_rate_limited" in result["model_capability_warnings"]
+    assert recorded[0]["action"]["model"] == "extractive"
+    assert recorded[0]["outcome"]["fallback_reason"] == "provider_rate_limited"
