@@ -243,6 +243,35 @@ def test_agent_system_prompt_includes_shared_current_time(monkeypatch):
     assert "Australia/Brisbane, UTC+10:00" in datetime_messages[0]["content"]
 
 
+def test_agent_system_prompt_includes_runtime_snapshot_outside_system(monkeypatch):
+    import src.agent_loop as agent_loop
+
+    clear_user_time_context()
+    monkeypatch.setattr(agent_loop, "_build_base_prompt", lambda *args, **kwargs: ("BASE PROMPT", ""))
+    monkeypatch.setattr(agent_loop, "set_active_model", lambda model: None)
+    monkeypatch.setattr(agent_loop, "get_builtin_overrides", lambda: {})
+    monkeypatch.setattr(agent_loop, "_cached_base_prompt", None)
+    monkeypatch.setattr(agent_loop, "_cached_base_prompt_key", None)
+
+    messages, _ = agent_loop._build_system_prompt(
+        [{"role": "user", "content": "hi"}],
+        model="gpt-oss-120b",
+        active_document=None,
+        mcp_mgr=None,
+    )
+
+    system_messages = [m for m in messages if m["role"] == "system"]
+    assert all("## Odysseus runtime snapshot" not in (m.get("content") or "") for m in system_messages)
+
+    snapshot_messages = [
+        m for m in messages
+        if m["role"] == "user" and "## Odysseus runtime snapshot" in (m.get("content") or "")
+    ]
+    assert len(snapshot_messages) == 1
+    assert "claim_evidence_gate: active_post_stream" in snapshot_messages[0]["content"]
+    assert "playwright" in snapshot_messages[0]["content"]
+
+
 def test_calendar_relative_time_parser_handles_dotted_pm(monkeypatch):
     import routes.calendar_routes as calendar_routes
 
