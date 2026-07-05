@@ -182,6 +182,60 @@ class PinnedPublicHttpTransport(httpx.AsyncBaseTransport):
         await self._transport.aclose()
 
 
+class PinnedPublicHttpSyncTransport(httpx.BaseTransport):
+    """Synchronous variant of :class:`PinnedPublicHttpTransport`.
+
+    Use this for sync fetchers such as web_fetch. It preserves the same public
+    resolution and IP-pinning contract as the async transport.
+    """
+
+    def __init__(
+        self,
+        endpoint: PinnedPublicHttpEndpoint,
+        *,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self.endpoint = endpoint
+        self._transport = transport or httpx.HTTPTransport(retries=0)
+        self.requests: int = 0
+
+    @classmethod
+    def for_url(cls, url: str) -> "PinnedPublicHttpSyncTransport":
+        cleaned = validate_public_http_url(url)
+        parsed = urlparse(cleaned)
+        hostname = (parsed.hostname or "").lower()
+        pinned_ips = resolve_public_hostname_ips(hostname)
+        return cls(PinnedPublicHttpEndpoint(
+            url=cleaned,
+            hostname=hostname,
+            port=parsed.port,
+            pinned_ips=pinned_ips,
+        ))
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        hostname = (request.url.host or "").lower()
+        if hostname != self.endpoint.hostname:
+            raise httpx.ConnectError("Pinned public transport host mismatch", request=request)
+        pinned_ip = self.endpoint.pinned_ips[self.requests % len(self.endpoint.pinned_ips)]
+        self.requests += 1
+        rewritten_url = request.url.copy_with(host=pinned_ip)
+        headers = request.headers.copy()
+        headers["Host"] = _host_header(self.endpoint.hostname, request.url.port)
+        extensions = dict(request.extensions)
+        extensions["sni_hostname"] = self.endpoint.hostname
+        pinned_request = httpx.Request(
+            request.method,
+            rewritten_url,
+            headers=headers,
+            stream=request.stream,
+            extensions=extensions,
+        )
+        return self._transport.handle_request(pinned_request)
+
+    def close(self) -> None:
+        self._transport.close()
+
+
 def _host_header(hostname: str, port: int | None) -> str:
     if port is None:
         return hostname

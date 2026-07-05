@@ -49,6 +49,8 @@ def test_sensitive_key_filenames():
     assert _is_sensitive_path("/tmp/id_rsa")
     assert _is_sensitive_path("/tmp/id_ed25519")
     assert _is_sensitive_path("/tmp/authorized_keys")
+    assert _is_sensitive_path("/tmp/ID_RSA")
+    assert _is_sensitive_path("/tmp/.SSH/config")
 
 
 def test_non_sensitive_path():

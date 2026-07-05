@@ -331,7 +331,7 @@ class LsTool:
 
 class GlobTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import _is_sensitive_path, _resolve_search_root, _truncate
         args = {}
         _s = (content or "").strip()
         if _s.startswith("{"):
@@ -359,7 +359,7 @@ class GlobTool:
             if not any(c in norm_pat for c in "*?["):
                 cand = os.path.normpath(os.path.join(base, norm_pat))
                 if os.path.exists(cand):
-                    return [cand], None
+                    return ([] if _is_sensitive_path(cand) else [cand]), None
                 # Literal not at exact path — fall through to walk so
                 # e.g. "foo.py" still matches at any depth (like rglob).
             # Compile glob to regex: * stays within one segment, **/ spans dirs.
@@ -370,9 +370,15 @@ class GlobTool:
                 for dp, dns, fns in os.walk(base):
                     # Prune skipped dirs before descending (unlike rglob which
                     # descends first then filters — fatal on large node_modules).
-                    dns[:] = [d for d in dns if d not in _CODENAV_SKIP_DIRS]
+                    dns[:] = [
+                        d for d in dns
+                        if d.casefold() not in _CODENAV_SKIP_DIRS
+                        and not _is_sensitive_path(os.path.join(dp, d))
+                    ]
                     for name in fns + dns:
                         full = os.path.join(dp, name)
+                        if _is_sensitive_path(full):
+                            continue
                         rel = os.path.relpath(full, base).replace(os.sep, "/")
                         if regex.fullmatch(rel) or regex.fullmatch(name):
                             try:
@@ -402,7 +408,12 @@ class GlobTool:
 
 class GrepTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import (
+            _is_sensitive_path,
+            _resolve_search_root,
+            _sensitive_path_globs,
+            _truncate,
+        )
         args: Dict[str, Any] = {}
         _s = (content or "").strip()
         if _s.startswith("{"):
@@ -441,11 +452,22 @@ class GrepTool:
                     cmd += ["--glob", glob_pat]
                 for _d in _CODENAV_SKIP_DIRS:
                     cmd += ["--glob", f"!**/{_d}/**"]
+                for _g in _sensitive_path_globs():
+                    cmd += ["--glob", _g]
                 cmd += ["--regexp", pattern, root]
                 try:
                     import subprocess
                     p = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
-                    lines = [ln for ln in (p.stdout or "").splitlines() if ln][:max_hits]
+                    lines = []
+                    for ln in (p.stdout or "").splitlines():
+                        if not ln:
+                            continue
+                        match = re.match(r"^(.*?):\d+:", ln)
+                        if match and _is_sensitive_path(match.group(1)):
+                            continue
+                        lines.append(ln)
+                        if len(lines) >= max_hits:
+                            break
                     return lines, None
                 except subprocess.TimeoutExpired:
                     return None, "grep: timed out"
@@ -457,15 +479,22 @@ class GrepTool:
                 return None, f"grep: bad pattern: {_e}"
             hits = []
             if os.path.isfile(root):
-                file_iter = [root]
+                file_iter = [] if _is_sensitive_path(root) else [root]
             else:
                 file_iter = []
                 for dp, dns, fns in os.walk(root):
-                    dns[:] = [d for d in dns if d not in _CODENAV_SKIP_DIRS]
+                    dns[:] = [
+                        d for d in dns
+                        if d.casefold() not in _CODENAV_SKIP_DIRS
+                        and not _is_sensitive_path(os.path.join(dp, d))
+                    ]
                     for fn in fns:
                         if glob_pat and not fnmatch.fnmatch(fn, glob_pat):
                             continue
-                        file_iter.append(os.path.join(dp, fn))
+                        fp = os.path.join(dp, fn)
+                        if _is_sensitive_path(fp):
+                            continue
+                        file_iter.append(fp)
             for fp in file_iter:
                 if len(hits) >= max_hits:
                     break

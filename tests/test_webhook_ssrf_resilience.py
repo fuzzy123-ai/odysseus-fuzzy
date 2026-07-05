@@ -96,29 +96,68 @@ async def test_webhook_delivery_uses_naive_utc_timestamps(monkeypatch):
     class _Response:
         status_code = 204
 
-    class _Client:
-        def __init__(self):
-            self.content = ""
-
-        async def post(self, _url, content, headers):
-            self.content = content
-            assert headers["X-Odysseus-Event"] == "webhook.test"
-            return _Response()
-
     db = _Db()
-    client = _Client()
+    captured = {}
     monkeypatch.setattr(wm, "SessionLocal", lambda: db)
 
     manager = wm.WebhookManager()
-    await manager._client.aclose()
-    manager._client = client
+
+    async def _post_public_url(_url, body, headers):
+        captured["content"] = body
+        assert headers["X-Odysseus-Event"] == "webhook.test"
+        return _Response()
+
+    monkeypatch.setattr(manager, "_post_public_url", _post_public_url)
 
     await manager._deliver("hook-1", "http://93.184.216.34/", None, "webhook.test", {"ok": True})
 
-    body = json.loads(client.content)
+    body = json.loads(captured["content"])
     payload_timestamp = datetime.fromisoformat(body["timestamp"])
     assert payload_timestamp.tzinfo is None
     assert db.updates[0]["last_triggered_at"].tzinfo is None
     assert db.updates[0]["last_status_code"] == 204
     assert db.committed is True
     assert db.closed is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_delivery_posts_with_pinned_public_transport(monkeypatch):
+    import src.webhook_manager as wm
+
+    captured = {}
+    sentinel_transport = object()
+
+    class _TransportFactory:
+        @staticmethod
+        def for_url(url):
+            captured["for_url"] = url
+            return sentinel_transport
+
+    class _Client:
+        def __init__(self, **kwargs):
+            captured["client_kwargs"] = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            pass
+
+        async def post(self, url, content, headers):
+            captured["post"] = (url, content, headers)
+            return object()
+
+    monkeypatch.setattr(wm, "PinnedPublicHttpTransport", _TransportFactory)
+    monkeypatch.setattr(wm.httpx, "AsyncClient", _Client)
+
+    manager = wm.WebhookManager()
+    await manager._post_public_url(
+        "https://example.com/hook",
+        '{"ok": true}',
+        {"Content-Type": "application/json"},
+    )
+
+    assert captured["for_url"] == "https://example.com/hook"
+    assert captured["client_kwargs"]["transport"] is sentinel_transport
+    assert captured["client_kwargs"]["follow_redirects"] is False
+    assert captured["post"][0] == "https://example.com/hook"

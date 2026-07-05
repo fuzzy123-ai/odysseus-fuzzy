@@ -910,7 +910,7 @@ def test_web_fetch_guard_blocks_redirect_into_private(monkeypatch):
     def _fake_stream(method, url, **kwargs):
         yield _Resp()
 
-    monkeypatch.setattr(httpx, "stream", _fake_stream)
+    monkeypatch.setattr(content, "_stream_public_url", _fake_stream)
 
     with _pytest.raises(httpx.RequestError) as exc:
         content._get_public_url("http://public.example/start", headers={}, timeout=5)

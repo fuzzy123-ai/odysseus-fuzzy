@@ -13,6 +13,7 @@ from core.atomic_io import atomic_write_json
 from core.platform_compat import safe_chmod
 from src.secret_storage import decrypt, encrypt, is_encrypted
 from src.constants import DATA_DIR, INTEGRATIONS_FILE, SETTINGS_FILE
+from src.url_security import validate_public_http_url
 
 log = logging.getLogger(__name__)
 
@@ -219,6 +220,10 @@ def _join_integration_url(base_url: str, path: str) -> str:
     return urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
 
 
+def _validate_api_call_url(url: str) -> str:
+    return validate_public_http_url(url)
+
+
 def load_integrations() -> List[Dict[str, Any]]:
     """Load all integrations from disk with secrets decrypted for runtime use."""
     if not os.path.exists(DATA_FILE):
@@ -394,6 +399,10 @@ async def execute_api_call(
         return {"error": "Path must not contain a fragment", "exit_code": 1}
 
     url = _join_integration_url(base_url, path)
+    try:
+        _validate_api_call_url(url)
+    except ValueError as exc:
+        return {"error": f"Integration URL rejected: {exc}", "exit_code": 1}
     method = method.upper()
 
     # Build headers

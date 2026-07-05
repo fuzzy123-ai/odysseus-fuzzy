@@ -49,20 +49,34 @@ def _is_sensitive_path(resolved: str) -> bool:
     """Return True if *resolved* falls under a sensitive directory or
     matches a sensitive filename — regardless of what root it sits under.
     """
-    parts = str(resolved).replace("\\", "/").split("/")
+    parts = [part.casefold() for part in str(resolved).replace("\\", "/").split("/") if part]
     filenames: set[str] = {parts[-1]} if parts else set()
+    sensitive_basenames = {name.casefold() for name in _SENSITIVE_BASENAMES}
 
     # Check if any path component is a sensitive directory.
     for part in parts:
-        if part in _SENSITIVE_BASENAMES:
+        if part in sensitive_basenames:
             return True
 
     # Check filename against known sensitive files.
     for pat in _SENSITIVE_FILE_PATTERNS:
-        if pat in filenames:
+        if pat.casefold() in filenames:
             return True
 
     return False
+
+
+def _sensitive_path_globs() -> tuple[str, ...]:
+    """Return rg-compatible exclusion globs for the sensitive deny list."""
+    names = sorted({name.casefold() for name in _SENSITIVE_BASENAMES})
+    files = sorted({name.casefold() for name in _SENSITIVE_FILE_PATTERNS})
+    globs: list[str] = []
+    for name in names:
+        globs.append(f"!**/{name}/**")
+        globs.append(f"!**/{name}")
+    for name in files:
+        globs.append(f"!**/{name}")
+    return tuple(globs)
 
 
 def _tool_path_roots() -> list[str]:

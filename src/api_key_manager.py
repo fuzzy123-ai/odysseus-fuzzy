@@ -4,6 +4,7 @@ import logging
 from typing import Dict
 from cryptography.fernet import Fernet, InvalidToken
 
+from core.atomic_io import atomic_write_json
 from core.platform_compat import safe_chmod
 
 logger = logging.getLogger(__name__)
@@ -84,8 +85,8 @@ class APIKeyManager:
         """
         keys = self._load_raw()
         keys[provider] = self.encrypt_api_key(api_key)
-        with open(self.api_keys_file, 'w', encoding="utf-8") as f:
-            json.dump(keys, f)
+        atomic_write_json(self.api_keys_file, keys)
+        safe_chmod(self.api_keys_file, 0o600)
 
     def load(self) -> Dict[str, str]:
         """Load and decrypt API keys"""

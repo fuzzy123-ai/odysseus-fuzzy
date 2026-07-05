@@ -8,6 +8,7 @@ import os
 import re
 import logging
 import socket
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import urljoin, urlparse
@@ -17,6 +18,7 @@ from bs4 import BeautifulSoup
 
 from src.constants import WEB_FETCH_SOFT_MAX_BYTES, WEB_FETCH_HARD_MAX_BYTES, WEB_FETCH_USER_AGENT
 from src.privacy_runtime import EXTERNAL_IO_BLOCK_REASON, EXTERNAL_IO_BLOCK_MESSAGE, runtime_allows_external_io
+from src.url_security import PinnedPublicHttpSyncTransport
 
 from .analytics import RateLimitError, error_logger
 from .cache import (
@@ -162,8 +164,8 @@ def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 
         # size and keeps each streamed chunk bounded by the network read.
         req_headers = dict(headers or {})
         req_headers["Accept-Encoding"] = "identity"
-        with httpx.stream("GET", current, headers=req_headers, timeout=timeout,
-                          follow_redirects=False) as response:
+        with _stream_public_url("GET", current, headers=req_headers, timeout=timeout,
+                                follow_redirects=False) as response:
             if response.status_code in (301, 302, 303, 307, 308):
                 location = response.headers.get("location")
                 if not location:
@@ -215,6 +217,19 @@ def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 
                                 b"".join(chunks), truncated, declared,
                                 response.encoding, str(response.url))
     raise httpx.RequestError("Too many redirects", request=httpx.Request("GET", current))
+
+
+@contextmanager
+def _stream_public_url(method: str, url: str, *, headers: dict, timeout: int,
+                       follow_redirects: bool = False):
+    transport = PinnedPublicHttpSyncTransport.for_url(url)
+    with httpx.Client(
+        transport=transport,
+        timeout=timeout,
+        follow_redirects=follow_redirects,
+    ) as client:
+        with client.stream(method, url, headers=headers) as response:
+            yield response
 
 # PDF extraction (optional dependency)
 try:

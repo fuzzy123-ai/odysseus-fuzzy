@@ -355,6 +355,7 @@ async def dispatch_reminder(
         try:
             from src.integrations import load_integrations
             import httpx
+            from urllib.parse import quote as _url_quote
             intg = next(
                 (i for i in load_integrations()
                  if i.get("preset") == "ntfy" and i.get("enabled", True) and i.get("base_url")),
@@ -362,14 +363,22 @@ async def dispatch_reminder(
             )
             if intg:
                 base = intg["base_url"].rstrip("/")
-                topic = settings.get("reminder_ntfy_topic") or "reminders"
+                topic = str(settings.get("reminder_ntfy_topic") or "reminders").strip() or "reminders"
+                ntfy_url = f"{base}/{_url_quote(topic, safe='')}"
+                import os as _os
+                from src.url_safety import check_outbound_url as _chk
+                _block = _os.getenv("REMINDER_WEBHOOK_BLOCK_PRIVATE_IPS", "false").lower() == "true"
+                _ok, _reason = _chk(ntfy_url, block_private=_block)
+                if not _ok:
+                    ntfy_error = f"ntfy URL rejected: {_reason}"
+                    raise RuntimeError(ntfy_error)
                 ntfy_body = synthesis or note_body or title
                 hdrs = {"Title": title or "Reminder", "Priority": "high", "Tags": "bell"}
                 api_key = intg.get("api_key", "")
                 if api_key:
                     hdrs["Authorization"] = f"Bearer {api_key}"
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(f"{base}/{topic}", content=ntfy_body, headers=hdrs)
+                    resp = await client.post(ntfy_url, content=ntfy_body, headers=hdrs)
                     ntfy_sent = resp.is_success
                     if not ntfy_sent:
                         ntfy_error = f"ntfy returned HTTP {resp.status_code}"

@@ -46,7 +46,7 @@ def _patch_stream(monkeypatch, fake):
     @contextmanager
     def fake_stream(method, url, **kwargs):
         yield fake
-    monkeypatch.setattr(content_mod.httpx, "stream", fake_stream)
+    monkeypatch.setattr(content_mod, "_stream_public_url", fake_stream)
     return fake
 
 
@@ -125,10 +125,64 @@ def test_fetch_requests_identity_encoding(monkeypatch, no_cache):
     def fake_stream(method, url, **kwargs):
         seen["headers"] = kwargs.get("headers") or {}
         yield _FakeStream(b"hello")
-    monkeypatch.setattr(content_mod.httpx, "stream", fake_stream)
+    monkeypatch.setattr(content_mod, "_stream_public_url", fake_stream)
 
     content_mod.fetch_webpage_content("https://example.com/a.txt")
     assert seen["headers"].get("Accept-Encoding") == "identity"
+
+
+def test_stream_public_url_uses_pinned_sync_transport(monkeypatch):
+    captured = {}
+    sentinel_transport = object()
+
+    class _TransportFactory:
+        @staticmethod
+        def for_url(url):
+            captured["for_url"] = url
+            return sentinel_transport
+
+    class _Stream:
+        status_code = 200
+        headers = {}
+        encoding = "utf-8"
+        url = "https://example.com/a.txt"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    class _Client:
+        def __init__(self, **kwargs):
+            captured["client_kwargs"] = kwargs
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def stream(self, method, url, headers=None):
+            captured["stream"] = (method, url, headers)
+            return _Stream()
+
+    monkeypatch.setattr(content_mod, "PinnedPublicHttpSyncTransport", _TransportFactory)
+    monkeypatch.setattr(content_mod.httpx, "Client", _Client)
+
+    with content_mod._stream_public_url(
+        "GET",
+        "https://example.com/a.txt",
+        headers={"Accept-Encoding": "identity"},
+        timeout=5,
+        follow_redirects=False,
+    ) as response:
+        assert response.status_code == 200
+
+    assert captured["for_url"] == "https://example.com/a.txt"
+    assert captured["client_kwargs"]["transport"] is sentinel_transport
+    assert captured["client_kwargs"]["follow_redirects"] is False
+    assert captured["stream"][0] == "GET"
 
 
 def test_rejects_compressed_response_that_ignored_identity(monkeypatch, no_cache):

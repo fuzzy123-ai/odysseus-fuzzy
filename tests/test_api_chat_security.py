@@ -104,6 +104,39 @@ async def test_pinned_public_transport_rewrites_to_resolved_ip_without_new_dns(m
     assert resolve_calls == ["api.example.com", "api.example.com"]
 
 
+def test_sync_pinned_public_transport_rewrites_to_resolved_ip_without_new_dns(monkeypatch):
+    from src import url_security
+
+    resolve_calls = []
+
+    def _resolve(host):
+        resolve_calls.append(host)
+        if len(resolve_calls) > 2:
+            raise AssertionError("pinned transport must not resolve DNS during request send")
+        return [ipaddress.ip_address("93.184.216.34")]
+
+    captured = []
+
+    def _handler(request):
+        captured.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(url_security, "_resolve_hostname_ips", _resolve)
+    endpoint = url_security.PinnedPublicHttpSyncTransport.for_url("https://api.example.com/v1")
+    transport = url_security.PinnedPublicHttpSyncTransport(
+        endpoint.endpoint,
+        transport=httpx.MockTransport(_handler),
+    )
+    with httpx.Client(transport=transport) as client:
+        response = client.get("https://api.example.com/v1/models")
+
+    assert response.status_code == 200
+    assert captured[0].url.host == "93.184.216.34"
+    assert captured[0].headers["host"] == "api.example.com"
+    assert captured[0].extensions["sni_hostname"] == "api.example.com"
+    assert resolve_calls == ["api.example.com", "api.example.com"]
+
+
 def _load_webhook_routes_for_test(monkeypatch):
     # Load under a unique module name so each test gets a fresh module object
     # rather than a cached one from a previous monkeypatch run.

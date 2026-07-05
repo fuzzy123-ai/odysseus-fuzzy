@@ -82,6 +82,7 @@ async def _call(json_data, status=200):
 
     with (
         patch.object(integrations, "_find_integration", return_value=DUMMY_INTEGRATION),
+        patch.object(integrations, "_validate_api_call_url", side_effect=lambda url: url),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         return await integrations.execute_api_call("test_integ", "GET", "/items")
@@ -97,6 +98,7 @@ async def _call_with_integration(integration, path="/items"):
 
     with (
         patch.object(integrations, "_find_integration", return_value=integration),
+        patch.object(integrations, "_validate_api_call_url", side_effect=lambda url: url),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await integrations.execute_api_call("test_integ", "GET", path)

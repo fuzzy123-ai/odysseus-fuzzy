@@ -29,6 +29,7 @@ from src.tool_path_confinement import (
     _resolve_search_root,
     _resolve_tool_path,
     _resolve_tool_path_in_workspace,
+    _sensitive_path_globs,
     _tool_path_roots,
     agent_cwd,
     get_active_workspace,

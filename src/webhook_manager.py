@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import httpx
 
 from src.database import SessionLocal, Webhook
+from src.url_security import PinnedPublicHttpTransport
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +284,7 @@ class WebhookManager:
 
         db = SessionLocal()
         try:
-            resp = await self._client.post(url, content=body, headers=headers)
+            resp = await self._post_public_url(url, body, headers)
             db.query(Webhook).filter(Webhook.id == webhook_id).update({
                 "last_triggered_at": _utcnow(),
                 "last_status_code": resp.status_code,
@@ -303,6 +304,11 @@ class WebhookManager:
                 db.rollback()
         finally:
             db.close()
+
+    async def _post_public_url(self, url: str, body: str, headers: dict) -> httpx.Response:
+        transport = PinnedPublicHttpTransport.for_url(url)
+        async with httpx.AsyncClient(timeout=10, follow_redirects=False, transport=transport) as client:
+            return await client.post(url, content=body, headers=headers)
 
     async def close(self):
         await self._client.aclose()

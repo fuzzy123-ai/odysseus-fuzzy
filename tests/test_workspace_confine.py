@@ -141,6 +141,45 @@ async def test_grep_and_ls_confined_e2e(ws, admin):
 
 
 @pytest.mark.asyncio
+async def test_grep_and_glob_filter_sensitive_paths_inside_workspace(ws, admin):
+    with open(os.path.join(ws, "doc.txt"), "w") as f:
+        f.write("ordinary text\n")
+    with open(os.path.join(ws, "id_rsa"), "w") as f:
+        f.write("topsecret\n")
+    os.makedirs(os.path.join(ws, ".ssh"), exist_ok=True)
+    with open(os.path.join(ws, ".ssh", "authorized_keys"), "w") as f:
+        f.write("topsecret\n")
+
+    _, r = await execute_tool_block(
+        _block("grep", json.dumps({"pattern": "topsecret"})),
+        owner="a",
+        workspace=ws,
+    )
+    assert r["exit_code"] == 0
+    assert "id_rsa" not in r["output"]
+    assert "authorized_keys" not in r["output"]
+    assert "No matches" in r["output"]
+
+    _, r = await execute_tool_block(
+        _block("glob", json.dumps({"pattern": "**/*"})),
+        owner="a",
+        workspace=ws,
+    )
+    assert r["exit_code"] == 0
+    assert "doc.txt" in r["output"]
+    assert "id_rsa" not in r["output"]
+    assert "authorized_keys" not in r["output"]
+
+    _, r = await execute_tool_block(
+        _block("glob", json.dumps({"pattern": "id_rsa"})),
+        owner="a",
+        workspace=ws,
+    )
+    assert r["exit_code"] == 0
+    assert "No files" in r["output"]
+
+
+@pytest.mark.asyncio
 async def test_subprocess_cwd_is_workspace_e2e(ws, admin):
     """python tool runs with cwd = workspace (OS-agnostic probe)."""
     _, r = await execute_tool_block(_block("python", "import os; print(os.getcwd())"), owner="a", workspace=ws)
