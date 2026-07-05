@@ -32,7 +32,7 @@ def build_runtime_snapshot(*, repo_root: Path | str | None = None) -> dict[str, 
         "self_knowledge": {
             "version_source": "runtime_snapshot_git_commit",
             "change_source": "recent_changes_not_memory",
-            "tool_inventory_source": "tool_registry_and_tool_index",
+            "tool_inventory_source": "runtime_tool_status_tool_registry_and_tool_index",
             "capability_probe": "sandbox_and_telegram_partial_mcp_live_gated",
             "evidence_source": "tool_transaction_ledger_and_claim_gate",
             "ask_user_policy": "one_clarification_then_act_or_block",

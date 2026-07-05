@@ -43,10 +43,25 @@ Die Leitregel:
 - Capability-Self-Reports werden enger erkannt, damit Coding-/Implementierungsauftraege nicht als reine Diagnoseantwort abgefangen werden.
 - `runtime_snapshot` wird in Agent-Turns injiziert und nennt Version, Sandbox, Telegram, Delegate, Evidence-Gates, Screenshot-Delivery und Selbstwissen-Quellen.
 - `recent_changes` ist als Changelog-/Patch-Notes-Quelle fuer lokale Odysseus-Neuerungen vorhanden und soll Runtime-Neuerungen nicht aus Memory rekonstruieren.
-- `tool_registry`/`tool_index` sind die aktuelle Tool-Inventar-Quelle; ein allgemeiner live Tool-/Endpoint-Status bleibt noch ein eigener Follow-up-Vertrag.
+- `runtime_tool_status`, `tool_registry` und `tool_index` sind die aktuelle Tool-Inventar-Quelle; `/api/system/runtime-tools` liefert redigierte Schema-, Side-Effect- und Gate-Metadaten.
 - `tool_transaction_ledger` und `ClaimEvidenceGate` binden Erfolgsclaims an Tool-Transaktionen, Exit-Codes, Artefakt-Refs und Dateisystem-Evidence.
 - `telegram_truth_runtime` modelliert Capability-First-Checks, Run-State-Sequenzen und Regression-Metriken fuer unsupported success, Delegate-Alibi, Rueckfrage-Loops und Tone-Gate-Verletzungen.
 - `telegram_screenshot_delivery` bietet Preview, Integrity-Packet und Live-Gate-Packet fuer Screenshot-Artefakte; der echte Versand bleibt operator-gated.
+- Token-supplied API-`base_url` bleibt default-disabled und nutzt bei explizitem Opt-in `PinnedPublicHttpTransport`, damit DNS-Rebinding nicht ueber den LLM-HTTP-Client wieder eingefuehrt wird.
+
+## Uebernommene Punkte aus User- und Telegram-Review
+
+| Review-Punkt | Uebernommen als | Repo-Status |
+| --- | --- | --- |
+| Telegram-Chat gruendlich auf Halluzinationen pruefen | Telegram Truth Runtime TTR-0 bis TTR-7, Failure-Corpus, Tone-Gate, Run-State und ClaimEvidenceGate | repo-side aktiv |
+| Playwright/GUI/Screenshot-Faehigkeiten als Sandbox-Default | Runtime-Snapshot, Capability-First-Gate und Sandbox-Default-Capabilities | repo-side aktiv, Live-/Service-Smoke bleibt gate-gesteuert |
+| Warum Delegate `pong.py` nicht erstellt hat | `delegate` ist als read-only Analysewerkzeug dokumentiert und darf keine Datei-Implementierung behaupten | repo-side aktiv |
+| Odysseus soll Programmscreenshots per Telegram schicken koennen | Telegram-Screenshot-Delivery mit Preview, Integrity-Packet, Live-Gate-Packet und Foto-Artefaktpruefung | repo-side aktiv, echter Versand operator-gated |
+| Nicht mehrfach bestaetigen statt anzufangen | Ask-User-Policy `one_clarification_then_act_or_block` plus Regression-Metrik `repeated_confirmation_count` | teilweise aktiv, breitere Prompt-/Tooltests bleiben Follow-up |
+| KI-Halluzinationen verhindern | Claim-to-Evidence-Gates, Tool-Transaction-Ledger, Artifact-Integrity und Failure-Regression-Suite | repo-side aktiv fuer kritische Claims |
+| Neuerungen im System nicht aus Memory erraten | Runtime-Snapshot, Recent Changes und Runtime Tool Status sind Source of Truth; Memory ist nicht autoritativ | repo-side aktiv |
+| Kontextkosten niedrig halten | Context-Efficiency-Roadmap, manifest-first/deferred schemas, kompakter Runtime-Snapshot und redigierter Runtime-Tool-Status | repo-side aktiv fuer Backend-Foundation |
+| DNS-Rebinding-SSRF bei API-token `base_url` nicht wieder einfuehren | Default-disabled Direct-URL-Gate plus `PinnedPublicHttpTransport` und Regressionssuite `tests/test_api_chat_security.py` | repo-side aktiv |
 
 ## Tool- und Selbstwissen-Coverage aus dem Telegram-Review
 
@@ -55,13 +70,14 @@ Diese Tabelle uebernimmt die aktuelle Tool-Bestandsanalyse in die Roadmap. Wicht
 | Punkt | Status | Quelle/Umsetzung | Naechster sicherer Schritt |
 | --- | --- | --- | --- |
 | Runtime-Snapshot mit Version, Features, Limits und Timestamp | repo-side aktiv | `src/runtime_snapshot.py`, Agent-Kontext-Injection, `/api/version` live pruefbar | Snapshot bei neuen Systemfaehigkeiten aktualisieren und testen |
-| Live Tool Registry mit Schema, Side-Effect-Klasse und Gate-Status | teilweise aktiv | `src/tool_registry.py`, `src/tool_index.py`, Tool-Schemas, Effectful-Tool-Matrix | redigierten Runtime-Tool-Status ohne Secrets/Raw-Endpoints als separates Contract-Slice bauen |
+| Live Tool Registry mit Schema, Side-Effect-Klasse und Gate-Status | repo-side aktiv | `src/runtime_tool_status.py`, `/api/system/runtime-tools`, `src/tool_registry.py`, `src/tool_index.py`, Tool-Schemas, Effectful-Tool-Matrix | neue Tool-Domaenen muessen weiter klassifiziert werden, wenn sie Side Effects bekommen |
 | Capability Probe fuer Python, Playwright/GUI, Screenshot-Artefakte, Telegram und MCP | teilweise aktiv | Sandbox defaults, Telegram screenshot live-gate, capability-first program/screenshot check | MCP-Service-Status und allgemeine GUI-/Playwright-Probe bleiben live/service-gated |
 | Evidence Ledger fuer Tool-Ausfuehrungen | repo-side aktiv | `src/tool_transaction_ledger.py`, `ClaimEvidenceGate`, Verifier machine evidence | Persistente externe Audit-Speicherung separat haerten |
 | Recent Changes / Changelog Injection | repo-side aktiv | `src/recent_changes.py`, Recent-Changes-Routing, Runtime-Snapshot verweist darauf | Nicht in Memory speichern; bei Neuerungsfragen `recent_changes` nutzen |
 | Run-State-Modell | repo-side aktiv | `src/telegram_truth_runtime.py` mit `accepted`, `checking_capabilities`, `running`, `artifact_ready`, `sent`, `verified_done`, `blocked`, `failed` | Live-Telegram-Smoke nur nach Operator-Go |
 | Ask-User Policy gegen Rueckfrage-Spam | repo-side teilweise aktiv | Regression-Metrik `repeated_confirmation_count`, Runtime-Snapshot-Policy `one_clarification_then_act_or_block` | allgemeine Agent-Policy breiter in Tool-/Prompt-Tests absichern |
 | Tool-Failure-Transparenz | repo-side teilweise aktiv | Tool-Transaction-Status, exit_code, blocker, screenshot live-gate statuses | fuer alle grossen Tool-Domaenen konsistente `blocked/failed/next_step` Packets vereinheitlichen |
+| Direct API-token `base_url` DNS-Rebinding-Schutz | repo-side aktiv | `src/url_security.py`, `PinnedPublicHttpTransport`, `routes/webhook_routes.py`, `tests/test_api_chat_security.py` | neue untrusted outbound HTTP-Senken muessen denselben Pinning-/Fail-closed-Vertrag nutzen |
 
 Nicht als Memory speichern:
 

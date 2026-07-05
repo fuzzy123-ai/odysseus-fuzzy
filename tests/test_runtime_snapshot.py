@@ -24,7 +24,7 @@ def test_runtime_snapshot_reads_git_head_and_lists_core_capabilities(tmp_path: P
     assert snapshot["telegram_run_state"] == "active_repo_side_contract"
     assert snapshot["telegram_screenshot_delivery"] == "active_preview_live_gate_integrity_packet_photo_artifacts"
     assert snapshot["self_knowledge"]["change_source"] == "recent_changes_not_memory"
-    assert snapshot["self_knowledge"]["tool_inventory_source"] == "tool_registry_and_tool_index"
+    assert snapshot["self_knowledge"]["tool_inventory_source"] == "runtime_tool_status_tool_registry_and_tool_index"
     assert snapshot["self_knowledge"]["ask_user_policy"] == "one_clarification_then_act_or_block"
     assert snapshot["self_knowledge"]["memory_boundary"] == "memory_is_not_authoritative_for_runtime_capabilities"
     assert "live_telegram_smoke_requires_operator_go" in snapshot["limits"]
@@ -56,7 +56,7 @@ def test_render_runtime_snapshot_mentions_recent_changes_source():
             "self_knowledge": {
                 "version_source": "runtime_snapshot_git_commit",
                 "change_source": "recent_changes_not_memory",
-                "tool_inventory_source": "tool_registry_and_tool_index",
+                "tool_inventory_source": "runtime_tool_status_tool_registry_and_tool_index",
                 "capability_probe": "sandbox_and_telegram_partial_mcp_live_gated",
                 "evidence_source": "tool_transaction_ledger_and_claim_gate",
                 "ask_user_policy": "one_clarification_then_act_or_block",
@@ -74,6 +74,6 @@ def test_render_runtime_snapshot_mentions_recent_changes_source():
     assert "active_repo_side_contract" in text
     assert "active_preview_live_gate_integrity_packet_photo_artifacts" in text
     assert "recent_changes_not_memory" in text
-    assert "tool_registry_and_tool_index" in text
+    assert "runtime_tool_status_tool_registry_and_tool_index" in text
     assert "one_clarification_then_act_or_block" in text
     assert "use recent_changes" in text

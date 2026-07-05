@@ -10,6 +10,8 @@ def test_anti_hallucination_roadmap_covers_runtime_self_knowledge_points():
     required_terms = [
         "Runtime-Snapshot",
         "Live Tool Registry",
+        "runtime_tool_status",
+        "/api/system/runtime-tools",
         "Capability Probe",
         "Evidence Ledger",
         "Recent Changes",
@@ -17,6 +19,9 @@ def test_anti_hallucination_roadmap_covers_runtime_self_knowledge_points():
         "Ask-User Policy",
         "Tool-Failure-Transparenz",
         "memory_is_not_authoritative",
+        "Context-Efficiency-Roadmap",
+        "DNS-Rebinding",
+        "PinnedPublicHttpTransport",
     ]
 
     for term in required_terms:

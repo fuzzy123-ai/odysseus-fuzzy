@@ -160,7 +160,7 @@ Implemented fix:
 
 - Fail closed by default: reject direct API-token supplied `base_url` unless an explicit server-side opt-in is enabled.
 - Keep known-provider resolution and stored admin-created endpoints separate from untrusted token-supplied URLs.
-- If direct URLs remain enabled, add connect-time validation or IP pinning before calling the LLM client.
+- If direct URLs are explicitly enabled, route the LLM call through `PinnedPublicHttpTransport` so the HTTP client uses resolved-public IP pinning instead of performing a second DNS lookup at send time.
 
 Verification:
 
@@ -604,7 +604,7 @@ Deferred:
 
 - Live Telegram send.
 - Real morning task creation.
-- Full IP-pinning for token-supplied `base_url` if default-disable is chosen.
+- Live external direct-`base_url` smoke with a real provider, if this feature is intentionally enabled.
 - Dedicated TodoList table.
 - True multi-agent runtime orchestration.
 - UI.

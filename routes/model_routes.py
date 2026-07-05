@@ -1554,6 +1554,23 @@ def setup_model_routes(model_discovery):
             })
         return {"tools": tools}
 
+    @router.get("/system/runtime-tools")
+    def runtime_tools_status(request: Request):
+        """Return redacted live tool inventory, schemas and gate classes."""
+        require_admin(request)
+        from src.runtime_tool_status import build_runtime_tool_status
+        from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
+        from src.tool_registry import list_tools as list_plugin_tools
+        from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
+
+        settings = _load_settings()
+        return build_runtime_tool_status(
+            disabled_tools=settings.get("disabled_tools", []),
+            builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
+            function_schemas=FUNCTION_TOOL_SCHEMAS,
+            plugin_tools=list_plugin_tools(),
+        )
+
     class ToolsUpdate(BaseModel):
         disabled: list = []
 

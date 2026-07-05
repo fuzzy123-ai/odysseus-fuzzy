@@ -10,7 +10,7 @@ tokens, chat IDs, and private content.
 | --- | --- | --- | --- | --- |
 | SEC1 | high | API-token chat/session scope gates | fixed | `require_api_token_scope()` and `scoped_effective_user()` centralize scope checks. Chat and session route owner resolution now requires `chat` scope for bearer-token callers while browser sessions stay unchanged. |
 | SEC2 | medium | Built-in vault MCP write boundary | fixed | Public/non-admin MCP gate now allows only explicit read-only vault MCP tools. Mutating write/delete/batch/undo/rebuild tools are blocked before dispatch. |
-| SEC3 | medium | Token-supplied direct `base_url` SSRF | fixed | Direct API-token `base_url` remains public-URL validated and is disabled by default unless `ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED=true` is set server-side. Admin-created/stored endpoints remain the local/LAN provider path. |
+| SEC3 | medium | Token-supplied direct `base_url` SSRF | fixed | Direct API-token `base_url` remains public-URL validated and is disabled by default unless `ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED=true` is set server-side. When explicitly enabled, the LLM call uses `PinnedPublicHttpTransport` so the request is sent to a resolved-public pinned IP instead of reopening DNS-rebinding at send time. Admin-created/stored endpoints remain the local/LAN provider path. |
 
 ## Regression Evidence
 
@@ -25,7 +25,7 @@ Result: `38 passed`.
 ## Remaining Gates
 
 - Direct token-supplied `base_url` can be re-enabled only by explicit
-  server-side opt-in. Full connect-time IP pinning remains deferred until the
-  feature is genuinely needed.
+  server-side opt-in. New untrusted outbound HTTP sinks must either reuse
+  `PinnedPublicHttpTransport` or fail closed before request send.
 - Non-admin vault writes remain blocked. A future `vault:write` permission can
   be designed later as a separate product/security decision.
