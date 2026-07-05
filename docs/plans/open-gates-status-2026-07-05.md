@@ -16,7 +16,9 @@ Purpose: close every gate that is safely closable, and make every remaining gate
   Telegram polling/reply/image gates, one Playwright GUI screenshot smoke, one
   Telegram photo delivery smoke, one sandbox host-runner smoke, one local
   Odysseus MCP workbench smoke, one read-only observability inventory, and one
-  synthetic security incident tabletop.
+  synthetic security incident tabletop. Later bounded read-only checks added one
+  Memory scale dry-run/readiness smoke and one GitHub Issue Intelligence
+  read-only/local smoke.
 
 ## Verified Readiness
 
@@ -34,7 +36,10 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 - Homeserver MCP workbench live smoke: local `plugins/mcp_server` runtime gate was enabled without `expose_all` or remote exposure. JSON-RPC `initialize`, `tools/list`, and `resources/read` readiness succeeded over container loopback. `tools/list` exposed 12 bounded tools; high-risk tools such as `bash`, `python`, file writes, generic API, settings/token management, raw GitHub writes and `odysseus_call` were absent; `github_issue_find_duplicates` was present as the narrow read-only helper.
 - Homeserver observability read-only inventory: systemd user services for Odysseus, Telegram polling, backups and Nextcloud were loaded/healthy enough for read-only status; Odysseus/Nextcloud Podman containers were listed without logs or secrets; local ports `7000`, `8080` and `8100` were listening while `3000`, `9090` and `3100` were not. Redacted metrics, alert routing and diagnostic bridge packets are ready; Prometheus/Loki/Grafana/CrowdSec endpoints remain not configured and no install or mutation was performed.
 - Homeserver security tabletop: a synthetic `service_down_security_relevant` incident was classified at level 3/high, policy returned `gated_action`, notification payload stayed dry-run, and remediation planning prepared one service-restart action with `allowed_to_execute=false`, `writes_performed=false`, and operator gate required. No CrowdSec/firewall/restart/token/deploy action was executed.
+- Homeserver Memory scale read-only smoke: `build_rag_reindex_dry_run_plan()` ran inside the Odysseus container against live Chroma and returned schema `odysseus.rag_reindex_generation_readonly_plan.v1`, status `ready`, one target, three collections, `read_only=true`, `writes_performed=0`, `rollback_supported=true`, `private_content_visible=false`, `secret_values_visible=false`, and next action `operator_go_required_before_collection_writes`. `/api/memory/stats` returned HTTP 200 with redacted counts only: 63 personal memory entries, vector index healthy, vector index count 63, one vector lane, roles present, and Chroma byte stats present. No reindex, migration or memory/RAG write was executed.
+- Homeserver GitHub Issue Intelligence read-only smoke: server-side GitHub token/app env presence check found no configured provider credentials; `manage_github_issues` returned `needs_live_go` for sync and confirmed write attempts, while local duplicate search completed with `exit_code=0`, indexed 0 currently synced records, found 0 candidates, and recorded 0 candidates. HTTP routes `/api/github-issues/readiness`, `/api/github-issues/duplicates`, and `/api/github-issues/write-plan` returned HTTP 200; readiness reported 0 local issues, sync/write gates `needs_live_go`, duplicate search indexed 0 and write-plan stayed `needs_live_go`. No provider sync, issue creation, labeling, field update or token exposure occurred.
 - Focused verification: `python -m pytest tests/test_telegram_screenshot_delivery.py tests/test_runtime_tool_status.py tests/test_version_one_readiness.py tests/test_calendar_capability_service.py tests/test_task_summary_routes.py -q` passed with 23 tests.
+- Focused Memory/GitHub verification: `python -m pytest tests/test_rag_reindex_dry_run.py tests/test_memory_diagnostics.py tests/test_memory_store_stats.py tests/test_memory_perf_suite_metrics.py tests/test_memory_perf_suite_models.py tests/test_memory_perf_suite_reports.py tests/test_memory_perf_suite_raptor.py tests/test_memory_perf_suite_eventlog.py tests/test_github_issue_fields.py tests/test_github_issue_models.py tests/test_github_issue_sync.py tests/test_github_issue_index.py tests/test_github_issue_duplicates.py tests/test_github_issue_tools.py tests/test_github_issue_routes.py tests/test_github_issue_projection.py -q` passed with 78 tests.
 
 ## Gate Families
 
@@ -49,8 +54,8 @@ Purpose: close every gate that is safely closable, and make every remaining gate
 | 50 | Observability ops | Read-only inventory completed | Debian/systemd/Podman/port inventory and redacted metrics/diagnostic packets were verified without logs/secrets or writes. | Prometheus/Loki/Grafana/CrowdSec installation/configuration and log shipping remain separate live gates. |
 | 60 | Security ops | Tabletop completed | Synthetic incident classification, policy, notification dry-run and prepare-only remediation plan were verified. | Real incident notification dispatch, CrowdSec/firewall/restart/token/deploy remediation and lockdown remain separate gated actions. |
 | 70 | UI design | Blocked for 1.0 | Backend route contracts are ready; 0.99 live backends are active. | UI owner must decide placement and wire the UI; 1.0 must not be claimed until `VERSION-1-UI-LIVE` is true. |
-| 80 | Memory scale | Deferred/post-backend | Tokenization, cache and diagnostics are complete. | Live reindex/migration needs rollback and quality evidence or explicit deferral. |
-| 90 | GitHub issue intelligence | Deferred/post-MVP | Local duplicate/write-plan contracts are complete. | Needs token setup, bounded repo sync and separate write confirmation. |
+| 80 | Memory scale | Read-only live smoke completed | Tokenization, cache, diagnostics, live memory stats and live Chroma reindex dry-run are complete with `writes_performed=0`. | Actual live reindex/migration remains a separate operator decision with rollback target and quality evidence. |
+| 90 | GitHub issue intelligence | Read-only live smoke completed | Local duplicate/write-plan contracts, HTTP readiness, duplicate preview and write gate behavior are live-verified; provider credentials are not configured. | Bounded provider sync needs server-side credential setup and explicit Go; issue creation/field writes need separate confirmation and live write Go. |
 
 ## Next Executable Gate
 
