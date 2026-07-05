@@ -69,6 +69,20 @@ def test_github_issue_readiness_reports_local_counts_and_live_gates():
     assert payload["writes"]["requires_live_go"] is True
 
 
+def test_github_issue_readiness_reports_ready_sync_when_env_is_configured(monkeypatch):
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_LIVE_ENABLED", "true")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES", "fuzzy123-ai/odysseus-fuzzy")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED", "true")
+
+    response = _client().get("/api/github-issues/readiness", params={"repository": "fuzzy123-ai/odysseus-fuzzy"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sync"]["status"] == "ready_for_confirmed_sync"
+    assert payload["sync"]["auth_ready"] is True
+    assert payload["sync"]["provider_writes_performed"] == 0
+
+
 def test_github_issue_duplicates_route_returns_top_candidates():
     response = _client().post(
         "/api/github-issues/duplicates",

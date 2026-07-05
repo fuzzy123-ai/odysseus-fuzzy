@@ -15,7 +15,7 @@ from src.auth_helpers import get_current_user
 from src.github_issue_duplicates import GitHubIssueDraft, find_duplicate_candidates
 from src.github_issue_fields import build_issue_field_projection, projection_to_write_report, validate_issue_fields
 from src.github_issue_index import InMemoryGitHubIssueIndexBackend, reindex_github_issues
-from src.tool_domains.github_issues import do_manage_github_issues
+from src.tool_domains.github_issues import build_github_issue_sync_readiness, do_manage_github_issues
 
 
 SessionFactory = Callable[[], Session]
@@ -84,7 +84,7 @@ def setup_github_issue_routes(
             "owner": owner,
             "local_issue_count": total,
             "local_open_issue_count": open_count,
-            "sync": _sync_gate(repository),
+            "sync": build_github_issue_sync_readiness(repository),
             "writes": _write_gate(repository),
         }
 
@@ -217,16 +217,6 @@ def setup_github_issue_routes(
 
 def _owner(request: Request) -> str:
     return get_current_user(request) or "default"
-
-
-def _sync_gate(repository: str) -> dict[str, Any]:
-    return {
-        "status": "needs_live_go",
-        "repository": repository,
-        "requires_live_go": True,
-        "requires_confirmation": True,
-        "next_action": "Approve a bounded GitHub read-only sync with server-side credentials; never pass tokens in chat.",
-    }
 
 
 def _write_gate(repository: str) -> dict[str, Any]:

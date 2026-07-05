@@ -23,6 +23,29 @@ from src.tool_domains.common import _parse_tool_args
 _WRITE_ACTIONS = {"create_triaged", "set_fields"}
 
 
+def build_github_issue_sync_readiness(repository: str) -> Dict[str, Any]:
+    token_present = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"))
+    allow_public = _env_bool("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED")
+    if not _env_bool("GITHUB_ISSUE_SYNC_LIVE_ENABLED"):
+        return _sync_gate(repository=repository, reason="server_live_sync_disabled")
+    if not _repository_allowed(repository):
+        return _sync_gate(repository=repository, reason="repository_not_allowlisted")
+    if not token_present and not allow_public:
+        return _sync_gate(repository=repository, reason="server_auth_not_ready")
+    return {
+        "status": "ready_for_confirmed_sync",
+        "repository": repository,
+        "requires_confirmation": True,
+        "requires_live_go": True,
+        "auth_ready": True,
+        "auth_mode": "server_token" if token_present else "public_unauthenticated",
+        "max_items": _bounded_int(os.environ.get("GITHUB_ISSUE_SYNC_MAX_ITEMS"), default=50, minimum=1, maximum=500),
+        "provider_writes_performed": 0,
+        "next_action": "Call sync with confirmed=true and a bounded max_items value. Never pass provider tokens in chat.",
+        "exit_code": 0,
+    }
+
+
 async def do_manage_github_issues(content: str, owner: Optional[str] = None) -> Dict[str, Any]:
     try:
         args = _parse_tool_args(content)
@@ -69,10 +92,9 @@ def _sync_gate(*, repository: str, reason: str = "") -> Dict[str, Any]:
 def _sync(args: dict[str, Any], *, owner: str, repository: str) -> Dict[str, Any]:
     if not _confirmed(args):
         return _sync_gate(repository=repository, reason="confirmation_required")
-    if not _env_bool("GITHUB_ISSUE_SYNC_LIVE_ENABLED"):
-        return _sync_gate(repository=repository, reason="server_live_sync_disabled")
-    if not _repository_allowed(repository):
-        return _sync_gate(repository=repository, reason="repository_not_allowlisted")
+    readiness = build_github_issue_sync_readiness(repository)
+    if readiness.get("status") != "ready_for_confirmed_sync":
+        return readiness
 
     max_items = _bounded_int(
         args.get("max_items") or args.get("limit") or os.environ.get("GITHUB_ISSUE_SYNC_MAX_ITEMS"),

@@ -228,6 +228,26 @@ async def test_sync_blocks_when_repository_is_not_allowlisted(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_sync_reports_readiness_when_confirmed_is_missing(monkeypatch):
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_LIVE_ENABLED", "true")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOWED_REPOSITORIES", "fuzzy123-ai/odysseus-fuzzy")
+    monkeypatch.setenv("GITHUB_ISSUE_SYNC_ALLOW_PUBLIC_UNAUTHENTICATED", "true")
+
+    result = await do_manage_github_issues(
+        json.dumps(
+            {
+                "action": "sync",
+                "repository": "fuzzy123-ai/odysseus-fuzzy",
+            }
+        ),
+        owner="alice",
+    )
+
+    assert result["status"] == "needs_live_go"
+    assert result["reason"] == "confirmation_required"
+
+
+@pytest.mark.asyncio
 async def test_create_triaged_blocks_on_high_confidence_duplicate(monkeypatch):
     monkeypatch.setattr("src.tool_domains.github_issues.SessionLocal", _session_factory())
 
