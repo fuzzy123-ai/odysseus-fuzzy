@@ -478,6 +478,7 @@ async def _llm_call_async_impl(
     max_retries: int = LLMConfig.MAX_RETRIES,
     prompt_type: Optional[str] = None,
     session_id: Optional[str] = None,
+    transport: Optional[httpx.AsyncBaseTransport] = None,
 ) -> str:
     """Async LLM call with connection pooling, timeout, retry and logging."""
     return await _llm_call_async_impl_helper(
@@ -522,6 +523,7 @@ async def _llm_call_async_impl(
         note_model_activity_func=note_model_activity,
         get_http_client_func=_get_http_client,
         httpx_post_async_func=httpx_post_kimi_aware_async,
+        direct_transport=transport,
         format_upstream_error_func=_format_upstream_error,
         clear_host_dead_func=_clear_host_dead,
         parse_anthropic_response_func=_parse_anthropic_response,
@@ -548,6 +550,7 @@ async def llm_call_async(
     correlation_id: Optional[str] = None,
     task_id: Optional[str] = None,
     doc_id: Optional[str] = None,
+    transport: Optional[httpx.AsyncBaseTransport] = None,
 ) -> str:
     """Asynchronous LLM call with redacted AI-activity audit metadata."""
 
@@ -568,6 +571,7 @@ async def llm_call_async(
             max_retries=max_retries,
             prompt_type=prompt_type,
             session_id=session_id,
+            transport=transport,
         )
         return response
     except Exception as exc:

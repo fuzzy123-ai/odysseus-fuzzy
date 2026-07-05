@@ -5,6 +5,7 @@ import types
 from pathlib import Path
 
 import pytest
+import httpx
 
 
 @pytest.mark.parametrize("url", [
@@ -50,6 +51,57 @@ def test_public_url_validator_blocks_dns_to_private(monkeypatch):
 
     with pytest.raises(ValueError):
         url_security.validate_public_http_url("https://api.example.com/v1")
+
+
+def test_pinned_public_transport_rejects_rebind_between_validation_and_pin(monkeypatch):
+    from src import url_security
+
+    answers = [
+        [ipaddress.ip_address("93.184.216.34")],
+        [ipaddress.ip_address("10.0.0.5")],
+    ]
+
+    def _resolve(_host):
+        return answers.pop(0)
+
+    monkeypatch.setattr(url_security, "_resolve_hostname_ips", _resolve)
+
+    with pytest.raises(ValueError):
+        url_security.PinnedPublicHttpTransport.for_url("https://api.example.com/v1")
+
+
+@pytest.mark.asyncio
+async def test_pinned_public_transport_rewrites_to_resolved_ip_without_new_dns(monkeypatch):
+    from src import url_security
+
+    resolve_calls = []
+
+    def _resolve(host):
+        resolve_calls.append(host)
+        if len(resolve_calls) > 2:
+            raise AssertionError("pinned transport must not resolve DNS during request send")
+        return [ipaddress.ip_address("93.184.216.34")]
+
+    captured = []
+
+    async def _handler(request):
+        captured.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(url_security, "_resolve_hostname_ips", _resolve)
+    endpoint = url_security.PinnedPublicHttpTransport.for_url("https://api.example.com/v1")
+    transport = url_security.PinnedPublicHttpTransport(
+        endpoint.endpoint,
+        transport=httpx.MockTransport(_handler),
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await client.post("https://api.example.com/v1/chat/completions", json={"hello": "world"})
+
+    assert response.status_code == 200
+    assert captured[0].url.host == "93.184.216.34"
+    assert captured[0].headers["host"] == "api.example.com"
+    assert captured[0].extensions["sni_hostname"] == "api.example.com"
+    assert resolve_calls == ["api.example.com", "api.example.com"]
 
 
 def _load_webhook_routes_for_test(monkeypatch):
@@ -326,6 +378,142 @@ async def test_api_chat_direct_base_url_allows_mocked_public_endpoint(monkeypatc
     assert response["response"] == "mocked response"
     assert response["model"] == "test-model"
     assert session_manager.created[0]["endpoint_url"] == "https://api.example.com/v1/chat/completions"
+
+
+@pytest.mark.asyncio
+async def test_api_chat_direct_base_url_passes_pinned_transport_to_llm(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_API_TOKEN_DIRECT_BASE_URL_ENABLED", "true")
+    webhook_routes = _load_webhook_routes_for_test(monkeypatch)
+    _install_sync_chat_stubs(monkeypatch)
+    from src import url_security
+
+    monkeypatch.setattr(
+        url_security,
+        "_resolve_hostname_ips",
+        lambda host: [ipaddress.ip_address("93.184.216.34")],
+    )
+    sentinel_transport = object()
+    captured = {}
+
+    class _TransportFactory:
+        @staticmethod
+        def for_url(url):
+            captured["for_url"] = url
+            return sentinel_transport
+
+    async def _llm_call_async(endpoint_url, model, messages, headers=None, timeout=None, **kwargs):
+        captured["endpoint_url"] = endpoint_url
+        captured["transport"] = kwargs.get("transport")
+        return "mocked response"
+
+    monkeypatch.setattr(webhook_routes, "PinnedPublicHttpTransport", _TransportFactory)
+    sys.modules["src.llm_core"].llm_call_async = _llm_call_async
+
+    session_manager = _SessionManager()
+    sync_chat = _sync_chat_endpoint(webhook_routes, session_manager)
+    body = types.SimpleNamespace(
+        message="hello",
+        api_key="test-key",
+        base_url="https://api.example.com/v1",
+        model="test-model",
+        provider=None,
+        session=None,
+    )
+
+    response = await sync_chat(_Request(), body)
+
+    assert response["response"] == "mocked response"
+    assert captured["for_url"] == "https://api.example.com/v1"
+    assert captured["endpoint_url"] == "https://api.example.com/v1/chat/completions"
+    assert captured["transport"] is sentinel_transport
+
+
+@pytest.mark.asyncio
+async def test_llm_async_call_uses_direct_pinned_transport_for_untrusted_url():
+    from src.llm_async_call import llm_call_async_impl
+    from src.url_security import PinnedPublicHttpEndpoint, PinnedPublicHttpTransport
+
+    captured = []
+
+    async def _handler(request):
+        captured.append(request)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "ok"}}]},
+        )
+
+    transport = PinnedPublicHttpTransport(
+        PinnedPublicHttpEndpoint(
+            url="https://api.example.com/v1",
+            hostname="api.example.com",
+            port=None,
+            pinned_ips=("93.184.216.34",),
+        ),
+        transport=httpx.MockTransport(_handler),
+    )
+
+    async def _post(client, url, headers, **kwargs):
+        return await client.post(url, headers=headers, **kwargs)
+
+    def _shared_client():
+        raise AssertionError("direct token URL must not use the shared DNS-resolving client")
+
+    result = await llm_call_async_impl(
+        "https://api.example.com/v1/chat/completions",
+        "test-model",
+        [{"role": "user", "content": "hello"}],
+        temperature=1.0,
+        max_tokens=0,
+        headers={"Authorization": "Bearer test"},
+        timeout=5,
+        max_retries=1,
+        session_id=None,
+        retry_delay=0,
+        dead_host_cooldown=1,
+        http_exception_cls=RuntimeError,
+        connect_error_classes=(httpx.ConnectError, httpx.ConnectTimeout),
+        request_error_classes=(httpx.RequestError, httpx.HTTPStatusError),
+        logger=types.SimpleNamespace(debug=lambda *_: None, warning=lambda *_: None, info=lambda *_: None),
+        detect_provider_func=lambda _url: "openai",
+        sanitize_messages_func=lambda messages: messages,
+        visible_reasoning_guard_func=lambda messages, _model: messages,
+        get_cache_key_func=lambda *_args: "cache-key",
+        get_cached_response_func=lambda _key: None,
+        set_cached_response_func=lambda _key, _value: None,
+        stream_llm_func=None,
+        normalize_anthropic_url_func=lambda url: url,
+        build_anthropic_headers_func=lambda headers: headers or {},
+        build_anthropic_payload_func=lambda *_args, **_kwargs: {},
+        normalize_ollama_url_func=lambda url: url,
+        build_ollama_payload_func=lambda *_args, **_kwargs: {},
+        get_context_length_func=lambda *_args: 4096,
+        provider_headers_func=lambda _provider, headers: headers or {},
+        omit_temperature_func=lambda *_args: False,
+        uses_max_completion_tokens_func=lambda _model: False,
+        is_ollama_openai_compat_url_func=lambda _url: False,
+        supports_thinking_func=lambda _model: False,
+        mistral_reasoning_effort="low",
+        apply_local_cache_affinity_func=lambda *_args: None,
+        is_host_dead_func=lambda _url: False,
+        host_key_func=lambda url: url,
+        call_timeout_func=lambda _timeout: httpx.Timeout(5.0),
+        note_model_activity_func=lambda *_args: None,
+        get_http_client_func=_shared_client,
+        httpx_post_async_func=_post,
+        format_upstream_error_func=lambda status, text, url: text,
+        clear_host_dead_func=lambda _url: None,
+        parse_anthropic_response_func=lambda data: "",
+        parse_ollama_response_func=lambda data: "",
+        normalize_mistral_content_func=lambda content: (content, ""),
+        parse_openai_message_func=lambda message, **_kwargs: message["content"],
+        mark_host_dead_func=lambda _url: False,
+        direct_transport=transport,
+    )
+
+    assert result == "ok"
+    assert captured[0].url.host == "93.184.216.34"
+    assert captured[0].headers["host"] == "api.example.com"
+    assert captured[0].extensions["sni_hostname"] == "api.example.com"
 
 
 @pytest.mark.asyncio

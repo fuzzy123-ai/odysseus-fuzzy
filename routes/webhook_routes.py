@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from core.database import SessionLocal, Webhook, ModelEndpoint
 from src.auth_helpers import owner_filter
 from src.auth_helpers import require_api_token_scope
-from src.url_security import direct_base_url_enabled, validate_public_http_url
+from src.url_security import PinnedPublicHttpTransport, direct_base_url_enabled, validate_public_http_url
 from src.webhook_manager import WebhookManager, validate_webhook_url, validate_events
 
 logger = logging.getLogger(__name__)
@@ -252,6 +252,7 @@ def setup_webhook_routes(
 
         session_id = body.session
         sess = None
+        direct_base_transport = None
 
         # --- Case 1: Resume an existing session ---
         if session_id and session_manager:
@@ -291,6 +292,7 @@ def setup_webhook_routes(
                     raise HTTPException(400, detail)
                 if not direct_base_url_enabled():
                     raise HTTPException(400, "Direct base_url is disabled for API tokens")
+                direct_base_transport = PinnedPublicHttpTransport.for_url(base_url)
             else:
                 base_url = _resolve_base_url(model, body.provider)
             if not base_url:
@@ -385,6 +387,7 @@ def setup_webhook_routes(
             surface="webhook",
             session_id=session_id,
             prompt_type="webhook_chat_completion",
+            transport=direct_base_transport,
         )
         sess.add_message(ChatMessage("assistant", reply))
         session_manager.save_sessions()

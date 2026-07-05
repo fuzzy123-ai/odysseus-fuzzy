@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import httpx
 import json
 import time
 from typing import Any, Callable, Optional
@@ -108,6 +109,7 @@ async def llm_call_async_impl(
     normalize_mistral_content_func: Callable[[Any], tuple[str, str]],
     parse_openai_message_func: Callable[..., str],
     mark_host_dead_func: Callable[[str], bool],
+    direct_transport: Any = None,
 ) -> str:
     """Async LLM call with connection pooling, timeout, retry and logging."""
     provider = detect_provider_func(url)
@@ -183,56 +185,64 @@ async def llm_call_async_impl(
 
     call_timeout = call_timeout_func(timeout)
     attempt = 0
-    while attempt < max_retries:
-        attempt += 1
-        start = time.time()
-        try:
-            note_model_activity_func(target_url, model)
-            client = get_http_client_func()
-            response = await httpx_post_async_func(client, target_url, request_headers, json=payload, timeout=call_timeout)
-            duration = time.time() - start
-            if not response.is_success:
-                friendly = format_upstream_error_func(response.status_code, response.text, target_url)
-                logger.warning(
-                    f"LLM async call to {target_url} failed in {duration:.2f}s "
-                    f"(attempt {attempt}): HTTP {response.status_code} {friendly}"
-                )
-                if response.status_code in (429, 502, 503, 504) and attempt < max_retries:
-                    await asyncio.sleep(retry_delay)
-                    continue
-                raise http_exception_cls(response.status_code, friendly)
-            logger.info(f"LLM async call to {target_url} succeeded in {duration:.2f}s (attempt {attempt})")
-            clear_host_dead_func(target_url)
-            data = response.json()
+    direct_client = httpx.AsyncClient(transport=direct_transport, follow_redirects=False) if direct_transport is not None else None
+    try:
+        while attempt < max_retries:
+            attempt += 1
+            start = time.time()
             try:
-                if provider == "anthropic":
-                    text = parse_anthropic_response_func(data)
-                elif provider == "ollama":
-                    text = parse_ollama_response_func(data)
+                note_model_activity_func(target_url, model)
+                if direct_client is not None:
+                    client = direct_client
                 else:
-                    message = data["choices"][0]["message"]
-                    text = parse_openai_message_func(
-                        message,
-                        model=model,
-                        normalize_content_func=normalize_mistral_content_func,
+                    client = get_http_client_func()
+                response = await httpx_post_async_func(client, target_url, request_headers, json=payload, timeout=call_timeout)
+                duration = time.time() - start
+                if not response.is_success:
+                    friendly = format_upstream_error_func(response.status_code, response.text, target_url)
+                    logger.warning(
+                        f"LLM async call to {target_url} failed in {duration:.2f}s "
+                        f"(attempt {attempt}): HTTP {response.status_code} {friendly}"
                     )
-                set_cached_response_func(cache_key, text)
-                return text
-            except Exception:
-                raise http_exception_cls(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
-        except connect_error_classes as exc:
-            cooled = mark_host_dead_func(target_url)
-            duration = time.time() - start
-            tail = f" - host cooled for {dead_host_cooldown:.0f}s" if cooled else " - transient, will retry"
-            logger.warning(f"LLM async connect to {target_url} failed after {duration:.2f}s: {exc}{tail}")
-            if cooled or attempt >= max_retries:
-                raise http_exception_cls(503, f"Cannot reach {host_key_func(target_url)}: {exc}")
-            await asyncio.sleep(retry_delay)
-        except request_error_classes as exc:
-            duration = time.time() - start
-            logger.warning(f"LLM async call attempt {attempt} failed after {duration:.2f}s: {exc}")
-            if attempt >= max_retries:
-                raise http_exception_cls(502, f"POST {target_url} failed after {max_retries} attempts: {exc}")
-            await asyncio.sleep(retry_delay)
+                    if response.status_code in (429, 502, 503, 504) and attempt < max_retries:
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    raise http_exception_cls(response.status_code, friendly)
+                logger.info(f"LLM async call to {target_url} succeeded in {duration:.2f}s (attempt {attempt})")
+                clear_host_dead_func(target_url)
+                data = response.json()
+                try:
+                    if provider == "anthropic":
+                        text = parse_anthropic_response_func(data)
+                    elif provider == "ollama":
+                        text = parse_ollama_response_func(data)
+                    else:
+                        message = data["choices"][0]["message"]
+                        text = parse_openai_message_func(
+                            message,
+                            model=model,
+                            normalize_content_func=normalize_mistral_content_func,
+                        )
+                    set_cached_response_func(cache_key, text)
+                    return text
+                except Exception:
+                    raise http_exception_cls(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
+            except connect_error_classes as exc:
+                cooled = mark_host_dead_func(target_url)
+                duration = time.time() - start
+                tail = f" - host cooled for {dead_host_cooldown:.0f}s" if cooled else " - transient, will retry"
+                logger.warning(f"LLM async connect to {target_url} failed after {duration:.2f}s: {exc}{tail}")
+                if cooled or attempt >= max_retries:
+                    raise http_exception_cls(503, f"Cannot reach {host_key_func(target_url)}: {exc}")
+                await asyncio.sleep(retry_delay)
+            except request_error_classes as exc:
+                duration = time.time() - start
+                logger.warning(f"LLM async call attempt {attempt} failed after {duration:.2f}s: {exc}")
+                if attempt >= max_retries:
+                    raise http_exception_cls(502, f"POST {target_url} failed after {max_retries} attempts: {exc}")
+                await asyncio.sleep(retry_delay)
+    finally:
+        if direct_client is not None:
+            await direct_client.aclose()
 
     raise http_exception_cls(502, f"POST {url} failed after {max_retries} attempts")
