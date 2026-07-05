@@ -116,14 +116,16 @@ Akzeptanz:
 
 ### P1: Artefakt-Integrity fuer Sandbox und Telegram
 
+Status 2026-07-05: repo-seitig umgesetzt fuer Sandbox-Log-Evidence und Telegram-Fotoartefakte. Ein echter Live-Telegram-Smoke bleibt ein separater Operator-Go.
+
 Ziel: Artefakt-Refs sind nicht nur sichere Strings, sondern belegbare Dateien.
 
 Arbeit:
 
-- `ResultArtifact` optional um `size_bytes`, echten Datei-`content_hash`, `exists`, `mime_hint` erweitern.
-- Sandbox-Worker schreibt echte Content-Hashes fuer Log- und Screenshot-Artefakte.
-- Telegram-Document-Reply akzeptiert nur Artefakte mit bestandenem Integrity-Check.
-- Screenshot-Sanity pruefen: Bildformat, Mindestgroesse, nicht leer.
+- `ResultArtifact` optional um `size_bytes`, echten Datei-`content_hash`, `exists`, `mime_hint` erweitern. **Done fuer Observer-Bundles.**
+- Sandbox-Worker schreibt echte Content-Hashes fuer Log-Artefakte. **Done.**
+- Telegram-Document-Reply akzeptiert nur Foto-Artefakte mit bestandenem Integrity-Check im Outbound-Fotopfad. **Done fuer PNG/JPG/WebP.**
+- Screenshot-Sanity pruefen: Bildformat, Mindestgroesse, nicht leer. **Done fuer Telegram-Fotoartefakte.**
 
 Akzeptanz:
 

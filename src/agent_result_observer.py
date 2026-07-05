@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+from pathlib import Path
 import re
 from typing import Any, Iterable
+
+from src.artifact_integrity import ArtifactIntegrity, inspect_artifact
 
 
 _KINDS = {"command_output", "log_tail", "screenshot", "dom_snapshot", "console", "network", "trace"}
@@ -22,20 +25,45 @@ class ResultArtifact:
     artifact_ref: str
     summary: str
     content_hash: str
+    exists: bool = False
+    size_bytes: int = 0
+    mime_hint: str = "application/octet-stream"
+    integrity_status: str = "not_checked"
     status: str = "ok"
     raw_content_visible: bool = False
 
     @classmethod
-    def create(cls, *, kind: Any, artifact_ref: Any, summary: Any, status: Any = "ok") -> "ResultArtifact":
+    def create(
+        cls,
+        *,
+        kind: Any,
+        artifact_ref: Any,
+        summary: Any,
+        status: Any = "ok",
+        repo_root: Path | str | None = None,
+        require_exists: bool = False,
+        require_nonempty: bool = False,
+        **_ignored: Any,
+    ) -> "ResultArtifact":
         safe_kind = str(kind or "").strip().lower()
         if safe_kind not in _KINDS:
             raise ResultObserverError("unsupported artifact kind")
         safe_summary = _summary(summary)
+        integrity = _inspect_observer_artifact(
+            artifact_ref,
+            repo_root=repo_root,
+            require_exists=require_exists,
+            require_nonempty=require_nonempty,
+        )
         return cls(
             kind=safe_kind,
-            artifact_ref=_artifact_ref(artifact_ref),
+            artifact_ref=integrity.artifact_ref,
             summary=safe_summary,
-            content_hash=_hash_text(safe_summary),
+            content_hash=integrity.content_hash or _hash_text(safe_summary),
+            exists=integrity.exists,
+            size_bytes=integrity.size_bytes,
+            mime_hint=integrity.mime_hint,
+            integrity_status=integrity.status,
             status=_token(status, default="ok"),
         )
 
@@ -45,6 +73,10 @@ class ResultArtifact:
             "artifact_ref": self.artifact_ref,
             "summary": self.summary,
             "content_hash": self.content_hash,
+            "exists": self.exists,
+            "size_bytes": self.size_bytes,
+            "mime_hint": self.mime_hint,
+            "integrity_status": self.integrity_status,
             "status": self.status,
             "raw_content_visible": False,
         }
@@ -82,15 +114,16 @@ def build_sandbox_result_evidence(
     stdout_artifact: Any = "",
     stderr_artifact: Any = "",
     summary: Any = "",
+    repo_root: Path | str | None = None,
 ) -> dict[str, Any]:
     status = "ok" if int(exit_code or 0) == 0 else "failed"
     artifacts = []
     if stdout_artifact:
-        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=stdout_artifact, summary=summary or "Sandbox stdout captured.", status=status))
+        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=stdout_artifact, summary=summary or "Sandbox stdout captured.", status=status, repo_root=repo_root, require_exists=bool(repo_root), require_nonempty=bool(repo_root)))
     if stderr_artifact:
-        artifacts.append(ResultArtifact.create(kind="log_tail", artifact_ref=stderr_artifact, summary="Sandbox stderr captured.", status=status))
+        artifacts.append(ResultArtifact.create(kind="log_tail", artifact_ref=stderr_artifact, summary="Sandbox stderr captured.", status=status, repo_root=repo_root, require_exists=bool(repo_root)))
     if not artifacts:
-        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=f"reports/sandbox/{_token(job_id, default='job')}.log", summary=summary or "Sandbox completed.", status=status))
+        artifacts.append(ResultArtifact.create(kind="command_output", artifact_ref=f"reports/sandbox/{_token(job_id, default='job')}.log", summary=summary or "Sandbox completed.", status=status, repo_root=repo_root, require_exists=bool(repo_root)))
     bundle = ResultEvidenceBundle.create(run_id=job_id, artifacts=artifacts)
     payload = bundle.to_dict()
     payload["exit_code"] = max(0, min(int(exit_code or 0), 255))
@@ -103,6 +136,24 @@ def _artifact_ref(value: Any) -> str:
     if not text or text.startswith("/") or re.match(r"^[A-Za-z]:", text) or ".." in text.split("/"):
         raise ResultObserverError("artifact_ref must be safe repo-relative")
     return text[:180]
+
+
+def _inspect_observer_artifact(
+    value: Any,
+    *,
+    repo_root: Path | str | None,
+    require_exists: bool,
+    require_nonempty: bool,
+) -> ArtifactIntegrity:
+    try:
+        return inspect_artifact(
+            value,
+            repo_root=repo_root,
+            require_exists=require_exists,
+            require_nonempty=require_nonempty,
+        )
+    except Exception as exc:
+        raise ResultObserverError(str(exc)) from exc
 
 
 def _summary(value: Any) -> str:

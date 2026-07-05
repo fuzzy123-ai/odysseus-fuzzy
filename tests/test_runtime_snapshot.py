@@ -17,6 +17,7 @@ def test_runtime_snapshot_reads_git_head_and_lists_core_capabilities(tmp_path: P
     assert "browser_gui" in snapshot["sandbox"]
     assert snapshot["delegate"] == "read_only_analysis_only"
     assert snapshot["claim_evidence_gate"] == "active_post_stream"
+    assert snapshot["artifact_integrity"] == "active_sandbox_logs_and_telegram_images"
 
 
 def test_runtime_snapshot_context_is_small_user_context(tmp_path: Path):
@@ -36,10 +37,12 @@ def test_render_runtime_snapshot_mentions_recent_changes_source():
             "telegram": ("photo_artifact_reply",),
             "delegate": "read_only_analysis_only",
             "claim_evidence_gate": "active_post_stream",
-            "limits": ("artifact_integrity_p1_pending",),
+            "artifact_integrity": "active_sandbox_logs_and_telegram_images",
+            "limits": ("live_actions_still_operator_gated",),
         }
     )
 
     assert "abc12345" in text
     assert "photo_artifact_reply" in text
+    assert "active_sandbox_logs_and_telegram_images" in text
     assert "use recent_changes" in text

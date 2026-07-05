@@ -42,3 +42,24 @@ def test_sandbox_result_evidence_attaches_exit_code_and_next_action():
     assert payload["exit_code"] == 1
     assert payload["next_action"] == "inspect_failure"
     assert payload["raw_content_visible"] is False
+
+
+def test_sandbox_result_evidence_attaches_file_integrity(tmp_path):
+    artifact = tmp_path / "reports" / "sandbox" / "stdout.log"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("exit_code=0\n", encoding="utf-8")
+    expected_size = len(artifact.read_bytes())
+
+    payload = build_sandbox_result_evidence(
+        job_id="pytest_smoke",
+        exit_code=0,
+        stdout_artifact="reports/sandbox/stdout.log",
+        summary="Focused tests passed.",
+        repo_root=tmp_path,
+    )
+
+    item = payload["artifacts"][0]
+    assert item["exists"] is True
+    assert item["size_bytes"] == expected_size
+    assert item["content_hash"].startswith("sha256:")
+    assert item["integrity_status"] == "verified"

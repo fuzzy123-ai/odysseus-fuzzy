@@ -70,6 +70,9 @@ def test_sandbox_worker_live_execution_uses_runner_and_records_artifact(tmp_path
     assert result.executed_live is True
     assert result.status.status == "succeeded"
     assert result.evidence["exit_code"] == 0
+    assert result.evidence["artifacts"][0]["exists"] is True
+    assert result.evidence["artifacts"][0]["size_bytes"] > 0
+    assert result.evidence["artifacts"][0]["integrity_status"] == "verified"
     assert len(calls) == 3
     assert calls[0][:3] == ("podman", "pod", "create")
     assert calls[1][:2] == ("podman", "run")

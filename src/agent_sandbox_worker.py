@@ -191,6 +191,7 @@ class SandboxWorker:
                 exit_code=run.exit_code,
                 stdout_artifact=artifact_ref,
                 summary="Sandbox command completed." if run.ok else "Sandbox command failed.",
+                repo_root=Path.cwd(),
             )
             status_text = "succeeded" if run.ok else "failed"
             self.ledger.record(

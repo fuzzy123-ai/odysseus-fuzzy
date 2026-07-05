@@ -4,17 +4,37 @@ from __future__ import annotations
 
 import re
 import hashlib
+from pathlib import Path
 from typing import Any, Mapping
+
+from src.artifact_integrity import ArtifactIntegrityError, inspect_artifact
 
 
 class SandboxArtifactPolicyError(ValueError):
     """Raised when an artifact policy record is unsafe."""
 
 
-def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any = 0, correlation_id: Any = "") -> dict[str, Any]:
+def classify_sandbox_artifact(
+    *,
+    artifact_ref: Any,
+    kind: Any,
+    size_bytes: Any = 0,
+    correlation_id: Any = "",
+    repo_root: Path | str | None = None,
+    require_exists: bool = False,
+) -> dict[str, Any]:
     safe_kind = _kind(kind)
-    size = _size(size_bytes)
     ref = _artifact_ref(artifact_ref)
+    try:
+        integrity = inspect_artifact(
+            ref,
+            repo_root=repo_root,
+            require_exists=require_exists,
+            require_nonempty=bool(repo_root and safe_kind in {"log", "screenshot", "report", "generated_file", "test_report"}),
+        )
+    except ArtifactIntegrityError as exc:
+        raise SandboxArtifactPolicyError(str(exc)) from exc
+    size = integrity.size_bytes if integrity.status == "verified" else _size(size_bytes)
     retention = "short"
     if safe_kind in {"report", "screenshot"}:
         retention = "medium"
@@ -25,7 +45,10 @@ def classify_sandbox_artifact(*, artifact_ref: Any, kind: Any, size_bytes: Any =
         "artifact_ref": ref,
         "kind": safe_kind,
         "size_bytes": size,
-        "content_hash": _content_hash(ref, size),
+        "content_hash": integrity.content_hash or _content_hash(ref, size),
+        "exists": integrity.exists,
+        "mime_hint": integrity.mime_hint,
+        "integrity_status": integrity.status,
         "correlation_id": _correlation_id(correlation_id),
         "retention": retention,
         "redaction_required": safe_kind in {"log", "report", "generated_file"},

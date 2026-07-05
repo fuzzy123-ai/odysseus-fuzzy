@@ -16,6 +16,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from src.artifact_integrity import ArtifactIntegrityError, inspect_artifact
 from src.telegram_formatting import chunk_telegram_html, render_telegram_markdown
 
 from plugins.telegram.stores import build_telegram_draft_id
@@ -334,6 +335,16 @@ def send_telegram_photo(
     suffix = Path(safe_filename).suffix.lower()
     if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise ValueError("telegram photo must be jpg, png, or webp")
+    try:
+        integrity = inspect_artifact(
+            path.name,
+            repo_root=path.parent,
+            require_exists=True,
+            require_nonempty=True,
+            require_image=True,
+        )
+    except ArtifactIntegrityError as exc:
+        raise ValueError(f"telegram photo integrity failed: {exc}") from exc
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
     payload: dict[str, Any] = {"chat_id": str(chat_id)}
     if caption.strip():
@@ -345,7 +356,7 @@ def send_telegram_photo(
         "photo",
         path,
         filename=safe_filename,
-        mime_type=mimetypes.guess_type(safe_filename)[0] or "image/png",
+        mime_type=integrity.mime_hint or mimetypes.guess_type(safe_filename)[0] or "image/png",
     )
     return {
         "ok": bool(result.get("ok")),
