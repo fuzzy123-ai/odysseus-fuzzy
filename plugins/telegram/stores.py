@@ -11,7 +11,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
 
@@ -390,6 +390,7 @@ class TelegramInboxStore:
         failure_reason: str | None = None,
         delivery_mode: str = "",
         formatting_mode: str = "",
+        truth_gate: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         data = self._read()
         message = {
@@ -408,6 +409,8 @@ class TelegramInboxStore:
             "chat_id_value_visible": False,
             "raw_rich_payload_visible": False,
         }
+        if truth_gate:
+            message["truth_gate"] = dict(truth_gate)
         message["correlation_id"] = _message_correlation_id(
             chat_handle=str(message.get("chat_handle") or ""),
             message_id=message.get("source_message_id") or message.get("message_id"),
@@ -424,6 +427,8 @@ class TelegramInboxStore:
                 "delivery_mode": delivery_mode,
                 "formatting_mode": formatting_mode,
                 "failure_reason": failure_reason or "",
+                "truth_gate_status": str((truth_gate or {}).get("status") or ""),
+                "truth_gate_changed": bool((truth_gate or {}).get("changed") or False),
             },
         )
         message["raw_content_visible"] = False

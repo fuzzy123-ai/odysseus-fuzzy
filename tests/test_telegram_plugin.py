@@ -1074,6 +1074,42 @@ def test_reply_route_allows_public_classification_by_channel_policy(tmp_path, mo
     assert sent == [("123", "Public Antwort")]
 
 
+def test_reply_route_truth_gates_unverified_success_before_send(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _send(chat_id, text):
+        sent.append((chat_id, text))
+        return {"ok": True, "telegram_message_id": 77, "token_value_visible": False}
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", _send)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/reply",
+        json={
+            "chat_id": "123",
+            "text": "Ich habe `pong.py` erstellt, Screenshot gesendet, alles fertig! \U0001f389",
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent[0][0] == "123"
+    sent_text = sent[0][1]
+    assert "nicht verifiziert" in sent_text
+    assert "alles fertig" not in sent_text.lower()
+    assert "\U0001f389" not in sent_text
+    history = TelegramInboxStore(tmp_path).history(chat_id="123")
+    assert history[0]["text"] == sent_text
+    assert history[0]["truth_gate"]["status"] == "unknown"
+    assert history[0]["truth_gate"]["changed"] is True
+
+
 def test_session_bridge_reuses_existing_mapping(tmp_path):
     store = TelegramSessionBridgeStore(tmp_path)
     created = []

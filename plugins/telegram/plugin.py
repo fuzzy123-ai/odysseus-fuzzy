@@ -21,6 +21,7 @@ from src.chat_security_state import ChatSecurityState
 from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_only
 from src.secure_channel_policy import ChannelContext, decide_channel_access
+from src.telegram_truth_gate import gate_telegram_reply_text
 from src.telegram_image_actions import run_telegram_image_action
 from src.telegram_voice_pipeline import (
     VoiceAgentTurn,
@@ -1827,6 +1828,8 @@ def setup(ctx):
                     formatting_mode="html",
                 )
                 return {"error": policy.block_reason, "exit_code": 1, "message": outbound}
+        truth_gate = gate_telegram_reply_text(text, repo_root=Path.cwd())
+        text = truth_gate.text
         try:
             if _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
                 try:
@@ -1846,6 +1849,7 @@ def setup(ctx):
                 failure_reason=str(exc),
                 delivery_mode="classic",
                 formatting_mode="html",
+                truth_gate=truth_gate.to_dict(),
             )
             return {"error": str(exc), "exit_code": 1, "message": outbound}
         outbound = store.append_outbound(
@@ -1855,6 +1859,7 @@ def setup(ctx):
             delivery_status="sent",
             delivery_mode=str(sent.get("delivery_mode") or "classic"),
             formatting_mode=str(sent.get("formatting_mode") or "plaintext"),
+            truth_gate=truth_gate.to_dict(),
         )
         return {
             "output": json.dumps({"sent": sent, "message": outbound}, ensure_ascii=False),
