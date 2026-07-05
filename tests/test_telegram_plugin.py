@@ -2325,6 +2325,94 @@ def test_document_reply_route_rejects_non_artifact_paths(tmp_path, monkeypatch):
     assert response.status_code == 400
 
 
+def test_document_reply_route_fetches_nextcloud_file_and_sends_document(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    calls = []
+
+    class _NextcloudClient:
+        def get_file_bytes(self, relative_path, *, max_bytes):
+            calls.append(("nextcloud", relative_path, max_bytes))
+            return b"hello from nextcloud\n"
+
+    def _document(chat_id, file_path, *, filename, caption):
+        calls.append(("telegram", chat_id, Path(file_path), filename, caption))
+        return {
+            "ok": True,
+            "telegram_message_id": 99,
+            "delivery_mode": "document",
+            "formatting_mode": "document_caption",
+            "token_value_visible": False,
+        }
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_document", _document)
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_nextcloud_webdav_client = _NextcloudClient()
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply",
+        json={
+            "chat_id": "123",
+            "nextcloud_path": "Documents/Private/report.pdf",
+            "filename": "report.pdf",
+            "caption": "Nextcloud report",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sent"]["delivery_mode"] == "document"
+    assert calls[0][0] == "nextcloud"
+    assert calls[0][1] == "Documents/Private/report.pdf"
+    assert calls[1][0] == "telegram"
+    assert calls[1][1] == "123"
+    assert calls[1][2].read_bytes() == b"hello from nextcloud\n"
+    assert "/data/reports/autonomous_coding_agent/telegram_nextcloud/" in calls[1][2].as_posix()
+    assert calls[1][2].name == "report.pdf"
+    assert calls[1][3] == "report.pdf"
+    persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
+    persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert "Documents/Private/report.pdf" not in persisted_text
+    assert "hello from nextcloud" not in persisted_text
+
+
+def test_document_reply_preview_for_nextcloud_does_not_fetch_or_send(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+
+    class _NextcloudClient:
+        def get_file_bytes(self, *_args, **_kwargs):
+            raise AssertionError("preview must not fetch Nextcloud bytes")
+
+    def _document(*_args, **_kwargs):
+        raise AssertionError("preview must not call Telegram transport")
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_document", _document)
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_nextcloud_webdav_client = _NextcloudClient()
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply/preview",
+        json={"chat_id": "123", "nextcloud_path": "Documents/Private/report.pdf"},
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["source"] == "nextcloud"
+    assert payload["dispatch_allowed"] is True
+    assert payload["live_fetch_required"] is True
+    assert payload["raw_nextcloud_path_visible"] is False
+
+
 def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "voice-chat-999")
     app = FastAPI()

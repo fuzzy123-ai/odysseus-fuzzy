@@ -15,6 +15,7 @@ import httpx
 
 _UNSAFE_PATH_CHARS = set('<>:"|?*')
 _DAV = "{DAV:}"
+_DEFAULT_MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
 
 
 class NextcloudWebDAVClientError(RuntimeError):
@@ -78,6 +79,30 @@ class NextcloudWebDAVClient:
         _raise_for_status(response, expected={200, 207})
         return _parse_propfind(response.text, path)
 
+    def get_file_bytes(
+        self,
+        relative_path: str,
+        *,
+        max_bytes: int = _DEFAULT_MAX_DOWNLOAD_BYTES,
+    ) -> bytes:
+        path = self._path(relative_path)
+        metadata = self.stat(relative_path)
+        if metadata is None:
+            raise NextcloudWebDAVClientError("WebDAV file not found")
+        if bool(metadata.get("is_collection")):
+            raise NextcloudWebDAVClientError("WebDAV path is a folder")
+        declared = int(metadata.get("size_bytes") or 0)
+        if max_bytes > 0 and declared > max_bytes:
+            raise NextcloudWebDAVClientError("WebDAV file exceeds download limit")
+        response = self._client.get(self._url(path))
+        if response.status_code == 404:
+            raise NextcloudWebDAVClientError("WebDAV file not found")
+        _raise_for_status(response, expected={200})
+        payload = response.content
+        if max_bytes > 0 and len(payload) > max_bytes:
+            raise NextcloudWebDAVClientError("WebDAV file exceeds download limit")
+        return payload
+
     def put_file(self, source_path: Path, relative_path: str) -> Mapping[str, Any]:
         source = Path(source_path)
         if not source.is_file():
@@ -137,25 +162,39 @@ def build_nextcloud_webdav_client_from_env() -> NextcloudWebDAVClient:
     The caller still needs an explicit review/operator gate before any write.
     """
 
-    missing = [
-        name
-        for name in (
-            "NEXTCLOUD_WEBDAV_BASE_URL",
-            "NEXTCLOUD_WEBDAV_USERNAME",
-            "NEXTCLOUD_WEBDAV_APP_PASSWORD",
-        )
-        if not str(os.getenv(name) or "").strip()
-    ]
+    base_url = _first_env("NEXTCLOUD_WEBDAV_BASE_URL", "NEXTCLOUD_WEBDAV_URL")
+    username = _first_env("NEXTCLOUD_WEBDAV_USERNAME", "NEXTCLOUD_USERNAME")
+    app_password = _first_env(
+        "NEXTCLOUD_WEBDAV_APP_PASSWORD",
+        "NEXTCLOUD_WEBDAV_PASSWORD",
+        "NEXTCLOUD_WEBDAV_PASSWORT",
+        "NEXTCLOUD_PASSWORD",
+    )
+    missing = []
+    if not base_url:
+        missing.append("NEXTCLOUD_WEBDAV_BASE_URL")
+    if not username:
+        missing.append("NEXTCLOUD_WEBDAV_USERNAME")
+    if not app_password:
+        missing.append("NEXTCLOUD_WEBDAV_APP_PASSWORD")
     if missing:
         raise NextcloudWebDAVClientError(
             "Nextcloud WebDAV runtime config missing: " + ",".join(missing)
         )
     return NextcloudWebDAVClient(
-        base_url=os.environ["NEXTCLOUD_WEBDAV_BASE_URL"],
-        username=os.environ["NEXTCLOUD_WEBDAV_USERNAME"],
-        app_password=os.environ["NEXTCLOUD_WEBDAV_APP_PASSWORD"],
+        base_url=base_url,
+        username=username,
+        app_password=app_password,
         root=os.getenv("NEXTCLOUD_WEBDAV_ROOT", ""),
     )
+
+
+def _first_env(*names: str) -> str:
+    for name in names:
+        value = str(os.getenv(name) or "").strip()
+        if value:
+            return value
+    return ""
 
 
 def _parse_propfind(text: str, relative_path: str) -> Mapping[str, Any]:

@@ -1964,6 +1964,55 @@ def setup(ctx):
             raise ValueError("telegram artifact_ref does not exist")
         return path
 
+    def _telegram_nextcloud_max_download_bytes() -> int:
+        try:
+            value = int(str(os.getenv("TELEGRAM_NEXTCLOUD_MAX_FILE_BYTES") or "").strip())
+        except ValueError:
+            value = 50 * 1024 * 1024
+        return max(1, min(value, 50 * 1024 * 1024))
+
+    def _safe_telegram_download_filename(value: Any, *, fallback: str = "nextcloud-file.bin") -> str:
+        name = Path(str(value or fallback or "nextcloud-file.bin").replace("\\", "/")).name
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip(".-")
+        if not safe:
+            safe = fallback
+        if "." not in safe:
+            safe = f"{safe}.bin"
+        return safe[:120] or "nextcloud-file.bin"
+
+    def _spool_nextcloud_telegram_artifact(relative_path: str, *, filename: Any = "") -> str:
+        raw_path = str(relative_path or "").strip()
+        if not raw_path:
+            raise ValueError("telegram nextcloud_path is required")
+        from src.nextcloud_webdav_client import build_nextcloud_webdav_client_from_env
+
+        client = _ctx_attr("telegram_nextcloud_webdav_client")
+        owns_client = client is None
+        if client is None:
+            client = build_nextcloud_webdav_client_from_env()
+        try:
+            payload = client.get_file_bytes(
+                raw_path,
+                max_bytes=_telegram_nextcloud_max_download_bytes(),
+            )
+        finally:
+            if owns_client and hasattr(client, "close"):
+                client.close()
+
+        safe_filename = _safe_telegram_download_filename(
+            filename,
+            fallback=_safe_telegram_download_filename(raw_path),
+        )
+        digest = hashlib.sha256(raw_path.encode("utf-8", errors="replace")).hexdigest()[:16]
+        artifact_ref = f"data/reports/autonomous_coding_agent/telegram_nextcloud/{digest}/{safe_filename}"
+        destination = (Path.cwd() / artifact_ref).resolve()
+        root = Path.cwd().resolve()
+        if root != destination and root not in destination.parents:
+            raise ValueError("telegram nextcloud artifact escapes workspace")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(payload)
+        return artifact_ref
+
     def _notification_target() -> str:
         return str(_ctx_attr("telegram_notification_target") or os.getenv("TELEGRAM_NOTIFICATION_CHAT_ID") or "")
 
@@ -1988,7 +2037,35 @@ def setup(ctx):
             payload = {**payload, **kwargs}
         chat_id = str(payload.get("chat_id") or "")
         artifact_ref = str(payload.get("artifact_ref") or "")
+        nextcloud_path = str(payload.get("nextcloud_path") or "")
         preview_only = bool(payload.get("preview_only"))
+        if artifact_ref and nextcloud_path:
+            raise ValueError("telegram document reply accepts artifact_ref or nextcloud_path, not both")
+        if nextcloud_path and preview_only:
+            return {
+                "output": json.dumps(
+                    {
+                        "preview_only": True,
+                        "source": "nextcloud",
+                        "delivery_mode": "document",
+                        "dispatch_allowed": _bool_env("TELEGRAM_AGENT_REPLY_ENABLED") and _chat_allowed(chat_id),
+                        "live_fetch_required": True,
+                        "raw_nextcloud_path_visible": False,
+                        "token_value_visible": False,
+                        "chat_target_value_visible": False,
+                    },
+                    ensure_ascii=False,
+                ),
+                "exit_code": 0,
+            }
+        if nextcloud_path:
+            artifact_ref = _spool_nextcloud_telegram_artifact(
+                nextcloud_path,
+                filename=payload.get("filename") or "",
+            )
+            payload = {**payload, "artifact_ref": artifact_ref}
+        if not artifact_ref:
+            raise ValueError("telegram document reply requires artifact_ref or nextcloud_path")
         artifact_path = _resolve_telegram_artifact_ref(artifact_ref)
         delivery_packet = None
         if _is_telegram_photo_artifact(artifact_ref):
@@ -2540,20 +2617,21 @@ def setup(ctx):
             name="telegram_document_reply",
             description=(
                 "Send a reviewed sandbox/export artifact through Telegram. "
-                "Accepts only repo-relative artifact_ref values under data/reports/autonomous_coding_agent or reports; "
-                "PNG/JPG/WebP artifacts are sent as Telegram photos."
+                "Accepts repo-relative artifact_ref values under data/reports/autonomous_coding_agent or reports, "
+                "or a server-side nextcloud_path fetched through configured WebDAV. PNG/JPG/WebP artifacts are sent as Telegram photos."
             ),
             parameters={
                 "type": "object",
                 "properties": {
                     "chat_id": {"type": "string", "description": "Telegram chat id from the stored inbound message."},
                     "artifact_ref": {"type": "string", "description": "Repo-relative artifact path, for example data/reports/autonomous_coding_agent/demo/screen.png."},
+                    "nextcloud_path": {"type": "string", "description": "Optional server-side Nextcloud/WebDAV relative path to fetch and send as a Telegram document."},
                     "filename": {"type": "string", "description": "Optional safe filename for Telegram."},
                     "caption": {"type": "string", "description": "Optional short caption."},
                     "source_message_id": {"type": "integer", "description": "Optional Telegram source message id."},
                     "preview_only": {"type": "boolean", "description": "Build a redacted delivery preview without sending to Telegram."},
                 },
-                "required": ["chat_id", "artifact_ref"],
+                "required": ["chat_id"],
             },
             execute=_telegram_document_reply_tool,
             permission="admin",

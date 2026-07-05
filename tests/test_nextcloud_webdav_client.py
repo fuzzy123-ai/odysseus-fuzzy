@@ -79,6 +79,55 @@ def test_put_text_uploads_sidecar_without_raw_source(tmp_path):
     assert calls[-1][2] == b'{"safe":true}'
 
 
+def test_get_file_bytes_downloads_existing_file_with_size_guard():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, str(request.url)))
+        if request.method == "PROPFIND":
+            return httpx.Response(
+                207,
+                text=(
+                    '<?xml version="1.0"?>'
+                    '<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop>'
+                    "<d:getcontentlength>7</d:getcontentlength>"
+                    "</d:prop></d:propstat></d:response></d:multistatus>"
+                ),
+            )
+        if request.method == "GET":
+            return httpx.Response(200, content=b"payload")
+        return httpx.Response(500)
+
+    payload = _client(handler).get_file_bytes("Documents/file.txt", max_bytes=10)
+
+    assert payload == b"payload"
+    assert [call[0] for call in calls] == ["PROPFIND", "GET"]
+
+
+def test_get_file_bytes_refuses_declared_oversize_before_get():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.method)
+        return httpx.Response(
+            207,
+            text=(
+                '<?xml version="1.0"?>'
+                '<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop>'
+                "<d:getcontentlength>100</d:getcontentlength>"
+                "</d:prop></d:propstat></d:response></d:multistatus>"
+            ),
+        )
+
+    try:
+        _client(handler).get_file_bytes("Documents/file.txt", max_bytes=10)
+    except NextcloudWebDAVClientError as exc:
+        assert "download limit" in str(exc)
+    else:
+        raise AssertionError("oversize WebDAV file should be refused")
+    assert calls == ["PROPFIND"]
+
+
 def test_rejects_absolute_or_traversal_paths():
     client = _client(lambda _request: httpx.Response(200))
 
@@ -108,6 +157,11 @@ def test_env_factory_requires_config_without_leaking_secret_names(monkeypatch):
         "NEXTCLOUD_WEBDAV_BASE_URL",
         "NEXTCLOUD_WEBDAV_USERNAME",
         "NEXTCLOUD_WEBDAV_APP_PASSWORD",
+        "NEXTCLOUD_WEBDAV_URL",
+        "NEXTCLOUD_WEBDAV_PASSWORD",
+        "NEXTCLOUD_WEBDAV_PASSWORT",
+        "NEXTCLOUD_USERNAME",
+        "NEXTCLOUD_PASSWORD",
         "NEXTCLOUD_WEBDAV_ROOT",
     ):
         monkeypatch.delenv(name, raising=False)
@@ -134,5 +188,25 @@ def test_env_factory_creates_client_without_network_io(monkeypatch):
         assert client.base_url == "https://nextcloud.example/remote.php/dav/files/odysseus"
         assert client.username == "odysseus"
         assert client.root == "AI Inbox"
+    finally:
+        client.close()
+
+
+def test_env_factory_accepts_url_and_password_aliases(monkeypatch):
+    for name in (
+        "NEXTCLOUD_WEBDAV_BASE_URL",
+        "NEXTCLOUD_WEBDAV_APP_PASSWORD",
+        "NEXTCLOUD_WEBDAV_URL",
+        "NEXTCLOUD_WEBDAV_PASSWORD",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_URL", "https://nextcloud.example/remote.php/dav/files/odysseus")
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_USERNAME", "odysseus")
+    monkeypatch.setenv("NEXTCLOUD_WEBDAV_PASSWORD", "secret-app-password")
+
+    client = build_nextcloud_webdav_client_from_env()
+    try:
+        assert client.base_url == "https://nextcloud.example/remote.php/dav/files/odysseus"
+        assert client.username == "odysseus"
     finally:
         client.close()
