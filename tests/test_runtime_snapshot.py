@@ -21,6 +21,7 @@ def test_runtime_snapshot_reads_git_head_and_lists_core_capabilities(tmp_path: P
     assert snapshot["tool_transaction_ledger"] == "active_agent_metrics_claim_gate"
     assert snapshot["capability_first_gate"] == "active_repo_side_program_screenshot"
     assert snapshot["telegram_run_state"] == "active_repo_side_contract"
+    assert snapshot["telegram_screenshot_delivery"] == "active_integrity_packet_photo_artifacts"
     assert "live_telegram_smoke_requires_operator_go" in snapshot["limits"]
 
 
@@ -30,7 +31,7 @@ def test_runtime_snapshot_context_is_small_user_context(tmp_path: Path):
     assert message["role"] == "user"
     assert message["metadata"] == {"source": "runtime_snapshot", "trusted": True}
     assert "## Odysseus runtime snapshot" in message["content"]
-    assert len(message["content"].split()) < 120
+    assert len(message["content"].split()) < 130
 
 
 def test_render_runtime_snapshot_mentions_recent_changes_source():
@@ -45,6 +46,7 @@ def test_render_runtime_snapshot_mentions_recent_changes_source():
             "tool_transaction_ledger": "active_agent_metrics_claim_gate",
             "capability_first_gate": "active_repo_side_program_screenshot",
             "telegram_run_state": "active_repo_side_contract",
+            "telegram_screenshot_delivery": "active_integrity_packet_photo_artifacts",
             "limits": ("live_actions_still_operator_gated",),
         }
     )
@@ -54,4 +56,5 @@ def test_render_runtime_snapshot_mentions_recent_changes_source():
     assert "active_sandbox_logs_and_telegram_images" in text
     assert "active_repo_side_program_screenshot" in text
     assert "active_repo_side_contract" in text
+    assert "active_integrity_packet_photo_artifacts" in text
     assert "use recent_changes" in text

@@ -2088,12 +2088,45 @@ def test_document_reply_route_sends_screenshot_artifact_as_photo(tmp_path, monke
     )
 
     assert response.status_code == 200
-    assert response.json()["sent"]["delivery_mode"] == "photo"
+    payload = response.json()
+    assert payload["sent"]["delivery_mode"] == "photo"
+    assert payload["delivery_packet"]["integrity_status"] == "verified"
+    assert payload["delivery_packet"]["dispatch_allowed"] is True
+    assert payload["delivery_packet"]["artifact_ref"] == "data/reports/autonomous_coding_agent/pong/screen.png"
+    assert payload["delivery_packet"]["raw_content_visible"] is False
     assert calls[0][0] == "123"
     assert calls[0][1] == artifact
     history = TelegramInboxStore(tmp_path).history(chat_id="123")
     assert history[0]["delivery_mode"] == "photo"
     assert history[0]["formatting_mode"] == "photo_caption"
+
+
+def test_document_reply_route_blocks_corrupt_screenshot_before_transport(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    artifact = tmp_path / "data" / "reports" / "autonomous_coding_agent" / "pong" / "screen.png"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("not an image", encoding="utf-8")
+
+    def _photo(*_args, **_kwargs):
+        raise AssertionError("corrupt screenshot must not reach Telegram transport")
+
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_photo", _photo)
+    app = FastAPI()
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/plugins/telegram/document-reply",
+        json={
+            "chat_id": "123",
+            "artifact_ref": "data/reports/autonomous_coding_agent/pong/screen.png",
+        },
+    )
+
+    assert response.status_code == 403
 
 
 def test_document_reply_route_rejects_non_artifact_paths(tmp_path, monkeypatch):

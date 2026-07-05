@@ -23,6 +23,7 @@ from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_on
 from src.secure_channel_policy import ChannelContext, decide_channel_access
 from src.telegram_truth_gate import gate_telegram_reply_text
 from src.telegram_image_actions import run_telegram_image_action
+from src.telegram_screenshot_delivery import build_telegram_screenshot_delivery_packet
 from src.telegram_voice_pipeline import (
     VoiceAgentTurn,
     build_voice_agent_turn,
@@ -1985,13 +1986,36 @@ def setup(ctx):
         chat_id = str(payload.get("chat_id") or "")
         artifact_ref = str(payload.get("artifact_ref") or "")
         artifact_path = _resolve_telegram_artifact_ref(artifact_ref)
-        return _document_reply_with_gate(
+        delivery_packet = None
+        if _is_telegram_photo_artifact(artifact_ref):
+            delivery_packet = build_telegram_screenshot_delivery_packet(
+                artifact_ref,
+                repo_root=Path.cwd(),
+                filename=payload.get("filename") or artifact_path.name,
+                caption=payload.get("caption") or "Sandbox-Artefakt",
+                reply_enabled=_bool_env("TELEGRAM_AGENT_REPLY_ENABLED"),
+                target_configured=_chat_allowed(chat_id),
+            )
+            if delivery_packet.integrity_status != "verified":
+                return {
+                    "error": delivery_packet.blocker or "telegram screenshot artifact failed integrity",
+                    "exit_code": 1,
+                    "delivery_packet": delivery_packet.to_dict(),
+                }
+        result = _document_reply_with_gate(
             chat_id,
             str(artifact_path),
             str(payload.get("filename") or artifact_path.name),
             str(payload.get("caption") or "Sandbox-Artefakt"),
             source_message_id=payload.get("source_message_id"),
         )
+        if delivery_packet and result.get("output"):
+            output = json.loads(str(result["output"]))
+            output["delivery_packet"] = delivery_packet.to_dict()
+            result["output"] = json.dumps(output, ensure_ascii=False)
+        if delivery_packet:
+            result["delivery_packet"] = delivery_packet.to_dict()
+        return result
 
     async def _odysseus_notify_user_tool(content: str, **kwargs):
         payload = _parse_tool_payload(content)

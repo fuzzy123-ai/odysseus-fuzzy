@@ -26,6 +26,7 @@ def build_runtime_snapshot(*, repo_root: Path | str | None = None) -> dict[str, 
         "tool_transaction_ledger": "active_agent_metrics_claim_gate",
         "capability_first_gate": "active_repo_side_program_screenshot",
         "telegram_run_state": "active_repo_side_contract",
+        "telegram_screenshot_delivery": "active_integrity_packet_photo_artifacts",
         "limits": (
             "live_telegram_smoke_requires_operator_go",
             "live_actions_still_operator_gated",
@@ -59,6 +60,7 @@ def render_runtime_snapshot(snapshot: dict[str, Any]) -> str:
         f"- tool_transaction_ledger: {snapshot.get('tool_transaction_ledger') or 'unknown'}\n"
         f"- capability_first_gate: {snapshot.get('capability_first_gate') or 'unknown'}\n"
         f"- telegram_run_state: {snapshot.get('telegram_run_state') or 'unknown'}\n"
+        f"- telegram_screenshot_delivery: {snapshot.get('telegram_screenshot_delivery') or 'unknown'}\n"
         f"- limits: {limits}\n"
         "- local changes/patch notes source: use recent_changes"
     )
