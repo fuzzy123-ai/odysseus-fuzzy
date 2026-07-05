@@ -75,6 +75,12 @@ def test_base_compose_provisions_internal_ollama_service():
     assert "ollama-data" in compose["volumes"]
 
 
+def test_base_compose_forwards_telegram_image_actions_gate():
+    env = _compose_env_names(ROOT / "docker-compose.yml")
+
+    assert "TELEGRAM_IMAGE_ACTIONS_ENABLED" in env
+
+
 def test_homeserver_env_defaults_point_at_compose_ollama():
     for relpath in (
         "ops/homeserver/setup-odysseus-env.sh",
