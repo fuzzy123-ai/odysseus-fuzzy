@@ -10,6 +10,7 @@ from src.task_scheduler_delivery import (
     is_email_output_target,
     is_user_notification_output_target,
 )
+from src.user_notification_delivery import deliver_user_notification
 
 
 def test_task_scheduler_delivery_wrappers_preserve_email_formatting():
@@ -103,6 +104,129 @@ async def test_task_scheduler_telegram_delivery_uses_safe_boundary(monkeypatch):
     assert calls[0]["metadata"]["task_id"].startswith("sha256:")
     assert "Morning Todos" not in str(decision["runtime_event"])
     assert "token" not in str(calls[0]).lower()
+
+
+@pytest.mark.asyncio
+async def test_todo_digest_telegram_delivery_is_plain_multiline(monkeypatch):
+    calls = []
+
+    async def _deliver(payload):
+        calls.append(payload)
+        return {"delivery_status": "dispatched", "reason": "ready_for_server_side_dispatch"}
+
+    monkeypatch.setattr("src.user_notification_delivery.deliver_user_notification", _deliver)
+    task = SimpleNamespace(id="task-telegram", name="Todo digest", owner="alice", action="todo_digest")
+    body = "Todo digest\n\nOpen items:\n- Zentrale To-Do-Liste: Patchday kommunizieren"
+
+    await deliver_user_notification_for_task(task, body)
+
+    assert calls[0]["event"] == "todo_digest"
+    assert calls[0]["render_mode"] == "plain"
+    assert calls[0]["message"] == body
+    assert calls[0]["metadata"]["task_id"].startswith("sha256:")
+
+
+@pytest.mark.asyncio
+async def test_legacy_named_todo_digest_telegram_delivery_is_plain(monkeypatch):
+    sent = []
+    body = (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- Zentrale To-Do-Liste: ASV Noten ueberpruefen"
+    )
+
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "1")
+    monkeypatch.setenv("TELEGRAM_NOTIFICATION_CHAT_ID", "server-side-target")
+    monkeypatch.setattr("plugins.telegram.plugin._chat_allowed", lambda target: target == "server-side-target")
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda target, text: sent.append((target, text)) or {"ok": True},
+    )
+    task = SimpleNamespace(id="task-telegram", name="Todo digest", owner="alice")
+
+    decision = await deliver_user_notification_for_task(task, body)
+
+    assert decision["delivery_status"] == "dispatched"
+    assert sent == [
+        (
+            "server-side-target",
+            "Todo digest\n\n"
+            "Open items:\n"
+            "Zentrale To-Do-Liste:\n"
+            "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+            "- ASV Noten ueberpruefen",
+        )
+    ]
+    assert "[Odysseus]" not in sent[0][1]
+    assert "scheduled_task" not in sent[0][1]
+    assert "task_id" not in sent[0][1]
+
+
+@pytest.mark.asyncio
+async def test_legacy_flat_todo_digest_telegram_delivery_is_normalized(monkeypatch):
+    sent = []
+    body = (
+        "[Odysseus][success] scheduled_task: Todo digest Open items: "
+        "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail "
+        "- Zentrale To-Do-Liste: ASV Noten ueberpruefen "
+        "task_id=sha256:eb50733f9dcd20d40431eeb07ba5ea317adf9d7f205425b6419e2fe6b12ae7f0"
+    )
+
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "1")
+    monkeypatch.setenv("TELEGRAM_NOTIFICATION_CHAT_ID", "server-side-target")
+    monkeypatch.setattr("plugins.telegram.plugin._chat_allowed", lambda target: target == "server-side-target")
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda target, text: sent.append((target, text)) or {"ok": True},
+    )
+    task = SimpleNamespace(id="task-telegram", name="Task", owner="alice")
+
+    decision = await deliver_user_notification_for_task(task, body)
+
+    assert decision["delivery_status"] == "dispatched"
+    assert sent == [
+        (
+            "server-side-target",
+            "Todo digest\n\n"
+            "Open items:\n"
+            "Zentrale To-Do-Liste:\n"
+            "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+            "- ASV Noten ueberpruefen",
+        )
+    ]
+    assert "[Odysseus]" not in sent[0][1]
+    assert "scheduled_task" not in sent[0][1]
+    assert "task_id" not in sent[0][1]
+
+
+@pytest.mark.asyncio
+async def test_todo_digest_live_notification_renders_plain_body(monkeypatch):
+    sent = []
+    body = "Todo digest\n\nOpen items:\n- Zentrale To-Do-Liste: Patchday kommunizieren"
+
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "1")
+    monkeypatch.setenv("TELEGRAM_NOTIFICATION_CHAT_ID", "server-side-target")
+    monkeypatch.setattr("plugins.telegram.plugin._chat_allowed", lambda target: target == "server-side-target")
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda target, text: sent.append((target, text)) or {"ok": True},
+    )
+
+    decision = await deliver_user_notification({
+        "event": "todo_digest",
+        "message": body,
+        "severity": "success",
+        "channel": "telegram",
+        "dry_run": False,
+        "render_mode": "plain",
+        "metadata": {"task_id": "sha256:abc"},
+    })
+
+    assert decision["delivery_status"] == "dispatched"
+    assert sent == [("server-side-target", body)]
+    assert "[Odysseus]" not in sent[0][1]
+    assert "task_id" not in sent[0][1]
 
 
 @pytest.mark.asyncio

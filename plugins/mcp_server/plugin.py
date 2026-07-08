@@ -34,7 +34,12 @@ PLUGIN = {
     "author": "Odysseus",
     "description": "Policy-gated MCP server for trusted external clients.",
     "category": "Integrations",
+    "manifest_version": "1.0",
     "permission": "admin",
+    "kind": "ui",
+    "capabilities": ["admin_route", "local_api"],
+    "compatibility": {"min_odysseus": "1.0.0"},
+    "lifecycle": "loadable",
     "ui": {"open": "/api/plugins/mcp/app", "label": "Setup"},
 }
 

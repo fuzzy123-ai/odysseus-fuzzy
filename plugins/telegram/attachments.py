@@ -13,7 +13,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from src.memory_triage_contract import normalize_memory_write_intent_status
+from plugins.telegram.formatting import (
+    format_telegram_attachment_inbox_reply as _format_telegram_attachment_inbox_reply,
+    format_universal_inbox_memory_review_status,
+    format_universal_inbox_review_status,
+    telegram_attachment_ocr_note,
+)
 from plugins.telegram.stores import _chat_handle
 
 
@@ -27,103 +32,19 @@ def _telegram_attachment_max_bytes() -> int:
 
 
 def _format_universal_inbox_review_status(review: dict[str, Any]) -> str:
-    status = str(review.get("universal_inbox_status") or review.get("status") or "unknown")
-    processable = int(review.get("processable_count") or 0)
-    if status == "go":
-        return f"Universal Inbox: verarbeitet. Items: {processable}. Keine Review nötig."
-    return (
-        "Universal Inbox: Review nötig.\n"
-        f"Status: {status}\n"
-        f"Items: {processable}\n"
-        "Zum Bestätigen antworte mit /review ok."
-    )
+    return format_universal_inbox_review_status(review)
 
 
 def _format_universal_inbox_memory_review_status(review: dict[str, Any]) -> str:
-    status = normalize_memory_write_intent_status(
-        review.get("memory_write_intent_status") or "",
-        fallback="unknown",
-    )
-    inbox_status = str(review.get("universal_inbox_status") or "unknown")
-    if status == "ready":
-        return (
-            "Universal Inbox Memory: bereit und automatisch uebernommen.\n"
-            f"Inbox-Status: {inbox_status}\n"
-            "Es wird nur eine redaktierte Abstraktion geschrieben, kein Rohinhalt."
-        )
-    return (
-        "Universal Inbox Memory: Review nötig.\n"
-        f"Memory-Status: {status}\n"
-        f"Inbox-Status: {inbox_status}\n"
-        "Zum Bestätigen antworte mit /review memory ok."
-    )
+    return format_universal_inbox_memory_review_status(review)
 
 
 def format_telegram_attachment_inbox_reply(result: dict[str, Any]) -> str:
-    status = str(result.get("status") or "failed")
-    inbox_status = str(result.get("universal_inbox_status") or "")
-    memory_status = normalize_memory_write_intent_status(
-        result.get("memory_write_intent_status") or "",
-        fallback="unknown",
-    )
-    maintenance_action = str(result.get("maintenance_action") or "").strip()
-    ocr_note = _telegram_attachment_ocr_note(result)
-    processable = int(result.get("processable_count") or 0)
-    if status == "processed" and inbox_status == "go" and memory_status:
-        lines = [
-            f"Anhang verarbeitet. Items: {processable}. Keine Inbox-Review noetig.",
-            f"Memory/Raptor-Intent: {memory_status}.",
-        ]
-        if maintenance_action:
-            lines.append(f"Maintenance: {maintenance_action}.")
-        if memory_status == "ready":
-            auto_status = str(result.get("memory_auto_write_status") or "").strip()
-            if auto_status == "written":
-                lines.append("Redigierte Abstraktion automatisch ins Memory/RaptorGraph geschrieben.")
-            elif auto_status:
-                reason = str(result.get("memory_auto_write_reason") or auto_status).strip()
-                lines.append(f"Automatischer Memory-Write blockiert: {reason}.")
-            else:
-                lines.append("Redigierte Abstraktion wird automatisch uebernommen.")
-        if ocr_note:
-            lines.append(ocr_note)
-        return "\n".join(lines)
-    if status == "processed" and inbox_status == "go":
-        lines = [f"Anhang verarbeitet. Items: {processable}. Keine Review noetig."]
-        if ocr_note:
-            lines.append(ocr_note)
-        return "\n".join(lines)
-    if status == "processed":
-        lines = [
-            "Anhang empfangen und geprüft. Review nötig.",
-            f"Universal-Inbox-Status: {inbox_status or 'partial'}",
-            f"Items: {processable}",
-        ]
-        if ocr_note:
-            lines.append(ocr_note)
-        lines.append("Zum Bestätigen antworte mit /review ok.")
-        return "\n".join(lines)
-    if status == "blocked":
-        return f"Anhang empfangen, aber blockiert: {result.get('reason') or 'policy_gate'}."
-    return f"Anhang empfangen, aber Verarbeitung fehlgeschlagen: {result.get('reason') or 'unknown'}."
+    return _format_telegram_attachment_inbox_reply(result)
 
 
 def _telegram_attachment_ocr_note(result: dict[str, Any]) -> str:
-    warnings = tuple(str(value) for value in (result.get("extraction_warning_codes") or ()))
-    warning_set = set(warnings)
-    if "pdf_ocr_required" in warning_set or "image_ocr_required" in warning_set:
-        return "OCR: noetig, aber lokaler OCR-Adapter ist noch nicht aktiv."
-    if "pdf_ocr_blocked_by_policy" in warning_set:
-        return "OCR: durch Datenschutz-/Policy-Gate blockiert."
-    if "pdf_ocr_budget_exceeded" in warning_set:
-        return "OCR: Budget erreicht; bitte mit hoeherem OCR-Budget erneut starten."
-    if "image_ocr_unavailable" in warning_set:
-        return "OCR: lokaler OCR-Adapter ist nicht verfuegbar."
-    if "pdf_ocr_failed" in warning_set or "image_ocr_failed" in warning_set:
-        return "OCR: lokaler OCR-Lauf ist fehlgeschlagen."
-    if "image_ocr_empty" in warning_set:
-        return "OCR: Bild geprueft, aber kein Text erkannt."
-    return ""
+    return telegram_attachment_ocr_note(result)
 
 
 def _telegram_attachment_suffix(message: dict[str, Any]) -> str:

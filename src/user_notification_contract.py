@@ -12,6 +12,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping, Sequence
 
+from src.todo_digest_formatting import format_todo_digest_notification_body
+
 
 ALLOWED_SEVERITIES = {"info", "success", "warning", "error"}
 ALLOWED_CHANNELS = {"auto", "telegram"}
@@ -50,6 +52,7 @@ class UserNotificationRequest:
     severity: str = "info"
     channel: str = "auto"
     dry_run: bool = True
+    render_mode: str = "standard"
     metadata: dict[str, str] = field(default_factory=dict)
 
 
@@ -87,6 +90,27 @@ def _assert_no_forbidden_keys(value: Any, *, path: str = "$") -> None:
 
 def _clean_text(value: Any, *, fallback: str = "", max_chars: int = MAX_MESSAGE_CHARS) -> str:
     text = " ".join(str(value if value is not None else fallback).split())
+    if len(text) > max_chars:
+        return text[: max_chars - 1].rstrip() + "..."
+    return text
+
+
+def _clean_message_text(value: Any, *, fallback: str = "", max_chars: int = MAX_MESSAGE_CHARS) -> str:
+    raw = str(value if value is not None else fallback).replace("\r\n", "\n").replace("\r", "\n")
+    lines = [" ".join(line.split()) for line in raw.split("\n")]
+    # Preserve intentional paragraph/list structure without letting arbitrary
+    # whitespace create huge Telegram bodies.
+    compacted: list[str] = []
+    previous_blank = False
+    for line in lines:
+        if not line:
+            if not previous_blank:
+                compacted.append("")
+            previous_blank = True
+            continue
+        compacted.append(line)
+        previous_blank = False
+    text = "\n".join(compacted).strip()
     if len(text) > max_chars:
         return text[: max_chars - 1].rstrip() + "..."
     return text
@@ -135,7 +159,7 @@ def build_user_notification_request(payload: Mapping[str, Any] | str) -> UserNot
         or payload.get("run_label")
         or "odysseus_notification"
     )
-    message = _clean_text(payload.get("message") or payload.get("summary") or payload.get("text") or "")
+    message = _clean_message_text(payload.get("message") or payload.get("summary") or payload.get("text") or "")
     if not message:
         raise NotificationContractError("Notification message is required")
 
@@ -152,17 +176,32 @@ def build_user_notification_request(payload: Mapping[str, Any] | str) -> UserNot
     if channel not in ALLOWED_CHANNELS:
         channel = "auto"
 
+    render_mode = _clean_slug(payload.get("render_mode") or "standard", fallback="standard")
+    if render_mode not in {"standard", "plain"}:
+        render_mode = "standard"
+
     return UserNotificationRequest(
         event=event,
         message=message,
         severity=severity,
         channel=channel,
         dry_run=_coerce_bool(payload.get("dry_run"), default=True),
+        render_mode=render_mode,
         metadata=_metadata_to_public_strings(payload.get("metadata") or {}),
     )
 
 
 def render_user_notification_text(request: UserNotificationRequest) -> str:
+    normalized_message = " ".join(request.message.lower().split())
+    is_todo_digest = request.event in {"todo_digest", "scheduled_task"} and (
+        normalized_message.startswith("todo digest")
+        or "todo_digest: todo digest" in normalized_message
+        or "scheduled_task: todo digest" in normalized_message
+    )
+    if is_todo_digest:
+        return format_todo_digest_notification_body(request.message)
+    if request.render_mode == "plain":
+        return request.message
     prefix = f"[Odysseus][{request.severity}] {request.event}"
     if not request.metadata:
         return f"{prefix}: {request.message}"

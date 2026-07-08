@@ -507,6 +507,23 @@ class TelegramInboxStore:
             return dict(message)
         return None
 
+    def latest_universal_inbox_nextcloud_transfer(
+        self,
+        *,
+        chat_id: str | None = None,
+        source_message_id: Any | None = None,
+    ) -> dict[str, Any] | None:
+        chat_handle = _chat_handle(chat_id) if chat_id else ""
+        for message in reversed(self._read()["messages"]):
+            if message.get("kind") != "universal_inbox_nextcloud_transfer":
+                continue
+            if chat_handle and message.get("chat_handle") != chat_handle:
+                continue
+            if source_message_id is not None and message.get("source_message_id") != source_message_id:
+                continue
+            return dict(message)
+        return None
+
     def latest_universal_inbox_memory_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
         chat_handle = _chat_handle(chat_id) if chat_id else ""
         for message in reversed(self._read()["messages"]):

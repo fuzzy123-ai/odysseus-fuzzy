@@ -104,3 +104,7 @@ def test_version_one_route_returns_redacted_contract():
     assert payload["schema"] == "odysseus.version_one_readiness.v1"
     assert payload["ui"]["gate"] == "VERSION-1-UI-LIVE"
     assert payload["raw_content_visible"] is False
+    assert payload["canonical_gate_evidence"][0]["schema"] == "gate_evidence_core.v1"
+    assert payload["canonical_gate_evidence"][0]["id"] == "version_one_readiness"
+    assert payload["canonical_safe_now"]["schema"] == "gate_evidence_core.safe_now.v1"
+    assert payload["canonical_safe_now"]["can_proceed"] is False

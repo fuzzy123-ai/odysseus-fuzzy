@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC V2 Contrast Pass</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #020810;
+      --bg-2: #06111c;
+      --surface: #071522;
+      --surface-2: #0a1b2a;
+      --surface-3: #0e2638;
+      --line: rgba(138, 203, 225, 0.24);
+      --line-strong: rgba(150, 225, 249, 0.46);
+      --text: #eefbff;
+      --text-soft: #c7e2eb;
+      --muted: #94b6c2;
+      --dim: #668695;
+      --cyan: #20d8f4;
+      --blue: #65a4ff;
+      --green: #42e7a8;
+      --red: #ff5e84;
+      --amber: #ffc45f;
+      --shadow: rgba(0, 0, 0, 0.48);
+      --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+      --ui: Inter, "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 14%, rgba(32, 216, 244, 0.12), transparent 26%),
+        radial-gradient(circle at 84% 22%, rgba(66, 231, 168, 0.08), transparent 28%),
+        linear-gradient(180deg, #04101a 0%, #020810 52%, #01050b 100%);
+      color: var(--text);
+      font-family: var(--ui);
+      letter-spacing: 0;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -12%;
+      pointer-events: none;
+    }
+
+    body::before {
+      background:
+        linear-gradient(90deg, rgba(97, 169, 198, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(97, 169, 198, 0.06) 1px, transparent 1px);
+      background-size: 74px 74px;
+      mask-image: radial-gradient(circle at 50% 48%, black 0%, black 58%, transparent 82%);
+      opacity: 0.58;
+    }
+
+    body::after {
+      background:
+        radial-gradient(circle at 9% 66%, rgba(32, 216, 244, 0.34) 0 2px, transparent 4px),
+        radial-gradient(circle at 24% 42%, rgba(66, 231, 168, 0.22) 0 2px, transparent 4px),
+        radial-gradient(circle at 76% 28%, rgba(101, 164, 255, 0.24) 0 2px, transparent 4px),
+        radial-gradient(circle at 88% 76%, rgba(32, 216, 244, 0.22) 0 2px, transparent 4px),
+        linear-gradient(31deg, transparent 0 46%, rgba(32, 216, 244, 0.08) 46.1% 46.35%, transparent 46.45%),
+        linear-gradient(146deg, transparent 0 40%, rgba(66, 231, 168, 0.06) 40.1% 40.35%, transparent 40.45%);
+      opacity: 0.56;
+      filter: blur(0.2px);
+    }
+
+    .stage {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 20px;
+      padding: 18px 26px 26px;
+    }
+
+    .topbar {
+      height: 54px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      border: 1px solid rgba(150, 225, 249, 0.2);
+      border-radius: 12px;
+      background: rgba(3, 11, 18, 0.86);
+      box-shadow: 0 18px 40px var(--shadow);
+      padding: 0 14px;
+    }
+
+    .brand {
+      color: var(--cyan);
+      font: 800 16px/1 var(--mono);
+      text-shadow: 0 0 18px rgba(32, 216, 244, 0.28);
+    }
+
+    .screens {
+      justify-self: center;
+      width: min(680px, 52vw);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      border: 1px solid rgba(150, 225, 249, 0.18);
+      border-radius: 10px;
+      background: rgba(2, 8, 14, 0.82);
+      padding: 6px;
+    }
+
+    .screen-tab {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font: 700 12px/1 var(--mono);
+      text-align: left;
+      padding: 0 11px;
+    }
+
+    .screen-tab.active {
+      border-color: rgba(32, 216, 244, 0.55);
+      background: rgba(32, 216, 244, 0.1);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(32, 216, 244, 0.12), 0 0 18px rgba(32, 216, 244, 0.12);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-soft);
+      font: 700 11px/1 var(--mono);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--green);
+      border-radius: 50%;
+      background: rgba(66, 231, 168, 0.28);
+      box-shadow: 0 0 12px rgba(66, 231, 168, 0.38);
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(520px, 1fr) minmax(350px, 0.62fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .window {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background:
+        linear-gradient(180deg, rgba(8, 24, 38, 0.96), rgba(3, 10, 18, 0.97)),
+        var(--surface);
+      box-shadow:
+        0 24px 52px var(--shadow),
+        0 0 0 1px rgba(32, 216, 244, 0.05);
+      overflow: hidden;
+    }
+
+    .window-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(150, 225, 249, 0.18);
+      background: rgba(4, 14, 24, 0.84);
+    }
+
+    .window-title {
+      color: var(--text);
+      font: 800 13px/1 var(--mono);
+    }
+
+    .window-left,
+    .window-actions {
+      position: absolute;
+      top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .window-left {
+      left: 12px;
+    }
+
+    .window-actions {
+      right: 12px;
+    }
+
+    .chip,
+    .icon-button {
+      height: 28px;
+      border: 1px solid rgba(150, 225, 249, 0.2);
+      border-radius: 7px;
+      background: rgba(2, 8, 14, 0.72);
+      color: var(--text-soft);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 9px;
+    }
+
+    .chip strong {
+      color: var(--green);
+    }
+
+    .icon-button {
+      width: 28px;
+    }
+
+    .chat-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      padding: 24px 26px 22px;
+    }
+
+    .messages {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      overflow: hidden;
+      padding: 8px 0 20px 50px;
+    }
+
+    .messages::before {
+      content: "";
+      position: absolute;
+      left: 20px;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(101, 164, 255, 0.68), transparent);
+    }
+
+    .message,
+    .work-run {
+      position: relative;
+      border: 1px solid rgba(150, 225, 249, 0.12);
+      border-radius: 9px;
+      background: rgba(5, 17, 27, 0.78);
+      color: var(--text-soft);
+      padding: 14px 16px;
+      font: 14px/1.55 var(--ui);
+    }
+
+    .message::before,
+    .work-run::before {
+      content: "";
+      position: absolute;
+      left: -35px;
+      top: 18px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .message::before {
+      color: var(--blue);
+      background: var(--blue);
+    }
+
+    .work-run {
+      border-color: rgba(255, 94, 132, 0.2);
+      background: linear-gradient(90deg, rgba(255, 94, 132, 0.08), rgba(5, 17, 27, 0.78) 34%);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .work-run::before {
+      color: var(--red);
+      background: var(--red);
+    }
+
+    .work-run strong {
+      color: var(--text);
+    }
+
+    .work-run span,
+    .message small {
+      color: var(--muted);
+    }
+
+    .message a {
+      color: var(--cyan);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(32, 216, 244, 0.34);
+    }
+
+    .composer {
+      min-height: 112px;
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      align-items: end;
+      border: 1px solid rgba(32, 216, 244, 0.46);
+      border-radius: 10px;
+      background: rgba(3, 12, 20, 0.92);
+      box-shadow: inset 0 0 0 1px rgba(32, 216, 244, 0.06);
+    }
+
+    .composer-mark {
+      align-self: stretch;
+      display: grid;
+      place-items: center;
+      border-right: 1px solid rgba(32, 216, 244, 0.18);
+      color: var(--cyan);
+      font: 700 16px/1 var(--mono);
+    }
+
+    .composer-text {
+      align-self: start;
+      color: var(--muted);
+      padding: 18px 16px;
+      font: 15px/1.4 var(--mono);
+    }
+
+    .composer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px 14px 0;
+    }
+
+    .mode {
+      height: 26px;
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid rgba(32, 216, 244, 0.32);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .mode span {
+      display: grid;
+      place-items: center;
+      min-width: 48px;
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .mode span:last-child {
+      color: var(--text);
+      background: rgba(32, 216, 244, 0.14);
+    }
+
+    .send {
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(32, 216, 244, 0.52);
+      border-radius: 8px;
+      background: rgba(32, 216, 244, 0.1);
+      color: var(--text);
+      font: 800 18px/1 var(--mono);
+    }
+
+    .files-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .drop-zone {
+      min-height: 104px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      border: 1px dashed rgba(66, 231, 168, 0.48);
+      border-radius: 10px;
+      background: rgba(66, 231, 168, 0.06);
+      color: var(--text);
+      text-align: center;
+    }
+
+    .drop-zone span {
+      color: var(--muted);
+      font: 12px/1.3 var(--ui);
+    }
+
+    .files-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    .mounts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 32px;
+      border: 1px solid rgba(66, 231, 168, 0.3);
+      border-radius: 8px;
+      background: rgba(2, 8, 14, 0.76);
+      overflow: hidden;
+    }
+
+    .mounts span {
+      display: grid;
+      place-items: center;
+      border-right: 1px solid rgba(66, 231, 168, 0.14);
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .mounts span:first-child {
+      color: var(--text);
+      background: rgba(66, 231, 168, 0.12);
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 34px;
+      gap: 8px;
+    }
+
+    .search {
+      height: 34px;
+      border: 1px solid rgba(150, 225, 249, 0.2);
+      border-radius: 8px;
+      background: rgba(2, 8, 14, 0.76);
+      color: var(--muted);
+      padding: 0 12px;
+      font: 12px/34px var(--mono);
+    }
+
+    .filter {
+      height: 34px;
+      border: 1px solid rgba(66, 231, 168, 0.34);
+      border-radius: 8px;
+      background: rgba(66, 231, 168, 0.08);
+      color: var(--green);
+      font: 800 14px/1 var(--mono);
+    }
+
+    .tree {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .file {
+      min-height: 40px;
+      display: grid;
+      grid-template-columns: 18px 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: rgba(4, 14, 24, 0.68);
+      color: var(--text);
+      padding: 0 11px;
+    }
+
+    .file:hover {
+      border-color: rgba(150, 225, 249, 0.3);
+      background: rgba(10, 27, 42, 0.78);
+    }
+
+    .file .indent {
+      height: 1px;
+      background: rgba(150, 225, 249, 0.26);
+    }
+
+    .file .indent.l1 {
+      margin-left: 10px;
+    }
+
+    .file .indent.l2 {
+      margin-left: 18px;
+    }
+
+    .file-icon {
+      width: 18px;
+      height: 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      color: var(--cyan);
+      font: 800 7px/1 var(--mono);
+      background: rgba(32, 216, 244, 0.06);
+    }
+
+    .folder .file-icon {
+      color: var(--green);
+      border-radius: 3px;
+      background: rgba(66, 231, 168, 0.07);
+    }
+
+    .code .file-icon { color: var(--blue); }
+    .pdf .file-icon { color: var(--red); }
+    .image .file-icon { color: var(--amber); }
+
+    .file strong {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: 800 12px/1.2 var(--mono);
+    }
+
+    .file small {
+      color: var(--muted);
+      font: 11px/1 var(--ui);
+    }
+
+    .contrast-strip {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      display: flex;
+      gap: 10px;
+      transform: translateX(-50%);
+    }
+
+    .contrast-chip {
+      border: 1px solid rgba(150, 225, 249, 0.2);
+      border-radius: 999px;
+      background: rgba(2, 8, 14, 0.8);
+      color: var(--text-soft);
+      padding: 6px 10px;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .contrast-chip strong {
+      color: var(--text);
+    }
+
+    @media (max-width: 980px) {
+      body {
+        overflow: auto;
+      }
+
+      .stage {
+        min-height: 100vh;
+        height: auto;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .screens {
+        width: 100%;
+      }
+
+      .contrast-strip {
+        position: static;
+        justify-content: center;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="topbar">
+      <div class="brand">ABC</div>
+      <nav class="screens" aria-label="Screens">
+        <button class="screen-tab active" type="button">Agent</button>
+        <button class="screen-tab" type="button">Knowledge</button>
+        <button class="screen-tab" type="button">Planning</button>
+        <button class="screen-tab" type="button">Inbox</button>
+      </nav>
+      <div class="status"><span class="status-dot"></span> Contrast pass</div>
+    </header>
+
+    <section class="workspace">
+      <article class="window">
+        <header class="window-head">
+          <div class="window-left">
+            <button class="icon-button" type="button">H</button>
+            <div class="chip">dev <strong>+2405</strong></div>
+          </div>
+          <div class="window-title">Vector Debug</div>
+          <div class="window-actions">
+            <button class="icon-button" type="button">-</button>
+            <button class="icon-button" type="button">□</button>
+            <button class="icon-button" type="button">x</button>
+          </div>
+        </header>
+        <div class="chat-body">
+          <section class="messages" aria-label="Chat preview">
+            <div class="message">
+              <small>User</small><br>
+              Check why memory search slows down during long sessions.
+            </div>
+            <div class="work-run"><strong>ABC did 3 background steps</strong> <span>Show work log</span></div>
+            <div class="message">
+              I see three likely causes: a growing candidate pool, duplicate reranking paths, and no budget cutoff for older chat context.
+            </div>
+            <div class="message">
+              The next step is to trace where old context enters <a href="#">src/services/search_memory.py</a> before ranking starts.
+            </div>
+          </section>
+
+          <section class="composer" aria-label="Composer">
+            <div class="composer-mark">◇</div>
+            <div class="composer-text">/ ask ABC something</div>
+            <div class="composer-actions">
+              <div class="mode"><span>Plan</span><span>Agent</span></div>
+              <button class="icon-button" type="button">m</button>
+              <button class="send" type="button">↑</button>
+            </div>
+          </section>
+        </div>
+      </article>
+
+      <article class="window">
+        <header class="window-head">
+          <div class="window-title">Universal Inbox</div>
+          <div class="window-actions">
+            <button class="icon-button" type="button">-</button>
+            <button class="icon-button" type="button">□</button>
+            <button class="icon-button" type="button">x</button>
+          </div>
+        </header>
+        <div class="files-body">
+          <div class="drop-zone">
+            <strong>Drop files, links, screenshots, or text here</strong>
+            <span>Imports stay calm; readable text stays brighter than color.</span>
+          </div>
+          <div class="files-toolbar">
+            <div class="mounts"><span>Project</span><span>Local</span><span>Cloud</span></div>
+            <div class="search-row">
+              <div class="search">Search files</div>
+              <button class="filter" type="button">=</button>
+            </div>
+          </div>
+          <div class="tree">
+            <div class="file folder"><span class="indent"></span><span class="file-icon">F</span><strong>Frontend V2</strong><small>project root</small></div>
+            <div class="file folder"><span class="indent l1"></span><span class="file-icon">F</span><strong>static/frontpage-v2</strong><small>ui source</small></div>
+            <div class="file code"><span class="indent l2"></span><span class="file-icon">&lt;/&gt;</span><strong>app.js</strong><small>JavaScript</small></div>
+            <div class="file code"><span class="indent l2"></span><span class="file-icon">CSS</span><strong>styles.css</strong><small>visual system</small></div>
+            <div class="file pdf"><span class="indent"></span><span class="file-icon">P</span><strong>release-notes.pdf</strong><small>analyzed</small></div>
+            <div class="file image"><span class="indent"></span><span class="file-icon">I</span><strong>screenshot-batch.png</strong><small>image</small></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <aside class="contrast-strip" aria-label="Contrast notes">
+      <div class="contrast-chip"><strong>Text</strong> #eefbff</div>
+      <div class="contrast-chip"><strong>Meta</strong> #94b6c2</div>
+      <div class="contrast-chip"><strong>Color</strong> status only</div>
+    </aside>
+  </main>
+</body>
+</html>

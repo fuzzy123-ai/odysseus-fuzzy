@@ -13,6 +13,10 @@ from typing import Any
 
 from src.plugin_local_audit import LocalPluginAuditSummary, audit_plugins_directory
 from src.plugin_local_audit_markdown import render_local_plugin_audit_markdown
+from src.plugin_lifecycle_readiness import (
+    PluginLifecycleReadiness,
+    build_plugin_lifecycle_readiness_from_audit,
+)
 from src.plugin_release_markdown import render_plugin_release_gate_markdown
 from src.release_artifact_markdown import render_release_artifact_manifest_markdown
 from src.plugin_release_gate import PluginReleaseGate, evaluate_plugin_release_gate
@@ -25,6 +29,7 @@ from src.release_readiness_pipeline import ReleaseReadinessPipelineSnapshot, bui
 class LocalReleaseReadinessBundle:
     plugin_gate: PluginReleaseGate
     local_plugin_audit: LocalPluginAuditSummary
+    plugin_lifecycle_readiness: PluginLifecycleReadiness
     artifact_manifest: ReleaseArtifactManifest
     pipeline: ReleaseReadinessPipelineSnapshot
     plugin_markdown: str
@@ -41,6 +46,7 @@ class LocalReleaseReadinessBundle:
                 "loaded_count": self.local_plugin_audit.loaded_count,
                 "failing_ids": self.local_plugin_audit.failing_ids,
             },
+            "plugin_lifecycle_readiness": self.plugin_lifecycle_readiness.to_dict(),
             "artifact_manifest": self.artifact_manifest.to_dict(),
             "pipeline": self.pipeline.to_dict(),
             "plugin_markdown": self.plugin_markdown,
@@ -58,11 +64,13 @@ def build_local_release_readiness_bundle(
 ) -> LocalReleaseReadinessBundle:
     plugin_gate = _evaluate_local_plugin_gate(Path(registry_path), Path(plugin_directory))
     local_plugin_audit = audit_plugins_directory(plugin_directory)
+    plugin_lifecycle_readiness = build_plugin_lifecycle_readiness_from_audit(local_plugin_audit)
     artifact_manifest = build_release_artifact_manifest(root=artifact_root)
     pipeline = build_current_release_readiness_pipeline(plugin_gate=plugin_gate)
     return LocalReleaseReadinessBundle(
         plugin_gate=plugin_gate,
         local_plugin_audit=local_plugin_audit,
+        plugin_lifecycle_readiness=plugin_lifecycle_readiness,
         artifact_manifest=artifact_manifest,
         pipeline=pipeline,
         plugin_markdown=render_plugin_release_gate_markdown(plugin_gate),

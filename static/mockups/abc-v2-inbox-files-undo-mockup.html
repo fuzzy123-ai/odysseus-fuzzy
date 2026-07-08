@@ -1,0 +1,1612 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC V2 Inbox Files Undo Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --surface: #061421;
+      --surface-2: #091a29;
+      --line: rgba(121, 187, 199, 0.22);
+      --line-strong: rgba(121, 187, 199, 0.42);
+      --ink: #bdd9e2;
+      --ink-soft: rgba(189, 217, 226, 0.78);
+      --ink-dim: rgba(189, 217, 226, 0.58);
+      --muted: #7899a6;
+      --cyan: #10b6ca;
+      --cyan-text: #79bbc7;
+      --blue: #4b8cff;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --teal: #1dbda6;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(16, 182, 202, 0.11), transparent 26%),
+        radial-gradient(circle at 83% 70%, rgba(74, 222, 128, 0.08), transparent 28%),
+        linear-gradient(180deg, #04101a, var(--bg) 58%, #01040a);
+      color: var(--ink);
+      font-family: var(--ui);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -12%;
+      pointer-events: none;
+    }
+
+    body::before {
+      background:
+        linear-gradient(38deg, transparent 0 42%, rgba(16, 182, 202, 0.08) 42.08% 42.22%, transparent 42.32%),
+        linear-gradient(142deg, transparent 0 54%, rgba(74, 140, 255, 0.06) 54.08% 54.22%, transparent 54.32%),
+        radial-gradient(circle at 14% 72%, rgba(121, 187, 199, 0.32) 0 2px, transparent 4px),
+        radial-gradient(circle at 46% 24%, rgba(74, 222, 128, 0.2) 0 2px, transparent 4px),
+        radial-gradient(circle at 88% 33%, rgba(16, 182, 202, 0.22) 0 2px, transparent 4px);
+      opacity: 0.52;
+    }
+
+    body::after {
+      background:
+        repeating-linear-gradient(180deg, rgba(189, 217, 226, 0.028) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px 28px 28px;
+    }
+
+    .topline {
+      display: grid;
+      grid-template-columns: minmax(70px, 1fr) auto minmax(170px, 1fr);
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand {
+      display: grid;
+      gap: 4px;
+      color: var(--cyan-text);
+      font-family: var(--mono);
+    }
+
+    .brand strong {
+      font-size: 21px;
+      letter-spacing: 0.04em;
+    }
+
+    .brand span {
+      color: var(--ink-dim);
+      font-size: 10px;
+    }
+
+    .screens {
+      justify-self: center;
+      width: min(780px, 58vw);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(112px, 1fr));
+      gap: 8px;
+      border: 1px solid rgba(121, 187, 199, 0.2);
+      border-radius: 13px;
+      background: rgba(2, 9, 16, 0.86);
+      padding: 7px;
+    }
+
+    .screen {
+      height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--ink-dim);
+      padding: 0 10px;
+      text-align: left;
+      font: 700 12px/1 var(--mono);
+    }
+
+    .screen::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.72;
+    }
+
+    .screen.active {
+      border-color: rgba(74, 222, 128, 0.48);
+      background: rgba(74, 222, 128, 0.08);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.08);
+    }
+
+    .screen kbd {
+      min-width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(74, 222, 128, 0.42);
+      border-radius: 10px;
+      color: color-mix(in srgb, var(--green) 78%, var(--ink));
+      font: 700 10px/1 var(--mono);
+    }
+
+    .toolbar {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tool-cluster {
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .tool.secure-tool {
+      width: 104px;
+      grid-auto-flow: column;
+      grid-auto-columns: max-content;
+      gap: 8px;
+      padding: 0 10px;
+      border-radius: 999px;
+      overflow: visible;
+    }
+
+    .secure-tool > span:not(.secure-hologram):not(.lock-icon) {
+      font-size: 11px;
+    }
+
+    .lock-icon {
+      position: relative;
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+    }
+
+    .lock-icon::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 0;
+      width: 8px;
+      height: 8px;
+      border: 1px solid currentColor;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      transform-origin: 2px 8px;
+      transform: translateX(-2px) rotate(-24deg);
+    }
+
+    .lock-icon::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      bottom: 0;
+      width: 10px;
+      height: 8px;
+      border: 1px solid currentColor;
+      border-radius: 3px;
+      background: rgba(16, 182, 202, 0.07);
+    }
+
+    .secure-tool.locked {
+      border-color: rgba(74, 222, 128, 0.34);
+      color: color-mix(in srgb, var(--green) 74%, var(--ink));
+      background: rgba(74, 222, 128, 0.07);
+    }
+
+    .secure-tool.locked .lock-icon::before {
+      transform: none;
+    }
+
+    .secure-hologram {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 18;
+      width: 104px;
+      height: 86px;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+      transition: opacity 160ms ease, transform 180ms ease;
+    }
+
+    .secure-cluster.locked .secure-hologram {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .secure-hologram::before,
+    .secure-hologram::after {
+      content: none;
+    }
+
+    .secure-lock-svg {
+      width: 112px;
+      height: 112px;
+      overflow: visible;
+      color: var(--green);
+    }
+
+    .secure-lock-beam {
+      opacity: 0.25;
+      transform-origin: 100px 170px;
+      animation: secure-beam 1500ms ease-in-out infinite;
+    }
+
+    .secure-lock-ring-wide {
+      transform-origin: 100px 170px;
+      animation: secure-platform 1900ms ease-in-out infinite;
+    }
+
+    .secure-lock-ring-tight {
+      transform-origin: 100px 170px;
+      animation: secure-svg-ring 1700ms ease-in-out infinite;
+    }
+
+    .secure-lock-core {
+      transform-origin: 100px 124px;
+      animation: secure-float 1800ms ease-in-out infinite;
+    }
+
+    .secure-lock-body {
+      fill: rgba(46, 204, 113, 0.06);
+      stroke: currentColor;
+    }
+
+    .secure-lock-key {
+      fill: currentColor;
+      animation: secure-key-pulse 1300ms ease-in-out infinite;
+      transform-origin: 100px 125px;
+    }
+
+    .tool {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.24);
+      border-radius: 9px;
+      background: rgba(2, 9, 16, 0.72);
+      color: var(--cyan-text);
+      cursor: pointer;
+      font: 700 13px/1 var(--mono);
+    }
+
+    .tool:hover,
+    .tool:focus-within {
+      border-color: rgba(121, 187, 199, 0.48);
+      background: rgba(16, 182, 202, 0.08);
+    }
+
+    .arrow-icon {
+      position: relative;
+      width: 17px;
+      height: 17px;
+      display: inline-block;
+    }
+
+    .arrow-icon::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 10px;
+      height: 10px;
+      border: 1.35px solid currentColor;
+      border-left-color: transparent;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      transform: rotate(-36deg);
+      box-shadow: 0 0 7px rgba(121, 187, 199, 0.2);
+    }
+
+    .arrow-icon::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 8px;
+      width: 6px;
+      height: 6px;
+      border-left: 1.35px solid currentColor;
+      border-top: 1.35px solid currentColor;
+      transform: rotate(-38deg);
+    }
+
+    .arrow-icon.redo {
+      transform: scaleX(-1);
+    }
+
+    .bell-icon,
+    .tools-icon {
+      position: relative;
+      width: 17px;
+      height: 17px;
+      display: inline-block;
+    }
+
+    .bell-icon::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 3px;
+      width: 9px;
+      height: 10px;
+      border: 1.25px solid currentColor;
+      border-bottom: 0;
+      border-radius: 8px 8px 3px 3px;
+      box-shadow: 0 0 7px rgba(121, 187, 199, 0.18);
+    }
+
+    .bell-icon::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 12px;
+      width: 11px;
+      height: 3px;
+      border-top: 1.25px solid currentColor;
+      border-radius: 50%;
+      box-shadow:
+        5px 3px 0 -2px currentColor,
+        0 0 7px rgba(121, 187, 199, 0.18);
+    }
+
+    .tools-icon::before,
+    .tools-icon::after {
+      content: "";
+      position: absolute;
+      border: 1.2px solid currentColor;
+      border-radius: 3px;
+      box-shadow: 0 0 7px rgba(121, 187, 199, 0.18);
+    }
+
+    .tools-icon::before {
+      left: 2px;
+      top: 2px;
+      width: 5px;
+      height: 5px;
+      box-shadow:
+        8px 0 0 -1.2px rgba(2, 9, 16, 0.72),
+        8px 0 0 0 currentColor,
+        0 8px 0 -1.2px rgba(2, 9, 16, 0.72),
+        0 8px 0 0 currentColor,
+        8px 8px 0 -1.2px rgba(2, 9, 16, 0.72),
+        8px 8px 0 0 currentColor;
+    }
+
+    .tools-icon::after {
+      left: 7px;
+      top: 7px;
+      width: 3px;
+      height: 3px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .undo-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 20;
+      width: 320px;
+      display: grid;
+      gap: 6px;
+      border: 1px solid rgba(121, 187, 199, 0.28);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(16, 182, 202, 0.1), transparent 46%),
+        linear-gradient(180deg, rgba(7, 20, 32, 0.98), rgba(2, 8, 15, 0.98));
+      box-shadow: 0 22px 42px rgba(0, 0, 0, 0.45);
+      opacity: 0;
+      padding: 8px;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.985);
+      transition: opacity 140ms ease, transform 160ms ease;
+    }
+
+    .undo-cluster:hover .undo-menu,
+    .undo-cluster:focus-within .undo-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .undo-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(121, 187, 199, 0.14);
+      color: var(--ink-soft);
+      padding: 5px 6px 9px;
+      font: 700 11px/1 var(--mono);
+    }
+
+    .undo-head span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .undo-item {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 46px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink-soft);
+      padding: 7px 8px;
+      text-align: left;
+      font: 12px/1.2 var(--ui);
+    }
+
+    .undo-item:hover {
+      border-color: rgba(121, 187, 199, 0.24);
+      background: rgba(16, 182, 202, 0.06);
+    }
+
+    .undo-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan-text);
+    }
+
+    .undo-dot.warn {
+      background: var(--amber);
+    }
+
+    .undo-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .undo-copy strong {
+      overflow: hidden;
+      color: var(--ink);
+      font: 700 12px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .undo-copy small {
+      overflow: hidden;
+      color: var(--muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .undo-item kbd {
+      color: var(--amber);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .workspace {
+      position: relative;
+      min-height: 0;
+    }
+
+    .window {
+      position: absolute;
+      display: grid;
+      grid-template-rows: 44px minmax(0, 1fr);
+      border: 1px solid rgba(121, 187, 199, 0.22);
+      border-radius: 12px;
+      background:
+        linear-gradient(180deg, rgba(8, 22, 35, 0.96), rgba(2, 8, 15, 0.97)),
+        var(--surface);
+      box-shadow:
+        0 24px 52px rgba(0, 0, 0, 0.46),
+        0 0 0 1px rgba(16, 182, 202, 0.05);
+      overflow: hidden;
+    }
+
+    .window-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(121, 187, 199, 0.14);
+      background: rgba(3, 13, 22, 0.78);
+    }
+
+    .window-title {
+      color: var(--ink);
+      font: 800 13px/1 var(--mono);
+    }
+
+    .window-subtitle {
+      position: absolute;
+      left: 14px;
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 12px;
+      display: flex;
+      gap: 7px;
+    }
+
+    .window-action {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: var(--cyan-text);
+      padding: 0;
+      font: 700 12px/1 var(--mono);
+    }
+
+    .inbox-window {
+      left: 50%;
+      top: 88px;
+      width: min(780px, 58vw);
+      min-width: min(540px, calc(100vw - 48px));
+      max-width: calc(100vw - 48px);
+      height: min(660px, calc(100vh - 140px));
+      transform: translateX(-50%);
+      z-index: 5;
+    }
+
+    .inbox-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 12px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .global-search {
+      height: 42px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      align-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.24);
+      border-radius: 9px;
+      background: rgba(2, 9, 16, 0.68);
+      color: var(--muted);
+      padding: 0 10px 0 0;
+      font: 12px/1 var(--mono);
+    }
+
+    .search-mark {
+      width: 10px;
+      height: 10px;
+      justify-self: center;
+      border: 1px solid var(--cyan-text);
+      border-radius: 50%;
+    }
+
+    .search-mark::after {
+      content: "";
+      position: absolute;
+      width: 6px;
+      height: 1px;
+      margin: 8px 0 0 7px;
+      background: var(--cyan-text);
+      transform: rotate(42deg);
+    }
+
+    .global-search strong {
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .search-scope {
+      display: flex;
+      gap: 5px;
+    }
+
+    .search-scope span {
+      border: 1px solid rgba(121, 187, 199, 0.16);
+      border-radius: 999px;
+      color: var(--ink-dim);
+      padding: 4px 7px;
+      font-size: 10px;
+    }
+
+    .drop-card {
+      min-height: 126px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      border: 1px dashed rgba(74, 222, 128, 0.48);
+      border-radius: 11px;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(74, 222, 128, 0.11), transparent 58%),
+        rgba(2, 12, 18, 0.58);
+      text-align: center;
+    }
+
+    .drop-card strong {
+      color: var(--ink);
+      font: 800 14px/1.2 var(--mono);
+    }
+
+    .drop-card span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .recent {
+      display: grid;
+      gap: 7px;
+    }
+
+    .section-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--ink-soft);
+      font: 800 11px/1 var(--mono);
+    }
+
+    .section-line span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .recent-list {
+      display: grid;
+      gap: 5px;
+    }
+
+    .import-row {
+      --item: var(--cyan-text);
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid rgba(121, 187, 199, 0.1);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--item) 8%, transparent), transparent 62%),
+        rgba(3, 12, 21, 0.62);
+      color: var(--ink-soft);
+      padding: 0 10px;
+    }
+
+    .import-row.cloud { --item: var(--green); }
+    .import-row.pdf { --item: var(--red); }
+    .import-row.note { --item: var(--cyan-text); }
+    .import-row.image { --item: var(--amber); }
+    .import-row.problem { --item: var(--red); }
+
+    .type-icon {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--item) 58%, transparent);
+      border-radius: 6px;
+      color: var(--item);
+      background: color-mix(in srgb, var(--item) 8%, transparent);
+      font: 800 8px/1 var(--mono);
+    }
+
+    .import-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .import-copy strong {
+      overflow: hidden;
+      color: color-mix(in srgb, var(--ink) 86%, transparent);
+      font: 700 12px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .import-copy small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .import-state {
+      color: var(--item);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .more {
+      justify-self: center;
+      border: 0;
+      background: transparent;
+      color: var(--cyan-text);
+      padding: 3px 8px;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .analysis-window {
+      right: 24px;
+      top: 88px;
+      bottom: auto;
+      width: min(350px, calc(100vw - 1090px));
+      min-width: 330px;
+      height: min(660px, calc(100vh - 140px));
+      z-index: 4;
+    }
+
+    .analysis-body {
+      min-height: 0;
+      display: grid;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .tabs {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 32px minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .status-info {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      border: 1px solid rgba(74, 222, 128, 0.18);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(74, 222, 128, 0.1), transparent 46%),
+        linear-gradient(180deg, rgba(5, 18, 23, 0.84), rgba(2, 9, 16, 0.72));
+      padding: 8px;
+    }
+
+    .status-stat {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+      border-right: 1px solid rgba(121, 187, 199, 0.1);
+      padding-right: 6px;
+    }
+
+    .status-stat:last-child {
+      border-right: 0;
+      padding-right: 0;
+    }
+
+    .status-stat strong {
+      color: var(--ink);
+      font: 800 14px/1 var(--mono);
+    }
+
+    .status-stat span {
+      overflow: hidden;
+      color: var(--muted);
+      font: 700 9px/1 var(--mono);
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-stat.review strong {
+      color: var(--red);
+      text-shadow: 0 0 10px rgba(255, 92, 115, 0.14);
+    }
+
+    .status-stat.safe strong {
+      color: var(--green);
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.12);
+    }
+
+    .tabbar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid rgba(121, 187, 199, 0.18);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.6);
+      overflow: hidden;
+    }
+
+    .tabbar button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 0;
+      border-right: 1px solid rgba(121, 187, 199, 0.12);
+      background: transparent;
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .tabbar button.active {
+      color: var(--ink);
+      background: rgba(16, 182, 202, 0.08);
+    }
+
+    .tab-count {
+      min-width: 15px;
+      height: 15px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(74, 222, 128, 0.34);
+      border-radius: 999px;
+      padding: 0 4px;
+      font: 800 9px/1 var(--mono);
+    }
+
+    .tab-count.soft {
+      color: var(--ink-dim);
+      background: rgba(74, 222, 128, 0.04);
+    }
+
+    .tab-count.urgent {
+      border-color: rgba(255, 92, 115, 0.58);
+      color: var(--red);
+      background: rgba(255, 92, 115, 0.13);
+      box-shadow: 0 0 10px rgba(255, 92, 115, 0.18);
+    }
+
+    .panel {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .status-tab-panel {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .status-tab-panel[hidden] {
+      display: none;
+    }
+
+    .status-section-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 3px;
+      color: var(--ink-soft);
+      font: 800 10px/1 var(--mono);
+    }
+
+    .status-section-label span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .status-card {
+      --status-color: var(--cyan-text);
+      border: 1px solid color-mix(in srgb, var(--status-color) 18%, transparent);
+      border-radius: 9px;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--status-color) 7%, transparent), transparent 66%),
+        rgba(3, 12, 21, 0.62);
+      padding: 8px;
+    }
+
+    .status-card.ready { --status-color: var(--green); }
+    .status-card.review { --status-color: var(--red); }
+    .status-card.memory { --status-color: var(--blue); }
+
+    .status-card.ready p,
+    .status-card.ready .status-safety,
+    .status-card.memory p,
+    .status-card.memory .status-safety {
+      display: none;
+    }
+
+    .status-card-head {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-card-title {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .status-card-title strong,
+    .status-card-title small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status-card-title strong {
+      color: var(--ink);
+      font: 800 12px/1.2 var(--mono);
+    }
+
+    .status-card-title small {
+      color: var(--muted);
+      font: 11px/1.2 var(--ui);
+    }
+
+    .status-state {
+      color: var(--status-color);
+      font: 800 9px/1 var(--mono);
+      text-transform: uppercase;
+    }
+
+    .status-card p {
+      margin: 6px 0 0;
+      color: var(--ink-soft);
+      font: 11px/1.32 var(--ui);
+    }
+
+    .status-safety {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      margin-top: 7px;
+    }
+
+    .status-safety span {
+      min-height: 19px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.12);
+      border-radius: 6px;
+      color: var(--ink-dim);
+      background: rgba(2, 9, 16, 0.36);
+      padding: 0 6px;
+      font: 700 9px/1 var(--mono);
+    }
+
+    .log-list {
+      display: grid;
+      gap: 5px;
+    }
+
+    .log-row {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 24px;
+      border: 1px solid rgba(121, 187, 199, 0.08);
+      border-radius: 7px;
+      background: rgba(2, 9, 16, 0.34);
+      color: var(--ink-soft);
+      padding: 0 8px;
+      font: 10px/1 var(--mono);
+    }
+
+    .log-dot {
+      width: 6px;
+      height: 6px;
+      border: 1px solid var(--cyan-text);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(16, 182, 202, 0.2);
+    }
+
+    .log-row time {
+      color: var(--muted);
+      font: 9px/1 var(--mono);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 9px;
+    }
+
+    .tag {
+      border: 1px solid rgba(121, 187, 199, 0.16);
+      border-radius: 999px;
+      color: var(--ink-dim);
+      padding: 4px 7px;
+      font: 700 9px/1 var(--mono);
+    }
+
+    .review-card {
+      border-color: rgba(255, 92, 115, 0.2);
+      background:
+        linear-gradient(180deg, rgba(255, 92, 115, 0.06), transparent),
+        rgba(3, 12, 21, 0.62);
+    }
+
+    .review-card .type-icon {
+      margin-bottom: 10px;
+    }
+
+    .files-window {
+      left: 24px;
+      right: auto;
+      top: 88px;
+      bottom: auto;
+      width: min(350px, calc(100vw - 1090px));
+      min-width: 330px;
+      height: min(660px, calc(100vh - 140px));
+      z-index: 3;
+    }
+
+    .files-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .mount-switch {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 30px;
+      border: 1px solid rgba(121, 187, 199, 0.2);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.64);
+      overflow: hidden;
+    }
+
+    .mount-switch span {
+      position: relative;
+      display: grid;
+      grid-auto-flow: column;
+      place-content: center;
+      align-items: center;
+      gap: 6px;
+      border-right: 1px solid rgba(121, 187, 199, 0.1);
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .mount-switch span:first-child {
+      color: var(--ink);
+      background: rgba(16, 182, 202, 0.08);
+    }
+
+    .hit-bubble {
+      min-width: 16px;
+      height: 16px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(74, 222, 128, 0.42);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--green) 78%, var(--ink));
+      background: rgba(74, 222, 128, 0.08);
+      padding: 0 4px;
+      font: 800 9px/1 var(--mono);
+    }
+
+    .file-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 34px;
+      gap: 8px;
+    }
+
+    .file-search {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.18);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.62);
+      color: var(--muted);
+      padding: 0 11px;
+      font: 12px/1 var(--mono);
+    }
+
+    .search-results {
+      display: grid;
+      gap: 5px;
+    }
+
+    .search-result-row {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(121, 187, 199, 0.11);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(16, 182, 202, 0.06), transparent 64%),
+        rgba(2, 9, 16, 0.48);
+      color: var(--ink-soft);
+      padding: 0 10px;
+    }
+
+    .search-result-row strong {
+      min-width: 0;
+      overflow: hidden;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 700 11px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .search-result-row small {
+      color: var(--muted);
+      font: 10px/1 var(--mono);
+    }
+
+    .result-type {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.24);
+      border-radius: 5px;
+      color: var(--cyan-text);
+      font: 800 7px/1 var(--mono);
+    }
+
+    .result-type.cloud {
+      color: var(--green);
+      border-color: rgba(74, 222, 128, 0.34);
+    }
+
+    .result-type.local {
+      color: var(--amber);
+      border-color: rgba(247, 185, 85, 0.34);
+    }
+
+    .filter-button {
+      height: 34px;
+      border: 1px solid rgba(121, 187, 199, 0.22);
+      border-radius: 8px;
+      background: rgba(16, 182, 202, 0.05);
+      color: var(--cyan-text);
+      font: 800 12px/1 var(--mono);
+    }
+
+    .tree {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 5px;
+      overflow: hidden;
+    }
+
+    .file-row {
+      min-height: 36px;
+      display: grid;
+      grid-template-columns: 14px 22px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: rgba(3, 12, 21, 0.58);
+      color: var(--ink-soft);
+      padding: 0 10px;
+    }
+
+    .file-row:hover {
+      border-color: rgba(121, 187, 199, 0.22);
+      background: rgba(9, 26, 41, 0.74);
+    }
+
+    .indent {
+      height: 1px;
+      background: rgba(121, 187, 199, 0.26);
+    }
+
+    .indent.l1 { margin-left: 8px; }
+    .indent.l2 { margin-left: 15px; }
+
+    .file-icon {
+      --file: var(--cyan-text);
+      width: 18px;
+      height: 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--file) 54%, transparent);
+      border-radius: 4px;
+      color: var(--file);
+      background: color-mix(in srgb, var(--file) 7%, transparent);
+      font: 800 7px/1 var(--mono);
+    }
+
+    .file-icon.folder { --file: var(--green); }
+    .file-icon.code { --file: var(--blue); }
+    .file-icon.pdf { --file: var(--red); }
+    .file-icon.note { --file: var(--cyan-text); }
+
+    .file-row strong {
+      min-width: 0;
+      overflow: hidden;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 700 11px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-row small {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    @keyframes secure-float {
+      0%, 100% { transform: translateY(0); opacity: 0.84; }
+      50% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    @keyframes secure-platform {
+      0%, 100% { transform: scaleX(0.9); opacity: 0.52; }
+      50% { transform: scaleX(1.05); opacity: 0.82; }
+    }
+
+    @keyframes secure-scan {
+      0%, 100% { opacity: 0.22; transform: translateX(-50%) scaleY(0.74); }
+      50% { opacity: 0.72; transform: translateX(-50%) scaleY(1); }
+    }
+
+    @keyframes secure-beam {
+      0%, 100% { opacity: 0.16; transform: scaleY(0.76); }
+      50% { opacity: 0.48; transform: scaleY(1); }
+    }
+
+    @keyframes secure-ring {
+      0%, 100% { opacity: 0.18; transform: translateX(-50%) scale(0.88); }
+      50% { opacity: 0.42; transform: translateX(-50%) scale(1.06); }
+    }
+
+    @keyframes secure-svg-ring {
+      0%, 100% { opacity: 0.28; transform: scale(0.9); }
+      50% { opacity: 0.66; transform: scale(1.06); }
+    }
+
+    @keyframes secure-key-pulse {
+      0%, 100% { opacity: 0.72; transform: scaleY(0.92); }
+      50% { opacity: 1; transform: scaleY(1.04); }
+    }
+
+    @media (max-width: 1080px) {
+      body {
+        overflow: auto;
+      }
+
+      .stage {
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .screens {
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(72px, 1fr));
+      }
+
+      .workspace {
+        display: grid;
+        gap: 16px;
+      }
+
+      .window,
+      .files-window,
+      .analysis-window,
+      .inbox-window {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        min-height: 520px;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="topline">
+      <div class="brand">
+        <strong>ABC</strong>
+        <span>V2 Inbox system</span>
+      </div>
+
+      <nav class="screens" aria-label="Screens">
+        <button class="screen" type="button">Agent</button>
+        <button class="screen" type="button">Knowledge</button>
+        <button class="screen" type="button">Planning</button>
+        <button class="screen active" type="button">Inbox <kbd>2</kbd></button>
+      </nav>
+
+      <div class="toolbar">
+        <div class="tool-cluster secure-cluster locked">
+          <button class="tool secure-tool locked" type="button" aria-label="Secure mode on">
+            <span class="lock-icon" aria-hidden="true"></span>
+            <span>Secure</span>
+          </button>
+          <span class="secure-hologram" aria-hidden="true">
+            <svg class="secure-lock-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" focusable="false">
+              <defs>
+                <filter id="secureLockGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="blur1" />
+                  <feGaussianBlur stdDeviation="8" result="blur2" />
+                  <feMerge>
+                    <feMergeNode in="blur2" />
+                    <feMergeNode in="blur1" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <line class="secure-lock-beam" x1="100" y1="36" x2="100" y2="172" stroke="currentColor" stroke-width="1.2" filter="url(#secureLockGlow)" />
+              <ellipse class="secure-lock-ring-wide" cx="100" cy="170" rx="70" ry="15" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3" filter="url(#secureLockGlow)" />
+              <ellipse class="secure-lock-ring-tight" cx="100" cy="170" rx="45" ry="9" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6" filter="url(#secureLockGlow)" />
+              <g class="secure-lock-core" filter="url(#secureLockGlow)">
+                <path d="M 65 90 V 65 A 35 35 0 0 1 135 65 V 90" fill="none" stroke="currentColor" stroke-width="5" />
+                <rect class="secure-lock-body" x="50" y="90" width="100" height="70" rx="15" stroke-width="3" />
+                <rect class="secure-lock-key" x="92" y="110" width="16" height="30" rx="8" />
+              </g>
+            </svg>
+          </span>
+        </div>
+        <div class="tool-cluster undo-cluster">
+          <button class="tool" type="button" aria-label="Undo actions"><span class="arrow-icon" aria-hidden="true"></span></button>
+          <div class="undo-menu">
+            <div class="undo-head">Undo <span>last actions</span></div>
+            <button class="undo-item" type="button">
+              <span class="undo-dot"></span>
+              <span class="undo-copy"><strong>Inserted chat text</strong><small>Agent screen, 12 seconds ago</small></span>
+              <kbd>now</kbd>
+            </button>
+            <button class="undo-item" type="button">
+              <span class="undo-dot warn"></span>
+              <span class="undo-copy"><strong>Moved 14 cloud files</strong><small>Needs confirm before undo</small></span>
+              <kbd>confirm</kbd>
+            </button>
+            <button class="undo-item" type="button">
+              <span class="undo-dot"></span>
+              <span class="undo-copy"><strong>Tagged import as Project</strong><small>Universal Inbox, 4 minutes ago</small></span>
+              <kbd>undo</kbd>
+            </button>
+          </div>
+        </div>
+        <button class="tool" type="button" aria-label="Redo actions"><span class="arrow-icon redo" aria-hidden="true"></span></button>
+        <button class="tool" type="button" aria-label="Notifications"><span class="bell-icon" aria-hidden="true"></span></button>
+        <button class="tool" type="button" aria-label="Tools"><span class="tools-icon" aria-hidden="true"></span></button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <article class="window inbox-window">
+        <header class="window-head">
+          <div class="window-subtitle">inbox</div>
+          <div class="window-title">Universal Inbox</div>
+          <div class="window-actions">
+            <button class="window-action" type="button">-</button>
+            <button class="window-action" type="button">[]</button>
+            <button class="window-action" type="button">x</button>
+          </div>
+        </header>
+
+        <div class="inbox-body">
+          <section class="global-search" aria-label="Inbox search">
+            <span class="search-mark"></span>
+            <strong>Search files, folders, memory chunks, skills, imports...</strong>
+            <div class="search-scope">
+              <span>all</span>
+              <span>memory</span>
+              <span>files</span>
+            </div>
+          </section>
+
+          <section class="drop-card">
+            <strong>Drop files, folders, links, screenshots, or text here</strong>
+            <span>ABC imports, analyzes, routes, and keeps the action reversible.</span>
+          </section>
+
+          <section class="recent">
+            <div class="section-line">Recent imports <span>last 5</span></div>
+            <div class="recent-list">
+              <div class="import-row cloud"><span class="type-icon">NC</span><span class="import-copy"><strong>Nextcloud: research-notes.md</strong><small>summarized, source suggested</small></span><span class="import-state">new</span></div>
+              <div class="import-row pdf"><span class="type-icon">PDF</span><span class="import-copy"><strong>release-notes.pdf</strong><small>document context ready</small></span><span class="import-state">ready</span></div>
+              <div class="import-row note"><span class="type-icon">TXT</span><span class="import-copy"><strong>meeting paste</strong><small>2 todos and 1 decision found</small></span><span class="import-state">analysis</span></div>
+              <div class="import-row image"><span class="type-icon">IMG</span><span class="import-copy"><strong>screenshot-batch.png</strong><small>needs destination rule</small></span><span class="import-state">rule</span></div>
+              <div class="import-row problem"><span class="type-icon">!</span><span class="import-copy"><strong>cloud export.zip</strong><small>contains unknown executable</small></span><span class="import-state">review</span></div>
+            </div>
+            <button class="more" type="button">More...</button>
+          </section>
+        </div>
+      </article>
+
+      <article class="window analysis-window">
+        <header class="window-head">
+          <div class="window-subtitle">inbox</div>
+          <div class="window-title">Status</div>
+          <div class="window-actions">
+            <button class="window-action" type="button">-</button>
+            <button class="window-action" type="button">[]</button>
+            <button class="window-action" type="button">x</button>
+          </div>
+        </header>
+
+        <div class="analysis-body">
+          <section class="tabs">
+            <div class="status-info" aria-label="Inbox status stats">
+              <div class="status-stat"><strong>3</strong><span>imports</span></div>
+              <div class="status-stat safe"><strong>2</strong><span>ready</span></div>
+              <div class="status-stat review"><strong>1</strong><span>review</span></div>
+            </div>
+
+            <div class="tabbar">
+              <button class="active" type="button" role="tab" aria-selected="true" aria-controls="status-panel-now" data-status-tab="now">Now <span class="tab-count soft">2</span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="status-panel-review" data-status-tab="review">Review <span class="tab-count urgent">1</span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="status-panel-log" data-status-tab="log">Log <span class="tab-count soft">5</span></button>
+            </div>
+
+            <div class="panel">
+              <div class="status-tab-panel" id="status-panel-now" data-status-panel="now" role="tabpanel">
+                <div class="status-section-label">Now <span>ready to use</span></div>
+
+                <article class="status-card ready">
+                  <div class="status-card-head">
+                    <span class="type-icon">PDF</span>
+                    <span class="status-card-title"><strong>release-notes.pdf</strong><small>Document context ready</small></span>
+                    <span class="status-state">ready</span>
+                  </div>
+                  <p>Summary ready. Can be offered as chat context.</p>
+                  <div class="status-safety"><span>Original untouched</span><span>Safe to attach</span></div>
+                </article>
+
+                <article class="status-card memory">
+                  <div class="status-card-head">
+                    <span class="type-icon">TXT</span>
+                    <span class="status-card-title"><strong>meeting paste</strong><small>2 todos and 1 decision found</small></span>
+                    <span class="status-state">found</span>
+                  </div>
+                  <p>Useful parts can become project todos. Memory is still pending.</p>
+                  <div class="status-safety"><span>Review optional</span><span>Memory pending</span></div>
+                </article>
+              </div>
+
+              <div class="status-tab-panel" id="status-panel-review" data-status-panel="review" role="tabpanel" hidden>
+                <div class="status-section-label">Review <span>needs attention</span></div>
+
+                <article class="status-card review">
+                  <div class="status-card-head">
+                    <span class="type-icon">!</span>
+                    <span class="status-card-title"><strong>cloud export.zip</strong><small>Executable content detected</small></span>
+                    <span class="status-state">stop</span>
+                  </div>
+                  <p>ABC should not index, move, or attach this archive until you mark it safe.</p>
+                  <div class="status-safety"><span>No indexing</span><span>No memory stored</span><span>No delete</span><span>No overwrite</span></div>
+                </article>
+              </div>
+
+              <div class="status-tab-panel" id="status-panel-log" data-status-panel="log" role="tabpanel" hidden>
+                <div class="status-section-label">Log <span>latest actions</span></div>
+
+                <div class="log-list">
+                  <div class="log-row"><span class="log-dot"></span><span>File received</span><time>now</time></div>
+                  <div class="log-row"><span class="log-dot"></span><span>Type checked</span><time>now</time></div>
+                  <div class="log-row"><span class="log-dot"></span><span>Summary created</span><time>1m</time></div>
+                  <div class="log-row"><span class="log-dot"></span><span>Safety checked</span><time>1m</time></div>
+                  <div class="log-row"><span class="log-dot"></span><span>Undo available</span><time>1m</time></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </article>
+
+      <article class="window files-window">
+        <header class="window-head">
+          <div class="window-subtitle">global window</div>
+          <div class="window-title">Files</div>
+          <div class="window-actions">
+            <button class="window-action" type="button">-</button>
+            <button class="window-action" type="button">[]</button>
+            <button class="window-action" type="button">x</button>
+          </div>
+        </header>
+
+        <div class="files-body">
+          <div class="mount-switch">
+            <span>Project <b class="hit-bubble">3</b></span>
+            <span>Local <b class="hit-bubble">1</b></span>
+            <span>Cloud <b class="hit-bubble">2</b></span>
+          </div>
+          <div class="file-tools">
+            <div class="file-search">Search: "release"</div>
+            <button class="filter-button" type="button">=</button>
+          </div>
+          <div class="search-results" aria-label="Search results">
+            <div class="search-result-row"><span class="result-type">JS</span><strong>release parser in app.js</strong><small>Project</small></div>
+            <div class="search-result-row"><span class="result-type local">PDF</span><strong>release-notes.pdf</strong><small>Local</small></div>
+            <div class="search-result-row"><span class="result-type cloud">NC</span><strong>Nextcloud / Releases / notes.md</strong><small>Cloud</small></div>
+          </div>
+          <div class="tree">
+            <div class="file-row"><span class="indent"></span><span class="file-icon folder">F</span><strong>Frontend V2</strong><small>root</small></div>
+            <div class="file-row"><span class="indent l1"></span><span class="file-icon folder">F</span><strong>static/frontpage-v2</strong><small>ui</small></div>
+            <div class="file-row"><span class="indent l2"></span><span class="file-icon code">&lt;/&gt;</span><strong>app.js</strong><small>code</small></div>
+            <div class="file-row"><span class="indent l2"></span><span class="file-icon code">CSS</span><strong>styles.css</strong><small>style</small></div>
+            <div class="file-row"><span class="indent l1"></span><span class="file-icon note">MD</span><strong>memory-budget.md</strong><small>plan</small></div>
+            <div class="file-row"><span class="indent"></span><span class="file-icon pdf">P</span><strong>release-notes.pdf</strong><small>doc</small></div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const statusWindow = document.querySelector('.analysis-window');
+      if (!statusWindow) return;
+
+      const tabs = Array.from(statusWindow.querySelectorAll('[data-status-tab]'));
+      const panels = Array.from(statusWindow.querySelectorAll('[data-status-panel]'));
+
+      function activateStatusTab(name, focus = false) {
+        tabs.forEach(tab => {
+          const active = tab.dataset.statusTab === name;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', String(active));
+          tab.tabIndex = active ? 0 : -1;
+          if (active && focus) tab.focus();
+        });
+
+        panels.forEach(panel => {
+          panel.hidden = panel.dataset.statusPanel !== name;
+        });
+      }
+
+      tabs.forEach((tab, index) => {
+        tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+        tab.addEventListener('click', () => activateStatusTab(tab.dataset.statusTab || 'now'));
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let nextIndex = index;
+          if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+          if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === 'Home') nextIndex = 0;
+          if (event.key === 'End') nextIndex = tabs.length - 1;
+          activateStatusTab(tabs[nextIndex].dataset.statusTab || 'now', true);
+        });
+      });
+
+      activateStatusTab('now');
+    })();
+  </script>
+</body>
+</html>

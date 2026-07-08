@@ -8,6 +8,7 @@ def test_local_release_readiness_bundle_uses_bundled_registry_and_plugins():
     bundle = build_local_release_readiness_bundle()
 
     assert bundle.plugin_gate.ok
+    assert bundle.plugin_lifecycle_readiness.status in {"ready", "degraded"}
     assert bundle.artifact_manifest.ok
     assert bundle.pipeline.report.status == "blocked"
     assert "REL-mvp-version-1-gate" in bundle.handoff_markdown
@@ -59,6 +60,10 @@ def test_local_release_readiness_bundle_to_dict_is_stable_shape(tmp_path):
     assert payload["plugin_gate"]["ok"] is True
     assert payload["local_plugin_audit"]["ok"] is True
     assert payload["local_plugin_audit"]["failing_ids"] == ()
+    assert payload["plugin_lifecycle_readiness"]["schema"] == "odysseus.plugin_lifecycle_readiness.v1"
+    assert payload["plugin_lifecycle_readiness"]["plugin_count"] == 1
+    assert payload["plugin_lifecycle_readiness"]["plugin_paths_visible"] is False
+    assert payload["plugin_lifecycle_readiness"]["runtime_import_performed"] is False
     assert payload["artifact_manifest"]["ok"] is True
     assert payload["plugin_markdown"].startswith("# Plugin Release Gate")
     assert payload["local_plugin_audit_markdown"].startswith("# Local Plugin Audit")

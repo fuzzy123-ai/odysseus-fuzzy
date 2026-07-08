@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "kind": "harbor.planning_integration_master_roadmap",
+  "title": "Harbor Planning Integration Master Roadmap",
+  "created_at": "2026-07-08",
+  "updated_at": "2026-07-08",
+  "status": "planned",
+  "abc_mode": "Standard ABC",
+  "goal": "Make Planning the shared project truth between Harbor One UI, MCP-enabled agents, JSON roadmaps, Raptor Memory and sparse operator notifications.",
+  "user_workflow": [
+    "The user works in the Agent screen or with another AI and develops a plan.",
+    "The plan is converted into a validated JSON roadmap through Planning MCP.",
+    "The roadmap is stored in the right project directory with a predictable folder structure.",
+    "The roadmap is processed into Raptor Memory as derived planning context with provenance.",
+    "Harbor One shows one sparse notification that the project roadmaps changed.",
+    "Clicking the notification switches to Planning, opens Overview, highlights the new or changed roadmap and expands its summary.",
+    "When an AI is asked to work on the roadmap, it retrieves the roadmap plus context pack through MCP.",
+    "The AI updates roadmap progress through MCP while working, but routine progress updates stay silent.",
+    "Create and delete events notify the operator; delete events remain undoable from the interface."
+  ],
+  "sub_roadmaps": [
+    {
+      "id": "HPIM-PMCP",
+      "roadmap": "docs/plans/planning-mcp-roadmap.json",
+      "role": "MCP contract for create, read, update, context packs, event classification and gated writes.",
+      "status": "planned"
+    },
+    {
+      "id": "HPIM-UI",
+      "roadmap": "docs/plans/abc-frontpage-v2-build-plan.md",
+      "role": "Harbor One V2 Planning UI, Overview graph, notification jump target and expanded roadmap summaries.",
+      "status": "in_progress"
+    },
+    {
+      "id": "HPIM-MEM",
+      "roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "role": "Canonical lifecycle for derived Raptor Memory entries and provenance without raw private content.",
+      "status": "in_progress"
+    },
+    {
+      "id": "HPIM-NOTIFY",
+      "roadmap": "docs/plans/odysseus-notification-mcp-roadmap.md",
+      "role": "Safe notification boundary; Harbor Planning uses sparse structural events only.",
+      "status": "planned"
+    },
+    {
+      "id": "HPIM-REVIEW",
+      "roadmap": "docs/plans/operator-dashboard-review-queue-roadmap.md",
+      "role": "Review and undo surfaces for deletes, gates, uncertain writes and operator decisions.",
+      "status": "repo_only_backend_complete"
+    }
+  ],
+  "canonical_project_structure": {
+    "principle": "JSON roadmaps are the planning source of truth. Markdown is a rendered view or handoff only.",
+    "suggested_layout": [
+      "projects/<project_id>/project.json",
+      "projects/<project_id>/roadmaps/*.roadmap.json",
+      "projects/<project_id>/gates/*.gate.json",
+      "projects/<project_id>/todos/*.todo.json",
+      "projects/<project_id>/events/*.jsonl",
+      "projects/<project_id>/memory/index.json"
+    ],
+    "notes": [
+      "Roadmap files may be stored under docs/plans while the service is repo-only, but the logical project layout should already appear in metadata.",
+      "Project, roadmap, gate, todo and event IDs must be stable enough for UI deep links and MCP context packs.",
+      "Delete operations must create undo metadata before removing or hiding the target."
+    ]
+  },
+  "notification_policy": {
+    "principle": "Planning MCP is infrastructure, not a notification stream.",
+    "silent_events": [
+      "roadmap_progress_updated",
+      "todo_completed",
+      "context_pack_read",
+      "raptor_memory_processed",
+      "summary_refreshed",
+      "agent_checkpoint_written"
+    ],
+    "notify_events": [
+      "project_created",
+      "project_deleted",
+      "roadmap_created",
+      "roadmap_deleted",
+      "gate_blocked",
+      "gate_unblocked_when_it_changes_available_work",
+      "human_decision_required",
+      "undo_available_after_structural_delete"
+    ],
+    "ui_behavior": [
+      "Notifications appear in the Harbor header bell, not as modal interruptions.",
+      "Clicking a planning notification opens the Planning workspace, focuses Overview and highlights the referenced roadmap or gate.",
+      "A notification may expand the roadmap rectangle to show the short summary and source metadata.",
+      "Routine MCP calls must not create visible notifications."
+    ]
+  },
+  "overview_ui_contract": {
+    "graph_rules": [
+      "Every visible line is an edge to a Roadmap or Gate node.",
+      "The edge color follows the target node state.",
+      "Roadmap rectangles show only the roadmap designation while collapsed.",
+      "Expanded roadmap rectangles show a short full-roadmap summary.",
+      "Only gates that block progress between roadmaps are visible in Overview.",
+      "Hovering a gate dims unrelated nodes and highlights the affected roadmaps and direct gate edges."
+    ],
+    "deep_link_target": {
+      "workspace": "planning",
+      "window": "Overview",
+      "params": ["project_id", "roadmap_id", "gate_id", "highlight_mode"],
+      "default_highlight_mode": "expand_summary"
+    }
+  },
+  "mcp_contract_requirements": [
+    "Agents must load roadmap and context pack before executing roadmap work.",
+    "Roadmap creation writes must validate JSON schema and record source refs.",
+    "Roadmap progress updates should be audit logged but silent in the Harbor UI.",
+    "Roadmap creation/deletion emits a sparse notification event.",
+    "Deletion returns undo metadata and never becomes irreversible without an operator-visible recovery path.",
+    "Context packs may include Raptor Memory summaries and provenance, but not raw private content."
+  ],
+  "slice_queue": [
+    {
+      "id": "HPIM-0-master-roadmap",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done_in_this_artifact",
+      "objective": "Create the master roadmap that connects UI, MCP, project storage, Raptor Memory and sparse notifications.",
+      "allowed_paths": ["docs/plans/harbor-planning-integration-master-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json"],
+      "done_when": "The master roadmap exists as valid JSON and points to the relevant sub-roadmaps."
+    },
+    {
+      "id": "HPIM-1-project-storage-contract",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Define the canonical project folder and JSON schema contract for project, roadmap, gate, todo, event and memory index files.",
+      "allowed_paths": ["docs/plans/harbor-planning-project-storage-contract.md"],
+      "tests": ["docs-only"],
+      "done_when": "The contract explains IDs, folder layout, JSON object roles, migration from docs/plans and undo metadata."
+    },
+    {
+      "id": "HPIM-2-planning-mcp-event-policy",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "objective": "Extend Planning MCP service payloads with event classification: silent update versus operator notification.",
+      "allowed_paths": [
+        "docs/plans/planning-mcp-roadmap.json",
+        "src/planning_mcp_service.py",
+        "tests/test_planning_mcp_service.py"
+      ],
+      "tests": ["python -m pytest tests/test_planning_mcp_service.py"],
+      "done_when": "Create/delete/gate-decision events are classified for notification while routine progress and context reads remain silent."
+    },
+    {
+      "id": "HPIM-3-raptor-memory-planning-bridge",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "objective": "Process validated roadmaps into derived Raptor Memory planning context with provenance and no raw private content.",
+      "allowed_paths": [
+        "src/planning_source_memory.py",
+        "src/memory_lifecycle_adapters.py",
+        "tests/test_planning_source_memory.py",
+        "tests/test_memory_lifecycle_adapters.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_source_memory.py tests/test_memory_lifecycle_adapters.py"
+      ],
+      "done_when": "Roadmap summaries, gates and source refs become rebuildable derived memory entries with stable references."
+    },
+    {
+      "id": "HPIM-4-notification-deeplink",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "planned",
+      "objective": "Create a safe notification payload shape for Planning changes that deep-links into Harbor One Planning Overview.",
+      "allowed_paths": [
+        "src/user_notification_contract.py",
+        "tests/test_user_notification_contract.py",
+        "docs/plans/odysseus-notification-mcp-roadmap.md"
+      ],
+      "tests": ["python -m pytest tests/test_user_notification_contract.py"],
+      "done_when": "Planning notifications contain project_id, roadmap_id or gate_id, severity, reason and UI target without secrets or raw private content."
+    },
+    {
+      "id": "HPIM-5-v2-overview-deeplink-ui",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Implement Harbor V2 behavior for notification click -> Planning Overview -> highlighted expanded roadmap summary.",
+      "allowed_paths": ["static/frontpage-v2/*"],
+      "tests": ["Playwright visual check"],
+      "done_when": "Clicking a sample notification switches to Planning, focuses Overview and expands/highlights the referenced roadmap."
+    },
+    {
+      "id": "HPIM-6-delete-undo-ui-contract",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Define the user-visible undo flow for roadmap/project deletion without making every routine update noisy.",
+      "allowed_paths": [
+        "docs/plans/harbor-planning-project-storage-contract.md",
+        "static/frontpage-v2/*"
+      ],
+      "tests": ["docs-only until UI slice starts"],
+      "done_when": "Delete notifications and undo controls are clear, reversible and sparse."
+    }
+  ],
+  "non_goals": [
+    "No notification for every Planning MCP tool call.",
+    "No raw private content in roadmap memory entries, notifications, audit logs or context packs.",
+    "No Markdown source of truth for planning state.",
+    "No irreversible delete without undo metadata.",
+    "No automatic completion of roadmap work without evidence refs."
+  ],
+  "verification": [
+    "python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json",
+    "python -m json.tool docs/plans/planning-mcp-roadmap.json",
+    "Future: focused Planning MCP service tests",
+    "Future: Playwright notification deep-link UI check"
+  ],
+  "recommended_next_step": "Create HPIM-1 project storage contract, then implement HPIM-2 in the Planning MCP service before wiring the V2 notification deep-link UI."
+}

@@ -10,6 +10,8 @@ from fastapi import APIRouter, Request
 
 from core.middleware import require_admin
 from src.constants import DATA_DIR
+from src.gate_evidence_adapters import adapt_review_gate_status
+from src.gate_evidence_core import what_can_safely_happen_now
 from src.memory_triage_contract import normalize_memory_write_intent_status
 
 
@@ -26,7 +28,7 @@ def setup_review_gate_routes(telegram_data_dir: str | Path | None = None) -> API
         gates = _build_gate_list(store)
         pending = sum(1 for gate in gates if gate["state"] in {"pending_review", "ready_to_write", "ready_to_execute"})
         blocked = sum(1 for gate in gates if gate["state"] == "blocked")
-        return {
+        payload = {
             "schema": REVIEW_GATE_SCHEMA,
             "status": "pending" if pending else ("blocked" if blocked else "clear"),
             "pending_count": pending,
@@ -37,6 +39,12 @@ def setup_review_gate_routes(telegram_data_dir: str | Path | None = None) -> API
             "path_values_visible": False,
             "chat_id_value_visible": False,
             "token_value_visible": False,
+        }
+        canonical_gates = adapt_review_gate_status(payload)
+        return {
+            **payload,
+            "canonical_gate_evidence": [gate.to_dict() for gate in canonical_gates],
+            "canonical_safe_now": what_can_safely_happen_now(canonical_gates),
         }
 
     return router

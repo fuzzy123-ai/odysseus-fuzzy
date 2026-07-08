@@ -83,3 +83,72 @@ def test_render_notification_text_contains_only_public_fields():
     assert "[Odysseus][info] release_check" in text
     assert "Release bundle ready." in text
     assert "branch=dev" in text
+
+
+def test_plain_notification_preserves_digest_lines_without_prefix_or_metadata():
+    request = build_user_notification_request({
+        "event": "scheduled_task",
+        "message": "Todo digest\n\nOpen items:\n- One\n- Two",
+        "severity": "success",
+        "render_mode": "plain",
+        "metadata": {"task_id": "sha256:abc"},
+    })
+
+    text = render_user_notification_text(request)
+
+    assert text == "Todo digest\n\nOpen items:\n- One\n- Two"
+    assert "[Odysseus]" not in text
+    assert "task_id" not in text
+
+
+def test_plain_notification_normalizes_legacy_flat_todo_digest():
+    request = build_user_notification_request({
+        "event": "todo_digest",
+        "message": (
+            "[Odysseus][success] scheduled_task: Todo digest Open items: "
+            "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail "
+            "- Zentrale To-Do-Liste: ASV Noten ueberpruefen "
+            "task_id=sha256:eb50733f9dcd20d40431eeb07ba5ea317adf9d7f205425b6419e2fe6b12ae7f0"
+        ),
+        "severity": "success",
+        "render_mode": "plain",
+        "metadata": {"task_id": "sha256:abc"},
+    })
+
+    text = render_user_notification_text(request)
+
+    assert text == (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "Zentrale To-Do-Liste:\n"
+        "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- ASV Noten ueberpruefen"
+    )
+
+
+def test_standard_scheduled_task_notification_normalizes_legacy_todo_digest():
+    request = build_user_notification_request({
+        "event": "scheduled_task",
+        "message": (
+            "[Odysseus][success] scheduled_task: Todo digest Open items: "
+            "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail "
+            "- Zentrale To-Do-Liste: ASV Noten ueberpruefen"
+        ),
+        "severity": "success",
+        "metadata": {
+            "task_id": "sha256:eb50733f9dcd20d40431eeb07ba5ea317adf9d7f205425b6419e2fe6b12ae7f0"
+        },
+    })
+
+    text = render_user_notification_text(request)
+
+    assert text == (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "Zentrale To-Do-Liste:\n"
+        "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- ASV Noten ueberpruefen"
+    )
+    assert "[Odysseus]" not in text
+    assert "scheduled_task" not in text
+    assert "task_id" not in text

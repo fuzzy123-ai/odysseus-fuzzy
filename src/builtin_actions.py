@@ -15,6 +15,7 @@ from core.platform_compat import IS_WINDOWS, find_bash
 from core.constants import internal_api_base
 from src.constants import DATA_DIR, DEEP_RESEARCH_DIR, TIDY_CALENDAR_STATE_FILE, COOKBOOK_STATE_FILE
 from src.builtin_action_types import TaskDeferred, TaskNoop
+from src.todo_digest_formatting import collapse_repeated_open_item_list_prefixes
 
 logger = logging.getLogger(__name__)
 
@@ -1190,7 +1191,7 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
         lines.extend(f"- {item}" for item in open_items[:limit])
     else:
         lines.append("- none")
-    return "\n".join(lines)
+    return collapse_repeated_open_item_list_prefixes("\n".join(lines))
 
 
 async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:

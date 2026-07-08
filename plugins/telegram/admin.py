@@ -8,6 +8,7 @@ from typing import Any
 
 from src.privacy_runtime import is_dsgvo_mode_enabled, runtime_requires_local_only
 
+from plugins.telegram.status import build_telegram_gate_statuses, telegram_gate_statuses_to_dict
 from plugins.telegram.stores import TelegramInboxStore, TelegramPrivacyPinStore
 
 
@@ -63,6 +64,7 @@ def build_telegram_readiness(
     rich_messages_enabled = _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED")
     rich_drafts_enabled = _bool_env("TELEGRAM_RICH_DRAFTS_ENABLED")
     dsgvo_mode = _dsgvo_mode_active(dsgvo_settings_loader)
+    readiness_gates = telegram_gate_statuses_to_dict(build_telegram_gate_statuses())
 
     if token_present and chat_present and agent_chat_enabled and reply_enabled:
         state = "agent_reply_ready"
@@ -110,6 +112,7 @@ def build_telegram_readiness(
         "token_value_visible": False,
         "chat_id_value_visible": False,
         "raw_rich_payload_visible": delivery["raw_rich_payload_visible"],
+        "readiness_gates": readiness_gates,
         "network_enabled": bool(token_present and reply_enabled),
         "send_enabled": bool(token_present and chat_present and reply_enabled),
         "history_counts": counts,

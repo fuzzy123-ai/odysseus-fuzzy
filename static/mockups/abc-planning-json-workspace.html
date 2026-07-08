@@ -1,0 +1,1929 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor One - Planning JSON Workspace Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --surface: rgba(2, 10, 17, 0.82);
+      --surface-soft: rgba(4, 17, 28, 0.68);
+      --line: rgba(16, 182, 202, 0.18);
+      --ink: rgba(202, 225, 232, 0.82);
+      --ink-strong: rgba(229, 246, 250, 0.92);
+      --muted: rgba(126, 158, 171, 0.72);
+      --cyan: #10b6ca;
+      --blue: #4b8cff;
+      --green: #59d98b;
+      --amber: #f4b956;
+      --red: #ff5d76;
+      --planning: #f4b956;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      min-width: 1180px;
+      min-height: 720px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 14%, rgba(75, 140, 255, 0.15), transparent 28%),
+        radial-gradient(circle at 78% 26%, rgba(16, 182, 202, 0.13), transparent 32%),
+        radial-gradient(circle at 52% 88%, rgba(244, 185, 86, 0.08), transparent 24%),
+        #02060d;
+      isolation: isolate;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(rgba(16, 182, 202, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 182, 202, 0.025) 1px, transparent 1px);
+      background-size: 54px 54px;
+      mask-image: radial-gradient(circle at 50% 50%, black 0 58%, transparent 86%);
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 5px);
+      opacity: 0.14;
+      pointer-events: none;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.62;
+    }
+
+    .network line {
+      stroke: rgba(16, 182, 202, 0.14);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(16, 182, 202, 0.44);
+      filter: drop-shadow(0 0 8px rgba(16, 182, 202, 0.5));
+    }
+
+    .topbar {
+      position: fixed;
+      top: 13px;
+      left: 18px;
+      right: 18px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 90px minmax(620px, 760px) minmax(190px, 1fr);
+      align-items: center;
+      gap: 18px;
+    }
+
+    .brand {
+      width: 60px;
+      height: 60px;
+      display: block;
+      overflow: hidden;
+      filter: drop-shadow(0 0 12px rgba(16, 182, 202, 0.28));
+    }
+
+    .brand img {
+      width: 150px;
+      height: 150px;
+      max-width: none;
+      transform: translate(-45px, -45px);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .workspace-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(128px, 1fr));
+      gap: 10px;
+      min-height: 48px;
+      border: 1px solid rgba(16, 182, 202, 0.17);
+      border-radius: 13px;
+      background:
+        linear-gradient(180deg, rgba(16, 182, 202, 0.05), rgba(2, 9, 16, 0.92)),
+        rgba(2, 9, 16, 0.9);
+      padding: 7px;
+      box-shadow: inset 0 0 0 1px rgba(215, 247, 255, 0.025);
+    }
+
+    .workspace-tab {
+      height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.56);
+      padding: 0 10px;
+      text-align: left;
+      font: 700 13px/1 var(--mono);
+    }
+
+    .workspace-tab.active {
+      border-color: rgba(244, 185, 86, 0.62);
+      background:
+        linear-gradient(180deg, rgba(244, 185, 86, 0.14), rgba(244, 185, 86, 0.05)),
+        rgba(2, 12, 21, 0.95);
+      color: rgba(236, 253, 255, 0.9);
+      box-shadow: 0 0 16px rgba(244, 185, 86, 0.12);
+    }
+
+    .workspace-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.7;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .workspace-count {
+      min-width: 20px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      font-size: 11px;
+      opacity: 0.82;
+    }
+
+    .top-actions {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(215, 247, 255, 0.58);
+      font: 11px/1 var(--mono);
+    }
+
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(16, 182, 202, 0.23);
+      border-radius: 10px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.7);
+    }
+
+    .active-project-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid rgba(244, 185, 86, 0.28);
+      border-radius: 10px;
+      background: rgba(244, 185, 86, 0.07);
+      color: rgba(245, 209, 146, 0.84);
+      padding: 0 10px;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .active-project-chip::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--planning);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(244, 185, 86, 0.46);
+    }
+
+    .planning-canvas {
+      position: absolute;
+      inset: 86px 34px 32px;
+      z-index: 1;
+    }
+
+    .floating-window {
+      position: absolute;
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid rgba(16, 182, 202, 0.22);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(5, 18, 30, 0.94), rgba(2, 9, 16, 0.9)),
+        var(--surface);
+      box-shadow:
+        0 28px 60px rgba(0, 0, 0, 0.28),
+        inset 0 0 0 1px rgba(215, 247, 255, 0.025);
+    }
+
+    .window-header {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid rgba(16, 182, 202, 0.12);
+      padding: 0 13px;
+    }
+
+    .window-title {
+      justify-self: center;
+      color: var(--ink-strong);
+      font: 700 13px/1 var(--mono);
+    }
+
+    .window-left,
+    .window-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .window-controls {
+      justify-self: end;
+      color: rgba(16, 182, 202, 0.82);
+      font: 700 12px/1 var(--mono);
+    }
+
+    .window-control {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .source-chip,
+    .tiny-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 24px;
+      border: 1px solid rgba(16, 182, 202, 0.18);
+      border-radius: 999px;
+      background: rgba(4, 18, 28, 0.64);
+      color: rgba(215, 247, 255, 0.62);
+      padding: 0 8px;
+      font: 10px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .source-chip::before,
+    .tiny-chip::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border: 1px solid var(--planning);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(244, 185, 86, 0.4);
+    }
+
+    .projects-window {
+      left: 0;
+      top: 16px;
+      width: 300px;
+      height: calc(100% - 32px);
+    }
+
+    .overview-window {
+      left: 326px;
+      top: 16px;
+      width: calc(100% - 688px);
+      min-width: 520px;
+      height: calc(100% - 32px);
+      border-color: rgba(244, 185, 86, 0.28);
+    }
+
+    .todos-window {
+      right: 0;
+      top: 16px;
+      width: 334px;
+      height: calc(100% - 32px);
+    }
+
+    .projects-body,
+    .todos-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .projects-summary {
+      display: grid;
+      gap: 10px;
+      border: 1px solid rgba(244, 185, 86, 0.16);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(244, 185, 86, 0.1), transparent 44%),
+        rgba(6, 18, 28, 0.55);
+      padding: 12px;
+    }
+
+    .summary-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(215, 247, 255, 0.62);
+      font: 11px/1 var(--mono);
+    }
+
+    .summary-line strong {
+      color: rgba(236, 253, 255, 0.86);
+      font-weight: 700;
+    }
+
+    .project-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-top: 2px;
+    }
+
+    .project-actions button {
+      height: 28px;
+      border: 1px solid rgba(244, 185, 86, 0.18);
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.62);
+      cursor: pointer;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .project-actions button:hover,
+    .project-actions button:focus-visible {
+      outline: none;
+      border-color: rgba(244, 185, 86, 0.42);
+      background: rgba(244, 185, 86, 0.08);
+      color: rgba(245, 209, 146, 0.92);
+    }
+
+    .project-list {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .project-list::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      background: linear-gradient(180deg, transparent, rgba(244, 185, 86, 0.58), rgba(16, 182, 202, 0.22), transparent);
+      border-radius: 99px;
+    }
+
+    .project-row {
+      --state: var(--blue);
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      padding: 10px 8px 10px 0;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .project-row.active,
+    .project-row:hover,
+    .project-row:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--state) 42%, transparent);
+      background: color-mix(in srgb, var(--state) 8%, transparent);
+    }
+
+    .project-marker {
+      width: 12px;
+      height: 12px;
+      justify-self: center;
+      border: 2px solid var(--state);
+      border-radius: 50%;
+      background: #02060d;
+      box-shadow: 0 0 12px color-mix(in srgb, var(--state) 48%, transparent);
+    }
+
+    .project-copy {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .project-copy strong {
+      overflow: hidden;
+      color: rgba(236, 253, 255, 0.86);
+      font: 700 12px/1.15 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-copy span {
+      overflow: hidden;
+      color: rgba(126, 158, 171, 0.76);
+      font: 11px/1.2 var(--font);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-count {
+      min-width: 26px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--state) 42%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--state) 82%, white 8%);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .overview-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .overview-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .overview-heading {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .overview-heading strong {
+      overflow: hidden;
+      color: rgba(236, 253, 255, 0.9);
+      font: 700 16px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview-heading span {
+      overflow: hidden;
+      color: rgba(126, 158, 171, 0.78);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .segmented {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid rgba(244, 185, 86, 0.24);
+      border-radius: 9px;
+      background: rgba(2, 9, 16, 0.7);
+    }
+
+    .segmented button {
+      min-width: 58px;
+      height: 28px;
+      border: 0;
+      border-right: 1px solid rgba(244, 185, 86, 0.13);
+      background: transparent;
+      color: rgba(215, 247, 255, 0.54);
+      padding: 0 10px;
+      font: 700 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .segmented button:last-child {
+      border-right: 0;
+    }
+
+    .segmented button.active {
+      background: rgba(244, 185, 86, 0.13);
+      color: rgba(245, 209, 146, 0.95);
+    }
+
+    .roadmap-graph {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(244, 185, 86, 0.15);
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 52% 40%, rgba(244, 185, 86, 0.08), transparent 34%),
+        radial-gradient(circle at 66% 72%, rgba(16, 182, 202, 0.07), transparent 26%),
+        rgba(2, 10, 17, 0.5);
+    }
+
+    .roadmap-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    .roadmap-lines path {
+      fill: none;
+      stroke-linecap: round;
+      stroke-width: 5;
+      opacity: 0.72;
+      filter: drop-shadow(0 0 8px rgba(244, 185, 86, 0.2));
+      pointer-events: none;
+    }
+
+    .roadmap-lines path.secondary {
+      stroke-width: 3.5;
+      opacity: 0.42;
+    }
+
+    .roadmap-lines path.spine {
+      stroke-width: 7;
+      opacity: 0.8;
+      filter: drop-shadow(0 0 10px rgba(244, 185, 86, 0.2));
+    }
+
+    .roadmap-lines path.history {
+      stroke-width: 4;
+      opacity: 0.3;
+      stroke-dasharray: 9 9;
+    }
+
+    .roadmap-lines path.branch {
+      stroke-width: 4;
+      opacity: 0.55;
+      stroke-dasharray: 0;
+    }
+
+    .svg-gate {
+      --gate: var(--planning);
+      color: var(--gate);
+      cursor: pointer;
+      outline: none;
+      pointer-events: auto;
+      transition: filter 140ms ease;
+    }
+
+    .svg-gate.ready {
+      --gate: var(--green);
+    }
+
+    .svg-gate.blocked {
+      --gate: var(--red);
+    }
+
+    .svg-gate.done {
+      --gate: var(--green);
+      opacity: 0.36;
+      pointer-events: none;
+    }
+
+    .svg-gate .gate-halo {
+      fill: rgba(2, 10, 17, 0.84);
+      stroke: color-mix(in srgb, var(--gate) 42%, transparent);
+      stroke-width: 1.4;
+      filter: drop-shadow(0 0 12px color-mix(in srgb, var(--gate) 36%, transparent));
+    }
+
+    .svg-gate use {
+      stroke: currentColor;
+      fill: none;
+      filter: drop-shadow(0 0 7px color-mix(in srgb, var(--gate) 64%, transparent));
+    }
+
+    .svg-gate:hover,
+    .svg-gate:focus-visible {
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gate) 56%, transparent));
+    }
+
+    .roadmap-node {
+      --node: var(--blue);
+      position: absolute;
+      width: 128px;
+      min-height: 72px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--node) 48%, transparent);
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--node) 18%, transparent), transparent 42%),
+        color-mix(in srgb, var(--node) 8%, rgba(2, 10, 17, 0.92));
+      padding: 12px;
+      box-shadow: inset 0 0 0 1px rgba(215, 247, 255, 0.018);
+    }
+
+    .roadmap-node.current {
+      border-color: color-mix(in srgb, var(--node) 78%, transparent);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--node) 18%, transparent),
+        0 0 24px color-mix(in srgb, var(--node) 20%, transparent);
+    }
+
+    .roadmap-node.future {
+      opacity: 0.72;
+    }
+
+    .roadmap-node.branch {
+      width: 118px;
+      min-height: 62px;
+      opacity: 0.86;
+    }
+
+    .roadmap-node.done {
+      opacity: 0.74;
+      filter: grayscale(0.08);
+    }
+
+    .roadmap-node::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--node);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--node) 54%, transparent);
+    }
+
+    .roadmap-node strong {
+      color: rgba(236, 253, 255, 0.88);
+      font: 700 12px/1.18 var(--mono);
+    }
+
+    .roadmap-node span {
+      color: color-mix(in srgb, var(--node) 78%, white 8%);
+      font: 10px/1 var(--mono);
+    }
+
+    .roadmap-node small {
+      color: rgba(126, 158, 171, 0.76);
+      font-size: 10px;
+    }
+
+    .roadmap-node.master {
+      left: 42%;
+      top: 40%;
+      width: 150px;
+      min-height: 84px;
+      --node: var(--planning);
+    }
+
+    .roadmap-node.shell { left: 8%; top: 10%; --node: var(--green); }
+    .roadmap-node.ui { left: 27%; top: 18%; --node: var(--blue); }
+    .roadmap-node.memory { right: 12%; top: 12%; --node: var(--cyan); }
+    .roadmap-node.inbox { left: 13%; bottom: 12%; --node: var(--teal, #1dbda6); }
+    .roadmap-node.coding { right: 18%; bottom: 17%; --node: var(--red); }
+    .roadmap-node.release { left: 47%; bottom: 7%; --node: var(--amber); }
+
+    .roadmap-node.spine-a { left: 7%; top: 45%; --node: var(--blue); }
+    .roadmap-node.spine-b { left: 25%; top: 45%; --node: var(--planning); }
+    .roadmap-node.spine-c { left: 43%; top: 45%; --node: var(--cyan); }
+    .roadmap-node.spine-next { left: 73%; top: 45%; --node: var(--green); }
+    .roadmap-node.branch-up { left: 31%; top: 16%; --node: var(--cyan); }
+    .roadmap-node.branch-down { left: 49%; top: 70%; --node: var(--red); }
+    .roadmap-node.branch-up-2 { left: 61%; top: 16%; --node: var(--teal, #1dbda6); }
+
+    .roadmap-node.generated {
+      left: 70%;
+      top: 47%;
+      --node: var(--planning);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+    }
+
+    .roadmap-node.generated.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .version-marker {
+      position: absolute;
+      z-index: 2;
+      min-width: 58px;
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(244, 185, 86, 0.38);
+      border-radius: 9px;
+      background:
+        linear-gradient(180deg, rgba(244, 185, 86, 0.14), rgba(2, 10, 17, 0.86)),
+        rgba(2, 10, 17, 0.9);
+      color: rgba(245, 209, 146, 0.95);
+      font: 700 11px/1 var(--mono);
+      box-shadow: 0 0 16px rgba(244, 185, 86, 0.12);
+      transform: translate(-50%, -50%);
+    }
+
+    .version-marker.done {
+      opacity: 0.42;
+    }
+
+    .version-marker.current { left: 4%; top: 51%; }
+    .version-marker.next { left: 86%; top: 51%; }
+
+    .history-label,
+    .spine-caption {
+      position: absolute;
+      z-index: 2;
+      color: rgba(126, 158, 171, 0.74);
+      font: 10px/1 var(--mono);
+      pointer-events: none;
+    }
+
+    .history-label {
+      left: 1%;
+      top: 60%;
+    }
+
+    .spine-caption {
+      right: 9%;
+      top: 60%;
+    }
+
+    .roadmap-gate,
+    .node-gate {
+      --gate: var(--planning);
+      position: absolute;
+      z-index: 3;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--gate) 14%, transparent), transparent 68%),
+        rgba(2, 10, 17, 0.72);
+      color: color-mix(in srgb, var(--gate) 82%, white 8%);
+      cursor: pointer;
+      padding: 0;
+      box-shadow:
+        0 0 0 1px rgba(215, 247, 255, 0.018),
+        0 0 18px color-mix(in srgb, var(--gate) 16%, transparent);
+      transition:
+        background 140ms ease,
+        box-shadow 140ms ease,
+        transform 140ms ease;
+    }
+
+    .roadmap-gate {
+      transform: translate(-50%, -50%);
+    }
+
+    .node-gate {
+      right: 7px;
+      top: 7px;
+      width: 26px;
+      height: 26px;
+      background: rgba(2, 10, 17, 0.62);
+    }
+
+    .roadmap-gate:hover,
+    .roadmap-gate:focus-visible,
+    .node-gate:hover,
+    .node-gate:focus-visible {
+      outline: none;
+      background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--gate) 24%, transparent), transparent 70%),
+        rgba(2, 10, 17, 0.9);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--gate) 36%, transparent),
+        0 0 22px color-mix(in srgb, var(--gate) 30%, transparent);
+    }
+
+    .roadmap-gate:hover,
+    .roadmap-gate:focus-visible {
+      transform: translate(-50%, calc(-50% - 1px));
+    }
+
+    .node-gate:hover,
+    .node-gate:focus-visible {
+      transform: translateY(-1px);
+    }
+
+    .gate-icon {
+      width: 21px;
+      height: 21px;
+      display: block;
+      color: var(--gate);
+      fill: none;
+      stroke: currentColor;
+      filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gate) 58%, transparent));
+    }
+
+    .node-gate .gate-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .roadmap-gate.ready .gate-icon,
+    .node-gate.ready .gate-icon {
+      color: var(--green);
+      filter:
+        drop-shadow(0 0 6px color-mix(in srgb, var(--green) 82%, transparent))
+        drop-shadow(0 0 14px color-mix(in srgb, var(--green) 36%, transparent));
+    }
+
+    .roadmap-gate::after,
+    .node-gate::after {
+      content: attr(data-gate-tooltip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 9px);
+      width: 220px;
+      border: 1px solid color-mix(in srgb, var(--gate) 34%, transparent);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--gate) 14%, transparent), transparent 44%),
+        rgba(2, 10, 17, 0.97);
+      color: rgba(229, 246, 250, 0.9);
+      padding: 9px 10px;
+      font: 11px/1.35 var(--font);
+      text-align: left;
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 4px);
+      transition:
+        opacity 120ms ease,
+        transform 140ms ease;
+    }
+
+    .roadmap-gate:hover::after,
+    .roadmap-gate:focus-visible::after,
+    .node-gate:hover::after,
+    .node-gate:focus-visible::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .roadmap-gate.open,
+    .node-gate.open {
+      --gate: var(--planning);
+    }
+
+    .roadmap-gate.ready,
+    .node-gate.ready {
+      --gate: var(--green);
+    }
+
+    .roadmap-gate.done,
+    .node-gate.done {
+      --gate: var(--green);
+      opacity: 0.48;
+    }
+
+    .roadmap-gate.blocked,
+    .node-gate.blocked {
+      --gate: var(--red);
+    }
+
+    .roadmap-gate.review { left: 38%; top: 43%; }
+    .roadmap-gate.release-gate { left: 57%; top: 70%; }
+
+    .roadmap-node.selected {
+      border-color: color-mix(in srgb, var(--node) 82%, transparent);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--node) 16%, transparent),
+        0 0 26px color-mix(in srgb, var(--node) 20%, transparent);
+    }
+
+    .overview-list {
+      display: none;
+      min-height: 0;
+      border: 1px solid rgba(244, 185, 86, 0.15);
+      border-radius: 9px;
+      background: rgba(2, 10, 17, 0.5);
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .overview-list.active {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .roadmap-graph.hidden {
+      display: none;
+    }
+
+    .roadmap-list-row {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(244, 185, 86, 0.12);
+      border-radius: 8px;
+      background: rgba(4, 18, 28, 0.42);
+      padding: 10px;
+    }
+
+    .roadmap-list-row i {
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--row);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--row) 46%, transparent);
+    }
+
+    .roadmap-list-row strong {
+      color: rgba(236, 253, 255, 0.86);
+      font: 700 12px/1.2 var(--mono);
+    }
+
+    .roadmap-list-row span {
+      color: rgba(126, 158, 171, 0.74);
+      font-size: 11px;
+    }
+
+    .roadmap-list-row.selected {
+      border-color: color-mix(in srgb, var(--row) 54%, transparent);
+      background: color-mix(in srgb, var(--row) 10%, rgba(4, 18, 28, 0.58));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--row) 12%, transparent);
+    }
+
+    .schema-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid rgba(244, 185, 86, 0.12);
+      padding-top: 4px;
+      color: rgba(126, 158, 171, 0.74);
+      font: 10px/1.2 var(--mono);
+    }
+
+    .schema-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .schema-pills span {
+      border: 1px solid rgba(244, 185, 86, 0.18);
+      border-radius: 999px;
+      background: rgba(244, 185, 86, 0.06);
+      color: rgba(245, 209, 146, 0.78);
+      padding: 5px 8px;
+    }
+
+    .gate-legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .gate-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .gate-legend span::before {
+      display: none;
+    }
+
+    .legend-gate-icon {
+      width: 13px;
+      height: 13px;
+      color: var(--legend);
+      fill: none;
+      stroke: currentColor;
+      filter: drop-shadow(0 0 8px color-mix(in srgb, var(--legend) 46%, transparent));
+    }
+
+    .context-menu {
+      position: fixed;
+      z-index: 80;
+      width: 236px;
+      display: grid;
+      gap: 5px;
+      border: 1px solid color-mix(in srgb, var(--planning) 28%, transparent);
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--planning) 13%, transparent), transparent 44%),
+        linear-gradient(180deg, rgba(5, 18, 30, 0.98), rgba(2, 9, 16, 0.96));
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.34),
+        0 0 0 1px rgba(215, 247, 255, 0.02);
+      padding: 8px;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      transform-origin: top left;
+      transition:
+        opacity 120ms ease,
+        transform 140ms ease;
+    }
+
+    .context-menu[hidden] {
+      display: none;
+    }
+
+    .context-menu-head {
+      display: grid;
+      gap: 3px;
+      border-bottom: 1px solid color-mix(in srgb, var(--planning) 14%, transparent);
+      padding: 3px 4px 8px;
+    }
+
+    .context-menu-head strong {
+      overflow: hidden;
+      color: rgba(236, 253, 255, 0.9);
+      font: 700 11px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-menu-head span {
+      overflow: hidden;
+      color: rgba(126, 158, 171, 0.78);
+      font: 10px/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-menu button {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.72);
+      padding: 7px 8px;
+      text-align: left;
+      cursor: pointer;
+      font: 700 11px/1.15 var(--mono);
+    }
+
+    .context-menu button::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      justify-self: center;
+      border: 1px solid var(--planning);
+      border-radius: 50%;
+      box-shadow: 0 0 8px color-mix(in srgb, var(--planning) 42%, transparent);
+    }
+
+    .context-menu button:hover,
+    .context-menu button:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--planning) 30%, transparent);
+      background: color-mix(in srgb, var(--planning) 8%, transparent);
+      color: rgba(236, 253, 255, 0.92);
+    }
+
+    .context-menu button.primary {
+      color: color-mix(in srgb, var(--planning) 82%, white 8%);
+    }
+
+    .context-status {
+      min-height: 20px;
+      color: rgba(126, 158, 171, 0.78);
+      padding: 3px 4px 0;
+      font: 10px/1.3 var(--mono);
+    }
+
+    .new-roadmap-window {
+      left: calc(50% - 230px);
+      top: 78px;
+      z-index: 62;
+      width: 460px;
+      height: 430px;
+      border-color: color-mix(in srgb, var(--planning) 38%, transparent);
+    }
+
+    .new-roadmap-window[hidden] {
+      display: none;
+    }
+
+    .new-roadmap-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .new-roadmap-intro {
+      display: grid;
+      gap: 7px;
+      border: 1px solid color-mix(in srgb, var(--planning) 15%, transparent);
+      border-radius: 8px;
+      background: rgba(4, 18, 28, 0.44);
+      padding: 11px;
+    }
+
+    .new-roadmap-intro strong {
+      color: rgba(236, 253, 255, 0.88);
+      font: 700 12px/1.2 var(--mono);
+    }
+
+    .new-roadmap-intro span {
+      color: rgba(126, 158, 171, 0.78);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .new-roadmap-prompt {
+      width: 100%;
+      min-height: 142px;
+      resize: none;
+      border: 1px solid color-mix(in srgb, var(--planning) 18%, transparent);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.82);
+      outline: none;
+      padding: 12px;
+      font: 12px/1.45 var(--font);
+    }
+
+    .new-roadmap-prompt:focus {
+      border-color: color-mix(in srgb, var(--planning) 46%, transparent);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--planning) 10%, transparent);
+    }
+
+    .new-roadmap-checks {
+      display: grid;
+      gap: 6px;
+      color: rgba(126, 158, 171, 0.78);
+      font: 10px/1.25 var(--mono);
+    }
+
+    .new-roadmap-checks span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .new-roadmap-checks span::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--planning);
+      border-radius: 50%;
+      box-shadow: 0 0 8px color-mix(in srgb, var(--planning) 34%, transparent);
+    }
+
+    .new-roadmap-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .new-roadmap-actions button {
+      min-width: 88px;
+      height: 30px;
+      border: 1px solid color-mix(in srgb, var(--planning) 22%, transparent);
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.68);
+      cursor: pointer;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .new-roadmap-actions button.primary {
+      border-color: color-mix(in srgb, var(--planning) 48%, transparent);
+      background: color-mix(in srgb, var(--planning) 12%, transparent);
+      color: color-mix(in srgb, var(--planning) 82%, white 8%);
+    }
+
+    .todos-toolbar {
+      display: grid;
+      gap: 10px;
+    }
+
+    .todo-search {
+      position: relative;
+      display: block;
+    }
+
+    .todo-search input {
+      width: 100%;
+      height: 34px;
+      border: 1px solid rgba(16, 182, 202, 0.17);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.72);
+      color: rgba(215, 247, 255, 0.78);
+      outline: none;
+      padding: 0 10px;
+      font: 11px/1 var(--mono);
+    }
+
+    .todo-filters {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .todo-filter {
+      height: 26px;
+      border: 1px solid rgba(16, 182, 202, 0.15);
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.56);
+      font: 700 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .todo-filter.active {
+      border-color: rgba(244, 185, 86, 0.46);
+      background: rgba(244, 185, 86, 0.1);
+      color: rgba(245, 209, 146, 0.9);
+    }
+
+    .todo-list {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .todo-card {
+      --todo: var(--blue);
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid rgba(16, 182, 202, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.52);
+      padding: 10px;
+      transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+    }
+
+    .todo-card:hover {
+      border-color: color-mix(in srgb, var(--todo) 38%, transparent);
+      background: color-mix(in srgb, var(--todo) 7%, rgba(2, 10, 17, 0.58));
+    }
+
+    .todo-card.done {
+      opacity: 0.74;
+    }
+
+    .todo-state {
+      position: relative;
+      width: 15px;
+      height: 15px;
+      margin-top: 3px;
+      border: 2px solid var(--todo);
+      border-radius: 50%;
+      background: rgba(2, 9, 16, 0.94);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--todo) 42%, transparent);
+      cursor: pointer;
+    }
+
+    .todo-card.done .todo-state {
+      border-color: var(--green);
+      box-shadow: 0 0 10px rgba(89, 217, 139, 0.38);
+    }
+
+    .todo-card.done .todo-state::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 1px;
+      width: 6px;
+      height: 9px;
+      border-right: 2px solid var(--green);
+      border-bottom: 2px solid var(--green);
+      transform: rotate(42deg);
+      filter: drop-shadow(0 0 5px rgba(89, 217, 139, 0.7));
+    }
+
+    .todo-copy {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .todo-kicker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: color-mix(in srgb, var(--todo) 78%, white 8%);
+      font: 10px/1 var(--mono);
+    }
+
+    .todo-copy strong {
+      color: rgba(236, 253, 255, 0.86);
+      font: 700 12px/1.25 var(--mono);
+    }
+
+    .todo-copy span:not(.todo-kicker) {
+      color: rgba(126, 158, 171, 0.75);
+      font-size: 11px;
+      line-height: 1.32;
+    }
+
+    .todo-age {
+      color: rgba(126, 158, 171, 0.7);
+      font: 10px/1 var(--mono);
+    }
+
+    @media (max-width: 1180px) {
+      body {
+        overflow: auto;
+      }
+
+      .stage {
+        min-width: 0;
+        min-height: 1200px;
+        overflow: visible;
+      }
+
+      .topbar {
+        grid-template-columns: auto 1fr auto;
+      }
+
+      .workspace-tabs {
+        grid-template-columns: repeat(4, minmax(38px, 1fr));
+        min-width: 0;
+      }
+
+      .workspace-tab span:not(.workspace-dot):not(.workspace-count) {
+        display: none;
+      }
+
+      .planning-canvas {
+        position: relative;
+        inset: auto;
+        display: grid;
+        gap: 16px;
+        padding: 92px 18px 28px;
+      }
+
+      .floating-window {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        width: 100%;
+        min-width: 0;
+        height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+      <symbol id="gate-round-arch-symbol" viewBox="0 0 32 32">
+        <path d="M7 27V15.5C7 10.25 11.03 6 16 6s9 4.25 9 9.5V27" stroke-width="3" stroke-linecap="round"></path>
+        <path d="M11 27V15.75C11 12.85 13.24 10.5 16 10.5s5 2.35 5 5.25V27" stroke-width="2" stroke-linecap="round" opacity=".72"></path>
+        <path d="M5.5 27H26.5" stroke-width="3" stroke-linecap="round"></path>
+      </symbol>
+      <symbol id="gate-round-arch-closed-symbol" viewBox="0 0 32 32">
+        <path d="M7 27V15.5C7 10.25 11.03 6 16 6s9 4.25 9 9.5V27" stroke-width="3" stroke-linecap="round"></path>
+        <path d="M11 27V15.75C11 12.85 13.24 10.5 16 10.5s5 2.35 5 5.25V27" stroke-width="2" stroke-linecap="round" opacity=".72"></path>
+        <path d="M5.5 27H26.5" stroke-width="3" stroke-linecap="round"></path>
+        <path d="M11 17H21" stroke-width="2.4" stroke-linecap="round"></path>
+        <path d="M11 21H21" stroke-width="2.4" stroke-linecap="round"></path>
+        <path d="M11 25H21" stroke-width="2.4" stroke-linecap="round"></path>
+      </symbol>
+    </svg>
+    <svg class="network" viewBox="0 0 1200 800" aria-hidden="true">
+      <line x1="65" y1="116" x2="250" y2="78"></line>
+      <line x1="250" y1="78" x2="432" y2="142"></line>
+      <line x1="432" y1="142" x2="620" y2="96"></line>
+      <line x1="620" y1="96" x2="830" y2="158"></line>
+      <line x1="830" y1="158" x2="1092" y2="98"></line>
+      <line x1="102" y1="402" x2="278" y2="300"></line>
+      <line x1="278" y1="300" x2="516" y2="396"></line>
+      <line x1="516" y1="396" x2="744" y2="310"></line>
+      <line x1="744" y1="310" x2="1028" y2="394"></line>
+      <line x1="160" y1="696" x2="424" y2="604"></line>
+      <line x1="424" y1="604" x2="664" y2="680"></line>
+      <line x1="664" y1="680" x2="968" y2="590"></line>
+      <circle cx="65" cy="116" r="3"></circle>
+      <circle cx="250" cy="78" r="2.5"></circle>
+      <circle cx="432" cy="142" r="3"></circle>
+      <circle cx="620" cy="96" r="2.5"></circle>
+      <circle cx="830" cy="158" r="3"></circle>
+      <circle cx="1092" cy="98" r="2.5"></circle>
+      <circle cx="102" cy="402" r="3"></circle>
+      <circle cx="278" cy="300" r="2.5"></circle>
+      <circle cx="516" cy="396" r="3"></circle>
+      <circle cx="744" cy="310" r="2.5"></circle>
+      <circle cx="1028" cy="394" r="3"></circle>
+      <circle cx="160" cy="696" r="2.5"></circle>
+      <circle cx="424" cy="604" r="3"></circle>
+      <circle cx="664" cy="680" r="2.5"></circle>
+      <circle cx="968" cy="590" r="3"></circle>
+    </svg>
+
+    <header class="topbar" aria-label="Harbor One header">
+      <a class="brand" href="#" aria-label="Harbor One home">
+        <img src="../frontpage-v2/assets/harbor-one-a2.png" alt="">
+      </a>
+      <nav class="workspace-tabs" aria-label="Workspaces">
+        <button class="workspace-tab" type="button"><i class="workspace-dot"></i><span>Agent</span><b class="workspace-count">3</b></button>
+        <button class="workspace-tab" type="button"><i class="workspace-dot"></i><span>Knowledge</span><b class="workspace-count">1</b></button>
+        <button class="workspace-tab active" type="button"><i class="workspace-dot"></i><span>Planning</span><b class="workspace-count">7</b></button>
+        <button class="workspace-tab" type="button"><i class="workspace-dot"></i><span>Inbox</span><b class="workspace-count">2</b></button>
+      </nav>
+      <div class="top-actions" aria-label="Global tools">
+        <span class="active-project-chip">Master: Agent Autonomy</span>
+        <span>Harbor One</span>
+        <button class="icon-button" type="button" aria-label="Undo">&#8630;</button>
+        <button class="icon-button" type="button" aria-label="Tools">&#8984;</button>
+      </div>
+    </header>
+
+    <section class="planning-canvas" aria-label="Planning workspace">
+      <article class="floating-window projects-window" aria-label="Projects window">
+        <header class="window-header">
+          <div class="window-left"><span class="source-chip">master-roadmap.json</span></div>
+          <div class="window-title">Projects</div>
+          <div class="window-controls"><button class="window-control" type="button">&minus;</button><button class="window-control" type="button">&#9633;</button><button class="window-control" type="button">&times;</button></div>
+        </header>
+        <div class="projects-body">
+          <section class="projects-summary" aria-label="Master roadmap state">
+            <div class="summary-line"><span>Selected master</span><strong>Agent Autonomy</strong></div>
+            <div class="summary-line"><span>JSON source</span><strong>agent-autonomy-extensions</strong></div>
+            <div class="summary-line"><span>Lanes</span><strong>6 done</strong></div>
+            <div class="summary-line"><span>Gates</span><strong>3 passed</strong></div>
+            <div class="project-actions">
+              <button type="button">Switch</button>
+              <button type="button">Open File</button>
+            </div>
+          </section>
+          <div class="project-list" data-project-list>
+            <button class="project-row active" style="--state: var(--green)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Agent Autonomy</strong><span>6 roadmaps - completed JSON master</span></span>
+              <b class="project-count">6/6</b>
+            </button>
+            <button class="project-row" style="--state: var(--blue)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Frontend V2</strong><span>active design pass</span></span>
+              <b class="project-count">8/14</b>
+            </button>
+            <button class="project-row" style="--state: var(--cyan)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Memory Debug</strong><span>checks green</span></span>
+              <b class="project-count">5/5</b>
+            </button>
+            <button class="project-row" style="--state: var(--amber)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Local Models</strong><span>2 roadmaps - one decision</span></span>
+              <b class="project-count">2/7</b>
+            </button>
+            <button class="project-row" style="--state: var(--red)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Project Atlas</strong><span>4 roadmaps - repo missing</span></span>
+              <b class="project-count">1/9</b>
+            </button>
+            <button class="project-row" style="--state: var(--cyan)" type="button">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>Cloud Control</strong><span>5 roadmaps - automation logs</span></span>
+              <b class="project-count">4/10</b>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="floating-window overview-window" aria-label="Overview window">
+        <header class="window-header">
+          <div class="window-left"><span class="source-chip">agent-autonomy-extensions-master-roadmap.json</span></div>
+          <div class="window-title">Overview</div>
+          <div class="window-controls"><button class="window-control" type="button">&minus;</button><button class="window-control" type="button">&#9633;</button><button class="window-control" type="button">&times;</button></div>
+        </header>
+        <div class="overview-body">
+          <div class="overview-toolbar">
+            <div class="overview-heading">
+              <strong>Agent Autonomy Extensions Master Roadmap</strong>
+              <span>Selected JSON master roadmap. Completed lanes are shown as a readable history spine with branches and passed gates.</span>
+            </div>
+            <div class="segmented" aria-label="Overview mode">
+              <button class="active" type="button" data-view="graph">Graph</button>
+              <button type="button" data-view="list">List</button>
+            </div>
+          </div>
+
+          <section class="roadmap-graph" data-graph-view aria-label="Roadmap graph">
+            <svg class="roadmap-lines" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-label="Roadmap connections and gates">
+              <path class="history" stroke="rgba(89, 217, 139, 0.46)" d="M-80 318 L72 318"></path>
+              <path class="spine" stroke="rgba(89, 217, 139, 0.66)" d="M72 318 L205 318 L382 318 L560 318 L720 318 L850 318"></path>
+              <path class="branch" stroke="rgba(255, 93, 118, 0.46)" d="M210 318 C260 392 355 438 618 455"></path>
+              <path class="branch" stroke="rgba(16, 182, 202, 0.48)" d="M382 318 C430 238 540 190 742 187"></path>
+              <path class="branch" stroke="rgba(29, 189, 166, 0.44)" d="M560 318 C625 255 684 220 742 187"></path>
+              <path class="branch" stroke="rgba(89, 217, 139, 0.28)" d="M618 455 C705 430 788 376 850 318"></path>
+              <g class="svg-gate done" tabindex="-1" aria-label="Completed live web approval gate" transform="translate(205 318)">
+                <title>live-web-target-approval: done. Target, crawl caps and live web bounds were approved.</title>
+                <circle class="gate-halo" r="24"></circle>
+                <use href="#gate-round-arch-symbol" x="-13" y="-13" width="26" height="26"></use>
+              </g>
+              <g class="svg-gate done" tabindex="-1" aria-label="Completed memory write policy gate" transform="translate(382 318)">
+                <title>memory-write-policy: done. Reviewed knowledge writes are allowed by policy.</title>
+                <circle class="gate-halo" r="24"></circle>
+                <use href="#gate-round-arch-symbol" x="-13" y="-13" width="26" height="26"></use>
+              </g>
+              <g class="svg-gate done" tabindex="-1" aria-label="Completed sandbox live execution gate" transform="translate(720 318)">
+                <title>sandbox-execution-live-go: done. Disposable Podman sandbox jobs are allowed with resource limits.</title>
+                <circle class="gate-halo" r="24"></circle>
+                <use href="#gate-round-arch-symbol" x="-13" y="-13" width="26" height="26"></use>
+              </g>
+            </svg>
+            <span class="version-marker current">AAE</span>
+            <span class="version-marker next">done</span>
+            <span class="history-label">foundation roadmaps off-canvas</span>
+            <span class="spine-caption">completed JSON master - status done</span>
+            <div class="roadmap-node spine-a done" data-roadmap-node="AAE-1"><strong>AAE-1</strong><span>done</span><small>Telegram Task Orchestrator</small></div>
+            <div class="roadmap-node spine-b done" data-roadmap-node="AAE-2">
+              <button class="node-gate done" type="button" data-gate-target="memory-write-policy" data-gate-tooltip="memory-write-policy: done. Final Memory/RaptorGraph writes follow the policy gate." aria-label="Completed memory write policy gate"><svg class="gate-icon" aria-hidden="true"><use href="#gate-round-arch-symbol"></use></svg></button>
+              <strong>AAE-2</strong><span>done</span><small>Website Research Pipeline</small>
+            </div>
+            <div class="roadmap-node spine-c done" data-roadmap-node="AAE-3"><strong>AAE-3</strong><span>done</span><small>Browser DevTools Understanding</small></div>
+            <div class="roadmap-node spine-next done" data-roadmap-node="AAE-4"><strong>AAE-4</strong><span>done</span><small>No-GPU Visual Observer</small></div>
+            <div class="roadmap-node branch branch-up done" data-roadmap-node="AAE-6"><strong>AAE-6</strong><span>branch done</span><small>Memory and RaptorGraph Commit</small></div>
+            <div class="roadmap-node branch branch-down done" data-roadmap-node="AAE-5"><strong>AAE-5</strong><span>branch done</span><small>Sandbox Code Execution</small></div>
+            <div class="roadmap-node branch branch-up-2 done" data-roadmap-node="Evidence"><strong>Evidence</strong><span>verified</span><small>Telegram, sandbox, memory smoke</small></div>
+            <div class="roadmap-node generated" data-roadmap-node="Generated Roadmap"><strong>AAE-X</strong><span>drafting</span><small>AI creates JSON lane and links gates</small></div>
+          </section>
+
+          <section class="overview-list" data-list-view aria-label="Roadmap list">
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-1"><i></i><div><strong>AAE-1 - Telegram Task Orchestrator</strong><br><span>Starts, pauses, queries and reports long-running bounded agent tasks through Telegram.</span></div><span class="tiny-chip">done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-2"><i></i><div><strong>AAE-2 - Website Research Pipeline</strong><br><span>Approved site scopes, crawl caps, source inventory, gaps and redacted synthesis.</span></div><span class="tiny-chip">done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-3"><i></i><div><strong>AAE-3 - Browser DevTools Understanding</strong><br><span>Console, network, DOM, accessibility tree, storage metadata and failed request evidence.</span></div><span class="tiny-chip">done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-4"><i></i><div><strong>AAE-4 - No-GPU Visual Observer</strong><br><span>Software-rendered screenshots, frame sampling and diff evidence without GPU dependency.</span></div><span class="tiny-chip">done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-5"><i></i><div><strong>AAE-5 - Sandbox Code Execution</strong><br><span>Disposable Podman sandboxes with scoped mounts, resource limits and redacted artifacts.</span></div><span class="tiny-chip">branch done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="AAE-6"><i></i><div><strong>AAE-6 - Memory And RaptorGraph Knowledge Commit</strong><br><span>Source-linked candidates become policy-approved knowledge entries with provenance.</span></div><span class="tiny-chip">branch done</span></div>
+            <div class="roadmap-list-row" style="--row: var(--green)" data-roadmap-row="memory-write-policy"><i></i><div><strong>Gate - memory-write-policy</strong><br><span>Done. Decides when research abstractions may auto-write versus require review.</span></div><span class="tiny-chip">passed</span></div>
+          </section>
+
+          <footer class="schema-strip">
+            <span>JSON: schema_version 1 - kind odysseus.agent_autonomy_extensions_master_roadmap - status done - updated 2026-07-02.</span>
+            <span class="gate-legend" aria-label="Gate status legend">
+              <span style="--legend: var(--planning)"><svg class="legend-gate-icon" aria-hidden="true"><use href="#gate-round-arch-symbol"></use></svg>open gate</span>
+              <span style="--legend: var(--green)"><svg class="legend-gate-icon" aria-hidden="true"><use href="#gate-round-arch-symbol"></use></svg>passed</span>
+              <span style="--legend: var(--red)"><svg class="legend-gate-icon" aria-hidden="true"><use href="#gate-round-arch-closed-symbol"></use></svg>blocked</span>
+            </span>
+            <span class="schema-pills"><span>project</span><span>roadmap</span><span>gate</span><span>todo</span><span>link</span></span>
+          </footer>
+        </div>
+      </article>
+
+      <article class="floating-window todos-window" aria-label="Todos window">
+        <header class="window-header">
+          <div class="window-left"><span class="source-chip">todos.json</span></div>
+          <div class="window-title">Todos</div>
+          <div class="window-controls"><button class="window-control" type="button">&minus;</button><button class="window-control" type="button">&#9633;</button><button class="window-control" type="button">&times;</button></div>
+        </header>
+        <div class="todos-body">
+          <div class="todos-toolbar">
+            <label class="todo-search">
+              <input type="search" value="" placeholder="find todos, gates, roadmap links">
+            </label>
+            <div class="todo-filters">
+              <button class="todo-filter active" type="button">Done 6</button>
+              <button class="todo-filter" type="button">Gates 3</button>
+              <button class="todo-filter" type="button">Evidence 4</button>
+            </div>
+          </div>
+          <div class="todo-list">
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Done - AAE-1</span>
+                <strong>Telegram task lifecycle</strong>
+                <span>Remote operator can start, pause, query and receive status for bounded agent tasks.</span>
+              </div>
+              <time class="todo-age">Jul 02</time>
+            </article>
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Done - gate</span>
+                <strong>Live web target approval</strong>
+                <span>Target domain, crawl depth, page cap, rate limit and login handling were bounded.</span>
+              </div>
+              <time class="todo-age">Jul 02</time>
+            </article>
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Done - AAE-6</span>
+                <strong>Memory and RaptorGraph commit</strong>
+                <span>Research output can become source-linked knowledge with model stamps and provenance.</span>
+              </div>
+              <time class="todo-age">18m</time>
+            </article>
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Done - AAE-5</span>
+                <strong>Sandbox execution live go</strong>
+                <span>Disposable Podman jobs run with no network, memory cap, CPU cap and PID limit.</span>
+              </div>
+              <time class="todo-age">1h</time>
+            </article>
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Evidence - live smoke</span>
+                <strong>ASV BW live research smoke</strong>
+                <span>Browser, Telegram, sandbox and Memory/RaptorGraph evidence are linked in the JSON.</span>
+              </div>
+              <time class="todo-age">2h</time>
+            </article>
+            <article class="todo-card done" style="--todo: var(--green)">
+              <button class="todo-state" type="button" aria-label="Mark open"></button>
+              <div class="todo-copy">
+                <span class="todo-kicker">Done - AAE-4</span>
+                <strong>No-GPU visual observer</strong>
+                <span>Software screenshots and diffs give visual evidence without a GPU requirement.</span>
+              </div>
+              <time class="todo-age">1d</time>
+            </article>
+          </div>
+        </div>
+      </article>
+
+      <article class="floating-window new-roadmap-window" hidden data-new-roadmap-window aria-label="New Roadmap window">
+        <header class="window-header">
+          <div class="window-left"><span class="source-chip" data-roadmap-source>attach target</span></div>
+          <div class="window-title">New Roadmap</div>
+          <div class="window-controls"><button class="window-control" type="button" data-roadmap-close>&minus;</button><button class="window-control" type="button">&#9633;</button><button class="window-control" type="button" data-roadmap-close>&times;</button></div>
+        </header>
+        <div class="new-roadmap-body">
+          <div class="new-roadmap-intro">
+            <strong>Describe the roadmap. ABC handles the format.</strong>
+            <span>The AI researches codebase, memory, existing roadmaps, dependencies, and gates, then attaches the new roadmap in the right place.</span>
+          </div>
+          <textarea class="new-roadmap-prompt" data-roadmap-prompt placeholder="Example: Add a roadmap for the custom context menu system. It should cover chat agent links, document file actions, and planning node attach behavior."></textarea>
+          <div class="new-roadmap-checks" data-roadmap-checks>
+            <span>Read project JSON and active roadmap graph</span>
+            <span>Search codebase and memory for related work</span>
+            <span>Create links and gates automatically where needed</span>
+          </div>
+          <div class="new-roadmap-actions">
+            <button type="button" data-roadmap-close>Cancel</button>
+            <button class="primary" type="button" data-roadmap-generate>Generate roadmap</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="context-menu" hidden data-context-menu role="menu" aria-label="Context menu">
+      <div class="context-menu-head">
+        <strong data-context-title>Context</strong>
+        <span data-context-subtitle>right click actions</span>
+      </div>
+      <button class="primary" type="button" data-context-action="attach-roadmap" role="menuitem">Attach roadmap</button>
+      <button type="button" data-context-action="open-roadmap" role="menuitem">Open roadmap</button>
+      <button type="button" data-context-action="copy-id" role="menuitem">Copy roadmap id</button>
+      <button type="button" data-context-action="copy-link" role="menuitem">Copy roadmap link</button>
+      <div class="context-status" data-context-status>Roadmap node actions</div>
+    </div>
+  </main>
+
+  <script>
+    const graphButton = document.querySelector('[data-view="graph"]');
+    const listButton = document.querySelector('[data-view="list"]');
+    const graphView = document.querySelector('[data-graph-view]');
+    const listView = document.querySelector('[data-list-view]');
+    const contextMenu = document.querySelector('[data-context-menu]');
+    const contextTitle = document.querySelector('[data-context-title]');
+    const contextSubtitle = document.querySelector('[data-context-subtitle]');
+    const contextStatus = document.querySelector('[data-context-status]');
+    const newRoadmapWindow = document.querySelector('[data-new-roadmap-window]');
+    const roadmapSource = document.querySelector('[data-roadmap-source]');
+    const roadmapPrompt = document.querySelector('[data-roadmap-prompt]');
+    const roadmapChecks = document.querySelector('[data-roadmap-checks]');
+    let activeContextTarget = '';
+
+    function setView(view) {
+      const list = view === 'list';
+      graphButton.classList.toggle('active', !list);
+      listButton.classList.toggle('active', list);
+      graphView.classList.toggle('hidden', list);
+      listView.classList.toggle('active', list);
+    }
+
+    graphButton.addEventListener('click', () => setView('graph'));
+    listButton.addEventListener('click', () => setView('list'));
+
+    function focusRoadmapGate(target) {
+      if (!target) return;
+      document.querySelectorAll('[data-roadmap-node], [data-roadmap-row]').forEach(item => {
+        item.classList.toggle('selected', item.dataset.roadmapNode === target || item.dataset.roadmapRow === target);
+      });
+      setView('list');
+      const row = document.querySelector(`[data-roadmap-row="${CSS.escape(target)}"]`);
+      row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    document.querySelectorAll('[data-gate-target]').forEach(gate => {
+      gate.addEventListener('click', event => {
+        event.preventDefault();
+        focusRoadmapGate(gate.dataset.gateTarget);
+      });
+      gate.addEventListener('keydown', event => {
+        if (!['Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        focusRoadmapGate(gate.dataset.gateTarget);
+      });
+    });
+
+    function closeContextMenu() {
+      contextMenu.hidden = true;
+    }
+
+    function writeContextStatus(text) {
+      contextStatus.textContent = text;
+    }
+
+    async function copyText(text, label) {
+      try {
+        await navigator.clipboard.writeText(text);
+        writeContextStatus(label + ' copied');
+      } catch {
+        writeContextStatus(label + ': ' + text);
+      }
+    }
+
+    function openContextMenu(event, node) {
+      event.preventDefault();
+      activeContextTarget = node.dataset.roadmapNode || 'Roadmap';
+      contextTitle.textContent = activeContextTarget;
+      contextSubtitle.textContent = 'roadmap node';
+      writeContextStatus('Attach, open, or copy roadmap references');
+      contextMenu.hidden = false;
+      const width = contextMenu.offsetWidth;
+      const height = contextMenu.offsetHeight;
+      const left = Math.min(window.innerWidth - width - 14, event.clientX + 2);
+      const top = Math.min(window.innerHeight - height - 14, event.clientY + 2);
+      contextMenu.style.left = Math.max(14, left) + 'px';
+      contextMenu.style.top = Math.max(14, top) + 'px';
+    }
+
+    function openNewRoadmapWindow(target) {
+      closeContextMenu();
+      activeContextTarget = target || activeContextTarget || 'Roadmap';
+      roadmapSource.textContent = 'attach to ' + activeContextTarget;
+      roadmapPrompt.value = '';
+      roadmapChecks.innerHTML = [
+        '<span>Read project JSON and active roadmap graph</span>',
+        '<span>Search codebase and memory for related work</span>',
+        '<span>Create links and gates automatically where needed</span>'
+      ].join('');
+      newRoadmapWindow.hidden = false;
+      roadmapPrompt.focus();
+    }
+
+    function closeNewRoadmapWindow() {
+      newRoadmapWindow.hidden = true;
+    }
+
+    document.querySelectorAll('[data-roadmap-node]').forEach(node => {
+      node.addEventListener('contextmenu', event => openContextMenu(event, node));
+    });
+
+    contextMenu.addEventListener('click', event => {
+      const button = event.target.closest('[data-context-action]');
+      if (!button) return;
+      const id = activeContextTarget.toLowerCase().replace(/\s+/g, '-');
+      if (button.dataset.contextAction === 'attach-roadmap') {
+        openNewRoadmapWindow(activeContextTarget);
+      }
+      if (button.dataset.contextAction === 'open-roadmap') {
+        focusRoadmapGate(activeContextTarget);
+        writeContextStatus('Opened roadmap');
+      }
+      if (button.dataset.contextAction === 'copy-id') {
+        copyText('roadmap:' + id, 'Roadmap id');
+      }
+      if (button.dataset.contextAction === 'copy-link') {
+        copyText('harbor://planning/agent-autonomy/roadmaps/' + id, 'Roadmap link');
+      }
+    });
+
+    document.querySelectorAll('[data-roadmap-close]').forEach(button => {
+      button.addEventListener('click', closeNewRoadmapWindow);
+    });
+
+    document.querySelector('[data-roadmap-generate]').addEventListener('click', () => {
+      const prompt = roadmapPrompt.value.trim() || 'Create a connected roadmap from this node.';
+      roadmapChecks.innerHTML = [
+        '<span>Researching codebase for: ' + prompt.replace(/[<>&]/g, '') + '</span>',
+        '<span>Memory and existing roadmaps checked</span>',
+        '<span>Draft roadmap attached; gates and edges proposed</span>'
+      ].join('');
+      document.querySelector('.roadmap-node.generated')?.classList.add('visible', 'selected');
+      document.querySelectorAll('[data-roadmap-node]').forEach(node => {
+        if (node.dataset.roadmapNode === activeContextTarget) node.classList.add('selected');
+      });
+      setTimeout(() => {
+        closeNewRoadmapWindow();
+      }, 900);
+    });
+
+    document.addEventListener('click', event => {
+      if (!contextMenu.hidden && !contextMenu.contains(event.target)) {
+        closeContextMenu();
+      }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        closeContextMenu();
+        closeNewRoadmapWindow();
+      }
+    });
+
+    document.querySelectorAll('.project-row').forEach(row => {
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.project-row').forEach(item => item.classList.remove('active'));
+        row.classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.todo-state').forEach(button => {
+      button.addEventListener('click', () => {
+        button.closest('.todo-card')?.classList.toggle('done');
+      });
+    });
+  </script>
+</body>
+</html>

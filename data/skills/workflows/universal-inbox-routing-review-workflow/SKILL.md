@@ -1,6 +1,6 @@
 ---
 name: universal-inbox-routing-review-workflow
-description: Required workflow for reviewing Universal Inbox routing, blockers, and Memory Write Intent decisions.
+description: "Required workflow for reviewing Universal Inbox routing, blockers, and Memory Write Intent decisions."
 version: 1.0.0
 category: workflows
 tags: [universal-inbox, review, memory, workflow]
@@ -8,7 +8,7 @@ requires_toolsets: [manage_documents, manage_memory]
 status: published
 confidence: 1.0
 source: admin
-owner: homebase
+owner: fuzzy
 created: "2026-06-29T00:00:00Z"
 ---
 

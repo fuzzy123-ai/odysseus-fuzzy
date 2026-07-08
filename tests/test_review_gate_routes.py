@@ -46,6 +46,9 @@ def test_review_gate_status_empty_store_is_clear_and_redacted(tmp_path):
     assert payload["path_values_visible"] is False
     assert payload["chat_id_value_visible"] is False
     assert payload["token_value_visible"] is False
+    assert len(payload["canonical_gate_evidence"]) == 4
+    assert payload["canonical_gate_evidence"][0]["schema"] == "gate_evidence_core.v1"
+    assert payload["canonical_safe_now"]["schema"] == "gate_evidence_core.safe_now.v1"
 
 
 def test_review_gate_status_summarizes_inbox_memory_and_raptor_without_raw_ids(tmp_path):
@@ -78,6 +81,8 @@ def test_review_gate_status_summarizes_inbox_memory_and_raptor_without_raw_ids(t
     assert gates["nextcloud_copy"]["state"] == "pending_review"
     assert gates["memory_write"]["state"] == "pending_review"
     assert gates["raptorgraph_write"]["state"] == "pending_review"
+    assert payload["canonical_safe_now"]["can_proceed"] is False
+    assert payload["canonical_safe_now"]["operator_required_gate_ids"]
     assert gates["nextcloud_copy"]["metadata"]["attachment_suffix"] == ".pdf"
     assert "raw-chat-123" not in encoded
     assert "message_id" not in encoded

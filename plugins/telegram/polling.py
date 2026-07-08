@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable
 
+from plugins.telegram.formatting import format_agent_failure_reply, format_agent_turn_reply
 from plugins.telegram.stores import (
     TelegramInboxStore,
     TelegramPollingStateStore,
@@ -189,12 +190,8 @@ def _reply_result_telegram_message_id(result: dict[str, Any] | None) -> int | No
 
 
 def _agent_failure_reply(agent_turn: dict[str, Any] | None) -> str:
-    if not agent_turn or str(agent_turn.get("status") or "").lower() != "failed":
-        return ""
-    return (
-        "Ich habe deine Nachricht erhalten und arbeite, aber das Sprachmodell "
-        "konnte gerade nicht antworten. Bitte prüfe den Modell-Zugang in Odysseus."
-    )
+    return format_agent_failure_reply(agent_turn)
+
 
 def fetch_telegram_updates(offset: int) -> list[dict[str, Any]]:
     token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
@@ -255,6 +252,7 @@ def run_telegram_polling_cycle_impl(
     build_agent_bridge_request: Callable[..., dict[str, Any]],
     send_typing_indicator: Callable[..., Any],
     execute_memory_auto_write: Callable[..., dict[str, Any] | None] | None = None,
+    execute_nextcloud_auto_transfer: Callable[..., dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -346,7 +344,7 @@ def run_telegram_polling_cycle_impl(
                 )
                 if refreshed is not None:
                     stored["message"] = refreshed
-                store.append_event(
+                attachment_event = store.append_event(
                     kind="universal_inbox_attachment",
                     status=str(inbox_attachment.get("status") or "failed"),
                     chat_id=str(message.get("chat_id") or ""),
@@ -375,6 +373,7 @@ def run_telegram_polling_cycle_impl(
                     raw_identifiers_visible=False,
                     filename_visible=False,
                 )
+                nextcloud_transfer = None
                 memory_auto_write = None
                 if callable(execute_memory_auto_write):
                     memory_auto_write = execute_memory_auto_write(
@@ -392,6 +391,20 @@ def run_telegram_polling_cycle_impl(
                         inbox_attachment["memory_auto_write_status"] = str(memory_auto_write.get("status") or "")
                         inbox_attachment["memory_auto_write_reason"] = str(memory_auto_write.get("reason") or "")
                         inbox_attachment["memory_auto_writes_performed"] = bool(memory_auto_write.get("writes_performed"))
+                if callable(execute_nextcloud_auto_transfer):
+                    nextcloud_transfer = execute_nextcloud_auto_transfer(
+                        data_dir=data_dir,
+                        store=store,
+                        chat_id=str(message.get("chat_id") or ""),
+                        inbox_attachment=inbox_attachment,
+                        attachment_event=attachment_event,
+                    )
+                    if nextcloud_transfer is not None:
+                        inbox_attachment = dict(inbox_attachment)
+                        inbox_attachment["nextcloud_transfer_status"] = str(nextcloud_transfer.get("status") or "")
+                        inbox_attachment["nextcloud_transfer_reason"] = str(nextcloud_transfer.get("reason") or "")
+                        inbox_attachment["nextcloud_writes_performed"] = bool(nextcloud_transfer.get("writes_performed"))
+                        inbox_attachment["nextcloud_verified"] = bool(nextcloud_transfer.get("verified"))
                 if reply_handler is not None:
                     reply_handler(
                         str(message.get("chat_id") or ""),
@@ -554,7 +567,7 @@ def run_telegram_polling_cycle_impl(
                             session_id=bridge.get("session_id") or "",
                             reply_text_present=bool(agent_turn.get("reply_text_present")),
                         )
-                        reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
+                        reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
                         if reply_text and reply_handler is not None:
                             reply_handler(
                                 bridge["chat_id"],

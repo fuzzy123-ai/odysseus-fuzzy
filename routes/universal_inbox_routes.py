@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from src.auth_helpers import effective_user
 from src.universal_inbox_file_types import classify_universal_inbox_file
+from src.universal_inbox_flow_state import build_universal_inbox_flow_state
 
 
 def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
@@ -16,31 +17,48 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
 
     @router.get("/items/{source_ref:path}/status")
     async def get_universal_inbox_item_status(request: Request, source_ref: str):
-        source_kind, upload_id = _normalize_source_ref(source_ref)
-        if source_kind != "upload":
-            raise HTTPException(404, "Universal Inbox source not found")
+        return _resolve_redacted_upload_status(request, source_ref, upload_handler)
 
-        if upload_handler is None or not hasattr(upload_handler, "resolve_upload"):
-            raise HTTPException(503, "Upload status backend is not available")
-
-        auth_manager = getattr(request.app.state, "auth_manager", None)
-        auth_configured = bool(auth_manager and getattr(auth_manager, "is_configured", False))
-        owner = effective_user(request)
-        if auth_configured and not owner:
-            raise HTTPException(403, "Not authenticated")
-
-        info = upload_handler.resolve_upload(
-            upload_id,
-            owner=owner,
-            auth_manager=auth_manager,
-            allow_admin=True,
-        )
-        if not info:
-            raise HTTPException(404, "Universal Inbox source not found")
-
-        return _build_redacted_upload_status(info, source_ref=source_ref)
+    @router.get("/items/{source_ref:path}/flow-state")
+    async def get_universal_inbox_item_flow_state(request: Request, source_ref: str):
+        status_payload = _resolve_redacted_upload_status(request, source_ref, upload_handler)
+        return build_universal_inbox_flow_state(
+            source_ref=str(status_payload["source_ref"]),
+            item_status=status_payload,
+            live_write_allowed=False,
+        ).to_dict()
 
     return router
+
+
+def _resolve_redacted_upload_status(
+    request: Request,
+    source_ref: str,
+    upload_handler: Any,
+) -> dict[str, Any]:
+    source_kind, upload_id = _normalize_source_ref(source_ref)
+    if source_kind != "upload":
+        raise HTTPException(404, "Universal Inbox source not found")
+
+    if upload_handler is None or not hasattr(upload_handler, "resolve_upload"):
+        raise HTTPException(503, "Upload status backend is not available")
+
+    auth_manager = getattr(request.app.state, "auth_manager", None)
+    auth_configured = bool(auth_manager and getattr(auth_manager, "is_configured", False))
+    owner = effective_user(request)
+    if auth_configured and not owner:
+        raise HTTPException(403, "Not authenticated")
+
+    info = upload_handler.resolve_upload(
+        upload_id,
+        owner=owner,
+        auth_manager=auth_manager,
+        allow_admin=True,
+    )
+    if not info:
+        raise HTTPException(404, "Universal Inbox source not found")
+
+    return _build_redacted_upload_status(info, source_ref=source_ref)
 
 
 def _normalize_source_ref(source_ref: str) -> tuple[str, str]:

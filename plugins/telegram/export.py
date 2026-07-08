@@ -9,6 +9,9 @@ from typing import Any
 from src.privacy_runtime import is_dsgvo_mode_enabled
 
 from plugins.telegram.attachments import _telegram_attachment_context_ttl_seconds
+from plugins.telegram.formatting import (
+    format_telegram_attachment_export_reply as _format_telegram_attachment_export_reply,
+)
 from plugins.telegram.stores import TelegramInboxStore, _chat_handle
 
 
@@ -154,28 +157,4 @@ def execute_recent_telegram_attachment_export(
 
 
 def format_telegram_attachment_export_reply(result: dict[str, Any]) -> str:
-    status = str(result.get("status") or "blocked")
-    target = str(result.get("target_format") or "unknown")
-    tool = str(result.get("required_tool") or "")
-    if status == "sent":
-        return f"Export fertig: Ich habe dir die {target.upper()}-Datei geschickt."
-    if status == "exported":
-        return (
-            f"Export fertig: {target.upper()} wurde lokal erzeugt.\n"
-            "Die Datei ist bereit, aber der Telegram-Dokumentversand ist gerade nicht aktiv."
-        )
-    if status == "ready":
-        return (
-            f"Export erkannt: Ziel {target}.\n"
-            f"Aktion: {result.get('action') or 'convert'}.\n"
-            f"Konverter: {tool or 'builtin'}.\n"
-            "Die Datei kann jetzt lokal erzeugt werden."
-        )
-    if status == "planned":
-        return (
-            f"Export erkannt: Ziel {target}.\n"
-            f"Aktion: {result.get('action') or 'convert'}.\n"
-            f"Benoetigtes lokales Tool: {tool or 'noch offen'}.\n"
-            "Die echte Datei-Ausgabe ist noch nicht aktiviert; der sichere Export-Plan ist vorgemerkt."
-        )
-    return f"Export erkannt, aber blockiert: {result.get('reason') or 'policy_gate'}."
+    return _format_telegram_attachment_export_reply(result)

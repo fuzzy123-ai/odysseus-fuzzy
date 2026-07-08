@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from routes.universal_inbox_routes import setup_universal_inbox_routes
 from src.upload_handler import UploadHandler
+from src.universal_inbox_flow_state import CANONICAL_FLOW_STAGES
 
 
 class _AuthManager:
@@ -139,5 +140,107 @@ def test_upload_status_rejects_path_like_source_refs(tmp_path):
     handler = _make_handler(tmp_path, [])
 
     response = TestClient(_app(handler)).get("/api/universal-inbox/items/upload:../secret/status")
+
+    assert response.status_code == 400
+
+
+def test_upload_flow_state_is_redacted_and_metadata_only(tmp_path):
+    upload_id = "d" * 32 + ".pdf"
+    handler = _make_handler(
+        tmp_path,
+        [
+            {
+                "id": upload_id,
+                "name": "private-invoice-2026.pdf",
+                "mime": "application/pdf",
+                "owner": "alice",
+            }
+        ],
+    )
+
+    response = TestClient(_app(handler)).get(
+        f"/api/universal-inbox/items/upload:{upload_id}/flow-state"
+    )
+    payload = response.json()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert response.status_code == 200
+    assert payload["schema"] == "odysseus.universal_inbox.flow_state.v1"
+    assert payload["source_kind"] == "upload"
+    assert payload["source_ref_visible"] is False
+    assert payload["source_path_visible"] is False
+    assert payload["raw_content_visible"] is False
+    assert payload["secret_values_visible"] is False
+    assert payload["chat_id_visible"] is False
+    assert payload["live_write_allowed"] is False
+    assert payload["overall_status"] == "partial"
+    assert payload["next_action"] == "extracted"
+    assert [step["stage"] for step in payload["steps"]] == list(CANONICAL_FLOW_STAGES)
+    assert payload["steps"][0]["status"] == "completed"
+    assert payload["steps"][1]["metadata"]["category"] == "document_extractable"
+    assert payload["steps"][1]["metadata"]["extractable_now"] is True
+    assert payload["runtime_event"]["component"] == "flow_state"
+    assert payload["runtime_event"]["side_effects"] == ["none"]
+    assert "private-invoice" not in encoded
+    assert str(tmp_path) not in encoded
+    assert upload_id not in encoded
+
+
+def test_upload_flow_state_surfaces_review_without_raw_names(tmp_path):
+    upload_id = "e" * 32 + ".jpg"
+    handler = _make_handler(
+        tmp_path,
+        [
+            {
+                "id": upload_id,
+                "name": "whiteboard-secret.jpg",
+                "mime": "image/jpeg",
+                "owner": "alice",
+            }
+        ],
+    )
+
+    response = TestClient(_app(handler)).get(
+        f"/api/universal-inbox/items/upload:{upload_id}/flow-state"
+    )
+    payload = response.json()
+    encoded = json.dumps(payload, sort_keys=True)
+
+    assert response.status_code == 200
+    assert payload["overall_status"] == "review"
+    assert payload["next_action"] == "operator_review"
+    assert payload["review_reasons"] == ["image_metadata_only"]
+    assert payload["review_reason_details"][0]["code"] == "image_metadata_only"
+    assert payload["steps"][1]["status"] == "review"
+    assert payload["steps"][4]["status"] == "review"
+    assert "whiteboard-secret" not in encoded
+    assert upload_id not in encoded
+
+
+def test_upload_flow_state_denies_cross_owner_without_leaking_existence(tmp_path):
+    upload_id = "f" * 32 + ".pdf"
+    handler = _make_handler(
+        tmp_path,
+        [
+            {
+                "id": upload_id,
+                "name": "bob-private.pdf",
+                "mime": "application/pdf",
+                "owner": "bob",
+            }
+        ],
+    )
+
+    response = TestClient(_app(handler, user="alice")).get(
+        f"/api/universal-inbox/items/upload:{upload_id}/flow-state"
+    )
+
+    assert response.status_code == 404
+
+
+def test_upload_flow_state_rejects_path_like_source_refs(tmp_path):
+    handler = _make_handler(tmp_path, [])
+
+    response = TestClient(_app(handler)).get("/api/universal-inbox/items/upload:../secret/flow-state")
 
     assert response.status_code == 400

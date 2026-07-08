@@ -327,6 +327,35 @@ def test_pop_notifications_owner_filtered():
     assert sch._pending_notifications == []
 
 
+def test_todo_digest_pending_notification_uses_plain_display_fields():
+    from src.task_scheduler import TaskScheduler
+
+    sch = TaskScheduler.__new__(TaskScheduler)
+    sch._pending_notifications = []
+    bad_body = (
+        "[Odysseus][success] scheduled_task: Todo digest Open items: "
+        "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail "
+        "- Zentrale To-Do-Liste: ASV Noten ueberpruefen "
+        "task_id=sha256:eb50733f9dcd20d40431eeb07ba5ea317adf9d7f205425b6419e2fe6b12ae7f0"
+    )
+
+    sch.add_notification("Todo digest", "success", "task-telegram", owner="alice", body=bad_body)
+
+    note = sch.pop_notifications(owner="alice")[0]
+    assert note["display_title"] == "Todo digest"
+    assert note["render_mode"] == "plain"
+    assert note["display_body"] == (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "Zentrale To-Do-Liste:\n"
+        "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- ASV Noten ueberpruefen"
+    )
+    assert "[Odysseus]" not in note["display_body"]
+    assert "scheduled_task" not in note["display_body"]
+    assert "task_id" not in note["display_body"]
+
+
 # ---------------------------------------------------------------------------
 # Task action allowlist
 # ---------------------------------------------------------------------------
@@ -359,11 +388,12 @@ def test_ship_paused_housekeeping_stays_paused_by_default():
     """Built-ins marked ship_paused are intentionally opt-in even after
     the user enables the rest of Tasks."""
     from routes import task_routes
-    from src import task_scheduler
+    from src import task_scheduler, task_scheduler_helpers
 
     route_src = open(task_routes.__file__, encoding="utf-8").read()
     scheduler_src = open(task_scheduler.__file__, encoding="utf-8").read()
-    assert '"ship_paused": True' in scheduler_src
+    helper_src = open(task_scheduler_helpers.__file__, encoding="utf-8").read()
+    assert '"ship_paused": True' in helper_src
     assert 'defs.get("ship_paused")' in scheduler_src
     assert 'defs.get("ship_paused")' in route_src
 

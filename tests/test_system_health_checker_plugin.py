@@ -34,7 +34,10 @@ def test_manifest_keeps_health_checker_as_operations_plugin():
     assert PLUGIN["category"] == "Operations"
     assert PLUGIN["permission"] == "admin"
     assert PLUGIN["kind"] == "ui"
-    assert PLUGIN["capabilities"] == ["local_api"]
+    assert PLUGIN["manifest_version"] == "1.0"
+    assert PLUGIN["capabilities"] == ["admin_route", "local_api"]
+    assert PLUGIN["compatibility"] == {"min_odysseus": "1.0.0"}
+    assert PLUGIN["lifecycle"] == "loadable"
     assert PLUGIN["ui"]["open"] == "/api/plugins/system_health_checker/app"
 
 

@@ -84,6 +84,48 @@ def test_local_manifest_defaults_to_admin_but_warns_without_version():
     assert "missing_version" in report.warning_codes
 
 
+def test_local_manifest_accepts_shared_schema_fields():
+    report = validate_local_manifest(
+        {
+            "name": "Shared Schema Demo",
+            "version": "1.2.3",
+            "permission": "owner_scoped_write",
+            "capabilities": ["Local_API", "notes.search", "local_api"],
+            "compatibility": {
+                "min_odysseus": "1.0.0",
+                "max_odysseus": "2.0.0-beta",
+            },
+            "lifecycle": "loadable",
+            "manifest_version": "1.0",
+        }
+    )
+
+    assert report.ok
+    assert report.normalized["permission"] == "owner_scoped_write"
+    assert report.normalized["capabilities"] == ("local_api", "notes.search")
+    assert report.normalized["compatibility"] == {
+        "min_odysseus": "1.0.0",
+        "max_odysseus": "2.0.0-beta",
+    }
+    assert report.normalized["lifecycle"] == "loadable"
+    assert report.normalized["manifest_version"] == "1.0"
+
+
+def test_local_manifest_keeps_legacy_permission_and_schema_version_compatibility():
+    report = validate_local_manifest(
+        {
+            "name": "Legacy",
+            "version": "1.0.0",
+            "permission": "user",
+            "schema_version": 1,
+        }
+    )
+
+    assert report.ok
+    assert report.normalized["permission"] == "user"
+    assert report.normalized["schema_version"] == "1"
+
+
 def test_local_manifest_rejects_unsafe_ui_path_and_permission():
     report = validate_local_manifest(
         {
@@ -97,6 +139,45 @@ def test_local_manifest_rejects_unsafe_ui_path_and_permission():
     assert not report.ok
     assert "invalid_permission" in report.error_codes
     assert "unsafe_ui_open" in report.error_codes
+
+
+def test_local_manifest_rejects_invalid_capabilities():
+    report = validate_local_manifest(
+        {
+            "name": "Bad Capabilities",
+            "version": "1.0.0",
+            "capabilities": ["local_api", "../secret"],
+        }
+    )
+
+    assert not report.ok
+    assert "invalid_capabilities" in report.error_codes
+
+
+def test_local_manifest_rejects_invalid_compatibility():
+    report = validate_local_manifest(
+        {
+            "name": "Bad Compatibility",
+            "version": "1.0.0",
+            "compatibility": {"min_odysseus": "soon"},
+        }
+    )
+
+    assert not report.ok
+    assert "invalid_compatibility" in report.error_codes
+
+
+def test_local_manifest_rejects_invalid_lifecycle():
+    report = validate_local_manifest(
+        {
+            "name": "Bad Lifecycle",
+            "version": "1.0.0",
+            "lifecycle": "executing",
+        }
+    )
+
+    assert not report.ok
+    assert "invalid_lifecycle" in report.error_codes
 
 
 def test_local_manifest_requires_requires_list():

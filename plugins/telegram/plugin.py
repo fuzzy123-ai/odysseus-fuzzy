@@ -13,7 +13,7 @@ import os
 import hashlib
 import re
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -39,7 +39,6 @@ from src.universal_inbox_readiness import (
     format_universal_inbox_readiness_for_telegram,
 )
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
 from src.user_notification_contract import (
     NotificationContractError,
     build_user_notification_decision,
@@ -57,9 +56,12 @@ PLUGIN = {
     "author": "Odysseus",
     "description": "Standalone Telegram agent-chat bridge with local inbox/history, gated replies, and voice intake metadata.",
     "category": "Communications",
+    "manifest_version": "1.0",
     "permission": "admin",
     "kind": "ui",
-    "capabilities": ["local_api"],
+    "capabilities": ["admin_route", "local_api"],
+    "compatibility": {"min_odysseus": "1.0.0"},
+    "lifecycle": "loadable",
     "ui": {"open": "/api/plugins/telegram/app", "label": "Open Telegram"},
 }
 
@@ -109,36 +111,7 @@ def _set_dsgvo_mode(enabled: bool) -> dict[str, Any]:
 
 
 def _dsgvo_reply_text(command: str, result: dict[str, Any] | None = None) -> str:
-    active = bool((result or {}).get("after") if result is not None else _dsgvo_mode_active())
-    if command == "dsgvo_help":
-        return "Nutze /dsgvo zum Umschalten, oder /dsgvo status fuer den aktuellen Zustand."
-    if command == "dsgvo_enable":
-        return (
-            "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; "
-            "externe Web-, Provider- und Tool-I/O ist gesperrt."
-        )
-    if command == "dsgvo_disable" and (result or {}).get("forced_active"):
-        return (
-            "DSGVO-Modus bleibt aktiv, weil ein Server- oder Kompatibilitaets-Gate "
-            "ihn erzwingt."
-        )
-    if command == "dsgvo_disable":
-        return "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder."
-    if command == "dsgvo_toggle":
-        if (result or {}).get("forced_active"):
-            return (
-                "DSGVO-Modus bleibt aktiv, weil ein Server- oder Kompatibilitaets-Gate "
-                "ihn erzwingt."
-            )
-        return (
-            "DSGVO-Modus ist jetzt aktiv. Telegram laeuft local-only; "
-            "externe Web-, Provider- und Tool-I/O ist gesperrt."
-        ) if active else "DSGVO-Modus ist jetzt aus. Normale Provider- und Tool-Regeln gelten wieder."
-    return (
-        "DSGVO-Modus ist aktiv. Telegram nutzt local-only Verarbeitung."
-        if active
-        else "DSGVO-Modus ist aus."
-    )
+    return format_dsgvo_reply_text(command, result, active=_dsgvo_mode_active())
 
 
 def require_admin(request: Request) -> None:
@@ -162,7 +135,7 @@ def _privacy_pin_enabled() -> bool:
     return not _bool_env("TELEGRAM_PRIVACY_PIN_DISABLED")
 
 
-from plugins.telegram.admin import app_html as _app_html, build_telegram_readiness as _build_telegram_readiness
+from plugins.telegram.admin import build_telegram_readiness as _build_telegram_readiness
 from plugins.telegram.attachments import (
     _format_universal_inbox_memory_review_status,
     _format_universal_inbox_review_status,
@@ -173,6 +146,19 @@ from plugins.telegram.attachments import (
     _telegram_attachment_spool_key,
     _telegram_attachment_suffix,
     format_telegram_attachment_inbox_reply,
+)
+from plugins.telegram.control_service import (
+    handle_agent_task_control_command,
+    handle_calendar_control_command,
+    handle_dsgvo_control_command,
+    handle_new_chat_control_command,
+    handle_project_intake_control_command,
+    handle_universal_inbox_control_command,
+    public_agent_task_record,
+)
+from plugins.telegram.formatting import (
+    format_dsgvo_reply_text,
+    format_nextcloud_transfer_blocked_reply,
 )
 from plugins.telegram.export import (
     build_recent_telegram_attachment_export_plan,
@@ -215,6 +201,24 @@ from plugins.telegram.project_intake import (
     build_telegram_project_intake_preview,
     format_telegram_project_intake_reply,
 )
+from plugins.telegram.routes_admin import register_telegram_admin_routes
+from plugins.telegram.routes_outbound import register_telegram_outbound_routes
+from plugins.telegram.routes_polling import register_telegram_polling_routes
+from plugins.telegram.routes_webhook import register_telegram_webhook_routes
+from plugins.telegram.webhook_service import (
+    TelegramWebhookIntakeError,
+    build_webhook_control_command_summary,
+    build_webhook_export_plan_summary,
+    build_webhook_project_intake_summary,
+    build_webhook_response_payload,
+    parse_and_store_webhook_update,
+    run_webhook_attachment_branch,
+    run_webhook_attachment_export_branch,
+    run_webhook_agent_turn_branch,
+    run_webhook_control_command_branch,
+    run_webhook_media_pipelines,
+    run_webhook_project_intake_branch,
+)
 from plugins.telegram.parsing import (
     _safe_workflow_suffix,
     _safe_workflow_token,
@@ -231,7 +235,6 @@ from plugins.telegram.stores import (
     _stable_handle,
     build_telegram_draft_id,
 )
-from src.agent_task_ledger import read_task_records, record_task_event
 from src.telegram_task_orchestrator import build_telegram_task_intent, build_telegram_task_status_message
 
 
@@ -391,196 +394,11 @@ def build_agent_bridge_request(
 
 
 def _handle_agent_task_control_command(command: str) -> dict[str, Any]:
-    records = read_task_records(limit=5)
-    latest = records.get("records", [None])[0] if records.get("records") else None
-    if command == "agent_task_help":
-        return {
-            "status": "agent_task_help",
-            "reply_text": "Task-Kommandos: /task status, /task pause, /task resume, /task cancel.",
-            "agent_task": {"raw_content_visible": False},
-        }
-    if command == "agent_task_status":
-        if not latest:
-            return {
-                "status": "agent_task_missing",
-                "reply_text": "Ich finde aktuell keinen laufenden Agent-Task.",
-                "agent_task": {"raw_content_visible": False},
-            }
-        task_id = str(latest.get("task_id") or "")
-        task_type = str(latest.get("task_type") or "unknown")
-        status = str(latest.get("status") or "unknown")
-        progress = int(latest.get("progress_percent") or 0)
-        gates = tuple(str(item) for item in latest.get("gates_waiting") or ())
-        gate_text = f" Gates: {', '.join(gates[:3])}." if gates else ""
-        return {
-            "status": "agent_task_status",
-            "reply_text": f"Letzter Task {task_id}: {task_type}, Status {status}, Fortschritt {progress}%.{gate_text}",
-            "agent_task": _public_agent_task_record(latest),
-        }
-    if command not in {"agent_task_pause", "agent_task_resume", "agent_task_cancel"}:
-        return {
-            "status": "agent_task_unknown_command",
-            "reply_text": "Task-Kommando nicht erkannt. Nutze /task status.",
-            "agent_task": {"raw_content_visible": False},
-        }
-    if not latest:
-        return {
-            "status": "agent_task_missing",
-            "reply_text": "Ich finde keinen Agent-Task, auf den ich das anwenden kann.",
-            "agent_task": {"raw_content_visible": False},
-        }
-    next_status = {
-        "agent_task_pause": "pause_requested",
-        "agent_task_resume": "resume_requested",
-        "agent_task_cancel": "cancel_requested",
-    }[command]
-    action_text = {
-        "agent_task_pause": "Pause angefordert",
-        "agent_task_resume": "Fortsetzen angefordert",
-        "agent_task_cancel": "Abbruch angefordert",
-    }[command]
-    record = record_task_event(
-        task_id=str(latest.get("task_id") or ""),
-        task_type=str(latest.get("task_type") or "unknown"),
-        status=next_status,
-        surface="telegram",
-        correlation_id=str(latest.get("correlation_id") or ""),
-        target_ref=str(latest.get("target_ref") or ""),
-        progress_percent=int(latest.get("progress_percent") or 0),
-        gates_waiting=tuple(str(item) for item in latest.get("gates_waiting") or ()),
-        summary=action_text,
-    )
-    return {
-        "status": next_status,
-        "reply_text": f"{action_text} fuer Task {record.get('task_id')}.",
-        "agent_task": _public_agent_task_record(record),
-    }
+    return handle_agent_task_control_command(command)
 
 
 def _public_agent_task_record(record: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "task_id": str(record.get("task_id") or ""),
-        "task_type": str(record.get("task_type") or ""),
-        "status": str(record.get("status") or ""),
-        "target_ref": str(record.get("target_ref") or ""),
-        "progress_percent": int(record.get("progress_percent") or 0),
-        "gates_waiting": tuple(str(item) for item in record.get("gates_waiting") or ()),
-        "raw_content_visible": False,
-    }
-
-
-def _telegram_control_owner(memory_owner: str | None) -> str | None:
-    owner = str(memory_owner or "").strip()
-    return owner or None
-
-
-def _telegram_command_tail(message: dict[str, Any]) -> str:
-    text = str(message.get("text") or "").strip()
-    return text.split(maxsplit=1)[1].strip() if len(text.split(maxsplit=1)) > 1 else ""
-
-
-def _strip_action_word(value: str, words: set[str]) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    parts = text.split(maxsplit=1)
-    first = parts[0].lower()
-    return parts[1].strip() if first in words and len(parts) > 1 else ("" if first in words else text)
-
-
-def _parse_reminder_tail(tail: str) -> dict[str, str]:
-    text = str(tail or "").strip()
-    if not text:
-        return {}
-    if "|" in text:
-        due, title = (part.strip() for part in text.split("|", 1))
-        return {"due_date": due, "title": title}
-    iso_match = re.match(r"^(\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2})?)\s+(.+)$", text)
-    if iso_match:
-        return {"due_date": iso_match.group(1), "title": iso_match.group(2).strip()}
-    time_match = re.match(r"^(\d{1,2}:\d{2})\s+(.+)$", text)
-    if time_match:
-        return {"due_date": f"today at {time_match.group(1)}", "title": time_match.group(2).strip()}
-    return {"title": text}
-
-
-def _parse_reminder_update_tail(tail: str) -> dict[str, str]:
-    text = _strip_action_word(tail, {"update", "edit", "aendere"}).strip()
-    if not text:
-        return {}
-    parts = text.split(maxsplit=1)
-    note_id = parts[0].strip()
-    parsed = _parse_reminder_tail(parts[1] if len(parts) > 1 else "")
-    parsed["note_id"] = note_id
-    return parsed
-
-
-def _parse_todo_digest_tail(tail: str) -> dict[str, str]:
-    text = _strip_action_word(tail, {"digest", "liste", "todo", "todos"}).strip()
-    if not text:
-        return {"scheduled_time": "09:00", "weekdays": "mo-fr"}
-    time_match = re.search(r"\b(\d{1,2}:\d{2})\b", text)
-    weekdays_match = re.search(
-        r"\b(mo(?:ntag)?|di(?:enstag)?|mi(?:ttwoch)?|do(?:nnerstag)?|fr(?:eitag)?|sa(?:mstag)?|so(?:nntag)?)(?:\s*-\s*(mo(?:ntag)?|di(?:enstag)?|mi(?:ttwoch)?|do(?:nnerstag)?|fr(?:eitag)?|sa(?:mstag)?|so(?:nntag)?))?\b",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if weekdays_match and weekdays_match.group(2):
-        weekdays = f"{weekdays_match.group(1)}-{weekdays_match.group(2)}"
-    elif weekdays_match:
-        weekdays = weekdays_match.group(1)
-    else:
-        weekdays = "mo-fr"
-    return {"scheduled_time": time_match.group(1) if time_match else "09:00", "weekdays": weekdays.lower()}
-
-
-def _format_calendar_readiness_for_telegram(readiness: dict[str, Any]) -> str:
-    return (
-        "Kalender-Status: bereit. "
-        f"{int(readiness.get('calendars') or 0)} Kalender, "
-        f"{int(readiness.get('events') or 0)} Termine, "
-        f"{int(readiness.get('due_notes') or 0)} Erinnerungen, "
-        f"{int(readiness.get('active_telegram_tasks') or 0)} aktive Telegram-Tasks. "
-        f"CalDAV Writebacks offen: {int(readiness.get('pending_caldav_writebacks') or 0)}."
-    )
-
-
-def _format_agenda_for_telegram(packet: dict[str, Any], *, reminders_only: bool = False) -> str:
-    counts = packet.get("counts") if isinstance(packet.get("counts"), dict) else {}
-    if reminders_only:
-        notes = packet.get("due_notes") if isinstance(packet.get("due_notes"), list) else []
-        tasks = packet.get("scheduled_tasks") if isinstance(packet.get("scheduled_tasks"), list) else []
-        lines = [
-            f"Erinnerungen: {int(counts.get('due_notes') or 0)} due notes, {int(counts.get('scheduled_tasks') or 0)} geplante Tasks."
-        ]
-        for item in notes[:5]:
-            lines.append(f"- {item.get('title') or 'Reminder'}: {item.get('due_date') or ''}")
-        for item in tasks[:5]:
-            lines.append(f"- {item.get('name') or 'Task'}: {item.get('next_run') or ''}")
-        return "\n".join(lines)
-
-    lines = [
-        f"Agenda: {int(counts.get('events') or 0)} Termine, {int(counts.get('due_notes') or 0)} Erinnerungen, {int(counts.get('scheduled_tasks') or 0)} Tasks."
-    ]
-    for item in (packet.get("events") if isinstance(packet.get("events"), list) else [])[:5]:
-        lines.append(f"- {item.get('summary') or 'Termin'}: {item.get('dtstart') or ''}")
-    for item in (packet.get("due_notes") if isinstance(packet.get("due_notes"), list) else [])[:5]:
-        lines.append(f"- {item.get('title') or 'Reminder'}: {item.get('due_date') or ''}")
-    return "\n".join(lines)
-
-
-def _format_calendar_write_for_telegram(result: dict[str, Any], *, noun: str) -> str:
-    status = str(result.get("status") or "error")
-    if status == "clarification_required":
-        return f"{noun}: Ich brauche noch genauere Angaben. {result.get('error') or ''}".strip()
-    if status == "not_found":
-        return f"{noun}: Ziel nicht gefunden. Nutze /reminders fuer die aktuelle Liste."
-    if status in {"created", "updated", "duplicate"}:
-        verb = {"created": "erstellt", "updated": "aktualisiert", "duplicate": "existiert bereits"}[status]
-        ident = str(result.get("note_id") or result.get("task_id") or "")[:8]
-        suffix = f" ID {ident}." if ident else "."
-        return f"{noun} {verb}.{suffix}"
-    return f"{noun}: blockiert ({result.get('error') or status})."
+    return public_agent_task_record(record)
 
 
 def _handle_calendar_control_command(
@@ -591,8 +409,6 @@ def _handle_calendar_control_command(
     reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None,
     memory_owner: str | None,
 ) -> dict[str, Any] | None:
-    if not command.startswith("calendar_"):
-        return None
     from src.calendar_capability_service import (
         build_agenda_packet,
         build_calendar_readiness,
@@ -600,82 +416,18 @@ def _handle_calendar_control_command(
         write_todo_digest_schedule,
     )
 
-    owner = _telegram_control_owner(memory_owner)
-    bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-    now = datetime.now(UTC).replace(tzinfo=None)
-    reply_text = ""
-    payload: dict[str, Any] = {}
-    status = command
-    try:
-        if command == "calendar_readiness":
-            payload = build_calendar_readiness(owner=owner)
-            reply_text = _format_calendar_readiness_for_telegram(payload)
-            status = "calendar_ready"
-        elif command == "calendar_agenda":
-            payload = build_agenda_packet(owner=owner, start=now, end=now + timedelta(days=7))
-            reply_text = _format_agenda_for_telegram(payload)
-            status = "calendar_agenda"
-        elif command in {"calendar_reminders_status", "calendar_todo_status"}:
-            payload = build_agenda_packet(owner=owner, start=now, end=now + timedelta(days=30))
-            reply_text = _format_agenda_for_telegram(payload, reminders_only=True)
-            status = command
-        elif command == "calendar_reminder_create":
-            parsed = _parse_reminder_tail(_strip_action_word(
-                _telegram_command_tail(message),
-                {"add", "create", "new", "set", "erinnere"},
-            ))
-            payload = write_reminder_note(
-                owner=owner,
-                action="add",
-                title=parsed.get("title", ""),
-                due_date=parsed.get("due_date", ""),
-            )
-            reply_text = _format_calendar_write_for_telegram(payload, noun="Erinnerung")
-            status = f"calendar_reminder_{payload.get('status') or 'error'}"
-        elif command == "calendar_reminder_update":
-            parsed = _parse_reminder_update_tail(_telegram_command_tail(message))
-            payload = write_reminder_note(
-                owner=owner,
-                action="update",
-                note_id=parsed.get("note_id", ""),
-                title=parsed.get("title", ""),
-                due_date=parsed.get("due_date", ""),
-            )
-            reply_text = _format_calendar_write_for_telegram(payload, noun="Erinnerung")
-            status = f"calendar_reminder_{payload.get('status') or 'error'}"
-        elif command == "calendar_todo_digest_create":
-            parsed = _parse_todo_digest_tail(_telegram_command_tail(message))
-            payload = write_todo_digest_schedule(
-                owner=owner,
-                scheduled_time=parsed.get("scheduled_time", "09:00"),
-                weekdays=parsed.get("weekdays", "mo-fr"),
-                output_target="telegram",
-            )
-            reply_text = _format_calendar_write_for_telegram(payload, noun="Todo-Digest")
-            status = f"calendar_todo_digest_{payload.get('status') or 'error'}"
-        else:
-            reply_text = "Kalender-Kommando nicht erkannt. Nutze /calendar, /agenda, /reminders oder /todo 09:00 mo-fr."
-            status = "calendar_unknown_command"
-    except Exception as exc:
-        payload = {"status": "error", "error": exc.__class__.__name__, "raw_content_visible": False}
-        reply_text = f"Kalender-Kommando blockiert: {exc.__class__.__name__}."
-        status = "calendar_command_error"
-
-    reply_result = None
-    if reply_handler is not None and bridge["chat_id"]:
-        reply_result = reply_handler(
-            bridge["chat_id"],
-            reply_text,
-            bridge.get("source_message_id"),
-        )
-    return {
-        "command": command,
-        "status": status,
-        "binding": {},
-        "reply_text": reply_text,
-        "reply": reply_result,
-        "calendar": payload,
-    }
+    return handle_calendar_control_command(
+        command,
+        message=message,
+        raw_chat_id=raw_chat_id,
+        reply_handler=reply_handler,
+        memory_owner=memory_owner,
+        build_agent_bridge_request=build_agent_bridge_request,
+        build_calendar_readiness=build_calendar_readiness,
+        build_agenda_packet=build_agenda_packet,
+        write_reminder_note=write_reminder_note,
+        write_todo_digest_schedule=write_todo_digest_schedule,
+    )
 
 
 def _handle_telegram_control_command(
@@ -704,47 +456,19 @@ def _handle_telegram_control_command(
             "reply": None,
         }
     if command.startswith("dsgvo_"):
-        result = None
-        if command == "dsgvo_enable":
-            result = _set_dsgvo_mode(True)
-            status = "dsgvo_enabled" if result.get("after") else "dsgvo_enable_failed"
-        elif command == "dsgvo_disable":
-            result = _set_dsgvo_mode(False)
-            status = "dsgvo_forced_active" if result.get("forced_active") else "dsgvo_disabled"
-        elif command == "dsgvo_toggle":
-            result = _set_dsgvo_mode(not _dsgvo_mode_active())
-            if result.get("forced_active"):
-                status = "dsgvo_forced_active"
-            else:
-                status = "dsgvo_enabled" if result.get("after") else "dsgvo_disabled"
-        else:
-            status = "dsgvo_status" if command == "dsgvo_status" else "dsgvo_help"
-        reply_text = _dsgvo_reply_text(command, result)
-        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-        reply_result = None
-        if reply_handler is not None and bridge["chat_id"]:
-            reply_result = reply_handler(
-                bridge["chat_id"],
-                reply_text,
-                bridge.get("source_message_id"),
-            )
-        pin_result = _sync_dsgvo_pin_state(
-            command=command,
-            chat_id=bridge["chat_id"],
-            result=result,
-            reply_result=reply_result,
+        return handle_dsgvo_control_command(
+            command,
+            message=message,
+            raw_chat_id=raw_chat_id,
+            reply_handler=reply_handler,
             store=store,
             pin_store=pin_store,
+            set_dsgvo_mode=_set_dsgvo_mode,
+            dsgvo_mode_active=_dsgvo_mode_active,
+            dsgvo_reply_text=_dsgvo_reply_text,
+            sync_dsgvo_pin_state=_sync_dsgvo_pin_state,
+            build_agent_bridge_request=build_agent_bridge_request,
         )
-        return {
-            "command": command,
-            "status": status,
-            "binding": {},
-            "reply_text": reply_text,
-            "reply": reply_result,
-            "dsgvo_mode": bool((result or {}).get("after") if result is not None else _dsgvo_mode_active()),
-            "pin_status": pin_result.get("status"),
-        }
     if command.startswith("agent_task_"):
         bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
         result = _handle_agent_task_control_command(command)
@@ -772,279 +496,48 @@ def _handle_telegram_control_command(
             reply_handler=reply_handler,
             memory_owner=memory_owner,
         )
-    if command == "universal_inbox_status":
-        snapshot = build_universal_inbox_readiness()
-        reply_text = format_universal_inbox_readiness_for_telegram(snapshot)
-        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-        reply_result = None
-        if reply_handler is not None and bridge["chat_id"]:
-            reply_result = reply_handler(
-                bridge["chat_id"],
-                reply_text,
-                bridge.get("source_message_id"),
-            )
-        return {
-            "command": command,
-            "status": f"universal_inbox_{snapshot.get('status') or 'blocked'}",
-            "binding": {},
-            "reply_text": reply_text,
-            "reply": reply_result,
-            "universal_inbox": snapshot,
-        }
-    if command in {"universal_inbox_review_status", "universal_inbox_review_confirm"}:
-        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-        review = store.latest_universal_inbox_review(chat_id=bridge["chat_id"]) if store is not None else None
-        if review is None:
-            reply_text = "Keine offene Universal-Inbox-Review gefunden."
-            status = "universal_inbox_review_missing"
-        elif command == "universal_inbox_review_confirm":
-            if store is not None:
-                store.append_event(
-                    kind="universal_inbox_review",
-                    status="confirmed",
-                    chat_id=bridge["chat_id"],
-                    source_message_id=review.get("message_id"),
-                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
-                    raw_content_visible=False,
-                    raw_identifiers_visible=False,
-                    filename_visible=False,
-                )
-            transfer = (
-                _build_recent_telegram_nextcloud_transfer_dry_run(
-                    data_dir=store.data_dir,
-                    store=store,
-                    chat_id=bridge["chat_id"],
-                    review=review,
-                )
-                if store is not None
-                else {"status": "blocked", "reason": "store_missing", "writes_performed": False}
-            )
-            if store is not None:
-                store.append_event(
-                    kind="universal_inbox_nextcloud_transfer",
-                    status=str(transfer.get("status") or "blocked"),
-                    chat_id=bridge["chat_id"],
-                    source_message_id=review.get("message_id"),
-                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
-                    nextcloud_transfer_status=str(transfer.get("status") or "blocked"),
-                    reason=str(transfer.get("reason") or ""),
-                    dry_run=bool(transfer.get("dry_run", True)),
-                    writes_performed=bool(transfer.get("writes_performed")),
-                    verified=bool(transfer.get("verified")),
-                    review_approved=bool(transfer.get("review_approved")),
-                    target_path_visible=False,
-                    sidecar_path_visible=False,
-                    raw_content_visible=False,
-                    raw_identifiers_visible=False,
-                    filename_visible=False,
-                )
-            transfer_status = str(transfer.get("status") or "")
-            if transfer_status == "completed":
-                reply_text = "Review bestaetigt. Nextcloud-Ablage wurde kopiert und verifiziert."
-            elif transfer_status == "copied_unverified":
-                reply_text = "Review bestaetigt. Nextcloud-Ablage wurde kopiert, braucht aber Verifikation."
-            elif transfer_status == "dry_run_ready":
-                reply_text = (
-                    "Review bestaetigt. Nextcloud-Ablage ist vorbereitet, aber noch Dry-run. "
-                    "Live-Copy wartet auf Operator-Go."
-                )
-            else:
-                reply_text = _format_nextcloud_transfer_blocked_reply(transfer)
-            status = "universal_inbox_review_confirmed"
-        else:
-            reply_text = _format_universal_inbox_review_status(review)
-            status = "universal_inbox_review_status"
-        reply_result = None
-        if reply_handler is not None and bridge["chat_id"]:
-            reply_result = reply_handler(
-                bridge["chat_id"],
-                reply_text,
-                bridge.get("source_message_id"),
-            )
-        return {
-            "command": command,
-            "status": status,
-            "binding": {},
-            "reply_text": reply_text,
-            "reply": reply_result,
-            "nextcloud_transfer": transfer if command == "universal_inbox_review_confirm" and review is not None else None,
-        }
-    if command in {"universal_inbox_memory_review_status", "universal_inbox_memory_review_confirm"}:
-        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-        review = store.latest_universal_inbox_memory_review(chat_id=bridge["chat_id"]) if store is not None else None
-        if review is None:
-            reply_text = "Keine offene Universal-Inbox-Memory-Review gefunden."
-            status = "universal_inbox_memory_review_missing"
-        elif command == "universal_inbox_memory_review_confirm":
-            if store is not None:
-                store.append_event(
-                    kind="universal_inbox_memory_review",
-                    status="confirmed",
-                    chat_id=bridge["chat_id"],
-                    source_message_id=review.get("message_id"),
-                    memory_write_intent_status=str(review.get("memory_write_intent_status") or ""),
-                    universal_inbox_status=str(review.get("universal_inbox_status") or ""),
-                    raw_content_visible=False,
-                    raw_identifiers_visible=False,
-                    filename_visible=False,
-                )
-            execution = (
-                _execute_telegram_memory_review_write(
-                    data_dir=store.data_dir,
-                    store=store,
-                    chat_id=bridge["chat_id"],
-                    memory_manager=memory_manager,
-                    memory_vector=memory_vector,
-                    memory_owner=memory_owner,
-                    dry_run=False,
-                )
-                if store is not None
-                else {"status": "blocked", "reason": "store_missing", "writes_performed": False}
-            )
-            if store is not None:
-                store.append_event(
-                    kind="universal_inbox_memory_write",
-                    status=str(execution.get("status") or "blocked"),
-                    chat_id=bridge["chat_id"],
-                    source_message_id=review.get("message_id"),
-                    memory_records_written=int(execution.get("memory_records_written") or 0),
-                    raptorgraph_events_written=int(execution.get("raptorgraph_events_written") or 0),
-                    writes_performed=bool(execution.get("writes_performed")),
-                    raw_content_visible=False,
-                    raw_identifiers_visible=False,
-                    filename_visible=False,
-                )
-            if str(execution.get("status") or "") == "written":
-                reply_text = "Memory-Review bestaetigt. Die redaktierte Abstraktion wurde ins Langzeitgedaechtnis geschrieben."
-            else:
-                reason = str(execution.get("reason") or execution.get("status") or "unknown")
-                reply_text = f"Memory-Review bestaetigt, aber der Memory-Write wurde blockiert: {reason}."
-            status = "universal_inbox_memory_review_confirmed"
-        else:
-            reply_text = _format_universal_inbox_memory_review_status(review)
-            status = "universal_inbox_memory_review_status"
-        reply_result = None
-        if reply_handler is not None and bridge["chat_id"]:
-            reply_result = reply_handler(
-                bridge["chat_id"],
-                reply_text,
-                bridge.get("source_message_id"),
-            )
-        return {
-            "command": command,
-            "status": status,
-            "binding": {},
-            "reply_text": reply_text,
-            "reply": reply_result,
-            "memory_write": execution if command == "universal_inbox_memory_review_confirm" and review is not None else None,
-        }
-    if command.startswith("project_intake_"):
-        bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-        review = store.latest_project_intake_review(chat_id=bridge["chat_id"]) if store is not None else None
-        status = "project_intake_review_status"
-        if command == "project_intake_review_confirm":
-            if review is None:
-                reply_text = "Keine offene Project-Intake-Review gefunden."
-                status = "project_intake_review_missing"
-            else:
-                apply_report = _apply_telegram_project_intake_review(
-                    data_dir=store.data_dir if store is not None else ".",
-                    review=review,
-                    project_registry_path=project_registry_path,
-                )
-                apply_performed = bool(apply_report.get("applied"))
-                if store is not None:
-                    store.append_event(
-                        kind="project_intake_review",
-                        status="confirmed" if apply_performed else "blocked",
-                        chat_id=bridge["chat_id"],
-                        source_message_id=review.get("source_message_id"),
-                        project_slug=str(review.get("project_slug") or ""),
-                        task_count=int(review.get("task_count") or 0),
-                        decision_count=int(review.get("decision_count") or 0),
-                        risk_count=int(review.get("risk_count") or 0),
-                        roadmap_update_count=int(review.get("roadmap_update_count") or 0),
-                        raw_content_visible=False,
-                        raw_identifiers_visible=False,
-                        project_intake_apply_performed=apply_performed,
-                        project_intake_apply_status=str(apply_report.get("status") or "blocked"),
-                        project_intake_apply_blockers=tuple(apply_report.get("blockers") or ()),
-                        project_intake_apply_event_id=apply_report.get("event_id"),
-                    )
-                if apply_performed:
-                    merge_report = apply_report.get("intake_merge") if isinstance(apply_report.get("intake_merge"), dict) else {}
-                    reply_text = (
-                        "Project-Intake bestaetigt und ins Projekt-Intake-Ledger uebernommen. "
-                        f"Integriert: {int(merge_report.get('added_task_count') or 0)} neue Tasks, "
-                        f"{int(merge_report.get('added_risk_count') or 0)} Risiken, "
-                        f"{int(merge_report.get('added_roadmap_update_count') or 0)} Roadmap-Updates."
-                    )
-                    status = "project_intake_review_confirmed"
-                else:
-                    blockers = ", ".join(str(item) for item in apply_report.get("blockers") or ("apply_blocked",))
-                    reply_text = f"Project-Intake bestaetigt, aber Apply ist blockiert: {blockers}."
-                    status = "project_intake_review_apply_blocked"
-        elif command == "project_intake_review_hold":
-            if review is None:
-                reply_text = "Keine offene Project-Intake-Review gefunden."
-                status = "project_intake_review_missing"
-            else:
-                if store is not None:
-                    store.append_event(
-                        kind="project_intake_review",
-                        status="held",
-                        chat_id=bridge["chat_id"],
-                        source_message_id=review.get("source_message_id"),
-                        project_slug=str(review.get("project_slug") or ""),
-                        raw_content_visible=False,
-                        raw_identifiers_visible=False,
-                        project_intake_apply_performed=False,
-                    )
-                reply_text = "Project-Intake pausiert. Ich schreibe nichts in das Projekt."
-                status = "project_intake_review_held"
-        else:
-            reply_text = _format_project_intake_review_status(review)
-            status = "project_intake_review_status" if review is not None else "project_intake_review_missing"
-        reply_result = None
-        if reply_handler is not None and bridge["chat_id"]:
-            reply_result = reply_handler(
-                bridge["chat_id"],
-                reply_text,
-                bridge.get("source_message_id"),
-            )
-        return {
-            "command": command,
-            "status": status,
-            "binding": {},
-            "reply_text": reply_text,
-            "reply": reply_result,
-        }
-    if command != "new_chat":
-        return None
-    bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-    binding = sessions.rebind_chat(
-        chat_id=bridge["chat_id"],
-        session_alias=bridge["session_alias"],
-        recommended_session_name=bridge["recommended_session_name"],
-        scope=str(bridge.get("desired_session_scope") or "normal"),
-        creator=session_creator,
+    universal_inbox_result = handle_universal_inbox_control_command(
+        command,
+        message=message,
+        raw_chat_id=raw_chat_id,
+        reply_handler=reply_handler,
+        store=store,
+        memory_manager=memory_manager,
+        memory_vector=memory_vector,
+        memory_owner=memory_owner,
+        build_agent_bridge_request=build_agent_bridge_request,
+        build_universal_inbox_readiness=build_universal_inbox_readiness,
+        format_universal_inbox_readiness=format_universal_inbox_readiness_for_telegram,
+        format_universal_inbox_review_status=_format_universal_inbox_review_status,
+        build_nextcloud_transfer_dry_run=_build_recent_telegram_nextcloud_transfer_dry_run,
+        format_nextcloud_transfer_blocked_reply=_format_nextcloud_transfer_blocked_reply,
+        format_universal_inbox_memory_review_status=_format_universal_inbox_memory_review_status,
+        execute_memory_review_write=_execute_telegram_memory_review_write,
     )
-    created = bool(binding.get("session_id"))
-    reply_text = "Neuer Chat gestartet." if created else "Neuer Chat konnte nicht gestartet werden."
-    reply_result = None
-    if reply_handler is not None and bridge["chat_id"]:
-        reply_result = reply_handler(
-            bridge["chat_id"],
-            reply_text,
-            bridge.get("source_message_id"),
-        )
-    return {
-        "command": command,
-        "status": "new_chat_bound" if created else "new_chat_pending_bridge",
-        "binding": binding,
-        "reply_text": reply_text,
-        "reply": reply_result,
-    }
+    if universal_inbox_result is not None:
+        return universal_inbox_result
+    project_intake_result = handle_project_intake_control_command(
+        command,
+        message=message,
+        raw_chat_id=raw_chat_id,
+        reply_handler=reply_handler,
+        store=store,
+        project_registry_path=project_registry_path,
+        build_agent_bridge_request=build_agent_bridge_request,
+        apply_project_intake_review=_apply_telegram_project_intake_review,
+        format_project_intake_review_status=_format_project_intake_review_status,
+    )
+    if project_intake_result is not None:
+        return project_intake_result
+    return handle_new_chat_control_command(
+        command,
+        message=message,
+        raw_chat_id=raw_chat_id,
+        reply_handler=reply_handler,
+        sessions=sessions,
+        session_creator=session_creator,
+        build_agent_bridge_request=build_agent_bridge_request,
+    )
 
 
 def _bridge_intake_ready(message: dict[str, Any], *, kind: Any, note: str) -> bool:
@@ -1146,6 +639,16 @@ def build_recent_telegram_attachment_context(
     memory_status = normalize_memory_write_intent_status(
         event.get("memory_write_intent_status") or ""
     )
+    nextcloud_transfer = (
+        store.latest_universal_inbox_nextcloud_transfer(
+            chat_id=chat_id,
+            source_message_id=event.get("message_id"),
+        )
+        if hasattr(store, "latest_universal_inbox_nextcloud_transfer")
+        else None
+    )
+    nextcloud_status = str((nextcloud_transfer or {}).get("nextcloud_transfer_status") or (nextcloud_transfer or {}).get("status") or "")
+    nextcloud_reason = str((nextcloud_transfer or {}).get("reason") or "")
     if not spool_dir.exists() or not spool_dir.is_dir():
         return {
             "status": "missing_spool",
@@ -1153,6 +656,8 @@ def build_recent_telegram_attachment_context(
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
             "memory_write_intent_status": memory_status,
+            "nextcloud_transfer_status": nextcloud_status,
+            "nextcloud_transfer_reason": nextcloud_reason,
             "context": (
                 "[Letzter Telegram-Anhang: verarbeitet, aber die lokale Datei ist "
                 "nicht mehr im Attachment-Spool verfuegbar.]"
@@ -1171,6 +676,8 @@ def build_recent_telegram_attachment_context(
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
             "memory_write_intent_status": memory_status,
+            "nextcloud_transfer_status": nextcloud_status,
+            "nextcloud_transfer_reason": nextcloud_reason,
             "context": "[Letzter Telegram-Anhang: verarbeitet, aber keine lokale Spool-Datei gefunden.]",
             "raw_content_visible": False,
             "host_paths_visible": False,
@@ -1193,6 +700,8 @@ def build_recent_telegram_attachment_context(
             "suffix": suffix,
             "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
             "memory_write_intent_status": memory_status,
+            "nextcloud_transfer_status": nextcloud_status,
+            "nextcloud_transfer_reason": nextcloud_reason,
             "context": f"[Letzter Telegram-Anhang: Kontext-Extraktion fehlgeschlagen: {str(exc)[:120]}]",
             "raw_content_visible": False,
             "host_paths_visible": False,
@@ -1251,6 +760,8 @@ def build_recent_telegram_attachment_context(
         f"- Extractor: {packet_metadata.get('extractor') or 'unknown'}\n"
         f"- Warnungen: {warnings}\n"
         f"- Lokale Vorpruefung: {analysis_policy.get('status') or 'metadata_only'}\n"
+        f"- Nextcloud-Ablage: {nextcloud_status or 'nicht ausgefuehrt'}"
+        f"{f' ({nextcloud_reason})' if nextcloud_reason else ''}\n"
     )
     if packet_text:
         text = packet_text[: _telegram_attachment_context_max_chars()]
@@ -1266,6 +777,8 @@ def build_recent_telegram_attachment_context(
         "suffix": suffix or _safe_workflow_suffix(packet.suffix),
         "universal_inbox_status": str(event.get("universal_inbox_status") or ""),
         "memory_write_intent_status": memory_status,
+        "nextcloud_transfer_status": nextcloud_status,
+        "nextcloud_transfer_reason": nextcloud_reason,
         "context": context,
         "raw_content_visible": raw_visible,
         "host_paths_visible": False,
@@ -1378,6 +891,45 @@ def _build_recent_telegram_nextcloud_transfer_dry_run(
         }
 
 
+def _execute_telegram_nextcloud_auto_transfer_if_ready(
+    *,
+    data_dir: str | Path,
+    store: TelegramInboxStore,
+    chat_id: str,
+    inbox_attachment: Mapping[str, Any],
+    attachment_event: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    if str(inbox_attachment.get("status") or "") != "processed":
+        return None
+    if str(inbox_attachment.get("universal_inbox_status") or "") != "go":
+        return None
+    transfer = _build_recent_telegram_nextcloud_transfer_dry_run(
+        data_dir=data_dir,
+        store=store,
+        chat_id=chat_id,
+        review=attachment_event,
+    )
+    store.append_event(
+        kind="universal_inbox_nextcloud_transfer",
+        status=str(transfer.get("status") or "blocked"),
+        chat_id=chat_id,
+        source_message_id=attachment_event.get("message_id"),
+        universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
+        nextcloud_transfer_status=str(transfer.get("status") or "blocked"),
+        reason=str(transfer.get("reason") or ""),
+        dry_run=bool(transfer.get("dry_run", True)),
+        writes_performed=bool(transfer.get("writes_performed")),
+        verified=bool(transfer.get("verified")),
+        review_approved=bool(transfer.get("review_approved")),
+        target_path_visible=False,
+        sidecar_path_visible=False,
+        raw_content_visible=False,
+        raw_identifiers_visible=False,
+        filename_visible=False,
+    )
+    return transfer
+
+
 def _nextcloud_server_config_missing_transfer() -> dict[str, Any]:
     return {
         "status": "blocked",
@@ -1390,14 +942,7 @@ def _nextcloud_server_config_missing_transfer() -> dict[str, Any]:
 
 
 def _format_nextcloud_transfer_blocked_reply(transfer: Mapping[str, Any]) -> str:
-    reason = str(transfer.get("reason") or transfer.get("status") or "unknown")
-    if reason == "nextcloud_server_config_missing":
-        return (
-            "Review bestaetigt. Nextcloud-Ablage ist blockiert: Die serverseitige "
-            "Nextcloud-Konfiguration ist nicht verfuegbar. Bitte keine Zugangsdaten "
-            "in Telegram senden; Nextcloud-Zugangsdaten werden nur serverseitig hinterlegt."
-        )
-    return f"Review bestaetigt. Nextcloud-Ablage ist noch blockiert: {reason}."
+    return format_nextcloud_transfer_blocked_reply(dict(transfer))
 
 
 def _telegram_nextcloud_live_write_enabled() -> bool:
@@ -1682,6 +1227,7 @@ def run_telegram_polling_cycle(
         build_recent_attachment_context=build_recent_telegram_attachment_context,
         build_agent_bridge_request=build_agent_bridge_request,
         send_typing_indicator=send_telegram_typing_indicator,
+        execute_nextcloud_auto_transfer=_execute_telegram_nextcloud_auto_transfer_if_ready,
     )
 
 def send_telegram_typing_indicator(
@@ -2170,140 +1716,88 @@ def setup(ctx):
             "exit_code": 0,
         }
 
-    @router.get("/status")
-    async def status(request: Request):
-        _require_admin(request)
-        return build_telegram_readiness(ctx.data_dir)
+    register_telegram_admin_routes(
+        router,
+        data_dir=ctx.data_dir,
+        inbox_store=store,
+        require_admin=_require_admin,
+        build_readiness=build_telegram_readiness,
+    )
 
-    @router.get("/history")
-    async def history(request: Request, chat_id: str | None = None, limit: int = 50):
-        _require_admin(request)
-        return {"messages": store.history(chat_id=chat_id, limit=limit)}
+    register_telegram_polling_routes(
+        router,
+        data_dir=ctx.data_dir,
+        require_admin=_require_admin,
+        run_polling_cycle=run_telegram_polling_cycle,
+        fetch_updates=_ctx_attr("telegram_fetch_updates"),
+        session_creator=session_creator,
+        agent_turn_handler=agent_turn_handler,
+        voice_stt_provider=voice_stt_provider,
+        voice_bytes_provider=voice_bytes_provider,
+        image_bytes_provider=image_bytes_provider,
+        attachment_bytes_provider=attachment_bytes_provider,
+        image_worker_client=image_worker_client,
+        reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
+            chat_id,
+            text,
+            source_message_id=source_message_id,
+        ),
+        document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: _document_reply_with_gate(
+            chat_id,
+            file_path,
+            filename,
+            caption,
+            source_message_id=source_message_id,
+        ),
+        memory_manager=memory_manager,
+        memory_vector=memory_vector,
+        memory_owner=memory_owner,
+        project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+    )
 
-    @router.post("/poll")
-    async def poll(request: Request):
-        _require_admin(request)
-        result = await asyncio.to_thread(
-            run_telegram_polling_cycle,
-            data_dir=ctx.data_dir,
-            fetch_updates=_ctx_attr("telegram_fetch_updates"),
-            session_creator=session_creator,
-            agent_turn_handler=agent_turn_handler,
+    async def _handle_telegram_webhook(request: Request):
+        update = await request.json()
+        try:
+            message, stored = parse_and_store_webhook_update(
+                update,
+                store=store,
+                parse_update=lambda item: parse_telegram_update(item, chat_allowed=_chat_allowed),
+            )
+        except TelegramWebhookIntakeError as exc:
+            raise HTTPException(400, "invalid telegram update") from exc
+        voice_agent_turn, voice_pipeline, image_action = run_webhook_media_pipelines(
+            message=message,
+            stored_message=stored["message"],
             voice_stt_provider=voice_stt_provider,
             voice_bytes_provider=voice_bytes_provider,
             image_bytes_provider=image_bytes_provider,
-            attachment_bytes_provider=attachment_bytes_provider,
             image_worker_client=image_worker_client,
-            reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
-                chat_id,
-                text,
-                source_message_id=source_message_id,
+            image_actions_enabled=_bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
+            build_live_voice_stt_provider=lambda item: build_telegram_live_voice_stt_provider(
+                item,
+                voice_bytes_provider=voice_bytes_provider,
             ),
-            document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: _document_reply_with_gate(
-                chat_id,
-                file_path,
-                filename,
-                caption,
-                source_message_id=source_message_id,
-            ),
-            memory_manager=memory_manager,
-            memory_vector=memory_vector,
-            memory_owner=memory_owner,
-            project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+            run_voice_pipeline=run_telegram_voice_pipeline,
+            run_image_action=run_telegram_image_action,
         )
-        if not result["ok"]:
-            raise HTTPException(403, result["status"])
-        return result
-
-    @router.post("/webhook")
-    async def webhook(request: Request):
-        _require_admin(request)
-        update = await request.json()
-        try:
-            message = parse_telegram_update(update, chat_allowed=_chat_allowed)
-        except ValueError as exc:
-            store.append_event(kind="invalid_update", status="invalid_update", error=str(exc)[:120])
-            raise HTTPException(400, "invalid telegram update") from exc
-        stored = store.append_inbound(message)
-        message_voice_stt_provider = voice_stt_provider or build_telegram_live_voice_stt_provider(
-            message,
-            voice_bytes_provider=voice_bytes_provider,
-        )
-        voice_agent_turn, voice_pipeline = run_telegram_voice_pipeline(
-            stored["message"],
-            stt_provider=message_voice_stt_provider,
-        )
-        image_action = run_telegram_image_action(
-            stored["message"],
-            enabled=_bool_env("TELEGRAM_IMAGE_ACTIONS_ENABLED"),
-            image_bytes_provider=image_bytes_provider,
-            worker_client=image_worker_client,
-        )
-        inbox_attachment = run_telegram_universal_inbox_attachment_pipeline(
-            message,
+        inbox_attachment, _attachment_reply = run_webhook_attachment_branch(
+            message=message,
+            stored=stored,
             data_dir=ctx.data_dir,
-            file_bytes_provider=attachment_bytes_provider,
+            store=store,
+            attachment_bytes_provider=attachment_bytes_provider,
+            memory_manager=_ctx_attr("memory_manager"),
+            memory_vector=_ctx_attr("memory_vector"),
+            memory_owner=_ctx_attr("memory_owner"),
+            run_attachment_pipeline=run_telegram_universal_inbox_attachment_pipeline,
+            attachment_spool_key=_telegram_attachment_spool_key,
+            attachment_family=_telegram_attachment_family,
+            attachment_suffix=_telegram_attachment_suffix,
+            execute_memory_auto_write_if_ready=_execute_telegram_memory_auto_write_if_ready,
+            execute_nextcloud_auto_transfer_if_ready=_execute_telegram_nextcloud_auto_transfer_if_ready,
+            format_attachment_reply=format_telegram_attachment_inbox_reply,
+            reply_with_gate=_reply_with_gate,
         )
-        if inbox_attachment is not None:
-            spool_key = _telegram_attachment_spool_key(stored["message"])
-            refreshed = store.update_inbound_status(
-                stored["message"],
-                universal_inbox_status=str(inbox_attachment.get("status") or "failed"),
-                intake_status="universal_inbox_processed"
-                if inbox_attachment.get("status") == "processed"
-                else str(inbox_attachment.get("status") or "failed"),
-            )
-            if refreshed is not None:
-                stored["message"] = refreshed
-            store.append_event(
-                kind="universal_inbox_attachment",
-                status=str(inbox_attachment.get("status") or "failed"),
-                chat_id=str(message.get("chat_id") or ""),
-                update_id=message.get("update_id"),
-                message_id=message.get("message_id"),
-                universal_inbox_status=str(inbox_attachment.get("universal_inbox_status") or ""),
-                memory_write_intent_status=str(inbox_attachment.get("memory_write_intent_status") or ""),
-                attachment_family=_telegram_attachment_family(stored["message"]),
-                attachment_suffix=_telegram_attachment_suffix(stored["message"]),
-                discovered_count=int(inbox_attachment.get("discovered_count") or 0),
-                processable_count=int(inbox_attachment.get("processable_count") or 0),
-                queue_status=str(inbox_attachment.get("queue_status") or ""),
-                queue_concurrency=int(inbox_attachment.get("queue_concurrency") or 1),
-                maintenance_model_ref=str(inbox_attachment.get("maintenance_model_ref") or ""),
-                maintenance_provider=str(inbox_attachment.get("maintenance_provider") or ""),
-                maintenance_action=str(inbox_attachment.get("maintenance_action") or ""),
-                maintenance_review_required=bool(inbox_attachment.get("maintenance_review_required")),
-                review_reason_count=int(inbox_attachment.get("review_reason_count") or 0),
-                no_go_reason_count=int(inbox_attachment.get("no_go_reason_count") or 0),
-                extraction_status=str(inbox_attachment.get("extraction_status") or ""),
-                extraction_warning_codes=tuple(inbox_attachment.get("extraction_warning_codes") or ()),
-                memory_records_planned=int(inbox_attachment.get("memory_records_planned") or 0),
-                raptorgraph_events_planned=int(inbox_attachment.get("raptorgraph_events_planned") or 0),
-                spool_key=spool_key,
-                raw_content_visible=False,
-                raw_identifiers_visible=False,
-                filename_visible=False,
-            )
-            memory_auto_write = _execute_telegram_memory_auto_write_if_ready(
-                data_dir=ctx.data_dir,
-                store=store,
-                chat_id=str(message.get("chat_id") or ""),
-                inbox_attachment=inbox_attachment,
-                source_message_id=message.get("message_id"),
-                memory_manager=_ctx_attr("memory_manager"),
-                memory_vector=_ctx_attr("memory_vector"),
-                memory_owner=_ctx_attr("memory_owner"),
-            )
-            if memory_auto_write is not None:
-                inbox_attachment = dict(inbox_attachment)
-                inbox_attachment["memory_auto_write_status"] = str(memory_auto_write.get("status") or "")
-                inbox_attachment["memory_auto_write_reason"] = str(memory_auto_write.get("reason") or "")
-                inbox_attachment["memory_auto_writes_performed"] = bool(memory_auto_write.get("writes_performed"))
-            _reply_with_gate(
-                str(message.get("chat_id") or ""),
-                format_telegram_attachment_inbox_reply(inbox_attachment),
-                source_message_id=message.get("message_id"),
-            )
         recent_attachment_context = build_recent_telegram_attachment_context(
             data_dir=ctx.data_dir,
             store=store,
@@ -2315,12 +1809,9 @@ def setup(ctx):
             voice_agent_turn=voice_agent_turn,
             recent_attachment_context=recent_attachment_context,
         )
-        session_binding = None
-        agent_turn = None
-        reply_result = None
-        control_result = _handle_telegram_control_command(
-            _telegram_control_command(stored["message"]),
-            message=stored["message"],
+        control_result = run_webhook_control_command_branch(
+            message=message,
+            stored_message=stored["message"],
             raw_chat_id=str(message.get("chat_id") or ""),
             sessions=sessions,
             session_creator=session_creator,
@@ -2335,259 +1826,109 @@ def setup(ctx):
             memory_vector=memory_vector,
             memory_owner=memory_owner,
             project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+            detect_control_command=_telegram_control_command,
+            handle_control_command=_handle_telegram_control_command,
         )
         if control_result is not None:
-            store.append_event(
-                kind="control_command",
-                status=str(control_result.get("status") or "handled"),
-                chat_id=str(message.get("chat_id") or ""),
-                session_id=str((control_result.get("binding") or {}).get("session_id") or ""),
-                command=str(control_result.get("command") or ""),
-            )
-            return {
-                "stored": stored["stored"],
-                "message": stored["message"],
-                "agent_bridge": bridge,
-                "voice_pipeline": voice_pipeline,
-                "image_action": image_action,
-                "universal_inbox_attachment": inbox_attachment,
-                "agent_turn": None,
-                "reply": _public_reply_result(control_result.get("reply")),
-                "control_command": {
-                    "command": control_result.get("command"),
-                    "status": control_result.get("status"),
-                    "pin_status": control_result.get("pin_status"),
-                    "session_id_present": bool((control_result.get("binding") or {}).get("session_id")),
+            return build_webhook_response_payload(
+                stored=stored,
+                agent_bridge=bridge,
+                voice_pipeline=voice_pipeline,
+                image_action=image_action,
+                universal_inbox_attachment=inbox_attachment,
+                agent_turn=None,
+                reply=_public_reply_result(control_result.get("reply")),
+                extra={
+                    "control_command": build_webhook_control_command_summary(control_result)
                 },
-                "token_value_visible": False,
-            }
-        export_plan = None
-        if stored["message"].get("kind") == "text":
-            export_plan = execute_recent_telegram_attachment_export(
-                data_dir=ctx.data_dir,
-                store=store,
-                chat_id=str(message.get("chat_id") or ""),
-                text=str(stored["message"].get("text") or ""),
             )
+        export_plan, reply_result = run_webhook_attachment_export_branch(
+            message=message,
+            stored_message=stored["message"],
+            data_dir=ctx.data_dir,
+            store=store,
+            execute_attachment_export=execute_recent_telegram_attachment_export,
+            document_reply_with_gate=_document_reply_with_gate,
+            reply_with_gate=_reply_with_gate,
+            format_export_reply=format_telegram_attachment_export_reply,
+        )
         if export_plan is not None:
-            store.append_event(
-                kind="universal_inbox_export_plan",
-                status=str(export_plan.get("status") or "blocked"),
-                chat_id=str(message.get("chat_id") or ""),
-                update_id=message.get("update_id"),
-                message_id=message.get("message_id"),
-                target_format=str(export_plan.get("target_format") or ""),
-                action=str(export_plan.get("action") or ""),
-                required_tool=str(export_plan.get("required_tool") or ""),
-                bytes_written=int(export_plan.get("bytes_written") or 0),
-                delivery_ready=bool(export_plan.get("delivery_ready")),
-                raw_content_visible=False,
-                raw_identifiers_visible=False,
-                filename_visible=False,
-            )
-            if str(export_plan.get("status") or "") == "exported":
-                reply_result = _document_reply_with_gate(
-                    str(message.get("chat_id") or ""),
-                    str(export_plan.get("output_path") or ""),
-                    str(export_plan.get("output_filename") or "telegram-export.pdf"),
-                    format_telegram_attachment_export_reply({**export_plan, "status": "sent"}),
-                    source_message_id=message.get("message_id"),
-                )
-                if reply_result.get("exit_code") == 0:
-                    export_plan = {**export_plan, "status": "sent"}
-                    store.append_event(
-                        kind="universal_inbox_export_delivery",
-                        status="sent",
-                        chat_id=str(message.get("chat_id") or ""),
-                        update_id=message.get("update_id"),
-                        message_id=message.get("message_id"),
-                        target_format=str(export_plan.get("target_format") or ""),
-                        bytes_written=int(export_plan.get("bytes_written") or 0),
-                        raw_content_visible=False,
-                        raw_identifiers_visible=False,
-                        filename_visible=False,
-                        host_paths_visible=False,
-                    )
-                else:
-                    export_plan = {**export_plan, "reason": f"document_delivery_failed:{str(reply_result.get('error') or '')[:80]}"}
-            else:
-                reply_result = _reply_with_gate(
-                    str(message.get("chat_id") or ""),
-                    format_telegram_attachment_export_reply(export_plan),
-                    source_message_id=message.get("message_id"),
-                )
-            return {
-                "stored": stored["stored"],
-                "message": stored["message"],
-                "agent_bridge": bridge,
-                "voice_pipeline": voice_pipeline,
-                "image_action": image_action,
-                "universal_inbox_attachment": inbox_attachment,
-                "universal_inbox_export_plan": {
-                    "status": export_plan.get("status"),
-                    "target_format": export_plan.get("target_format"),
-                    "action": export_plan.get("action"),
-                    "raw_content_visible": False,
+            return build_webhook_response_payload(
+                stored=stored,
+                agent_bridge=bridge,
+                voice_pipeline=voice_pipeline,
+                image_action=image_action,
+                universal_inbox_attachment=inbox_attachment,
+                agent_turn=None,
+                reply=_public_reply_result(reply_result),
+                extra={
+                    "universal_inbox_export_plan": build_webhook_export_plan_summary(export_plan)
                 },
-                "agent_turn": None,
-                "reply": _public_reply_result(reply_result),
-                "token_value_visible": False,
-            }
-        project_intake = None
-        if stored["message"].get("kind") == "text":
-            project_intake = build_telegram_project_intake_preview(
-                data_dir=ctx.data_dir,
-                store=store,
-                sessions=sessions,
-                chat_id=str(message.get("chat_id") or ""),
-                text=str(stored["message"].get("text") or ""),
-                source_message_id=message.get("message_id"),
-                project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
             )
+        project_intake, reply_result = run_webhook_project_intake_branch(
+            message=message,
+            stored_message=stored["message"],
+            data_dir=ctx.data_dir,
+            store=store,
+            sessions=sessions,
+            project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+            build_project_intake_preview=build_telegram_project_intake_preview,
+            format_project_intake_reply=format_telegram_project_intake_reply,
+            reply_with_gate=_reply_with_gate,
+        )
         if project_intake is not None:
-            reply_result = _reply_with_gate(
-                str(message.get("chat_id") or ""),
-                format_telegram_project_intake_reply(project_intake),
-                source_message_id=message.get("message_id"),
-            )
-            return {
-                "stored": stored["stored"],
-                "message": stored["message"],
-                "agent_bridge": bridge,
-                "voice_pipeline": voice_pipeline,
-                "image_action": image_action,
-                "universal_inbox_attachment": inbox_attachment,
-                "project_intake": {
-                    "status": project_intake.get("status"),
-                    "project_slug": project_intake.get("project_slug"),
-                    "task_count": project_intake.get("task_count"),
-                    "raw_content_visible": False,
+            return build_webhook_response_payload(
+                stored=stored,
+                agent_bridge=bridge,
+                voice_pipeline=voice_pipeline,
+                image_action=image_action,
+                universal_inbox_attachment=inbox_attachment,
+                agent_turn=None,
+                reply=_public_reply_result(reply_result),
+                extra={
+                    "project_intake": build_webhook_project_intake_summary(project_intake)
                 },
-                "agent_turn": None,
-                "reply": _public_reply_result(reply_result),
-                "token_value_visible": False,
-            }
-        if bridge["ready_for_agent"]:
-            session_binding = sessions.bind_chat(
-                chat_id=bridge["chat_id"],
-                session_alias=bridge["session_alias"],
-                recommended_session_name=bridge["recommended_session_name"],
-                scope=str(bridge.get("desired_session_scope") or "normal"),
-                creator=session_creator,
             )
-        bridge = build_agent_bridge_request(
-            stored["message"],
-            session_binding=session_binding,
+        bridge, agent_turn, reply_result = await run_webhook_agent_turn_branch(
+            stored_message=stored["message"],
+            bridge=bridge,
             raw_chat_id=str(message.get("chat_id") or ""),
+            sessions=sessions,
+            session_creator=session_creator,
+            store=store,
             voice_agent_turn=voice_agent_turn,
             recent_attachment_context=recent_attachment_context,
+            agent_turn_handler=agent_turn_handler,
+            build_agent_bridge_request=build_agent_bridge_request,
+            deterministic_agent_turn=deterministic_telegram_agent_turn,
+            run_agent_turn_async=_run_agent_turn_async,
+            typing_pulse=_telegram_typing_pulse_async,
+            agent_failure_reply=_agent_failure_reply,
+            reply_with_gate=_reply_with_gate,
         )
-        typing_stop: asyncio.Event | None = None
-        typing_task: asyncio.Task[None] | None = None
-        agent_turn = deterministic_telegram_agent_turn(bridge)
-        if agent_turn is None and bridge["ready_for_agent"] and callable(agent_turn_handler):
-            typing_stop, typing_task = await _telegram_typing_pulse_async(bridge["chat_id"], store=store)
-        try:
-            if agent_turn is None:
-                agent_turn = await _run_agent_turn_async(agent_turn_handler, bridge)
-            if agent_turn is not None:
-                store.append_event(
-                    kind="agent_turn",
-                    status=str(agent_turn.get("status") or "accepted"),
-                    chat_id=bridge["chat_id"],
-                    session_id=bridge.get("session_id") or "",
-                    reply_text_present=bool(agent_turn.get("reply_text_present")),
-                )
-                reply_text = str(agent_turn.get("reply_text") or _agent_failure_reply(agent_turn))
-                if reply_text:
-                    reply_result = _reply_with_gate(
-                        bridge["chat_id"],
-                        reply_text,
-                        source_message_id=bridge.get("source_message_id"),
-                    )
-        finally:
-            if typing_stop is not None:
-                typing_stop.set()
-            if typing_task is not None:
-                try:
-                    await asyncio.wait_for(typing_task, timeout=0.5)
-                except asyncio.TimeoutError:
-                    typing_task.cancel()
-        return {
-            "stored": stored["stored"],
-            "message": stored["message"],
-            "agent_bridge": bridge,
-            "voice_pipeline": voice_pipeline,
-            "image_action": image_action,
-            "universal_inbox_attachment": inbox_attachment,
-            "agent_turn": _public_agent_turn_result(agent_turn),
-            "reply": _public_reply_result(reply_result),
-            "token_value_visible": False,
-        }
-
-    @router.post("/reply")
-    async def reply(request: Request):
-        _require_admin(request)
-        body = await request.json()
-        chat_id = str(body.get("chat_id") or "")
-        text = str(body.get("text") or "")
-        result = _reply_with_gate(
-            chat_id,
-            text,
-            source_message_id=body.get("source_message_id"),
-            classification=body.get("classification"),
-            security_mode=body.get("security_mode") or "",
-            secure_transport=bool(body.get("secure_transport")),
-            can_start_secure_flow=bool(body.get("can_start_secure_flow")),
+        return build_webhook_response_payload(
+            stored=stored,
+            agent_bridge=bridge,
+            voice_pipeline=voice_pipeline,
+            image_action=image_action,
+            universal_inbox_attachment=inbox_attachment,
+            agent_turn=_public_agent_turn_result(agent_turn),
+            reply=_public_reply_result(reply_result),
         )
-        if result.get("exit_code") != 0:
-            raise HTTPException(403, str(result.get("error") or "Telegram reply refused"))
-        return json.loads(str(result["output"]))
 
-    @router.post("/document-reply")
-    async def document_reply(request: Request):
-        _require_admin(request)
-        body = await request.json()
-        try:
-            result = await _telegram_document_reply_tool("", **dict(body))
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-        if result.get("exit_code") != 0:
-            raise HTTPException(403, str(result.get("error") or "Telegram document reply refused"))
-        return json.loads(str(result["output"]))
+    register_telegram_webhook_routes(
+        router,
+        require_admin=_require_admin,
+        handle_webhook=_handle_telegram_webhook,
+    )
 
-    @router.post("/document-reply/preview")
-    async def document_reply_preview(request: Request):
-        _require_admin(request)
-        body = await request.json()
-        try:
-            result = await _telegram_document_reply_tool("", **{**dict(body), "preview_only": True})
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-        if result.get("exit_code") != 0:
-            raise HTTPException(400, str(result.get("error") or "Telegram document reply preview refused"))
-        return json.loads(str(result["output"]))
-
-    @router.post("/document-reply/live-gate")
-    async def document_reply_live_gate(request: Request):
-        _require_admin(request)
-        body = await request.json()
-        try:
-            result = await _telegram_document_reply_tool("", **{**dict(body), "preview_only": True})
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-        if result.get("exit_code") != 0:
-            raise HTTPException(400, str(result.get("error") or "Telegram document reply live gate refused"))
-        preview = json.loads(str(result["output"]))
-        packet = preview.get("delivery_packet")
-        if not packet:
-            raise HTTPException(400, "Telegram screenshot live gate requires a photo artifact")
-        return build_telegram_screenshot_live_gate_packet(packet)
-
-    @router.get("/app")
-    async def app_page(request: Request):
-        _require_admin(request)
-        return HTMLResponse(_app_html(getattr(request.state, "csp_nonce", "")))
+    register_telegram_outbound_routes(
+        router,
+        require_admin=_require_admin,
+        reply_with_gate=_reply_with_gate,
+        document_reply_tool=_telegram_document_reply_tool,
+        build_screenshot_live_gate_packet=build_telegram_screenshot_live_gate_packet,
+    )
 
     ctx.add_router(router)
     try:

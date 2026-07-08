@@ -2689,16 +2689,20 @@ async function _pollTaskNotifications() {
       // Tasks with output_target='notification' carry the result text in `body`
       // — show it as a real browser Notification (richer than a toast). Falls
       // back to a toast when permission is denied or unavailable.
-      if (ok && n.body) {
-        const title = n.task_name || 'Task';
+      if (ok && (n.display_body || n.body)) {
+        const title = n.display_title || n.task_name || 'Task';
+        const body = n.display_body || n.body;
         let fired = false;
         try {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification(title, { body: n.body, tag: 'task-' + (n.task_id || title), icon: '/static/favicon.ico' });
+            new Notification(title, { body, tag: 'task-' + (n.task_id || title), icon: '/static/favicon.ico' });
             fired = true;
           }
         } catch (_) {}
-        if (!fired && uiModule) uiModule.showToast(title + ': ' + n.body.slice(0, 140), { duration: 7000 });
+        if (!fired && uiModule) {
+          const toastText = n.render_mode === 'plain' ? body.slice(0, 180) : title + ': ' + body.slice(0, 140);
+          uiModule.showToast(toastText, { duration: 7000 });
+        }
         continue;
       }
       const msg = `Task ${ok ? 'finished' : 'failed'}: ${n.task_name}`;
