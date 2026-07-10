@@ -1,11 +1,14 @@
 import json
+from copy import deepcopy
 
 from src.memory_lifecycle_adapters import (
     lifecycle_from_manual_memory_candidate,
     lifecycle_from_rag_reindex_dry_run,
     lifecycle_from_raptorgraph_candidate_mapping,
     lifecycle_from_universal_inbox_write_intent,
+    plan_planning_memory_lifecycle,
 )
+from src.planning_source_memory import build_derived_planning_memory_records
 
 
 SOURCE_HASH = "b" * 64
@@ -145,3 +148,83 @@ def test_raptorgraph_candidate_adapter_keeps_backend_gate_and_counts():
     assert payload["stages"][6]["status"] == "dry_run_ready"
     assert payload["stages"][7]["metadata"]["max_nodes"] == 2
     assert payload["stages"][7]["metadata"]["max_edges"] == 1
+
+
+def _planning_record(roadmap_id, revision, digest):
+    payload = build_derived_planning_memory_records(
+        [
+            {
+                "validation": {"valid": True, "mode": "canonical"},
+                "project_id": "demo-project",
+                "roadmap_id": roadmap_id,
+                "source_id": f"repo-plan:{roadmap_id}",
+                "source_ref": f"docs/plans/{roadmap_id}.json",
+                "source_hash": digest * 64,
+                "revision": revision,
+                "safe_summary": f"Safe {roadmap_id} revision {revision}",
+                "acceptance_status": "accepted",
+                "source_status": "current",
+            }
+        ]
+    )
+    return payload["entries"][0]
+
+
+def test_planning_memory_lifecycle_plan_is_pure_deterministic_and_preserves_tombstone_evidence():
+    unchanged = _planning_record("unchanged", 1, "a")
+    previous_update = _planning_record("updated", 1, "b")
+    candidate_update = _planning_record("updated", 2, "c")
+    deleted = _planning_record("removed", 4, "d")
+    created = _planning_record("created", 1, "e")
+    current = [candidate_update, unchanged, created]
+    existing = [deleted, unchanged, previous_update]
+    original_current = deepcopy(current)
+    original_existing = deepcopy(existing)
+
+    first = plan_planning_memory_lifecycle(current, existing_records=existing)
+    second = plan_planning_memory_lifecycle(reversed(current), existing_records=reversed(existing))
+    by_ref = {item["memory_ref"]: item for item in first["operations"]}
+    tombstone = by_ref["planning:demo-project:removed"]["tombstone"]
+
+    assert first == second
+    assert current == original_current
+    assert existing == original_existing
+    assert first["dry_run"] is True
+    assert first["writes_supported"] is False
+    assert first["writes_performed"] is False
+    assert first["summary"] == {
+        "create": 1,
+        "update": 1,
+        "unchanged": 1,
+        "mark_deleted": 1,
+        "planned": 4,
+        "returned": 4,
+        "truncated": False,
+    }
+    assert by_ref["planning:demo-project:created"]["operation"] == "create"
+    assert by_ref["planning:demo-project:updated"]["operation"] == "update"
+    assert by_ref["planning:demo-project:unchanged"]["operation"] == "unchanged"
+    assert by_ref["planning:demo-project:removed"]["operation"] == "mark_deleted"
+    assert tombstone["source_revision"] == "4"
+    assert tombstone["source_revision_ref"] == "repo-plan:removed@4"
+    assert tombstone["source_hash"] == "sha256:" + "d" * 64
+    assert tombstone["content_hash"] == deleted["content_hash"]
+    assert tombstone["derived"] is True
+    assert tombstone["rebuildable"] is True
+    assert tombstone["source_of_truth"] is False
+
+
+def test_planning_memory_lifecycle_plan_accepts_index_payload_and_bounds_operations():
+    records = [_planning_record(f"roadmap-{index:02d}", 1, f"{index % 10}") for index in range(8)]
+    index_payload = {
+        "schema": "odysseus.planning.derived_memory_index.v1",
+        "entries": records,
+    }
+
+    result = plan_planning_memory_lifecycle(index_payload, max_operations=3)
+
+    assert [item["memory_ref"] for item in result["operations"]] == sorted(item["memory_ref"] for item in records)[:3]
+    assert result["summary"]["create"] == 8
+    assert result["summary"]["planned"] == 8
+    assert result["summary"]["returned"] == 3
+    assert result["summary"]["truncated"] is True

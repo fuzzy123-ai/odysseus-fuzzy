@@ -21,6 +21,7 @@ ALLOWED_SCOPE_FLAGS = frozenset({
     "private_reads",
     "filesystem_reads",
     "generic_api",
+    "planning_reads",
 })
 
 SENSITIVE_SCOPE_FLAGS = frozenset({
@@ -179,6 +180,7 @@ class McpClientProfile:
             allow_private_reads="private_reads" in scopes,
             allow_filesystem_reads="filesystem_reads" in scopes,
             allow_generic_api="generic_api" in scopes,
+            allow_planning_reads="planning_reads" in scopes,
             expose_all=False,
         )
 

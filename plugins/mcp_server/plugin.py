@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from src.mcp_server_tool_policy import (
     McpToolPolicyOptions,
+    PLANNING_READONLY_TOOLS,
     classify_mcp_tool,
     filter_mcp_tools,
 )
@@ -51,6 +52,7 @@ DEFAULT_CONFIG = {
     "allow_private_reads": False,
     "allow_filesystem_reads": False,
     "allow_generic_api": False,
+    "allow_planning_reads": False,
 }
 
 
@@ -149,26 +151,43 @@ class McpServerState:
             allow_private_reads=bool(config.get("allow_private_reads")),
             allow_filesystem_reads=bool(config.get("allow_filesystem_reads")),
             allow_generic_api=bool(config.get("allow_generic_api")),
+            allow_planning_reads=bool(config.get("allow_planning_reads")),
             expose_all=False,
         )
 
-    def audit(self, *, method: str, status: str, tool: str = "", reason: str = "", duration_ms: int = 0) -> None:
-        entry = {
-            "timestamp": int(time.time()),
-            "method": method,
-            "tool": tool,
-            "status": status,
-            "reason": reason,
-            "duration_ms": int(duration_ms),
-            "token_value_visible": False,
-            "secret_value_visible": False,
-        }
+    def audit(
+        self,
+        *,
+        method: str,
+        status: str,
+        tool: str = "",
+        client_id: str = "",
+        reason: str = "",
+        duration_ms: int = 0,
+        arguments: Mapping[str, Any] | None = None,
+        options: McpToolPolicyOptions | None = None,
+    ) -> None:
         try:
+            from src.mcp_audit_events import McpAuditEvent
+
+            entry = McpAuditEvent.create(
+                method=method,
+                status=status,
+                tool_name=tool,
+                client_id=client_id,
+                reason=reason,
+                duration_ms=duration_ms,
+                arguments=arguments or {},
+                options=options,
+                metadata={"argument_values_stored": False},
+            ).to_dict()
+            # Preserve the legacy key while standardizing on tool_name.
+            entry["tool"] = entry["tool_name"]
             self.data_dir.mkdir(parents=True, exist_ok=True)
             with self.audit_path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except Exception as exc:
-            self.logger.warning("MCP audit write failed: %s", exc)
+            self.logger.warning("MCP audit write failed: %s", type(exc).__name__)
 
     def tool_schemas(self, options: McpToolPolicyOptions) -> list[dict[str, Any]]:
         schemas: list[Mapping[str, Any]] = []
@@ -198,6 +217,23 @@ class McpServerState:
             and github_issue_tool["name"] not in seen
         ):
             tools.append(github_issue_tool)
+            seen.add(github_issue_tool["name"])
+        if options.allow_planning_reads:
+            try:
+                from mcp_servers.planning_server import build_planning_tool_contracts
+
+                for contract in build_planning_tool_contracts():
+                    name = str(contract.get("name") or "")
+                    if not name or name in seen or not classify_mcp_tool(name, options).exposed:
+                        continue
+                    tools.append({
+                        "name": name,
+                        "description": str(contract.get("description") or ""),
+                        "inputSchema": contract.get("inputSchema") or {"type": "object", "properties": {}},
+                    })
+                    seen.add(name)
+            except Exception as exc:
+                self.logger.warning("Planning MCP tool contracts unavailable: %s", type(exc).__name__)
         return tools
 
     async def call_tool(self, name: str, arguments: Mapping[str, Any], options: McpToolPolicyOptions) -> tuple[str, bool]:
@@ -206,6 +242,8 @@ class McpServerState:
             return (f"Tool {name!r} is not exposed: {decision.reason}", True)
         if name == "github_issue_find_duplicates":
             return await self._call_github_issue_find_duplicates(arguments)
+        if name in PLANNING_READONLY_TOOLS:
+            return self._call_planning_tool(name, arguments)
         try:
             import src.agent_tools  # noqa: F401 - initialize tool subsystem first
             from src.tool_execution import execute_tool_block
@@ -226,6 +264,39 @@ class McpServerState:
         if text is None:
             text = json.dumps(result, ensure_ascii=False, default=str)
         return (str(text)[:60000], is_error)
+
+    def _call_planning_tool(self, name: str, arguments: Mapping[str, Any]) -> tuple[str, bool]:
+        try:
+            from mcp_servers.planning_server import call_planning_tool_contract
+
+            payload = call_planning_tool_contract(name, arguments)
+        except Exception as exc:
+            payload = {
+                "schema": "odysseus.planning.mcp_error.v1",
+                "tool": name,
+                "status": "error",
+                "code": "planning_dispatch_failed",
+                "message": f"Planning dispatch failed: {type(exc).__name__}",
+                "read_only": True,
+                "writes_performed": False,
+                "rejected_value_visible": False,
+                "absolute_paths_visible": False,
+            }
+        text = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+        if len(text.encode("utf-8")) > 60000:
+            payload = {
+                "schema": "odysseus.planning.mcp_error.v1",
+                "tool": name,
+                "status": "error",
+                "code": "planning_response_budget_exceeded",
+                "message": "Planning response exceeded the external MCP budget",
+                "read_only": True,
+                "writes_performed": False,
+                "rejected_value_visible": False,
+                "absolute_paths_visible": False,
+            }
+            text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        return text, payload.get("status") == "error"
 
     async def _call_github_issue_find_duplicates(self, arguments: Mapping[str, Any]) -> tuple[str, bool]:
         try:
@@ -307,7 +378,13 @@ def _prompt_payload(name: str, args: Mapping[str, Any]) -> dict[str, Any] | None
     return None
 
 
-async def _handle_jsonrpc(state: McpServerState, msg: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any] | None:
+async def _handle_jsonrpc(
+    state: McpServerState,
+    msg: Mapping[str, Any],
+    config: Mapping[str, Any],
+    *,
+    client_id: str = "external-mcp",
+) -> dict[str, Any] | None:
     started = time.monotonic()
     method = str(msg.get("method") or "")
     message_id = msg.get("id")
@@ -343,14 +420,18 @@ async def _handle_jsonrpc(state: McpServerState, msg: Mapping[str, Any], config:
             arguments = params.get("arguments") or {}
             if not name:
                 raise ValueError("tools/call requires name")
+            decision = classify_mcp_tool(name, options)
             text, is_error = await state.call_tool(name, arguments, options)
             result = {"content": [{"type": "text", "text": text}], "isError": is_error}
             state.audit(
                 method=method,
                 tool=name,
-                status="error" if is_error else "ok",
-                reason="tool_call",
+                client_id=client_id,
+                status="blocked" if not decision.exposed else ("error" if is_error else "ok"),
+                reason=decision.reason,
                 duration_ms=int((time.monotonic() - started) * 1000),
+                arguments=arguments if isinstance(arguments, Mapping) else {},
+                options=options,
             )
         elif method == "resources/list":
             result = {"resources": _static_resources()}
@@ -363,6 +444,7 @@ async def _handle_jsonrpc(state: McpServerState, msg: Mapping[str, Any], config:
                     "owner_scoped_writes_enabled": bool(config.get("allow_owner_scoped_writes")),
                     "private_reads_enabled": bool(config.get("allow_private_reads")),
                     "filesystem_reads_enabled": bool(config.get("allow_filesystem_reads")),
+                    "planning_reads_enabled": bool(config.get("allow_planning_reads")),
                     "expose_all_supported": False,
                 }
                 text = json.dumps(readiness, indent=2)
@@ -389,12 +471,18 @@ async def _handle_jsonrpc(state: McpServerState, msg: Mapping[str, Any], config:
                 return None
             return _jsonrpc_error(message_id, -32601, f"Method not found: {method}")
     except Exception as exc:
-        state.audit(method=method, status="error", reason=type(exc).__name__)
+        state.audit(method=method, status="error", client_id=client_id, reason=type(exc).__name__, options=options)
         if is_notification:
             return None
         return _jsonrpc_error(message_id, -32603, f"Internal error: {exc}")
 
-    state.audit(method=method, status="ok", duration_ms=int((time.monotonic() - started) * 1000))
+    state.audit(
+        method=method,
+        status="ok",
+        client_id=client_id,
+        duration_ms=int((time.monotonic() - started) * 1000),
+        options=options,
+    )
     if is_notification:
         return None
     return {"jsonrpc": "2.0", "id": message_id, "result": result}
@@ -430,6 +518,12 @@ def setup(ctx):
         if callable(gate):
             gate(request)
 
+    def _client_ref(request: Request) -> str:
+        current_user = getattr(request.state, "current_user", None)
+        if isinstance(current_user, str) and current_user.strip():
+            return f"profile:{current_user.strip()}"
+        return "external-mcp"
+
     @router.post("")
     @router.post("/")
     async def mcp_endpoint(request: Request):
@@ -443,7 +537,12 @@ def setup(ctx):
             return JSONResponse(_jsonrpc_error(None, -32700, "Parse error"), status_code=400)
         batch = isinstance(payload, list)
         messages = payload if batch else [payload]
-        responses = [response for msg in messages if (response := await _handle_jsonrpc(state, msg, config)) is not None]
+        client_id = _client_ref(request)
+        responses = [
+            response
+            for msg in messages
+            if (response := await _handle_jsonrpc(state, msg, config, client_id=client_id)) is not None
+        ]
         if not responses:
             return Response(status_code=202)
         return JSONResponse(responses if batch else responses[0])

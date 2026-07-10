@@ -3,8 +3,8 @@
   "kind": "odysseus.planning_mcp_roadmap",
   "title": "Planning MCP Roadmap",
   "created_at": "2026-07-08",
-  "updated_at": "2026-07-08",
-  "status": "planned",
+  "updated_at": "2026-07-09",
+  "status": "repo_slices_done_live_gated",
   "abc_mode": "Standard ABC",
   "goal": "Expose Odysseus planning as a reliable JSON-first capability so internal agents, Codex and trusted external MCP clients can create, retrieve, update and contextualize roadmaps without losing provenance, gates or operator control.",
   "problem_statement": {
@@ -25,6 +25,27 @@
       "Routine progress updates are audit logged but do not notify the operator."
     ],
     "ui_boundary": "The MCP roadmap defines payloads, events and context contracts. Harbor V2 UI behavior is owned by the Harbor Planning Integration Master Roadmap."
+  },
+  "frontpage_v2_dependencies": {
+    "updated_at": "2026-07-09",
+    "current_ui_prototype": [
+      "Harbor V2 can open a Roadmap Document Viewer from Roadmaps list or Overview graph selection.",
+      "The viewer can show a readable roadmap view and a JSON Data mode.",
+      "Spark buttons can switch to Agent and pin a roadmap or roadmap-section context bubble."
+    ],
+    "service_gaps": [
+      "Roadmap Document Viewer needs a read endpoint that returns one roadmap as readable sections plus canonical JSON.",
+      "Editable summary, tasks and JSON need validate/draft/patch endpoints before any write becomes planning truth.",
+      "Spark needs a context-pack endpoint scoped to full roadmap, summary, task or gate sections.",
+      "Spark handoff needs redacted audit metadata so the user can later see why the Agent received that context.",
+      "Notification deep links need stable project_id and roadmap_id references that resolve to the same service payload."
+    ],
+    "related_master_slices": [
+      "HPIM-7-v2-roadmap-document-source",
+      "HPIM-8-roadmap-document-edit-persist",
+      "HPIM-9-spark-agent-context-pack",
+      "HPIM-10-notification-roadmap-document-deeplink"
+    ]
   },
   "research_evidence": {
     "repo_status_observed": "dev branch with existing unrelated dirty and untracked work; roadmap is docs-only and must not revert or touch unrelated files.",
@@ -274,8 +295,9 @@
     ],
     "gates": [
       {
-        "id": "PLANNING-MCP-READONLY-GO",
-        "class": "repo_only",
+      "id": "PLANNING-MCP-READONLY-GO",
+      "class": "repo_only",
+      "status": "done",
         "decision_needed": "Approve read-only Planning MCP tools as safe for internal and external MCP clients."
       },
       {
@@ -294,8 +316,9 @@
         "decision_needed": "Approve reversible roadmap or project deletion with undo metadata and operator-visible notification."
       },
       {
-        "id": "PLANNING-NOTIFICATION-GO",
-        "class": "repo_only",
+      "id": "PLANNING-NOTIFICATION-GO",
+      "class": "repo_only",
+      "status": "done",
         "decision_needed": "Approve sparse Harbor notification event classification for Planning structural changes."
       },
       {
@@ -341,7 +364,7 @@
       "id": "PMCP-1-service-contract",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "objective": "Implement a pure Planning MCP service contract shared by HTTP routes, stdio MCP and external MCP plugin.",
       "allowed_paths": [
         "src/planning_mcp_service.py",
@@ -356,7 +379,7 @@
       "id": "PMCP-2-readonly-stdio-server",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "objective": "Add an internal built-in stdio MCP server for read-only Planning tools.",
       "allowed_paths": [
         "mcp_servers/planning_server.py",
@@ -372,7 +395,7 @@
       "id": "PMCP-3-external-policy-exposure",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "objective": "Expose read-only Planning tools through the external MCP server plugin policy layer.",
       "allowed_paths": [
         "plugins/mcp_server/plugin.py",
@@ -389,7 +412,7 @@
       "id": "PMCP-4-roadmap-draft-and-validation",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "objective": "Add validated JSON roadmap draft creation and dry-run patch proposals.",
       "allowed_paths": [
         "src/planning_mcp_service.py",
@@ -405,7 +428,7 @@
       "id": "PMCP-5-context-pack-memory-bridge",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "objective": "Build Planning context packs from roadmap metadata, Roadmap Lens summaries, planning-source memory capsules and bounded source previews.",
       "allowed_paths": [
         "src/planning_mcp_service.py",
@@ -419,10 +442,63 @@
       "done_when": "A context pack contains enough source-linked context for Codex or another agent to work a slice without raw dumps."
     },
     {
+      "id": "PMCP-5b-roadmap-document-view",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Return one roadmap as a bounded Roadmap Document payload for Harbor V2, including readable sections, canonical JSON, gates, tasks and source refs.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "The UI can request one roadmap by project_id and roadmap_id and receive stable data for Overview, Roadmaps list and Document Viewer without frontend-only demo reconstruction."
+    },
+    {
+      "id": "PMCP-5c-roadmap-edit-draft",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Support Roadmap Document Viewer edits as validated draft or patch proposals before any apply write.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "Summary, task and Data-mode edits validate against schema, return a diff or draft id, and expose conflicts instead of silently overwriting roadmap JSON."
+    },
+    {
+      "id": "PMCP-5d-spark-section-context-pack",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Build section-scoped context packs for Spark handoff from roadmap document, summary, task or gate.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/mcp_audit_events.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_mcp_audit_events.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_mcp_audit_events.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "Spark returns a bounded context pack with project_id, roadmap_id, section_id, summary, source refs, allowed memory refs and redacted audit metadata."
+    },
+    {
       "id": "PMCP-6-audit-and-client-profile",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "objective": "Record Planning MCP calls with redacted audit metadata and align with existing MCP client profiles.",
       "allowed_paths": [
         "src/mcp_audit_events.py",
@@ -441,7 +517,7 @@
       "id": "PMCP-6b-structural-event-policy",
       "class": "repo_only",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "done",
       "objective": "Classify Planning MCP events as silent updates or sparse Harbor notifications.",
       "allowed_paths": [
         "src/planning_mcp_service.py",
@@ -459,7 +535,7 @@
       "id": "PMCP-6c-project-storage-memory-bridge",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
+      "status": "done",
       "objective": "Bridge validated roadmap JSON into project storage metadata and derived Planning memory context.",
       "allowed_paths": [
         "src/planning_mcp_service.py",

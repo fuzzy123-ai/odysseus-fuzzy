@@ -1,0 +1,444 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.ai_lens_technical_roadmap",
+  "title": "AI Lens Technical Roadmap",
+  "created_at": "2026-07-09",
+  "updated_at": "2026-07-09",
+  "status": "repo_slices_done_live_gated",
+  "abc_mode": "Standard ABC, backend-contract-first",
+  "goal": "Create the repo-side AI Lens telemetry, projection and replay foundation so the sci-fi visualization is driven by real Odysseus runtime data.",
+  "problem_statement": {
+    "user_need": "The user wants a live view into the J-Space and the AI brain that feels animated and close to 1:1 reality.",
+    "current_gap": "Odysseus has memory vectors, RAG, graph contracts, LLM stream helpers and tool execution surfaces, but no unified AI Lens event stream or semantic projection service.",
+    "technical_truth": "API models do not expose true hidden neural state. AI Lens must show runtime trace and semantic projection for all models, then optionally show local-model internals only when a local runtime supports safe hooks."
+  },
+  "research_evidence": {
+    "repo_status_observed": "dev branch contains unrelated dirty Frontpage/Planning changes and untracked roadmaps; AI Lens roadmap creation is docs-only and must not revert or touch those files.",
+    "existing_backend_sources": [
+      "src/llm_stream_events.py contains SSE delta helpers and Harmony channel routing.",
+      "src/memory_vector.py provides Chroma-backed semantic memory search with similarity scores and embedding lanes.",
+      "src/progressive_graph_api.py defines bounded graph payload contracts and query/status types.",
+      "src/rag_manager.py, src/rag_vector.py and src/rag_text_chunking.py provide RAG indexing and retrieval foundations.",
+      "src/tool_execution.py and src/tool_result_formatting.py are likely integration points for tool-call telemetry.",
+      "src/ai_activity_ledger.py and src/llm_activity_metrics.py are likely places to align event accounting and metrics."
+    ],
+    "related_roadmaps": [
+      "docs/plans/agent-context-transparency-roadmap.json",
+      "docs/plans/ai-lens-master-roadmap.json",
+      "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "docs/plans/harbor-planning-integration-master-roadmap.json"
+    ],
+    "design_dependency": "The technical roadmap owns what is true and observable; the design roadmap owns how it is rendered."
+  },
+  "event_contract": {
+    "principles": [
+      "Every emitted event must be tied to a real runtime observation or labeled as synthetic fixture data.",
+      "Raw prompts, private document bodies, secrets, tokens, chat IDs and raw provider output are forbidden in public Lens payloads.",
+      "Payloads use stable IDs, bounded previews, source refs and redaction levels.",
+      "High-frequency token or animation ticks are aggregated so AI Lens does not slow normal chat.",
+      "Event names stay model-provider-neutral."
+    ],
+    "event_types": [
+      "lens_session_started",
+      "query_received",
+      "embedding_created",
+      "memory_search_started",
+      "memory_hit",
+      "rag_search_started",
+      "rag_hit",
+      "context_item_selected",
+      "context_item_excluded",
+      "context_pack_composed",
+      "model_route_selected",
+      "model_stream_started",
+      "model_stream_delta",
+      "tool_call_started",
+      "tool_call_result",
+      "safety_gate_triggered",
+      "retrieval_ranking_summary",
+      "source_coverage_summary",
+      "source_conflict_detected",
+      "context_budget_updated",
+      "answer_provenance_summary",
+      "answer_completed",
+      "lens_replay_snapshot_saved",
+      "local_model_internal_sample"
+    ],
+    "base_fields": [
+      "event_id",
+      "session_id",
+      "turn_id",
+      "event_type",
+      "created_at",
+      "model_id",
+      "truth_level",
+      "source_ref",
+      "latency_ms",
+      "redaction_level",
+      "summary",
+      "payload"
+    ],
+    "forbidden_fields": [
+      "raw_secret",
+      "token",
+      "password",
+      "raw_private_content",
+      "full_prompt",
+      "raw_provider_output",
+      "absolute_private_path",
+      "chat_id"
+    ]
+  },
+  "insight_contract": {
+    "principles": [
+      "Insights summarize event evidence into user-relevant questions; they do not replace raw event trace for diagnostics.",
+      "Every insight must cite event_ids or source_refs that support it.",
+      "Insights use bounded counters, scores, labels and redacted previews rather than raw private content.",
+      "Low-confidence or incomplete insight calculations must say incomplete instead of inventing certainty."
+    ],
+    "information_products": [
+      {
+        "id": "answer_pack_inventory",
+        "payload_fields": ["included_count", "excluded_count", "clipped_count", "token_budget", "used_tokens", "sensitive_count", "stale_count"],
+        "derived_from": ["context_item_selected", "context_item_excluded", "context_pack_composed", "context_budget_updated"]
+      },
+      {
+        "id": "retrieval_quality",
+        "payload_fields": ["top_memory_score", "top_rag_score", "score_spread", "selected_count", "below_threshold_count", "reason_summaries"],
+        "derived_from": ["memory_hit", "rag_hit", "retrieval_ranking_summary"]
+      },
+      {
+        "id": "source_coverage",
+        "payload_fields": ["source_type_counts", "dominant_source_type", "independent_source_count", "conflict_count", "missing_expected_sources"],
+        "derived_from": ["context_pack_composed", "source_coverage_summary", "source_conflict_detected"]
+      },
+      {
+        "id": "tool_and_latency_trace",
+        "payload_fields": ["phase_durations_ms", "tool_count", "failed_tool_count", "retry_count", "slowest_phase"],
+        "derived_from": ["model_stream_started", "tool_call_started", "tool_call_result", "answer_completed"]
+      },
+      {
+        "id": "confidence_and_risk",
+        "payload_fields": ["risk_level", "uncertainty_flags", "policy_gate_count", "stale_context_count", "redaction_count"],
+        "derived_from": ["safety_gate_triggered", "source_conflict_detected", "context_item_excluded"]
+      },
+      {
+        "id": "answer_provenance",
+        "payload_fields": ["answer_segment_refs", "supporting_context_refs", "tool_refs", "unsupported_segment_count"],
+        "derived_from": ["answer_completed", "answer_provenance_summary", "lens_replay_snapshot_saved"]
+      }
+    ]
+  },
+  "target_architecture": {
+    "event_models": {
+      "goal": "Provider-neutral dataclasses and validators for AI Lens events.",
+      "candidate_files": [
+        "src/ai_lens_events.py",
+        "tests/test_ai_lens_events.py"
+      ],
+      "responsibilities": [
+        "Normalize event types and truth levels.",
+        "Reject forbidden fields and overlarge payloads.",
+        "Support JSON serialization suitable for SSE or WebSocket.",
+        "Provide deterministic fixture events for frontend development."
+      ]
+    },
+    "service_layer": {
+      "goal": "A read-only service that collects recent events, builds snapshots and emits redacted streams.",
+      "candidate_files": [
+        "src/ai_lens_service.py",
+        "routes/ai_lens_routes.py",
+        "tests/test_ai_lens_service.py",
+        "tests/test_ai_lens_routes.py"
+      ],
+      "responsibilities": [
+        "Maintain per-session ring buffers.",
+        "Build current Lens snapshot payloads.",
+        "Expose /api/ai-lens/snapshot and /api/ai-lens/stream.",
+        "Throttle high-frequency event streams.",
+        "Provide fixture mode for UI work without live model calls."
+      ]
+    },
+    "instrumentation_hooks": {
+      "goal": "Emit events from existing Odysseus systems without coupling the core chat path to the UI.",
+      "candidate_files": [
+        "src/llm_stream_events.py",
+        "src/chat_processor.py",
+        "src/memory_vector.py",
+        "src/rag_manager.py",
+        "src/tool_execution.py",
+        "tests/test_ai_lens_instrumentation.py"
+      ],
+      "responsibilities": [
+        "Emit retrieval, context, model route, stream and tool events.",
+        "Never block answer generation if Lens capture fails.",
+        "Keep event previews redacted and bounded.",
+        "Attach source refs suitable for Context Transparency detail views."
+      ]
+    },
+    "jspace_projection": {
+      "goal": "Convert real embeddings and graph relations into stable 2D or 3D visualization coordinates.",
+      "candidate_files": [
+        "src/ai_lens_projection.py",
+        "tests/test_ai_lens_projection.py"
+      ],
+      "responsibilities": [
+        "Start with deterministic PCA-like projection or simple dimensional reduction that needs no new heavy dependency.",
+        "Preserve stable node placement across small updates where possible.",
+        "Return nodes, edges, clusters, scores and animation hints.",
+        "Label projection output as Semantic Projection, not neural internals."
+      ]
+    },
+    "context_graph_bridge": {
+      "goal": "Reuse Progressive Graph API conventions for bounded Memory, RAG, Tool and Session graph pages.",
+      "candidate_files": [
+        "src/ai_lens_graph.py",
+        "src/progressive_graph_api.py",
+        "tests/test_ai_lens_graph.py"
+      ],
+      "responsibilities": [
+        "Represent query, memory, chunk, tool and answer nodes.",
+        "Represent similarity, citation, selected-for-context and tool-result edges.",
+        "Respect max nodes, max edges and payload budgets.",
+        "Provide graph slices for Orbit, Trace, Graph and Diagnostics modes."
+      ]
+    },
+    "insight_layer": {
+      "goal": "Derive compact, user-relevant information products from raw Lens events.",
+      "candidate_files": [
+        "src/ai_lens_insights.py",
+        "tests/test_ai_lens_insights.py"
+      ],
+      "responsibilities": [
+        "Build answer pack inventory, retrieval quality, source coverage, tool latency, confidence/risk and answer provenance summaries.",
+        "Reference supporting event IDs and source refs for every derived insight.",
+        "Expose incomplete or unavailable states explicitly.",
+        "Keep insight payloads bounded and safe for direct UI rendering."
+      ]
+    },
+    "replay_store": {
+      "goal": "Persist bounded AI Lens replay snapshots without raw private content.",
+      "candidate_files": [
+        "src/ai_lens_replay.py",
+        "tests/test_ai_lens_replay.py"
+      ],
+      "responsibilities": [
+        "Store event envelopes, projection coordinates and derived graph snapshots.",
+        "Allow replay of answer assembly without rerunning the model.",
+        "Expire or rotate snapshots based on privacy settings.",
+        "Avoid storing raw provider output or full private context."
+      ]
+    },
+    "local_model_microscope": {
+      "goal": "Optional local-only capture of sampled attention, logits or hidden-state metrics.",
+      "candidate_files": [
+        "src/ai_lens_local_model.py",
+        "tests/test_ai_lens_local_model.py"
+      ],
+      "responsibilities": [
+        "Remain disabled by default.",
+        "Advertise capability only when a local runtime supports safe hooks.",
+        "Sample rather than stream full tensors.",
+        "Expose truth_level local_model_internals with clear performance and privacy labels."
+      ]
+    }
+  },
+  "slice_queue": [
+    {
+      "id": "AIL-TECH-0-roadmap",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done_in_this_artifact",
+      "objective": "Create this technical roadmap as a JSON planning source.",
+      "allowed_paths": ["docs/plans/ai-lens-technical-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/ai-lens-technical-roadmap.json"],
+      "done_when": "Roadmap exists as valid JSON and defines event, service, projection, graph, replay and local-model slices."
+    },
+    {
+      "id": "AIL-TECH-1-event-contract",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Implement AI Lens event dataclasses, validators, redaction checks and fixture generation.",
+      "allowed_paths": [
+        "src/ai_lens_events.py",
+        "tests/test_ai_lens_events.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_events.py"],
+      "done_when": "Events serialize to bounded JSON, reject forbidden fields and include truth_level labels."
+    },
+    {
+      "id": "AIL-TECH-2-snapshot-service",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Add a read-only AI Lens service with per-session ring buffer, snapshot payload and fixture mode.",
+      "allowed_paths": [
+        "src/ai_lens_service.py",
+        "tests/test_ai_lens_service.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_service.py"],
+      "done_when": "Service can ingest events, return current snapshot and bound event counts without UI dependencies."
+    },
+    {
+      "id": "AIL-TECH-3-routes-stream",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Expose snapshot and SSE stream routes behind existing auth and privacy boundaries.",
+      "allowed_paths": [
+        "routes/ai_lens_routes.py",
+        "app.py",
+        "tests/test_ai_lens_routes.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_routes.py"],
+      "done_when": "/api/ai-lens/snapshot returns redacted fixture data and /api/ai-lens/stream emits bounded SSE events."
+    },
+    {
+      "id": "AIL-TECH-4-memory-rag-instrumentation",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Emit Memory and RAG search events with source refs, scores and redacted previews.",
+      "allowed_paths": [
+        "src/memory_vector.py",
+        "src/rag_manager.py",
+        "src/ai_lens_service.py",
+        "tests/test_ai_lens_instrumentation.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_instrumentation.py"],
+      "done_when": "Memory/RAG retrieval can emit memory_hit and rag_hit events without exposing raw private content."
+    },
+    {
+      "id": "AIL-TECH-5-llm-tool-instrumentation",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Emit model route, streaming and tool-call events from the chat and tool execution path.",
+      "allowed_paths": [
+        "src/llm_stream_events.py",
+        "src/chat_processor.py",
+        "src/tool_execution.py",
+        "tests/test_ai_lens_instrumentation.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_instrumentation.py"],
+      "done_when": "Model and tool events appear in Lens trace while normal chat continues if Lens capture is disabled or fails."
+    },
+    {
+      "id": "AIL-TECH-6-jspace-projection",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Build deterministic Semantic Projection from query, memory, RAG and tool evidence vectors or scores.",
+      "allowed_paths": [
+        "src/ai_lens_projection.py",
+        "tests/test_ai_lens_projection.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_projection.py"],
+      "done_when": "Projection returns stable nodes, coordinates, clusters and edges from deterministic fixtures."
+    },
+    {
+      "id": "AIL-TECH-7-context-graph",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Expose a bounded graph page for Lens Orbit, Trace, Graph and Diagnostics modes.",
+      "allowed_paths": [
+        "src/ai_lens_graph.py",
+        "src/progressive_graph_api.py",
+        "tests/test_ai_lens_graph.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_graph.py"],
+      "done_when": "Graph payloads enforce node/edge budgets and distinguish query, memory, RAG, tool and answer nodes."
+    },
+    {
+      "id": "AIL-TECH-8-replay-store",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Persist bounded AI Lens replay snapshots for recent answers.",
+      "allowed_paths": [
+        "src/ai_lens_replay.py",
+        "tests/test_ai_lens_replay.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_replay.py"],
+      "done_when": "Replay snapshots can be saved, loaded and expired without raw private content."
+    },
+    {
+      "id": "AIL-TECH-8A-insight-layer",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Derive information products from raw events so AI Lens highlights useful answers, not just telemetry.",
+      "allowed_paths": [
+        "src/ai_lens_insights.py",
+        "src/ai_lens_service.py",
+        "tests/test_ai_lens_insights.py",
+        "tests/test_ai_lens_service.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_ai_lens_insights.py tests/test_ai_lens_service.py"
+      ],
+      "done_when": "Snapshots include answer pack inventory, retrieval quality, source coverage, tool latency, confidence/risk and answer provenance summaries with supporting refs."
+    },
+    {
+      "id": "AIL-TECH-9-local-model-microscope",
+      "class": "needs_live_go",
+      "owner": "Bob",
+      "status": "planned",
+      "objective": "Prototype optional local-model internals capture for supported local runtimes.",
+      "allowed_paths": [
+        "src/ai_lens_local_model.py",
+        "tests/test_ai_lens_local_model.py"
+      ],
+      "tests": ["offline capability tests only until live Go"],
+      "done_when": "Local-model internals are disabled by default, capability-gated and sampled rather than streamed as full tensors."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "AIL-TECH-GATE-live-provider-stream",
+      "class": "needs_live_go",
+      "blocks": ["manual live SSE smoke with real provider streams"],
+      "decision_needed": "Operator allows a bounded live chat run for Lens telemetry observation.",
+      "safe_preparation_done": "Fixture route and unit tests can be built without live provider calls.",
+      "risk_if_bypassed": "Private provider output or unstable live failures could be captured without review.",
+      "next_safe_slice": "AIL-TECH-1-event-contract"
+    },
+    {
+      "id": "AIL-TECH-GATE-local-internals-runtime",
+      "class": "needs_live_go",
+      "blocks": ["AIL-TECH-9-local-model-microscope"],
+      "decision_needed": "Select the local model runtime and acceptable sampling limits.",
+      "safe_preparation_done": "Capability contract can be implemented as disabled-by-default.",
+      "risk_if_bypassed": "Performance degradation, GPU memory pressure or misleading hidden-state visuals.",
+      "next_safe_slice": "AIL-TECH-8-replay-store"
+    }
+  ],
+  "verification": {
+    "docs_only_current_slice": [
+      "python -m json.tool docs/plans/ai-lens-technical-roadmap.json"
+    ],
+    "future_focused_tests": [
+      "python -m pytest tests/test_ai_lens_events.py",
+      "python -m pytest tests/test_ai_lens_service.py",
+      "python -m pytest tests/test_ai_lens_routes.py",
+      "python -m pytest tests/test_ai_lens_projection.py tests/test_ai_lens_graph.py",
+      "python -m pytest tests/test_ai_lens_insights.py",
+      "python -m pytest tests/test_ai_lens_replay.py"
+    ],
+    "manual_smoke_requires_go": [
+      "Live chat emits Lens events while answer streaming remains responsive.",
+      "AI Lens stream does not include raw private content or full prompts.",
+      "Local-model internals appear only for an explicitly allowed local model runtime."
+    ]
+  },
+  "go_language": {
+    "go": "AI Lens runtime trace, semantic projection, graph and replay work from bounded redacted events and have focused tests.",
+    "partial": "Fixture-backed and read-only live trace work, but replay or local-model internals remain deferred.",
+    "deferred": "Live provider smoke and local-model internals wait for explicit operator Go.",
+    "no_go": "Telemetry exposes raw secrets/private content, blocks normal chat, fabricates neural internals or starts live model hooks without consent.",
+    "blocked": "No stable event contract or no safe way to bound/redact Lens payloads."
+  },
+  "recommended_next_step": "Implement AIL-TECH-1 event contract first, then AIL-TECH-2 service snapshot. UI should consume fixtures until these are stable."
+}

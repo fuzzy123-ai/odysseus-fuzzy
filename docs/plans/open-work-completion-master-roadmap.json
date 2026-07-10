@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-04",
-  "status": "live_and_design_gated",
+  "updated_at": "2026-07-10",
+  "status": "non_ui_go_active_ui_gated",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Neue konsolidierte Masterroadmap fertigstellen und danach alle offenen Odysseus-Punkte gate-getrieben mit ABC abschliessen, ohne neue Backend-Scheinslices zu erfinden.",
   "goal": "Finish all remaining non-UI Odysseus work by converting the completed backend roadmaps into bounded live/design decision packets, then execute one approved gate at a time with redacted evidence.",
@@ -10,14 +10,196 @@
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 27,
-    "unique_design_gates": 4,
-    "queue_status": "safe_repo_queue_exhausted"
+    "unique_live_gates": 33,
+    "unique_design_gates": 39,
+    "other_open_json_items": 0,
+    "queue_status": "safe_repo_queue_exhausted",
+    "extended_backend_tracks": {
+      "agent_context_transparency": "backend_ready_ui_gated",
+      "ai_lens": "backend_contracts_ready_ui_live_gated",
+      "planning_mcp": "repo_slices_done_live_gated",
+      "harbor_planning_integration": "backend_contracts_ready_ui_live_gated"
+    },
+    "verification": {
+      "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
+      "safe_open_count": 0,
+      "other_open_count": 0,
+      "unique_live_gate_count": 33,
+      "unique_design_gate_count": 39,
+      "decision_packet_families": [
+        "version_release",
+        "calendar_reminders",
+        "autonomous_coding",
+        "ai_lens_runtime",
+        "planning_mcp",
+        "agent_context_transparency",
+        "observability_ops",
+        "security_ops",
+        "ui_design"
+      ],
+      "decision_packet_contract": [
+        "decision_needed",
+        "safe_default",
+        "go_phrase",
+        "required_inputs",
+        "evidence_required",
+        "forbidden_until_go"
+      ],
+      "non_ui_decision_packet_count": 8,
+      "excluded_design_decision_packet_count": 1,
+      "non_ui_gate_readiness_command": "python scripts/non_ui_gate_readiness.py --env-file .env",
+      "non_ui_gate_readiness_markdown_command": "python scripts/non_ui_gate_readiness.py --env-file .env --format markdown",
+      "non_ui_gate_readiness_api": "/api/non-ui-gates/readiness",
+      "non_ui_gate_readiness_markdown_api": "/api/non-ui-gates/readiness.md",
+      "non_ui_gate_readiness_status": "blocked",
+      "non_ui_executable_now_count": 0,
+      "recommended_next_operator_action": {
+        "family": "calendar_reminders",
+        "reason": "runtime_readiness_gates_blocked",
+        "missing_runtime_gates": [
+          "telegram_agent_reply_enabled",
+          "telegram_allowed_chats_present",
+          "operator_live_go_required"
+        ],
+        "safe_default": "keep_reminders_repo_ready_no_live_send"
+      },
+      "queue_exhausted": true,
+      "verified_at": "2026-07-10"
+    }
+  },
+  "non_ui_execution_ledger": {
+    "operator_go_received_at": "2026-07-10",
+    "scope": "All non-UI and non-design gate families may be advanced one bounded action at a time.",
+    "excluded_scope": "UI implementation, UI placement, visual design, frontpage/v2/v3 surface work and Version 1.0 UI-live claim.",
+    "live_execution_rule": "External mutation or dispatch may run only when the concrete target, server-side config and redacted evidence path are present.",
+    "attempts": [
+      {
+        "id": "OWM-2-calendar-reminder-telegram-digest",
+        "family": "calendar_reminders",
+        "status": "blocked_by_missing_server_telegram_dispatch_config",
+        "attempted_at": "2026-07-10",
+        "bounded_action": "Observe or trigger exactly one owner-scoped 09:00 Mo-Fr Telegram todo digest delivery through the existing scheduler notification boundary.",
+        "evidence": [
+          "An owner-scoped active todo_digest task exists for 09:00 Mo-Fr with output_target telegram.",
+          "The owner-scoped reminder live-gate packet is ready_for_live_smoke with canonical_single_task, schedule_matches and telegram_delivery_target all go.",
+          "The task has run_count 0, no last_run and an overdue next_run, so delivery evidence is still missing.",
+          "After loading .env, TELEGRAM_BOT_TOKEN is configured, but TELEGRAM_AGENT_REPLY_ENABLED and a server-side Telegram notification or allowed chat target are not configured."
+        ],
+        "blockers": [
+          "TELEGRAM_AGENT_REPLY_ENABLED must be enabled for server-side dispatch.",
+          "One of TELEGRAM_NOTIFICATION_CHAT_ID, TELEGRAM_ALLOWED_CHAT_IDS or TELEGRAM_CHAT_ID must be configured server-side.",
+          "No chat id, token, private task title or private prompt is recorded in this roadmap."
+        ],
+        "next_action": "After the server-side Telegram dispatch config is present, run one forced scheduler execution for the existing todo_digest task and record redacted TaskRun/delivery evidence.",
+        "tests": [
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_calendar_capability_service.py tests\\test_task_summary_routes.py",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_task_scheduler_delivery.py tests\\test_task_scheduler_session_delivery.py tests\\test_todo_digest.py"
+        ]
+      },
+      {
+        "id": "OWM-7-security-incident-tabletop",
+        "family": "security_ops",
+        "status": "resolved_with_synthetic_live_evidence",
+        "attempted_at": "2026-07-10",
+        "bounded_action": "Validate the synthetic security incident tabletop packet without real remediation, host commands, raw logs, tokens or chat targets.",
+        "evidence": [
+          "src.ops_tabletop_packet built a synthetic_tabletop packet.",
+          "validate_ops_tabletop_packet returned status valid.",
+          "The packet kept live_actions_performed, host_commands_performed, writes_performed and remediation_performed false.",
+          "The tabletop remains a prepare-only exercise; CrowdSec, lockdown and live remediation are still separate gates."
+        ],
+        "blockers": [
+          "crowdsec-remediation-go remains open for any real ban/unban execution.",
+          "lockdown-mode-go remains open for any automatic lockdown behavior.",
+          "mcp-remediation-tools-go remains open for exposing live remediation tools."
+        ],
+        "next_action": "Keep remediation and lockdown actions prepare-only until their separate gates are approved.",
+        "tests": [
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_ops_tabletop_packet.py"
+        ]
+      },
+      {
+        "id": "OWM-runtime-live-affordance-readiness",
+        "family": "autonomous_coding_ai_gui_nextcloud_file_io",
+        "status": "blocked_by_runtime_config_and_bounded_request",
+        "attempted_at": "2026-07-10",
+        "bounded_action": "Run read-only live affordance readiness after loading .env; do not start sandbox jobs, Telegram sends, Nextcloud writes or converter processes.",
+        "evidence": [
+          "Live affordance readiness status is blocked and reports no live execution, no network probe, no Telegram send, no Nextcloud write, no sandbox execution and no converter process.",
+          "Sandbox execution is blocked by missing Podman availability plus missing live_enabled request, operator live Go and reviewed bounded job.",
+          "Telegram delivery has TELEGRAM_BOT_TOKEN configured after .env load, but remains blocked by TELEGRAM_AGENT_REPLY_ENABLED, missing allowed chat target and required bounded operator delivery Go.",
+          "Nextcloud copy is blocked by missing live write flag, operator live Go, WebDAV base URL, WebDAV user, WebDAV app password and bounded copy request.",
+          "Converter execution is blocked by missing Universal File IO live flags, missing converter binaries and no bounded conversion request.",
+          "The readiness packet exposes no tokens, chat ids, host paths or raw content."
+        ],
+        "blockers": [
+          "Install or expose Podman/host sandbox runner before autonomous sandbox live smoke.",
+          "Configure Telegram dispatch gates before remote-control, screenshot delivery or reminder delivery smokes.",
+          "Configure Nextcloud WebDAV and choose a bounded local-only subset before any import/write pilot.",
+          "Install approved local converter binaries and provide a bounded conversion request before live converter execution."
+        ],
+        "next_action": "Resolve the smallest runtime blocker first: Telegram dispatch config for calendar/reminder and screenshot delivery, or Podman/host runner config for autonomous coding sandbox smoke.",
+        "tests": [
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_live_affordance_readiness.py tests\\test_agent_sandbox_worker.py tests\\test_agent_sandbox_contract.py tests\\test_agent_sandbox_podman_plan.py"
+        ]
+      },
+      {
+        "id": "OWM-live-gate-inventory-after-non-ui-go",
+        "family": "all_non_ui_live_gates",
+        "status": "done",
+        "attempted_at": "2026-07-10",
+        "bounded_action": "Audit all remaining live gates after excluding UI/design work and classify the unresolved non-UI gates by the missing concrete input.",
+        "evidence": [
+          "roadmap_safe_queue_audit reports safe_open_count 0, other_open_count 0, queue_exhausted true, unique_live_gate_count 33 and unique_design_gate_count 39.",
+          "roadmap_safe_queue_audit now emits distinct decision packets for AI Lens runtime, Planning MCP and agent-context transparency instead of burying those non-UI backend/operator gates in other_gate.",
+          "Each decision packet now includes required_inputs, evidence_required and forbidden_until_go, so broad operator intent no longer looks like executable live permission.",
+          "The audit now separates non_ui_decision_packets from excluded_design_decision_packets; current evidence is 8 non-UI packets and 1 excluded UI/design packet.",
+          "scripts/non_ui_gate_readiness.py combines roadmap audit packets with redacted live-affordance readiness; current status is blocked with 0 non-UI families executable now.",
+          "routes/non_ui_gate_readiness_routes.py exposes the same redacted readiness packet through admin-only read-only JSON and Markdown endpoints without adding UI surface work.",
+          "The readiness tool now derives a concrete recommended_next_operator_action. Current recommendation is calendar_reminders because Telegram reply enable, allowed chats and explicit operator live Go are missing.",
+          "The readiness tool now supports --format markdown for a redacted operator-facing handoff; the report shows Unsafe evidence flags: none and the same calendar_reminders next action.",
+          "The non-UI readiness run reports live_affordance_status blocked, no live execution, no network probe, no Telegram send, no Nextcloud write, no sandbox execution, no converter process, and no visible tokens, chat ids, host paths or raw content.",
+          "The previous other_gate bucket is empty; Harbor V2, visual regression and ACT-2 context-rail handoff gates are classified as ui_design and remain excluded from this non-UI run.",
+          "AI Lens backend and route contracts are verified green; focused tests passed with 124 passed, 2 skipped and 1 warning.",
+          "Planning MCP backend, server and roadmap route contracts are verified green; focused tests passed with 110 passed, 1 skipped and 1 warning.",
+          "The remaining AI Lens gates require a selected local-internals runtime target or live provider stream target and privacy-safe evidence policy before execution.",
+          "The remaining Planning MCP gates are write/apply/delete/external-client gates; they require an exact plan target, preview and undo/evidence path before any mutation.",
+          "The remaining Debian observability gates require a concrete Debian/Podman host target, retention policy, Grafana exposure decision and read-only smoke boundary.",
+          "The remaining security gates are CrowdSec remediation, lockdown mode and remediation tool exposure; synthetic tabletop evidence is already complete, but real remediation remains separately gated.",
+          "The remaining release/deploy gates require a release target and rollback decision, and Version 1.0 still depends on the UI-live gate which is excluded from this run."
+        ],
+        "blockers": [
+          "No concrete provider stream, local-internals runtime or sampling policy was provided for AI Lens live/microscope execution.",
+          "No exact Planning MCP write/apply/delete target and undo preview was provided.",
+          "No Debian host, retention policy or Grafana exposure decision was provided.",
+          "No real CrowdSec/remediation/lockdown authorization was provided.",
+          "No deploy/release target or rollback decision was provided, and UI-live is explicitly out of scope."
+        ],
+        "next_action": "Execute the smallest remaining non-UI gate only after its concrete target/config/evidence packet exists; recommended first is Telegram dispatch config for the reminder smoke.",
+        "tests": [
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format markdown",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\non_ui_gate_readiness.py --env-file C:\\Users\\nkatz\\odysseus\\.env",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\non_ui_gate_readiness.py --env-file C:\\Users\\nkatz\\odysseus\\.env --format markdown",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_non_ui_gate_readiness_routes.py",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_non_ui_gate_readiness.py",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_roadmap_safe_queue_audit.py",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_ai_lens_events.py tests\\test_ai_lens_graph.py tests\\test_ai_lens_insights.py tests\\test_ai_lens_instrumentation.py tests\\test_ai_lens_projection.py tests\\test_ai_lens_replay.py tests\\test_ai_lens_routes.py tests\\test_ai_lens_service.py",
+          "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_mcp_planning_server.py tests\\test_planning_mcp_service.py tests\\test_roadmap_routes.py"
+        ]
+      }
+    ]
   },
   "source_of_truth": [
     "docs/plans/central-abc-masterplan-2026-06-29.md",
     "docs/plans/mvp-master-roadmap.md",
     "docs/plans/mvp-roadmap-runner-state.json",
+    "docs/plans/agent-context-transparency-roadmap.json",
+    "docs/plans/ai-lens-master-roadmap.json",
+    "docs/plans/ai-lens-technical-roadmap.json",
+    "docs/plans/ai-lens-design-roadmap.json",
+    "docs/plans/harbor-planning-integration-master-roadmap.json",
+    "docs/plans/planning-mcp-roadmap.json",
     "docs/plans/autonomy-calendar-coding-master-roadmap.json",
     "docs/plans/observability-security-ops-master-roadmap.json",
     "docs/plans/agent-capability-expansion-master-roadmap.json",
@@ -62,8 +244,8 @@
       "id": "OWM-2",
       "name": "Calendar And Reminder Live Reliability",
       "priority": 20,
-      "status": "needs_live_go",
-      "why_open": "Calendar/reminder repo slices are complete, and the Telegram todo-digest live-gate packet is now available at GET /api/tasks/reminder-live-gate; the 09:00 Telegram todo digest/reminder and CalDAV writeback paths still need bounded live evidence.",
+      "status": "blocked_by_missing_server_telegram_dispatch_config",
+      "why_open": "Calendar/reminder repo slices are complete, and the owner-scoped 09:00 Telegram todo-digest task is canonical and ready for live smoke; actual delivery is blocked until TELEGRAM_AGENT_REPLY_ENABLED and a server-side Telegram target are configured.",
       "source_gate_family": "calendar_reminders",
       "gate_ids": [
         "CAL-MCP-7-live-telegram-reminder-smoke",
@@ -78,8 +260,8 @@
       "id": "OWM-3",
       "name": "Autonomous Coding Runtime Control",
       "priority": 30,
-      "status": "needs_live_go",
-      "why_open": "Autonomous coding contracts, sandbox evidence and runner state are repo-ready; real workstation-to-Telegram supervision, MCP availability and network/deploy gates remain operational decisions.",
+      "status": "blocked_by_runtime_config_and_bounded_request",
+      "why_open": "Autonomous coding contracts, sandbox evidence and runner state are repo-ready; read-only readiness shows sandbox execution is blocked by missing Podman or host runner availability plus a concrete live_enabled bounded job request, and Telegram supervision is blocked by missing dispatch config.",
       "source_gate_family": "autonomous_coding",
       "gate_ids": [
         "autonomous-coding-live-remote-control-go",
@@ -95,8 +277,8 @@
       "id": "OWM-3A",
       "name": "AI GUI Tooling And Visual Operation",
       "priority": 32,
-      "status": "needs_live_go_and_design_handoff",
-      "why_open": "Browser Sense, DevTools evidence and no-GPU visual observer contracts exist, but AI-facing GUI tools still need one consolidated tool surface for observe/click/type/wait/screenshot/OCR/console/network evidence, including software-project screenshots that can be sent back to the operator through Telegram.",
+      "status": "blocked_by_runtime_config_and_ui_handoff",
+      "why_open": "Browser Sense, DevTools evidence and no-GPU visual observer contracts exist, but screenshot delivery is blocked by Telegram dispatch config and final tool placement remains UI/design-owned.",
       "source_gate_family": "ai_gui_tools",
       "gate_ids": [
         "ai-gui-tool-surface-go",
@@ -128,8 +310,8 @@
       "id": "OWM-5",
       "name": "Nextcloud Import Pilot And Memory Decision",
       "priority": 40,
-      "status": "needs_operator_subset_or_policy_rule",
-      "why_open": "Copy-only Nextcloud live smoke is closed, full metadata inventory is complete, and local-only extraction/review executor exists; actual private-content extraction/review and Memory/RaptorGraph writes need a selected subset or refined safe-area rule.",
+      "status": "blocked_by_nextcloud_config_and_subset",
+      "why_open": "Copy-only Nextcloud live smoke is closed, full metadata inventory is complete, and local-only extraction/review executor exists; live readiness now shows WebDAV config and bounded subset/request are missing before any private-content extraction or Memory/RaptorGraph write pilot.",
       "source_gate_family": "nextcloud_import",
       "gate_ids": [
         "nextcloud-local-only-extraction-go",
@@ -164,8 +346,8 @@
       "id": "OWM-7",
       "name": "Security Ops And Incident Tabletop",
       "priority": 60,
-      "status": "needs_live_go",
-      "why_open": "Security incident response models and MCP debug surfaces are prepared; tabletop evidence and any CrowdSec/remediation/lockdown actions need explicit operator gates.",
+      "status": "partially_resolved_live_remediation_gated",
+      "why_open": "Security incident response models and MCP debug surfaces are prepared, and synthetic tabletop evidence is complete; any CrowdSec/remediation/lockdown action still needs its own explicit operator gate.",
       "source_gate_family": "security_ops",
       "gate_ids": [
         "SIR-8-live-tabletop-smoke",
@@ -324,7 +506,7 @@
       "family": "calendar_reminders",
       "priority": 20,
       "open_gate_count": 3,
-      "next_decision": "Telegram reminder smoke or CalDAV writeback smoke",
+      "next_decision": "Enable server-side Telegram dispatch config, then run one bounded todo-digest delivery smoke",
       "safe_default": "keep_reminders_repo_ready_no_live_send"
     },
     {
@@ -335,11 +517,32 @@
       "safe_default": "keep_autonomous_coding_dry_run"
     },
     {
+      "family": "ai_lens_runtime",
+      "priority": 34,
+      "open_gate_count": 5,
+      "next_decision": "Select one local-internals runtime or live provider stream target with a redaction/sampling evidence policy",
+      "safe_default": "keep_ai_lens_backend_contracts_only"
+    },
+    {
       "family": "ai_gui_tools",
       "priority": 35,
       "open_gate_count": 5,
       "next_decision": "Approve a bounded GUI observation/interaktion smoke with target URL/app, viewport, allowed actions, screenshot artifact retention and Telegram delivery policy.",
       "safe_default": "keep_gui_tools_readonly_evidence_only"
+    },
+    {
+      "family": "planning_mcp",
+      "priority": 36,
+      "open_gate_count": 7,
+      "next_decision": "Choose one write/apply/delete/external-client mutation with exact target, preview and undo/evidence policy",
+      "safe_default": "keep_planning_mcp_readonly"
+    },
+    {
+      "family": "agent_context_transparency",
+      "priority": 37,
+      "open_gate_count": 4,
+      "next_decision": "Choose one non-UI answer-pack, memory-influence or workline-provenance evidence target",
+      "safe_default": "keep_agent_context_contracts_backend_only"
     },
     {
       "family": "observability_ops",
@@ -351,17 +554,17 @@
     {
       "family": "security_ops",
       "priority": 50,
-      "open_gate_count": 5,
-      "next_decision": "Synthetic tabletop or explicit remediation/lockdown action",
+      "open_gate_count": 4,
+      "next_decision": "Explicit remediation/lockdown action; synthetic tabletop is closed",
       "safe_default": "keep_security_actions_prepare_only"
     },
     {
       "family": "ui_design",
       "priority": 60,
-      "open_gate_count": 3,
-      "next_decision": "Hand backend contracts to UI owner",
+      "open_gate_count": 33,
+      "next_decision": "Hand backend contracts, Harbor V2, visual regression and context-rail work to UI owner",
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "Choose the next bounded live/design family. Safe recommendation: GO calendar_reminders bounded smoke, because the missed 09:00 Telegram todo/reminder is the freshest user-visible failure and the backend is already repo-ready."
+  "recommended_next_human_decision": "Calendar reminder is the active non-UI gate: configure TELEGRAM_AGENT_REPLY_ENABLED plus one server-side Telegram target, then run one bounded todo-digest delivery smoke. UI remains excluded."
 }

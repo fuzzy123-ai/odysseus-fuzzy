@@ -10,14 +10,14 @@ from src.mcp_client_profiles import (
 )
 
 
-NOW = datetime(2026, 7, 6, 12, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def test_disabled_profile_maps_to_default_deny_options():
     profile = McpClientProfile.create(
         client_id="codex-local",
         label="Codex local",
-        scopes=["private_reads", "filesystem_reads", "generic_api", "owner_scoped_writes"],
+        scopes=["private_reads", "filesystem_reads", "generic_api", "owner_scoped_writes", "planning_reads"],
         enabled=False,
     )
 
@@ -27,6 +27,7 @@ def test_disabled_profile_maps_to_default_deny_options():
     assert options.allow_filesystem_reads is False
     assert options.allow_generic_api is False
     assert options.allow_owner_scoped_writes is False
+    assert options.allow_planning_reads is False
     assert options.expose_all is False
 
 
@@ -121,3 +122,42 @@ def test_public_payload_is_redacted_and_marks_sensitive_scopes():
     assert payload["token_value_visible"] is False
     assert payload["secret_value_visible"] is False
     assert payload["expose_all_supported"] is False
+
+
+def test_planning_read_scope_maps_only_to_explicit_planning_capability():
+    profile = McpClientProfile.create(
+        client_id="codex-planning",
+        label="Codex Planning",
+        owner="alice",
+        scopes=["planning_reads"],
+        enabled=True,
+        reason="bounded roadmap review",
+    )
+
+    options = profile.to_policy_options(now=NOW)
+    payload = profile.to_public_dict(now=NOW)
+
+    assert options.allow_planning_reads is True
+    assert options.allow_private_reads is False
+    assert options.allow_filesystem_reads is False
+    assert options.allow_generic_api is False
+    assert options.allow_owner_scoped_writes is False
+    assert payload["scopes"] == ("planning_reads",)
+    assert payload["sensitive_scopes"] == ()
+
+
+def test_payload_builder_accepts_planning_read_boolean_without_broad_scopes():
+    profile = build_mcp_client_profile({
+        "id": "planning-client",
+        "name": "Planning Client",
+        "owner": "alice",
+        "enabled": True,
+        "planning_reads": True,
+        "reason": "roadmap preview",
+    })
+
+    options = profile.to_policy_options(now=NOW)
+
+    assert profile.scopes == ("planning_reads",)
+    assert options.allow_planning_reads is True
+    assert options.allow_private_reads is False

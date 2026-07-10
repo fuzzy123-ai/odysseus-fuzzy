@@ -2,10 +2,88 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from src.memory_lifecycle import MemoryLifecycleState, build_memory_lifecycle_state
 from src.runtime_event_envelope import stable_payload_hash
+
+
+def plan_planning_memory_lifecycle(
+    records: Iterable[Mapping[str, Any]] | Mapping[str, Any],
+    *,
+    existing_records: Iterable[Mapping[str, Any]] | Mapping[str, Any] = (),
+    max_operations: int = 500,
+) -> dict[str, Any]:
+    """Return a pure lifecycle plan for derived Planning memory records."""
+
+    operation_limit = max(1, min(int(max_operations or 500), 1_000))
+    current = _planning_record_index(records)
+    existing = _planning_record_index(existing_records, allow_deleted=True)
+    operations: list[dict[str, Any]] = []
+    counts = {"create": 0, "update": 0, "unchanged": 0, "mark_deleted": 0}
+
+    for memory_ref in sorted(set(current).union(existing)):
+        candidate = current.get(memory_ref)
+        previous = existing.get(memory_ref)
+        if candidate is not None and previous is None:
+            operation = "create"
+        elif candidate is not None and previous is not None:
+            operation = "unchanged" if _planning_record_evidence(candidate) == _planning_record_evidence(previous) else "update"
+        elif previous is not None and str(previous.get("source_status") or "").lower() != "deleted":
+            operation = "mark_deleted"
+        else:
+            continue
+
+        counts[operation] += 1
+        evidence = candidate or previous or {}
+        item: dict[str, Any] = {
+            "operation": operation,
+            "memory_ref": memory_ref,
+            "project_id": str(evidence.get("project_id") or ""),
+            "roadmap_id": str(evidence.get("roadmap_id") or ""),
+            "source_id": str(evidence.get("source_id") or ""),
+            "source_revision": str(evidence.get("source_revision") or ""),
+            "source_revision_ref": str(evidence.get("source_revision_ref") or ""),
+            "source_hash": str(evidence.get("source_hash") or ""),
+            "content_hash": str(evidence.get("content_hash") or ""),
+            "writes_performed": False,
+        }
+        if previous is not None and operation in {"update", "mark_deleted"}:
+            item["previous_evidence"] = _planning_record_evidence(previous)
+        if candidate is not None and operation == "update":
+            item["candidate_evidence"] = _planning_record_evidence(candidate)
+        if operation == "mark_deleted":
+            item["tombstone"] = {
+                "source_status": "deleted",
+                "reason": "validated_canonical_source_absent",
+                "source_revision": str(previous.get("source_revision") or ""),
+                "source_revision_ref": str(previous.get("source_revision_ref") or ""),
+                "source_hash": str(previous.get("source_hash") or ""),
+                "content_hash": str(previous.get("content_hash") or ""),
+                "derived": True,
+                "rebuildable": True,
+                "source_of_truth": False,
+            }
+        operations.append(item)
+
+    returned = operations[:operation_limit]
+    return {
+        "schema": "odysseus.planning.memory_lifecycle_plan.v1",
+        "source": "planning_source",
+        "derived": True,
+        "rebuildable": True,
+        "source_of_truth": False,
+        "dry_run": True,
+        "writes_supported": False,
+        "writes_performed": False,
+        "operations": returned,
+        "summary": {
+            **counts,
+            "planned": len(operations),
+            "returned": len(returned),
+            "truncated": len(operations) > len(returned),
+        },
+    }
 
 
 def lifecycle_from_universal_inbox_write_intent(
@@ -248,3 +326,56 @@ def _sum_targets(targets: Any, key: str) -> int:
         except (TypeError, ValueError):
             continue
     return total
+
+
+def _planning_record_index(
+    values: Iterable[Mapping[str, Any]] | Mapping[str, Any],
+    *,
+    allow_deleted: bool = False,
+) -> dict[str, Mapping[str, Any]]:
+    raw_values = values.get("entries") if isinstance(values, Mapping) and "entries" in values else values
+    if isinstance(raw_values, Mapping):
+        items: Iterable[Any] = (raw_values,)
+    elif isinstance(raw_values, (list, tuple, set)):
+        items = raw_values
+    else:
+        items = raw_values or ()
+    accepted: list[Mapping[str, Any]] = []
+    for value in items:
+        if not isinstance(value, Mapping):
+            continue
+        if str(value.get("source") or "") != "planning_source":
+            continue
+        if value.get("derived") is not True or value.get("rebuildable") is not True or value.get("source_of_truth") is not False:
+            continue
+        memory_ref = str(value.get("memory_ref") or "")
+        if not memory_ref.startswith("planning:") or not value.get("content_hash"):
+            continue
+        if not allow_deleted and str(value.get("source_status") or "").lower() == "deleted":
+            continue
+        accepted.append(value)
+    accepted.sort(
+        key=lambda item: (
+            str(item.get("memory_ref") or ""),
+            -_positive_int(item.get("revision")),
+            str(item.get("content_hash") or ""),
+        )
+    )
+    return {str(item["memory_ref"]): item for item in reversed(accepted)}
+
+
+def _planning_record_evidence(value: Mapping[str, Any]) -> dict[str, str]:
+    return {
+        "source_revision": str(value.get("source_revision") or ""),
+        "source_revision_ref": str(value.get("source_revision_ref") or ""),
+        "source_hash": str(value.get("source_hash") or ""),
+        "content_hash": str(value.get("content_hash") or ""),
+    }
+
+
+def _positive_int(value: Any) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, number)

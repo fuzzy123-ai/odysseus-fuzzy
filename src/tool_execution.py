@@ -357,6 +357,7 @@ async def execute_tool_block(
     headers: Optional[Dict[str, str]] = None,
     context_length: int = 0,
     tool_policy: Optional[Any] = None,
+    ai_lens_emitter: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -365,8 +366,10 @@ async def execute_tool_block(
     way out so the binding never leaks to the next tool call.
     """
     token = _active_workspace.set(workspace or None)
+    started_at = time.perf_counter()
+    _emit_ai_lens_tool_event(ai_lens_emitter, block, event_type="tool_call_started", status="started")
     try:
-        return await _execute_tool_block_impl(
+        outcome = await _execute_tool_block_impl(
             block,
             session_id=session_id,
             disabled_tools=disabled_tools,
@@ -378,8 +381,82 @@ async def execute_tool_block(
             context_length=context_length,
             tool_policy=tool_policy,
         )
+        _emit_ai_lens_tool_event(
+            ai_lens_emitter,
+            block,
+            event_type="tool_call_result",
+            status="failed" if _tool_result_failed(outcome[1]) else "succeeded",
+            result=outcome[1],
+            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+        )
+        return outcome
+    except Exception:
+        _emit_ai_lens_tool_event(
+            ai_lens_emitter,
+            block,
+            event_type="tool_call_result",
+            status="failed",
+            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+        )
+        raise
     finally:
         _active_workspace.reset(token)
+
+
+def _tool_result_failed(result: Any) -> bool:
+    if not isinstance(result, dict):
+        return True
+    return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
+
+
+def _emit_ai_lens_tool_event(
+    emitter: Any,
+    block: Any,
+    *,
+    event_type: str,
+    status: str,
+    result: Any = None,
+    latency_ms: int = 0,
+) -> None:
+    if emitter is None:
+        return
+    try:
+        from src.ai_lens_events import AiLensRedactionLevel, AiLensSourceKind, AiLensSourceRef
+        from src.ai_lens_service import opaque_ai_lens_ref
+
+        tool_name = str(getattr(block, "tool_type", "") or "unknown")
+        content = str(getattr(block, "content", "") or "")
+        source_ref = AiLensSourceRef.create(
+            source_id=opaque_ai_lens_ref("tool", tool_name),
+            kind=AiLensSourceKind.TOOL,
+            redaction_level=AiLensRedactionLevel.HASHED,
+        )
+        payload: Dict[str, Any] = {
+            "tool_ref": source_ref.source_id,
+            "argument_present": bool(content),
+            "argument_bytes": min(len(content.encode("utf-8", errors="replace")), 10_000_000),
+            "arguments_included": False,
+        }
+        if event_type == "tool_call_result":
+            payload.update({
+                "success": status == "succeeded",
+                "result_field_count": min(len(result), 1000) if isinstance(result, dict) else 0,
+                "result_included": False,
+                "retry_count": 0,
+            })
+        emitter.emit(
+            event_type=event_type,
+            source_refs=(source_ref,),
+            payload=payload,
+            summary="Tool call started." if event_type == "tool_call_started" else "Tool call completed.",
+            status=status,
+            latency_ms=latency_ms,
+        )
+    except Exception:
+        try:
+            emitter.record_rejection("tool_capture_failed")
+        except Exception:
+            pass
 
 
 async def _execute_tool_block_impl(

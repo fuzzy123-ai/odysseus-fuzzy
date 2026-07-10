@@ -1,0 +1,491 @@
+{
+  "schema_version": 1,
+  "kind": "harbor.agent_context_transparency_roadmap",
+  "title": "Agent Context Transparency Roadmap",
+  "created_at": "2026-07-09",
+  "updated_at": "2026-07-10",
+  "status": "backend_ready_ui_gated",
+  "scope": "Harbor One V3 Agent screen, context rail, chat composer, workline, memory lenses and future Knowledge handoff.",
+  "goal": "Give the user simple, trustworthy ways to see what the AI knows, what it is using right now, why it is using it, and how to correct it without forcing manual review of every action.",
+  "principles": [
+    "User first: labels must be normal-language, short and precise.",
+    "Transparency is layered: the default view stays quiet, details are available on demand.",
+    "Context is not memory: active chat context, long-term memory, project memory and tool evidence must be visually distinct.",
+    "Explain influence, not internals: show why something matters in plain language instead of raw embeddings or debug logs.",
+    "Every manual correction becomes feedback: pin, remove, approve, hide and rename actions should teach future context selection.",
+    "No secret leakage: transparency views must redact private raw data when a summary or reference is enough.",
+    "No notification spam: only uncertainty, conflicts, new/deleted structures and user-relevant changes surface visibly."
+  ],
+  "user_questions_to_answer": [
+    "What is the AI using for this answer?",
+    "Where did this context come from?",
+    "Why did it pick this memory or file?",
+    "Is this current, stale, clipped or uncertain?",
+    "What did it ignore?",
+    "What did it write back to memory?",
+    "How do I correct this once so it learns for next time?"
+  ],
+  "transparency_layers": [
+    {
+      "id": "active_context",
+      "label": "Using now",
+      "default_surface": "Agent left context rail",
+      "purpose": "Show only the context currently attached to the chat or answer.",
+      "examples": ["Pinned document", "Active project", "Repo branch", "Selected roadmap", "Recent import summary"],
+      "default_visibility": "visible_compact"
+    },
+    {
+      "id": "retrieval_reason",
+      "label": "Why this",
+      "default_surface": "Hover or click detail on a context item",
+      "purpose": "Explain why the AI selected a memory, source or file.",
+      "examples": ["Matches your current project", "Mentioned in this chat", "Recently updated", "Pinned by you"],
+      "default_visibility": "on_demand"
+    },
+    {
+      "id": "prompt_assembly",
+      "label": "Answer pack",
+      "default_surface": "Model chip / context rail detail drawer",
+      "purpose": "Show the answer package before or after generation in a readable summary.",
+      "examples": ["System rules", "User message", "Pinned context", "Memory snippets", "Tool evidence"],
+      "default_visibility": "on_demand"
+    },
+    {
+      "id": "memory_influence",
+      "label": "Memory used",
+      "default_surface": "Context rail item details and future Knowledge lens",
+      "purpose": "Show which long-term memory entries influenced the current response.",
+      "examples": ["Preference", "Project fact", "Past correction", "Rule learned from user"],
+      "default_visibility": "on_demand"
+    },
+    {
+      "id": "work_provenance",
+      "label": "Work log",
+      "default_surface": "Chat workline red dots",
+      "purpose": "Collapse tool calls, reasoning-adjacent work and background steps into a readable expandable trace.",
+      "examples": ["Read file", "Searched memory", "Checked branch", "Prepared summary"],
+      "default_visibility": "compact"
+    },
+    {
+      "id": "writeback",
+      "label": "Learned",
+      "default_surface": "Context rail and sparse notification",
+      "purpose": "Show when something was written to memory, project state or roadmap state.",
+      "examples": ["User preference updated", "Project decision saved", "Roadmap progress changed"],
+      "default_visibility": "sparse"
+    },
+    {
+      "id": "uncertainty",
+      "label": "Needs review",
+      "default_surface": "Context rail badge, Inbox review and notification bell",
+      "purpose": "Surface only cases where the responsible AI is unsure or a policy conflict exists.",
+      "examples": ["Conflicting memories", "Low confidence source", "Stale project state", "Unsafe file"],
+      "default_visibility": "visible_when_needed"
+    }
+  ],
+  "ui_surfaces": [
+    {
+      "id": "agent_context_rail",
+      "screen": "agent",
+      "status": "planned_for_v3",
+      "role": "The always-visible transparency anchor on the left side of the Agent screen.",
+      "must_show": [
+        "Active project or no project",
+        "Pinned files and documents",
+        "Repo/branch context",
+        "Memory used count",
+        "Warnings only if something is uncertain"
+      ],
+      "interactions": [
+        "Click item to open detail drawer",
+        "Pin or unpin context",
+        "Remove context from this answer",
+        "Mark as useful or not useful",
+        "Open source document or memory lens"
+      ],
+      "copy_rules": [
+        "Use labels like Using now, Why this, Learned, Needs review.",
+        "Avoid terms like embedding, vector, reranker, retrieval chain in the default view.",
+        "Advanced terms may exist behind an Advanced details toggle."
+      ]
+    },
+    {
+      "id": "composer_context_bubbles",
+      "screen": "agent",
+      "status": "existing_concept_to_refine",
+      "role": "Show context attached before sending a message.",
+      "must_show": [
+        "Pinned documents",
+        "Selected roadmap",
+        "Mounted folder",
+        "Temporary source"
+      ],
+      "interactions": [
+        "Pin/unpin",
+        "Remove",
+        "Open summary",
+        "Preview what will be sent"
+      ]
+    },
+    {
+      "id": "model_context_tooltip",
+      "screen": "agent",
+      "status": "existing_concept_to_extend",
+      "role": "Summarize model route, context budget and active answer pack.",
+      "must_show": [
+        "Model name",
+        "Local/API",
+        "Context used/free",
+        "Current pack size",
+        "Clipped or stale flags"
+      ],
+      "interactions": [
+        "Open answer pack",
+        "Open budget details",
+        "Switch model only when allowed by chat state"
+      ]
+    },
+    {
+      "id": "chat_workline",
+      "screen": "agent",
+      "status": "existing_v2_behavior_to_port",
+      "role": "Show completed AI background steps as compact red entries and direct answers as blue answer points.",
+      "must_show": [
+        "Collapsed background step count",
+        "Expandable inline work log",
+        "Tool/source names when useful",
+        "No done/working tags unless state is ambiguous"
+      ],
+      "interactions": [
+        "Click red point to expand work steps",
+        "Hover point for short reason",
+        "Open source where applicable"
+      ]
+    },
+    {
+      "id": "knowledge_memory_lens",
+      "screen": "knowledge",
+      "status": "deferred_until_memory_is_connected",
+      "role": "Deeper memory and graph visibility once real memory data is connected.",
+      "must_show": [
+        "Memory clusters",
+        "Source provenance",
+        "Confidence and freshness",
+        "User corrections learned over time"
+      ],
+      "interactions": [
+        "Filter by source, type, project, freshness and confidence",
+        "Inspect a memory entry",
+        "Edit or hide a learned rule",
+        "Show influence on current chat"
+      ]
+    },
+    {
+      "id": "memory_review_queue",
+      "class": "needs_design",
+      "screen": "inbox_or_knowledge",
+      "status": "planned",
+      "role": "Only show memory conflicts, uncertain writes and policy issues.",
+      "must_show": [
+        "What changed",
+        "Why review is needed",
+        "Suggested fix",
+        "Applied rule or skill"
+      ],
+      "interactions": [
+        "Approve",
+        "Edit",
+        "Reject",
+        "Teach future behavior"
+      ]
+    }
+  ],
+  "data_contracts_needed": [
+    {
+      "id": "context_item",
+      "purpose": "One visible context item in the Agent rail or composer.",
+      "fields": [
+        "schema_version",
+        "context_id",
+        "context_kind",
+        "selection_state",
+        "label",
+        "summary",
+        "source_ref",
+        "why_selected",
+        "scope",
+        "freshness",
+        "confidence",
+        "pinned",
+        "removable",
+        "classification",
+        "redaction_state",
+        "review",
+        "redacted_preview"
+      ]
+    },
+    {
+      "id": "answer_pack_summary",
+      "purpose": "Human-readable summary of what will influence or did influence an answer.",
+      "fields": [
+        "schema_version",
+        "pack_id",
+        "conversation_ref",
+        "turn_ref",
+        "phase",
+        "model_route",
+        "token_budget",
+        "context_used_ratio",
+        "items",
+        "included_count",
+        "excluded_count",
+        "clipped_count",
+        "stale_count",
+        "sensitive_count",
+        "excluded_items",
+        "complete",
+        "classification",
+        "redaction_state",
+        "review",
+        "created_at"
+      ]
+    },
+    {
+      "id": "memory_influence_record",
+      "purpose": "Trace between a response and memories or project facts used.",
+      "fields": [
+        "schema_version",
+        "influence_id",
+        "response_ref",
+        "pack_id",
+        "context_ids",
+        "memory_refs",
+        "project_refs",
+        "source_refs",
+        "influence_type",
+        "reason_summary",
+        "confidence",
+        "evidence_event_refs",
+        "classification",
+        "redaction_state",
+        "review",
+        "created_at"
+      ]
+    },
+    {
+      "id": "user_context_feedback",
+      "purpose": "Turn user clicks into durable future behavior.",
+      "fields": [
+        "schema_version",
+        "feedback_id",
+        "context_id",
+        "target_ref",
+        "action",
+        "scope",
+        "actor_ref",
+        "result",
+        "policy_effect",
+        "reason",
+        "proposed_label",
+        "learned_rule_candidate",
+        "classification",
+        "redaction_state",
+        "review",
+        "created_at"
+      ]
+    }
+  ],
+  "ai_lens_contract_alignment": {
+    "status": "aligned",
+    "canonical_contract": "docs/plans/agent-context-transparency-contract.md",
+    "truth_levels": [
+      "runtime_trace",
+      "semantic_projection",
+      "local_model_internals",
+      "visual_effect"
+    ],
+    "plain_language_labels": {
+      "active_context": "Using now",
+      "retrieval_reason": "Why this",
+      "prompt_assembly": "Answer pack",
+      "memory_influence": "Memory used",
+      "writeback": "Learned",
+      "uncertainty": "Needs review"
+    },
+    "influence_semantics": "Show observable retrieval, selection, exclusion, context assembly and source support. Never claim hidden reasoning, chain of thought or latent model causality.",
+    "classification_values": ["public", "private", "sensitive", "secret", "unknown"],
+    "redaction_values": ["none", "summary_only", "metadata_only", "fully_redacted", "blocked"],
+    "privacy_rule": "The strictest source classification wins; classification and redaction may only remain equal or become stricter, and unknown or invalid policy values block or require review.",
+    "fixture_rule": "Synthetic examples and fixtures must be explicitly labeled synthetic_fixture and must never appear as observed runtime evidence."
+  },
+  "mcp_and_backend_requirements": [
+    "Context selection must return a bounded list of context items with plain-language reasons.",
+    "Answer generation should record an answer_pack_summary for later inspection.",
+    "Memory writeback must create an auditable event that can be shown as Learned without exposing raw private content.",
+    "User feedback on context must be stored as a preference or rule candidate, not as throwaway UI state.",
+    "Every context item needs a source_ref that can open a document, roadmap, memory entry or source lens.",
+    "Sensitive sources must provide redacted previews and never require raw secret exposure for default transparency."
+  ],
+  "slice_queue": [
+    {
+      "id": "ACT-0-roadmap",
+      "status": "done_in_this_artifact",
+      "class": "safe_offline",
+      "objective": "Create the Agent Context Transparency roadmap as a JSON planning source.",
+      "allowed_paths": ["docs/plans/agent-context-transparency-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/agent-context-transparency-roadmap.json"],
+      "done_when": "The roadmap exists, is valid JSON and defines layers, UI surfaces, contracts and implementation slices."
+    },
+    {
+      "id": "ACT-1-context-item-contract",
+      "status": "done",
+      "class": "repo_only",
+      "objective": "Define and validate the Context Item payload shared by Agent rail, composer bubbles and answer pack.",
+      "allowed_paths": [
+        "docs/plans/agent-context-transparency-contract.md",
+        "src/",
+        "tests/"
+      ],
+      "tests": ["focused payload validation tests"],
+      "done_when": "Context items can be serialized with type, source, reason, freshness, confidence and redaction state."
+    },
+    {
+      "id": "ACT-2-v3-context-rail-prototype",
+      "status": "planned",
+      "class": "needs_design",
+      "objective": "Turn the V3 left Agent context rail into the first transparency surface.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/*.css"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "browser smoke: Agent screen context rail opens details"
+      ],
+      "done_when": "The left rail shows active context, opens item details and stays visually quiet by default."
+    },
+    {
+      "id": "ACT-3-answer-pack-preview",
+      "status": "planned",
+      "class": "needs_design",
+      "objective": "Add an on-demand answer pack preview from the model chip or context rail.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "browser smoke: answer pack opens and closes"
+      ],
+      "done_when": "The user can inspect the current model route, context budget, included items, clipped items and stale items in plain language."
+    },
+    {
+      "id": "ACT-4-retrieval-why-details",
+      "status": "done",
+      "class": "repo_only",
+      "objective": "Provide plain-language reasons for why memory, files or project facts were selected.",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/plans/agent-context-transparency-contract.md"
+      ],
+      "tests": ["context selection unit tests"],
+      "done_when": "Every selected context item has a short reason and source reference suitable for UI display."
+    },
+    {
+      "id": "ACT-5-memory-influence-lens",
+      "status": "planned",
+      "class": "needs_design",
+      "objective": "Connect real memory influence records to the Knowledge screen and Agent context details.",
+      "allowed_paths": [
+        "src/",
+        "static/frontpage-v3/*",
+        "tests/"
+      ],
+      "tests": ["memory influence retrieval tests", "browser smoke with sample memory payload"],
+      "done_when": "The user can see which memory entries influenced a response and can hide, correct or inspect them."
+    },
+    {
+      "id": "ACT-6-workline-provenance-port",
+      "status": "planned",
+      "class": "needs_design",
+      "objective": "Port the V2 red work-entry behavior into V3 with expandable background step provenance.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "browser smoke: work entry expands inline"
+      ],
+      "done_when": "Background steps collapse after completion, expand inline on click and link to source/tool details when available."
+    },
+    {
+      "id": "ACT-7-feedback-learns",
+      "status": "done",
+      "class": "repo_only",
+      "objective": "Persist user feedback actions from transparency surfaces as future context-selection signals.",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/plans/agent-context-transparency-contract.md"
+      ],
+      "tests": ["feedback persistence and redaction tests"],
+      "done_when": "Pin, remove, useful, not useful and hide actions create durable rule candidates or preferences."
+    },
+    {
+      "id": "ACT-8-review-only-when-unsure",
+      "status": "done",
+      "class": "repo_only",
+      "objective": "Ensure review queues appear only for uncertainty, conflict, policy risk or user-visible writeback.",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/plans/operator-dashboard-review-queue-roadmap.md"
+      ],
+      "tests": ["review classification tests"],
+      "done_when": "Routine successful context selection stays quiet while conflicts and uncertain writes become visible review items."
+    },
+    {
+      "id": "ACT-9-privacy-redaction-rules",
+      "status": "done",
+      "class": "repo_only",
+      "objective": "Define what transparency views may show for private, cloud, repo and memory sources.",
+      "allowed_paths": [
+        "docs/plans/data-classification-policy-contract.md",
+        "docs/plans/secure-data-mode-contract.md",
+        "docs/plans/agent-context-transparency-contract.md"
+      ],
+      "tests": ["docs-only until backend enforcement slice"],
+      "done_when": "Default transparency never exposes secrets, raw private content or unnecessary source bodies."
+    }
+  ],
+  "v3_file_budget": {
+    "rule": "Every V3 source file must stay below 1000 lines.",
+    "implementation_hint": [
+      "Move Agent context rail CSS to agent.css before it grows.",
+      "Move Agent transparency behavior to agent.js or contextTransparency.js once the prototype stops being tiny.",
+      "Keep sample data in data.js rather than hardcoding large fixtures in app.js."
+    ]
+  },
+  "non_goals": [
+    "No full debug dashboard in the Agent screen.",
+    "No raw embedding, reranker or vector internals in the default UI.",
+    "No manual approval for every context choice.",
+    "No review item unless the responsible AI is uncertain, blocked or changing durable state.",
+    "No raw private content in default transparency views.",
+    "No Knowledge graph implementation before real memory data is connected."
+  ],
+  "acceptance": [
+    "The user can see what context is active without opening a separate technical dashboard.",
+    "The user can inspect why an item was selected in normal language.",
+    "The user can remove, pin or correct context and that feedback is learnable.",
+    "The system can show memory influence without exposing unnecessary raw content.",
+    "The Agent screen remains minimal by default."
+  ],
+  "recommended_next_step": "Design ACT-2 in V3: make the left context rail interactive with Using now, Why this, Pin/Remove and a compact answer-pack entry point."
+}

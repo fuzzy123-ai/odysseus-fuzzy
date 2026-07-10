@@ -2,6 +2,7 @@ from src.mcp_server_tool_policy import (
     ALWAYS_DENIED_TOOLS,
     DEBUG_READONLY_TOOLS,
     McpToolPolicyOptions,
+    PLANNING_READONLY_TOOLS,
     classify_mcp_tool,
     exposed_mcp_tool_names,
     filter_mcp_tools,
@@ -116,3 +117,36 @@ def test_mcp_policy_exposes_only_github_issue_duplicate_lookup():
     assert mixed_agent_tool.category == "high_risk"
     assert write_tool.exposed is False
     assert write_tool.category == "unclassified"
+
+
+def test_mcp_policy_hides_planning_reads_by_default_and_requires_explicit_capability():
+    for tool_name in PLANNING_READONLY_TOOLS:
+        hidden = classify_mcp_tool(tool_name)
+        exposed = classify_mcp_tool(tool_name, McpToolPolicyOptions(allow_planning_reads=True))
+
+        assert hidden.exposed is False, tool_name
+        assert hidden.category == "planning_readonly"
+        assert hidden.reason == "planning_read_hidden_by_default"
+        assert exposed.exposed is True, tool_name
+        assert exposed.category == "planning_readonly"
+        assert exposed.reason == "planning_read_explicitly_allowed"
+
+
+def test_mcp_policy_exposes_exact_planning_read_surface_and_keeps_mutations_hidden():
+    mutation_names = {
+        "planning_create_roadmap_draft",
+        "planning_validate_roadmap",
+        "planning_propose_patch",
+        "planning_apply_patch",
+        "planning_mark_status",
+        "planning_delete_roadmap",
+        "planning_emit_structural_event",
+    }
+    options = McpToolPolicyOptions(allow_planning_reads=True)
+    names = exposed_mcp_tool_names(PLANNING_READONLY_TOOLS | mutation_names, options)
+
+    assert set(names) == set(PLANNING_READONLY_TOOLS)
+    for tool_name in mutation_names:
+        decision = classify_mcp_tool(tool_name, options)
+        assert decision.exposed is False
+        assert decision.category == "unclassified"
