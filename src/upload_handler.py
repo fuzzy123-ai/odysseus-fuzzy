@@ -7,6 +7,7 @@ import time
 import hashlib
 import mimetypes
 import shutil
+import stat
 import tempfile
 import threading
 from datetime import datetime, timedelta
@@ -564,6 +565,155 @@ class UploadHandler:
         except Exception as e:
             logger.error(f"Failed to get upload stats: {e}")
             return {"error": str(e)}
+
+    def register_generated_artifact(
+        self,
+        source_path: str,
+        *,
+        owner: str,
+        allowed_root: str,
+        display_name: str = None,
+    ) -> Dict[str, Any]:
+        """Register a trusted agent output in the existing owner upload store.
+
+        This path is deliberately separate from HTTP uploads: it does not use
+        client-IP rate limits, and an index-write failure is fatal.  Only the
+        narrow interactive-deliverable types used by the agent are accepted.
+        """
+
+        normalized_owner = str(owner or "").strip()
+        if not normalized_owner:
+            raise ValueError("an authenticated owner is required")
+
+        root = os.path.realpath(os.path.abspath(str(allowed_root or "")))
+        source_lexical = os.path.abspath(str(source_path or ""))
+        source = os.path.realpath(source_lexical)
+        if not os.path.isdir(root):
+            raise ValueError("allowed_root must be a directory")
+        try:
+            if os.path.commonpath([root, source]) != root:
+                raise ValueError("generated artifact is outside the active workspace")
+            if os.path.commonpath([os.path.abspath(str(allowed_root)), source_lexical]) != os.path.abspath(str(allowed_root)):
+                raise ValueError("generated artifact path escapes the active workspace")
+        except ValueError as exc:
+            raise ValueError("generated artifact is outside the active workspace") from exc
+
+        relative = os.path.relpath(source_lexical, os.path.abspath(str(allowed_root)))
+        cursor = os.path.abspath(str(allowed_root))
+        for part in relative.split(os.sep):
+            cursor = os.path.join(cursor, part)
+            if os.path.islink(cursor):
+                raise ValueError("generated artifact paths must not contain symlinks")
+
+        safe_name = secure_filename(display_name or os.path.basename(source))
+        source_ext = os.path.splitext(source)[1].lower()
+        name_ext = os.path.splitext(safe_name)[1].lower()
+        allowed_extensions = {".py", ".html", ".png"}
+        if source_ext not in allowed_extensions:
+            raise ValueError("generated artifact type is not publishable")
+        if name_ext != source_ext:
+            raise ValueError("display name must keep the generated file extension")
+
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(source, flags)
+        except OSError as exc:
+            raise ValueError("generated artifact cannot be opened safely") from exc
+
+        try:
+            with os.fdopen(fd, "rb") as file_obj:
+                file_stat = os.fstat(file_obj.fileno())
+                if not stat.S_ISREG(file_stat.st_mode):
+                    raise ValueError("generated artifact must be a regular file")
+                if file_stat.st_size <= 0:
+                    raise ValueError("generated artifact is empty")
+                if file_stat.st_size > self.max_upload_size:
+                    raise ValueError("generated artifact exceeds the upload size limit")
+
+                content_type = self.detect_content_type(file_obj, safe_name)
+                if not self.is_safe_file_type(content_type, safe_name):
+                    raise ValueError("generated artifact type is not safe to serve")
+                file_hash = self.calculate_file_hash(file_obj)
+
+                width = None
+                height = None
+                if source_ext == ".png":
+                    try:
+                        from PIL import Image
+
+                        file_obj.seek(0)
+                        with Image.open(file_obj) as image:
+                            image.verify()
+                            if image.format != "PNG":
+                                raise ValueError("generated PNG has invalid content")
+                        file_obj.seek(0)
+                        with Image.open(file_obj) as image:
+                            width, height = image.size
+                        file_obj.seek(0)
+                        content_type = "image/png"
+                    except (OSError, ValueError) as exc:
+                        raise ValueError("generated PNG has invalid content") from exc
+
+                uploads_db_path = os.path.join(self.upload_dir, "uploads.json")
+                with self._index_lock:
+                    current = self._load_upload_index()
+                    stale_keys = []
+                    for key, info in current.items():
+                        if (
+                            info.get("hash") != file_hash
+                            or info.get("owner") != normalized_owner
+                            or os.path.splitext(str(info.get("name") or ""))[1].lower() != source_ext
+                        ):
+                            continue
+                        stored_path = info.get("path")
+                        if stored_path and os.path.isfile(stored_path) and self._inside_upload_dir(stored_path):
+                            existing = dict(info)
+                            existing["is_duplicate"] = True
+                            return existing
+                        stale_keys.append(key)
+                    for key in stale_keys:
+                        current.pop(key, None)
+
+                    file_id = _build_upload_id(safe_name)
+                    target_dir = self.get_upload_dir()
+                    target_path = os.path.join(target_dir, file_id)
+                    now = datetime.now().isoformat()
+                    metadata = {
+                        "id": file_id,
+                        "path": target_path,
+                        "mime": content_type,
+                        "size": file_stat.st_size,
+                        "name": safe_name,
+                        "hash": file_hash,
+                        "original_name": safe_name,
+                        "uploaded_at": now,
+                        "last_accessed": now,
+                        "owner": normalized_owner,
+                        "origin": "agent_generated",
+                    }
+                    if width and height:
+                        metadata["width"] = width
+                        metadata["height"] = height
+
+                    try:
+                        file_obj.seek(0)
+                        with open(target_path, "xb") as target:
+                            shutil.copyfileobj(file_obj, target, length=8192)
+                            target.flush()
+                            os.fsync(target.fileno())
+                        current[f"{normalized_owner}:{file_hash}:{source_ext.lstrip('.')}"] = metadata
+                        self._atomic_write_json(uploads_db_path, current)
+                    except Exception:
+                        try:
+                            os.remove(target_path)
+                        except OSError:
+                            pass
+                        raise
+                    return metadata
+        except ValueError:
+            raise
+        except OSError as exc:
+            raise ValueError("generated artifact registration failed") from exc
     
     def save_upload(self, u: UploadFile, client_ip: str, owner: str = None) -> dict:
         """Save uploaded file with enhanced security and organization."""

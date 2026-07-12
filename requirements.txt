@@ -12,6 +12,9 @@ pypdf
 beautifulsoup4
 charset-normalizer
 numpy
+# Bounded native-game verification uses SDL dummy drivers.  Pin the tested
+# pygame-ce build so clean container rebuilds do not silently lose the tool.
+pygame-ce==2.5.6
 # Vector store + local embeddings for RAG, semantic memory, and tool
 # selection. Used on core agent paths, so installed by default — the app
 # still degrades to keyword fallback if they're ever missing.

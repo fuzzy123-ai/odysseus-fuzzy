@@ -165,6 +165,8 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         content = ""
     elif tool_type == "write_file":
         content = args.get("path", "") + "\n" + args.get("content", "")
+    elif tool_type in ("publish_artifact", "verify_pygame_headless"):
+        content = json.dumps(args)
     elif tool_type == "edit_file":
         content = json.dumps(args)
     elif tool_type == "create_document":

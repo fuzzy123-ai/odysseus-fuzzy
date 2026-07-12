@@ -2788,6 +2788,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
         // Attach footer to the last visible bubble (roundHolder for multi-round agent, holder for single)
         const footerTarget = (roundHolder && roundHolder !== holder && roundHolder.style.display !== 'none') ? roundHolder : holder;
+        if (metrics?.attachments?.length) {
+          footerTarget.style.display = '';
+          chatRenderer.updateMessageAttachments(footerTarget, metrics.attachments);
+        }
         footerTarget.appendChild(createMsgFooter(footerTarget));
         // Add "View Report" link for completed research
         if (_researchingStreamIds.has(streamSessionId)) {

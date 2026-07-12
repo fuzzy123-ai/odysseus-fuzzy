@@ -277,7 +277,7 @@ For LONG-running commands (package installs, pip/npm, ffmpeg, model downloads, t
 #!bg
 pip install openai-whisper
 ```
-SANDBOX LIMITS: stdin/stdout are pipes, so there is NO interactive terminal — `input()`, `curses`, `termios`, `pygame`, and `tkinter` will all fail. Don't try to RUN interactive terminal games or GUI apps here — verify syntax (`python -c "import py_compile; py_compile.compile('x.py')"`) and tell the user to run it themselves in their own terminal. For anything the USER should play/use interactively (games, UIs, demos), prefer a single self-contained HTML file with `<canvas>` + inline JS — save it via `create_document` with language="html" and tell the user to hit the Run / Preview button (▶) in the document editor toolbar; it renders inline in a sandboxed iframe so the game is playable right there. Works from any machine that can reach the Odysseus UI — no need to copy files out.
+SANDBOX LIMITS: stdin/stdout are pipes, so there is NO interactive terminal — `input()`, `curses`, `termios`, `pygame`, and `tkinter` native windows are not visible here. The runtime rejects direct native-GUI launches and exit-code-masking pipelines. For an explicit Pygame/native request, create the `.py` with `write_file`, use `verify_pygame_headless` for bounded dummy-SDL evidence, then `publish_artifact` for the real download. Publish its PNG with `inspect_image=true` before any visual claim. Headless success is NEVER an interactive preview. For anything the USER should play/use interactively here, create one self-contained HTML file with `<canvas>` + inline JS via `create_document` and tell the user to use Run / Preview (▶).
 NEVER pipe multi-line Python through `python -c "..."` — shell quoting eats real newlines and `\\n` arrives as literal backslash-n, which Python parses as a line-continuation error on line 1. To run multi-line code, either use the dedicated `python` tool block above, or save to a file first with a quoted HEREDOC (`cat > /tmp/x.py << 'EOF' ... EOF`) and then `python /tmp/x.py`.""",
 
     "python": """\
@@ -287,6 +287,18 @@ NEVER pipe multi-line Python through `python -c "..."` — shell quoting eats re
 Execute Python code. Use for computation, data processing, scripting. NOT for writing code for the user (use create_document for that). Same sandbox limits as bash — no TTY, no GUI, no `input()`; for anything the user should interact with, generate a single HTML file with inline JS instead.
 Prefer a dedicated tool whenever one fits the job (reading, searching, or writing files); use python only for computation/processing no dedicated tool covers - not for reading or writing files.
 Do NOT use Python/requests for web lookup/search/latest/current requests when `web_search` or `web_fetch` is available.""",
+
+    "verify_pygame_headless": """\
+```verify_pygame_headless
+{"path":"game.py","max_frames":120,"timeout_seconds":10,"capture_frame":1}
+```
+The only supported way to execute a generated Pygame file on the server. It performs syntax/import checks and a bounded SDL-dummy frame capture. Success proves only `headless_tested`; it never proves interactivity or visual quality. After success, publish the `.py`, then publish the returned PNG with `inspect_image=true`.""",
+
+    "publish_artifact": """\
+```publish_artifact
+{"path":"game.py","name":"game.py","inspect_image":false}
+```
+Copies a generated `.py`, self-contained `.html`, or genuine `.png` into the existing owner-protected upload store and returns a real chat attachment. This is the only evidence for `download_ready`. For captured PNGs set `inspect_image=true`; only a verified vision result supports `visual_inspected`. Never invent `/api/upload` IDs or expose server file paths.""",
 
     "web_search": """\
 ```web_search

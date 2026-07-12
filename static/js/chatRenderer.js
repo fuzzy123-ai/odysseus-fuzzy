@@ -78,6 +78,33 @@ function _formatSize(bytes) {
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
+function _safeAttachmentId(value) {
+  const id = String(value || '');
+  return /^[0-9a-f]{32}(?:\.[a-z0-9]+)?$/i.test(id) ? id : '';
+}
+
+function _appendDownloadAction(container, att) {
+  const id = _safeAttachmentId(att?.id);
+  if (!id || !(att?.download_ready || att?.downloadable)) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'attach-download-btn';
+  button.textContent = 'Download';
+  button.title = 'Download ' + (att.name || 'artifact');
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const link = document.createElement('a');
+    link.href = `/api/upload/${id}`;
+    link.download = att.name || '';
+    link.hidden = true;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  });
+  container.appendChild(button);
+}
+
 // Build the `.attach-cards` element for a message's attachment list. Shared by
 // addMessage and updateMessageAttachments so a live (optimistic) user bubble
 // can be re-rendered with real upload ids once the upload resolves.
@@ -166,7 +193,8 @@ function buildAttachCards(attachments) {
           ocrBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg><span class="attach-ocr-label">Caption</span>';
           ocrBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            _openVisionEditor(att, ocrBtn.closest('.msg'));
+            const message = ocrBtn.closest('.msg');
+            _openVisionEditor(att, message?.classList.contains('msg-user') ? message : null);
           });
           imgWrap.appendChild(ocrBtn);
         }
@@ -184,6 +212,7 @@ function buildAttachCards(attachments) {
         label.textContent = att.name;
         imgWrap.appendChild(label);
       }
+      _appendDownloadAction(imgWrap, att);
       attachWrap.appendChild(imgWrap);
     } else {
       // Non-image file card
@@ -212,6 +241,7 @@ function buildAttachCards(attachments) {
         sizeSpan.textContent = _formatSize(att.size);
         card.appendChild(sizeSpan);
       }
+      _appendDownloadAction(card, att);
       attachWrap.appendChild(card);
     }
   }
@@ -2252,6 +2282,33 @@ export function addMessage(role, content, modelName, metadata) {
         }
       }
 
+      if (metadata?.attachments?.length) {
+        let artifactWrap = lastMsgAi;
+        if (!artifactWrap) {
+          artifactWrap = document.createElement('div');
+          artifactWrap.className = 'msg msg-ai';
+          const artifactRole = document.createElement('div');
+          artifactRole.className = 'role';
+          const artifactPair = replyModelPair(modelName, metadata);
+          const artifactModel = artifactPair.actualModel || artifactPair.requestedModel;
+          artifactRole.textContent = modelRouteLabel(artifactPair.requestedModel, artifactModel);
+          applyModelColor(artifactRole, artifactModel);
+          artifactRole.appendChild(roleTimestamp(metadata?.timestamp));
+          artifactWrap.appendChild(artifactRole);
+          const artifactBody = document.createElement('div');
+          artifactBody.className = 'body';
+          artifactWrap.appendChild(artifactBody);
+          if (metadata?._db_id) artifactWrap.dataset.dbId = metadata._db_id;
+          box.appendChild(artifactWrap);
+          lastMsgAi = artifactWrap;
+          lastWrap = artifactWrap;
+        }
+        const artifactBody = artifactWrap.querySelector('.body');
+        if (artifactBody && !artifactBody.querySelector('.attach-cards')) {
+          artifactBody.appendChild(buildAttachCards(metadata.attachments));
+        }
+      }
+
       const firstWrap = lastMsgAi || lastWrap;
       if (firstWrap && firstWrap.classList.contains('msg-ai')) {
         if (metadata?.memories_used?.length) firstWrap._memoriesUsed = metadata.memories_used;
@@ -2404,10 +2461,13 @@ export function addMessage(role, content, modelName, metadata) {
         b.innerHTML = '<span class="doc-edit-tag">Doc edit: ' + lineRef + '</span> ' + markdownModule.processWithThinking(instrText);
       }
 
-      // Render attachment cards
-      if (attachments?.length) {
-        b.appendChild(buildAttachCards(attachments));
-      }
+    }
+
+    // Both user uploads and generated assistant artifacts use the same safe,
+    // owner-scoped card renderer. Assistant attachments arrive in persisted
+    // metadata and must survive a history reload.
+    if (attachments?.length) {
+      b.appendChild(buildAttachCards(attachments));
     }
 
     wrap.appendChild(r);

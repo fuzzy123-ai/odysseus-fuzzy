@@ -284,6 +284,18 @@ async def stream_agent_loop(
     _t0 = time.time()
     _needs_admin = _detect_admin_intent(messages)
     _last_user = _extract_last_user_message(messages)
+    _interactive_deliverable_decision = None
+    try:
+        from src.interactive_deliverable_policy import (
+            InteractiveDeliverableTarget,
+            decide_interactive_deliverable,
+        )
+
+        _candidate_deliverable = decide_interactive_deliverable(_last_user)
+        if _candidate_deliverable.target != InteractiveDeliverableTarget.NOT_APPLICABLE:
+            _interactive_deliverable_decision = _candidate_deliverable
+    except (ValueError, TypeError):
+        _interactive_deliverable_decision = None
     if orchestrator_mode:
         _ensure_orchestrator_state_doc(owner=owner, session_id=session_id, goal=_last_user)
     _intent = _classify_agent_request(messages, _last_user)
@@ -405,6 +417,16 @@ async def stream_agent_loop(
             _relevant_tools.update({"web_search", "web_fetch"})
         if "ui" in (_intent.get("domains") or set()):
             _relevant_tools.add("ui_control")
+        if _interactive_deliverable_decision is not None:
+            _target = _interactive_deliverable_decision.target.value
+            if _target in ("native_download", "dual"):
+                _relevant_tools.update({
+                    "write_file",
+                    "verify_pygame_headless",
+                    "publish_artifact",
+                })
+            if _target in ("browser_preview", "dual"):
+                _relevant_tools.add("create_document")
 
     # If a document is open the model needs the editing tools available
     # regardless of which selection path (RAG, keyword, caller-provided) ran
@@ -544,6 +566,25 @@ async def stream_agent_loop(
         context_length=context_length,
         enabled=not guide_only,
     )
+    if _interactive_deliverable_decision is not None and not guide_only:
+        _target = _interactive_deliverable_decision.target.value
+        _deliverable_note = (
+            "## INTERACTIVE DELIVERABLE POLICY — RUNTIME ENFORCED\n"
+            f"Resolved target: {_target}. Follow this exact deliverable contract.\n"
+            "native_download: create a workspace .py with write_file, call "
+            "verify_pygame_headless, then call publish_artifact for the .py. "
+            "Publish the captured PNG with inspect_image=true before any visual claim.\n"
+            "browser_preview: create one self-contained HTML/canvas document with inline "
+            "CSS/JS for the editor Run/Preview surface.\n"
+            "dual: complete both paths. A dummy-SDL run is headless_tested, never "
+            "interactive_preview_ready. A filesystem path is not a download link; only "
+            "publish_artifact proves download_ready. Never say visually inspected unless "
+            "artifact_evidence.visual_inspected.status is verified."
+        )
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = _deliverable_note + "\n\n" + (messages[0].get("content") or "")
+        else:
+            messages.insert(0, {"role": "system", "content": _deliverable_note})
     if workspace and not guide_only:
         # PREPEND (not append) so it dominates the large base prompt — appended
         # at the end, small models ignored it and asked the user for code. The
@@ -660,6 +701,8 @@ async def stream_agent_loop(
     time_to_first_token = None
     first_token_received = False
     tool_events = []   # Persist tool executions for history reload
+    assistant_attachments = []  # Public, owner-verified generated downloads
+    _assistant_attachment_ids = set()
     round_texts = []   # Cleaned text per round for history reload
     # Completion-verifier state (mechanism 3a). _effectful_used flips on when
     # a tool that produces a checkable artifact runs; the verifier only fires
@@ -1330,6 +1373,45 @@ async def stream_agent_loop(
                     )
                 desc, result = await _tool_task
 
+            # Only the trusted publisher tool may create assistant attachment
+            # metadata. Re-resolve the ID with the current owner before it can
+            # enter SSE metrics or persisted chat history.
+            if block.tool_type == "publish_artifact" and not result.get("error") and isinstance(result.get("attachment"), dict):
+                try:
+                    from src.generated_artifact_publication import (
+                        get_generated_artifact_upload_handler,
+                        project_generated_attachment,
+                    )
+
+                    _candidate_id = str(result["attachment"].get("id") or "")
+                    _artifact_handler = get_generated_artifact_upload_handler()
+                    _resolved_artifact = _artifact_handler.resolve_upload(
+                        _candidate_id,
+                        owner=owner,
+                        allow_admin=False,
+                    )
+                    if _resolved_artifact:
+                        _public_artifact = project_generated_attachment(_resolved_artifact)
+                        # Vision model is safe display metadata, but only accept
+                        # it from the publisher's trusted result.
+                        _vision_model = result["attachment"].get("vision_model")
+                        if isinstance(_vision_model, str) and _vision_model.strip():
+                            _public_artifact["vision_model"] = _vision_model.strip()[:160]
+                        result["attachment"] = _public_artifact
+                        if _candidate_id not in _assistant_attachment_ids:
+                            _assistant_attachment_ids.add(_candidate_id)
+                            assistant_attachments.append(_public_artifact)
+                    else:
+                        result = {
+                            "error": "Published artifact failed the owner-scoped readback check.",
+                            "exit_code": 1,
+                        }
+                except Exception:
+                    result = {
+                        "error": "Published artifact failed the metadata safety check.",
+                        "exit_code": 1,
+                    }
+
             # A skill the model just loaded can prescribe tools that weren't
             # RAG-selected this turn (declared via requires_toolsets in its
             # frontmatter). Union them into the selection so the NEXT round's
@@ -1509,6 +1591,12 @@ async def stream_agent_loop(
             for k in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
                 if k in result:
                     tool_output_data[k] = result[k]
+            for k in (
+                "attachment", "artifact_evidence", "interactive_runtime",
+                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+            ):
+                if k in result:
+                    tool_output_data[k] = result[k]
             # Forward screenshots from browser tools (base64 images)
             if result.get("images"):
                 img = result["images"][0]
@@ -1579,6 +1667,12 @@ async def stream_agent_loop(
             # this the diff shows live but vanishes from saved history.
             if result.get("diff"):
                 tool_event["diff"] = result["diff"]
+            for key in (
+                "attachment", "artifact_evidence", "interactive_runtime",
+                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+            ):
+                if result.get(key):
+                    tool_event[key] = result[key]
             if _pending_ask_user_event:
                 tool_event["ask_user"] = _pending_ask_user_event
             tool_events.append(tool_event)
@@ -1676,6 +1770,10 @@ async def stream_agent_loop(
     )
     metrics["requested_model"] = requested_model
     metrics["claim_evidence_gate"] = claim_evidence_gate
+    if _interactive_deliverable_decision is not None:
+        metrics["interactive_deliverable_policy"] = _interactive_deliverable_decision.audit_summary()
+    if assistant_attachments:
+        metrics["attachments"] = assistant_attachments
     if tool_transactions:
         metrics["tool_transactions"] = tool_transactions
     yield f"data: {json.dumps({'type': 'metrics', 'data': metrics})}\n\n"

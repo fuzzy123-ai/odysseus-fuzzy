@@ -1020,6 +1020,55 @@ def clean_thinking_for_save(content: str, metadata: dict | None = None) -> tuple
     return content, md
 
 
+def sanitize_assistant_attachments(value: Any) -> list[dict[str, Any]]:
+    """Bound generated attachment metadata before it enters chat history."""
+
+    from src.upload_handler import is_valid_upload_id, secure_filename
+
+    if not isinstance(value, list):
+        return []
+    sanitized = []
+    seen = set()
+    for raw in value[:10]:
+        if not isinstance(raw, dict):
+            continue
+        upload_id = str(raw.get("id") or "").strip()
+        if not is_valid_upload_id(upload_id) or upload_id in seen:
+            continue
+        name = secure_filename(str(raw.get("name") or "artifact"))[:240]
+        mime = str(raw.get("mime") or "application/octet-stream").strip()[:160]
+        file_hash = str(raw.get("hash") or "").strip().lower()
+        size = raw.get("size")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", file_hash)
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size <= 0
+            or any(ord(char) < 32 for char in mime)
+        ):
+            continue
+        item = {
+            "schema": "odysseus.generated_artifact.v1",
+            "id": upload_id,
+            "name": name,
+            "mime": mime,
+            "size": size,
+            "hash": file_hash,
+            "kind": "generated_artifact",
+            "download_ready": True,
+        }
+        for dimension in ("width", "height"):
+            number = raw.get(dimension)
+            if isinstance(number, int) and not isinstance(number, bool) and 0 < number <= 100_000:
+                item[dimension] = number
+        vision_model = raw.get("vision_model")
+        if isinstance(vision_model, str) and vision_model.strip():
+            item["vision_model"] = vision_model.strip()[:160]
+        sanitized.append(item)
+        seen.add(upload_id)
+    return sanitized
+
+
 def save_assistant_response(
     sess,
     session_manager,
@@ -1038,6 +1087,12 @@ def save_assistant_response(
 ):
     """Add assistant response to session history. In incognito mode, keeps in-memory context but skips DB persistence."""
     md = dict(last_metrics) if last_metrics else {}
+    if "attachments" in md:
+        safe_attachments = sanitize_assistant_attachments(md.get("attachments"))
+        if safe_attachments:
+            md["attachments"] = safe_attachments
+        else:
+            md.pop("attachments", None)
     def _model_value(value) -> str:
         if value is None:
             return ""

@@ -13,6 +13,8 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "bash": "local_command",
     "python": "local_command",
     "write_file": "filesystem_write",
+    "publish_artifact": "artifact_publication",
+    "verify_pygame_headless": "headless_validation",
     "create_document": "document_write",
     "update_document": "document_write",
     "edit_document": "document_write",

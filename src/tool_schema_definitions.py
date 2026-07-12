@@ -1040,6 +1040,40 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "publish_artifact",
+            "description": "Publish a generated .py, self-contained .html, or real .png workspace file as an owner-scoped chat attachment. Use after creating the deliverable; set inspect_image=true for screenshots that must be visually verified. This returns the only valid download attachment metadata. It never makes a native GUI interactive in the browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Workspace-relative path of the generated file"},
+                    "name": {"type": "string", "description": "Optional safe download filename; must keep the extension"},
+                    "inspect_image": {"type": "boolean", "description": "Run owner-scoped vision analysis for a PNG before claiming visual inspection"}
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "verify_pygame_headless",
+            "description": "Run bounded Pygame verification with SDL dummy video/audio drivers. Checks Python syntax, the installed pygame import, a capped frame run, and a real PNG capture. Success proves headless_tested only; it never proves interactive_preview_ready or visual_inspected. Publish the .py afterward, then publish the PNG with inspect_image=true.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Workspace-relative .py file"},
+                    "screenshot_path": {"type": "string", "description": "Optional safe workspace-relative .png output path"},
+                    "max_frames": {"type": "integer", "minimum": 1, "maximum": 1800, "default": 120},
+                    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 60, "default": 10},
+                    "capture_frame": {"type": "integer", "minimum": 1, "maximum": 1800, "default": 1}
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_github_issues",
             "description": "GitHub Issue Intelligence. Use for local duplicate issue preview, bounded provider sync, triaged issue creation planning, and GitHub Issue Fields/label fallback planning. duplicate_search is local/read-only over already-synced issue records. sync is read-only against GitHub and writes only local IssueRecord rows when confirmed=true and server-side env gates plus repository allowlist are enabled; it never accepts provider tokens in chat. create_triaged and set_fields are write-like and require confirmed=true plus future live/auth gates; without those gates they return a safe plan/blocker instead of writing to GitHub.",
             "parameters": {

@@ -42,6 +42,38 @@ _PATH_TOKEN_RE = re.compile(
 _TEST_COMMAND_RE = re.compile(r"\b(pytest|unittest|npm\s+test|npm\s+run\s+test|pnpm\s+test|yarn\s+test|vitest|playwright\s+test)\b", re.IGNORECASE)
 _SUCCESS_WORD_RE = re.compile(r"\b(ok|sent|success|succeeded|completed|passed|written|created|gesendet|geschickt|erfolgreich)\b", re.IGNORECASE)
 _ERROR_WORD_RE = re.compile(r"\b(error|failed|blocked|exception|traceback|fehler|gescheitert|abgelehnt)\b", re.IGNORECASE)
+_SYNTAX_VERIFIED_RE = re.compile(
+    r"\b(?:syntax|syntakt(?:isch|ische))\b.{0,32}\b(?:valid|verified|passed|korrekt|gueltig|gültig|bestanden)\b",
+    re.IGNORECASE,
+)
+_HEADLESS_VERIFIED_RE = re.compile(
+    r"\b(?:headless|dummy[- ]?sdl)\b.{0,48}\b(?:verified|tested|passed|success|erfolgreich|getestet|bestanden)\b",
+    re.IGNORECASE,
+)
+_VISUAL_INSPECTED_RE = re.compile(
+    r"(?:\bvisual(?:ly)?\s+(?:inspection\s*:\s*)?(?:inspected|verified|passed)\b|"
+    r"\b(?:screenshot|image|bild)\b.{0,40}\b(?:visually\s+)?(?:inspected|reviewed|checked|geprueft|geprüft)\b|"
+    r"\b(?:screenshot|image|bild)\b.{0,40}\b(?:looks?\s+(?:good|perfect)|sieht\s+(?:gut|perfekt)\s+aus)\b)",
+    re.IGNORECASE,
+)
+_DOWNLOAD_READY_RE = re.compile(
+    r"\b(?:download(?:\s+is)?\s+ready|download[- ]?ready|downloadbereit|download[- ]?link|zum\s+herunterladen\s+bereit)\b",
+    re.IGNORECASE,
+)
+_INTERACTIVE_PREVIEW_RE = re.compile(
+    r"\b(?:playable\s+(?:here|in\s+the\s+browser)|spielbar(?:\s+hier|\s+im\s+browser)?|"
+    r"interactive\s+preview\s+(?:is\s+)?(?:ready|working)|interaktive\s+vorschau\s+(?:ist\s+)?(?:bereit|fertig)|"
+    r"laeuft\s+interaktiv|läuft\s+interaktiv)\b",
+    re.IGNORECASE,
+)
+_NEGATED_CLAIM_PREFIX_RE = re.compile(
+    r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable|nicht\s+verifiziert)\b.{0,36}$",
+    re.IGNORECASE,
+)
+_NEGATED_CLAIM_WITHIN_RE = re.compile(
+    r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,10 +139,12 @@ def evaluate_response_claims(
     root = Path(repo_root or Path.cwd()).resolve()
     findings: list[ClaimEvidenceFinding] = []
 
-    if not text.strip() or not _FIRST_PERSON_ACTION_RE.search(text):
+    if not text.strip():
         return ClaimEvidenceReport(findings=())
 
-    if _FILE_ACTION_RE.search(text):
+    first_person_action = bool(_FIRST_PERSON_ACTION_RE.search(text))
+
+    if first_person_action and _FILE_ACTION_RE.search(text):
         paths = _extract_repo_paths(text)
         if paths:
             tx_evidence = transaction_evidence_for_claim(transactions, "file_changed", paths)
@@ -121,7 +155,7 @@ def evaluate_response_claims(
             else:
                 findings.append(ClaimEvidenceFinding("file_changed", "unsupported", "file claim mentions paths without filesystem or tool evidence", paths))
 
-    if _TEST_ACTION_RE.search(text):
+    if first_person_action and _TEST_ACTION_RE.search(text):
         evidence = tuple(dict.fromkeys((*_successful_test_events(events), *transaction_evidence_for_claim(transactions, "command_passed"))))
         findings.append(
             ClaimEvidenceFinding(
@@ -132,7 +166,7 @@ def evaluate_response_claims(
             )
         )
 
-    if _SANDBOX_ACTION_RE.search(text):
+    if first_person_action and _SANDBOX_ACTION_RE.search(text):
         evidence = tuple(dict.fromkeys((*_successful_sandbox_events(events), *transaction_evidence_for_claim(transactions, "sandbox_succeeded"))))
         findings.append(
             ClaimEvidenceFinding(
@@ -143,7 +177,7 @@ def evaluate_response_claims(
             )
         )
 
-    if _TELEGRAM_SENT_RE.search(text):
+    if first_person_action and _TELEGRAM_SENT_RE.search(text):
         evidence = tuple(dict.fromkeys((*_successful_telegram_events(events), *transaction_evidence_for_claim(transactions, "telegram_sent"))))
         findings.append(
             ClaimEvidenceFinding(
@@ -154,7 +188,7 @@ def evaluate_response_claims(
             )
         )
 
-    if _SCREENSHOT_RE.search(text) and _TELEGRAM_SENT_RE.search(text):
+    if first_person_action and _SCREENSHOT_RE.search(text) and _TELEGRAM_SENT_RE.search(text):
         paths = tuple(path for path in _extract_repo_paths(text) if path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")))
         evidence = tuple(path for path in paths if _repo_file_exists(root, path))
         tx_evidence = transaction_evidence_for_claim(transactions, "artifact_exists", paths)
@@ -168,6 +202,50 @@ def evaluate_response_claims(
                     evidence or paths,
                 )
             )
+
+    for claim_type, pattern, supported_reason, unsupported_reason in (
+        (
+            "syntax_verified",
+            _SYNTAX_VERIFIED_RE,
+            "syntax claim has structured verification evidence",
+            "syntax claim has no structured verification evidence",
+        ),
+        (
+            "headless_tested",
+            _HEADLESS_VERIFIED_RE,
+            "headless claim has bounded verification evidence",
+            "headless claim has no bounded verification evidence",
+        ),
+        (
+            "visual_inspected",
+            _VISUAL_INSPECTED_RE,
+            "visual claim is bound to a vision-inspected artifact",
+            "visual claim has no verified vision evidence",
+        ),
+        (
+            "download_ready",
+            _DOWNLOAD_READY_RE,
+            "download claim has an owner-scoped published artifact",
+            "download claim has no owner-scoped publication evidence",
+        ),
+        (
+            "interactive_preview_ready",
+            _INTERACTIVE_PREVIEW_RE,
+            "interactive claim has visible preview evidence",
+            "interactive claim has no visible preview evidence",
+        ),
+    ):
+        if not _has_positive_claim(pattern, text):
+            continue
+        evidence = _structured_claim_evidence(events, claim_type)
+        findings.append(
+            ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                supported_reason if evidence else unsupported_reason,
+                evidence,
+            )
+        )
 
     return ClaimEvidenceReport(findings=tuple(findings))
 
@@ -258,3 +336,39 @@ def _successful_telegram_events(events: Iterable[Mapping[str, Any]]) -> tuple[st
         if "telegram" in (tool + " " + text.lower()) and _event_exit_ok(event) and _SUCCESS_WORD_RE.search(text):
             found.append(str(event.get("command") or event.get("tool") or "telegram")[:160])
     return tuple(found)
+
+
+def _has_positive_claim(pattern: re.Pattern[str], text: str) -> bool:
+    for match in pattern.finditer(text):
+        prefix = text[max(0, match.start() - 48) : match.start()]
+        if (
+            not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
+            and not _NEGATED_CLAIM_WITHIN_RE.search(match.group(0))
+        ):
+            return True
+    return False
+
+
+def _structured_claim_evidence(
+    events: Iterable[Mapping[str, Any]],
+    claim_type: str,
+) -> tuple[str, ...]:
+    found: list[str] = []
+    for event in events:
+        payload = event.get("artifact_evidence")
+        if not isinstance(payload, Mapping):
+            continue
+        claim = payload.get(claim_type)
+        if not isinstance(claim, Mapping) or claim.get("status") != "verified":
+            continue
+        artifact_id = str(claim.get("artifact_id") or payload.get("artifact_id") or "").strip()
+        artifact_hash = str(claim.get("artifact_hash") or payload.get("artifact_hash") or "").strip()
+        if artifact_id and artifact_hash:
+            found.append(f"{artifact_id}:sha256:{artifact_hash}")
+        elif artifact_id:
+            found.append(artifact_id)
+        elif artifact_hash:
+            found.append(f"sha256:{artifact_hash}")
+        else:
+            found.append(f"{event.get('tool') or 'artifact'}:{claim_type}")
+    return tuple(dict.fromkeys(found))
