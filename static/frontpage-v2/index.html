@@ -3,47 +3,202 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ABC Frontend V2</title>
-  <link rel="stylesheet" href="./styles.css?v=workruns-polish-1">
+  <title>Harbor One Frontend V2</title>
+  <link rel="stylesheet" href="./styles.css?v=harbor-brand-1">
 </head>
 <body>
   <main class="stage" id="stage">
     <div class="aurora" aria-hidden="true"></div>
     <canvas class="grid-brush" id="grid-brush" aria-hidden="true"></canvas>
+    <div class="harbor-watermark" aria-hidden="true">
+      <strong>Harbor One</strong>
+      <span>Retrieve. Plan. Execute.</span>
+    </div>
 
-    <header class="topline" aria-label="ABC Frontend V2">
+    <header class="topline" aria-label="Harbor One Frontend V2">
       <div class="brand-stack">
-        <div class="brand-mark">ABC</div>
-        <div class="chat-carousel" id="chat-carousel" aria-label="Open chats" hidden></div>
+        <button class="brand-home-button" type="button" data-brand-home aria-label="Go to Agent home">
+          <span class="brand-logo-crop" aria-hidden="true">
+            <img src="./assets/harbor-one-a2.png" alt="">
+          </span>
+        </button>
       </div>
+      <nav class="workspace-tabs" id="workspace-tabs" aria-label="Workspaces">
+        <div class="workspace-group" data-workspace-menu="agent">
+          <button class="workspace-tab active" type="button" data-workspace-target="agent" aria-current="page" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Agent</span>
+            <span class="workspace-tab-count">3</span>
+          </button>
+          <div class="header-dropdown" role="menu" aria-label="Agent actions">
+            <div class="header-menu-title"><strong>Agent</strong><span>active work</span></div>
+            <button class="header-menu-row" type="button" data-header-action="New Chat"><span class="header-menu-icon"></span><span><strong>New chat</strong><small>Start a clean agent conversation</small></span><kbd>Ctrl+N</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Chat History"><span class="header-menu-icon"></span><span><strong>Chat history</strong><small>Open recent and active chats</small></span><kbd>H</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Run Task"><span class="header-menu-icon"></span><span><strong>Run task</strong><small>Give ABC an action to execute</small></span><kbd>Enter</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Attach Context"><span class="header-menu-icon"></span><span><strong>Attach context</strong><small>Add files, documents, or project state</small></span><kbd>+</kbd></button>
+          </div>
+        </div>
+        <div class="workspace-group" data-workspace-menu="knowledge">
+          <button class="workspace-tab" type="button" data-workspace-target="knowledge" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Knowledge</span>
+            <span class="workspace-tab-count">1</span>
+          </button>
+          <div class="header-dropdown" role="menu" aria-label="Knowledge actions">
+            <div class="header-menu-title"><strong>Knowledge</strong><span>memory and sources</span></div>
+            <button class="header-menu-row" type="button" data-header-action="Knowledge Graph"><span class="header-menu-icon"></span><span><strong>Knowledge graph</strong><small>Open the visual memory map</small></span><kbd>Ctrl+2</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Search Knowledge"><span class="header-menu-icon"></span><span><strong>Search all</strong><small>Search memory, docs, cloud, and web</small></span><kbd>/</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Memory"><span class="header-menu-icon"></span><span><strong>Memory</strong><small>Review learned facts and rules</small></span><kbd>M</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Sources"><span class="header-menu-icon"></span><span><strong>Sources</strong><small>Manage indexed folders and services</small></span><kbd>S</kbd></button>
+          </div>
+        </div>
+        <div class="workspace-group" data-workspace-menu="planning">
+          <button class="workspace-tab" type="button" data-workspace-target="planning" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Planning</span>
+            <span class="workspace-tab-count planning-update" aria-label="1 roadmap update">1</span>
+          </button>
+          <div class="header-dropdown" role="menu" aria-label="Planning actions">
+            <div class="header-menu-title"><strong>Planning</strong><span>projects and decisions</span></div>
+            <button class="header-menu-row" type="button" data-header-action="Projects Overview"><span class="header-menu-icon"></span><span><strong>Projects overview</strong><small>Open roadmap, status, and project list</small></span><kbd>Ctrl+3</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Roadmap List"><span class="header-menu-icon"></span><span><strong>Roadmap list</strong><small>Open the roadmap index window</small></span><kbd>L</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Todos"><span class="header-menu-icon"></span><span><strong>Todos</strong><small>See all tasks across projects</small></span><kbd>T</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Decisions"><span class="header-menu-icon"></span><span><strong>Decisions</strong><small>Show open choices and assumptions</small></span><kbd>D</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Create Plan"><span class="header-menu-icon"></span><span><strong>Create plan</strong><small>Turn a goal into staged work</small></span><kbd>P</kbd></button>
+          </div>
+        </div>
+        <div class="workspace-group" data-workspace-menu="inbox">
+          <button class="workspace-tab" type="button" data-workspace-target="inbox" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Inbox</span>
+            <span class="workspace-tab-count">2</span>
+          </button>
+          <div class="header-dropdown" role="menu" aria-label="Inbox actions">
+            <div class="header-menu-title"><strong>Inbox</strong><span>imports and routing</span></div>
+            <button class="header-menu-row" type="button" data-header-action="Import"><span class="header-menu-icon"></span><span><strong>Import</strong><small>Drop files, links, text, or screenshots</small></span><kbd>Ctrl+4</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Recent Imports"><span class="header-menu-icon"></span><span><strong>Recent imports</strong><small>See what ABC analyzed last</small></span><kbd>R</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Routing Rules"><span class="header-menu-icon"></span><span><strong>Routing rules</strong><small>Choose where incoming items go</small></span><kbd>Rules</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Inbox Activity"><span class="header-menu-icon"></span><span><strong>Activity log</strong><small>Review and undo automated actions</small></span><kbd>Log</kbd></button>
+          </div>
+        </div>
+      </nav>
       <div class="topline-controls">
-        <label class="privacy-switch" title="Toggle GDPR mode">
-          <input id="privacy-toggle" type="checkbox" aria-label="Toggle GDPR mode">
-          <span class="privacy-track" aria-hidden="true"></span>
-          <span class="privacy-label">GDPR</span>
-        </label>
-        <div class="build-state" id="build-state">V2 &middot; Main chat window</div>
+        <div class="secure-cluster">
+          <button class="secure-button" id="privacy-toggle" type="button" aria-label="Secure mode off" aria-pressed="false" title="Secure mode">
+            <span class="secure-lock-icon" aria-hidden="true"></span>
+            <span class="secure-label">Secure</span>
+          </button>
+          <span class="secure-hologram" aria-hidden="true">
+            <svg class="secure-lock-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" focusable="false">
+              <defs>
+                <filter id="secureLockGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="blur1"></feGaussianBlur>
+                  <feGaussianBlur stdDeviation="8" result="blur2"></feGaussianBlur>
+                  <feMerge>
+                    <feMergeNode in="blur2"></feMergeNode>
+                    <feMergeNode in="blur1"></feMergeNode>
+                    <feMergeNode in="SourceGraphic"></feMergeNode>
+                  </feMerge>
+                </filter>
+              </defs>
+              <line class="secure-lock-beam" x1="100" y1="36" x2="100" y2="172" stroke="currentColor" stroke-width="1.2" filter="url(#secureLockGlow)"></line>
+              <ellipse class="secure-lock-ring-wide" cx="100" cy="170" rx="70" ry="15" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3" filter="url(#secureLockGlow)"></ellipse>
+              <ellipse class="secure-lock-ring-tight" cx="100" cy="170" rx="45" ry="9" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6" filter="url(#secureLockGlow)"></ellipse>
+              <g class="secure-lock-core" filter="url(#secureLockGlow)">
+                <path d="M 65 90 V 65 A 35 35 0 0 1 135 65 V 90" fill="none" stroke="currentColor" stroke-width="5"></path>
+                <rect class="secure-lock-body" x="50" y="90" width="100" height="70" rx="15" stroke-width="3"></rect>
+                <rect class="secure-lock-key" x="92" y="110" width="16" height="30" rx="8"></rect>
+              </g>
+            </svg>
+          </span>
+        </div>
+        <div class="build-state" id="build-state" hidden aria-hidden="true"></div>
+        <div class="undo-cluster">
+          <button class="history-action-button" type="button" data-global-undo aria-label="Undo actions" title="Undo actions"><span class="history-arrow-icon" aria-hidden="true"></span></button>
+          <div class="history-actions-menu" aria-label="Recent undo actions">
+            <div class="history-actions-head">Undo <span>last actions</span></div>
+            <button class="history-action-row" type="button"><span class="history-dot"></span><span><strong>Inserted chat text</strong><small>Agent screen, now</small></span><kbd>now</kbd></button>
+            <button class="history-action-row important" type="button"><span class="history-dot"></span><span><strong>Moved 14 cloud files</strong><small>Needs confirm before undo</small></span><kbd>confirm</kbd></button>
+            <button class="history-action-row" type="button"><span class="history-dot"></span><span><strong>Tagged import as Project</strong><small>Universal Inbox, 4 min</small></span><kbd>undo</kbd></button>
+          </div>
+        </div>
+        <button class="history-action-button" type="button" data-global-redo aria-label="Redo actions" title="Redo actions"><span class="history-arrow-icon redo" aria-hidden="true"></span></button>
+        <div class="notification-cluster" data-notifications-root>
+          <button class="notification-button has-notifications" type="button" data-notifications-toggle aria-label="3 notifications" aria-expanded="false" aria-controls="notification-menu" title="Notifications">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 3h16l-2-3Z"></path>
+              <path d="M9.5 21a3 3 0 0 0 5 0"></path>
+            </svg>
+            <span class="notification-count" aria-hidden="true">3</span>
+            <span class="notification-bubble" data-notification-bubble aria-hidden="true">New notification</span>
+          </button>
+          <div class="notification-menu" id="notification-menu" role="menu" aria-label="Recent notifications" aria-hidden="true">
+            <div class="notification-menu-head">
+              <strong>Notifications</strong>
+              <span>3 new</span>
+            </div>
+            <button class="notification-item unread" type="button" role="menuitem" data-notification-target="memory">
+              <span class="notification-item-dot" aria-hidden="true"></span>
+              <span class="notification-item-copy"><strong>Memory review needs attention</strong><small>Knowledge &middot; now</small></span>
+            </button>
+            <button class="notification-item unread" type="button" role="menuitem" data-notification-target="projects">
+              <span class="notification-item-dot" aria-hidden="true"></span>
+              <span class="notification-item-copy"><strong>Project plan has a new decision</strong><small>Planning &middot; 4 min</small></span>
+            </button>
+            <button class="notification-item unread" type="button" role="menuitem" data-notification-target="inbox">
+              <span class="notification-item-dot" aria-hidden="true"></span>
+              <span class="notification-item-copy"><strong>3 files finished importing</strong><small>Inbox &middot; 12 min</small></span>
+            </button>
+          </div>
+        </div>
+        <div class="tools-cluster">
+          <button class="tools-button" type="button" aria-label="Global tools" aria-expanded="false" title="Global tools">
+            <span class="tools-button-grid" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+            </span>
+          </button>
+          <div class="header-dropdown tools-dropdown" role="menu" aria-label="Global tools">
+            <div class="header-menu-title"><strong>Tools</strong><span>global</span></div>
+            <button class="header-menu-row" type="button" data-header-action="Command Search"><span class="header-menu-icon"></span><span><strong>Command search</strong><small>Find every action without browsing menus</small></span><kbd>Alt+Space</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Settings"><span class="header-menu-icon"></span><span><strong>Settings</strong><small>Models, privacy, shortcuts, windows</small></span><kbd>,</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Skills"><span class="header-menu-icon"></span><span><strong>Skills</strong><small>Automation rules ABC can use</small></span><kbd>K</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Hooks"><span class="header-menu-icon"></span><span><strong>Hooks</strong><small>Event triggers and guardrails</small></span><kbd>Hooks</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Terminal"><span class="header-menu-icon"></span><span><strong>Terminal</strong><small>Open a controlled command surface</small></span><kbd>&gt;_</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Cloud Control"><span class="header-menu-icon"></span><span><strong>Cloud control</strong><small>Connected services, logs, undo</small></span><kbd>Cloud</kbd></button>
+            <button class="header-menu-row" type="button" data-header-action="Window Rules"><span class="header-menu-icon"></span><span><strong>Window rules</strong><small>Snap, minimize, restore, defaults</small></span><kbd>Win</kbd></button>
+          </div>
+        </div>
       </div>
     </header>
 
     <section class="workspace" aria-label="ABC workspace">
+      <div class="workspace-strip" data-workspace-strip>
+      <div class="workspace-screen active" data-workspace-screen="agent" aria-label="Agent workspace">
       <article class="floating-window core-window active" data-window data-core>
         <header class="window-head core-head" data-drag-handle>
           <button class="chat-history-button" type="button" data-chat-history-toggle aria-label="Open chat history" title="History">
-            <span class="chat-history-icon" aria-hidden="true"></span>
+            <svg class="chat-history-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 5v5h5"></path>
+              <path d="M3.8 10a8.2 8.2 0 1 1 2.4 5.8"></path>
+              <path d="M12 7.5v5l3.2 1.9"></path>
+            </svg>
           </button>
-          <button class="repo-branch-chip" type="button" data-repo-commit-request aria-label="Repository odysseus, branch dev, 84 new code lines since last commit">
-            <span class="repo-branch-name">dev</span>
-            <span class="repo-line-delta">+84</span>
+          <div class="repo-branch-chip" aria-label="Repository odysseus, branch dev, 2405 new code lines since last commit">
+            <button class="repo-branch-main" type="button" data-repo-commit-request aria-label="Prepare clean commit request for odysseus on branch dev">
+              <span class="repo-branch-name">dev</span>
+            </button>
+            <button class="repo-line-delta" type="button" data-open-code-changes aria-label="Open 2405 code changes in document viewer">+2405</button>
             <span class="repo-chip-tooltip" role="tooltip">
               <span class="repo-tooltip-title">Repository linked</span>
               <span class="repo-tooltip-row"><span>Repo</span><span>nkatz/odysseus</span></span>
               <span class="repo-tooltip-row"><span>Branch</span><span>dev</span></span>
-              <span class="repo-tooltip-row"><span>Since commit</span><span>+84 code lines</span></span>
-              <span class="repo-tooltip-row"><span>Files</span><span>2 modified</span></span>
+              <span class="repo-tooltip-row"><span>Since commit</span><span>+2405 code lines</span></span>
+              <span class="repo-tooltip-row"><span>Files</span><span>8 modified</span></span>
               <span class="repo-tooltip-row"><span>Mode</span><span>Local workspace</span></span>
             </span>
-          </button>
+          </div>
           <div class="chat-title" title="Double click to rename">Vector Debug</div>
           <input class="chat-title-editor" value="Vector Debug" aria-label="Rename chat title" hidden>
           <button class="chat-model-chip" type="button" data-header-model-chip aria-label="Current model details">
@@ -196,15 +351,217 @@
           </div>
         </div>
       </article>
+      </div>
+      <div class="workspace-screen" data-workspace-screen="knowledge" aria-label="Knowledge workspace">
+        <article class="floating-window knowledge-graph-window active" id="knowledge-graph-window" data-window data-window-id="knowledge-graph" data-window-close-mode="remove" aria-label="Knowledge Graph">
+          <header class="window-head" data-drag-handle>
+            <div class="window-subtitle">knowledge</div>
+            <div class="window-title">Knowledge Graph</div>
+            <div class="window-actions" aria-label="Window controls">
+              <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+              <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+              <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+            </div>
+          </header>
+          <div class="window-body" data-knowledge-graph-default></div>
+        </article>
+      </div>
+      <div class="workspace-screen" data-workspace-screen="planning" aria-label="Planning workspace">
+        <article class="floating-window projects-overview-window active" id="projects-overview-window" data-window data-window-id="projects-overview" data-window-close-mode="remove" aria-label="Project overview">
+          <header class="window-head" data-drag-handle>
+            <div class="window-subtitle">planning</div>
+            <div class="window-title">Overview</div>
+            <div class="window-actions" aria-label="Window controls">
+              <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+              <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+              <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+            </div>
+          </header>
+          <div class="window-body" data-projects-overview-default></div>
+        </article>
+      </div>
+      <div class="workspace-screen" data-workspace-screen="inbox" aria-label="Inbox workspace">
+        <article class="floating-window workspace-default-window inbox-home-window" data-window data-window-id="inbox-home">
+          <header class="window-head" data-drag-handle>
+            <div class="window-subtitle">inbox</div>
+            <div class="window-title">Universal Inbox</div>
+            <div class="window-actions" aria-label="Window controls">
+              <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+              <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+              <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+            </div>
+          </header>
+          <div class="window-body workspace-default-body">
+            <section class="workspace-default-command inbox-global-search" aria-label="Inbox search">
+              <span aria-hidden="true"></span>
+              <strong>Search files, folders, memory chunks, skills, imports...</strong>
+              <div class="inbox-search-scopes" aria-hidden="true">
+                <span>all</span>
+                <span>memory</span>
+                <span>files</span>
+              </div>
+            </section>
+            <div class="workspace-default-drop">
+              <strong>Drop files, links, screenshots, or text here</strong>
+              <span>ABC imports, analyzes, routes, and suggests context without interrupting you.</span>
+            </div>
+            <section class="inbox-recent-imports" aria-label="Recent imports">
+              <div class="inbox-section-line">Recent imports <span>last 5</span></div>
+              <div class="inbox-import-list">
+                <button class="inbox-import-row cloud" type="button"><span class="inbox-type-icon">NC</span><span><strong>Nextcloud: research-notes.md</strong><small>summarized, source suggested</small></span><em>new</em></button>
+                <button class="inbox-import-row pdf" type="button"><span class="inbox-type-icon">PDF</span><span><strong>release-notes.pdf</strong><small>document context ready</small></span><em>ready</em></button>
+                <button class="inbox-import-row note" type="button"><span class="inbox-type-icon">TXT</span><span><strong>meeting paste</strong><small>2 todos and 1 decision found</small></span><em>analysis</em></button>
+                <button class="inbox-import-row image" type="button"><span class="inbox-type-icon">IMG</span><span><strong>screenshot-batch.png</strong><small>needs destination rule</small></span><em>rule</em></button>
+                <button class="inbox-import-row problem" type="button"><span class="inbox-type-icon">!</span><span><strong>cloud export.zip</strong><small>contains unknown executable</small></span><em>review</em></button>
+              </div>
+              <button class="inbox-more-button" type="button">More...</button>
+            </section>
+          </div>
+        </article>
+
+        <article class="floating-window inbox-analysis-window" data-window data-window-id="inbox-analysis">
+          <header class="window-head" data-drag-handle>
+            <div class="window-subtitle">inbox</div>
+            <div class="window-title">Status</div>
+            <div class="window-actions" aria-label="Window controls">
+              <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+              <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+              <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+            </div>
+          </header>
+          <div class="window-body inbox-analysis-body">
+            <div class="status-info" aria-label="Inbox status stats">
+              <div class="status-stat"><strong>3</strong><span>imports</span></div>
+              <div class="status-stat safe"><strong>2</strong><span>ready</span></div>
+              <div class="status-stat review"><strong>1</strong><span>review</span></div>
+            </div>
+            <div class="inbox-analysis-tabs" role="tablist" aria-label="Inbox analysis tabs">
+              <button class="active" type="button" role="tab" aria-selected="true" aria-controls="status-panel-now" data-status-tab="now">Now <span class="tab-count soft">2</span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="status-panel-review" data-status-tab="review">Review <span class="tab-count urgent">1</span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="status-panel-log" data-status-tab="log">Log <span class="tab-count soft">5</span></button>
+            </div>
+            <div class="inbox-analysis-panel">
+              <section class="status-tab-panel" id="status-panel-now" data-status-panel="now" role="tabpanel">
+                <div class="status-section-label">Now <span>ready to use</span></div>
+                <article class="inbox-analysis-card ready">
+                  <div class="status-card-head">
+                    <span class="inbox-type-icon">PDF</span>
+                    <span class="status-card-title"><strong>release-notes.pdf</strong><small>Document context ready</small></span>
+                    <span class="status-state">ready</span>
+                  </div>
+                  <p>Summary ready. Can be offered as chat context.</p>
+                  <div class="inbox-tag-row"><span>original untouched</span><span>safe to attach</span></div>
+                </article>
+                <article class="inbox-analysis-card memory">
+                  <div class="status-card-head">
+                    <span class="inbox-type-icon">TXT</span>
+                    <span class="status-card-title"><strong>meeting paste</strong><small>2 todos and 1 decision found</small></span>
+                    <span class="status-state">found</span>
+                  </div>
+                  <p>Useful parts can become project todos. Memory is still pending.</p>
+                  <div class="inbox-tag-row"><span>review optional</span><span>memory pending</span></div>
+                </article>
+              </section>
+              <section class="status-tab-panel" id="status-panel-review" data-status-panel="review" role="tabpanel" hidden>
+                <div class="status-section-label">Review <span>needs attention</span></div>
+                <article class="inbox-review-card">
+                  <div class="status-card-head">
+                    <span class="inbox-type-icon">!</span>
+                    <span class="status-card-title"><strong>cloud export.zip</strong><small>Executable content detected</small></span>
+                    <span class="status-state">stop</span>
+                  </div>
+                  <p>ABC should not index, move, or attach this archive until you mark it safe.</p>
+                  <div class="inbox-tag-row"><span>no indexing</span><span>no memory stored</span><span>no delete</span><span>no overwrite</span></div>
+                </article>
+              </section>
+              <section class="status-tab-panel" id="status-panel-log" data-status-panel="log" role="tabpanel" hidden>
+                <div class="status-section-label">Log <span>latest actions</span></div>
+                <div class="status-log-list">
+                  <div class="status-log-row"><span class="status-log-dot"></span><span>File received</span><time>now</time></div>
+                  <div class="status-log-row"><span class="status-log-dot"></span><span>Type checked</span><time>now</time></div>
+                  <div class="status-log-row"><span class="status-log-dot"></span><span>Summary created</span><time>1m</time></div>
+                  <div class="status-log-row"><span class="status-log-dot"></span><span>Safety checked</span><time>1m</time></div>
+                  <div class="status-log-row"><span class="status-log-dot"></span><span>Undo available</span><time>1m</time></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </article>
+
+        <article class="floating-window inbox-files-window" data-window data-window-id="inbox-files">
+          <header class="window-head" data-drag-handle>
+            <div class="window-subtitle">global window</div>
+            <div class="window-title">Files</div>
+            <div class="window-actions" aria-label="Window controls">
+              <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+              <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+              <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+            </div>
+          </header>
+          <div class="window-body inbox-files-body">
+            <section class="inbox-files-ui" data-inbox-files>
+              <header class="inbox-files-head">
+                <div>
+                  <strong>Files</strong>
+                  <span>Folders, mounts, imports</span>
+                </div>
+                <div class="inbox-mount-switch" role="tablist" aria-label="File mount">
+                  <button class="active" type="button" role="tab" aria-selected="true" data-mount-target="project">Project <span class="mount-hit">3</span></button>
+                  <button type="button" role="tab" aria-selected="false" data-mount-target="local">Local <span class="mount-hit">1</span></button>
+                  <button type="button" role="tab" aria-selected="false" data-mount-target="cloud">Cloud <span class="mount-hit">2</span></button>
+                </div>
+              </header>
+              <div class="inbox-files-tools">
+                <label class="inbox-files-search">
+                  <span aria-hidden="true"></span>
+                  <input type="search" placeholder="Search files" aria-label="Search files" data-files-search>
+                </label>
+                <button class="inbox-files-filter" type="button" aria-label="Filter files" data-files-filter>
+                  <span></span>
+                </button>
+              </div>
+              <div class="inbox-search-results" aria-label="Search results">
+                <button class="inbox-search-result code" type="button"><span>JS</span><strong>release parser in app.js</strong><small>Project</small></button>
+                <button class="inbox-search-result pdf" type="button"><span>PDF</span><strong>release-notes.pdf</strong><small>Local</small></button>
+                <button class="inbox-search-result cloud" type="button"><span>NC</span><strong>Nextcloud / Releases / notes.md</strong><small>Cloud</small></button>
+              </div>
+              <div class="inbox-file-tree" role="tree" aria-label="Files">
+                <button class="inbox-file-row folder expanded" type="button" role="treeitem" aria-expanded="true" data-mount="project" data-file-name="frontend v2">
+                  <span class="file-indent"></span><span class="file-icon folder" aria-hidden="true"></span><strong>Frontend V2</strong><small>project root</small>
+                </button>
+                <button class="inbox-file-row folder" type="button" role="treeitem" data-mount="project" data-file-name="static frontpage v2">
+                  <span class="file-indent level-1"></span><span class="file-icon folder" aria-hidden="true"></span><strong>static/frontpage-v2</strong><small>ui source</small>
+                </button>
+                <button class="inbox-file-row code" type="button" role="treeitem" data-mount="project" data-file-name="app js frontend behavior" data-document-link="static/frontpage-v2/app.js">
+                  <span class="file-indent level-2"></span><span class="file-icon code" aria-hidden="true"></span><strong>app.js</strong><small>JavaScript</small>
+                </button>
+                <button class="inbox-file-row code" type="button" role="treeitem" data-mount="project" data-file-name="styles css visual system">
+                  <span class="file-indent level-2"></span><span class="file-icon code" aria-hidden="true"></span><strong>styles.css</strong><small>CSS</small>
+                </button>
+                <button class="inbox-file-row text" type="button" role="treeitem" data-mount="project" data-file-name="memory budget docs plan" data-document-link="docs/plans/memory-budget.md">
+                  <span class="file-indent level-1"></span><span class="file-icon text" aria-hidden="true"></span><strong>memory-budget.md</strong><small>plan</small>
+                </button>
+                <button class="inbox-file-row pdf" type="button" role="treeitem" data-mount="local" data-file-name="release notes pdf analyzed" data-document-link="docs/release-notes.pdf">
+                  <span class="file-indent"></span><span class="file-icon pdf" aria-hidden="true"></span><strong>release-notes.pdf</strong><small>analyzed</small>
+                </button>
+                <button class="inbox-file-row image" type="button" role="treeitem" data-mount="local" data-file-name="screenshot batch png">
+                  <span class="file-indent"></span><span class="file-icon image" aria-hidden="true"></span><strong>screenshot-batch.png</strong><small>image</small>
+                </button>
+                <button class="inbox-file-row folder" type="button" role="treeitem" data-mount="cloud" data-file-name="nextcloud notes inbox">
+                  <span class="file-indent"></span><span class="file-icon folder" aria-hidden="true"></span><strong>Nextcloud Notes</strong><small>3 new items</small>
+                </button>
+                <button class="inbox-file-row text" type="button" role="treeitem" data-mount="cloud" data-file-name="meeting notes txt">
+                  <span class="file-indent level-1"></span><span class="file-icon text" aria-hidden="true"></span><strong>meeting-notes.txt</strong><small>pending</small>
+                </button>
+              </div>
+            </section>
+          </div>
+        </article>
+      </div>
+      </div>
     </section>
 
     <div class="window-dock" id="window-dock" aria-label="Minimized windows"></div>
-    <button class="chat-nodge chat-nodge-left" id="chat-nodge-left" type="button" aria-label="Previous chat" hidden>
-      <span aria-hidden="true">&lsaquo;</span>
-    </button>
-    <button class="chat-nodge chat-nodge-right" id="chat-nodge-right" type="button" aria-label="Next chat" hidden>
-      <span aria-hidden="true">&rsaquo;</span>
-    </button>
     <div class="universal-inbox-trigger" id="universal-inbox-trigger" aria-hidden="true"></div>
     <section class="universal-inbox" id="universal-inbox" aria-label="Universal Inbox" aria-hidden="true">
       <header class="universal-inbox-head">
@@ -295,6 +652,7 @@
     </div>
   </main>
 
-  <script src="./app.js?v=workruns-polish-1"></script>
+  <script src="./data.js?v=harbor-brand-1"></script>
+  <script src="./app.js?v=harbor-brand-1"></script>
 </body>
 </html>

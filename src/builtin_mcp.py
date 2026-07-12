@@ -77,6 +77,7 @@ _BUILTIN_SERVERS = {
     "calendar":   ("mcp_servers/calendar_server.py",   "Built-in: Calendar"),
     "vault":      ("mcp_servers/vault_server.py",      "Built-in: Obsidian Vault"),
     "debug":      ("mcp_servers/debug_server.py",      "Built-in: Debug Diagnostics"),
+    "planning":   ("mcp_servers/planning_server.py",   "Built-in: Planning"),
 }
 
 # NPX-based built-in servers (run via npx, not Python)

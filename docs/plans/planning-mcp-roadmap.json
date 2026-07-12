@@ -1,0 +1,629 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.planning_mcp_roadmap",
+  "title": "Planning MCP Roadmap",
+  "created_at": "2026-07-08",
+  "updated_at": "2026-07-09",
+  "status": "repo_slices_done_live_gated",
+  "abc_mode": "Standard ABC",
+  "goal": "Expose Odysseus planning as a reliable JSON-first capability so internal agents, Codex and trusted external MCP clients can create, retrieve, update and contextualize roadmaps without losing provenance, gates or operator control.",
+  "problem_statement": {
+    "user_need": "Every AI should be able to use the Planning feature to create roadmaps, find existing roadmaps, load the right context and hand back reliable planning state.",
+    "current_gap": "Planning exists as JSON roadmaps, HTTP routes, Roadmap Lens and planning-source memory capsules, but there is no dedicated Planning MCP tool surface for internal or external clients.",
+    "design_principle": "Planning truth stays JSON-first. Markdown may be a rendered view only. MCP tools return compact, bounded, source-linked payloads instead of raw planning dumps."
+  },
+  "workflow_alignment": {
+    "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
+    "operator_workflow": [
+      "A plan is developed in the Agent screen or by another AI.",
+      "The AI calls Planning MCP to create a validated JSON roadmap draft.",
+      "The roadmap is stored in the appropriate project structure and indexed as derived Planning context.",
+      "Raptor Memory receives source-linked roadmap summaries, gates and relationships, but not raw private content.",
+      "Harbor One receives a sparse structural notification only for creation, deletion, gate blockers or human decisions.",
+      "Clicking the notification opens Planning Overview and highlights the changed roadmap or gate.",
+      "Agents later retrieve the roadmap and context pack through MCP before executing work.",
+      "Routine progress updates are audit logged but do not notify the operator."
+    ],
+    "ui_boundary": "The MCP roadmap defines payloads, events and context contracts. Harbor V2 UI behavior is owned by the Harbor Planning Integration Master Roadmap."
+  },
+  "frontpage_v2_dependencies": {
+    "updated_at": "2026-07-09",
+    "current_ui_prototype": [
+      "Harbor V2 can open a Roadmap Document Viewer from Roadmaps list or Overview graph selection.",
+      "The viewer can show a readable roadmap view and a JSON Data mode.",
+      "Spark buttons can switch to Agent and pin a roadmap or roadmap-section context bubble."
+    ],
+    "service_gaps": [
+      "Roadmap Document Viewer needs a read endpoint that returns one roadmap as readable sections plus canonical JSON.",
+      "Editable summary, tasks and JSON need validate/draft/patch endpoints before any write becomes planning truth.",
+      "Spark needs a context-pack endpoint scoped to full roadmap, summary, task or gate sections.",
+      "Spark handoff needs redacted audit metadata so the user can later see why the Agent received that context.",
+      "Notification deep links need stable project_id and roadmap_id references that resolve to the same service payload."
+    ],
+    "related_master_slices": [
+      "HPIM-7-v2-roadmap-document-source",
+      "HPIM-8-roadmap-document-edit-persist",
+      "HPIM-9-spark-agent-context-pack",
+      "HPIM-10-notification-roadmap-document-deeplink"
+    ]
+  },
+  "research_evidence": {
+    "repo_status_observed": "dev branch with existing unrelated dirty and untracked work; roadmap is docs-only and must not revert or touch unrelated files.",
+    "existing_planning_routes": [
+      "routes/roadmap_routes.py exposes /api/roadmap/graph, /dashboard, /planning-sources/inventory and planning-source memory status/ingest routes.",
+      "routes/roadmap_routes.py already contains visual-agent-programming validation, proposal review, mutation patch, apply and dispatch request endpoints."
+    ],
+    "existing_runtime_contracts": [
+      "src/plan_runtime.py validates structured JSON roadmaps where format_decision.source_of_truth is json.",
+      "src/roadmap_lens.py projects PlanRuntimeState into a bounded ProgressiveGraphPage.",
+      "src/planning_source_inventory.py scans specs/roadmaps and docs/plans for JSON/Markdown planning sources with stable IDs, hashes and bounded previews.",
+      "src/planning_source_memory.py builds and optionally ingests planning memory capsules; current JSON roadmaps receive the highest precedence rank."
+    ],
+    "existing_mcp_contracts": [
+      "plugins/mcp_server/plugin.py exposes a disabled-by-default policy-gated MCP server over /api/plugins/mcp.",
+      "src/mcp_server_tool_policy.py hides high-risk, generic API, private-read, filesystem-read and owner-scoped write tools unless explicit policy options allow them.",
+      "mcp_servers/debug_server.py is a reference for bounded stdio MCP tools with redacted outputs and explicit tool contracts.",
+      "mcp_servers/vault_server.py is a reference for owner-scoped stdio MCP tools using trusted owner context and rate limits."
+    ],
+    "related_roadmaps": [
+      "docs/plans/odysseus-mcp-server-roadmap.md",
+      "docs/plans/mcp-workbench-productization-roadmap.md",
+      "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+      "docs/plans/open-work-completion-master-roadmap.json"
+    ],
+    "official_mcp_reference": [
+      "https://modelcontextprotocol.io/specification/2025-06-18",
+      "The official MCP specification frames servers as providers of Resources, Prompts and Tools over JSON-RPC 2.0.",
+      "The specification's security guidance emphasizes user consent, data privacy, tool safety, access controls and clear authorization flows; Planning MCP follows those principles with read-only defaults, dry-run writes and explicit gates."
+    ]
+  },
+  "target_architecture": {
+    "planning_service_layer": {
+      "goal": "Create one pure service API that HTTP routes, internal MCP servers and external MCP plugins can share.",
+      "candidate_modules": [
+        "src/planning_mcp_service.py",
+        "tests/test_planning_mcp_service.py"
+      ],
+      "responsibilities": [
+        "List and search roadmap JSON sources using the existing planning source inventory.",
+        "Read a roadmap by stable source_id or repo-relative path with bounded content and parsed metadata.",
+        "Validate new roadmap JSON before any write.",
+        "Create new roadmap JSON from a structured proposal or LLM-produced draft, then return a dry-run patch by default.",
+        "Build context packs from roadmap, source refs, gates, active node, related files and accepted planning memory capsules.",
+        "Normalize public payloads so no absolute private paths, tokens, raw provider outputs or excessive raw content are exposed."
+      ]
+    },
+    "project_storage_and_memory_bridge": {
+      "goal": "Persist validated roadmaps as JSON planning truth and expose derived Planning context to Raptor Memory without raw private content.",
+      "candidate_modules": [
+        "src/planning_mcp_service.py",
+        "src/planning_source_memory.py",
+        "src/memory_lifecycle_adapters.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_planning_source_memory.py"
+      ],
+      "responsibilities": [
+        "Return stable project_id, roadmap_id, gate_id and todo_id values for UI deep links and MCP context packs.",
+        "Record source refs, actor, client profile, reason and undo metadata for structural writes.",
+        "Treat Raptor Memory as derived, rebuildable planning context rather than the source of truth.",
+        "Keep roadmap JSON as the canonical state and Markdown as optional rendered output."
+      ]
+    },
+    "internal_mcp_surface": {
+      "goal": "Let Odysseus agents use Planning through MCP without going through broad app_api or ad hoc file access.",
+      "candidate_files": [
+        "mcp_servers/planning_server.py",
+        "src/builtin_mcp.py",
+        "tests/test_mcp_planning_server.py"
+      ],
+      "transport": "stdio built-in MCP server managed by the existing MCP manager",
+      "default_policy": "read-mostly; write tools require explicit planning_write gate and owner/admin context"
+    },
+    "external_mcp_surface": {
+      "goal": "Expose a narrow Planning tool group through the existing external MCP plugin for Codex and other trusted clients.",
+      "candidate_files": [
+        "plugins/mcp_server/plugin.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_mcp_server_plugin.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "transport": "existing policy-gated HTTP MCP endpoint",
+      "default_policy": "disabled by default; read-only Planning tools may be previewed; roadmap creation/apply requires owner-scoped write scope and explicit gate"
+    },
+    "ui_integration": {
+      "goal": "The V2 Planning UI can call the same service, but UI implementation is not part of this roadmap.",
+      "boundary": "No frontend changes in this roadmap unless a later UI-owned slice explicitly claims them."
+    }
+  },
+  "event_and_notification_policy": {
+    "principle": "Planning MCP calls are usually quiet infrastructure. Harbor One notifications are sparse and reserved for structural changes or decisions.",
+    "silent_events": [
+      "planning_context_pack_read",
+      "planning_progress_updated",
+      "planning_todo_completed",
+      "planning_summary_refreshed",
+      "planning_raptor_memory_processed",
+      "planning_agent_checkpoint_written"
+    ],
+    "notify_events": [
+      "project_created",
+      "project_deleted",
+      "roadmap_created",
+      "roadmap_deleted",
+      "gate_blocked",
+      "gate_unblocked_when_it_changes_available_work",
+      "human_decision_required",
+      "undo_available_after_structural_delete"
+    ],
+    "notification_payload_contract": {
+      "required_fields": ["event_type", "project_id", "title", "severity", "created_at", "ui_target"],
+      "optional_fields": ["roadmap_id", "gate_id", "undo_ref", "summary", "reason"],
+      "ui_target": "planning.overview",
+      "forbidden_fields": ["absolute_private_path", "raw_private_content", "token", "secret", "chat_id", "raw_provider_output"]
+    }
+  },
+  "mcp_tool_surface": {
+    "read_only_tools": [
+      {
+        "name": "planning_list_roadmaps",
+        "audience": "internal_and_external",
+        "purpose": "Return bounded metadata for available roadmap sources from docs/plans and specs/roadmaps.",
+        "inputs": ["kind", "status", "query", "limit"],
+        "output_schema": "odysseus.planning.roadmap_list.v1"
+      },
+      {
+        "name": "planning_read_roadmap",
+        "audience": "internal_and_external",
+        "purpose": "Read one roadmap by source_id or repo-relative path with parsed JSON metadata and bounded preview.",
+        "inputs": ["source_id_or_path", "include_nodes", "include_raw_preview_chars"],
+        "output_schema": "odysseus.planning.roadmap_read.v1"
+      },
+      {
+        "name": "planning_search_roadmaps",
+        "audience": "internal_and_external",
+        "purpose": "Search roadmap titles, IDs, statuses, gates, source refs and bounded previews.",
+        "inputs": ["query", "filters", "limit"],
+        "output_schema": "odysseus.planning.roadmap_search.v1"
+      },
+      {
+        "name": "planning_get_context_pack",
+        "audience": "internal_and_external",
+        "purpose": "Build a compact context packet for an agent, Codex or UI task from roadmap source, active node, related sources and accepted planning memory.",
+        "inputs": ["roadmap_ref", "task", "node_id", "max_items", "include_memory"],
+        "output_schema": "odysseus.planning.context_pack.v1"
+      },
+      {
+        "name": "planning_graph_summary",
+        "audience": "internal_and_external",
+        "purpose": "Return a bounded graph summary compatible with Roadmap Lens for one roadmap.",
+        "inputs": ["roadmap_ref", "depth", "limit"],
+        "output_schema": "odysseus.planning.graph_summary.v1"
+      },
+      {
+        "name": "planning_gate_status",
+        "audience": "internal_and_external",
+        "purpose": "Return gates, blockers and next safe actions for a roadmap or node.",
+        "inputs": ["roadmap_ref", "node_id"],
+        "output_schema": "odysseus.planning.gate_status.v1"
+      }
+    ],
+    "write_or_mutation_tools": [
+      {
+        "name": "planning_create_roadmap_draft",
+        "audience": "internal_first_external_later",
+        "purpose": "Create a validated JSON roadmap draft from structured input; dry-run is default.",
+        "inputs": ["title", "goal", "mode", "source_refs", "slices", "gates", "dry_run"],
+        "gate": "PLANNING-WRITE-GO"
+      },
+      {
+        "name": "planning_validate_roadmap",
+        "audience": "internal_and_external",
+        "purpose": "Validate candidate roadmap JSON without writing it.",
+        "inputs": ["roadmap_payload"],
+        "gate": "none_readonly_validation"
+      },
+      {
+        "name": "planning_propose_patch",
+        "audience": "internal_first_external_later",
+        "purpose": "Produce an auditable patch proposal for nodes, gates, status or source refs without applying it.",
+        "inputs": ["roadmap_ref", "proposal", "reason"],
+        "gate": "none_if_dry_run"
+      },
+      {
+        "name": "planning_apply_patch",
+        "audience": "internal_only_until_live_evidence",
+        "purpose": "Apply a previously validated and accepted roadmap patch.",
+        "inputs": ["roadmap_ref", "patch_id", "confirmation_token"],
+        "gate": "PLANNING-APPLY-GO"
+      },
+      {
+        "name": "planning_mark_status",
+        "audience": "internal_only_until_policy_ready",
+        "purpose": "Mark roadmap or node status after validated evidence.",
+        "inputs": ["roadmap_ref", "node_id", "status", "evidence_refs"],
+        "gate": "PLANNING-STATUS-WRITE-GO"
+      },
+      {
+        "name": "planning_delete_roadmap",
+        "audience": "internal_only_until_policy_ready",
+        "purpose": "Delete or archive a roadmap through a reversible structural event with undo metadata.",
+        "inputs": ["roadmap_ref", "reason", "dry_run"],
+        "gate": "PLANNING-DELETE-GO"
+      },
+      {
+        "name": "planning_emit_structural_event",
+        "audience": "internal_only",
+        "purpose": "Classify a Planning change as silent or notify-worthy and return the safe Harbor notification payload when needed.",
+        "inputs": ["event_type", "project_id", "roadmap_id", "gate_id", "reason", "undo_ref"],
+        "gate": "none_for_dry_run_or_readonly_event_classification"
+      }
+    ],
+    "mcp_resources": [
+      {
+        "uri": "odysseus://planning/inventory",
+        "purpose": "Read-only planning source inventory."
+      },
+      {
+        "uri": "odysseus://planning/active",
+        "purpose": "Current active planning context for the operator or active project."
+      },
+      {
+        "uri": "odysseus://planning/policy",
+        "purpose": "Planning MCP safety, scope and write policy."
+      }
+    ],
+    "mcp_prompts": [
+      {
+        "name": "odysseus_planning_create_json_roadmap",
+        "purpose": "Guide an AI client to create a JSON-first roadmap draft with gates, slices, source refs and stop rules."
+      },
+      {
+        "name": "odysseus_planning_context_handoff",
+        "purpose": "Ask an AI client to load a context pack before implementing a slice."
+      }
+    ]
+  },
+  "security_and_policy": {
+    "defaults": [
+      "MCP Planning tools are hidden from external clients until the MCP server plugin is enabled.",
+      "External Planning tools default to read-only.",
+      "Roadmap writes default to dry_run and patch proposal, not direct apply.",
+      "Only repo-relative allowlisted paths under docs/plans and specs/roadmaps are valid roadmap targets.",
+      "No absolute paths, tokens, private raw document content, provider raw output or chat IDs in MCP payloads.",
+      "Every write must record source_refs, reason, actor, client profile and audit metadata.",
+      "Every generated roadmap must validate before being visible as claimable planning truth."
+    ],
+    "gates": [
+      {
+      "id": "PLANNING-MCP-READONLY-GO",
+      "class": "repo_only",
+      "status": "done",
+        "decision_needed": "Approve read-only Planning MCP tools as safe for internal and external MCP clients."
+      },
+      {
+        "id": "PLANNING-WRITE-GO",
+        "class": "needs_operator_go",
+        "decision_needed": "Approve roadmap draft writes to docs/plans or specs/roadmaps for a named owner/client."
+      },
+      {
+        "id": "PLANNING-APPLY-GO",
+        "class": "needs_operator_go",
+        "decision_needed": "Approve applying validated roadmap patches instead of producing dry-run previews only."
+      },
+      {
+        "id": "PLANNING-DELETE-GO",
+        "class": "needs_operator_go",
+        "decision_needed": "Approve reversible roadmap or project deletion with undo metadata and operator-visible notification."
+      },
+      {
+      "id": "PLANNING-NOTIFICATION-GO",
+      "class": "repo_only",
+      "status": "done",
+        "decision_needed": "Approve sparse Harbor notification event classification for Planning structural changes."
+      },
+      {
+        "id": "EXTERNAL-MCP-CLIENT-GO",
+        "class": "needs_live_go",
+        "decision_needed": "Approve exact external client, scope, duration, network boundary and audit requirements."
+      }
+    ]
+  },
+  "non_goals": [
+    "No broad generic app_api exposure for planning.",
+    "No shell, Python, arbitrary file write or unrestricted filesystem read through Planning MCP.",
+    "No UI implementation in this roadmap.",
+    "No live external MCP client connection without explicit Go.",
+    "No conversion of Markdown into the planning source of truth.",
+    "No automatic marking of roadmap work as done without evidence refs.",
+    "No visible Harbor notification for every Planning MCP call."
+  ],
+  "stop_rules": [
+    "Stop if a tool would expose secrets, tokens, private raw content, raw provider output, raw chat IDs or absolute private paths.",
+    "Stop if roadmap creation would write outside docs/plans or specs/roadmaps.",
+    "Stop if an external client requests generic API, shell, Python, unmanaged file access or unclassified tools.",
+    "Stop if a generated roadmap omits gates, source refs, stop rules or verification.",
+    "Stop if existing unrelated dirty or staged files become part of the scope.",
+    "Stop if PlanRuntime validation fails and the fix is not a narrow schema/data fix."
+  ],
+  "slice_queue": [
+    {
+      "id": "PMCP-0-research-roadmap",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done_in_this_artifact",
+      "objective": "Research existing planning, PlanRuntime, Roadmap Lens, planning-source memory and MCP server contracts, then create this JSON roadmap.",
+      "allowed_paths": [
+        "docs/plans/planning-mcp-roadmap.json"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/planning-mcp-roadmap.json"
+      ],
+      "done_when": "Roadmap exists as valid JSON and cites existing source files."
+    },
+    {
+      "id": "PMCP-1-service-contract",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Implement a pure Planning MCP service contract shared by HTTP routes, stdio MCP and external MCP plugin.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "tests/test_planning_mcp_service.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py"
+      ],
+      "done_when": "List, read, search, validate and context-pack functions work with bounded payloads and repo-relative allowlisted paths."
+    },
+    {
+      "id": "PMCP-2-readonly-stdio-server",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Add an internal built-in stdio MCP server for read-only Planning tools.",
+      "allowed_paths": [
+        "mcp_servers/planning_server.py",
+        "src/builtin_mcp.py",
+        "tests/test_mcp_planning_server.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_mcp_planning_server.py"
+      ],
+      "done_when": "Internal agents can list/read/search/get context packs through MCP without broad file tools."
+    },
+    {
+      "id": "PMCP-3-external-policy-exposure",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Expose read-only Planning tools through the external MCP server plugin policy layer.",
+      "allowed_paths": [
+        "plugins/mcp_server/plugin.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_mcp_server_plugin.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_mcp_server_plugin.py tests/test_mcp_server_tool_policy.py"
+      ],
+      "done_when": "planning_list_roadmaps, planning_read_roadmap, planning_search_roadmaps, planning_get_context_pack, planning_graph_summary and planning_gate_status are policy-classified and visible only when MCP is enabled."
+    },
+    {
+      "id": "PMCP-4-roadmap-draft-and-validation",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Add validated JSON roadmap draft creation and dry-run patch proposals.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "tests/test_planning_mcp_service.py",
+        "docs/plans/planning-mcp-roadmap.json"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py"
+      ],
+      "done_when": "Generated roadmap drafts validate, remain dry-run by default, and include slices, gates, stop rules, source refs and verification."
+    },
+    {
+      "id": "PMCP-5-context-pack-memory-bridge",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Build Planning context packs from roadmap metadata, Roadmap Lens summaries, planning-source memory capsules and bounded source previews.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/planning_source_memory.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_planning_source_memory.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_planning_source_memory.py"
+      ],
+      "done_when": "A context pack contains enough source-linked context for Codex or another agent to work a slice without raw dumps."
+    },
+    {
+      "id": "PMCP-5b-roadmap-document-view",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Return one roadmap as a bounded Roadmap Document payload for Harbor V2, including readable sections, canonical JSON, gates, tasks and source refs.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "The UI can request one roadmap by project_id and roadmap_id and receive stable data for Overview, Roadmaps list and Document Viewer without frontend-only demo reconstruction."
+    },
+    {
+      "id": "PMCP-5c-roadmap-edit-draft",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Support Roadmap Document Viewer edits as validated draft or patch proposals before any apply write.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "Summary, task and Data-mode edits validate against schema, return a diff or draft id, and expose conflicts instead of silently overwriting roadmap JSON."
+    },
+    {
+      "id": "PMCP-5d-spark-section-context-pack",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Build section-scoped context packs for Spark handoff from roadmap document, summary, task or gate.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/mcp_audit_events.py",
+        "routes/roadmap_routes.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_mcp_audit_events.py",
+        "tests/test_roadmap_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_mcp_audit_events.py tests/test_roadmap_routes.py"
+      ],
+      "done_when": "Spark returns a bounded context pack with project_id, roadmap_id, section_id, summary, source refs, allowed memory refs and redacted audit metadata."
+    },
+    {
+      "id": "PMCP-6-audit-and-client-profile",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Record Planning MCP calls with redacted audit metadata and align with existing MCP client profiles.",
+      "allowed_paths": [
+        "src/mcp_audit_events.py",
+        "src/mcp_client_profiles.py",
+        "plugins/mcp_server/plugin.py",
+        "tests/test_mcp_audit_events.py",
+        "tests/test_mcp_client_profiles.py",
+        "tests/test_mcp_server_plugin.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_mcp_audit_events.py tests/test_mcp_client_profiles.py tests/test_mcp_server_plugin.py"
+      ],
+      "done_when": "Every external Planning MCP call records client profile, tool name, status, gate reason and redacted argument metadata."
+    },
+    {
+      "id": "PMCP-6b-structural-event-policy",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Classify Planning MCP events as silent updates or sparse Harbor notifications.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/user_notification_contract.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_user_notification_contract.py",
+        "docs/plans/planning-mcp-roadmap.json"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_user_notification_contract.py"
+      ],
+      "done_when": "Roadmap create/delete and gate decision events can produce safe notification payloads, while context reads and routine progress updates remain silent."
+    },
+    {
+      "id": "PMCP-6c-project-storage-memory-bridge",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Bridge validated roadmap JSON into project storage metadata and derived Planning memory context.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/planning_source_memory.py",
+        "src/memory_lifecycle_adapters.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_planning_source_memory.py",
+        "tests/test_memory_lifecycle_adapters.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_planning_source_memory.py tests/test_memory_lifecycle_adapters.py"
+      ],
+      "done_when": "Roadmap summaries, gates, dependencies and source refs are represented as derived Raptor Memory planning context with stable project and roadmap IDs."
+    },
+    {
+      "id": "PMCP-7-write-apply-gate",
+      "class": "needs_operator_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "objective": "Allow applying validated roadmap patches only after explicit operator approval.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "plugins/mcp_server/plugin.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_roadmap_routes.py",
+        "tests/test_mcp_server_plugin.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_mcp_server_plugin.py"
+      ],
+      "done_when": "Confirmed apply writes an allowlisted JSON file, emits audit metadata, validates after write and returns rollback information."
+    },
+    {
+      "id": "PMCP-7b-delete-undo-gate",
+      "class": "needs_operator_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "objective": "Allow roadmap deletion only as a reversible structural event with undo metadata and sparse Harbor notification.",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/user_notification_contract.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_user_notification_contract.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_planning_mcp_service.py tests/test_user_notification_contract.py"
+      ],
+      "done_when": "Delete returns undo_ref, writes redacted audit metadata, emits one operator-visible notification and can be restored through the planned UI flow."
+    },
+    {
+      "id": "PMCP-8-external-codex-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "gated",
+      "objective": "Run one bounded external MCP client smoke where Codex lists roadmaps, reads one roadmap, gets a context pack and creates a dry-run roadmap draft.",
+      "allowed_paths": [
+        "docs/plans/planning-mcp-roadmap.json",
+        "docs/plans/mcp-workbench-setup-runbook.md"
+      ],
+      "tests": [
+        "manual external MCP smoke after EXTERNAL-MCP-CLIENT-GO"
+      ],
+      "done_when": "Smoke evidence is redacted, no live write happens without PLANNING-APPLY-GO, and Codex can reliably retrieve Planning context."
+    }
+  ],
+  "verification": {
+    "docs_only_current_slice": [
+      "python -m json.tool docs/plans/planning-mcp-roadmap.json"
+    ],
+    "future_focused_tests": [
+      "python -m pytest tests/test_planning_mcp_service.py",
+      "python -m pytest tests/test_mcp_planning_server.py",
+      "python -m pytest tests/test_mcp_server_plugin.py tests/test_mcp_server_tool_policy.py",
+      "python -m pytest tests/test_planning_source_inventory.py tests/test_planning_source_memory.py"
+    ],
+    "manual_smoke_requires_go": [
+      "External Codex MCP client can call read-only Planning tools.",
+      "External client cannot write or apply patches without gate.",
+      "Audit log contains redacted planning MCP call metadata."
+    ]
+  },
+  "go_language": {
+    "go": "Planning MCP read-only tools exist internally and externally, context packs are bounded and source-linked, roadmap drafts validate, writes are gated and audited.",
+    "partial": "Read-only Planning MCP works, but roadmap draft writes or external client smoke remain deferred.",
+    "deferred": "External client live smoke, patch apply and status mutation wait for explicit operator Go.",
+    "no_go": "Any design exposes generic API, shell, Python, arbitrary file access, private raw content or direct ungated roadmap writes.",
+    "blocked": "Planning truth cannot be validated as JSON or the MCP tool surface cannot be classified safely."
+  },
+  "recommended_next_step": "Implement PMCP-1 service contract first. Do not start with the MCP server itself; the shared service gives HTTP, internal MCP and external MCP one reliable planning core."
+}

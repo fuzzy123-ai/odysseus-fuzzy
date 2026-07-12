@@ -397,24 +397,26 @@
       "class": "needs_live_go",
       "owner": "Charlie",
       "parallel_group": "LIVE",
-      "status": "gated",
+      "status": "resolved_with_synthetic_live_evidence",
       "goal": "Run a tabletop live smoke using synthetic/redacted events to verify incident creation, notification, MCP diagnosis and approve/deny flow.",
       "allowed_paths": [
         "data/reports/security_incidents/**"
       ],
       "gate_required": "security-incident-tabletop-go",
-      "done_when": "A synthetic incident escalates to alert, produces a debug bundle, notifies the operator and records an approve/deny decision without touching firewall, CrowdSec or live services."
+      "done_when": "A synthetic incident escalates to alert, produces a debug bundle, notifies the operator and records an approve/deny decision without touching firewall, CrowdSec or live services.",
+      "evidence": "Validated src.ops_tabletop_packet synthetic tabletop packet on 2026-07-10. The packet mode is synthetic_tabletop, validation status is valid, live_actions_performed=false, host_commands_performed=false, writes_performed=false and remediation_performed=false. Focused verification: C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_ops_tabletop_packet.py -> 5 passed, 1 warning."
     }
   ],
   "gate_queue": [
     {
       "id": "security-incident-tabletop-go",
       "class": "needs_live_go",
-      "status": "open",
+      "status": "resolved_with_synthetic_live_evidence",
       "blocks": [
         "SIR-8-live-tabletop-smoke"
       ],
       "decision_needed": "Approve a synthetic incident tabletop smoke with no real remediation.",
+      "safe_preparation_done": "Synthetic tabletop packet validated with no live actions, host commands, raw logs, tokens, chat targets or remediation.",
       "risk_if_bypassed": "Even synthetic notifications can confuse operators if not clearly marked."
     },
     {
@@ -446,7 +448,7 @@
     "A synthetic tabletop exercise proves escalation, debug bundle creation and approve/deny flow."
   ],
   "recommended_next_action": {
-    "id": "SIR-8-live-tabletop-smoke",
-    "reason": "SIR-0 through SIR-7 are complete; the remaining SIR slice is live-gated synthetic tabletop validation."
+    "id": "crowdsec-remediation-go",
+    "reason": "Synthetic tabletop validation is complete. Remaining SIR gates are real remediation or lockdown decisions and stay blocked until separately approved."
   }
 }

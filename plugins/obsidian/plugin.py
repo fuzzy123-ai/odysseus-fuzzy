@@ -159,7 +159,13 @@ PLUGIN = {
     "version": "0.10.0-rc.1",
     "description": "Obsidian vault integration with dockable UI, graph tools, and agent workflows.",
     "category": "productivity",
+    "manifest_version": "1.0",
+    "permission": "admin",
     "permissions": ["filesystem"],
+    "kind": "core",
+    "capabilities": ["admin_route", "context_provider", "local_api", "memory_write", "owner_scoped_write"],
+    "compatibility": {"min_odysseus": "1.0.0"},
+    "lifecycle": "loadable",
     "ui": {
         "open": "/api/plugins/obsidian/app",
         "label": "Open Vault",

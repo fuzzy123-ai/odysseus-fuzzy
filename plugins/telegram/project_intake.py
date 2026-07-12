@@ -7,6 +7,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from plugins.telegram.formatting import (
+    format_project_intake_review_status,
+    format_telegram_project_intake_reply as _format_telegram_project_intake_reply,
+)
 from plugins.telegram.stores import TelegramInboxStore, TelegramSessionBridgeStore
 
 
@@ -113,27 +117,7 @@ def build_telegram_project_intake_preview(
 
 
 def format_telegram_project_intake_reply(result: dict[str, Any]) -> str:
-    status = str(result.get("status") or "blocked")
-    if status == "blocked":
-        reason = str(result.get("reason") or "project_choice_required")
-        if reason == "project_choice_required":
-            return "Project-Intake erkannt, aber ich konnte kein Zielprojekt sicher bestimmen. Bitte sende z.B. #project:projekt-slug dazu."
-        return f"Project-Intake blockiert: {reason}."
-    project = str(result.get("project_slug") or "unknown")
-    confidence = float(result.get("confidence") or 0)
-    lines = [
-        f"Project-Intake erkannt fuer {project} ({round(confidence * 100)}%).",
-        f"Tasks: {int(result.get('task_count') or 0)}, Decisions: {int(result.get('decision_count') or 0)}, Risiken: {int(result.get('risk_count') or 0)}, Roadmap-Updates: {int(result.get('roadmap_update_count') or 0)}.",
-    ]
-    task_titles = []
-    for task in tuple(result.get("tasks") or ())[:3]:
-        if isinstance(task, dict) and task.get("title"):
-            task_titles.append(str(task.get("title")))
-    if task_titles:
-        lines.append("Vorschlag:")
-        lines.extend(f"- {title}" for title in task_titles)
-    lines.append("Antwort: /project ok uebernimmt ins Intake-Ledger, /project hold pausiert. Projektdateien bleiben noch gesperrt.")
-    return "\n".join(lines)
+    return _format_telegram_project_intake_reply(result)
 
 
 def _apply_telegram_project_intake_review(
@@ -185,16 +169,7 @@ def _apply_telegram_project_intake_review(
 
 
 def _format_project_intake_review_status(review: dict[str, Any] | None) -> str:
-    if review is None:
-        return "Keine offene Project-Intake-Review gefunden."
-    project = str(review.get("project_slug") or "unbekannt")
-    return (
-        f"Offene Project-Intake-Review fuer {project}: "
-        f"{int(review.get('task_count') or 0)} Tasks, "
-        f"{int(review.get('decision_count') or 0)} Decisions, "
-        f"{int(review.get('risk_count') or 0)} Risiken. "
-        "Antwort: /project ok oder /project hold."
-    )
+    return format_project_intake_review_status(review)
 
 
 def _utc_now_iso() -> str:

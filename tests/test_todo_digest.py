@@ -3,6 +3,7 @@ import json
 from types import SimpleNamespace
 
 from src.builtin_actions import BUILTIN_ACTIONS, _todo_digest_from_notes
+from src.todo_digest_formatting import collapse_repeated_open_item_list_prefixes
 
 
 def _note(**kwargs):
@@ -41,6 +42,43 @@ def test_todo_digest_supports_label_filter():
 
     assert "Work: Open item" in digest
     assert "Private" not in digest
+
+
+def test_todo_digest_groups_repeated_items_from_one_list():
+    digest = _todo_digest_from_notes([
+        _note(
+            title="Zentrale To-Do-Liste",
+            items=json.dumps([
+                {"text": "Termin mit Herr Assel und Macro koordinieren per E-Mail", "done": False},
+                {"text": "ASV Noten ueberpruefen", "done": False},
+            ]),
+        ),
+    ])
+
+    assert (
+        "Open items:\n"
+        "Zentrale To-Do-Liste:\n"
+        "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- ASV Noten ueberpruefen"
+    ) in digest
+    assert "- Zentrale To-Do-Liste:" not in digest
+
+
+def test_todo_digest_formatting_collapses_existing_multiline_body():
+    body = (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "- Zentrale To-Do-Liste: Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- Zentrale To-Do-Liste: ASV Noten ueberpruefen"
+    )
+
+    assert collapse_repeated_open_item_list_prefixes(body) == (
+        "Todo digest\n\n"
+        "Open items:\n"
+        "Zentrale To-Do-Liste:\n"
+        "- Termin mit Herr Assel und Macro koordinieren per E-Mail\n"
+        "- ASV Noten ueberpruefen"
+    )
 
 
 def test_todo_digest_action_is_registered():

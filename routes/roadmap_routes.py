@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from core.middleware import require_admin
 from src.constants import DATA_DIR
 from src.memory import MemoryManager
+from src.mcp_audit_events import build_planning_section_audit_descriptor
 from src.orchestration_dashboard import build_orchestration_dashboard_snapshot
 from src.plan_runtime import PlanRuntimeError, PlanRuntimeState
 from src.planning_source_inventory import build_planning_source_inventory
@@ -19,6 +21,7 @@ from src.planning_source_memory import (
     build_planning_memory_capsules,
     ingest_planning_sources_to_memory,
 )
+from src.planning_mcp_service import PlanningMcpService, PlanningServiceError
 from src.roadmap_lens import build_roadmap_lens_page
 from src.visual_agent_programming_lens import (
     apply_visual_plan_mutation_patch,
@@ -73,6 +76,167 @@ def setup_roadmap_routes() -> APIRouter:
             return build_planning_source_inventory(_repo_root(), preview_chars=max(0, min(int(preview_chars), 1000)))
         except (OSError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=500, detail=f"planning source inventory unavailable: {exc}") from exc
+
+    @router.get("/documents/{project_id}/{roadmap_id}")
+    def api_roadmap_document(
+        project_id: str,
+        roadmap_id: str,
+        request: Request,
+        max_items: int = 24,
+        canonical_json_chars: int = 8192,
+        include_memory: bool = False,
+    ):
+        require_admin(request)
+        try:
+            return PlanningMcpService(_repo_root()).read_document(
+                project_id,
+                roadmap_id,
+                max_items=max_items,
+                canonical_json_chars=canonical_json_chars,
+                include_memory=include_memory,
+            )
+        except PlanningServiceError as exc:
+            status_code = 404 if exc.code == "roadmap_document_not_found" else 400
+            raise HTTPException(status_code=status_code, detail=exc.to_dict()) from exc
+
+    @router.post("/documents/{project_id}/{roadmap_id}/proposals")
+    def api_roadmap_document_edit_proposal(
+        project_id: str,
+        roadmap_id: str,
+        payload: dict[str, Any],
+        request: Request,
+    ):
+        require_admin(request)
+        try:
+            proposal = PlanningMcpService(_repo_root()).propose_document_edit(project_id, roadmap_id, payload)
+        except PlanningServiceError as exc:
+            status_code = 404 if exc.code in {"roadmap_document_not_found", "document_task_not_found"} else 400
+            raise HTTPException(status_code=status_code, detail=exc.to_dict()) from exc
+        if proposal.get("status") == "conflict":
+            return JSONResponse(proposal, status_code=409)
+        if proposal.get("status") != "ready":
+            return JSONResponse(
+                {
+                    "schema": proposal.get("schema"),
+                    "draft_id": proposal.get("draft_id"),
+                    "patch_id": proposal.get("patch_id"),
+                    "status": "invalid",
+                    "ready_for_apply": False,
+                    "writes_performed": False,
+                    "required_apply_gate": "PLANNING-APPLY-GO",
+                    "validation": proposal.get("validation") or {},
+                    "conflicts": proposal.get("conflicts") or [],
+                    "warnings": proposal.get("warnings") or [],
+                    "rejected_value_visible": False,
+                },
+                status_code=400,
+            )
+        return proposal
+
+    def _section_context_response(
+        project_id: str,
+        roadmap_id: str,
+        *,
+        section_id: str,
+        item_id: str = "",
+        task_id: str = "",
+        gate_id: str = "",
+        max_items: int = 12,
+        include_memory: bool = True,
+        client_id: str = "",
+    ) -> dict[str, Any]:
+        arguments = {
+            "project_id": project_id,
+            "roadmap_id": roadmap_id,
+            "section_id": section_id,
+            "max_items": max_items,
+            "include_memory": include_memory,
+        }
+        if item_id:
+            arguments["item_id"] = item_id
+        if task_id:
+            arguments["task_id"] = task_id
+        if gate_id:
+            arguments["gate_id"] = gate_id
+        pack = PlanningMcpService(_repo_root()).get_section_context_pack(
+            project_id,
+            roadmap_id,
+            section_id,
+            item_id=item_id,
+            task_id=task_id,
+            gate_id=gate_id,
+            max_items=max_items,
+            include_memory=include_memory,
+        )
+        pack["audit_descriptor"] = build_planning_section_audit_descriptor(
+            client_id=client_id,
+            arguments=arguments,
+        )
+        return pack
+
+    @router.get("/documents/{project_id}/{roadmap_id}/context-pack")
+    def api_roadmap_section_context_pack(
+        project_id: str,
+        roadmap_id: str,
+        request: Request,
+        section_id: str,
+        item_id: str = "",
+        task_id: str = "",
+        gate_id: str = "",
+        max_items: int = 12,
+        include_memory: bool = True,
+        client_id: str = "",
+    ):
+        require_admin(request)
+        try:
+            return _section_context_response(
+                project_id,
+                roadmap_id,
+                section_id=section_id,
+                item_id=item_id,
+                task_id=task_id,
+                gate_id=gate_id,
+                max_items=max_items,
+                include_memory=include_memory,
+                client_id=client_id,
+            )
+        except PlanningServiceError as exc:
+            status_code = 404 if exc.code in {
+                "roadmap_document_not_found", "section_task_not_found", "section_gate_not_found",
+            } else 400
+            raise HTTPException(status_code=status_code, detail=exc.to_dict()) from exc
+
+    @router.post("/documents/{project_id}/{roadmap_id}/context-pack")
+    def api_roadmap_section_context_pack_post(
+        project_id: str,
+        roadmap_id: str,
+        payload: dict[str, Any],
+        request: Request,
+    ):
+        require_admin(request)
+        allowed = {"section_id", "item_id", "task_id", "gate_id", "max_items", "include_memory", "client_id"}
+        if set(payload) - allowed:
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "invalid_section_context_request", "message": "Section context request has unsupported fields"},
+            )
+        try:
+            return _section_context_response(
+                project_id,
+                roadmap_id,
+                section_id=str(payload.get("section_id") or ""),
+                item_id=str(payload.get("item_id") or ""),
+                task_id=str(payload.get("task_id") or ""),
+                gate_id=str(payload.get("gate_id") or ""),
+                max_items=payload.get("max_items", 12),
+                include_memory=payload.get("include_memory", True),
+                client_id=str(payload.get("client_id") or ""),
+            )
+        except PlanningServiceError as exc:
+            status_code = 404 if exc.code in {
+                "roadmap_document_not_found", "section_task_not_found", "section_gate_not_found",
+            } else 400
+            raise HTTPException(status_code=status_code, detail=exc.to_dict()) from exc
 
     @router.get("/planning-sources/memory/status")
     def api_planning_sources_memory_status(request: Request, preview_chars: int = 240):

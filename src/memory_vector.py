@@ -7,7 +7,12 @@ Stores pre-computed embeddings (ChromaDB does not manage embedding).
 """
 
 import logging
+import math
+import time
 from typing import List, Dict, Optional
+
+from src.ai_lens_events import AiLensRedactionLevel, AiLensSourceKind, AiLensSourceRef
+from src.ai_lens_service import opaque_ai_lens_ref
 
 from src.embedding_lanes import (
     LANE_CUSTOM,
@@ -20,6 +25,32 @@ from src.embedding_lanes import (
 )
 
 logger = logging.getLogger(__name__)
+MAX_AI_LENS_CAPTURE_HITS = 32
+
+
+def _bounded_capture_count(value, maximum: int = 1_000_000) -> int:
+    try:
+        return max(0, min(int(value), maximum))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalized_capture_score(value) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(score) or score < 0.0 or score > 1.0:
+        return None
+    return round(score, 6)
+
+
+def _capture_latency_ms(started: float) -> int:
+    if started <= 0:
+        return 0
+    return max(0, min(int((time.perf_counter() - started) * 1000), 86_400_000))
 
 
 class MemoryVectorStore:
@@ -27,8 +58,11 @@ class MemoryVectorStore:
 
     COLLECTION_NAME = "odysseus_memories"
 
-    def __init__(self, data_dir: str, embedding_model=None):
+    def __init__(self, data_dir: str, embedding_model=None, ai_lens_emitter=None):
         self._model = embedding_model
+        self._ai_lens_emitter = ai_lens_emitter
+        self._ai_lens_capture_errors = 0
+        self._ai_lens_emitted_events = 0
         self._collection = None
         self._lanes = []
         self._healthy = False
@@ -129,14 +163,25 @@ class MemoryVectorStore:
             except Exception as e:
                 logger.warning(f"memory remove {memory_id}: {e}")
 
-    def search(self, query: str, k: int = 8) -> List[Dict]:
+    def search(self, query: str, k: int = 8, *, ai_lens_emitter=None) -> List[Dict]:
         """Search for the most relevant memory IDs by semantic similarity.
         Returns list of {"memory_id": str, "score": float}.
 
         ChromaDB cosine distance = 1 - cosine_similarity.
         We convert back: similarity = 1.0 - distance.
         """
+        emitter = ai_lens_emitter if ai_lens_emitter is not None else getattr(self, "_ai_lens_emitter", None)
+        capture_started = time.perf_counter() if emitter is not None else 0.0
+        if emitter is not None:
+            self._capture_ai_lens(
+                emitter,
+                event_type="memory_search_started",
+                payload={"requested_count": _bounded_capture_count(k)},
+                summary="Memory search started with bounded metadata.",
+            )
         if not self._healthy or self.count() == 0:
+            if emitter is not None:
+                self._emit_memory_results(emitter, (), capture_started=capture_started)
             return []
 
         out = []
@@ -160,7 +205,93 @@ class MemoryVectorStore:
             except Exception as e:
                 logger.warning("memory search failed in %s lane: %s", lane.name, e)
         out.sort(key=lambda row: (-row["score"], lane_priority.get(row["embedding_lane"], 99)))
-        return dedupe_results(out, id_key="memory_id", limit=k)
+        selected = dedupe_results(out, id_key="memory_id", limit=k)
+        if emitter is not None:
+            self._emit_memory_results(emitter, selected, capture_started=capture_started)
+        return selected
+
+    def _emit_memory_results(self, emitter, rows, *, capture_started: float) -> None:
+        refs = []
+        if len(rows) > MAX_AI_LENS_CAPTURE_HITS:
+            self._reject_ai_lens_evidence(emitter, "hit_event_budget")
+        for rank, row in enumerate(rows[:MAX_AI_LENS_CAPTURE_HITS], start=1):
+            identity = row.get("memory_id") if isinstance(row, dict) else None
+            if identity in (None, ""):
+                self._reject_ai_lens_evidence(emitter, "missing_source_identity")
+                continue
+            source_ref = AiLensSourceRef.create(
+                source_id=opaque_ai_lens_ref("memory", identity),
+                kind=AiLensSourceKind.MEMORY,
+                redaction_level=AiLensRedactionLevel.REDACTED,
+            )
+            refs.append(source_ref)
+            payload = {"rank": rank}
+            score = _normalized_capture_score(row.get("score"))
+            if score is None:
+                self._reject_ai_lens_evidence(emitter, "invalid_retrieval_score")
+            else:
+                payload["score"] = score
+            self._capture_ai_lens(
+                emitter,
+                event_type="memory_hit",
+                source_refs=(source_ref,),
+                payload=payload,
+                summary="Memory hit emitted with opaque metadata.",
+            )
+        latency_ms = _capture_latency_ms(capture_started)
+        bounded_refs = tuple(refs[:8])
+        self._capture_ai_lens(
+            emitter,
+            event_type="retrieval_ranking_summary",
+            source_refs=bounded_refs,
+            payload={
+                "ranked_count": _bounded_capture_count(len(rows)),
+                "returned_count": _bounded_capture_count(len(rows)),
+            },
+            summary="Memory ranking completed with bounded counts.",
+            latency_ms=latency_ms,
+        )
+        if refs:
+            self._capture_ai_lens(
+                emitter,
+                event_type="source_coverage_summary",
+                source_refs=bounded_refs,
+                payload={
+                    "source_type_counts": {"memory": len(refs)},
+                    "independent_source_count": len({ref.source_id for ref in refs}),
+                },
+                summary="Memory source coverage contains opaque references only.",
+            )
+
+    def _capture_ai_lens(self, emitter, **event) -> None:
+        try:
+            target = getattr(emitter, "emit", None)
+            result = target(**event) if callable(target) else emitter(**event)
+        except Exception:
+            self._ai_lens_capture_errors = getattr(self, "_ai_lens_capture_errors", 0) + 1
+            return
+        if result is False:
+            self._ai_lens_capture_errors = getattr(self, "_ai_lens_capture_errors", 0) + 1
+        else:
+            self._ai_lens_emitted_events = getattr(self, "_ai_lens_emitted_events", 0) + 1
+
+    def _reject_ai_lens_evidence(self, emitter, reason_code: str) -> None:
+        self._ai_lens_capture_errors = getattr(self, "_ai_lens_capture_errors", 0) + 1
+        try:
+            callback = getattr(emitter, "record_rejection", None)
+            if callable(callback):
+                callback(reason_code)
+        except Exception:
+            pass
+
+    def ai_lens_diagnostics(self) -> Dict:
+        return {
+            "schema": "odysseus.ai_lens.instrumentation_diagnostics.v1",
+            "surface": "memory",
+            "emitted_event_count": getattr(self, "_ai_lens_emitted_events", 0),
+            "capture_error_count": getattr(self, "_ai_lens_capture_errors", 0),
+            "raw_content_visible": False,
+        }
 
     def find_similar(self, text: str, threshold: float = 0.92) -> Optional[str]:
         """Check if a near-duplicate exists. Returns memory_id if found, else None."""

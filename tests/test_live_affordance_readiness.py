@@ -121,3 +121,8 @@ def test_live_affordance_readiness_route_returns_contract(monkeypatch):
     assert payload["schema"] == "odysseus.live_affordance_readiness.v1"
     assert len(payload["actions"]) == 4
     assert payload["tokens_visible"] is False
+    assert len(payload["canonical_gate_evidence"]) == 4
+    assert payload["canonical_gate_evidence"][0]["schema"] == "gate_evidence_core.v1"
+    assert payload["canonical_safe_now"]["schema"] == "gate_evidence_core.safe_now.v1"
+    assert payload["canonical_safe_now"]["can_proceed"] is False
+    assert payload["canonical_safe_now"]["live_required_gate_ids"]

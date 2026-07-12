@@ -15,6 +15,7 @@ from src.server_project_chat_context import (
     bind_project_chat_session,
 )
 from src.project_intake import ProjectIntakeError, apply_project_intake_proposal, build_project_intake_preview
+from src.coding_lifecycle_adapters import identifiers_from_server_project
 from src.server_project_commit_runner import (
     ServerProjectCommitRunnerError,
     run_project_local_commit,
@@ -169,7 +170,7 @@ def setup_server_project_routes(
         except ServerProjectRegistryError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         _save_registry(registry_file, registry)
-        return {"success": True, "project": record.to_dict()}
+        return {"success": True, "project": record.to_dict(), **_project_route_compatibility(record=record)}
 
     @router.post("/intake/preview")
     def preview_project_intake(body: ProjectIntakePreviewRequest) -> dict[str, Any]:
@@ -260,7 +261,7 @@ def setup_server_project_routes(
             record = registry.get(project_slug)
         except ServerProjectRegistryError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        return {"project": record.to_dict()}
+        return {"project": record.to_dict(), **_project_route_compatibility(record=record)}
 
     @router.post("/{project_slug}/chat-bind")
     def bind_chat(project_slug: str, body: ProjectChatBindRequest) -> dict[str, Any]:
@@ -340,7 +341,11 @@ def setup_server_project_routes(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ServerProjectTaskRunnerError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.executed and report.status == "completed", "task_run": report.to_dict()}
+        return {
+            "success": report.executed and report.status == "completed",
+            "task_run": report.to_dict(),
+            **_project_route_compatibility(record=record, task_report=report),
+        }
 
     @router.post("/{project_slug}/planner-task-run")
     def run_planned_task(project_slug: str, body: ProjectPlannerTaskRunRequest) -> dict[str, Any]:
@@ -365,7 +370,15 @@ def setup_server_project_routes(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except (ServerProjectTaskPlannerError, ServerProjectTaskRunnerError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.executed and report.status == "completed", "planner_task": report.to_dict()}
+        return {
+            "success": report.executed and report.status == "completed",
+            "planner_task": report.to_dict(),
+            **_project_route_compatibility(
+                record=record,
+                task_plan=report.bundle.task_plan,
+                task_report=report.task_report,
+            ),
+        }
 
     @router.post("/{project_slug}/commit-run")
     def run_commit(project_slug: str, body: ProjectCommitRunRequest) -> dict[str, Any]:
@@ -387,7 +400,11 @@ def setup_server_project_routes(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ServerProjectCommitRunnerError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.executed and report.status == "committed", "commit_run": report.to_dict()}
+        return {
+            "success": report.executed and report.status == "committed",
+            "commit_run": report.to_dict(),
+            **_project_route_compatibility(record=record),
+        }
 
     @router.post("/{project_slug}/push-run")
     def run_push(project_slug: str, body: ProjectPushRunRequest) -> dict[str, Any]:
@@ -408,7 +425,11 @@ def setup_server_project_routes(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ServerProjectPushRunnerError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.executed and report.status == "pushed", "push_run": report.to_dict()}
+        return {
+            "success": report.executed and report.status == "pushed",
+            "push_run": report.to_dict(),
+            **_project_route_compatibility(record=record),
+        }
 
     return router
 
@@ -427,6 +448,21 @@ def _save_registry(path: Path, registry: ServerProjectRegistry) -> None:
         registry.save_json(path)
     except Exception as exc:
         raise HTTPException(status_code=500, detail="project registry could not be saved") from exc
+
+
+def _project_route_compatibility(
+    *,
+    record: Any,
+    task_plan: Any = None,
+    task_report: Any = None,
+) -> dict[str, Any]:
+    return {
+        "coding_lifecycle_identifiers": identifiers_from_server_project(
+            project_record=record,
+            task_plan=task_plan,
+            task_report=task_report,
+        ).to_dict()
+    }
 
 
 def _now_iso() -> str:

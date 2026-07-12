@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.ai_lens_master_roadmap",
+  "title": "AI Lens Master Roadmap",
+  "created_at": "2026-07-09",
+  "updated_at": "2026-07-10",
+  "status": "backend_contracts_ready_ui_live_gated",
+  "abc_mode": "Standard ABC",
+  "goal": "Build AI Lens as a trustworthy live observability surface for Odysseus that visualizes real runtime context, semantic space, tool flow and optional local-model internals without pretending API models expose hidden neural state.",
+  "scope": "Odysseus Agent screen, future Knowledge lens, memory/RAG telemetry, LLM stream instrumentation, tool execution traces, semantic graph visualization and the Harbor-style sci-fi control-room UI.",
+  "recent_roadmap_pattern_analysis": {
+    "inspected_sources": [
+      "docs/plans/agent-context-transparency-roadmap.json",
+      "docs/plans/planning-mcp-roadmap.json",
+      "docs/plans/harbor-planning-integration-master-roadmap.json",
+      "docs/plans/abc-frontpage-v2-build-plan.md"
+    ],
+    "schema_patterns_to_follow": [
+      "JSON roadmaps are treated as planning truth; Markdown is supporting narrative or rendered view.",
+      "Each roadmap starts with metadata, goal, current evidence or research evidence, then contracts, slices, gates, verification and go language.",
+      "Slice 0 is docs-only or safe_offline and marks the roadmap artifact as created.",
+      "Slices are classed as safe_offline, repo_only, needs_design, needs_live_go or blocked, with explicit owners and allowed paths.",
+      "Backend contracts and service layers are built before UI wiring.",
+      "Payloads are bounded, source-linked and redacted; raw private content and generic broad tool surfaces are no-go.",
+      "Harbor UI changes stay sparse, stateful and operator-grade instead of notification-heavy or decorative.",
+      "Future live or external-client checks are gates, not hidden assumptions."
+    ],
+    "lens_adaptations": [
+      "AI Lens uses truth levels so visual effects remain tied to real telemetry.",
+      "The technical roadmap owns event contracts, SSE/WebSocket stream, embedding projection, graph payloads and local model hooks.",
+      "The design roadmap owns visual grammar, animation rules, interaction modes, accessibility and browser visual QA.",
+      "The visual target is a dense Neural Circuit Field with astrophotography atmosphere: the data nodes themselves are the stars, clustered into a huge semantic mass where node activation, firing waves, synaptic paths and cluster pulses feel like light signals across neural circuit traces in deep space while remaining labeled as Runtime Trace or Semantic Projection for API models.",
+      "A fake 1:1 neural brain is explicitly no-go; API models show runtime trace and semantic projection, while local models may expose sampled internals."
+    ]
+  },
+  "sub_roadmaps": [
+    {
+      "id": "AIL-TECH",
+      "roadmap": "docs/plans/ai-lens-technical-roadmap.json",
+      "role": "Event contracts, telemetry stream, J-Space projection, context graph, replay and local-model microscope.",
+      "status": "done"
+    },
+    {
+      "id": "AIL-DESIGN",
+      "roadmap": "docs/plans/ai-lens-design-roadmap.json",
+      "role": "Sci-fi product interface, semantic starfield, neural flow rail, motion language, trust copy and responsive QA.",
+      "class": "needs_design",
+      "status": "planned"
+    },
+    {
+      "id": "AIL-ACT",
+      "roadmap": "docs/plans/agent-context-transparency-roadmap.json",
+      "role": "Plain-language context transparency, answer pack and memory influence concepts that AI Lens must reuse rather than duplicate.",
+      "status": "backend_ready_ui_gated"
+    }
+  ],
+  "truth_levels": [
+    {
+      "id": "runtime_trace",
+      "label": "Runtime Trace",
+      "meaning": "100 percent real Odysseus events: retrieval, context assembly, model route, token stream, tool calls, errors, latency and source refs.",
+      "default_for": ["API models", "local models"]
+    },
+    {
+      "id": "semantic_projection",
+      "label": "Semantic Projection",
+      "meaning": "A real 2D or 3D projection derived from embeddings, similarity scores and graph relations; it is a map of meaning, not a literal neural layer.",
+      "default_for": ["memory", "RAG", "query", "tool evidence"]
+    },
+    {
+      "id": "local_model_internals",
+      "label": "Local Model Internals",
+      "meaning": "Optional sampled hidden states, attention, logits or KV-cache metrics from local models only, behind performance and privacy gates.",
+      "default_for": ["local transformer models only"]
+    },
+    {
+      "id": "visual_effect",
+      "label": "Visual Effect",
+      "meaning": "Pure rendering polish such as glow, trails and easing. It may amplify real state but must not invent evidence.",
+      "default_for": ["animation", "transition", "depth"]
+    }
+  ],
+  "truth_contract_alignment": {
+    "status": "aligned",
+    "schema_version": 1,
+    "canonical_sources": [
+      "docs/plans/agent-context-transparency-contract.md",
+      "src/agent_context_transparency.py",
+      "src/ai_lens_events.py"
+    ],
+    "canonical_truth_levels": [
+      "runtime_trace",
+      "semantic_projection",
+      "local_model_internals",
+      "visual_effect"
+    ],
+    "observable_influence_rule": "Influence means observable retrieval, selection, exclusion, context assembly or citation support; it never claims hidden reasoning, chain of thought or latent model causality.",
+    "context_payload_mapping": {
+      "ContextItem": ["context_item_selected", "context_item_excluded"],
+      "AnswerPackSummary": ["context_pack_composed", "context_budget_updated"],
+      "MemoryInfluenceRecord": ["memory_hit", "rag_hit", "retrieval_ranking_summary", "source_conflict_detected", "answer_provenance_summary"],
+      "UserContextFeedback": "ACT audit only until a dedicated AI Lens event exists; never misreport feedback as an unrelated event."
+    },
+    "classification_mapping": {
+      "public": "public",
+      "private": "private_metadata",
+      "sensitive": "sensitive_metadata",
+      "secret": "dsgvo_local",
+      "unknown": "blocked_or_review_with_sensitive_metadata_only"
+    },
+    "redaction_mapping": {
+      "none": "none",
+      "summary_only": "redacted",
+      "metadata_only": "metadata_only",
+      "fully_redacted": "hashed_or_omit_source",
+      "blocked": "blocked_status_with_no_preview_and_metadata_only_ref"
+    },
+    "monotonicity_rule": "Classification and redaction may stay equal or become stricter across ACT-to-Lens projection; unknown or invalid values fail closed and never degrade to public, private or unredacted.",
+    "fixture_rule": "Deterministic fixtures use observation_origin synthetic_fixture and remain visibly labeled Synthetic Fixture; fixture state is never presented as runtime observation.",
+    "model_boundary": "API models expose Runtime Trace and Semantic Projection only. Local Model Internals require a supported local runtime plus explicit privacy and performance gates. Visual Effect is never evidence."
+  },
+  "user_workflow": [
+    "The user opens AI Lens from the Agent screen or Knowledge workspace.",
+    "AI Lens immediately shows the current Runtime Trace from a bounded recent-event buffer.",
+    "During a prompt, a query pulse appears in J-Space and links to real memory, RAG and tool-evidence nodes as they are selected.",
+    "The Context Stack shows what enters the answer pack and what was excluded, clipped, stale or sensitive.",
+    "The Neural Flow rail shows the active phase: input, embedding, retrieval, context, model, tool or response.",
+    "The Event Timeline records latency, tool calls, streaming and completion state.",
+    "Advanced mode exposes scores, payload IDs and local-model internals only when available and safe.",
+    "Replay lets the user inspect how a previous answer was assembled without re-running the model."
+  ],
+  "user_questions_to_answer": [
+    "What is the AI using for this answer?",
+    "Why did it choose these memories, files or tools?",
+    "What was ignored, clipped, stale, conflicting or sensitive?",
+    "Which sources influenced which parts of the answer?",
+    "How much context and token budget is being spent?",
+    "Where is the model uncertain or waiting on a tool?",
+    "Did the answer rely on fresh evidence, old memory or unsupported context?",
+    "What changed between this answer and a previous replay?"
+  ],
+  "information_products": [
+    {
+      "id": "answer_pack_inventory",
+      "label": "Answer Pack",
+      "answers": ["What is being used?", "What was clipped or excluded?"],
+      "primary_surfaces": ["Context Stack", "Diagnostics"],
+      "source_data": ["context_item_selected", "context_item_excluded", "context_pack_composed"],
+      "must_show": ["included item count", "excluded item count", "token budget", "stale flags", "sensitive flags"]
+    },
+    {
+      "id": "retrieval_quality",
+      "label": "Retrieval Quality",
+      "answers": ["Why these sources?", "Are the selected sources strong enough?"],
+      "primary_surfaces": ["J-Space", "Context detail drawer"],
+      "source_data": ["memory_hit", "rag_hit", "retrieval_ranking_summary"],
+      "must_show": ["similarity score", "rank", "source type", "freshness", "reason summary"]
+    },
+    {
+      "id": "source_coverage",
+      "label": "Source Coverage",
+      "answers": ["Does the answer lean on one source or multiple independent sources?"],
+      "primary_surfaces": ["J-Space", "Diagnostics"],
+      "source_data": ["context_pack_composed", "source_coverage_summary"],
+      "must_show": ["source diversity", "dominant source", "missing expected source", "conflict count"]
+    },
+    {
+      "id": "tool_and_latency_trace",
+      "label": "Tool Trace",
+      "answers": ["What is the AI waiting on?", "Which step was expensive or slow?"],
+      "primary_surfaces": ["Neural Flow", "Event Timeline"],
+      "source_data": ["tool_call_started", "tool_call_result", "model_stream_started", "answer_completed"],
+      "must_show": ["phase duration", "tool status", "error state", "retry count", "latency bands"]
+    },
+    {
+      "id": "confidence_and_risk",
+      "label": "Confidence And Risk",
+      "answers": ["Where should the user be careful?"],
+      "primary_surfaces": ["Top rail", "Context Stack", "Event Timeline"],
+      "source_data": ["safety_gate_triggered", "source_conflict_detected", "context_item_excluded"],
+      "must_show": ["uncertainty flag", "policy gate", "source conflict", "stale context", "private-data redaction"]
+    },
+    {
+      "id": "answer_provenance",
+      "label": "Answer Provenance",
+      "answers": ["Which context influenced which answer region?"],
+      "primary_surfaces": ["Replay", "Detail drawer", "Diagnostics"],
+      "source_data": ["answer_completed", "lens_replay_snapshot_saved", "answer_provenance_summary"],
+      "must_show": ["answer segment", "supporting context refs", "tool refs", "unsupported segment flags"]
+    }
+  ],
+  "cross_roadmap_contracts": [
+    "AI Lens must consume Agent Context Transparency payloads when available instead of inventing a second context explanation model.",
+    "AI Lens technical payloads must be bounded, redacted and source-linked like Planning MCP context packs.",
+    "AI Lens design must follow Odysseus Design System tokens: dark graphite, cyan foreground, muted cyan borders, sparse red warnings and compact control-room density.",
+    "AI Lens may use dramatic sci-fi motion only when motion reflects state change, retrieval activation, stream progress or explicit replay.",
+    "AI Lens may create an event-driven neural-circuit visual metaphor with astrophotography depth, but it must be labeled Visual Effect and must never imply literal API-model neurons, attention, hidden reasoning or internal state; the data nodes remain the stars in a dense clustered semantic field.",
+    "Every major visual surface must map to at least one information product and one user question.",
+    "Local-model internals are optional and must not block Runtime Trace or Semantic Projection for API models."
+  ],
+  "slice_queue": [
+    {
+      "id": "AIL-0-master-roadmap",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done_in_this_artifact",
+      "objective": "Create the AI Lens master roadmap and connect technical, design and transparency sub-roadmaps.",
+      "allowed_paths": ["docs/plans/ai-lens-master-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/ai-lens-master-roadmap.json"],
+      "done_when": "The master roadmap exists as valid JSON and states truth levels, sub-roadmaps, cross-contracts and gates."
+    },
+    {
+      "id": "AIL-1-truth-contract-alignment",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done",
+      "objective": "Align AI Lens truth labels with Agent Context Transparency copy and safety language.",
+      "allowed_paths": [
+        "docs/plans/ai-lens-master-roadmap.json",
+        "docs/plans/agent-context-transparency-roadmap.json",
+        "docs/plans/ai-lens-design-roadmap.json"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/ai-lens-master-roadmap.json",
+        "python -m json.tool docs/plans/agent-context-transparency-roadmap.json",
+        "python -m json.tool docs/plans/ai-lens-design-roadmap.json",
+        "Focused semantic assertion: all four truth levels, monotonic privacy/redaction, synthetic_fixture labeling and no hidden-causality claims"
+      ],
+      "evidence": [
+        "ACT schema-v1 payload names and plain-language labels are canonical across Agent Context Transparency and AI Lens.",
+        "AI Lens event truth levels exactly match ACT: runtime_trace, semantic_projection, local_model_internals and visual_effect.",
+        "Classification/redaction mapping is monotonic and unknown/invalid values fail closed.",
+        "Synthetic fixture origin and API-versus-local model boundaries are explicit."
+      ],
+      "done_when": "Runtime Trace, Semantic Projection, Local Model Internals and Visual Effect labels are consistent across roadmap and UI language."
+    },
+    {
+      "id": "AIL-2-tech-contract-first",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "done",
+      "objective": "Implement the AI Lens event contract and read-only service before any production UI wiring.",
+      "allowed_paths": [
+        "docs/plans/ai-lens-technical-roadmap.json",
+        "src/ai_lens_events.py",
+        "src/ai_lens_service.py",
+        "tests/test_ai_lens_events.py",
+        "tests/test_ai_lens_service.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_events.py tests/test_ai_lens_service.py"],
+      "done_when": "AI Lens can produce bounded, redacted sample event snapshots from deterministic fixtures."
+    },
+    {
+      "id": "AIL-3-design-prototype",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Build a Harbor-compatible visual prototype of the Semantic Starfield, Context Stack, Neural Flow and Event Timeline.",
+      "allowed_paths": [
+        "static/frontpage-v3/*",
+        "static/mockups/*",
+        "docs/plans/ai-lens-design-roadmap.json"
+      ],
+      "tests": ["node --check static/frontpage-v3/app.js", "Playwright screenshot and canvas nonblank checks"],
+      "done_when": "The prototype looks like an Odysseus control-room tool, renders nonblank animated state and remains readable at desktop and mobile widths."
+    },
+    {
+      "id": "AIL-4-integrated-readonly-lens",
+      "class": "needs_design",
+      "owner": "Charlie",
+      "status": "planned",
+      "objective": "Wire the read-only service snapshot into the prototype using fake or fixture-backed data, without live provider calls.",
+      "dependency_gate": "AIL-GATE-production-ui-placement",
+      "dependencies": [
+        "AIL-3-design-prototype",
+        "AIL-TECH-3-routes-stream"
+      ],
+      "backend_preparation": "AIL-TECH-3 owns the fixture-backed snapshot/stream route contract independently; route completion does not complete this UI integration slice.",
+      "allowed_paths": [
+        "src/ai_lens_service.py",
+        "routes/ai_lens_routes.py",
+        "static/frontpage-v3/*",
+        "tests/test_ai_lens_routes.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_routes.py", "node --check static/frontpage-v3/app.js"],
+      "done_when": "The UI can load a redacted AI Lens snapshot from a local route and render all four core panels."
+    },
+    {
+      "id": "AIL-5-information-products",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "status": "done",
+      "objective": "Add the information-product layer so the Lens summarizes answer pack inventory, retrieval quality, source coverage, tool latency, confidence/risk and answer provenance.",
+      "allowed_paths": [
+        "docs/plans/ai-lens-master-roadmap.json",
+        "docs/plans/ai-lens-technical-roadmap.json",
+        "docs/plans/ai-lens-design-roadmap.json",
+        "src/ai_lens_service.py",
+        "tests/test_ai_lens_service.py"
+      ],
+      "tests": ["python -m pytest tests/test_ai_lens_service.py"],
+      "done_when": "Each AI Lens snapshot contains bounded, redacted information products that answer explicit user questions and can be rendered without raw private content."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "AIL-GATE-local-model-internals",
+      "class": "needs_live_go",
+      "blocks": ["local model attention, hidden-state or logits capture"],
+      "decision_needed": "Operator chooses which local model runtime may expose internals and accepts the performance cost.",
+      "safe_preparation_done": "Roadmaps define the boundary; no live model hooks are started.",
+      "risk_if_bypassed": "High CPU/GPU load, private prompt leakage, unstable model runtimes or misleading visuals.",
+      "next_safe_slice": "AIL-2-tech-contract-first"
+    },
+    {
+      "id": "AIL-GATE-production-ui-placement",
+      "class": "needs_design",
+      "blocks": [
+        "AIL-4-integrated-readonly-lens",
+        "final navigation entry, Agent screen docking, Knowledge screen integration"
+      ],
+      "decision_needed": "Choose whether AI Lens is an Agent side panel, a full workspace tab, a Knowledge lens or all three over time.",
+      "safe_preparation_done": "AIL-TECH-3 owns the read-only route contract and fixture-backed backend evidence; no production UI wiring is implied. The design roadmap can prototype the full-screen version after Design Go.",
+      "risk_if_bypassed": "The Lens could wire fixture/live-route state into an unapproved surface, duplicate context UI or interrupt normal Agent workflow.",
+      "next_safe_slice": "AIL-5-information-products"
+    }
+  ],
+  "verification": [
+    "python -m json.tool docs/plans/ai-lens-master-roadmap.json",
+    "python -m json.tool docs/plans/ai-lens-technical-roadmap.json",
+    "python -m json.tool docs/plans/ai-lens-design-roadmap.json",
+    "Future: python -m pytest tests/test_ai_lens_events.py tests/test_ai_lens_service.py",
+    "Future: Playwright screenshot and canvas nonblank checks for the AI Lens surface"
+  ],
+  "go_language": {
+    "go": "AI Lens shows real runtime trace, semantic projection and context graph with clear truth labels, redaction and usable controls.",
+    "partial": "Runtime trace and semantic projection work, while local-model internals or replay remain deferred.",
+    "deferred": "Local-model internals, production navigation placement or external live provider smoke wait for explicit operator Go.",
+    "no_go": "The UI implies API-model brain access, exposes raw private content, fabricates evidence, or lets decorative animation obscure operational state.",
+    "blocked": "AI Lens cannot produce bounded redacted event payloads or cannot distinguish real telemetry from visual effects."
+  },
+  "recommended_next_step": "Start with AIL-TECH-1 event contract and AIL-DESIGN-1 visual system in parallel; do not build animated brain visuals before the truth labels and event schema exist."
+}

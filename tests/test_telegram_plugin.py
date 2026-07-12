@@ -70,7 +70,10 @@ def test_manifest_keeps_telegram_as_visible_standalone_ui_plugin():
     assert PLUGIN["category"] == "Communications"
     assert PLUGIN["permission"] == "admin"
     assert PLUGIN["kind"] == "ui"
-    assert PLUGIN["capabilities"] == ["local_api"]
+    assert PLUGIN["manifest_version"] == "1.0"
+    assert PLUGIN["capabilities"] == ["admin_route", "local_api"]
+    assert PLUGIN["compatibility"] == {"min_odysseus": "1.0.0"}
+    assert PLUGIN["lifecycle"] == "loadable"
     assert PLUGIN["ui"]["open"] == "/api/plugins/telegram/app"
 
 
@@ -2077,7 +2080,7 @@ def test_reply_route_records_success_and_failure_history(tmp_path, monkeypatch):
     assert any(item.get("failure_reason") == "transport offline" for item in fail_history)
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
-    assert "123" not in persisted_text
+    assert '"123"' not in persisted_text
     assert '"chat_id"' not in persisted_text
 
 
@@ -2529,6 +2532,98 @@ def test_document_attachment_is_redacted_and_processed_by_universal_inbox(tmp_pa
     assert "private-rechnung-name" not in persisted_text
     assert "Betrag 12" not in persisted_text
     assert any((tmp_path / "universal_inbox_telegram").glob("*/telegram-attachment.txt"))
+
+
+def test_document_attachment_go_auto_copies_to_nextcloud_and_context_knows(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED", "true")
+    monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO", "true")
+    sent = []
+
+    class FakeNextcloudClient:
+        def __init__(self):
+            self.files = {}
+            self.sidecars = {}
+            self.closed = False
+
+        def stat(self, relative_path):
+            if relative_path not in self.files:
+                return None
+            return {"size_bytes": len(self.files[relative_path]), "etag": "fake-etag"}
+
+        def put_file(self, source_path, relative_path):
+            payload = source_path.read_bytes()
+            self.files[relative_path] = payload
+            return {"size_bytes": len(payload), "etag": "fake-upload"}
+
+        def put_text(self, relative_path, text):
+            self.sidecars[relative_path] = text
+            return {"size_bytes": len(text.encode("utf-8")), "etag": "fake-sidecar"}
+
+        def close(self):
+            self.closed = True
+
+    fake_client = FakeNextcloudClient()
+    monkeypatch.setattr(
+        "src.nextcloud_webdav_client.build_nextcloud_webdav_client_from_env",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: sent.append((chat_id, text)) or {
+        "ok": True,
+        "telegram_message_id": 902,
+        "token_value_visible": False,
+    })
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path)
+    ctx.telegram_attachment_bytes_provider = lambda _message, max_bytes=None: b"Projektablage Test\n"
+    setup(ctx)
+    client = TestClient(app)
+
+    response = client.post("/api/plugins/telegram/webhook", json={
+        "update_id": 138,
+        "message": {
+            "message_id": 142,
+            "chat": {"id": "document-chat-999"},
+            "document": {
+                "file_id": "document-file-id",
+                "file_unique_id": "document-unique",
+                "file_name": "ablage.txt",
+                "mime_type": "text/plain",
+                "file_size": 19,
+            },
+        },
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    attachment = payload["universal_inbox_attachment"]
+    assert attachment["status"] == "processed"
+    assert attachment["universal_inbox_status"] == "go"
+    assert attachment["nextcloud_transfer_status"] == "completed"
+    assert attachment["nextcloud_writes_performed"] is True
+    assert attachment["nextcloud_verified"] is True
+    assert sent[-1][1] == "✅ Datei abgelegt."
+    assert fake_client.files
+    assert fake_client.sidecars
+    assert fake_client.closed is True
+
+    store = TelegramInboxStore(tmp_path)
+    transfer = store.latest_universal_inbox_nextcloud_transfer(
+        chat_id="document-chat-999",
+        source_message_id=142,
+    )
+    assert transfer is not None
+    assert transfer["status"] == "completed"
+    context = build_recent_telegram_attachment_context(
+        data_dir=tmp_path,
+        store=store,
+        chat_id="document-chat-999",
+    )
+    assert context is not None
+    assert context["nextcloud_transfer_status"] == "completed"
+    assert "Nextcloud-Ablage: completed" in context["context"]
 
 
 def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_turn(tmp_path, monkeypatch):

@@ -14,8 +14,32 @@ from urllib.parse import urlsplit
 
 PLUGIN_ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$")
 VERSION_RE = re.compile(r"\d+(?:\.\d+){0,3}(?:[-+][A-Za-z0-9_.-]+)?$")
+CAPABILITY_RE = re.compile(r"[a-z0-9][a-z0-9_.:-]{0,63}$")
 SHA256_RE = re.compile(r"[0-9a-f]{64}$")
-ALLOWED_PERMISSIONS = frozenset({"admin", "user"})
+PERMISSION_TIERS = frozenset(
+    {
+        "read_only",
+        "owner_scoped_write",
+        "admin",
+        "host_adjacent",
+        "networked",
+        "live_action",
+    }
+)
+LEGACY_PERMISSIONS = frozenset({"user"})
+ALLOWED_PERMISSIONS = PERMISSION_TIERS | LEGACY_PERMISSIONS
+ALLOWED_LIFECYCLES = frozenset(
+    {
+        "discovered",
+        "audited",
+        "loadable",
+        "loaded",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "uninstallable",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -63,7 +87,27 @@ def validate_local_manifest(manifest: Mapping[str, Any]) -> PluginPolicyReport:
     permission = _optional_string(manifest, "permission") or "admin"
     normalized["permission"] = permission
     if permission not in ALLOWED_PERMISSIONS:
-        issues.append(_issue("invalid_permission", "permission must be 'admin' or 'user'", "permission"))
+        allowed = ", ".join(sorted(ALLOWED_PERMISSIONS))
+        issues.append(_issue("invalid_permission", f"permission must be one of: {allowed}", "permission"))
+
+    manifest_version = _optional_schema_version(manifest, "manifest_version", issues)
+    if manifest_version:
+        normalized["manifest_version"] = manifest_version
+    schema_version = _optional_schema_version(manifest, "schema_version", issues)
+    if schema_version:
+        normalized["schema_version"] = schema_version
+
+    capabilities = _optional_capabilities(manifest, issues)
+    if capabilities is not None:
+        normalized["capabilities"] = capabilities
+
+    compatibility = _optional_compatibility(manifest, issues)
+    if compatibility is not None:
+        normalized["compatibility"] = compatibility
+
+    lifecycle = _optional_lifecycle(manifest, issues)
+    if lifecycle:
+        normalized["lifecycle"] = lifecycle
 
     requires = manifest.get("requires", [])
     if requires is None:
@@ -209,6 +253,97 @@ def _optional_string(data: Mapping[str, Any], key: str) -> str | None:
     if isinstance(value, str):
         return value.strip() or None
     return None
+
+
+def _optional_schema_version(data: Mapping[str, Any], key: str, issues: list[PolicyIssue]) -> str | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        issues.append(_issue(f"invalid_{key}", f"{key} must be semver-like", key))
+        return None
+    if isinstance(value, int):
+        version = str(value)
+    elif isinstance(value, str):
+        version = value.strip()
+    else:
+        issues.append(_issue(f"invalid_{key}", f"{key} must be semver-like", key))
+        return None
+    if not version or not VERSION_RE.fullmatch(version):
+        issues.append(_issue(f"invalid_{key}", f"{key} must be semver-like", key))
+        return None
+    return version
+
+
+def _optional_capabilities(data: Mapping[str, Any], issues: list[PolicyIssue]) -> tuple[str, ...] | None:
+    value = data.get("capabilities")
+    if value is None:
+        return None
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        issues.append(_issue("invalid_capabilities", "capabilities must be a list of safe slugs", "capabilities"))
+        return ()
+
+    capabilities: set[str] = set()
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            issues.append(
+                _issue(
+                    "invalid_capabilities",
+                    "capabilities must contain only safe slugs",
+                    f"capabilities[{index}]",
+                )
+            )
+            continue
+        capability = item.strip().lower()
+        if not capability or not CAPABILITY_RE.fullmatch(capability):
+            issues.append(_issue("invalid_capabilities", "capability must be a safe slug", f"capabilities[{index}]"))
+            continue
+        capabilities.add(capability)
+    return tuple(sorted(capabilities))
+
+
+def _optional_compatibility(data: Mapping[str, Any], issues: list[PolicyIssue]) -> dict[str, str] | None:
+    value = data.get("compatibility")
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        issues.append(_issue("invalid_compatibility", "compatibility must be an object", "compatibility"))
+        return {}
+
+    compatibility: dict[str, str] = {}
+    for key in ("min_odysseus", "max_odysseus"):
+        raw_version = value.get(key)
+        if raw_version is None:
+            continue
+        if not isinstance(raw_version, str):
+            issues.append(
+                _issue("invalid_compatibility", f"compatibility.{key} must be semver-like", f"compatibility.{key}")
+            )
+            continue
+        version = raw_version.strip()
+        if not version or not VERSION_RE.fullmatch(version):
+            issues.append(
+                _issue("invalid_compatibility", f"compatibility.{key} must be semver-like", f"compatibility.{key}")
+            )
+            continue
+        compatibility[key] = version
+    return compatibility
+
+
+def _optional_lifecycle(data: Mapping[str, Any], issues: list[PolicyIssue]) -> str | None:
+    value = data.get("lifecycle")
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        issues.append(_issue("invalid_lifecycle", "lifecycle is not recognized", "lifecycle"))
+        return None
+    lifecycle = value.strip()
+    if not lifecycle:
+        return None
+    if lifecycle not in ALLOWED_LIFECYCLES:
+        issues.append(_issue("invalid_lifecycle", "lifecycle is not recognized", "lifecycle"))
+        return None
+    return lifecycle
 
 
 def _is_https_url(value: str) -> bool:

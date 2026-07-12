@@ -8,7 +8,7 @@ requires_toolsets: [trigger_research, manage_research, manage_memory]
 status: published
 confidence: 1.0
 source: admin
-owner: homebase
+owner: fuzzy
 created: "2026-07-02T00:00:00Z"
 ---
 

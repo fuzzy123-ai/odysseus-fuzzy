@@ -14,7 +14,7 @@ DEFAULT_PLAN_DIR = ROOT / "docs" / "plans"
 DEFAULT_MVP_STATE = DEFAULT_PLAN_DIR / "mvp-roadmap-runner-state.json"
 
 SAFE_CLASSES = {"safe_offline", "repo_only"}
-GATED_CLASSES = {"needs_live_go", "needs_design", "live_gated", "blocked"}
+LIVE_GATED_CLASSES = {"needs_live_go", "needs_operator_go", "live_gated"}
 DONE_STATUSES = {
     "done",
     "complete",
@@ -24,6 +24,7 @@ DONE_STATUSES = {
     "resolved_with_live_evidence",
     "resolved_with_synthetic_live_evidence",
     "done_in_this_slice",
+    "done_in_this_artifact",
     "implemented",
     "repo_complete",
     "backend_complete",
@@ -76,6 +77,39 @@ DECISION_FAMILIES = (
         ),
     ),
     (
+        "ai_lens_runtime",
+        35,
+        (
+            "ail-4-integrated-readonly-lens",
+            "ail-gate-local-model",
+            "ail-tech",
+            "live-provider-stream",
+            "local-internals-runtime",
+            "local-model-microscope",
+        ),
+    ),
+    (
+        "planning_mcp",
+        36,
+        (
+            "external-mcp-client",
+            "planning-apply",
+            "planning-delete",
+            "planning-write",
+            "pmcp-",
+        ),
+    ),
+    (
+        "agent_context_transparency",
+        37,
+        (
+            "act-3-answer-pack-preview",
+            "act-5-memory-influence-lens",
+            "act-6-workline-provenance-port",
+            "memory_review_queue",
+        ),
+    ),
+    (
         "observability_ops",
         40,
         (
@@ -106,49 +140,219 @@ DECISION_FAMILIES = (
             "ui",
             "design",
             "placement",
+            "context-rail",
+            "frontpage",
+            "hpim-",
             "r6-lens",
             "r7-browser",
+            "v2-",
+            "visual-regression",
         ),
     ),
 )
 DEFAULT_DECISION_FAMILY = "other_gate"
 DEFAULT_DECISION_PRIORITY = 90
+DESIGN_DECISION_FAMILIES = {"ui_design"}
 
 DECISION_PACKET_TEXT = {
     "version_release": {
         "decision_needed": "Decide whether to run bounded release/deploy readiness evidence or defer Version 1.0 until UI live.",
         "safe_default": "defer_release_live_actions",
         "go_phrase": "GO version_release bounded evidence",
+        "required_inputs": [
+            "UI-live evidence or explicit release deferral",
+            "Release target",
+            "Rollback target",
+            "Bounded deploy/tag/distribution action",
+        ],
+        "evidence_required": [
+            "Readiness endpoint or release checklist result",
+            "Redacted release target and rollback note",
+            "Operator decision record",
+        ],
+        "forbidden_until_go": [
+            "External deploy",
+            "Tag or distribution publish",
+            "Version 1.0 completion claim",
+        ],
     },
     "calendar_reminders": {
         "decision_needed": "Choose one bounded live reminder path: Telegram reminder smoke or CalDAV writeback smoke.",
         "safe_default": "keep_reminders_repo_ready_no_live_send",
         "go_phrase": "GO calendar_reminders bounded smoke",
+        "required_inputs": [
+            "Exactly one reminder or todo-digest task",
+            "Server-side Telegram dispatch target or CalDAV target",
+            "One bounded execution window",
+        ],
+        "evidence_required": [
+            "Redacted TaskRun or delivery status",
+            "No token, chat id, private title or private prompt persisted",
+            "Duplicate-task check result",
+        ],
+        "forbidden_until_go": [
+            "Live Telegram send",
+            "CalDAV writeback",
+            "Creating duplicate recurring reminders",
+        ],
     },
     "autonomous_coding": {
         "decision_needed": "Choose one bounded autonomous-coding live control path: workstation-to-Telegram smoke, MCP service availability, or network allowlist.",
         "safe_default": "keep_autonomous_coding_dry_run",
         "go_phrase": "GO autonomous_coding bounded smoke",
+        "required_inputs": [
+            "Reviewed bounded coding job",
+            "Sandbox or host runner availability",
+            "Allowed network boundary",
+            "Operator supervision channel",
+        ],
+        "evidence_required": [
+            "Sandbox job lifecycle event",
+            "Pause/stop or status observation evidence",
+            "Redacted artifact policy result",
+        ],
+        "forbidden_until_go": [
+            "Starting autonomous live jobs",
+            "Broad host filesystem access",
+            "Unbounded network use",
+        ],
+    },
+    "ai_lens_runtime": {
+        "decision_needed": "Choose one bounded AI Lens runtime evidence target: local model internals, microscope snapshot, or live provider stream with redaction policy.",
+        "safe_default": "keep_ai_lens_backend_contracts_only",
+        "go_phrase": "GO ai_lens_runtime bounded evidence",
+        "required_inputs": [
+            "Chosen runtime target",
+            "Sampling window",
+            "Privacy and redaction policy",
+            "Storage/retention decision for evidence",
+        ],
+        "evidence_required": [
+            "Redacted snapshot or stream summary",
+            "No raw provider output or private prompt persisted",
+            "Backend contract or route result covering the selected target",
+        ],
+        "forbidden_until_go": [
+            "Live provider stream capture",
+            "Local model internals sampling",
+            "Persisting raw prompts, completions or private context",
+        ],
+    },
+    "planning_mcp": {
+        "decision_needed": "Choose one Planning MCP mutation path with exact target, preview and undo/evidence policy.",
+        "safe_default": "keep_planning_mcp_readonly",
+        "go_phrase": "GO planning_mcp bounded mutation",
+        "required_inputs": [
+            "Exact project, roadmap or gate target",
+            "Mutation type",
+            "Preview or diff",
+            "Undo or recovery metadata",
+        ],
+        "evidence_required": [
+            "Validated preview/diff before write",
+            "Audit event classification",
+            "Undo metadata or explicit no-undo rationale",
+        ],
+        "forbidden_until_go": [
+            "Planning write/apply/delete",
+            "External MCP client mutation",
+            "Silent overwrite of roadmap truth",
+        ],
+    },
+    "agent_context_transparency": {
+        "decision_needed": "Choose one non-UI agent-context evidence path for answer packs, memory influence or workline provenance.",
+        "safe_default": "keep_agent_context_contracts_backend_only",
+        "go_phrase": "GO agent_context_transparency bounded evidence",
+        "required_inputs": [
+            "Selected non-UI evidence path",
+            "Redaction boundary",
+            "One bounded answer, memory or workline sample",
+        ],
+        "evidence_required": [
+            "Redacted context-pack or provenance payload",
+            "No raw private memory content",
+            "Contract test or schema validation result",
+        ],
+        "forbidden_until_go": [
+            "Exposing raw memory influence details",
+            "UI context-rail work",
+            "Persisting private answer context",
+        ],
     },
     "observability_ops": {
         "decision_needed": "Choose whether to run Debian observability inventory/setup, Grafana exposure, or log-retention evidence.",
         "safe_default": "keep_observability_contracts_repo_only",
         "go_phrase": "GO observability_ops bounded inventory",
+        "required_inputs": [
+            "Concrete Debian or Podman host target",
+            "Read-only probe or setup boundary",
+            "Retention policy",
+            "Grafana exposure decision",
+        ],
+        "evidence_required": [
+            "Redacted metrics/log smoke result",
+            "No secrets or raw private log content",
+            "Retention and exposure decision record",
+        ],
+        "forbidden_until_go": [
+            "Host metric collection",
+            "Log shipping to Loki",
+            "Grafana exposure",
+            "CrowdSec active action",
+        ],
     },
     "security_ops": {
         "decision_needed": "Choose whether to run tabletop evidence or prepare explicit remediation/lockdown actions.",
         "safe_default": "keep_security_actions_prepare_only",
         "go_phrase": "GO security_ops bounded tabletop",
+        "required_inputs": [
+            "Synthetic tabletop target or explicit remediation target",
+            "Approve/deny flow",
+            "Operator-visible rollback or recovery path",
+        ],
+        "evidence_required": [
+            "Synthetic incident packet or explicit remediation decision",
+            "No real host command unless separately approved",
+            "Redacted incident bundle",
+        ],
+        "forbidden_until_go": [
+            "CrowdSec ban/unban",
+            "Lockdown activation",
+            "Exposing live remediation tools",
+        ],
     },
     "ui_design": {
         "decision_needed": "Hand UI placement and Version 1.0 UI-live evidence to the UI owner.",
         "safe_default": "do_not_edit_ui_from_backend_abc",
         "go_phrase": "GO ui_design handoff",
+        "required_inputs": [
+            "UI owner decision",
+            "Approved placement or interaction behavior",
+            "Visual/regression target",
+        ],
+        "evidence_required": [
+            "UI implementation evidence from UI owner",
+            "Accessibility or browser regression evidence when applicable",
+        ],
+        "forbidden_until_go": [
+            "Backend ABC editing UI hotfiles",
+            "Claiming UI-live from backend route tests alone",
+        ],
     },
     "other_gate": {
         "decision_needed": "Review uncategorized gates and either classify them or approve a bounded next action.",
         "safe_default": "defer_uncategorized_gate",
         "go_phrase": "GO other_gate bounded review",
+        "required_inputs": [
+            "Gate family classification",
+            "Bounded action target",
+        ],
+        "evidence_required": [
+            "Updated audit family or explicit deferral",
+        ],
+        "forbidden_until_go": [
+            "Executing uncategorized gate actions",
+        ],
     },
 }
 
@@ -199,6 +403,13 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
 
     mvp = _mvp_summary(mvp_state_path)
     recommended_decisions = _recommended_decisions(live_gates, design_gates)
+    decision_packets = _decision_packets(recommended_decisions)
+    non_ui_decision_packets = [
+        packet for packet in decision_packets if packet["family"] not in DESIGN_DECISION_FAMILIES
+    ]
+    excluded_design_decision_packets = [
+        packet for packet in decision_packets if packet["family"] in DESIGN_DECISION_FAMILIES
+    ]
     return {
         "schema_version": 1,
         "files_scanned": files_scanned,
@@ -216,7 +427,11 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "design_gates": [item.to_dict() for item in design_gates],
         "design_gate_groups": _gate_groups(design_gates),
         "recommended_decisions": recommended_decisions,
-        "decision_packets": _decision_packets(recommended_decisions),
+        "decision_packets": decision_packets,
+        "non_ui_decision_packet_count": len(non_ui_decision_packets),
+        "non_ui_decision_packets": non_ui_decision_packets,
+        "excluded_design_decision_packet_count": len(excluded_design_decision_packets),
+        "excluded_design_decision_packets": excluded_design_decision_packets,
         "other_open_items": [item.to_dict() for item in other_open],
     }
 
@@ -294,6 +509,56 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"{item['safe_default']} | {item['go_phrase']} |"
             )
         lines.append("")
+        if report.get("non_ui_decision_packets"):
+            lines.extend(
+                [
+                    "## Non-UI Operator Go Packets",
+                    "",
+                    "| Priority | Family | Required Inputs | Evidence Required | Forbidden Until Go |",
+                    "| -: | - | - | - | - |",
+                ]
+            )
+            for item in report["non_ui_decision_packets"]:
+                lines.append(
+                    f"| {item['priority']} | {item['family']} | {'; '.join(item['required_inputs'])} | "
+                    f"{'; '.join(item['evidence_required'])} | {'; '.join(item['forbidden_until_go'])} |"
+                )
+            lines.append("")
+        if report.get("excluded_design_decision_packets"):
+            lines.extend(
+                [
+                    "## Excluded UI/Design Packets",
+                    "",
+                    "| Priority | Family | Safe Default | Forbidden Until Go |",
+                    "| -: | - | - | - |",
+                ]
+            )
+            for item in report["excluded_design_decision_packets"]:
+                lines.append(
+                    f"| {item['priority']} | {item['family']} | {item['safe_default']} | "
+                    f"{'; '.join(item['forbidden_until_go'])} |"
+                )
+            lines.append("")
+        lines.extend(["## Operator Go Packet Details", ""])
+        for item in report["decision_packets"]:
+            lines.extend(
+                [
+                    f"### {item['family']}",
+                    "",
+                    f"- Go phrase: `{item['go_phrase']}`",
+                    f"- Safe default: `{item['safe_default']}`",
+                    "- Required inputs:",
+                ]
+            )
+            for value in item["required_inputs"]:
+                lines.append(f"  - {value}")
+            lines.append("- Evidence required:")
+            for value in item["evidence_required"]:
+                lines.append(f"  - {value}")
+            lines.append("- Forbidden until Go:")
+            for value in item["forbidden_until_go"]:
+                lines.append(f"  - {value}")
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -326,12 +591,16 @@ def _classify_item(item: RoadmapAuditItem) -> str:
         return "closed"
     if status in DONE_STATUSES or status in GATED_DONE_STATUSES:
         return "closed"
-    if item_class in SAFE_CLASSES:
-        return "safe_open" if status in OPEN_STATUSES or not status else "other_open"
-    if item_class in {"needs_live_go", "live_gated"} or status == "gated":
-        return "live_gate"
     if item_class == "needs_design":
         return "design_gate"
+    if item_class in LIVE_GATED_CLASSES or status == "gated":
+        return "live_gate"
+    if item_class in SAFE_CLASSES and _is_policy_gate(path=path):
+        # Repo-only policy decisions describe a boundary; they are not an
+        # executable slice just because their status is omitted.
+        return "other_open"
+    if item_class in SAFE_CLASSES:
+        return "safe_open" if status in OPEN_STATUSES or not status else "other_open"
     if not item_class and _looks_like_live_gate(item_id=item_id, path=path):
         return "live_gate"
     if not item_class and _looks_like_design_gate(item_id=item_id, path=path):
@@ -349,6 +618,12 @@ def _is_meta_router_item(*, status: str, path: str) -> bool:
     return status in META_ROUTER_STATUSES and "/abc_execution_queue" in path
 
 
+def _is_policy_gate(*, path: str) -> bool:
+    """Return whether an item is a gate declaration rather than a work slice."""
+
+    return "/gates[" in path or "/gate_queue[" in path or "/open_gates[" in path
+
+
 def _looks_like_live_gate(*, item_id: str, path: str) -> bool:
     if "gate" not in path and "gate" not in item_id:
         return False
@@ -359,6 +634,14 @@ def _looks_like_live_gate(*, item_id: str, path: str) -> bool:
         "nextcloud",
         "deploy",
         "cloudflare",
+        "provider-stream",
+        "local-internals",
+        "local-model",
+        "planning-apply",
+        "planning-delete",
+        "planning-write",
+        "external-mcp-client",
+        "pmcp-",
         "mcp-service",
         "mcp-debug",
         "observability",
@@ -465,6 +748,9 @@ def _decision_packets(recommended_decisions: Iterable[dict[str, Any]]) -> list[d
                 "decision_needed": text["decision_needed"],
                 "safe_default": text["safe_default"],
                 "go_phrase": text["go_phrase"],
+                "required_inputs": text["required_inputs"],
+                "evidence_required": text["evidence_required"],
+                "forbidden_until_go": text["forbidden_until_go"],
             }
         )
     return packets

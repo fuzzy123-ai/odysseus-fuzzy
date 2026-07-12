@@ -4,6 +4,11 @@
   const brushCtx = brushCanvas.getContext('2d');
   const toolwheel = document.getElementById('toolwheel');
   const workspace = stage.querySelector('.workspace');
+  const workspaceStrip = stage.querySelector('[data-workspace-strip]');
+  const workspaceTabs = document.getElementById('workspace-tabs');
+  const workspaceButtons = Array.from(document.querySelectorAll('[data-workspace-target]'));
+  const workspaceScreens = Array.from(document.querySelectorAll('[data-workspace-screen]'));
+  const brandHomeButton = stage.querySelector('[data-brand-home]');
   const topline = stage.querySelector('.topline');
   const aurora = stage.querySelector('.aurora');
   const wheelArrow = document.getElementById('wheel-arrow');
@@ -32,11 +37,18 @@
   const rightNodge = document.getElementById('chat-nodge-right');
   const chatCarousel = document.getElementById('chat-carousel');
   const privacyToggle = document.getElementById('privacy-toggle');
+  const notificationRoot = document.querySelector('[data-notifications-root]');
+  const notificationButton = document.querySelector('[data-notifications-toggle]');
+  const notificationCount = notificationButton?.querySelector('.notification-count');
+  const notificationBubble = notificationButton?.querySelector('[data-notification-bubble]');
+  const notificationMenu = document.getElementById('notification-menu');
+  const notificationMenuCount = notificationMenu?.querySelector('.notification-menu-head span');
   const universalInbox = document.getElementById('universal-inbox');
   const universalInboxTrigger = document.getElementById('universal-inbox-trigger');
   const urlParams = new URLSearchParams(window.location.search);
   const backgroundMode = urlParams.get('bg') === 'grid' ? 'grid' : 'network';
   const wheelOverlayMode = urlParams.get('wheel') === 'dim' ? 'dim' : 'depth';
+  const uiStateStorageKey = 'harbor-one:v2-ui-state';
 
   let brushDpr = 1;
   let gridSignals = [];
@@ -51,119 +63,52 @@
   let preparedChats = 0;
   let zTop = 20;
   let activeChatIndex = 0;
+  let activeWorkspaceId = 'agent';
+  let activePlanningProjectIndex = 0;
   let lastSelectedModel = 'deepseek-v4-flash';
   let inboxHover = false;
   let inboxTriggerHover = false;
   let inboxDragDepth = 0;
   let inboxCloseTimer = null;
-  const modelProfiles = {
-    'deepseek-v4-flash': {
-      route: 'API',
-      state: 'ready',
-      context: '21% used, 79% free',
-      tokens: '426 in / 48 out',
-      load: 'normal',
-      note: 'fast default'
-    },
-    'gemma-local': {
-      route: 'local',
-      state: 'busy',
-      context: '12% used, 88% free',
-      tokens: 'local budget',
-      load: 'busy',
-      note: 'database upkeep'
-    },
-    'old-vision': {
-      route: 'API',
-      state: 'offline',
-      context: 'not available',
-      tokens: 'none',
-      load: 'problem',
-      note: 'needs reconnect'
-    }
-  };
-  const documentSamples = {
-    'src/services/search_memory.py': {
-      title: 'search_memory.py',
-      path: 'src/services/search_memory.py',
-      type: 'code',
-      language: 'python',
-      summary: 'Memory search entry point. Collects candidates, caps recent items, and reranks query results.',
-      content: `def search_memory(query, session):
-    # dynamic highlighting follows the selected language preset
-    candidates = collect_candidates(query, session)
-    recent = candidates[:240]
+  let notificationBubbleTimer = null;
+  let uiStateSaveTimer = null;
+  let uiStateRestoring = false;
+  let persistedUiState = readPersistedUiState();
+  const v2Data = window.HarborV2Data;
+  if (!v2Data) {
+    throw new Error('HarborV2Data must load before app.js');
+  }
+  const {
+    modelProfiles,
+    workspaceOrder,
+    workspaceLabels,
+    documentSamples,
+    codeLanguageSamples,
+    historicalChats,
+    projectSamples,
+    planningRoadmapDemo,
+    planningMcpRoadmap,
+    globalTodoExtras,
+    skillSamples,
+    knowledgeGraphPalette,
+    knowledgeGraphTypes,
+    memoryTypeColors,
+    memorySamples,
+    settingsCatalog
+  } = v2Data;
 
-    return rerank(query, recent)`
-    },
-    'static/frontpage-v2/app.js': {
-      title: 'app.js',
-      path: 'static/frontpage-v2/app.js',
-      type: 'code',
-      language: 'javascript',
-      summary: 'Frontend v2 behavior file. Owns floating windows, chat interactions, toolwheel actions, and document opening.',
-      content: `const mode = "code";
-function openDocument(file) {
-  return viewer.render(file, mode);
-}`
-    },
-    'docs/plans/memory-budget.md': {
-      title: 'memory-budget.md',
-      path: 'docs/plans/memory-budget.md',
-      type: 'text',
-      summary: 'Planning note for long-session retrieval limits, old-context caps, and hidden work visibility.',
-      content: `# Memory Budget
+  activeWorkspaceId = workspaceOrder.includes(persistedUiState.activeWorkspaceId)
+    ? persistedUiState.activeWorkspaceId
+    : 'agent';
+  activePlanningProjectIndex = Number.isFinite(persistedUiState.activePlanningProjectIndex)
+    ? Math.max(0, Math.min(projectSamples.length - 1, persistedUiState.activePlanningProjectIndex))
+    : 0;
+  const restoredWorkspaceId = activeWorkspaceId;
 
-Long sessions should keep old context available without letting retrieval become noisy.
 
-## Rules
 
-- Cap old candidate pools before reranking.
-- Keep recent user intent close to the prompt.
-- Show hidden work only when the user asks for it.`
-    },
-    'docs/release-notes.pdf': {
-      title: 'release-notes.pdf',
-      path: 'docs/release-notes.pdf',
-      type: 'pdf',
-      page: '1 / 8',
-      zoom: '92%',
-      summary: 'Release notes preview document used to validate PDF paging, zoom controls, and quiet reading mode.',
-      content: `Release Notes
 
-This page represents PDF and office-style documents. Page state and zoom tools stay visible, but out of the reading path.
 
-A document can be read, zoomed, paged, and later connected to the rest of Odysseus without turning this surface into a dashboard.`
-    }
-  };
-  const codeLanguageSamples = {
-    python: {
-      title: 'search_memory.py',
-      path: 'src/services/search_memory.py',
-      content: documentSamples['src/services/search_memory.py'].content
-    },
-    javascript: {
-      title: 'app.js',
-      path: 'static/frontpage-v2/app.js',
-      content: documentSamples['static/frontpage-v2/app.js'].content
-    },
-    html: {
-      title: 'document-view.html',
-      path: 'static/mockups/document-view.html',
-      content: `<article class="document-viewer">
-  <section>Current document</section>
-</article>`
-    },
-    json: {
-      title: 'document-meta.json',
-      path: 'data/document-meta.json',
-      content: `{
-  "type": "code",
-  "language": "python",
-  "mode": "editor"
-}`
-    }
-  };
   const chatSpaces = [{
     id: 'chat-1',
     title: chatTitle.textContent.trim(),
@@ -177,328 +122,25 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     needsQuestion: false,
     contexts: []
   }];
-  const historicalChats = [
-    { title: 'Project Runner', subtitle: 'Overview graph layout', age: '4m', state: 'working' },
-    { title: 'Settings Scope', subtitle: 'Needs one decision', age: '1h', state: 'question' },
-    { title: 'Knowledge Search', subtitle: 'Unread answer', age: '1d', state: 'unread' },
-    { title: 'Universal Inbox', subtitle: 'Drop zone rules', age: '2d', state: '' },
-    { title: 'Frontend V2', subtitle: 'Toolwheel polish', age: '1W', state: '' }
-  ];
-  const projectSamples = [
-    {
-      title: 'Frontend V2',
-      subtitle: 'active - needs review',
-      progress: '8/14',
-      statusColor: 'var(--blue)',
-      status: 'active',
-      next: 'Overview',
-      branch: 'dev +84',
-      decision: '1 waiting',
-      chips: ['repo ready', 'push held'],
-      todos: [
-        {
-          type: 'Review',
-          title: 'Check project overview layout',
-          detail: 'AI noticed the overview should stay readable next to chat.',
-          source: 'from chat - 4m ago',
-          color: 'var(--blue)',
-          done: false
-        },
-        {
-          type: 'Decision',
-          title: 'Choose default roadmap view',
-          detail: 'Graph, list, or mixed view needs one default.',
-          source: 'from roadmap node',
-          color: 'var(--amber)',
-          done: false
-        },
-        {
-          type: 'Commit',
-          title: 'Prepare clean frontend commit',
-          detail: 'Repo has new UI lines since the last checkpoint.',
-          source: 'from repo chip',
-          color: 'var(--cyan)',
-          done: false
-        }
-      ]
-    },
-    {
-      title: 'Memory Debug',
-      subtitle: 'ready - checks green',
-      progress: '5/5',
-      statusColor: 'var(--green)',
-      status: 'ready',
-      next: 'Trace cap',
-      branch: 'debug +12',
-      decision: 'none',
-      chips: ['checks green', 'ready'],
-      todos: [
-        {
-          type: 'Task',
-          title: 'Confirm old-context cutoff',
-          detail: 'AI traced the likely slowdown point; user should approve the cap.',
-          source: 'from AI trace',
-          color: 'var(--green)',
-          done: false
-        }
-      ]
-    },
-    {
-      title: 'Local Models',
-      subtitle: 'waiting - choose setup',
-      progress: '2/7',
-      statusColor: 'var(--amber)',
-      status: 'waiting',
-      next: 'Choose setup',
-      branch: 'local +3',
-      decision: '1 waiting',
-      chips: ['waiting', 'local'],
-      todos: [
-        {
-          type: 'Decision',
-          title: 'Pick local fallback model',
-          detail: 'Gemma is busy; choose fallback behavior for low memory.',
-          source: 'from model status',
-          color: 'var(--amber)',
-          done: false
-        }
-      ]
-    },
-    {
-      title: 'Project Atlas',
-      subtitle: 'blocked - repo missing',
-      progress: '1/9',
-      statusColor: 'var(--red)',
-      status: 'blocked',
-      next: 'Create repo',
-      branch: 'none',
-      decision: 'blocked',
-      chips: ['blocked', 'repo missing'],
-      todos: [
-        {
-          type: 'Blocked',
-          title: 'Connect repository',
-          detail: 'Project cannot run until a repo is mounted.',
-          source: 'from project setup',
-          color: 'var(--red)',
-          done: false
-        }
-      ]
-    }
-  ];
-  const globalTodoExtras = [
-    {
-      id: 'global-secret-handoff',
-      project: 'Self Control',
-      type: 'Blocked',
-      title: 'Confirm secret handoff UI',
-      detail: 'Backend can request pending secret input; the UI still needs the human-only completion window.',
-      source: 'from backend roadmap',
-      color: 'var(--red)',
-      priority: 'P0',
-      updated: '1h',
-      done: false
-    },
-    {
-      id: 'global-mcp-parity',
-      project: 'Self Control',
-      type: 'Question',
-      title: 'Pick MCP parity slice',
-      detail: 'Choose the smallest safe backend step before broad route parity work expands.',
-      source: 'from MASTER thread',
-      color: 'var(--teal)',
-      priority: 'P2',
-      updated: '1d',
-      done: false
-    },
-    {
-      id: 'global-snap-group',
-      project: 'Frontend V2',
-      type: 'Polish',
-      title: 'Decide grouped snapping behavior',
-      detail: 'Shift-selected windows move together; decide whether grouped snap should stay disabled.',
-      source: 'from UI session',
-      color: 'var(--blue)',
-      priority: 'P3',
-      updated: 'now',
-      done: false
-    }
-  ];
+
+
+
+
   const todosViewState = {
     filter: 'All',
     sort: 'Project',
     selectedId: null,
     query: ''
   };
-  const skillSamples = [
-    {
-      id: 'project-archivist',
-      name: 'Project Archivist',
-      category: 'cloud',
-      summary: 'Keeps project material organized and connected.',
-      purpose: 'Keeps project material organized, connects related files, and creates concise summaries without changing source documents.',
-      used: 'When new notes, meeting files, research exports, or loose documents appear near an active project.',
-      allowed: ['Move loose files into project folders', 'Add tags', 'Create summaries', 'Link related files'],
-      never: ['Delete originals', 'Share files externally', 'Rewrite source documents without versioning'],
-      activity: 'Last run: organized Project Atlas 12 min ago.',
-      rules: 'May organize project folders automatically when every move is logged and reversible.',
-      health: 'ready',
-      healthLabel: 'Ready',
-      trust: 'High',
-      checked: '12 min ago',
-      healthReason: 'Recent run completed cleanly and all file moves were reversible.',
-      trustReason: '42 logged actions, no conflicts, no protected folder touched.',
-      reviewAction: 'No action needed.'
-    },
-    {
-      id: 'invoice-sorter',
-      name: 'Invoice Sorter',
-      category: 'cloud',
-      summary: 'Recognizes invoices and makes finance files searchable.',
-      purpose: 'Reads invoice metadata, adds useful tags, and creates summaries for search and review.',
-      used: 'When PDFs or scans look like invoices, receipts, licenses, or recurring service bills.',
-      allowed: ['Read metadata', 'Tag files', 'Create sidecar summaries', 'Flag missing information'],
-      never: ['Edit originals', 'Move finance structure', 'Create shares', 'Infer payments as completed'],
-      activity: 'Last run: tagged 18 finance PDFs 31 min ago.',
-      rules: 'May tag finance documents automatically. Original files and folder structure are protected.',
-      health: 'ready',
-      healthLabel: 'Ready',
-      trust: 'High',
-      checked: '31 min ago',
-      healthReason: 'Only metadata and tags changed; originals stayed untouched.',
-      trustReason: 'Invoice detection matched known vendors and stayed inside finance rules.',
-      reviewAction: 'Next review after 50 more runs or one user correction.'
-    },
-    {
-      id: 'duplicate-cleaner',
-      name: 'Duplicate Cleaner',
-      category: 'cloud',
-      summary: 'Finds duplicates and moves likely copies into quarantine.',
-      purpose: 'Finds likely duplicate files and makes cleanup reversible instead of destructive.',
-      used: 'When files have matching hashes, repeated names, old exports, or duplicated downloads.',
-      allowed: ['Compare files', 'Tag duplicates', 'Move likely copies to quarantine', 'Explain confidence'],
-      never: ['Delete files directly', 'Merge files', 'Touch originals without backup', 'Hide conflicts'],
-      activity: 'Last run: quarantined 6 likely duplicates 1h ago.',
-      rules: 'May quarantine duplicates automatically. Direct deletion remains disabled.',
-      health: 'review',
-      healthLabel: 'Needs review',
-      trust: 'Medium',
-      checked: '1h ago',
-      healthReason: 'One duplicate group had similar names but only partial hash overlap.',
-      trustReason: 'The action is reversible, but confidence dropped below the clean-auto threshold.',
-      reviewAction: 'Review the flagged group or tighten duplicate matching rules.'
-    },
-    {
-      id: 'meeting-notes-assistant',
-      name: 'Meeting Notes Assistant',
-      category: 'cloud',
-      summary: 'Creates summaries and action lists next to raw notes.',
-      purpose: 'Turns raw meeting notes into summaries, decisions, and action lists while preserving the source.',
-      used: 'When meeting notes, transcripts, or planning documents are added or updated.',
-      allowed: ['Create summaries', 'Extract todos', 'Link project files', 'Tag topics'],
-      never: ['Move raw notes', 'Overwrite original wording', 'Mark todos done without evidence'],
-      activity: 'Last run: created 9 meeting summaries 2h ago.',
-      rules: 'May create sidecar files. Raw notes are read-only by default.',
-      health: 'ready',
-      healthLabel: 'Ready',
-      trust: 'High',
-      checked: '2h ago',
-      healthReason: 'Generated sidecar summaries only; no source note was changed.',
-      trustReason: 'User accepted the last two summaries without correction.',
-      reviewAction: 'No action needed.'
-    },
-    {
-      id: 'memory-curator',
-      name: 'Memory Curator',
-      category: 'memory',
-      summary: 'Keeps durable memory useful and conflict-aware.',
-      purpose: 'Reviews candidate memories, merges duplicates, and flags conflicts only when confidence is low.',
-      used: 'When repeated facts, preferences, project decisions, or contradictions appear.',
-      allowed: ['Suggest durable memories', 'Merge duplicate facts', 'Flag contradictions'],
-      never: ['Silently overwrite user intent', 'Store sensitive content without rule permission'],
-      activity: 'Last run: merged project UI preferences yesterday.',
-      rules: 'Learns from manual corrections and shows review only when uncertain.',
-      health: 'review',
-      healthLabel: 'Needs review',
-      trust: 'Medium',
-      checked: 'Yesterday',
-      healthReason: 'Two memories describe similar UI preferences with different wording.',
-      trustReason: 'The skill should learn from your last correction before merging again.',
-      reviewAction: 'Approve which preference wins; the correction becomes training signal.'
-    },
-    {
-      id: 'project-runner',
-      name: 'Project Runner',
-      category: 'projects',
-      summary: 'Turns project roadmaps into visible execution state.',
-      purpose: 'Maintains project overview, roadmaps, milestones, and open decisions.',
-      used: 'When a project has active plans, blockers, or roadmap updates.',
-      allowed: ['Update progress', 'Create todos', 'Surface blockers'],
-      never: ['Mark major milestones complete without evidence', 'Delete roadmap history'],
-      activity: 'Last run: updated Overview mockup tasks today.',
-      rules: 'Can update planning state, but execution changes need logged evidence.',
-      health: 'ready',
-      healthLabel: 'Ready',
-      trust: 'High',
-      checked: 'Today',
-      healthReason: 'Planning updates were linked to visible roadmap items.',
-      trustReason: 'No milestone was marked complete without evidence.',
-      reviewAction: 'No action needed.'
-    },
-    {
-      id: 'code-reviewer',
-      name: 'Code Reviewer',
-      category: 'code',
-      summary: 'Reviews code changes for bugs, risks, and missing tests.',
-      purpose: 'Finds concrete risks in code changes and keeps comments tied to files and lines.',
-      used: 'When code is changed, committed, or prepared for review.',
-      allowed: ['Inspect diffs', 'Run local checks', 'Suggest targeted fixes'],
-      never: ['Rewrite unrelated files', 'Hide test failures', 'Approve unknown behavior'],
-      activity: 'Last run: checked V2 mockup JavaScript today.',
-      rules: 'Prioritizes correctness and minimal blast radius over broad refactors.',
-      health: 'ready',
-      healthLabel: 'Ready',
-      trust: 'High',
-      checked: 'Today',
-      healthReason: 'Last review produced file-specific findings and did not rewrite code.',
-      trustReason: 'Uses tests and diffs as evidence before recommending approval.',
-      reviewAction: 'No action needed.'
-    },
-    {
-      id: 'automation-monitor',
-      name: 'Automation Monitor',
-      category: 'automation',
-      summary: 'Watches recurring tasks and reports only useful state changes.',
-      purpose: 'Tracks background automations, failed jobs, and pending decisions.',
-      used: 'When scheduled or unattended work is running.',
-      allowed: ['Monitor status', 'Summarize results', 'Escalate failures'],
-      never: ['Retry destructive tasks without permission', 'Suppress repeated failures'],
-      activity: 'Idle.',
-      rules: 'Escalates only when action is needed or confidence drops.',
-      health: 'draft',
-      healthLabel: 'Draft',
-      trust: 'Low',
-      checked: 'Not yet checked',
-      healthReason: 'This skill is configured but has not passed a review run yet.',
-      trustReason: 'It should stay quiet until one test run proves the escalation logic.',
-      reviewAction: 'Run skill review before enabling automatic actions.'
-    }
-  ];
+
   const skillsViewState = {
     filter: 'all',
     selectedId: 'project-archivist',
     query: ''
   };
-  const knowledgeGraphPalette = {
-    Raptor: '#22d3b6',
-    Memory: '#4ade80',
-    Files: '#16d9f5',
-    Projects: '#4b8cff',
-    Chats: '#f7b955',
-    Code: '#ff5c73'
-  };
+
   const knowledgeGraphSources = Object.keys(knowledgeGraphPalette);
-  const knowledgeGraphTypes = ['Cluster', 'Summary', 'Source', 'Memory', 'Decision', 'Task'];
+
   const knowledgeGraphState = {
     source: 'All',
     type: 'All',
@@ -512,136 +154,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   };
   let knowledgeGraphNodes = [];
   let knowledgeGraphEdges = [];
-  const memoryTypeColors = {
-    Preference: 'var(--green)',
-    Workflow: 'var(--blue)',
-    Fact: 'var(--cyan)',
-    Project: 'var(--amber)',
-    Privacy: 'var(--teal)',
-    Decision: 'var(--red)'
-  };
-  const memorySamples = [
-    {
-      id: 'm1',
-      title: 'Human labels first',
-      text: 'Primary UI labels should be precise, short, and understandable without developer vocabulary.',
-      type: 'Preference',
-      source: 'Chat',
-      project: 'Frontend V2',
-      status: 'confirmed',
-      confidence: 96,
-      lastUsed: '2m',
-      evidence: ['User asked for user-first wording.', 'Repeated requests to remove technical clutter.'],
-      why: 'ABC is confident enough to apply this automatically.',
-      ask: 'No action needed.',
-      learn: 'Edits here teach ABC how strict your wording preference should be.'
-    },
-    {
-      id: 'm2',
-      title: 'Toolwheel stays minimal',
-      text: 'Primary toolwheel categories stay short; deeper actions appear on hover, More, or customization.',
-      type: 'Workflow',
-      source: 'UI Session',
-      project: 'Frontend V2',
-      status: 'pinned',
-      confidence: 92,
-      lastUsed: '5m',
-      evidence: ['Toolwheel reduced to four visible actions plus More.', 'Customize will later hide or restore commands.'],
-      why: 'Pinned because it protects the main UI direction.',
-      ask: 'No action needed.',
-      learn: 'Unpinning teaches ABC that this is preference, not a hard rule.'
-    },
-    {
-      id: 'm3',
-      title: 'Memory search may slow in long sessions',
-      text: 'Long sessions can grow candidate pools and duplicate ranking paths unless old context is capped.',
-      type: 'Fact',
-      source: 'AI Trace',
-      project: 'Memory Debug',
-      status: 'attention',
-      confidence: 74,
-      lastUsed: '18m',
-      evidence: ['AI response identified a growing candidate pool.', 'No source trace has been confirmed yet.'],
-      why: 'ABC is asking because this came from reasoning, not verified trace evidence.',
-      ask: 'Save this as durable memory, or keep it temporary until a trace confirms it?',
-      learn: 'Confirm teaches ABC when diagnostic hypotheses are worth saving. Forget teaches ABC to keep unverified traces temporary.'
-    },
-    {
-      id: 'm4',
-      title: 'Network background is the default',
-      text: 'The network background feels better than the grid and should remain active in V2.',
-      type: 'Preference',
-      source: 'Design Review',
-      project: 'Frontend V2',
-      status: 'confirmed',
-      confidence: 88,
-      lastUsed: '1h',
-      evidence: ['User preferred the network variant.', 'User asked for a denser net with fewer blank spots.'],
-      why: 'Repeated preference signal is strong enough for automatic use.',
-      ask: 'No action needed.',
-      learn: 'Changing this teaches ABC how to distinguish stable taste from temporary exploration.'
-    },
-    {
-      id: 'm5',
-      title: 'Project Atlas state is probably mock data',
-      text: 'Project Atlas looked blocked in mock data, but ABC is not sure this reflects real project state.',
-      type: 'Project',
-      source: 'Project Setup',
-      project: 'Project Atlas',
-      status: 'attention',
-      confidence: 66,
-      lastUsed: '1d',
-      evidence: ['Project overview mock data marks it blocked.', 'No live repo link exists in this preview.'],
-      why: 'ABC is asking because placeholder facts should not silently become real memory.',
-      ask: 'Keep this mock-only, scope it to Project Atlas, or forget it?',
-      learn: 'Your choice teaches ABC how to handle demo and placeholder facts.'
-    },
-    {
-      id: 'm6',
-      title: 'Sensitive sources stay local',
-      text: 'Private source workflows should default to local-only handling unless explicitly approved.',
-      type: 'Privacy',
-      source: 'Policy',
-      project: 'Global',
-      status: 'private',
-      confidence: 91,
-      lastUsed: '3h',
-      evidence: ['GDPR mode exists in the V2 header.', 'Secure-source planning favors local handling.'],
-      why: 'ABC can enforce this automatically, but privacy rules stay visible.',
-      ask: 'No action needed.',
-      learn: 'Manual changes teach ABC when to tighten or relax privacy routing.'
-    },
-    {
-      id: 'm7',
-      title: 'Old sidebar commands are gone',
-      text: 'Former sidebar items should move into header, footer, chat, or toolwheel surfaces.',
-      type: 'Decision',
-      source: 'UI Session',
-      project: 'Frontend V2',
-      status: 'forgotten',
-      confidence: 81,
-      lastUsed: '2d',
-      evidence: ['Zero-sidebar direction was chosen.', 'This is kept only as undo/history context.'],
-      why: 'Recently muted memories remain recoverable for a while.',
-      ask: 'No action needed.',
-      learn: 'Restoring teaches ABC to keep removed UI-direction memories recoverable longer.'
-    },
-    {
-      id: 'm8',
-      title: 'Weak brainstorm ideas stay local',
-      text: 'When visual variants are explored, ABC should keep weak preferences local until repeated or confirmed.',
-      type: 'Workflow',
-      source: 'User Choices',
-      project: 'Global',
-      status: 'learned',
-      confidence: 89,
-      lastUsed: 'now',
-      evidence: ['User wants fewer manual checks.', 'Manual memory clicks should teach future behavior.'],
-      why: 'This is a behavioral rule learned from memory-control decisions.',
-      ask: 'No action needed.',
-      learn: 'ABC uses this to avoid asking about every small design experiment.'
-    }
-  ];
+
+
   const memoryState = {
     tab: 'All',
     type: 'All',
@@ -656,143 +170,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     query: '',
     advanced: false
   };
-  const settingsCatalog = [
-    {
-      name: 'Models and providers',
-      color: 'var(--cyan)',
-      legacy: 'Add Models, Added Models, AI Defaults',
-      rows: [
-        ['Add local model source', 'Connect local Ollama or OpenAI-compatible endpoints, test them, and register them for model selection.', ['local', 'endpoint', 'ollama', 'test'], 'normal', 'button', 'Add source'],
-        ['Add API model source', 'Connect cloud/API providers with secure key handoff, provider auth, and status tests.', ['API', 'provider', 'key', 'secret'], 'normal', 'secret', 'Secure setup'],
-        ['Connected model sources', 'Review endpoints, online/offline state, enabled state, model list, probe all, clear offline, delete, and copy URLs.', ['added models', 'probe', 'online', 'offline'], 'normal', 'stack', 'Ollama local|ready|green;OpenAI-compatible|online|teal;Old LM Studio|offline|red'],
-        ['Visible models per source', 'Hide, pin, or refresh individual models exposed by each endpoint so normal users see a clean list.', ['hidden models', 'pinned', 'refresh'], 'advanced', 'button', 'Manage models'],
-        ['Default chat model', 'Choose the model used for new chats and define fallback models if the primary fails.', ['default model', 'chat', 'fallback'], 'normal', 'select', 'deepseek-v4-flash'],
-        ['Utility model', 'Pick the small/background model for cleanup, compaction, auto naming, memory retrieval, and low-stakes jobs.', ['utility', 'background', 'compaction'], 'normal', 'select', 'gemma-local'],
-        ['Research model', 'Set the model used for long research runs, independent from the normal chat model.', ['research model', 'deep research'], 'normal', 'select', 'same as chat'],
-        ['Vision model', 'Enable image understanding, choose a vision-capable model, and set a fallback chain.', ['vision', 'screenshots', 'images'], 'normal', 'switch', 'on'],
-        ['Image generation', 'Enable image creation, choose the model, and pick quality presets.', ['image generation', 'quality'], 'normal', 'select', 'medium'],
-        ['Speech input', 'Configure speech-to-text for the composer microphone mode, including local/API routing.', ['STT', 'voice input', 'microphone'], 'normal', 'select', 'local first'],
-        ['Speech output', 'Configure text-to-speech provider, model, voice, speed, and preview.', ['TTS', 'read aloud', 'voice'], 'advanced', 'button', 'Preview voice'],
-        ['Model source ownership', 'Control whether model settings are user-specific, global defaults, inherited from env, or overridden by runtime policy.', ['user scope', 'global', 'env'], 'advanced', 'button', 'Explain source']
-      ]
-    },
-    {
-      name: 'Knowledge and search',
-      color: 'var(--teal)',
-      legacy: 'Search, Deep Research, Memory, Documents',
-      rows: [
-        ['Web search provider', 'Choose SearXNG, DuckDuckGo, Brave, Google PSE, Tavily, Serper, or disabled.', ['web search', 'provider', 'searxng', 'brave'], 'normal', 'select', 'SearXNG'],
-        ['Search provider credentials', 'Store provider URL, API key, Google CX ID, and run a test query without exposing secrets.', ['search key', 'CX', 'URL', 'secret'], 'advanced', 'secret', 'Secure field'],
-        ['Search result count', 'Set how many web results are fetched per query, including a custom count.', ['search results', 'count'], 'normal', 'select', '5 results'],
-        ['Search fallback chain', 'Try backup providers in order when the primary search provider fails or rate limits.', ['fallback', 'rate limit'], 'advanced', 'button', 'Edit chain'],
-        ['Deep research behavior', 'Control source use, token budget, extraction timeout, parallel extraction, and global timeout.', ['deep research', 'tokens', 'timeout'], 'normal', 'button', 'Research rules'],
-        ['Knowledge sources', 'Choose where ABC may look: chats, memory, files, mounted folders, documents, Nextcloud, web, notes, and projects.', ['sources', 'documents', 'nextcloud'], 'normal', 'stack', 'Chats and memory|enabled|green;Mounted folders|2 active|teal;Web search|ask first|amber'],
-        ['Memory learning', 'Set when ABC learns automatically, asks for review, or keeps information temporary.', ['memory', 'learning', 'review'], 'normal', 'switch', 'on'],
-        ['Memory review exceptions', 'Only show conflicts, review items, and uncertain memories when the responsible AI is unsure.', ['memory review', 'conflicts', 'uncertainty'], 'normal', 'button', 'Review rules'],
-        ['Raptor memory', 'Control RAPTOR cache, summaries, graph writes, stale-source checks, and large-session retrieval budgets.', ['raptor', 'cache', 'large sessions'], 'advanced', 'button', 'Raptor status'],
-        ['Knowledge graph viewer', 'Configure filters, source types, layout density, LOD, minimap, and inspector defaults for large graphs.', ['graph', 'nodes', 'filters'], 'normal', 'button', 'Open graph'],
-        ['Universal inbox routing', 'Define how dropped files are extracted, classified, routed, placed, and written into memory/graph state.', ['inbox', 'routing', 'drop files'], 'normal', 'button', 'Inbox rules'],
-        ['Knowledge rebuild', 'Rebuild or refresh indexes and derived graph state. Advanced because it can be expensive.', ['rebuild', 'index', 'maintenance'], 'advanced', 'button', 'Start rebuild']
-      ]
-    },
-    {
-      name: 'Interface and workflow',
-      color: 'var(--blue)',
-      legacy: 'Appearance, Shortcuts, theme customizer',
-      rows: [
-        ['Appearance', 'Choose network or grid background, accent colors, density, opacity preview, and motion level.', ['theme', 'background', 'network', 'grid'], 'normal', 'select', 'Network'],
-        ['Theme library', 'Use default themes, personal themes, save/share theme exports, and color harmony helpers.', ['themes', 'save', 'share', 'harmony'], 'normal', 'button', 'Theme library'],
-        ['Font and layout', 'Set readable chat typography, terminal/working typography, spacing, chat width, and responsive density.', ['font', 'layout', 'chat width'], 'normal', 'button', 'Typography'],
-        ['Toolwheel customization', 'Move, hide, restore, and later add commands back into the wheel without crowding the default UI.', ['toolwheel', 'customize', 'commands'], 'normal', 'button', 'Customize wheel'],
-        ['Toolwheel keyboard control', 'Review Alt+Space, number selection, Enter confirm, Esc close, and future arrow navigation.', ['alt space', 'keyboard', 'numbers'], 'normal', 'button', 'Shortcuts'],
-        ['Keyboard shortcuts', 'Edit chat switching, Ctrl+Tab, Ctrl+1..9, composer, windows, and accessibility shortcuts.', ['shortcuts', 'ctrl tab', 'ctrl numbers'], 'normal', 'button', 'Edit shortcuts'],
-        ['Window behavior', 'Set defaults for floating windows, resize handles, minimize bubbles, focus behavior, and future snap assist.', ['windows', 'snap', 'minimize'], 'normal', 'button', 'Window rules'],
-        ['Chat history and title', 'Configure title rename behavior, header history button, recency labels, unread states, and history sidebar defaults.', ['history', 'title', 'rename'], 'normal', 'button', 'History rules'],
-        ['Model chip tooltip', 'Choose what the header model tooltip shows: tokens, context size, available context, local/API, load, and cost hints.', ['model chip', 'tooltip', 'tokens'], 'normal', 'button', 'Tooltip fields'],
-        ['Reduced motion', 'Turn off nonessential animation and replace motion with quieter state changes.', ['motion', 'accessibility'], 'normal', 'switch', 'off'],
-        ['Legacy visibility controls', 'Map old sidebar, chat area, and chat bar visibility controls into the new zero-sidebar shell.', ['sidebar', 'chat area', 'chat bar'], 'advanced', 'button', 'Migration map']
-      ]
-    },
-    {
-      name: 'Communication and apps',
-      color: 'var(--green)',
-      legacy: 'Integrations, Email, Reminders',
-      rows: [
-        ['Connected apps', 'Manage external service connections in one place: mail, calendar, contacts, vaults, webhooks, tokens, MCP, and plugins.', ['integrations', 'apps', 'accounts'], 'normal', 'button', 'Add app'],
-        ['Email accounts', 'Add, edit, test, OAuth-connect, set default, or remove mail accounts.', ['email', 'accounts', 'OAuth'], 'normal', 'button', 'Email accounts'],
-        ['Email safety', 'Require AI-written email to be staged as drafts for approval instead of sending immediately.', ['email safety', 'drafts', 'send'], 'normal', 'switch', 'on'],
-        ['Email tasks', 'Choose how pending mail tasks, scheduled sends, urgent messages, and inbox follow-ups appear.', ['email tasks', 'scheduled', 'urgent'], 'normal', 'button', 'Mail rules'],
-        ['Writing style', 'Extract, edit, and reuse personal writing style for suggested replies.', ['writing style', 'reply'], 'normal', 'button', 'Writing style'],
-        ['Reminder delivery', 'Choose reminder channel: in-app, email, ntfy, webhook, or integration-backed delivery.', ['reminders', 'notifications', 'ntfy'], 'normal', 'select', 'In app'],
-        ['Reminder message AI', 'Let the utility model write reminder messages and choose an optional persona.', ['reminder synthesis', 'persona'], 'normal', 'switch', 'off'],
-        ['Public app URL', 'Set the externally reachable app URL used by reminders, callbacks, and links.', ['public URL', 'callbacks'], 'advanced', 'input', 'https://abc.local'],
-        ['Calendar accounts', 'Connect CalDAV calendars, test accounts, and choose which calendars ABC may read or write.', ['calendar', 'caldav'], 'normal', 'button', 'Calendar setup'],
-        ['Contacts', 'Connect CardDAV, import/export contacts, add contacts, and use contacts for email compose.', ['contacts', 'carddav'], 'normal', 'button', 'Contacts'],
-        ['Telegram intake', 'Configure Telegram plugin intake, voice transcription, image intake, gated replies, dry-run, and local-only behavior.', ['telegram', 'voice', 'plugin'], 'advanced', 'button', 'Telegram']
-      ]
-    },
-    {
-      name: 'Tools and automation',
-      color: 'var(--blue)',
-      legacy: 'Agent Tools, Mounts, Plugins, MCP, Tokens, Webhooks',
-      rows: [
-        ['Agent limits', 'Set tool call limit, max steps per message, stream timeout, and input token budget.', ['agent', 'tool limit', 'steps'], 'normal', 'input', '20 steps'],
-        ['Built-in tools', 'Enable or disable tools available to Agent mode, with plain-language descriptions.', ['tools', 'enable', 'disable'], 'normal', 'button', 'Tool access'],
-        ['MCP servers', 'Add MCP servers, choose transport, reconnect, authorize OAuth, and toggle individual MCP tools.', ['MCP', 'servers', 'OAuth'], 'advanced', 'button', 'MCP servers'],
-        ['Folder mounts', 'Manage permanent mounts: virtual path, host path, owner, allowed tools, read-only, write rules, validate, reload.', ['mounts', 'folders', 'read write'], 'normal', 'button', 'Mounts'],
-        ['Temporary chat mount defaults', 'Set defaults for composer-created Mount Folder context nodges.', ['temporary mount', 'composer'], 'normal', 'button', 'Mount defaults'],
-        ['Skills and hooks', 'Manage reusable skills, hooks, action recipes, and which are visible in composer/tool menus.', ['skills', 'hooks'], 'normal', 'button', 'Skills'],
-        ['Plugins', 'Enable, disable, reload, uninstall, open plugin UI, rescan local plugins, and inspect load errors.', ['plugins', 'extensions'], 'advanced', 'button', 'Installed plugins'],
-        ['Plugin depot', 'Install curated plugins from registries with digest verification.', ['plugin depot', 'registry'], 'advanced', 'button', 'Depot'],
-        ['API tokens', 'Create, rename, scope, copy once, disable, or revoke tokens for external clients.', ['tokens', 'scopes', 'secret'], 'advanced', 'secret', 'Token vault'],
-        ['Webhooks', 'Add, test, enable, disable, or delete webhook targets and event subscriptions.', ['webhooks', 'events'], 'advanced', 'button', 'Webhooks'],
-        ['ABC self-control', 'Registry-backed settings that ABC may change itself, including scope, confirmation, secret handoff, and human-only rules.', ['self control', 'settings registry'], 'advanced', 'button', 'Policy registry']
-      ]
-    },
-    {
-      name: 'Account and access',
-      color: 'var(--amber)',
-      legacy: 'Account, Users',
-      rows: [
-        ['Account', 'Show current account, login state, logout, and personal account details.', ['account', 'login'], 'normal', 'button', 'Account'],
-        ['Change password', 'Change the current password with policy-aware validation.', ['password', 'security'], 'normal', 'secret', 'Change password'],
-        ['Two-factor authentication', 'Set up, confirm, or disable 2FA.', ['2FA', 'security'], 'normal', 'button', '2FA'],
-        ['Registration', 'Allow or block new account signups.', ['registration', 'signup'], 'advanced', 'switch', 'off'],
-        ['Users', 'Create, rename, remove, promote, or demote users.', ['users', 'admin'], 'advanced', 'button', 'Manage users'],
-        ['User privileges', 'Control who may use Agent mode, browser, shell/files, documents, research, image generation, memory, and daily limits.', ['privileges', 'limits'], 'advanced', 'button', 'Privileges'],
-        ['Allowed models per user', 'Restrict individual users to all models, no models, or selected models only.', ['allowed models', 'users'], 'advanced', 'button', 'Model access']
-      ]
-    },
-    {
-      name: 'Privacy and data',
-      color: 'var(--red)',
-      legacy: 'Account safety, Backup, Danger Zone plus V2 GDPR',
-      rows: [
-        ['Global privacy mode', 'Toggle GDPR/local-first behavior, API restrictions, and visual privacy feedback.', ['GDPR', 'privacy', 'local only'], 'normal', 'switch', 'off'],
-        ['Data classification', 'Define sensitive data categories, source rules, and which content must stay local.', ['classification', 'sensitive'], 'advanced', 'button', 'Rules'],
-        ['Secret handoff', 'Open secure UI fields for API keys and passwords so secrets never pass through chat or tool output.', ['secrets', 'handoff', 'API keys'], 'normal', 'secret', 'Secure input'],
-        ['Memory privacy', 'Decide what can become durable memory, what stays temporary, and when ABC must ask first.', ['memory privacy', 'durable'], 'normal', 'button', 'Memory rules'],
-        ['Import/export data', 'Export or import user data: memories, presets, settings, skills, preferences, and relevant state.', ['backup', 'export', 'import'], 'normal', 'button', 'Export data'],
-        ['Backup policy', 'Configure snapshot behavior, include/exclude research runs and attachments, and backup visibility.', ['backup', 'snapshots'], 'advanced', 'button', 'Backup policy'],
-        ['Audit and logs privacy', 'Choose what settings, tool output, provider payloads, and diagnostics may appear in logs.', ['audit', 'logs', 'redaction'], 'advanced', 'button', 'Log policy'],
-        ['Danger zone', 'Delete chats, memory, documents, notes, tasks, settings, or other categories with explicit confirmation.', ['wipe', 'delete', 'danger'], 'advanced', 'button', 'Open danger zone']
-      ]
-    },
-    {
-      name: 'System and diagnostics',
-      color: 'var(--cyan)',
-      legacy: 'System, feature flags, diagnostics',
-      rows: [
-        ['Updates and backups', 'Show version, latest commit, scheduled updater, host service state, backup snapshots, and recent changes.', ['updates', 'version', 'snapshots'], 'normal', 'stack', 'Version|current|green;Schedule|active|green;Backups|snapshots visible|teal'],
-        ['Run system actions', 'Trigger update check, backup now, or update now when host gates allow it.', ['update now', 'backup now'], 'advanced', 'button', 'System actions'],
-        ['Terminal logs', 'View live diagnostic logs with search, level filter, line limit, refresh, and auto-poll.', ['logs', 'terminal', 'diagnostics'], 'normal', 'button', 'Open logs'],
-        ['Feature flags', 'Turn major app features on or off from a safe admin surface.', ['features', 'flags'], 'advanced', 'button', 'Feature flags'],
-        ['System health', 'View local health checks, collectors, alerts, runtime status, Docker/Podman/restic availability, and blockers.', ['system health', 'runtime'], 'normal', 'button', 'Health'],
-        ['Runtime readiness', 'Inspect API readiness, model source readiness, memory/index readiness, and background worker state.', ['runtime', 'ready'], 'advanced', 'button', 'Readiness'],
-        ['Developer diagnostics', 'Advanced troubleshooting for route parity, settings registry coverage, provider tests, and UI/backend mismatch.', ['developer', 'diagnostics'], 'advanced', 'button', 'Diagnostics']
-      ]
-    }
-  ];
+
 
   function resizeBrushCanvas() {
     brushDpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1219,6 +597,287 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     buildState.textContent = 'V2 - ' + action;
   }
 
+  function setNotificationCount(count) {
+    if (!notificationButton || !notificationCount) return;
+    const nextCount = Math.max(0, Number(count) || 0);
+    notificationCount.textContent = String(nextCount);
+    notificationButton.classList.toggle('has-notifications', nextCount > 0);
+    notificationButton.setAttribute('aria-label', nextCount + ' notification' + (nextCount === 1 ? '' : 's'));
+    if (notificationMenuCount) notificationMenuCount.textContent = nextCount + ' new';
+  }
+
+  function currentNotificationCount() {
+    return Number(notificationCount?.textContent || 0) || 0;
+  }
+
+  function unreadNotificationCount() {
+    return notificationMenu ? notificationMenu.querySelectorAll('.notification-item.unread').length : currentNotificationCount();
+  }
+
+  function setNotificationMenuOpen(open) {
+    if (!notificationRoot || !notificationButton || !notificationMenu) return;
+    notificationRoot.classList.toggle('menu-open', open);
+    notificationMenu.classList.toggle('open', open);
+    notificationButton.setAttribute('aria-expanded', String(open));
+    notificationMenu.setAttribute('aria-hidden', String(!open));
+    notificationMenu.style.opacity = open ? '1' : '';
+    notificationMenu.style.pointerEvents = open ? 'auto' : '';
+    notificationMenu.style.transform = open ? 'translateY(0) scale(1)' : '';
+    if (open) {
+      notificationButton.classList.remove('bubble-visible', 'notification-ringing');
+      notificationBubble?.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function routeNotificationTarget(target) {
+    if (target === 'memory') {
+      openMemoryWindow();
+      return;
+    }
+    if (target === 'projects') {
+      openProjectsOverview();
+      return;
+    }
+    if (target === 'inbox') {
+      setActiveWorkspace('inbox');
+      const inboxHome = document.querySelector('[data-workspace-screen="inbox"] .inbox-home-window');
+      if (inboxHome) {
+        setWindowMinimized(inboxHome, false);
+        activateWindow(inboxHome);
+      }
+      buildState.textContent = 'V2 - Inbox notifications';
+      return;
+    }
+    if (target === 'settings') {
+      openSettingsWindow({ query: 'notifications reminders', advanced: false });
+      return;
+    }
+    setActiveWorkspace('agent');
+    setWindowMinimized(coreWindow, false);
+    activateWindow(coreWindow);
+    buildState.textContent = 'V2 - Notification opened';
+  }
+
+  function addNotificationMenuItem({ message, target = 'agent', meta = 'now' }) {
+    if (!notificationMenu) return;
+    const head = notificationMenu.querySelector('.notification-menu-head');
+    const item = document.createElement('button');
+    item.className = 'notification-item unread';
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    item.dataset.notificationTarget = target;
+
+    const dot = document.createElement('span');
+    dot.className = 'notification-item-dot';
+    dot.setAttribute('aria-hidden', 'true');
+
+    const copy = document.createElement('span');
+    copy.className = 'notification-item-copy';
+    const title = document.createElement('strong');
+    title.textContent = message || 'New notification';
+    const detail = document.createElement('small');
+    detail.textContent = meta;
+    copy.append(title, detail);
+    item.append(dot, copy);
+
+    head?.insertAdjacentElement('afterend', item);
+    Array.from(notificationMenu.querySelectorAll('.notification-item')).slice(6).forEach(extra => extra.remove());
+    setNotificationCount(unreadNotificationCount());
+  }
+
+  function openNotificationItem(item) {
+    if (!item) return;
+    item.classList.remove('unread');
+    setNotificationCount(unreadNotificationCount());
+    setNotificationMenuOpen(false);
+    routeNotificationTarget(item.dataset.notificationTarget || 'agent');
+  }
+
+  function showNotificationBubble(message = 'New notification', count = currentNotificationCount() + 1, target = 'agent') {
+    if (!notificationButton || !notificationBubble) return;
+    addNotificationMenuItem({ message, target, meta: 'now' });
+    setNotificationCount(count);
+    notificationBubble.textContent = message;
+    notificationBubble.setAttribute('aria-hidden', 'false');
+    notificationButton.classList.remove('notification-ringing', 'bubble-visible');
+    void notificationButton.offsetHeight;
+    notificationButton.classList.add('notification-ringing', 'bubble-visible');
+    clearTimeout(notificationBubbleTimer);
+    notificationBubbleTimer = setTimeout(() => {
+      notificationButton.classList.remove('bubble-visible', 'notification-ringing');
+      notificationBubble.setAttribute('aria-hidden', 'true');
+    }, 3200);
+  }
+
+  window.abcPushNotification = detail => {
+    const payload = typeof detail === 'string' ? { message: detail } : (detail || {});
+    showNotificationBubble(payload.message || 'New notification', payload.count ?? currentNotificationCount() + 1, payload.target || 'agent');
+  };
+
+  window.addEventListener('abc:notification', event => {
+    window.abcPushNotification(event.detail || {});
+  });
+
+  function activeWorkspaceScreen() {
+    return workspaceScreens.find(screen => screen.dataset.workspaceScreen === activeWorkspaceId)
+      || workspaceScreens[0]
+      || workspace;
+  }
+
+  function readPersistedUiState() {
+    try {
+      const raw = window.localStorage?.getItem(uiStateStorageKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (error) {
+      console.warn('Unable to read Harbor UI state', error);
+      return {};
+    }
+  }
+
+  function scheduleUiStateSave() {
+    if (uiStateRestoring) return;
+    clearTimeout(uiStateSaveTimer);
+    uiStateSaveTimer = setTimeout(() => {
+      try {
+        window.localStorage?.setItem(uiStateStorageKey, JSON.stringify(persistedUiState));
+      } catch (error) {
+        console.warn('Unable to save Harbor UI state', error);
+      }
+    }, 120);
+  }
+
+  function persistWorkspaceState() {
+    persistedUiState.activeWorkspaceId = activeWorkspaceId;
+    persistedUiState.activePlanningProjectIndex = activePlanningProjectIndex;
+    scheduleUiStateSave();
+  }
+
+  function setActiveWorkspace(id) {
+    if (!workspaceOrder.includes(id)) return;
+    activeWorkspaceId = id;
+    const index = workspaceOrder.indexOf(id);
+    workspaceStrip?.style.setProperty('--workspace-index', String(index));
+    workspaceStrip?.style.setProperty('--workspace-offset', '-' + (index * 25) + '%');
+    stage.dataset.workspace = id;
+
+    workspaceScreens.forEach(screen => {
+      const active = screen.dataset.workspaceScreen === id;
+      screen.classList.toggle('active', active);
+      screen.setAttribute('aria-hidden', String(!active));
+    });
+
+    workspaceButtons.forEach(button => {
+      const active = button.dataset.workspaceTarget === id;
+      button.classList.toggle('active', active);
+      if (active) {
+        button.setAttribute('aria-current', 'page');
+      } else {
+        button.removeAttribute('aria-current');
+      }
+    });
+
+    buildState.textContent = 'V2 - ' + (workspaceLabels[id] || id) + ' workspace';
+    persistWorkspaceState();
+    requestAnimationFrame(() => constrainWorkspaceWindows(id));
+  }
+
+  function moveWorkspace(direction) {
+    const current = workspaceOrder.indexOf(activeWorkspaceId);
+    const next = Math.max(0, Math.min(workspaceOrder.length - 1, current + direction));
+    setActiveWorkspace(workspaceOrder[next]);
+  }
+
+  function wireInboxFiles() {
+    document.querySelectorAll('[data-inbox-files]').forEach(root => {
+      if (root.dataset.filesPrepared) return;
+      root.dataset.filesPrepared = 'true';
+      const search = root.querySelector('[data-files-search]');
+      const filter = root.querySelector('[data-files-filter]');
+      const mountButtons = Array.from(root.querySelectorAll('[data-mount-target]'));
+      const rows = Array.from(root.querySelectorAll('[data-mount]'));
+      let activeMount = root.querySelector('[data-mount-target].active')?.dataset.mountTarget || 'project';
+      let filteredOnly = false;
+
+      function syncRows() {
+        const query = (search?.value || '').trim().toLowerCase();
+        rows.forEach(row => {
+          const matchesMount = row.dataset.mount === activeMount;
+          const matchesQuery = !query || (row.dataset.fileName || row.textContent).toLowerCase().includes(query);
+          const matchesFilter = !filteredOnly || !row.classList.contains('folder');
+          row.hidden = !(matchesMount && matchesQuery && matchesFilter);
+        });
+      }
+
+      mountButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          activeMount = button.dataset.mountTarget || 'project';
+          mountButtons.forEach(item => {
+            const active = item === button;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+          });
+          syncRows();
+          buildState.textContent = 'V2 - Files: ' + button.textContent.trim();
+        });
+      });
+
+      search?.addEventListener('input', syncRows);
+
+      filter?.addEventListener('click', () => {
+        filteredOnly = !filteredOnly;
+        filter.classList.toggle('active', filteredOnly);
+        filter.setAttribute('aria-pressed', String(filteredOnly));
+        syncRows();
+        buildState.textContent = filteredOnly ? 'V2 - Files: folders hidden' : 'V2 - Files: all items';
+      });
+
+      syncRows();
+    });
+  }
+
+  function wireInboxStatusTabs() {
+    document.querySelectorAll('.inbox-analysis-window').forEach(root => {
+      if (root.dataset.statusTabsPrepared) return;
+      root.dataset.statusTabsPrepared = 'true';
+      const tabs = Array.from(root.querySelectorAll('[data-status-tab]'));
+      const panels = Array.from(root.querySelectorAll('[data-status-panel]'));
+      if (!tabs.length || !panels.length) return;
+
+      function activateStatusTab(name, focus = false) {
+        tabs.forEach(tab => {
+          const active = tab.dataset.statusTab === name;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', String(active));
+          tab.tabIndex = active ? 0 : -1;
+          if (active && focus) tab.focus();
+        });
+
+        panels.forEach(panel => {
+          panel.hidden = panel.dataset.statusPanel !== name;
+        });
+      }
+
+      tabs.forEach((tab, index) => {
+        tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+        tab.addEventListener('click', () => activateStatusTab(tab.dataset.statusTab || 'now'));
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let nextIndex = index;
+          if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+          if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === 'Home') nextIndex = 0;
+          if (event.key === 'End') nextIndex = tabs.length - 1;
+          activateStatusTab(tabs[nextIndex].dataset.statusTab || 'now', true);
+        });
+      });
+
+      activateStatusTab(tabs.find(tab => tab.classList.contains('active'))?.dataset.statusTab || 'now');
+    });
+  }
+
   function serializeContextNodges() {
     return Array.from(contextNodges.querySelectorAll('.context-nodge:not([data-context-suggestion="true"])')).map(nodge => ({
       kind: nodge.dataset.contextKind || 'Context',
@@ -1528,7 +1187,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
 
   function renderDocumentHeaderControl(doc) {
     if (doc.type !== 'code') return '';
-    const languages = ['python', 'javascript', 'html', 'json'];
+    const languages = ['python', 'javascript', 'html', 'json', 'diff'];
     const selected = languages.includes(doc.language) ? doc.language : 'python';
     return [
       '<select class="document-language-select" data-doc-language aria-label="Programming language preset">',
@@ -1542,7 +1201,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       python: 'Python',
       javascript: 'JavaScript',
       html: 'HTML',
-      json: 'JSON'
+      json: 'JSON',
+      diff: 'Diff'
     };
     return labels[language] || language;
   }
@@ -1636,6 +1296,13 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         .replace(/(&quot;[^&]+&quot;|'[^']*')/g, '<span class="token-str">$1</span>')
         .replace(/\b(\d+)\b/g, '<span class="token-num">$1</span>');
     }
+    if (language === 'diff') {
+      return escaped
+        .replace(/^(\+.*)$/gm, '<span class="token-added">$1</span>')
+        .replace(/^(-.*)$/gm, '<span class="token-removed">$1</span>')
+        .replace(/^(@@.*)$/gm, '<span class="token-key">$1</span>')
+        .replace(/^(diff --git.*)$/gm, '<span class="token-comment">$1</span>');
+    }
     return escaped
       .replace(/(#.*)$/gm, '<span class="token-comment">$1</span>')
       .replace(/\b(def|return|if|else|for|in|class|import|from)\b/g, '<span class="token-key">$1</span>')
@@ -1683,7 +1350,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         '</header>',
         '<div class="window-body"></div>'
       ].join('');
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       offsetDocumentWindow(win, existingCount);
       prepareFloatingWindow(win);
     } else {
@@ -1946,13 +1613,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   }
 
   function updateChatNodges() {
-    const hasMultipleChats = chatSpaces.length > 1;
-    const hasPrevious = hasMultipleChats && activeChatIndex > 0;
-    const hasNext = hasMultipleChats && activeChatIndex < chatSpaces.length - 1;
-    leftNodge.hidden = !hasPrevious;
-    rightNodge.hidden = !hasNext;
-    leftNodge.setAttribute('aria-label', hasPrevious ? 'Previous chat: ' + chatSpaces[activeChatIndex - 1].title : 'Previous chat');
-    rightNodge.setAttribute('aria-label', hasNext ? 'Next chat: ' + chatSpaces[activeChatIndex + 1].title : 'Next chat');
+    if (leftNodge) leftNodge.hidden = true;
+    if (rightNodge) rightNodge.hidden = true;
   }
 
   function chatIsWorking(space) {
@@ -1960,37 +1622,9 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   }
 
   function updateChatCarousel() {
-    chatCarousel.hidden = chatSpaces.length <= 1;
+    if (!chatCarousel) return;
+    chatCarousel.hidden = true;
     chatCarousel.innerHTML = '';
-    if (chatCarousel.hidden) return;
-
-    chatSpaces.forEach((space, index) => {
-      const relative = index - activeChatIndex;
-      const distance = Math.min(Math.abs(relative), 4);
-      const tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'carousel-tile' + (index === activeChatIndex ? ' active' : '');
-      tile.dataset.chatIndex = String(index);
-      tile.style.left = 'calc(50% + ' + (relative * 24) + 'px)';
-      tile.style.setProperty('--tile-x', relative * 24 + 'px');
-      tile.style.setProperty('--tile-z', -distance * 18 + 'px');
-      tile.style.setProperty('--tile-rotate', relative * -18 + 'deg');
-      tile.style.setProperty('--tile-scale', String(Math.max(0.62, 1 - distance * 0.12)));
-      tile.style.setProperty('--tile-opacity', String(Math.max(0.22, 1 - distance * 0.18)));
-      tile.setAttribute('aria-label', 'Open ' + space.title);
-      tile.innerHTML = [
-        '<span class="carousel-card">',
-        '<span class="carousel-number">' + (index + 1) + '</span>',
-        '<span class="carousel-glyph" aria-hidden="true">' + (index === 0 ? '&#9678;' : '&#9635;') + '</span>',
-        chatIsWorking(space) ? '<span class="carousel-work" aria-hidden="true"><span></span><span></span><span></span></span>' : '',
-        '</span>'
-      ].join('');
-      tile.addEventListener('click', event => {
-        event.preventDefault();
-        openChatSpace(index);
-      });
-      chatCarousel.appendChild(tile);
-    });
   }
 
   function renderChatSpace(index) {
@@ -2028,6 +1662,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       lastAnswer: 'new',
       contexts: []
     });
+    setActiveWorkspace('agent');
     setWindowMinimized(coreWindow, false);
     renderChatSpace(chatSpaces.length - 1);
     closeToolwheel();
@@ -2050,6 +1685,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     document.querySelectorAll('[data-window]').forEach(item => item.classList.remove('active'));
     win.classList.add('active');
     win.style.zIndex = String(++zTop);
+    persistedUiState.activeWindowId = win.dataset.windowId || persistedUiState.activeWindowId;
+    persistWindowState(win);
   }
 
   function selectedWindows() {
@@ -2083,27 +1720,223 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
 
   function activeDragGroup(win) {
     const selection = selectedWindows();
-    if (win.classList.contains('selected') && selection.length > 1) return selection;
+    const workspace = win.closest('[data-workspace-screen]');
+    const workspaceSelection = selection.filter(item => item.closest('[data-workspace-screen]') === workspace);
+    if (win.classList.contains('selected') && workspaceSelection.length > 1) return workspaceSelection;
     return [win];
+  }
+
+  function windowParentOrigin(win) {
+    const parent = win.offsetParent || win.parentElement;
+    if (!parent || parent === document.body) return { left: 0, top: 0 };
+    const rect = parent.getBoundingClientRect();
+    return { left: rect.left, top: rect.top };
+  }
+
+  function viewportRectToWindowBounds(win, rect) {
+    const origin = windowParentOrigin(win);
+    return {
+      left: rect.left - origin.left,
+      top: rect.top - origin.top,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+
+  function windowBoundsToViewportRect(win, bounds) {
+    const origin = windowParentOrigin(win);
+    return {
+      left: bounds.left + origin.left,
+      top: bounds.top + origin.top,
+      width: bounds.width,
+      height: bounds.height,
+      right: bounds.left + origin.left + bounds.width,
+      bottom: bounds.top + origin.top + bounds.height
+    };
+  }
+
+  function numericBoundsFromRestoreBounds(bounds) {
+    if (!bounds) return null;
+    return {
+      left: parseFloat(bounds.left) || 0,
+      top: parseFloat(bounds.top) || 0,
+      width: parseFloat(bounds.width) || 340,
+      height: parseFloat(bounds.height) || 260
+    };
+  }
+
+  function parentViewportSize(win) {
+    const parent = win.offsetParent || win.parentElement || document.body;
+    return {
+      width: parent.clientWidth || window.innerWidth,
+      height: parent.clientHeight || window.innerHeight
+    };
+  }
+
+  function sanitizeWindowBounds(win, bounds) {
+    const size = parentViewportSize(win);
+    const margin = 14;
+    const width = Math.max(340, Math.min(Number(bounds.width) || 340, Math.max(340, size.width - (margin * 2))));
+    const height = Math.max(260, Math.min(Number(bounds.height) || 260, Math.max(260, size.height - (margin * 2))));
+    const maxLeft = Math.max(margin, size.width - width - margin);
+    const maxTop = Math.max(margin, size.height - height - margin);
+    return {
+      left: Math.max(margin, Math.min(maxLeft, Number(bounds.left) || margin)),
+      top: Math.max(margin, Math.min(maxTop, Number(bounds.top) || margin)),
+      width,
+      height
+    };
+  }
+
+  function constrainWorkspaceWindows(workspaceId = activeWorkspaceId) {
+    const screen = workspaceScreens.find(item => item.dataset.workspaceScreen === workspaceId);
+    if (!screen) return;
+    screen.querySelectorAll('[data-window]').forEach(win => {
+      if (win.classList.contains('minimized')) return;
+      if (win.classList.contains('maximized')) {
+        const bounds = maximizedWindowBounds(win);
+        setWindowBounds(win, bounds);
+        persistWindowState(win);
+        return;
+      }
+      setWindowBounds(win, currentWindowBounds(win));
+      persistWindowState(win);
+    });
+  }
+
+  function setWindowBounds(win, bounds) {
+    const safe = sanitizeWindowBounds(win, bounds);
+    win.style.left = safe.left + 'px';
+    win.style.top = safe.top + 'px';
+    win.style.width = safe.width + 'px';
+    win.style.height = safe.height + 'px';
+    win.style.transform = 'none';
+    return safe;
+  }
+
+  function normalRestoreBounds(bounds) {
+    return {
+      left: bounds.left + 'px',
+      top: bounds.top + 'px',
+      width: bounds.width + 'px',
+      height: bounds.height + 'px',
+      transform: 'none'
+    };
+  }
+
+  function currentWindowBounds(win) {
+    const rect = win.getBoundingClientRect();
+    return sanitizeWindowBounds(win, viewportRectToWindowBounds(win, rect));
+  }
+
+  function persistWindowState(win) {
+    if (!win?.dataset.windowId || uiStateRestoring) return;
+    const bounds = currentWindowBounds(win);
+    const restoreBounds = numericBoundsFromRestoreBounds(win._restoreBounds);
+    persistedUiState.windows = persistedUiState.windows || {};
+    persistedUiState.windows[win.dataset.windowId] = {
+      ...bounds,
+      restoreBounds,
+      minimized: win.classList.contains('minimized'),
+      maximized: win.classList.contains('maximized'),
+      zIndex: Number(win.style.zIndex) || 0,
+      workspaceId: win.closest('[data-workspace-screen]')?.dataset.workspaceScreen || activeWorkspaceId,
+      updatedAt: Date.now()
+    };
+    scheduleUiStateSave();
+  }
+
+  function clearPersistedWindowState(win) {
+    if (!win?.dataset.windowId || !persistedUiState.windows) return;
+    delete persistedUiState.windows[win.dataset.windowId];
+    scheduleUiStateSave();
+  }
+
+  function restorePersistedWindowState(win) {
+    if (!win?.dataset.windowId || win.dataset.windowRestored) return;
+    win.dataset.windowRestored = 'true';
+    const state = persistedUiState.windows?.[win.dataset.windowId];
+    if (!state) return;
+
+    uiStateRestoring = true;
+    const baseBounds = state.maximized && state.restoreBounds ? state.restoreBounds : state;
+    const restoredBounds = setWindowBounds(win, baseBounds);
+    win._restoreBounds = null;
+
+    if (state.maximized) {
+      win._restoreBounds = normalRestoreBounds(restoredBounds);
+      const maximized = maximizedWindowBounds(win);
+      win.classList.add('maximized');
+      setWindowBounds(win, maximized);
+    } else {
+      win.classList.remove('maximized');
+    }
+
+    win.classList.toggle('minimized', Boolean(state.minimized));
+    if (state.minimized) {
+      dockBubbleFor(win);
+      win.classList.remove('active', 'selected');
+    } else {
+      removeDockBubble(win);
+    }
+
+    if (state.zIndex) {
+      win.style.zIndex = String(state.zIndex);
+      zTop = Math.max(zTop, Number(state.zIndex));
+    }
+
+    syncMaximizeControl(win.querySelector('[data-window-max]'), win.classList.contains('maximized'));
+    uiStateRestoring = false;
+  }
+
+  function restoreLastActiveWindow() {
+    const id = persistedUiState.activeWindowId;
+    if (!id || !window.CSS?.escape) return;
+    const win = document.querySelector('[data-window-id="' + CSS.escape(id) + '"]');
+    if (win && !win.classList.contains('minimized')) {
+      const workspaceId = win.closest('[data-workspace-screen]')?.dataset.workspaceScreen;
+      if (workspaceId && workspaceId !== activeWorkspaceId) setActiveWorkspace(workspaceId);
+      activateWindow(win);
+      selectOnlyWindow(win);
+    }
   }
 
   function prepareGroupDrag(group) {
     return group.map(win => {
       const rect = win.getBoundingClientRect();
+      const bounds = viewportRectToWindowBounds(win, rect);
       win.style.transform = 'none';
-      win.style.left = rect.left + 'px';
-      win.style.top = rect.top + 'px';
-      win.style.width = rect.width + 'px';
-      win.style.height = rect.height + 'px';
+      win.style.left = bounds.left + 'px';
+      win.style.top = bounds.top + 'px';
+      win.style.width = bounds.width + 'px';
+      win.style.height = bounds.height + 'px';
       win.style.zIndex = String(++zTop);
       return {
         win,
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height
+        left: bounds.left,
+        top: bounds.top,
+        width: bounds.width,
+        height: bounds.height
       };
     });
+  }
+
+  function clampDragDelta(groupBounds, dx, dy) {
+    if (!groupBounds.length) return { dx, dy };
+    const margin = 14;
+    const size = parentViewportSize(groupBounds[0].win);
+    const groupLeft = Math.min(...groupBounds.map(item => item.left));
+    const groupTop = Math.min(...groupBounds.map(item => item.top));
+    const groupRight = Math.max(...groupBounds.map(item => item.left + item.width));
+    const groupBottom = Math.max(...groupBounds.map(item => item.top + item.height));
+    const minDx = margin - groupLeft;
+    const maxDx = size.width - margin - groupRight;
+    const minDy = margin - groupTop;
+    const maxDy = size.height - margin - groupBottom;
+    return {
+      dx: Math.max(minDx, Math.min(maxDx, dx)),
+      dy: Math.max(minDy, Math.min(maxDy, dy))
+    };
   }
 
   function windowTitle(win) {
@@ -2158,6 +1991,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       selectOnlyWindow(win);
       activateWindow(win);
     }
+    persistWindowState(win);
   }
 
   function setComposerMenuOpen(shell, open) {
@@ -2212,6 +2046,25 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     if (type === 'switch') {
       return `<button class="settings-switch ${value === 'on' ? 'on' : ''}" type="button" aria-label="${esc(title)} toggle"></button>`;
     }
+    if (type === 'planning-mcp') {
+      return `
+        <div class="settings-planning-mcp" aria-label="Planning MCP tool management">
+          <div class="settings-planning-mcp-top">
+            <span><strong>Server</strong><small>${esc(planningMcpRoadmap.path)}</small></span>
+            <button class="settings-switch ${value === 'on' ? 'on' : ''}" type="button" aria-label="Planning MCP toggle"></button>
+          </div>
+          <div class="settings-planning-tools">
+            ${planningMcpRoadmap.tools.map(tool => `
+              <button class="settings-planning-tool" type="button" style="--tool-state:${tool.state === 'read-only' ? 'var(--green)' : tool.state === 'dry-run' ? 'var(--blue)' : 'var(--red)'}">
+                <span></span>
+                <strong>${esc(tool.name)}</strong>
+                <small>${esc(tool.state)}</small>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
     if (type === 'select') {
       return `<select class="settings-select-shell" aria-label="${esc(title)}"><option>${esc(value)}</option><option>Use recommended</option><option>Ask first</option></select>`;
     }
@@ -2224,7 +2077,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     if (type === 'stack') {
       return `<div class="settings-status-stack">${String(value).split(';').map(item => {
         const [name, status, tone] = item.split('|');
-        const color = tone === 'green' ? 'var(--green)' : tone === 'red' ? 'var(--red)' : tone === 'amber' ? 'var(--amber)' : 'var(--teal)';
+        const color = tone === 'green' ? 'var(--green)' : tone === 'red' ? 'var(--red)' : tone === 'amber' ? 'var(--blue)' : 'var(--teal)';
         return `<div class="settings-status-row" style="--state:${color}"><strong>${esc(name)}</strong><span>${esc(status)}</span></div>`;
       }).join('')}</div>`;
     }
@@ -2239,11 +2092,11 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
           <span>legacy: ${esc(section.legacy)}</span>
         </header>
         ${section.rows.map(row => {
-          const [title, desc, tags, level] = row;
+          const [title, desc, tags, level, type] = row;
           const id = `setting-${slug(section.name)}-${slug(title)}`;
           const allTags = [...tags, section.name, section.legacy, level].join(' ');
           return `
-            <article class="settings-row-v2" id="${id}" data-settings-row data-title="${esc(title)}" data-group="${esc(section.name)}" data-tags="${esc(allTags)}" data-level="${esc(level)}">
+            <article class="settings-row-v2" id="${id}" data-settings-row data-title="${esc(title)}" data-group="${esc(section.name)}" data-tags="${esc(allTags)}" data-level="${esc(level)}" data-control="${esc(type)}">
               <div class="settings-copy-v2">
                 <strong>${esc(title)}</strong>
                 <p>${esc(desc)}</p>
@@ -2436,7 +2289,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </header>
         <div class="window-body">${renderSettingsWindow()}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
       wireSettingsWindow(win);
     } else {
@@ -2454,35 +2307,6 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     if (normalized.includes('wait') || normalized.includes('held')) return ' waiting';
     if (normalized.includes('block') || normalized.includes('missing')) return ' blocked';
     return '';
-  }
-
-  function renderProjectRows(activeIndex) {
-    return projectSamples.map((project, index) => `
-      <button class="project-row${index === activeIndex ? ' active' : ''}" style="--status:${project.statusColor}" type="button" data-project-index="${index}">
-        <span class="project-dot"></span>
-        <span class="project-name"><strong>${esc(project.title)}</strong><span>${esc(project.subtitle)}</span></span>
-        <span class="progress-mini">${esc(project.progress)}</span>
-      </button>
-    `).join('');
-  }
-
-  function renderUserTodos(project) {
-    const todos = project.todos || [];
-    if (!todos.length) {
-      return '<div class="todo-empty">Nothing needs you right now.</div>';
-    }
-    return todos.map((todo, index) => `
-      <article class="todo-row${todo.done ? ' done' : ''}" style="--todo:${todo.color || 'var(--cyan)'}" data-todo-index="${index}">
-        <button class="todo-check" type="button" data-todo-toggle aria-label="${todo.done ? 'Mark open' : 'Mark done'}"></button>
-        <div class="todo-copy">
-          <span class="todo-type">${esc(todo.type)}</span>
-          <strong class="todo-title" tabindex="0" data-todo-title title="Double click to rename">${esc(todo.title)}</strong>
-          <span class="todo-detail">${esc(todo.detail)}</span>
-          <span class="todo-source">${esc(todo.source)}</span>
-        </div>
-        <button class="todo-delete" type="button" data-todo-delete aria-label="Delete task">x</button>
-      </article>
-    `).join('');
   }
 
   function todoPriority(todo) {
@@ -2930,7 +2754,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </header>
         <div class="window-body">${renderSkillsWindow()}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
       installResizeHandles(win);
       wireSkillsWindow(win);
@@ -2944,142 +2768,532 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     closeToolwheel();
   }
 
-  function renderProjectsOverview(activeIndex = 0) {
-    const project = projectSamples[activeIndex] || projectSamples[0];
+  function gateIconSvg(state = 'open') {
+    const closed = state === 'blocked';
     return `
-      <div class="projects-layout">
-        <aside class="project-rail" aria-label="Project list">
-          <div class="rail-title">
-            <span>Projects</span>
-            <span class="rail-count">${projectSamples.length}</span>
+      <svg class="gate-icon" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M7 27V15.5C7 10.25 11.03 6 16 6s9 4.25 9 9.5V27" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+        <path d="M10 27h12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+        ${closed ? '<path d="M11 16h10v11H11z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"></path><path d="M16 20v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>' : '<path d="M12 27V16h8v11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>'}
+      </svg>
+    `;
+  }
+
+  function renderPlanningProjects(activeIndex = 0) {
+    const active = projectSamples[activeIndex] || projectSamples[0];
+    return `
+      <div class="planning-projects-body">
+        <section class="planning-master-summary" aria-label="Master roadmap state">
+          <div class="summary-line"><span>Selected master</span><strong>${esc(active.title)}</strong></div>
+          <div class="summary-line"><span>Storage</span><strong>JSON roadmaps</strong></div>
+          <div class="summary-line"><span>Recovered by</span><strong>Files + MCP</strong></div>
+          <div class="project-actions">
+            <button type="button">New project</button>
+            <button type="button">Find JSON</button>
           </div>
-          <div class="project-list">
-            ${renderProjectRows(activeIndex)}
-          </div>
-          <div class="metric-strip" aria-label="Project metrics">
-            <div class="metric"><span class="metric-label">Progress</span><span class="metric-value">${esc(project.progress.replace('/', ' / '))}</span></div>
-            <div class="metric"><span class="metric-label">Next</span><span class="metric-value">${esc(project.next)}</span></div>
-            <div class="metric"><span class="metric-label">Branch</span><span class="metric-value">${esc(project.branch)}</span></div>
-            <div class="metric"><span class="metric-label">Decision</span><span class="metric-value">${esc(project.decision)}</span></div>
-          </div>
-        </aside>
-        <section class="project-overview" aria-label="Selected project overview">
-          <div class="overview-head">
-            <div>
-              <h1 class="project-title">${esc(project.title)}</h1>
-              <div class="project-sub">Zero-sidebar project context with roadmap visibility, floating windows, and a minimal command surface.</div>
-            </div>
-            <div class="status-stack">
-              ${project.chips.map(chip => `<span class="status-chip${statusChipClass(chip)}">${esc(chip)}</span>`).join('')}
-              <span class="status-chip privacy">privacy mode</span>
-            </div>
-          </div>
-          <div class="overview-main">
-            <section class="graph-panel" aria-label="Roadmap graph placeholder">
-              <div class="panel-head">
-                <span>Roadmap</span>
-                <div class="view-tabs" aria-label="Overview views">
-                  <button class="active" type="button">Graph</button>
-                  <button type="button">List</button>
-                  <button type="button">Changes</button>
-                </div>
-              </div>
-              <div class="roadmap-graph">
-                <span class="graph-line" style="left: 90px; top: 90px; width: 76px; rotate: 28deg;"></span>
-                <span class="graph-line" style="left: 132px; top: 154px; width: 78px; rotate: 134deg;"></span>
-                <span class="graph-line" style="left: 88px; top: 214px; width: 76px; rotate: 24deg;"></span>
-                <span class="graph-line" style="left: 136px; top: 254px; width: 62px; rotate: 130deg;"></span>
-                <div class="graph-node" style="--node: var(--green); left: 30px; top: 54px;"><strong>Shell</strong><span>done</span></div>
-                <div class="graph-node" style="--node: var(--blue); left: 132px; top: 112px;"><strong>Projects</strong><span>${esc(project.status)}</span></div>
-                <div class="graph-node" style="--node: var(--amber); left: 34px; top: 182px;"><strong>Decisions</strong><span>${project.decision === 'none' ? 'clear' : 'waiting'}</span></div>
-                <div class="graph-node" style="--node: var(--cyan); left: 132px; top: 238px;"><strong>Composer</strong><span>ready</span></div>
-                <div class="graph-node" style="--node: var(--red); left: 34px; top: 292px;"><strong>Deploy</strong><span>${project.status === 'blocked' ? 'blocked' : 'held'}</span></div>
-              </div>
-            </section>
-            <section class="todo-panel" aria-label="User To-Do">
-              <div class="panel-head">
-                <span>User To-Do</span>
-                <span>${(project.todos || []).filter(todo => !todo.done).length} open</span>
-              </div>
-              <div class="todo-list" data-active-project="${activeIndex}">
-                ${renderUserTodos(project)}
-              </div>
-            </section>
-          </div>
-          <div class="placeholder-note">Placeholder window - UI only</div>
+        </section>
+        <div class="planning-project-list" data-planning-project-list>
+          ${projectSamples.map((project, index) => `
+            <button class="planning-project-row${index === activeIndex ? ' active' : ''}" style="--state:${project.statusColor}" type="button" data-project-index="${index}">
+              <i class="project-marker"></i>
+              <span class="project-copy"><strong>${esc(project.title)}</strong><span>${esc(project.subtitle)}</span></span>
+              <b class="project-count">${esc(project.progress)}</b>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderRoadmapGate(gate) {
+    return `
+      <button class="roadmap-gate ${esc(gate.state)}" style="left:${gate.x / 10}%; top:${gate.y / 6.2}%;" type="button" data-gate-target="${esc(gate.id)}" data-gate-tooltip="${esc(gate.id + ': ' + gate.label)}" aria-label="${esc(gate.id)}">
+        ${gateIconSvg(gate.state)}
+      </button>
+    `;
+  }
+
+  function roadmapNodeStateClass(state = '') {
+    const normalized = String(state).toLowerCase();
+    if (normalized.includes('blocked')) return 'blocked';
+    if (normalized.includes('done') || normalized.includes('passed') || normalized.includes('verified')) return 'done';
+    if (normalized.includes('work') || normalized.includes('active') || normalized.includes('draft') || normalized.includes('progress')) return 'working';
+    return 'future';
+  }
+
+  function roadmapGateStateLabel(state = '') {
+    const stateClass = roadmapNodeStateClass(state);
+    if (stateClass === 'done') return 'Passed';
+    if (stateClass === 'blocked') return 'Blocked';
+    if (stateClass === 'working') return 'Checking';
+    return 'Open';
+  }
+
+  function roadmapNodeById(id) {
+    return planningRoadmapDemo.nodes.find(node => node.id === id);
+  }
+
+  function roadmapSummaryForNode(node) {
+    if (node.kind === 'gate') return node.label || node.title || node.id;
+    if (node.kind === 'version') {
+      if (node.id === planningRoadmapDemo.fromVersion) return 'Starting point for this project slice. The visible planning history begins here.';
+      if (node.id === planningRoadmapDemo.toVersion) return 'Next target version. Everything to the left prepares this release.';
+      return 'Version marker in the planning timeline.';
+    }
+    const row = (planningRoadmapDemo.rows || []).find(item => item[0] === node.id);
+    return row?.[2] || node.title || node.id;
+  }
+
+  function roadmapNodeLabel(node) {
+    if (node.kind === 'version') return node.id;
+    return node.id;
+  }
+
+  function roadmapNodeDimensions(node) {
+    if (!node) return { width: 0, height: 0 };
+    if (node.kind === 'gate') return { width: 34, height: 34 };
+    if (node.kind === 'version') return { width: 84, height: 36 };
+    return { width: 78, height: 36 };
+  }
+
+  function roadmapGraphModel() {
+    const canvas = planningRoadmapDemo.canvas || { width: 1000, height: 620 };
+    const nodes = planningRoadmapDemo.nodes || [];
+    return {
+      canvas,
+      nodes,
+      nodeMap: new Map(nodes.map(node => [node.id, node]))
+    };
+  }
+
+  function roadmapAnchor(node, target) {
+    const size = roadmapNodeDimensions(node);
+    const dx = (target?.x || node.x) - node.x;
+    const dy = (target?.y || node.y) - node.y;
+    if (Math.abs(dx) >= Math.abs(dy) * 0.78) {
+      return {
+        x: node.x + (dx >= 0 ? size.width / 2 : -size.width / 2),
+        y: node.y
+      };
+    }
+    return {
+      x: node.x,
+      y: node.y + (dy >= 0 ? size.height / 2 : -size.height / 2)
+    };
+  }
+
+  function roadmapEdgePath(edge, model) {
+    if (edge.curve) return edge.curve;
+    const source = model.nodeMap.get(edge.from);
+    const target = model.nodeMap.get(edge.to);
+    if (!source || !target) return '';
+    const start = roadmapAnchor(source, target);
+    const end = roadmapAnchor(target, source);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const horizontalBias = Math.min(190, Math.max(46, Math.abs(dx) * 0.42));
+    const verticalBias = Math.min(96, Math.max(28, Math.abs(dy) * 0.34));
+    const c1x = start.x + (dx >= 0 ? horizontalBias : -horizontalBias);
+    const c2x = end.x - (dx >= 0 ? horizontalBias : -horizontalBias);
+    const c1y = start.y + (Math.abs(dy) > 56 ? (dy >= 0 ? verticalBias : -verticalBias) : 0);
+    const c2y = end.y - (Math.abs(dy) > 56 ? (dy >= 0 ? verticalBias : -verticalBias) : 0);
+    return `M${start.x.toFixed(1)} ${start.y.toFixed(1)} C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+  }
+
+  function renderRoadmapEdge(edge, model) {
+    const target = model.nodeMap.get(edge.to);
+    const stateClass = roadmapNodeStateClass(edge.targetState || target?.state || 'future');
+    const affectedIds = new Set([edge.from, edge.to].filter(Boolean));
+    if (target?.kind === 'gate') (target.affects || []).forEach(id => affectedIds.add(id));
+    const affected = [...affectedIds].join(',');
+    const path = roadmapEdgePath(edge, model);
+    if (!path) return '';
+    return `
+      <path class="roadmap-edge ${esc(stateClass)}${edge.dashed ? ' dashed' : ''}${edge.arrow ? ' arrow' : ''}"
+        d="${esc(path)}"
+        data-edge-from="${esc(edge.from)}"
+        data-edge-to="${esc(edge.to)}"
+        data-edge-affects="${esc(affected)}"></path>
+    `;
+  }
+
+  function renderRoadmapNode(node) {
+    const stateClass = roadmapNodeStateClass(node.state);
+    const isGate = node.kind === 'gate';
+    const isVersion = node.kind === 'version';
+    const summary = roadmapSummaryForNode(node);
+    const style = `left:${node.x}px; top:${node.y}px;`;
+    const affected = isGate ? (node.affects || [node.id]).join(',') : '';
+    const gateTooltip = isGate
+      ? `<span class="gate-tooltip" role="tooltip"><b>${esc(roadmapGateStateLabel(node.state))}</b><span>${esc(node.label || node.title)}</span></span>`
+      : '';
+    return `
+      <button class="roadmap-node ${isGate ? 'gate-node' : 'roadmap-box'}${isVersion ? ' version-node' : ''} ${esc(stateClass)}"
+        style="${style}"
+        type="button"
+        data-roadmap-node="${esc(node.id)}"
+        data-node-kind="${esc(node.kind)}"
+        data-gate-affects="${esc(affected)}"
+        data-gate-tooltip="${esc(summary)}">
+        ${isGate ? gateIconSvg(node.state) : ''}
+        ${gateTooltip}
+        <strong>${esc(roadmapNodeLabel(node))}</strong>
+        <span class="roadmap-node-summary">${esc(summary)}</span>
+      </button>
+    `;
+  }
+
+  function renderRoadmapList(activeIndex = 0) {
+    return `
+      <div class="roadmap-list-body" data-active-project="${activeIndex}">
+        <div class="roadmap-list-meta">
+          <strong>${esc(planningRoadmapDemo.source)}</strong>
+          <span>${esc(planningRoadmapDemo.rows.length)} entries</span>
+        </div>
+        <section class="planning-roadmap-list active" data-list-view aria-label="Roadmap list">
+          ${planningRoadmapDemo.rows.map(row => `
+            <button class="roadmap-list-row" style="--row:var(--green)" type="button" data-roadmap-row="${esc(row[0])}" data-roadmap-search-text="${esc(row.join(' '))}">
+              <i></i>
+              <span><strong>${esc(row[0] + ' - ' + row[1])}</strong><small>${esc(row[2])}</small></span>
+              <b>${esc(row[3])}</b>
+            </button>
+          `).join('')}
         </section>
       </div>
     `;
   }
 
-  function wireProjectsOverview(win) {
+  function renderPlanningOverview(activeIndex = 0) {
+    const project = projectSamples[activeIndex] || projectSamples[0];
+    const graphModel = roadmapGraphModel();
+    const canvas = graphModel.canvas;
+    const projectName = project.title === 'Agent Autonomy' ? 'Agent Autonomy' : project.title;
+    return `
+      <div class="planning-overview-body" data-active-project="${activeIndex}">
+        <section class="planning-roadmap-graph" data-graph-view aria-label="Roadmap graph">
+          <div class="roadmap-search-shell" data-roadmap-search>
+            <button class="roadmap-search-toggle" type="button" data-roadmap-search-toggle aria-label="Search roadmaps">⌕</button>
+            <input class="roadmap-search-input" type="search" data-roadmap-search-input placeholder="Search roadmap summaries" aria-label="Search roadmap summaries">
+          </div>
+          <h3 class="roadmap-project-title">${esc(projectName)}</h3>
+          <div class="roadmap-scroll" data-roadmap-scroll>
+            <div class="roadmap-canvas" style="--roadmap-width:${canvas.width}px; --roadmap-height:${canvas.height}px;">
+              <svg class="roadmap-lines" viewBox="0 0 ${canvas.width} ${canvas.height}" preserveAspectRatio="none" aria-label="Roadmap connections and gates">
+                <defs>
+                  <marker id="roadmap-arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                  </marker>
+                </defs>
+                ${planningRoadmapDemo.edges.map(edge => renderRoadmapEdge(edge, graphModel)).join('')}
+              </svg>
+              <span class="history-label" style="left:18px; top:258px;">foundation roadmaps off-canvas</span>
+              <span class="spine-caption" style="left:540px; top:342px;">${esc(project.title === 'Agent Autonomy' ? 'JSON master spine' : 'JSON master spine with branches')}</span>
+              ${graphModel.nodes.map(node => renderRoadmapNode(node)).join('')}
+            </div>
+          </div>
+        </section>
+        <footer class="planning-schema-strip">
+          <span class="gate-legend">
+            <span style="--legend:var(--green)">${gateIconSvg('done')} done</span>
+            <span style="--legend:var(--blue)">${gateIconSvg('open')} open</span>
+            <span style="--legend:var(--red)">${gateIconSvg('blocked')} blocked</span>
+          </span>
+        </footer>
+      </div>
+    `;
+  }
+
+  function renderNewRoadmapWindow(target = 'Roadmap') {
+    return `
+      <article class="floating-window new-roadmap-window active" data-window data-window-id="new-roadmap" data-window-close-mode="remove" aria-label="New Roadmap">
+        <header class="window-head" data-drag-handle>
+          <div class="window-subtitle">attach to ${esc(target)}</div>
+          <div class="window-title">New Roadmap</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+            <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+            <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-body new-roadmap-body">
+          <div class="new-roadmap-intro">
+            <strong>Describe the roadmap. Harbor handles the format.</strong>
+            <span>The AI will read project JSON, codebase context, memory, dependencies, and gates, then attach the draft in the right place.</span>
+          </div>
+          <textarea class="new-roadmap-prompt" placeholder="Example: Add a roadmap for the custom context menu system. Cover chat agent links, document file actions, and planning node attach behavior."></textarea>
+          <div class="new-roadmap-checks">
+            <span>Read project JSON and active roadmap graph</span>
+            <span>Search codebase and memory for related work</span>
+            <span>Create links and gates automatically where needed</span>
+          </div>
+          <div class="new-roadmap-actions">
+            <button type="button" data-window-close>Cancel</button>
+            <button class="primary" type="button" data-roadmap-generate>Generate roadmap</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderProjectsOverview(activeIndex = 0) {
+    return renderPlanningOverview(activeIndex);
+  }
+
+  function refreshPlanningWindows(activeIndex = activePlanningProjectIndex) {
+    activePlanningProjectIndex = activeIndex;
+    persistWorkspaceState();
+    const projectsWin = document.getElementById('planning-projects-window');
+    const overviewWin = document.getElementById('projects-overview-window');
+    const listWin = document.getElementById('roadmap-list-window');
+    if (projectsWin) {
+      projectsWin.querySelector('.window-body').innerHTML = renderPlanningProjects(activeIndex);
+      wirePlanningProjectsWindow(projectsWin);
+    }
+    if (overviewWin) {
+      overviewWin.querySelector('.window-body').innerHTML = renderPlanningOverview(activeIndex);
+      overviewWin.querySelector('.window-title').textContent = 'Overview';
+      overviewWin.querySelector('.window-subtitle').textContent = 'planning';
+      wireProjectsOverview(overviewWin);
+    }
+    if (listWin) {
+      listWin.querySelector('.window-body').innerHTML = renderRoadmapList(activeIndex);
+      wireRoadmapListWindow(listWin);
+    }
+  }
+
+  function wirePlanningProjectsWindow(win) {
     win.querySelectorAll('[data-project-index]').forEach(button => {
       button.addEventListener('click', event => {
         event.preventDefault();
-        const index = Number(button.dataset.projectIndex || 0);
-        const body = win.querySelector('.window-body');
-        body.innerHTML = renderProjectsOverview(index);
-        wireProjectsOverview(win);
-      });
-    });
-
-    win.querySelectorAll('[data-todo-toggle]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        const row = button.closest('[data-todo-index]');
-        const list = button.closest('[data-active-project]');
-        const project = projectSamples[Number(list?.dataset.activeProject || 0)];
-        const todo = project?.todos?.[Number(row?.dataset.todoIndex || 0)];
-        if (!todo) return;
-        todo.done = !todo.done;
-        const body = win.querySelector('.window-body');
-        body.innerHTML = renderProjectsOverview(Number(list.dataset.activeProject || 0));
-        wireProjectsOverview(win);
-      });
-    });
-
-    win.querySelectorAll('[data-todo-delete]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        const row = button.closest('[data-todo-index]');
-        const list = button.closest('[data-active-project]');
-        const projectIndex = Number(list?.dataset.activeProject || 0);
-        projectSamples[projectIndex]?.todos?.splice(Number(row?.dataset.todoIndex || 0), 1);
-        const body = win.querySelector('.window-body');
-        body.innerHTML = renderProjectsOverview(projectIndex);
-        wireProjectsOverview(win);
-      });
-    });
-
-    win.querySelectorAll('[data-todo-title]').forEach(title => {
-      title.addEventListener('dblclick', () => {
-        title.contentEditable = 'true';
-        title.focus();
-        document.getSelection()?.selectAllChildren(title);
-      });
-      title.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          title.blur();
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          title.blur();
-        }
-      });
-      title.addEventListener('blur', () => {
-        if (title.contentEditable !== 'true') return;
-        const row = title.closest('[data-todo-index]');
-        const list = title.closest('[data-active-project]');
-        const project = projectSamples[Number(list?.dataset.activeProject || 0)];
-        const todo = project?.todos?.[Number(row?.dataset.todoIndex || 0)];
-        if (todo) todo.title = title.textContent.trim() || todo.title;
-        title.contentEditable = 'false';
+        refreshPlanningWindows(Number(button.dataset.projectIndex || 0));
       });
     });
   }
 
-  function openProjectsOverview(activeIndex = 0) {
+  function wireRoadmapScroller(win) {
+    const scroller = win.querySelector('[data-roadmap-scroll]');
+    if (!scroller || scroller.dataset.wheelScrollReady) return;
+    scroller.dataset.wheelScrollReady = 'true';
+    scroller.addEventListener('wheel', event => {
+      const canScrollHorizontally = scroller.scrollWidth > scroller.clientWidth + 1;
+      if (!canScrollHorizontally) return;
+      const horizontalDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY;
+      if (!horizontalDelta) return;
+      event.preventDefault();
+      scroller.scrollLeft += horizontalDelta;
+    }, { passive: false });
+  }
+
+  function roadmapSearchText(id) {
+    const node = roadmapNodeById(id);
+    const row = planningRoadmapDemo.rows.find(item => item[0] === id);
+    return [id, node?.title, node?.label, row?.join(' ')].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function applyRoadmapSearch(query) {
+    const normalized = String(query || '').trim().toLowerCase();
+    const hasQuery = normalized.length > 0;
+    document.querySelectorAll('[data-roadmap-node]').forEach(node => {
+      const isHit = hasQuery && roadmapSearchText(node.dataset.roadmapNode).includes(normalized);
+      node.classList.toggle('is-search-hit', isHit);
+      node.classList.toggle('is-search-dimmed', hasQuery && !isHit);
+    });
+    document.querySelectorAll('[data-roadmap-row]').forEach(row => {
+      const text = (row.dataset.roadmapSearchText || row.textContent || '').toLowerCase();
+      const isHit = hasQuery && text.includes(normalized);
+      row.classList.toggle('is-search-hit', isHit);
+      row.classList.toggle('is-search-dimmed', hasQuery && !isHit);
+    });
+  }
+
+  function lockWorkspaceScroll() {
+    workspace.scrollLeft = 0;
+    workspace.scrollTop = 0;
+    requestAnimationFrame(() => {
+      workspace.scrollLeft = 0;
+      workspace.scrollTop = 0;
+    });
+  }
+
+  function wireProjectsOverview(win) {
+    wireRoadmapScroller(win);
+
+    const searchRoot = win.querySelector('[data-roadmap-search]');
+    const searchInput = win.querySelector('[data-roadmap-search-input]');
+    win.querySelector('[data-roadmap-search-toggle]')?.addEventListener('click', event => {
+      event.preventDefault();
+      searchRoot?.classList.toggle('open');
+      if (searchRoot?.classList.contains('open')) searchInput?.focus();
+      lockWorkspaceScroll();
+    });
+    searchInput?.addEventListener('focus', lockWorkspaceScroll);
+    searchInput?.addEventListener('input', () => {
+      lockWorkspaceScroll();
+      searchRoot?.classList.toggle('has-query', Boolean(searchInput.value.trim()));
+      applyRoadmapSearch(searchInput.value);
+    });
+
+    win.querySelectorAll('[data-gate-target]').forEach(gate => {
+      gate.addEventListener('click', event => {
+        event.preventDefault();
+        focusRoadmapItem(win, gate.dataset.gateTarget);
+      });
+    });
+
+    win.querySelectorAll('[data-roadmap-node]').forEach(node => {
+      node.addEventListener('mouseenter', () => node.classList.add('is-expanded'));
+      node.addEventListener('mouseleave', () => node.classList.remove('is-expanded'));
+      node.addEventListener('focus', () => node.classList.add('is-expanded'));
+      node.addEventListener('blur', () => node.classList.remove('is-expanded'));
+      if (node.dataset.nodeKind === 'gate') {
+        node.addEventListener('mouseenter', () => setGateFocus(win, node, true));
+        node.addEventListener('mouseleave', () => setGateFocus(win, node, false));
+        node.addEventListener('focus', () => setGateFocus(win, node, true));
+        node.addEventListener('blur', () => setGateFocus(win, node, false));
+      }
+      node.addEventListener('click', () => focusRoadmapItem(win, node.dataset.roadmapNode));
+      node.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        openPlanningContextMenu(event, node.dataset.roadmapNode || 'Roadmap');
+      });
+    });
+
+  }
+
+  function wireRoadmapListWindow(win) {
+    win.querySelectorAll('[data-roadmap-row]').forEach(row => {
+      row.addEventListener('click', () => {
+        focusRoadmapItem(document.getElementById('projects-overview-window') || win, row.dataset.roadmapRow);
+        win.querySelectorAll('[data-roadmap-row]').forEach(item => item.classList.toggle('selected', item === row));
+      });
+    });
+  }
+
+  function setGateFocus(win, gateNode, active) {
+    const graph = win.querySelector('.planning-roadmap-graph');
+    if (!graph) return;
+    const affected = new Set((gateNode.dataset.gateAffects || '').split(',').filter(Boolean));
+    affected.add(gateNode.dataset.roadmapNode);
+    graph.classList.toggle('gate-focus-active', active);
+    graph.querySelectorAll('[data-roadmap-node]').forEach(node => {
+      const isRelated = affected.has(node.dataset.roadmapNode);
+      node.classList.toggle('is-gate-related', active && isRelated);
+      node.classList.toggle('is-gate-dimmed', active && !isRelated);
+    });
+    graph.querySelectorAll('[data-edge-affects]').forEach(edge => {
+      const edgeIds = (edge.dataset.edgeAffects || '').split(',').filter(Boolean);
+      const isRelated = edgeIds.length > 0 && edgeIds.every(id => affected.has(id));
+      edge.classList.toggle('is-gate-related', active && isRelated);
+      edge.classList.toggle('is-gate-dimmed', active && !isRelated);
+    });
+  }
+
+  function focusRoadmapItem(win, target) {
+    if (!target) return;
+    document.querySelectorAll('[data-roadmap-node], [data-roadmap-row]').forEach(item => {
+      item.classList.toggle('selected', item.dataset.roadmapNode === target || item.dataset.roadmapRow === target);
+    });
+    buildState.textContent = 'V2 - Roadmap: ' + target;
+  }
+
+  function openPlanningContextMenu(event, target) {
+    let menu = document.getElementById('planning-context-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'planning-context-menu';
+      menu.className = 'planning-context-menu';
+      menu.innerHTML = `
+        <div class="context-menu-head">
+          <strong data-planning-context-title>Roadmap</strong>
+          <span>roadmap node</span>
+        </div>
+        <button class="primary" type="button" data-planning-context-action="attach">Attach roadmap</button>
+        <button type="button" data-planning-context-action="open">Open roadmap</button>
+        <button type="button" data-planning-context-action="copy-id">Copy roadmap id</button>
+        <button type="button" data-planning-context-action="copy-link">Copy roadmap link</button>
+        <div class="context-status" data-planning-context-status>Roadmap node actions</div>
+      `;
+      stage.appendChild(menu);
+      menu.addEventListener('click', contextEvent => {
+        const button = contextEvent.target.closest('[data-planning-context-action]');
+        if (!button) return;
+        const activeTarget = menu.dataset.target || 'Roadmap';
+        const id = activeTarget.toLowerCase().replace(/\s+/g, '-');
+        if (button.dataset.planningContextAction === 'attach') {
+          openNewRoadmapWindow(activeTarget);
+          closePlanningContextMenu();
+        }
+        if (button.dataset.planningContextAction === 'open') {
+          document.getElementById('projects-overview-window') && focusRoadmapItem(document.getElementById('projects-overview-window'), activeTarget);
+          menu.querySelector('[data-planning-context-status]').textContent = 'Opened roadmap';
+        }
+        if (button.dataset.planningContextAction === 'copy-id') {
+          copyTextToClipboard('roadmap:' + id, menu.querySelector('[data-planning-context-status]'), 'Roadmap id');
+        }
+        if (button.dataset.planningContextAction === 'copy-link') {
+          copyTextToClipboard('harbor://planning/' + id, menu.querySelector('[data-planning-context-status]'), 'Roadmap link');
+        }
+      });
+    }
+    menu.dataset.target = target;
+    menu.querySelector('[data-planning-context-title]').textContent = target;
+    menu.querySelector('[data-planning-context-status]').textContent = 'Attach, open, or copy roadmap references';
+    menu.classList.add('open');
+    const width = menu.offsetWidth || 220;
+    const height = menu.offsetHeight || 200;
+    menu.style.left = Math.max(14, Math.min(window.innerWidth - width - 14, event.clientX + 2)) + 'px';
+    menu.style.top = Math.max(14, Math.min(window.innerHeight - height - 14, event.clientY + 2)) + 'px';
+  }
+
+  function closePlanningContextMenu() {
+    document.getElementById('planning-context-menu')?.classList.remove('open');
+  }
+
+  async function copyTextToClipboard(text, statusEl, label) {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (statusEl) statusEl.textContent = label + ' copied';
+    } catch {
+      if (statusEl) statusEl.textContent = label + ': ' + text;
+    }
+  }
+
+  function openNewRoadmapWindow(target = 'Roadmap') {
+    let win = document.getElementById('new-roadmap-window');
+    if (!win) {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = renderNewRoadmapWindow(target);
+      win = wrap.firstElementChild;
+      win.id = 'new-roadmap-window';
+      activeWorkspaceScreen().appendChild(win);
+      prepareFloatingWindow(win);
+      installResizeHandles(win);
+      win.querySelector('[data-roadmap-generate]')?.addEventListener('click', () => {
+        win.querySelector('.new-roadmap-checks').innerHTML = [
+          '<span>Memory and existing roadmaps checked</span>',
+          '<span>Draft roadmap attached; gates and edges proposed</span>',
+          '<span>Overview will update after approval</span>'
+        ].join('');
+        document.querySelector('.roadmap-node.generated')?.classList.add('visible', 'selected');
+      });
+    } else {
+      setWindowMinimized(win, false);
+      win.querySelector('.window-subtitle').textContent = 'attach to ' + target;
+      win.querySelector('.new-roadmap-prompt').value = '';
+    }
+    activateWindow(win);
+    buildState.textContent = 'V2 - New Roadmap';
+  }
+
+  function openProjectsOverview(activeIndex = activePlanningProjectIndex) {
+    setActiveWorkspace('planning');
+    activePlanningProjectIndex = activeIndex;
+    persistWorkspaceState();
+    openPlanningProjectsWindow(activeIndex);
+    openRoadmapListWindow(activeIndex, { activate: false });
     let win = document.getElementById('projects-overview-window');
     if (!win) {
       win = document.createElement('article');
@@ -3088,11 +3302,11 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       win.dataset.window = '';
       win.dataset.windowId = 'projects-overview';
       win.dataset.windowCloseMode = 'remove';
-      win.setAttribute('aria-label', 'Projects and overview');
+      win.setAttribute('aria-label', 'Project overview');
       win.innerHTML = `
         <header class="window-head" data-drag-handle>
-          <div class="window-subtitle">projects</div>
-          <div class="window-title">Projects / Overview</div>
+          <div class="window-subtitle">planning</div>
+          <div class="window-title">Overview</div>
           <div class="window-actions" aria-label="Window controls">
             <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
             <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
@@ -3101,17 +3315,114 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </header>
         <div class="window-body">${renderProjectsOverview(activeIndex)}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
+      installResizeHandles(win);
       wireProjectsOverview(win);
     } else {
       setWindowMinimized(win, false);
       win.querySelector('.window-body').innerHTML = renderProjectsOverview(activeIndex);
+      win.querySelector('.window-body').dataset.projectsOverviewReady = 'true';
       wireProjectsOverview(win);
     }
     activateWindow(win);
-    buildState.textContent = 'V2 - Projects / Overview';
+    buildState.textContent = 'V2 - Planning Overview';
     closeToolwheel();
+  }
+
+  function openPlanningProjectsWindow(activeIndex = activePlanningProjectIndex) {
+    setActiveWorkspace('planning');
+    activePlanningProjectIndex = activeIndex;
+    persistWorkspaceState();
+    let win = document.getElementById('planning-projects-window');
+    if (!win) {
+      win = document.createElement('article');
+      win.className = 'floating-window planning-projects-window active';
+      win.id = 'planning-projects-window';
+      win.dataset.window = '';
+      win.dataset.windowId = 'planning-projects';
+      win.dataset.windowCloseMode = 'remove';
+      win.setAttribute('aria-label', 'Projects');
+      win.innerHTML = `
+        <header class="window-head" data-drag-handle>
+          <div class="window-subtitle">master-roadmap.json</div>
+          <div class="window-title">Projects</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+            <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+            <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-body">${renderPlanningProjects(activeIndex)}</div>
+      `;
+      activeWorkspaceScreen().appendChild(win);
+      prepareFloatingWindow(win);
+      installResizeHandles(win);
+      wirePlanningProjectsWindow(win);
+    } else {
+      setWindowMinimized(win, false);
+      win.querySelector('.window-body').innerHTML = renderPlanningProjects(activeIndex);
+      wirePlanningProjectsWindow(win);
+    }
+    return win;
+  }
+
+  function openRoadmapListWindow(activeIndex = activePlanningProjectIndex, options = {}) {
+    setActiveWorkspace('planning');
+    activePlanningProjectIndex = activeIndex;
+    persistWorkspaceState();
+    let win = document.getElementById('roadmap-list-window');
+    if (!win) {
+      win = document.createElement('article');
+      win.className = 'floating-window roadmap-list-window active';
+      win.id = 'roadmap-list-window';
+      win.dataset.window = '';
+      win.dataset.windowId = 'roadmap-list';
+      win.dataset.windowCloseMode = 'remove';
+      win.setAttribute('aria-label', 'Roadmap list');
+      win.innerHTML = `
+        <header class="window-head" data-drag-handle>
+          <div class="window-subtitle">roadmaps</div>
+          <div class="window-title">List</div>
+          <div class="window-actions" aria-label="Window controls">
+            <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
+            <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
+            <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-body">${renderRoadmapList(activeIndex)}</div>
+      `;
+      activeWorkspaceScreen().appendChild(win);
+      prepareFloatingWindow(win);
+      installResizeHandles(win);
+      wireRoadmapListWindow(win);
+    } else {
+      setWindowMinimized(win, false);
+      win.querySelector('.window-body').innerHTML = renderRoadmapList(activeIndex);
+      wireRoadmapListWindow(win);
+    }
+    if (options.activate !== false) {
+      activateWindow(win);
+      buildState.textContent = 'V2 - Roadmap List';
+    }
+    return win;
+  }
+
+  function installDefaultProjectsOverviewWindow() {
+    const win = document.getElementById('projects-overview-window');
+    openPlanningProjectsWindow(activePlanningProjectIndex);
+    openRoadmapListWindow(activePlanningProjectIndex, { activate: false });
+    if (!win) return;
+    win.querySelector('.window-title').textContent = 'Overview';
+    win.querySelector('.window-subtitle').textContent = 'planning';
+    const body = win.querySelector('[data-projects-overview-default]') || win.querySelector('.window-body');
+    if (body && !body.dataset.projectsOverviewReady) {
+      body.innerHTML = renderProjectsOverview(activePlanningProjectIndex);
+      body.dataset.projectsOverviewReady = 'true';
+      wireProjectsOverview(win);
+    }
+    prepareFloatingWindow(win);
+    installResizeHandles(win);
   }
 
   function openTodosWindow() {
@@ -3136,7 +3447,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </header>
         <div class="window-body">${renderTodosWindow()}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
       wireTodosWindow(win);
     } else {
@@ -3545,11 +3856,24 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     requestAnimationFrame(() => drawKnowledgeGraph(win));
   }
 
+  function installDefaultKnowledgeGraphWindow() {
+    const win = document.getElementById('knowledge-graph-window');
+    if (!win) return;
+    const body = win.querySelector('[data-knowledge-graph-default]') || win.querySelector('.window-body');
+    if (body && !body.dataset.knowledgeGraphReady) {
+      body.innerHTML = renderKnowledgeGraphWindow();
+      body.dataset.knowledgeGraphReady = 'true';
+      wireKnowledgeGraphWindow(win);
+    }
+    prepareFloatingWindow(win);
+    requestAnimationFrame(() => drawKnowledgeGraph(win));
+  }
+
   function memoryStatusColor(memory) {
     const colors = {
       attention: 'var(--red)',
       learned: 'var(--blue)',
-      pinned: 'var(--amber)',
+      pinned: 'var(--cyan)',
       confirmed: 'var(--green)',
       private: 'var(--teal)',
       forgotten: 'var(--muted)'
@@ -3839,6 +4163,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   }
 
   function openMemoryWindow() {
+    setActiveWorkspace('knowledge');
     let win = document.getElementById('memory-window');
     if (!win) {
       win = document.createElement('article');
@@ -3867,7 +4192,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </button>
         <div class="window-body">${renderMemoryWindow()}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
       wireMemoryWindow(win);
     } else {
@@ -3880,6 +4205,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   }
 
   function openKnowledgeGraphWindow() {
+    setActiveWorkspace('knowledge');
     let win = document.getElementById('knowledge-graph-window');
     if (!win) {
       win = document.createElement('article');
@@ -3901,16 +4227,290 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         </header>
         <div class="window-body">${renderKnowledgeGraphWindow()}</div>
       `;
-      workspace.appendChild(win);
+      activeWorkspaceScreen().appendChild(win);
       prepareFloatingWindow(win);
       wireKnowledgeGraphWindow(win);
     } else {
       setWindowMinimized(win, false);
+      if (win.querySelector('[data-knowledge-graph-default]') && !win.querySelector('[data-knowledge-graph-default]').dataset.knowledgeGraphReady) {
+        installDefaultKnowledgeGraphWindow();
+      }
       requestAnimationFrame(() => drawKnowledgeGraph(win));
     }
     activateWindow(win);
     buildState.textContent = 'V2 - Knowledge Graph';
     closeToolwheel();
+  }
+
+  function openComposerContextMenu() {
+    setActiveWorkspace('agent');
+    setWindowMinimized(coreWindow, false);
+    activateWindow(coreWindow);
+    const shell = coreWindow.querySelector('.composer-shell');
+    if (shell) setComposerMenuOpen(shell, true);
+  }
+
+  function closeHeaderMenus() {
+    document.querySelectorAll('.workspace-group, .tools-cluster, .undo-cluster').forEach(group => {
+      clearTimeout(group._menuHoverTimer);
+      group.classList.remove('menu-hover', 'menu-open');
+      group.querySelector('.workspace-tab, .tools-button, [data-global-undo]')?.setAttribute('aria-expanded', 'false');
+    });
+    setNotificationMenuOpen(false);
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
+
+  function setHeaderPopupOpen(group, open, options = {}) {
+    if (!group) return;
+    const trigger = group.querySelector('.workspace-tab, .tools-button, [data-global-undo]');
+    clearTimeout(group._menuHoverTimer);
+
+    if (open) {
+      group.classList.add('menu-hover');
+      if (options.pinned) group.classList.add('menu-open');
+      trigger?.setAttribute('aria-expanded', 'true');
+      return;
+    }
+
+    if (group.classList.contains('menu-open') && !options.force) return;
+    group._menuHoverTimer = setTimeout(() => {
+      group.classList.remove('menu-hover');
+      if (options.force) group.classList.remove('menu-open');
+      if (!group.classList.contains('menu-open')) {
+        trigger?.setAttribute('aria-expanded', 'false');
+      }
+    }, 220);
+  }
+
+  function togglePinnedHeaderPopup(group) {
+    if (!group) return;
+    const wasPinned = group.classList.contains('menu-open');
+    document.querySelectorAll('.workspace-group.menu-open, .tools-cluster.menu-open').forEach(item => {
+      if (item !== group) setHeaderPopupOpen(item, false, { force: true });
+    });
+    if (wasPinned) {
+      setHeaderPopupOpen(group, false, { force: true });
+    } else {
+      setHeaderPopupOpen(group, true, { pinned: true });
+    }
+  }
+
+  function installHeaderPopupHover() {
+    document.querySelectorAll('.workspace-group, .tools-cluster, .undo-cluster').forEach(group => {
+      if (group.dataset.hoverPopupPrepared) return;
+      group.dataset.hoverPopupPrepared = 'true';
+      group.addEventListener('mouseenter', () => setHeaderPopupOpen(group, true));
+      group.addEventListener('mouseleave', () => setHeaderPopupOpen(group, false));
+      group.addEventListener('focusin', () => setHeaderPopupOpen(group, true));
+      group.addEventListener('focusout', event => {
+        if (!group.contains(event.relatedTarget)) setHeaderPopupOpen(group, false);
+      });
+    });
+  }
+
+  let hoverTooltip = null;
+  let hoverTooltipTarget = null;
+  let hoverTooltipTimer = null;
+
+  function ensureHoverTooltip() {
+    if (hoverTooltip) return hoverTooltip;
+    hoverTooltip = document.createElement('div');
+    hoverTooltip.className = 'hover-tooltip';
+    hoverTooltip.setAttribute('role', 'tooltip');
+    hoverTooltip.addEventListener('mouseenter', () => clearTimeout(hoverTooltipTimer));
+    hoverTooltip.addEventListener('mouseleave', scheduleHoverTooltipHide);
+    document.body.appendChild(hoverTooltip);
+    return hoverTooltip;
+  }
+
+  function hoverTooltipText(target) {
+    const title = target.getAttribute('title');
+    if (title) {
+      target.dataset.tooltip = title;
+      target.removeAttribute('title');
+    }
+    return target.dataset.tooltip || target.getAttribute('aria-label') || '';
+  }
+
+  function positionHoverTooltip(target) {
+    if (!hoverTooltip) return;
+    const rect = target.getBoundingClientRect();
+    const tooltipRect = hoverTooltip.getBoundingClientRect();
+    const margin = 10;
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.bottom + 9;
+    left = Math.max(margin, Math.min(window.innerWidth - tooltipRect.width - margin, left));
+    if (top + tooltipRect.height > window.innerHeight - margin) {
+      top = Math.max(margin, rect.top - tooltipRect.height - 9);
+    }
+    hoverTooltip.style.left = left + 'px';
+    hoverTooltip.style.top = top + 'px';
+  }
+
+  function showHoverTooltip(target) {
+    const text = hoverTooltipText(target);
+    if (!text) return;
+    clearTimeout(hoverTooltipTimer);
+    const tooltip = ensureHoverTooltip();
+    hoverTooltipTarget = target;
+    tooltip.textContent = text;
+    tooltip.classList.add('visible');
+    tooltip.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => positionHoverTooltip(target));
+  }
+
+  function scheduleHoverTooltipHide() {
+    clearTimeout(hoverTooltipTimer);
+    hoverTooltipTimer = setTimeout(() => {
+      hoverTooltip?.classList.remove('visible');
+      hoverTooltip?.setAttribute('aria-hidden', 'true');
+      hoverTooltipTarget = null;
+    }, 220);
+  }
+
+  function installHoverTooltips(root = document) {
+    root.querySelectorAll('[title], [data-tooltip]').forEach(target => {
+      if (target.closest('.header-dropdown, .history-actions-menu, .notification-menu')) return;
+      if (target.dataset.tooltipPrepared) return;
+      target.dataset.tooltipPrepared = 'true';
+      hoverTooltipText(target);
+      target.addEventListener('mouseenter', () => showHoverTooltip(target));
+      target.addEventListener('mouseleave', scheduleHoverTooltipHide);
+      target.addEventListener('focus', () => showHoverTooltip(target));
+      target.addEventListener('blur', scheduleHoverTooltipHide);
+    });
+  }
+
+  function showPlaceholderAction(label, workspaceId = activeWorkspaceId) {
+    if (workspaceId) setActiveWorkspace(workspaceId);
+    announceAction(label);
+  }
+
+  function handleHeaderAction(action) {
+    if (!action) return;
+
+    if (action === 'New Chat') {
+      preparedChats++;
+      createChatSpace();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Chat History') {
+      setActiveWorkspace('agent');
+      setWindowMinimized(coreWindow, false);
+      activateWindow(coreWindow);
+      setChatHistoryOpen(true);
+      buildState.textContent = 'V2 - Chat history';
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Run Task') {
+      setActiveWorkspace('agent');
+      setWindowMinimized(coreWindow, false);
+      activateWindow(coreWindow);
+      buildState.textContent = 'V2 - Ready for task';
+      closeHeaderMenus();
+      promptInput?.focus();
+      return;
+    }
+
+    if (action === 'Attach Context') {
+      openComposerContextMenu();
+      buildState.textContent = 'V2 - Choose context';
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Knowledge Graph') {
+      openKnowledgeGraphWindow();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Search Knowledge' || action === 'Sources') {
+      showPlaceholderAction(action === 'Search Knowledge' ? 'Search all' : 'Sources', 'knowledge');
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Memory') {
+      openMemoryWindow();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Projects Overview') {
+      openProjectsOverview();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Roadmap List') {
+      openRoadmapListWindow();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Todos') {
+      openTodosWindow();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Decisions' || action === 'Create Plan') {
+      showPlaceholderAction(action, 'planning');
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Import' || action === 'Recent Imports' || action === 'Routing Rules' || action === 'Inbox Activity') {
+      setActiveWorkspace('inbox');
+      const inboxHome = document.querySelector('[data-workspace-screen="inbox"] .inbox-home-window');
+      if (inboxHome) {
+        setWindowMinimized(inboxHome, false);
+        activateWindow(inboxHome);
+      }
+      buildState.textContent = 'V2 - ' + action;
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Settings' || action === 'Window Rules') {
+      openSettingsWindow({ query: action === 'Window Rules' ? 'window snap minimize restore' : '', advanced: action === 'Window Rules' });
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Skills') {
+      openSkillsWindow();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Hooks') {
+      openSettingsWindow({ query: 'hooks triggers guardrails', advanced: true });
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Command Search') {
+      openToolwheel();
+      closeHeaderMenus();
+      return;
+    }
+
+    if (action === 'Terminal' || action === 'Cloud Control') {
+      showPlaceholderAction(action + ' window');
+      closeHeaderMenus();
+      return;
+    }
+
+    showPlaceholderAction(action);
+    closeHeaderMenus();
   }
 
   function handleToolwheelAction(item) {
@@ -4000,11 +4600,12 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   function storeWindowBounds(win) {
     if (win._restoreBounds) return;
     const rect = win.getBoundingClientRect();
+    const bounds = viewportRectToWindowBounds(win, rect);
     win._restoreBounds = {
-      left: rect.left + 'px',
-      top: rect.top + 'px',
-      width: rect.width + 'px',
-      height: rect.height + 'px',
+      left: bounds.left + 'px',
+      top: bounds.top + 'px',
+      width: bounds.width + 'px',
+      height: bounds.height + 'px',
       transform: 'none'
     };
   }
@@ -4017,6 +4618,64 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     win.style.height = win._restoreBounds.height;
     win.style.transform = win._restoreBounds.transform;
     win._restoreBounds = null;
+  }
+
+  function maximizedWindowBounds(win) {
+    const parent = win.offsetParent || win.parentElement || document.body;
+    const parentRect = parent.getBoundingClientRect();
+    const origin = windowParentOrigin(win);
+    const margin = 14;
+    const left = Math.max(parentRect.left, 0) + margin;
+    const top = Math.max(parentRect.top, 0) + margin;
+    const right = Math.min(parentRect.right, window.innerWidth) - margin;
+    const bottom = Math.min(parentRect.bottom, window.innerHeight) - margin;
+    return {
+      left: left - origin.left,
+      top: top - origin.top,
+      width: Math.max(340, right - left),
+      height: Math.max(260, bottom - top)
+    };
+  }
+
+  function syncMaximizeControl(control, maximized) {
+    if (!control) return;
+    control.classList.toggle('is-restore', maximized);
+    control.dataset.tooltip = maximized ? 'Restore' : 'Maximize';
+    control.removeAttribute('title');
+    control.setAttribute('aria-label', maximized ? 'Restore' : 'Maximize');
+    control.textContent = maximized ? 'Restore' : 'Maximize';
+  }
+
+  function maximizeWindow(win) {
+    storeWindowBounds(win);
+    const bounds = maximizedWindowBounds(win);
+    win.classList.add('maximized');
+    win.style.left = bounds.left + 'px';
+    win.style.top = bounds.top + 'px';
+    win.style.width = bounds.width + 'px';
+    win.style.height = bounds.height + 'px';
+    win.style.transform = 'none';
+    syncMaximizeControl(win.querySelector('[data-window-max]'), true);
+    persistWindowState(win);
+  }
+
+  function restoreMaximizedWindow(win) {
+    win.classList.remove('maximized');
+    restoreWindowBounds(win);
+    syncMaximizeControl(win.querySelector('[data-window-max]'), false);
+    persistWindowState(win);
+  }
+
+  function refreshMaximizedWindows() {
+    document.querySelectorAll('[data-window].maximized').forEach(win => {
+      const bounds = maximizedWindowBounds(win);
+      win.style.left = bounds.left + 'px';
+      win.style.top = bounds.top + 'px';
+      win.style.width = bounds.width + 'px';
+      win.style.height = bounds.height + 'px';
+      win.style.transform = 'none';
+      persistWindowState(win);
+    });
   }
 
   function autosizePrompt(textarea) {
@@ -4032,27 +4691,42 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
   }
 
-  function clampAxisPosition(value, size, viewportSize) {
-    const margin = 14;
-    return Math.max(margin, Math.min(viewportSize - size - margin, value));
+  function workspaceViewportRect(win) {
+    const parent = win.offsetParent || win.parentElement || document.body;
+    const rect = parent.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height
+    };
   }
 
-  function buildSnapTarget(target, lockedAxis) {
+  function clampAxisPosition(value, size, min, max) {
+    const margin = 14;
+    return Math.max(min + margin, Math.min(max - size - margin, value));
+  }
+
+  function buildSnapTarget(target, lockedAxis, dragWin) {
     const next = { ...target };
+    const workspaceRect = workspaceViewportRect(dragWin);
     if (lockedAxis === 'x') {
-      next.top = clampAxisPosition(next.top, next.height, window.innerHeight);
+      next.top = clampAxisPosition(next.top, next.height, workspaceRect.top, workspaceRect.bottom);
     } else {
-      next.left = clampAxisPosition(next.left, next.width, window.innerWidth);
+      next.left = clampAxisPosition(next.left, next.width, workspaceRect.left, workspaceRect.right);
     }
     return next;
   }
 
-  function snapTargetFits(target) {
+  function snapTargetFits(target, dragWin) {
     const margin = 14;
-    return target.left >= margin
-      && target.top >= margin
-      && target.left + target.width <= window.innerWidth - margin
-      && target.top + target.height <= window.innerHeight - margin;
+    const workspaceRect = workspaceViewportRect(dragWin);
+    return target.left >= workspaceRect.left + margin
+      && target.top >= workspaceRect.top + margin
+      && target.left + target.width <= workspaceRect.right - margin
+      && target.top + target.height <= workspaceRect.bottom - margin;
   }
 
   function snapPreviewElement() {
@@ -4069,25 +4743,32 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
 
   function hideSnapPreview() {
     const preview = document.getElementById('window-snap-preview');
-    preview?.classList.remove('visible', 'vertical', 'horizontal');
+    preview?.classList.remove('visible', 'vertical', 'horizontal', 'dock', 'dock-right', 'dock-top');
   }
 
   function showSnapPreview(candidate) {
     const preview = snapPreviewElement();
     preview.classList.toggle('vertical', candidate.orientation === 'vertical');
     preview.classList.toggle('horizontal', candidate.orientation === 'horizontal');
+    preview.classList.toggle('dock', candidate.orientation === 'dock');
+    preview.classList.toggle('dock-right', candidate.orientation === 'dock' && candidate.side === 'workspace-right');
+    preview.classList.toggle('dock-top', candidate.orientation === 'dock' && candidate.side === 'workspace-top');
     preview.style.left = candidate.preview.left + 'px';
     preview.style.top = candidate.preview.top + 'px';
     preview.style.width = candidate.preview.width + 'px';
     preview.style.height = candidate.preview.height + 'px';
+    const label = preview.querySelector('span');
+    if (label) label.textContent = candidate.label || 'SNAP';
     preview.classList.add('visible');
   }
 
   function findSnapCandidate(dragWin, rect) {
-    const threshold = 44;
-    const gap = 12;
-    const minOverlap = 48;
-    const alignThreshold = 72;
+    const threshold = 62;
+    const gap = 4;
+    const alignThreshold = 96;
+    const workspace = dragWin.closest('[data-workspace-screen]');
+    const workspaceRect = workspaceViewportRect(dragWin);
+    const margin = 14;
     const current = {
       left: rect.left,
       top: rect.top,
@@ -4097,43 +4778,95 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       bottom: rect.top + rect.height
     };
     let best = null;
+    const dockDistance = Math.abs(current.right - (workspaceRect.right - margin));
+    if (dockDistance <= 72) {
+      const target = {
+        left: Math.round(workspaceRect.right - margin - current.width),
+        top: Math.round(clampAxisPosition(current.top, current.height, workspaceRect.top, workspaceRect.bottom)),
+        width: current.width,
+        height: current.height
+      };
+      best = {
+        side: 'workspace-right',
+        distance: dockDistance,
+        alignment: 0,
+        score: dockDistance - 12,
+        target,
+        preview: {
+          left: workspaceRect.right - margin,
+          top: target.top,
+          width: 2,
+          height: target.height
+        },
+        orientation: 'vertical',
+        label: 'EDGE'
+      };
+    }
+    const topDockDistance = Math.abs(current.top - (workspaceRect.top + margin));
+    if (topDockDistance <= 72) {
+      const target = {
+        left: Math.round(workspaceRect.left + margin),
+        top: Math.round(workspaceRect.top + margin),
+        width: Math.max(340, Math.round(workspaceRect.width - (margin * 2))),
+        height: Math.max(260, Math.min(Math.round(workspaceRect.height - (margin * 2)), Math.round(workspaceRect.height * 0.55)))
+      };
+      const topCandidate = {
+        side: 'workspace-top',
+        distance: topDockDistance,
+        alignment: 0,
+        score: topDockDistance - 12,
+        target,
+        preview: target,
+        orientation: 'dock',
+        label: 'TOP'
+      };
+      if (!best || topCandidate.score < best.score) best = topCandidate;
+    }
 
     document.querySelectorAll('[data-window]').forEach(other => {
       if (other === dragWin || other.classList.contains('minimized') || other.classList.contains('maximized')) return;
+      if (other.closest('[data-workspace-screen]') !== workspace) return;
       const otherRect = other.getBoundingClientRect();
       const verticalOverlap = rectsOverlap(current.top, current.bottom, otherRect.top, otherRect.bottom);
       const horizontalOverlap = rectsOverlap(current.left, current.right, otherRect.left, otherRect.right);
+      const minVerticalOverlap = Math.min(52, Math.max(28, Math.min(current.height, otherRect.height) * 0.18));
+      const minHorizontalOverlap = Math.min(52, Math.max(28, Math.min(current.width, otherRect.width) * 0.18));
+      const topAlignment = Math.abs(current.top - otherRect.top);
+      const bottomAlignment = Math.abs(current.bottom - otherRect.bottom);
+      const leftAlignment = Math.abs(current.left - otherRect.left);
+      const rightAlignment = Math.abs(current.right - otherRect.right);
 
       const rightTarget = buildSnapTarget({
         left: otherRect.right + gap,
-        top: Math.abs(current.top - otherRect.top) <= alignThreshold ? otherRect.top : current.top,
+        top: topAlignment <= alignThreshold ? otherRect.top : bottomAlignment <= alignThreshold ? otherRect.bottom - current.height : current.top,
         width: current.width,
         height: current.height
-      }, 'x');
+      }, 'x', dragWin);
       const leftTarget = buildSnapTarget({
         left: otherRect.left - gap - current.width,
-        top: Math.abs(current.top - otherRect.top) <= alignThreshold ? otherRect.top : current.top,
+        top: topAlignment <= alignThreshold ? otherRect.top : bottomAlignment <= alignThreshold ? otherRect.bottom - current.height : current.top,
         width: current.width,
         height: current.height
-      }, 'x');
+      }, 'x', dragWin);
       const bottomTarget = buildSnapTarget({
-        left: Math.abs(current.left - otherRect.left) <= alignThreshold ? otherRect.left : current.left,
+        left: leftAlignment <= alignThreshold ? otherRect.left : rightAlignment <= alignThreshold ? otherRect.right - current.width : current.left,
         top: otherRect.bottom + gap,
         width: current.width,
         height: current.height
-      }, 'y');
+      }, 'y', dragWin);
       const topTarget = buildSnapTarget({
-        left: Math.abs(current.left - otherRect.left) <= alignThreshold ? otherRect.left : current.left,
+        left: leftAlignment <= alignThreshold ? otherRect.left : rightAlignment <= alignThreshold ? otherRect.right - current.width : current.left,
         top: otherRect.top - gap - current.height,
         width: current.width,
         height: current.height
-      }, 'y');
+      }, 'y', dragWin);
 
       const candidates = [
         {
           side: 'right',
           distance: Math.abs(current.left - (otherRect.right + gap)),
-          valid: verticalOverlap >= minOverlap && snapTargetFits(rightTarget),
+          alignment: Math.min(topAlignment, bottomAlignment),
+          valid: verticalOverlap >= minVerticalOverlap && snapTargetFits(rightTarget, dragWin),
           target: rightTarget,
           preview: {
             left: otherRect.right + Math.floor(gap / 2),
@@ -4146,7 +4879,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         {
           side: 'left',
           distance: Math.abs(current.right - (otherRect.left - gap)),
-          valid: verticalOverlap >= minOverlap && snapTargetFits(leftTarget),
+          alignment: Math.min(topAlignment, bottomAlignment),
+          valid: verticalOverlap >= minVerticalOverlap && snapTargetFits(leftTarget, dragWin),
           target: leftTarget,
           preview: {
             left: otherRect.left - Math.floor(gap / 2),
@@ -4159,7 +4893,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         {
           side: 'bottom',
           distance: Math.abs(current.top - (otherRect.bottom + gap)),
-          valid: horizontalOverlap >= minOverlap && snapTargetFits(bottomTarget),
+          alignment: Math.min(leftAlignment, rightAlignment),
+          valid: horizontalOverlap >= minHorizontalOverlap && snapTargetFits(bottomTarget, dragWin),
           target: bottomTarget,
           preview: {
             left: Math.max(current.left, otherRect.left),
@@ -4172,7 +4907,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         {
           side: 'top',
           distance: Math.abs(current.bottom - (otherRect.top - gap)),
-          valid: horizontalOverlap >= minOverlap && snapTargetFits(topTarget),
+          alignment: Math.min(leftAlignment, rightAlignment),
+          valid: horizontalOverlap >= minHorizontalOverlap && snapTargetFits(topTarget, dragWin),
           target: topTarget,
           preview: {
             left: Math.max(current.left, otherRect.left),
@@ -4186,7 +4922,8 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
 
       candidates.forEach(candidate => {
         if (!candidate.valid || candidate.distance > threshold) return;
-        if (!best || candidate.distance < best.distance) {
+        candidate.score = candidate.distance + Math.min(candidate.alignment, alignThreshold) * 0.18;
+        if (!best || candidate.score < best.score) {
           best = candidate;
         }
       });
@@ -4195,89 +4932,177 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     return best;
   }
 
+  function findResizeSnapCandidate(win, dir, bounds) {
+    const threshold = 18;
+    const gap = 4;
+    const margin = 14;
+    const minW = 340;
+    const minH = 260;
+    const workspace = win.closest('[data-workspace-screen]');
+    const workspaceRect = workspaceViewportRect(win);
+    const current = windowBoundsToViewportRect(win, sanitizeWindowBounds(win, bounds));
+    const candidates = [];
+
+    function addCandidate(side, targetValue, label = 'SNAP') {
+      const target = { ...current };
+      let distance = Infinity;
+      let orientation = 'vertical';
+      let preview = null;
+
+      if (side === 'right' && dir.includes('e')) {
+        distance = Math.abs(current.right - targetValue);
+        target.width = Math.max(minW, targetValue - current.left);
+        preview = { left: targetValue, top: current.top, width: 2, height: current.height };
+      } else if (side === 'left' && dir.includes('w')) {
+        distance = Math.abs(current.left - targetValue);
+        target.left = Math.min(current.right - minW, targetValue);
+        target.width = Math.max(minW, current.right - target.left);
+        preview = { left: target.left, top: current.top, width: 2, height: current.height };
+      } else if (side === 'bottom' && dir.includes('s')) {
+        distance = Math.abs(current.bottom - targetValue);
+        target.height = Math.max(minH, targetValue - current.top);
+        orientation = 'horizontal';
+        preview = { left: current.left, top: targetValue, width: current.width, height: 2 };
+      } else if (side === 'top' && dir.includes('n')) {
+        distance = Math.abs(current.top - targetValue);
+        target.top = Math.min(current.bottom - minH, targetValue);
+        target.height = Math.max(minH, current.bottom - target.top);
+        orientation = 'horizontal';
+        preview = { left: current.left, top: target.top, width: current.width, height: 2 };
+      }
+
+      if (!preview || distance > threshold || !snapTargetFits(target, win)) return;
+      candidates.push({
+        side: 'resize-' + side,
+        distance,
+        score: distance,
+        target,
+        preview,
+        orientation,
+        label
+      });
+    }
+
+    addCandidate('left', workspaceRect.left + margin, 'EDGE');
+    addCandidate('right', workspaceRect.right - margin, 'EDGE');
+    addCandidate('top', workspaceRect.top + margin, 'EDGE');
+    addCandidate('bottom', workspaceRect.bottom - margin, 'EDGE');
+
+    document.querySelectorAll('[data-window]').forEach(other => {
+      if (other === win || other.classList.contains('minimized') || other.classList.contains('maximized')) return;
+      if (other.closest('[data-workspace-screen]') !== workspace) return;
+      const otherRect = other.getBoundingClientRect();
+      const verticalOverlap = rectsOverlap(current.top, current.bottom, otherRect.top, otherRect.bottom);
+      const horizontalOverlap = rectsOverlap(current.left, current.right, otherRect.left, otherRect.right);
+      const minVerticalOverlap = Math.min(56, Math.max(28, Math.min(current.height, otherRect.height) * 0.2));
+      const minHorizontalOverlap = Math.min(56, Math.max(28, Math.min(current.width, otherRect.width) * 0.2));
+
+      if (verticalOverlap >= minVerticalOverlap) {
+        addCandidate('right', otherRect.left - gap);
+        addCandidate('right', otherRect.right);
+        addCandidate('left', otherRect.right + gap);
+        addCandidate('left', otherRect.left);
+      }
+
+      if (horizontalOverlap >= minHorizontalOverlap) {
+        addCandidate('bottom', otherRect.top - gap);
+        addCandidate('bottom', otherRect.bottom);
+        addCandidate('top', otherRect.bottom + gap);
+        addCandidate('top', otherRect.top);
+      }
+    });
+
+    return candidates.sort((a, b) => a.score - b.score)[0] || null;
+  }
+
   function applySnapCandidate(win, candidate) {
     if (!candidate) return;
-    win.style.left = candidate.target.left + 'px';
-    win.style.top = candidate.target.top + 'px';
-    win.style.width = candidate.target.width + 'px';
-    win.style.height = candidate.target.height + 'px';
-    win.style.transform = 'none';
+    const bounds = viewportRectToWindowBounds(win, candidate.target);
+    setWindowBounds(win, bounds);
+    persistWindowState(win);
     buildState.textContent = 'V2 - Window snapped';
   }
 
   function setInboxOpen(open, reason = '') {
     if (!universalInbox) return;
-    stage.classList.toggle('inbox-open', open);
-    universalInbox.setAttribute('aria-hidden', String(!open));
+    stage.classList.remove('inbox-open');
+    universalInbox.setAttribute('aria-hidden', 'true');
     if (open && reason) buildState.textContent = 'V2 - Inbox: ' + reason;
   }
 
-  function scheduleInboxClose() {
+  function isInboxFileDrag(event) {
+    const transfer = event.dataTransfer;
+    if (!transfer) return false;
+    const types = Array.from(transfer.types || []);
+    return types.includes('Files') || transfer.files?.length > 0;
+  }
+
+  function setInboxDropActive(active, reason = '') {
+    clearTimeout(inboxCloseTimer);
+    stage.classList.toggle('inbox-dragging', active);
+    if (universalInbox) universalInbox.setAttribute('aria-hidden', 'true');
+
+    if (active) {
+      setActiveWorkspace('inbox');
+      const inboxHome = document.querySelector('[data-workspace-screen="inbox"] .inbox-home-window');
+      if (inboxHome) {
+        setWindowMinimized(inboxHome, false);
+        activateWindow(inboxHome);
+      }
+      if (reason) buildState.textContent = 'V2 - Inbox: ' + reason;
+    }
+  }
+
+  function scheduleInboxClose(delay = 420) {
     clearTimeout(inboxCloseTimer);
     inboxCloseTimer = setTimeout(() => {
-      if (!inboxHover && !inboxTriggerHover && inboxDragDepth <= 0) {
-        setInboxOpen(false);
-      }
-    }, 420);
+      inboxDragDepth = 0;
+      setInboxDropActive(false);
+    }, delay);
   }
 
   function installUniversalInbox() {
-    if (!universalInbox || !universalInboxTrigger) return;
-
-    universalInboxTrigger.addEventListener('mouseenter', () => {
-      inboxTriggerHover = true;
-      setInboxOpen(true, 'ready');
-    });
-
-    universalInboxTrigger.addEventListener('mouseleave', () => {
-      inboxTriggerHover = false;
-      scheduleInboxClose();
-    });
-
-    universalInbox.addEventListener('mouseenter', () => {
-      inboxHover = true;
-      setInboxOpen(true);
-    });
-
-    universalInbox.addEventListener('mouseleave', () => {
-      inboxHover = false;
-      scheduleInboxClose();
-    });
+    if (universalInbox) universalInbox.setAttribute('aria-hidden', 'true');
+    if (universalInboxTrigger) universalInboxTrigger.setAttribute('aria-hidden', 'true');
 
     document.addEventListener('dragenter', event => {
+      if (!isInboxFileDrag(event)) return;
       inboxDragDepth += 1;
-      stage.classList.add('inbox-dragging');
-      setInboxOpen(true, 'drop target');
+      setInboxDropActive(true, 'drop file here');
       event.preventDefault();
     });
 
     document.addEventListener('dragover', event => {
+      if (!isInboxFileDrag(event)) return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
     });
 
-    document.addEventListener('dragleave', () => {
+    document.addEventListener('dragleave', event => {
+      if (!isInboxFileDrag(event) && inboxDragDepth <= 0) return;
       inboxDragDepth = Math.max(0, inboxDragDepth - 1);
       if (inboxDragDepth === 0) {
-        stage.classList.remove('inbox-dragging');
         scheduleInboxClose();
       }
     });
 
     document.addEventListener('drop', event => {
+      if (!isInboxFileDrag(event)) return;
       event.preventDefault();
       const files = event.dataTransfer?.files?.length || 0;
       const itemCount = files || event.dataTransfer?.items?.length || 1;
       inboxDragDepth = 0;
-      stage.classList.remove('inbox-dragging');
-      setInboxOpen(true, itemCount + ' item' + (itemCount === 1 ? '' : 's') + ' added');
-      setTimeout(scheduleInboxClose, 900);
+      setInboxDropActive(true, itemCount + ' item' + (itemCount === 1 ? '' : 's') + ' added');
+      scheduleInboxClose(900);
     });
   }
 
   function prepareFloatingWindow(win, index = document.querySelectorAll('[data-window]').length) {
     ensureWindowId(win, index);
     installResizeHandles(win.parentElement || document);
+    restorePersistedWindowState(win);
+    syncMaximizeControl(win.querySelector('[data-window-max]'), win.classList.contains('maximized'));
+    installHoverTooltips(win);
 
     if (!win.dataset.windowPrepared) {
       win.addEventListener('pointerdown', event => {
@@ -4310,15 +5135,20 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
         function move(e) {
           const dx = e.clientX - startX;
           const dy = e.clientY - startY;
-          const nextRect = {
-            left: e.clientX - offsetX,
-            top: e.clientY - offsetY,
-            width: rect.width,
-            height: rect.height
-          };
+          const clamped = clampDragDelta(groupBounds, dx, dy);
+          let nextRect = null;
           groupBounds.forEach(item => {
-            item.win.style.left = item.left + dx + 'px';
-            item.win.style.top = item.top + dy + 'px';
+            const nextBounds = {
+              left: item.left + clamped.dx,
+              top: item.top + clamped.dy,
+              width: item.width,
+              height: item.height
+            };
+            item.win.style.left = nextBounds.left + 'px';
+            item.win.style.top = nextBounds.top + 'px';
+            if (item.win === dragWin) {
+              nextRect = windowBoundsToViewportRect(dragWin, nextBounds);
+            }
           });
           snapCandidate = isGroupDrag ? null : findSnapCandidate(dragWin, nextRect);
           if (!isGroupDrag && snapCandidate) {
@@ -4334,8 +5164,16 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
           document.removeEventListener('pointerup', up);
           if (isGroupDrag) {
             buildState.textContent = 'V2 - ' + dragGroup.length + ' windows moved';
+            dragGroup.forEach(win => {
+              setWindowBounds(win, currentWindowBounds(win));
+              persistWindowState(win);
+            });
           } else {
             applySnapCandidate(dragWin, snapCandidate);
+            if (!snapCandidate) {
+              setWindowBounds(dragWin, currentWindowBounds(dragWin));
+              persistWindowState(dragWin);
+            }
           }
           hideSnapPreview();
         }
@@ -4364,42 +5202,54 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       const startY = event.clientY;
       const minW = 340;
       const minH = 260;
+      const bounds = viewportRectToWindowBounds(win, rect);
       win.style.transform = 'none';
-      win.style.left = rect.left + 'px';
-      win.style.top = rect.top + 'px';
-      win.style.width = rect.width + 'px';
-      win.style.height = rect.height + 'px';
+      win.style.left = bounds.left + 'px';
+      win.style.top = bounds.top + 'px';
+      win.style.width = bounds.width + 'px';
+      win.style.height = bounds.height + 'px';
       handle.setPointerCapture(event.pointerId);
+      let snapCandidate = null;
 
       function move(e) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        let left = rect.left;
-        let top = rect.top;
-        let width = rect.width;
-        let height = rect.height;
+        let left = bounds.left;
+        let top = bounds.top;
+        let width = bounds.width;
+        let height = bounds.height;
 
-        if (dir.includes('e')) width = Math.max(minW, rect.width + dx);
-        if (dir.includes('s')) height = Math.max(minH, rect.height + dy);
+        if (dir.includes('e')) width = Math.max(minW, bounds.width + dx);
+        if (dir.includes('s')) height = Math.max(minH, bounds.height + dy);
         if (dir.includes('w')) {
-          width = Math.max(minW, rect.width - dx);
-          left = rect.right - width;
+          width = Math.max(minW, bounds.width - dx);
+          left = bounds.left + bounds.width - width;
         }
         if (dir.includes('n')) {
-          height = Math.max(minH, rect.height - dy);
-          top = rect.bottom - height;
+          height = Math.max(minH, bounds.height - dy);
+          top = bounds.top + bounds.height - height;
         }
 
-        win.style.left = left + 'px';
-        win.style.top = top + 'px';
-        win.style.width = width + 'px';
-        win.style.height = height + 'px';
+        const nextBounds = { left, top, width, height };
+        setWindowBounds(win, nextBounds);
+        snapCandidate = findResizeSnapCandidate(win, dir, nextBounds);
+        if (snapCandidate) {
+          showSnapPreview(snapCandidate);
+        } else {
+          hideSnapPreview();
+        }
       }
 
       function up() {
         handle.releasePointerCapture(event.pointerId);
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
+        applySnapCandidate(win, snapCandidate);
+        if (!snapCandidate) {
+          setWindowBounds(win, currentWindowBounds(win));
+          persistWindowState(win);
+        }
+        hideSnapPreview();
       }
 
       document.addEventListener('pointermove', move);
@@ -4423,6 +5273,7 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       if (control.matches('[data-window-close]')) {
         if (win.dataset.windowCloseMode === 'remove') {
           removeDockBubble(win);
+          clearPersistedWindowState(win);
           win.remove();
           renderOpenDocumentContextSuggestions();
           buildState.textContent = 'V2 - Window closed';
@@ -4435,17 +5286,9 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       if (control.matches('[data-window-max]')) {
         const shouldMaximize = !win.classList.contains('maximized');
         if (shouldMaximize) {
-          storeWindowBounds(win);
-          win.classList.add('maximized');
-          control.textContent = '\u25A2';
-          control.title = 'Restore';
-          control.setAttribute('aria-label', 'Restore');
+          maximizeWindow(win);
         } else {
-          win.classList.remove('maximized');
-          restoreWindowBounds(win);
-          control.textContent = '\u25A1';
-          control.title = 'Maximize';
-          control.setAttribute('aria-label', 'Maximize');
+          restoreMaximizedWindow(win);
         }
       }
     });
@@ -4626,10 +5469,52 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
       });
     });
 
-    privacyToggle?.addEventListener('change', () => {
-      const active = privacyToggle.checked;
+    document.querySelectorAll('[data-open-code-changes]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        openDocumentViewer('repo://code-changes');
+      });
+    });
+
+    document.querySelector('[data-notifications-toggle]')?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const open = !notificationRoot?.classList.contains('menu-open');
+      setNotificationMenuOpen(open);
+      buildState.textContent = open ? 'V2 - Notifications' : 'V2 - ' + (workspaceLabels[activeWorkspaceId] || 'Active') + ' workspace';
+    });
+
+    notificationMenu?.addEventListener('click', event => {
+      const item = event.target.closest('[data-notification-target]');
+      if (!item) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openNotificationItem(item);
+    });
+
+    privacyToggle?.addEventListener('click', () => {
+      const active = privacyToggle.getAttribute('aria-pressed') !== 'true';
+      privacyToggle.setAttribute('aria-pressed', String(active));
+      privacyToggle.setAttribute('aria-label', active ? 'Secure mode on' : 'Secure mode off');
+      privacyToggle.dataset.tooltip = active ? 'Secure mode on' : 'Secure mode off';
       stage.classList.toggle('privacy-on', active);
-      buildState.textContent = active ? 'V2 - GDPR mode active' : 'V2 - Main chat window';
+      const secureCluster = privacyToggle.closest('.secure-cluster');
+      secureCluster?.classList.toggle('secure-on', active);
+      const secureHologram = secureCluster?.querySelector('.secure-hologram');
+      if (secureHologram) {
+        secureHologram.style.opacity = active ? '1' : '';
+        secureHologram.style.transform = active ? 'translateY(0) scale(1)' : '';
+      }
+      buildState.textContent = active ? 'V2 - Secure mode active' : 'V2 - ' + (workspaceLabels[activeWorkspaceId] || 'Active') + ' workspace';
+    });
+
+    document.querySelector('[data-global-undo]')?.addEventListener('click', () => {
+      buildState.textContent = 'V2 - Undo menu ready';
+    });
+
+    document.querySelector('[data-global-redo]')?.addEventListener('click', () => {
+      buildState.textContent = 'V2 - Redo ready';
     });
 
     contextNodges.addEventListener('click', event => {
@@ -4652,6 +5537,14 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
     });
 
     document.addEventListener('click', event => {
+      if (!event.target.closest('.workspace-group, .tools-cluster')) {
+        document.querySelectorAll('.workspace-group.menu-open, .tools-cluster.menu-open').forEach(group => {
+          setHeaderPopupOpen(group, false, { force: true });
+        });
+      }
+      if (notificationRoot && !notificationRoot.contains(event.target)) {
+        setNotificationMenuOpen(false);
+      }
       document.querySelectorAll('.composer-shell.menu-open').forEach(shell => {
         if (!shell.contains(event.target)) {
           setComposerMenuOpen(shell, false);
@@ -4665,25 +5558,49 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
 
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
+      closeHeaderMenus();
+      setNotificationMenuOpen(false);
       document.querySelectorAll('.composer-shell.menu-open').forEach(shell => {
         setComposerMenuOpen(shell, false);
       });
     });
 
-    leftNodge.addEventListener('click', () => moveChatSpace(-1));
-    rightNodge.addEventListener('click', () => moveChatSpace(1));
-
-    chatCarousel.addEventListener('click', event => {
-      const tile = event.target.closest('[data-chat-index]');
-      if (!tile) return;
-      openChatSpace(Number(tile.dataset.chatIndex));
+    workspaceTabs?.addEventListener('click', event => {
+      const tab = event.target.closest('[data-workspace-target]');
+      if (!tab) return;
+      event.preventDefault();
+      const group = tab.closest('.workspace-group');
+      if (tab.dataset.workspaceTarget === activeWorkspaceId) {
+        togglePinnedHeaderPopup(group);
+        return;
+      }
+      closeHeaderMenus();
+      setActiveWorkspace(tab.dataset.workspaceTarget);
     });
 
-    chatCarousel.addEventListener('wheel', event => {
-      if (chatSpaces.length <= 1) return;
+    brandHomeButton?.addEventListener('click', event => {
       event.preventDefault();
-      moveChatSpace(event.deltaY > 0 ? 1 : -1);
-    }, { passive: false });
+      setActiveWorkspace('agent');
+      setWindowMinimized(coreWindow, false);
+      activateWindow(coreWindow);
+      buildState.textContent = 'V2 - Agent home';
+    });
+
+    document.querySelector('.tools-cluster .tools-button')?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      togglePinnedHeaderPopup(event.currentTarget.closest('.tools-cluster'));
+    });
+
+    installHeaderPopupHover();
+    installHoverTooltips();
+
+    document.querySelectorAll('[data-header-action]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        handleHeaderAction(button.dataset.headerAction);
+      });
+    });
   }
 
   stage.addEventListener('contextmenu', event => {
@@ -4796,7 +5713,13 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.key === 'Tab') {
       event.preventDefault();
-      moveChatSpace(event.shiftKey ? -1 : 1);
+      moveWorkspace(event.shiftKey ? -1 : 1);
+      return;
+    }
+
+    if (event.ctrlKey && /^[1-4]$/.test(event.key)) {
+      event.preventDefault();
+      setActiveWorkspace(workspaceOrder[Number(event.key) - 1]);
       return;
     }
 
@@ -4850,15 +5773,24 @@ A document can be read, zoomed, paged, and later connected to the rest of Odysse
   resizeBrushCanvas();
   stage.classList.add('wheel-' + wheelOverlayMode + '-mode');
   buildState.textContent = 'V2 - Background: ' + (backgroundMode === 'network' ? 'Network' : 'Grid');
+  installDefaultKnowledgeGraphWindow();
+  installDefaultProjectsOverviewWindow();
   installWindowInteractions();
   installUniversalInbox();
+  wireInboxFiles();
+  wireInboxStatusTabs();
   linkifyDocumentReferences(messages);
   ensureAiMetaHotspots();
+  setActiveWorkspace(restoredWorkspaceId);
   setWorkspaceMode('agent');
   updateModelUi();
   renderChatHistory();
   updateChatNodges();
   updateChatCarousel();
-  window.addEventListener('resize', resizeBrushCanvas);
+  restoreLastActiveWindow();
+  window.addEventListener('resize', () => {
+    resizeBrushCanvas();
+    refreshMaximizedWindows();
+  });
   requestAnimationFrame(animateGridBrush);
 })();

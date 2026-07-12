@@ -242,7 +242,7 @@
       "blocks": [
         "Synthetic live incident smoke"
       ],
-      "status": "open"
+      "status": "resolved_with_synthetic_live_evidence"
     },
     {
       "id": "crowdsec-remediation-go",

@@ -25,7 +25,27 @@ from src.task_scheduler_startup import (
     clear_stale_task_runs_on_startup,
     dedupe_default_assistants_on_startup,
 )
+from src.todo_digest_formatting import format_todo_digest_notification_body
 logger = logging.getLogger(__name__)
+
+def _looks_like_todo_digest(task_name: str | None, body: str | None) -> bool:
+    for value in (task_name, body):
+        normalized = " ".join(str(value or "").strip().lower().split())
+        if (
+            normalized == "todo_digest"
+            or normalized.startswith("todo digest")
+            or "todo_digest: todo digest" in normalized
+            or "scheduled_task: todo digest" in normalized
+        ):
+            return True
+    return False
+
+
+def _clip_notification_body(body: str | None, limit: int = 500) -> str | None:
+    if not body:
+        return body
+    text = str(body)
+    return (text[:limit] + "...") if len(text) > limit else text
 
 
 class TaskScheduler:
@@ -101,12 +121,20 @@ class TaskScheduler:
         notifications and prevent cross-tenant drain. `body` is the result
         text — populated when output_target='notification' so the client can
         show a rich browser Notification, not just a toast."""
+        raw_body = _clip_notification_body(body)
+        is_todo_digest = _looks_like_todo_digest(task_name, raw_body)
+        display_title = "Todo digest" if is_todo_digest else (task_name or "Task")
+        display_body = format_todo_digest_notification_body(raw_body or task_name or "") if is_todo_digest else raw_body
+        stored_body = display_body if is_todo_digest else raw_body
         self._pending_notifications.append({
             "task_name": task_name,
             "status": status,
             "task_id": task_id,
             "owner": owner,
-            "body": (body[:500] + "…") if body and len(body) > 500 else body,
+            "body": stored_body,
+            "display_title": display_title,
+            "display_body": display_body,
+            "render_mode": "plain" if is_todo_digest else "standard",
             "timestamp": _utcnow().isoformat() + "Z",
         })
         # Cap at 50 to avoid unbounded growth

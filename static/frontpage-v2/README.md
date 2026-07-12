@@ -13,6 +13,8 @@ Frontpage elementweise neu auf.
 - Then wire the behavior once the visual structure is approved.
 - Default working mode is `Agent`; `Plan` is a visible planning-mode mockup state.
 - Product orientation lives in `docs/plans/abc-ui-traction-map.md`.
+- Keep V2 files split by responsibility: `data.js` owns mock/sample catalogs, `app.js` owns behavior, `styles.css` owns shared shell styles, and feature CSS such as `settings.css` or `planning.css` stays separate once it grows into its own window.
+- Soft file budget: split a file before it grows past roughly 5k lines or mixes unrelated screens. Prefer extracting stable data/CSS blocks first, then behavior modules when a feature stops changing.
 
 ## Enthalten
 

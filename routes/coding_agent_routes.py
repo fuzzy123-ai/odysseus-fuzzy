@@ -27,6 +27,9 @@ from src.coding_agent_backend import (
 )
 from src.coding_agent_runner_state import CodingRunnerStateError, CodingRunnerStateStore
 from src.coding_project_scope import CodingProjectScopeError, resolve_coding_project_scope
+from src.coding_lifecycle import build_coding_lifecycle_state
+from src.coding_lifecycle_adapters import identifiers_from_coding_agent
+from src.coding_quality_alignment import build_coding_quality_alignment
 from src.agent_sandbox_worker import SandboxWorker
 from src.coding_agent_sandbox_bridge import CodingAgentSandboxBridgeError, dispatch_coding_checks_to_sandbox
 from src.constants import BASE_DIR, DATA_DIR
@@ -211,6 +214,7 @@ def setup_coding_agent_routes(
             "coding_task": plan.to_dict(),
             "agent_task": task_record,
             "runner_state": runner_state.to_dict(),
+            **_coding_route_compatibility(coding_plan=plan, runner_state=runner_state),
         }
 
     @router.post("/repos/{repo_id}/worktree")
@@ -240,6 +244,7 @@ def setup_coding_agent_routes(
             "success": report.status == "created",
             "coding_worktree": report.to_dict(),
             "runner_state": runner_state.to_dict(),
+            **_coding_route_compatibility(coding_plan=report.plan, runner_state=runner_state),
         }
 
     @router.post("/repos/{repo_id}/patch-set")
@@ -291,7 +296,11 @@ def setup_coding_agent_routes(
             )
         except CodingAgentBackendError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.verified, "quality_gate": report.to_dict()}
+        return {
+            "success": report.verified,
+            "quality_gate": report.to_dict(),
+            "coding_quality_alignment": build_coding_quality_alignment(quality_gate=report).to_dict(),
+        }
 
     @router.post("/repos/{repo_id}/worktree-quality-gate")
     def evaluate_worktree_quality_gate(request: Request, repo_id: str, body: CodingTaskPlanRequest) -> dict[str, Any]:
@@ -320,7 +329,11 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": report.verified, "quality_gate": report.to_dict()}
+        return {
+            "success": report.verified,
+            "quality_gate": report.to_dict(),
+            "coding_quality_alignment": build_coding_quality_alignment(quality_gate=report).to_dict(),
+        }
 
     @router.post("/repos/{repo_id}/sandbox-checks")
     def dispatch_sandbox_checks(request: Request, repo_id: str, body: CodingSandboxChecksRequest) -> dict[str, Any]:
@@ -351,7 +364,15 @@ def setup_coding_agent_routes(
         except (CodingAgentBackendError, CodingAgentSandboxBridgeError) as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": True, "sandbox_dispatch": dispatch.to_dict()}
+        return {
+            "success": True,
+            "sandbox_dispatch": dispatch.to_dict(),
+            "coding_quality_alignment": build_coding_quality_alignment(
+                quality_gate=dispatch.quality_gate,
+                sandbox_dispatch=dispatch,
+            ).to_dict(),
+            **_coding_route_compatibility(coding_plan=plan, sandbox_dispatch=dispatch),
+        }
 
     @router.post("/done-gate")
     def evaluate_done_gate(request: Request, body: CodingDoneGateRequest) -> dict[str, Any]:
@@ -374,7 +395,15 @@ def setup_coding_agent_routes(
             )
         except CodingAgentBackendError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"success": report.done, "done_gate": report.to_dict()}
+        return {
+            "success": report.done,
+            "done_gate": report.to_dict(),
+            "coding_lifecycle": build_coding_lifecycle_state(
+                quality_gate=quality,
+                done_gate=report,
+            ).to_dict(),
+            "coding_quality_alignment": build_coding_quality_alignment(quality_gate=quality).to_dict(),
+        }
 
     @router.post("/repos/{repo_id}/handoff-plan")
     def create_handoff_plan(request: Request, repo_id: str, body: CodingHandoffPlanRequest) -> dict[str, Any]:
@@ -420,7 +449,16 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": report.decision == "plan_ready", "handoff_plan": report.to_dict()}
+        return {
+            "success": report.decision == "plan_ready",
+            "handoff_plan": report.to_dict(),
+            **_coding_route_compatibility(
+                coding_plan=plan,
+                quality_gate=quality,
+                done_gate=done,
+                handoff=report,
+            ),
+        }
 
     @router.post("/repos/{repo_id}/publish-plan")
     def create_publish_plan(request: Request, repo_id: str, body: CodingPublishPlanRequest) -> dict[str, Any]:
@@ -473,7 +511,18 @@ def setup_coding_agent_routes(
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
         runner_state = _record_runner_state_from_publish(runner_states, plan, report)
-        return {"success": report.ready, "publish_plan": report.to_dict(), "runner_state": runner_state.to_dict()}
+        return {
+            "success": report.ready,
+            "publish_plan": report.to_dict(),
+            "runner_state": runner_state.to_dict(),
+            **_coding_route_compatibility(
+                coding_plan=plan,
+                runner_state=runner_state,
+                quality_gate=quality,
+                done_gate=done,
+                publish_plan=report,
+            ),
+        }
 
     @router.post("/repos/{repo_id}/subagents-plan")
     def create_subagents_plan(request: Request, repo_id: str, body: CodingSubagentPlanRequest) -> dict[str, Any]:
@@ -503,7 +552,11 @@ def setup_coding_agent_routes(
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
             raise HTTPException(status_code=status, detail=str(exc)) from exc
-        return {"success": report.ready, "subagents_plan": report.to_dict()}
+        return {
+            "success": report.ready,
+            "subagents_plan": report.to_dict(),
+            **_coding_route_compatibility(coding_plan=plan),
+        }
 
     return router
 
@@ -578,6 +631,37 @@ def _coding_plan_gates(blockers: tuple[str, ...]) -> tuple[str, ...]:
         else:
             gates.append("coding_task_review")
     return tuple(dict.fromkeys(gates))
+
+
+def _coding_route_compatibility(
+    *,
+    coding_plan: Any = None,
+    runner_state: Any = None,
+    sandbox_dispatch: Any = None,
+    quality_gate: Any = None,
+    done_gate: Any = None,
+    handoff: Any = None,
+    publish_plan: Any = None,
+) -> dict[str, Any]:
+    return {
+        "coding_lifecycle": build_coding_lifecycle_state(
+            coding_plan=coding_plan,
+            runner_state=runner_state,
+            sandbox_dispatch=sandbox_dispatch,
+            quality_gate=quality_gate,
+            done_gate=done_gate,
+            handoff=handoff,
+            publish_plan=publish_plan,
+        ).to_dict(),
+        "coding_lifecycle_identifiers": identifiers_from_coding_agent(
+            coding_plan=coding_plan,
+            runner_state=runner_state,
+            sandbox_dispatch=sandbox_dispatch,
+            quality_gate=quality_gate,
+            handoff=handoff,
+            publish_plan=publish_plan,
+        ).to_dict(),
+    }
 
 
 def _record_runner_state_from_worktree(store: CodingRunnerStateStore, report: Any):

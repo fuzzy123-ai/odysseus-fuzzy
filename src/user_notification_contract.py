@@ -8,9 +8,13 @@ and how to dispatch it from server-side configuration.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
+
+from src.todo_digest_formatting import format_todo_digest_notification_body
 
 
 ALLOWED_SEVERITIES = {"info", "success", "warning", "error"}
@@ -38,6 +42,54 @@ MAX_MESSAGE_CHARS = 1200
 MAX_EVENT_CHARS = 80
 MAX_METADATA_ITEMS = 12
 
+PLANNING_NOTIFICATION_SCHEMA = "odysseus.planning_notification_candidate.v1"
+PLANNING_NOTIFICATION_EVENTS = {
+    "project_created",
+    "project_deleted",
+    "roadmap_created",
+    "roadmap_deleted",
+    "gate_blocked",
+    "gate_unblocked_when_it_changes_available_work",
+    "human_decision_required",
+    "undo_available_after_structural_delete",
+}
+PLANNING_SILENT_EVENTS = {
+    "roadmap_progress_updated",
+    "todo_completed",
+    "context_pack_read",
+    "raptor_memory_processed",
+    "summary_refreshed",
+    "agent_checkpoint_written",
+    "planning_read",
+    "planning_search",
+    "planning_validate",
+    "planning_draft_created",
+    "planning_patch_proposed",
+    "planning_context_pack_read",
+    "planning_section_context_pack_read",
+    "planning_progress_updated",
+    "planning_todo_completed",
+    "planning_derived_memory_lifecycle_planned",
+    "planning_agent_checkpoint_written",
+}
+PLANNING_UI_HIGHLIGHT_KINDS = {"project", "roadmap", "gate"}
+PLANNING_UI_HIGHLIGHT_MODES = {"focus", "expand_summary"}
+PLANNING_DOCUMENT_INTENTS = {"none", "open_roadmap_document"}
+MAX_PLANNING_REASON_CHARS = 240
+
+_PLANNING_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+_PLANNING_CANDIDATE_FIELDS = {
+    "event_type", "project_id", "roadmap_id", "gate_id", "severity", "reason", "created_at", "ui_target",
+}
+_PLANNING_UI_TARGET_FIELDS = {
+    "workspace", "view", "highlight_kind", "highlight_mode", "document_view_intent",
+}
+_PRIVATE_PATH_RE = re.compile(r"(?i)(?:[a-z]:[\\/]|/(?:home|users|var/lib|mnt|srv)/|\\\\[^\s]+)")
+_SECRET_VALUE_RE = re.compile(
+    r"(?i)(?:bearer\s+[a-z0-9._~+/=-]{8,}|(?:api[_ -]?key|access[_ -]?token|password|secret)\s*[:=]\s*\S+|\bsk-[a-z0-9_-]{12,})"
+)
+_URL_RE = re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://")
+
 
 class NotificationContractError(ValueError):
     """Raised when a notification request violates the safe boundary."""
@@ -50,6 +102,7 @@ class UserNotificationRequest:
     severity: str = "info"
     channel: str = "auto"
     dry_run: bool = True
+    render_mode: str = "standard"
     metadata: dict[str, str] = field(default_factory=dict)
 
 
@@ -67,6 +120,53 @@ class UserNotificationDecision:
         payload["token_value_visible"] = False
         payload["chat_target_value_visible"] = False
         return payload
+
+
+@dataclass(frozen=True)
+class PlanningNotificationUiTarget:
+    workspace: str
+    view: str
+    highlight_kind: str
+    highlight_id: str
+    highlight_mode: str
+    document_view_intent: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class PlanningNotificationCandidate:
+    event_type: str
+    project_id: str
+    roadmap_id: str | None
+    gate_id: str | None
+    severity: str
+    reason: str
+    created_at: str
+    ui_target: PlanningNotificationUiTarget
+    dedupe_key: str
+    schema: str = PLANNING_NOTIFICATION_SCHEMA
+    classification: str = "notification_candidate"
+    delivery_authorized: bool = False
+    live_delivery_performed: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "classification": self.classification,
+            "event_type": self.event_type,
+            "project_id": self.project_id,
+            "roadmap_id": self.roadmap_id,
+            "gate_id": self.gate_id,
+            "severity": self.severity,
+            "reason": self.reason,
+            "created_at": self.created_at,
+            "ui_target": self.ui_target.to_dict(),
+            "dedupe_key": self.dedupe_key,
+            "delivery_authorized": False,
+            "live_delivery_performed": False,
+        }
 
 
 def _normalized_key(value: Any) -> str:
@@ -87,6 +187,27 @@ def _assert_no_forbidden_keys(value: Any, *, path: str = "$") -> None:
 
 def _clean_text(value: Any, *, fallback: str = "", max_chars: int = MAX_MESSAGE_CHARS) -> str:
     text = " ".join(str(value if value is not None else fallback).split())
+    if len(text) > max_chars:
+        return text[: max_chars - 1].rstrip() + "..."
+    return text
+
+
+def _clean_message_text(value: Any, *, fallback: str = "", max_chars: int = MAX_MESSAGE_CHARS) -> str:
+    raw = str(value if value is not None else fallback).replace("\r\n", "\n").replace("\r", "\n")
+    lines = [" ".join(line.split()) for line in raw.split("\n")]
+    # Preserve intentional paragraph/list structure without letting arbitrary
+    # whitespace create huge Telegram bodies.
+    compacted: list[str] = []
+    previous_blank = False
+    for line in lines:
+        if not line:
+            if not previous_blank:
+                compacted.append("")
+            previous_blank = True
+            continue
+        compacted.append(line)
+        previous_blank = False
+    text = "\n".join(compacted).strip()
     if len(text) > max_chars:
         return text[: max_chars - 1].rstrip() + "..."
     return text
@@ -135,7 +256,7 @@ def build_user_notification_request(payload: Mapping[str, Any] | str) -> UserNot
         or payload.get("run_label")
         or "odysseus_notification"
     )
-    message = _clean_text(payload.get("message") or payload.get("summary") or payload.get("text") or "")
+    message = _clean_message_text(payload.get("message") or payload.get("summary") or payload.get("text") or "")
     if not message:
         raise NotificationContractError("Notification message is required")
 
@@ -152,17 +273,32 @@ def build_user_notification_request(payload: Mapping[str, Any] | str) -> UserNot
     if channel not in ALLOWED_CHANNELS:
         channel = "auto"
 
+    render_mode = _clean_slug(payload.get("render_mode") or "standard", fallback="standard")
+    if render_mode not in {"standard", "plain"}:
+        render_mode = "standard"
+
     return UserNotificationRequest(
         event=event,
         message=message,
         severity=severity,
         channel=channel,
         dry_run=_coerce_bool(payload.get("dry_run"), default=True),
+        render_mode=render_mode,
         metadata=_metadata_to_public_strings(payload.get("metadata") or {}),
     )
 
 
 def render_user_notification_text(request: UserNotificationRequest) -> str:
+    normalized_message = " ".join(request.message.lower().split())
+    is_todo_digest = request.event in {"todo_digest", "scheduled_task"} and (
+        normalized_message.startswith("todo digest")
+        or "todo_digest: todo digest" in normalized_message
+        or "scheduled_task: todo digest" in normalized_message
+    )
+    if is_todo_digest:
+        return format_todo_digest_notification_body(request.message)
+    if request.render_mode == "plain":
+        return request.message
     prefix = f"[Odysseus][{request.severity}] {request.event}"
     if not request.metadata:
         return f"{prefix}: {request.message}"
@@ -226,3 +362,213 @@ def build_user_notification_decision(
         resolved_channel=resolved_channel,
         rendered_text=rendered_text,
     )
+
+
+def classify_planning_notification_event(event_type: Any) -> str:
+    event = _planning_event_type(event_type)
+    if event in PLANNING_SILENT_EVENTS:
+        return "silent"
+    return "notification_candidate"
+
+
+def build_planning_notification_candidate(
+    payload: Mapping[str, Any],
+) -> PlanningNotificationCandidate | None:
+    """Build one sparse logical Planning notification candidate.
+
+    The result is navigation metadata only.  It never authorizes or performs
+    Telegram, network, provider, or any other live delivery.
+    """
+
+    if not isinstance(payload, Mapping):
+        raise NotificationContractError("Planning notification payload must be an object")
+    if set(payload) - _PLANNING_CANDIDATE_FIELDS:
+        raise NotificationContractError("Planning notification payload contains unsupported fields")
+    _assert_no_forbidden_keys(payload)
+    _assert_planning_safe_values(payload)
+
+    event_type = _planning_event_type(payload.get("event_type"))
+    project_id = _planning_id(payload.get("project_id"), field_name="project_id")
+    if event_type in PLANNING_SILENT_EVENTS:
+        return None
+
+    roadmap_id = _optional_planning_id(payload.get("roadmap_id"), field_name="roadmap_id")
+    gate_id = _optional_planning_id(payload.get("gate_id"), field_name="gate_id")
+    if event_type in {"roadmap_created", "roadmap_deleted"} and roadmap_id is None:
+        raise NotificationContractError("Roadmap structural events require roadmap_id")
+    if event_type in {
+        "gate_blocked", "gate_unblocked_when_it_changes_available_work", "human_decision_required",
+    } and gate_id is None:
+        raise NotificationContractError("Gate decision events require gate_id")
+
+    severity = payload.get("severity") or _default_planning_severity(event_type)
+    if severity not in ALLOWED_SEVERITIES:
+        raise NotificationContractError("Planning notification severity is invalid")
+    reason = _planning_reason(payload.get("reason"))
+    created_at = _planning_timestamp(payload.get("created_at"))
+    ui_target = _planning_ui_target(
+        payload.get("ui_target"),
+        project_id=project_id,
+        roadmap_id=roadmap_id,
+        gate_id=gate_id,
+    )
+    dedupe_key = _planning_dedupe_key(
+        event_type=event_type,
+        project_id=project_id,
+        roadmap_id=roadmap_id,
+        gate_id=gate_id,
+        reason=reason,
+        document_view_intent=ui_target.document_view_intent,
+    )
+    return PlanningNotificationCandidate(
+        event_type=event_type,
+        project_id=project_id,
+        roadmap_id=roadmap_id,
+        gate_id=gate_id,
+        severity=severity,
+        reason=reason,
+        created_at=created_at,
+        ui_target=ui_target,
+        dedupe_key=dedupe_key,
+    )
+
+
+def _planning_event_type(value: Any) -> str:
+    if not isinstance(value, str):
+        raise NotificationContractError("Planning event_type must be text")
+    if value not in PLANNING_NOTIFICATION_EVENTS | PLANNING_SILENT_EVENTS:
+        raise NotificationContractError("Planning event_type is invalid")
+    return value
+
+
+def _planning_id(value: Any, *, field_name: str) -> str:
+    if not isinstance(value, str) or not _PLANNING_ID_RE.fullmatch(value):
+        raise NotificationContractError(f"Planning {field_name} is invalid")
+    return value
+
+
+def _optional_planning_id(value: Any, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return _planning_id(value, field_name=field_name)
+
+
+def _planning_reason(value: Any) -> str:
+    if not isinstance(value, str):
+        raise NotificationContractError("Planning notification reason is required")
+    text = " ".join(value.split())
+    if not text:
+        raise NotificationContractError("Planning notification reason is required")
+    if len(text) > MAX_PLANNING_REASON_CHARS:
+        raise NotificationContractError("Planning notification reason exceeds its budget")
+    _assert_planning_safe_values(text)
+    return text
+
+
+def _planning_timestamp(value: Any) -> str:
+    if not isinstance(value, str):
+        raise NotificationContractError("Planning notification created_at is required")
+    candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise NotificationContractError("Planning notification created_at is invalid") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        raise NotificationContractError("Planning notification created_at must be UTC")
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _planning_ui_target(
+    value: Any,
+    *,
+    project_id: str,
+    roadmap_id: str | None,
+    gate_id: str | None,
+) -> PlanningNotificationUiTarget:
+    if value is None:
+        target: Mapping[str, Any] = {}
+    elif isinstance(value, Mapping):
+        target = value
+    else:
+        raise NotificationContractError("Planning ui_target must be an object")
+    if set(target) - _PLANNING_UI_TARGET_FIELDS:
+        raise NotificationContractError("Planning ui_target contains unsupported fields")
+    _assert_no_forbidden_keys(target)
+    _assert_planning_safe_values(target)
+    workspace = target.get("workspace", "planning")
+    view = target.get("view", "overview")
+    if workspace != "planning" or view != "overview":
+        raise NotificationContractError("Planning ui_target workspace/view is invalid")
+    default_kind = "gate" if gate_id else "roadmap" if roadmap_id else "project"
+    highlight_kind = target.get("highlight_kind", default_kind)
+    if highlight_kind not in PLANNING_UI_HIGHLIGHT_KINDS:
+        raise NotificationContractError("Planning ui_target highlight_kind is invalid")
+    refs = {"project": project_id, "roadmap": roadmap_id, "gate": gate_id}
+    highlight_id = refs[highlight_kind]
+    if highlight_id is None:
+        raise NotificationContractError("Planning ui_target highlight ref is missing")
+    default_mode = "expand_summary" if highlight_kind in {"roadmap", "gate"} else "focus"
+    highlight_mode = target.get("highlight_mode", default_mode)
+    if highlight_mode not in PLANNING_UI_HIGHLIGHT_MODES:
+        raise NotificationContractError("Planning ui_target highlight_mode is invalid")
+    document_intent = target.get("document_view_intent", "none")
+    if document_intent not in PLANNING_DOCUMENT_INTENTS:
+        raise NotificationContractError("Planning ui_target document_view_intent is invalid")
+    if document_intent == "open_roadmap_document" and roadmap_id is None:
+        raise NotificationContractError("Roadmap document intent requires roadmap_id")
+    return PlanningNotificationUiTarget(
+        workspace="planning",
+        view="overview",
+        highlight_kind=highlight_kind,
+        highlight_id=highlight_id,
+        highlight_mode=highlight_mode,
+        document_view_intent=document_intent,
+    )
+
+
+def _default_planning_severity(event_type: str) -> str:
+    if event_type in {"project_created", "roadmap_created", "gate_unblocked_when_it_changes_available_work"}:
+        return "success"
+    if event_type in {"project_deleted", "roadmap_deleted", "gate_blocked", "human_decision_required"}:
+        return "warning"
+    return "info"
+
+
+def _planning_dedupe_key(
+    *,
+    event_type: str,
+    project_id: str,
+    roadmap_id: str | None,
+    gate_id: str | None,
+    reason: str,
+    document_view_intent: str,
+) -> str:
+    canonical = json.dumps(
+        {
+            "event_type": event_type,
+            "project_id": project_id,
+            "roadmap_id": roadmap_id,
+            "gate_id": gate_id,
+            "reason": reason,
+            "document_view_intent": document_view_intent,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _assert_planning_safe_values(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for nested in value.values():
+            _assert_planning_safe_values(nested)
+        return
+    if isinstance(value, (list, tuple)):
+        for nested in value:
+            _assert_planning_safe_values(nested)
+        return
+    if not isinstance(value, str):
+        return
+    if _PRIVATE_PATH_RE.search(value) or _SECRET_VALUE_RE.search(value) or _URL_RE.search(value):
+        raise NotificationContractError("Planning notification contains forbidden private or delivery material")

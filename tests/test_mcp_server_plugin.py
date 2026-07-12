@@ -7,9 +7,10 @@ from typing import Any, Callable
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from plugins.mcp_server.plugin import setup
+from plugins.mcp_server.plugin import McpServerState, setup
 from src.tool_registry import ToolSpec, unregister_tool, register_tool
 from src.user_notification_contract import build_user_notification_decision
+from src.mcp_server_tool_policy import PLANNING_READONLY_TOOLS
 
 
 RUNBOOK_HIGH_RISK_TOOLS = (
@@ -49,6 +50,36 @@ def _rpc(method, params=None, message_id=1):
     if params is not None:
         payload["params"] = params
     return payload
+
+
+def _write_planning_roadmap(root: Path) -> None:
+    path = root / "docs" / "plans" / "external-roadmap.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "harbor.planning.roadmap",
+        "project_id": "external-preview",
+        "roadmap_id": "external-map",
+        "revision": 1,
+        "created_at": "2026-07-10T06:00:00Z",
+        "updated_at": "2026-07-10T06:00:00Z",
+        "title": "External Planning Preview",
+        "goal": "Expose only explicitly enabled read-only Planning tools.",
+        "status": "planned",
+        "source_refs": [],
+        "slices": [{
+            "id": "preview-one",
+            "title": "Preview policy",
+            "objective": "Keep Planning hidden until explicitly enabled.",
+            "class": "repo_only",
+            "status": "planned",
+        }],
+        "gates": [],
+        "gate_refs": [],
+        "dependency_refs": [],
+        "verification": ["focused plugin tests"],
+        "stop_rules": ["Stop before external live smoke."],
+    }, indent=2), encoding="utf-8")
 
 
 def test_mcp_server_is_disabled_by_default(tmp_path, monkeypatch):
@@ -309,3 +340,147 @@ def test_mcp_notifications_return_accepted_without_body(tmp_path, monkeypatch):
     })
 
     assert response.status_code == 202
+
+
+def test_external_planning_tools_are_hidden_until_explicit_read_capability(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    client = _client(tmp_path)
+    config = client.post("/api/plugins/mcp/config", json={"enabled": True}).json()
+    tools = client.post("/api/plugins/mcp", json=_rpc("tools/list")).json()["result"]["tools"]
+    names = {tool["name"] for tool in tools}
+
+    assert config["allow_planning_reads"] is False
+    assert names.isdisjoint(PLANNING_READONLY_TOOLS)
+
+    denied = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "planning_list_roadmaps",
+        "arguments": {"limit": 5},
+    })).json()["result"]
+    assert denied["isError"] is True
+    assert "planning_read_hidden_by_default" in denied["content"][0]["text"]
+    entries = [json.loads(line) for line in (tmp_path / "mcp_audit.jsonl").read_text(encoding="utf-8").splitlines()]
+    blocked = next(entry for entry in entries if entry.get("tool_name") == "planning_list_roadmaps")
+    assert blocked["status"] == "blocked"
+    assert blocked["category"] == "planning_readonly"
+    assert blocked["reason"] == "planning_read_hidden_by_default"
+    assert blocked["required_gate"] == "PLANNING-MCP-READONLY-GO"
+    assert blocked["client_id"] == "external-mcp"
+
+
+def test_external_planning_read_capability_exposes_exact_six_tools_and_readiness(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    client = _client(tmp_path)
+    config = client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "allow_planning_reads": True,
+    }).json()
+    tools = client.post("/api/plugins/mcp", json=_rpc("tools/list")).json()["result"]["tools"]
+    names = {tool["name"] for tool in tools}
+    readiness = client.post("/api/plugins/mcp", json=_rpc("resources/read", {
+        "uri": "odysseus://mcp/readiness",
+    })).json()["result"]["contents"][0]
+
+    assert config["allow_planning_reads"] is True
+    assert names >= set(PLANNING_READONLY_TOOLS)
+    assert all(
+        next(tool for tool in tools if tool["name"] == name)["inputSchema"]["additionalProperties"] is False
+        for name in PLANNING_READONLY_TOOLS
+    )
+    assert json.loads(readiness["text"])["planning_reads_enabled"] is True
+    assert names.isdisjoint({
+        "planning_create_roadmap_draft",
+        "planning_validate_roadmap",
+        "planning_propose_patch",
+        "planning_apply_patch",
+        "planning_delete_roadmap",
+    })
+
+
+def test_external_planning_dispatch_uses_pure_bounded_contract(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    monkeypatch.setenv("ODYSSEUS_ROOT", str(tmp_path))
+    _write_planning_roadmap(tmp_path)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "allow_planning_reads": True,
+    })
+
+    response = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "planning_list_roadmaps",
+        "arguments": {"query": "External Planning", "limit": 5},
+    }))
+    result = response.json()["result"]
+    payload = json.loads(result["content"][0]["text"])
+
+    assert result["isError"] is False
+    assert payload["schema"] == "odysseus.planning.roadmap_list.v1"
+    assert payload["roadmaps"][0]["roadmap_id"] == "external-map"
+    assert payload["writes_supported"] is False
+    assert str(tmp_path) not in result["content"][0]["text"]
+    entries = [json.loads(line) for line in (tmp_path / "mcp_audit.jsonl").read_text(encoding="utf-8").splitlines()]
+    audit = next(entry for entry in entries if entry.get("tool_name") == "planning_list_roadmaps")
+    assert audit["status"] == "ok"
+    assert audit["category"] == "planning_readonly"
+    assert audit["reason"] == "planning_read_explicitly_allowed"
+    assert audit["required_gate"] == ""
+    assert audit["client_id"] == "external-mcp"
+    assert audit["argument_fields"] == ["limit", "query"]
+    assert audit["argument_count"] == 2
+    assert audit["argument_hash"].startswith("sha256:")
+
+
+def test_external_planning_errors_and_audit_never_record_raw_arguments(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    monkeypatch.setenv("ODYSSEUS_ROOT", str(tmp_path))
+    _write_planning_roadmap(tmp_path)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "allow_planning_reads": True,
+    })
+    rejected = "../../private-roadmap.json"
+
+    response = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "planning_read_roadmap",
+        "arguments": {"source_id_or_path": rejected},
+    }))
+    result = response.json()["result"]
+    payload = json.loads(result["content"][0]["text"])
+    entries = [
+        json.loads(line)
+        for line in (tmp_path / "mcp_audit.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+
+    assert result["isError"] is True
+    assert payload["status"] == "error"
+    assert payload["rejected_value_visible"] is False
+    assert rejected not in result["content"][0]["text"]
+    assert all(rejected not in json.dumps(entry) for entry in entries)
+    assert all("arguments" not in entry for entry in entries)
+    assert all(entry["token_value_visible"] is False for entry in entries)
+    detailed = next(entry for entry in entries if entry.get("tool_name") == "planning_read_roadmap")
+    assert detailed["status"] == "error"
+    assert detailed["reason"] == "planning_read_explicitly_allowed"
+    assert detailed["argument_fields"] == ["source_id_or_path"]
+    assert detailed["argument_count"] == 1
+    assert detailed["argument_hash"].startswith("sha256:")
+
+
+def test_mcp_audit_failure_is_bounded_and_does_not_raise_or_change_policy(tmp_path, caplog):
+    not_a_directory = tmp_path / "audit-parent-file"
+    not_a_directory.write_text("occupied", encoding="utf-8")
+    state = McpServerState(not_a_directory, logging.getLogger("test.mcp.audit.failure"))
+
+    state.audit(
+        method="tools/call",
+        status="blocked",
+        tool="planning_read_roadmap",
+        client_id="profile:codex-planning",
+        reason="planning_read_hidden_by_default",
+        arguments={"source_id_or_path": "C:\\private\\roadmap.json"},
+    )
+
+    assert "MCP audit write failed" in caplog.text
+    assert "C:\\private" not in caplog.text
+    assert "roadmap.json" not in caplog.text

@@ -1,4 +1,7 @@
-from src.plugin_capability_boundary import validate_plugin_capability_boundary
+from src.plugin_capability_boundary import (
+    required_permission_tier_for_capabilities,
+    validate_plugin_capability_boundary,
+)
 
 
 def test_ui_plugin_cannot_request_host_capabilities():
@@ -79,6 +82,8 @@ def test_boundary_report_to_dict_is_stable():
         "ok": True,
         "plugin_id": "health-agent",
         "plugin_kind": "host-agent",
+        "permission": "admin",
+        "required_permission_tier": "host_adjacent",
         "capabilities": ("local_api", "secret_redaction", "token_storage"),
         "errors": (),
         "warnings": (),
@@ -96,3 +101,36 @@ def test_invalid_capabilities_are_blocked():
 
     assert not report.ok
     assert report.error_codes == ("invalid_capabilities",)
+
+
+def test_capability_tiers_are_classified_by_highest_required_permission():
+    assert required_permission_tier_for_capabilities(["local_api", "network_client"]) == "networked"
+    assert required_permission_tier_for_capabilities(["plugin_install", "host_metrics"]) == "live_action"
+
+
+def test_explicit_new_permission_tier_must_cover_requested_capabilities():
+    report = validate_plugin_capability_boundary(
+        {
+            "id": "underpowered",
+            "permission": "read_only",
+            "capabilities": ["memory_write"],
+        }
+    )
+
+    assert not report.ok
+    assert "capability_exceeds_permission_tier" in report.error_codes
+    assert report.required_permission_tier == "owner_scoped_write"
+
+
+def test_legacy_permission_gets_migration_warning_instead_of_breaking():
+    report = validate_plugin_capability_boundary(
+        {
+            "id": "legacy-networked",
+            "permission": "user",
+            "capabilities": ["network_client"],
+        }
+    )
+
+    assert report.ok
+    assert "legacy_permission_needs_tier_review" in report.warning_codes
+    assert report.required_permission_tier == "networked"

@@ -609,6 +609,8 @@ from routes.universal_file_io_routes import setup_universal_file_io_routes
 app.include_router(setup_universal_file_io_routes())
 from routes.live_affordance_routes import setup_live_affordance_routes
 app.include_router(setup_live_affordance_routes())
+from routes.non_ui_gate_readiness_routes import setup_non_ui_gate_readiness_routes
+app.include_router(setup_non_ui_gate_readiness_routes())
 upload_cleanup_task = None
 
 # Emoji SVG proxy (same-origin, lazy-cached Twemoji) — lets the chat render
@@ -633,10 +635,14 @@ from routes.internal_reference_routes import setup_internal_reference_routes
 app.include_router(setup_internal_reference_routes(memory_manager))
 from routes.review_gate_routes import setup_review_gate_routes
 app.include_router(setup_review_gate_routes())
+from routes.operator_dashboard_routes import setup_operator_dashboard_routes
+app.include_router(setup_operator_dashboard_routes(mcp_manager=mcp_manager))
 from routes.legacy_chat_contract_routes import setup_legacy_chat_contract_routes
 app.include_router(setup_legacy_chat_contract_routes())
 from routes.version_one_readiness_routes import setup_version_one_readiness_routes
 app.include_router(setup_version_one_readiness_routes())
+from routes.ops_console_routes import setup_ops_console_routes
+app.include_router(setup_ops_console_routes())
 from routes.skills_routes import setup_skills_routes
 app.include_router(setup_skills_routes(skills_manager))
 
@@ -657,6 +663,10 @@ app.include_router(setup_research_routes(research_handler, session_manager=sessi
 # Roadmap Lens
 from routes.roadmap_routes import setup_roadmap_routes
 app.include_router(setup_roadmap_routes())
+
+# AI Lens (admin-gated, read-only runtime snapshots; fixture mode disabled)
+from routes.ai_lens_routes import setup_ai_lens_routes
+app.include_router(setup_ai_lens_routes())
 
 # Server Projects
 from routes.server_project_routes import setup_server_project_routes

@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor One Logo Directions</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --surface: #061421;
+      --surface-2: #091a29;
+      --line: rgba(121, 187, 199, 0.22);
+      --line-strong: rgba(121, 187, 199, 0.42);
+      --ink: #bdd9e2;
+      --ink-soft: rgba(189, 217, 226, 0.78);
+      --ink-dim: rgba(189, 217, 226, 0.58);
+      --muted: #7899a6;
+      --cyan: #10b6ca;
+      --cyan-text: #79bbc7;
+      --blue: #4b8cff;
+      --deep: #123b69;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 16% 18%, rgba(16, 182, 202, 0.13), transparent 28%),
+        radial-gradient(circle at 78% 14%, rgba(75, 140, 255, 0.11), transparent 32%),
+        radial-gradient(circle at 50% 100%, rgba(16, 182, 202, 0.08), transparent 38%),
+        linear-gradient(180deg, #04101a, var(--bg) 58%, #01040a);
+      color: var(--ink);
+      font-family: var(--ui);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -10%;
+      pointer-events: none;
+    }
+
+    body::before {
+      background:
+        linear-gradient(38deg, transparent 0 42%, rgba(16, 182, 202, 0.08) 42.08% 42.22%, transparent 42.32%),
+        linear-gradient(142deg, transparent 0 54%, rgba(74, 140, 255, 0.06) 54.08% 54.22%, transparent 54.32%),
+        radial-gradient(circle at 14% 72%, rgba(121, 187, 199, 0.26) 0 2px, transparent 4px),
+        radial-gradient(circle at 46% 24%, rgba(16, 182, 202, 0.18) 0 2px, transparent 4px),
+        radial-gradient(circle at 88% 33%, rgba(74, 140, 255, 0.16) 0 2px, transparent 4px);
+      opacity: 0.42;
+    }
+
+    body::after {
+      background: repeating-linear-gradient(180deg, rgba(189, 217, 226, 0.025) 0 1px, transparent 1px 5px);
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      z-index: 1;
+      width: min(1440px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .topline {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .brand-kicker,
+    .status-note {
+      color: var(--ink-dim);
+      font: 600 11px/1.35 var(--mono);
+    }
+
+    .brand-kicker strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--cyan-text);
+      font-size: 18px;
+    }
+
+    .screen-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 8px;
+      width: min(760px, 58vw);
+      min-height: 46px;
+      border: 1px solid rgba(121, 187, 199, 0.2);
+      border-radius: 13px;
+      background: rgba(2, 9, 16, 0.86);
+      padding: 7px;
+    }
+
+    .screen-tab {
+      height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--ink-dim);
+      padding: 0 10px;
+      text-align: left;
+      font: 700 12px/1 var(--mono);
+    }
+
+    .screen-tab::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.72;
+    }
+
+    .screen-tab.active {
+      border-color: rgba(16, 182, 202, 0.48);
+      background: rgba(16, 182, 202, 0.08);
+      color: var(--ink);
+    }
+
+    .status-note {
+      justify-self: end;
+      text-align: right;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brief,
+    .reference {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(16, 182, 202, 0.1), transparent 44%),
+        linear-gradient(180deg, rgba(6, 20, 32, 0.88), rgba(2, 9, 16, 0.84));
+      padding: 16px;
+    }
+
+    .brief h1 {
+      margin: 0 0 10px;
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
+      font: 700 24px/1.15 var(--mono);
+      letter-spacing: 0;
+    }
+
+    .brief p {
+      max-width: 78ch;
+      margin: 0;
+      color: color-mix(in srgb, var(--ink) 68%, transparent);
+      font: 13px/1.6 var(--ui);
+    }
+
+    .reference {
+      display: grid;
+      grid-template-columns: 74px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+    }
+
+    .odysseus-ref {
+      width: 72px;
+      height: 52px;
+      color: #e06c75;
+    }
+
+    .reference strong {
+      display: block;
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 700 12px/1.2 var(--mono);
+    }
+
+    .reference span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font: 12px/1.45 var(--ui);
+    }
+
+    .logo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    .logo-card {
+      min-height: 322px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(8, 22, 35, 0.92), rgba(2, 8, 15, 0.95)),
+        var(--surface);
+      overflow: hidden;
+    }
+
+    .logo-card:hover {
+      border-color: var(--line-strong);
+    }
+
+    .logo-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      border-bottom: 1px solid rgba(121, 187, 199, 0.12);
+      padding: 0 12px;
+    }
+
+    .logo-head strong {
+      color: color-mix(in srgb, var(--ink) 84%, transparent);
+      font: 700 12px/1 var(--mono);
+    }
+
+    .logo-head span {
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .logo-stage {
+      display: grid;
+      grid-template-rows: minmax(120px, 1fr) auto auto;
+      align-items: center;
+      justify-items: center;
+      gap: 12px;
+      padding: 18px 14px 14px;
+    }
+
+    .mark-shell {
+      width: 118px;
+      height: 118px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.16);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(16, 182, 202, 0.1), transparent 60%),
+        rgba(2, 9, 16, 0.62);
+    }
+
+    .mark-shell svg {
+      width: 78px;
+      height: 78px;
+      overflow: visible;
+      color: var(--cyan-text);
+      filter: drop-shadow(0 0 8px rgba(16, 182, 202, 0.18));
+    }
+
+    .wordmark {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
+      font: 700 18px/1 var(--mono);
+      letter-spacing: 0;
+    }
+
+    .wordmark small {
+      color: var(--cyan-text);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .app-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 154px;
+      min-height: 34px;
+      border: 1px solid rgba(121, 187, 199, 0.18);
+      border-radius: 9px;
+      background: rgba(2, 9, 16, 0.72);
+      padding: 0 10px;
+    }
+
+    .app-chip svg {
+      width: 18px;
+      height: 18px;
+      color: var(--cyan-text);
+    }
+
+    .app-chip span {
+      color: var(--ink-soft);
+      font: 700 11px/1 var(--mono);
+    }
+
+    .notes {
+      min-height: 76px;
+      border-top: 1px solid rgba(121, 187, 199, 0.12);
+      color: color-mix(in srgb, var(--ink) 62%, transparent);
+      padding: 11px 12px 13px;
+      font: 12px/1.45 var(--ui);
+    }
+
+    .notes b {
+      color: var(--cyan-text);
+      font-weight: 700;
+    }
+
+    .comparison {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(8, 22, 35, 0.92), rgba(2, 8, 15, 0.95)),
+        var(--surface);
+      overflow: hidden;
+    }
+
+    .comparison-head {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(121, 187, 199, 0.12);
+      padding: 0 14px;
+      color: var(--ink-soft);
+      font: 700 12px/1 var(--mono);
+    }
+
+    .header-row {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(80px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .mini-header {
+      min-height: 52px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(121, 187, 199, 0.16);
+      border-radius: 8px;
+      background: rgba(2, 9, 16, 0.58);
+    }
+
+    .mini-header svg {
+      width: 27px;
+      height: 27px;
+      color: var(--cyan-text);
+      filter: drop-shadow(0 0 6px rgba(16, 182, 202, 0.18));
+    }
+
+    .line {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .thin {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .soft {
+      opacity: 0.46;
+    }
+
+    .fill {
+      fill: color-mix(in srgb, currentColor 18%, transparent);
+      stroke: currentColor;
+      stroke-width: 2.5;
+    }
+
+    .node {
+      fill: var(--bg);
+      stroke: currentColor;
+      stroke-width: 3;
+    }
+
+    .accent-blue {
+      color: var(--blue);
+    }
+
+    @media (max-width: 1180px) {
+      .logo-grid {
+        grid-template-columns: repeat(2, minmax(240px, 1fr));
+      }
+
+      .intro {
+        grid-template-columns: 1fr;
+      }
+
+      .header-row {
+        grid-template-columns: repeat(4, minmax(80px, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .stage {
+        width: calc(100vw - 28px);
+        padding-top: 18px;
+      }
+
+      .topline {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-tabs {
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .screen-tab {
+        justify-content: center;
+        padding: 0 6px;
+      }
+
+      .screen-tab span {
+        display: none;
+      }
+
+      .status-note {
+        justify-self: start;
+        text-align: left;
+      }
+
+      .logo-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-row {
+        grid-template-columns: repeat(2, minmax(80px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="topline">
+      <div class="brand-kicker">
+        <strong>Harbor One</strong>
+        Logo direction board
+      </div>
+
+      <nav class="screen-tabs" aria-label="Workspace preview">
+        <button class="screen-tab active" type="button"><span>Agent</span></button>
+        <button class="screen-tab" type="button"><span>Knowledge</span></button>
+        <button class="screen-tab" type="button"><span>Planning</span></button>
+        <button class="screen-tab" type="button"><span>Inbox</span></button>
+      </nav>
+
+      <div class="status-note">Blue system identity<br>Odysseus DNA, less literal</div>
+    </header>
+
+    <section class="intro">
+      <div class="brief">
+        <h1>Eight possible marks for Harbor One</h1>
+        <p>The old Odysseus logo says voyage. Harbor One should say arrival, control, and a calm operating place. These proposals keep the blue maritime thread but move away from a literal boat toward a compact product mark.</p>
+      </div>
+
+      <div class="reference" aria-label="Odysseus logo reference">
+        <svg class="odysseus-ref" viewBox="0 0 96 64" aria-hidden="true">
+          <path d="M45 9 45 45 18 45Z" fill="currentColor"></path>
+          <path d="M45 18 45 45 70 45Z" fill="currentColor" opacity="0.55"></path>
+          <path d="M10 52Q28 42 45 52Q62 62 86 52" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"></path>
+        </svg>
+        <div>
+          <strong>Odysseus DNA</strong>
+          <span>sail, wave, warm accent. Harbor One can inherit the journey idea without keeping the old boat shape.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="logo-grid" aria-label="Harbor One logo concepts">
+      <article class="logo-card">
+        <header class="logo-head"><strong>Harbor Gate</strong><span>01</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M24 25v46"></path>
+              <path class="line" d="M72 25v46"></path>
+              <path class="thin soft" d="M24 68c12-8 36-8 48 0"></path>
+              <circle class="node" cx="48" cy="49" r="8"></circle>
+              <path class="thin" d="M36 49h-12M60 49h12"></path>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M24 25v46"></path><path class="line" d="M72 25v46"></path><circle class="node" cx="48" cy="49" r="8"></circle>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Best for product UI.</b> Reads as an H, two harbor pillars, and a central docking point.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>H1 Beacon</strong><span>02</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M25 72V24"></path>
+              <path class="line soft" d="M70 72V24"></path>
+              <path class="thin" d="M25 49h30"></path>
+              <path class="line accent-blue" d="M56 30v42"></path>
+              <circle class="node accent-blue" cx="56" cy="22" r="5"></circle>
+              <path class="thin soft" d="M43 22c8-8 18-8 26 0M37 16c12-12 27-12 39 0"></path>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M25 72V24"></path><path class="thin" d="M25 49h30"></path><path class="line accent-blue" d="M56 30v42"></path><circle class="node accent-blue" cx="56" cy="22" r="5"></circle>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Most name-specific.</b> The 1 becomes the signal mast, while the H remains legible.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>Folded Sail</strong><span>03</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="fill" d="M47 16 47 68 25 68Z"></path>
+              <path class="fill soft" d="M49 27 49 68 72 68Z"></path>
+              <path class="thin" d="M20 74c12-7 24-7 36 0s24 7 36 0"></path>
+              <circle class="node" cx="49" cy="68" r="3.5"></circle>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="fill" d="M47 16 47 68 25 68Z"></path><path class="fill soft" d="M49 27 49 68 72 68Z"></path><path class="thin" d="M20 74c12-7 24-7 36 0s24 7 36 0"></path>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Closest to Odysseus.</b> Keeps the sail language but shifts it into blue and reduces the old softness.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>Dock Node</strong><span>04</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <circle class="node" cx="48" cy="48" r="8"></circle>
+              <path class="thin" d="M48 40V20M48 56v20M40 48H20M56 48h20"></path>
+              <path class="thin soft" d="M24 24h18M54 24h18M24 72h18M54 72h18"></path>
+              <path class="thin soft" d="M24 24v18M72 24v18M24 54v18M72 54v18"></path>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <circle class="node" cx="48" cy="48" r="8"></circle><path class="thin" d="M48 40V20M48 56v20M40 48H20M56 48h20"></path>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Most system-like.</b> Strong match for network background, memory graph, and workspace architecture.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>Meridian</strong><span>05</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M48 18v60"></path>
+              <path class="thin soft" d="M24 60c12-8 36-8 48 0"></path>
+              <path class="thin" d="M29 72c10-6 28-6 38 0"></path>
+              <circle class="node" cx="48" cy="35" r="6"></circle>
+              <path class="thin soft" d="M34 35h-14M62 35h14"></path>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M48 18v60"></path><path class="thin" d="M29 72c10-6 28-6 38 0"></path><circle class="node" cx="48" cy="35" r="6"></circle>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Calmest mark.</b> Feels like navigation, horizon, and one reliable center line.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>Breakwater</strong><span>06</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M21 31v34h18"></path>
+              <path class="line" d="M75 31v34H57"></path>
+              <path class="thin soft" d="M31 50h34"></path>
+              <path class="thin" d="M34 65c7-5 21-5 28 0"></path>
+              <circle class="node" cx="48" cy="50" r="5"></circle>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M21 31v34h18"></path><path class="line" d="M75 31v34H57"></path><circle class="node" cx="48" cy="50" r="5"></circle>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Most harbor-literal.</b> Two protective arms without drifting into security-vault language.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>Current Mark</strong><span>07</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M24 30c15 0 19 12 32 12 8 0 12-4 16-8"></path>
+              <path class="line soft" d="M24 49c15 0 19 12 32 12 8 0 12-4 16-8"></path>
+              <path class="thin" d="M24 68h48"></path>
+              <circle class="node" cx="48" cy="49" r="5"></circle>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line" d="M24 30c15 0 19 12 32 12 8 0 12-4 16-8"></path><path class="thin" d="M24 68h48"></path><circle class="node" cx="48" cy="49" r="5"></circle>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Most fluid.</b> Links water, data flow, and the blue animated network background.</div>
+      </article>
+
+      <article class="logo-card">
+        <header class="logo-head"><strong>One Pier</strong><span>08</span></header>
+        <div class="logo-stage">
+          <div class="mark-shell">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="thin soft" d="M19 63h58"></path>
+              <path class="line accent-blue" d="M48 23v50"></path>
+              <path class="line" d="M29 38v25"></path>
+              <path class="line" d="M67 38v25"></path>
+              <path class="thin" d="M29 50h38"></path>
+              <circle class="node accent-blue" cx="48" cy="23" r="5"></circle>
+            </svg>
+          </div>
+          <div class="wordmark">Harbor <small>ONE</small></div>
+          <div class="app-chip">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <path class="line accent-blue" d="M48 23v50"></path><path class="line" d="M29 38v25"></path><path class="line" d="M67 38v25"></path><path class="thin" d="M29 50h38"></path>
+            </svg>
+            <span>Harbor One</span>
+          </div>
+        </div>
+        <div class="notes"><b>Strongest H plus 1.</b> Compact enough for favicon, header mark, and app launcher.</div>
+      </article>
+    </section>
+
+    <section class="comparison" aria-label="Small size comparison">
+      <div class="comparison-head">
+        <span>Small-size stress test</span>
+        <span>what survives in the v2 header</span>
+      </div>
+      <div class="header-row">
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Harbor Gate mini"><path class="line" d="M24 25v46"></path><path class="line" d="M72 25v46"></path><circle class="node" cx="48" cy="49" r="8"></circle></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="H1 Beacon mini"><path class="line" d="M25 72V24"></path><path class="thin" d="M25 49h30"></path><path class="line accent-blue" d="M56 30v42"></path><circle class="node accent-blue" cx="56" cy="22" r="5"></circle></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Folded Sail mini"><path class="fill" d="M47 16 47 68 25 68Z"></path><path class="fill soft" d="M49 27 49 68 72 68Z"></path></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Dock Node mini"><circle class="node" cx="48" cy="48" r="8"></circle><path class="thin" d="M48 40V20M48 56v20M40 48H20M56 48h20"></path></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Meridian mini"><path class="line" d="M48 18v60"></path><circle class="node" cx="48" cy="35" r="6"></circle></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Breakwater mini"><path class="line" d="M21 31v34h18"></path><path class="line" d="M75 31v34H57"></path><circle class="node" cx="48" cy="50" r="5"></circle></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="Current Mark mini"><path class="line" d="M24 30c15 0 19 12 32 12 8 0 12-4 16-8"></path><path class="thin" d="M24 68h48"></path></svg></div>
+        <div class="mini-header"><svg viewBox="0 0 96 96" aria-label="One Pier mini"><path class="line accent-blue" d="M48 23v50"></path><path class="line" d="M29 38v25"></path><path class="line" d="M67 38v25"></path></svg></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -4,6 +4,7 @@ import logging
 import re
 
 from src.runtime_event_envelope import build_runtime_event, stable_payload_hash
+from src.todo_digest_formatting import format_todo_digest_notification_body
 
 logger = logging.getLogger(__name__)
 
@@ -58,16 +59,38 @@ def is_user_notification_output_target(output: str) -> bool:
     return (output or "").strip().lower() in {"telegram", "notification:telegram"}
 
 
+def _is_todo_digest_task(task, result: str) -> bool:
+    markers = (
+        getattr(task, "action", ""),
+        getattr(task, "action_name", ""),
+        getattr(task, "name", ""),
+        result,
+    )
+    for marker in markers:
+        normalized = " ".join(str(marker or "").strip().lower().split())
+        if (
+            normalized == "todo_digest"
+            or normalized.startswith("todo digest")
+            or "todo_digest: todo digest" in normalized
+            or "scheduled_task: todo digest" in normalized
+        ):
+            return True
+    return False
+
+
 async def deliver_user_notification_for_task(task, result: str) -> dict:
     from src.user_notification_delivery import deliver_user_notification
 
     task_ref = _task_ref(task)
+    is_todo_digest = _is_todo_digest_task(task, result or "")
+    message = format_todo_digest_notification_body(result or "") if is_todo_digest else result
     payload = {
-        "event": "scheduled_task",
-        "message": result or f"Task {getattr(task, 'name', '')} completed.",
+        "event": "todo_digest" if is_todo_digest else "scheduled_task",
+        "message": message or f"Task {getattr(task, 'name', '')} completed.",
         "severity": "success",
         "channel": "telegram",
         "dry_run": False,
+        "render_mode": "plain" if is_todo_digest else "standard",
         "metadata": {
             "task_id": task_ref,
         },

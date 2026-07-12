@@ -124,11 +124,41 @@ def _trim_text_to_budget(text: str, budget_units: int) -> tuple[str, bool]:
 
 
 class ChatProcessor:
-    def __init__(self, memory_manager, personal_docs_manager, memory_vector=None, skills_manager=None):
+    def __init__(self, memory_manager, personal_docs_manager, memory_vector=None, skills_manager=None, ai_lens_emitter_factory=None):
         self.memory_manager = memory_manager
         self.personal_docs_manager = personal_docs_manager
         self.memory_vector = memory_vector
         self.skills_manager = skills_manager
+        self.ai_lens_emitter_factory = ai_lens_emitter_factory
+
+    def build_ai_lens_model_capture(self, session: Any, *, owner: Optional[str] = None, turn_ref: Any = None):
+        """Return an optional metadata-only capture for the surrounding chat turn."""
+        if self.ai_lens_emitter_factory is None:
+            return None
+        emitter = None
+        try:
+            emitter = self.ai_lens_emitter_factory(
+                session=session,
+                owner=owner,
+                turn_ref=turn_ref or getattr(session, "id", None) or "pending-turn",
+            )
+            from src.llm_stream_events import AiLensModelStreamCapture
+
+            endpoint = str(getattr(session, "endpoint_url", "") or "").lower()
+            locality = "local" if any(marker in endpoint for marker in ("localhost", "127.0.0.1", "::1")) else "api"
+            return AiLensModelStreamCapture(
+                emitter,
+                model_ref=getattr(session, "model", None) or "pending-model",
+                route_kind="selected",
+                locality=locality,
+            )
+        except Exception:
+            if emitter is not None:
+                try:
+                    emitter.record_rejection("chat_model_capture_failed")
+                except Exception:
+                    pass
+            return None
 
     # Minimum similarity score for RAG results to be injected
     RAG_SIMILARITY_THRESHOLD = 0.35

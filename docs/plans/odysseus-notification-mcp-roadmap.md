@@ -20,6 +20,33 @@ Operator rule: Codex can request a completion notification, but it never address
 
 Technical rule: the first implementation uses the existing plugin tool registry rather than a standalone external MCP server. The dynamic registry is already visible to agent tooling, while a later dedicated MCP server can wrap the same contract if external clients need it.
 
+## Harbor Planning Notification Candidate
+
+HPIM-4 adds a separate pure contract for sparse Planning navigation metadata. It does not change the generic `odysseus_notify_user` request or authorize any delivery.
+
+`build_planning_notification_candidate(...)` accepts only:
+
+- `event_type`
+- required stable `project_id`
+- optional stable `roadmap_id` and `gate_id`, required when the event type needs them
+- `severity`, bounded plain-language `reason` and UTC `created_at`
+- a bounded logical `ui_target`
+
+The logical target is fixed to Harbor `planning` / `overview`. It may choose a typed project, roadmap or gate highlight, `focus` or `expand_summary`, and optionally request `open_roadmap_document` when a roadmap reference exists. It never contains a URL, filesystem path, query string or arbitrary route.
+
+Sparse notification-candidate events are:
+
+- project or roadmap create/delete
+- gate blocked or materially unblocked
+- human decision required
+- undo available after structural deletion
+
+Routine roadmap progress, todo completion, context-pack reads, derived-memory processing, summary refresh and agent checkpoints remain `silent`; their builder result is `None`.
+
+Every candidate contains a deterministic `sha256:` dedupe key and keeps `delivery_authorized=false` and `live_delivery_performed=false`. The candidate is eligible for a later Harbor bell/navigation consumer only. It is not a Telegram request, dispatch result, user-addressing instruction or proof of delivery.
+
+HPIM-2 / PMCP-6b handoff: Planning MCP event classification should emit only the allowlisted event type plus stable typed refs and a bounded reason into this contract. It must keep routine operations silent and must not add transport, URL, path, raw content or delivery fields.
+
 ## Non-Goals
 
 - No direct Telegram token or chat target in agent/MCP arguments.
@@ -83,6 +110,7 @@ Done when: notification-contract tests, Telegram plugin tests, Python compile ch
 ## Verification
 
 - `python -m pytest tests/test_user_notification_contract.py tests/test_telegram_plugin.py`
+- HPIM-4 focused: `python -m pytest tests/test_user_notification_contract.py -q`
 - `python -m py_compile src/user_notification_contract.py plugins/telegram/plugin.py`
 - `git diff --check`
 

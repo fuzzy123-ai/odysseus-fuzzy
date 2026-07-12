@@ -148,6 +148,15 @@ GITHUB_ISSUE_READONLY_TOOLS = frozenset({
     "github_issue_find_duplicates",
 })
 
+PLANNING_READONLY_TOOLS = frozenset({
+    "planning_list_roadmaps",
+    "planning_read_roadmap",
+    "planning_search_roadmaps",
+    "planning_get_context_pack",
+    "planning_graph_summary",
+    "planning_gate_status",
+})
+
 
 @dataclass(frozen=True)
 class McpToolPolicyOptions:
@@ -155,6 +164,7 @@ class McpToolPolicyOptions:
     allow_private_reads: bool = False
     allow_filesystem_reads: bool = False
     allow_generic_api: bool = False
+    allow_planning_reads: bool = False
     expose_all: bool = False
 
 
@@ -201,6 +211,15 @@ def classify_mcp_tool(
         return McpToolDecision(name, True, "debug_readonly", "debug_readonly_tool_allowed")
     if name in GITHUB_ISSUE_READONLY_TOOLS:
         return McpToolDecision(name, True, "github_issue_readonly", "github_issue_readonly_tool_allowed")
+    if name in PLANNING_READONLY_TOOLS:
+        return McpToolDecision(
+            name,
+            bool(options.allow_planning_reads),
+            "planning_readonly",
+            "planning_read_explicitly_allowed"
+            if options.allow_planning_reads
+            else "planning_read_hidden_by_default",
+        )
     if name in OWNER_SCOPED_WRITE_TOOLS:
         return McpToolDecision(
             name,

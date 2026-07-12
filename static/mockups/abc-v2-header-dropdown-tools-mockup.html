@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABC V2 Header Dropdown Tools Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --ink: #d7f7ff;
+      --muted: #789aaa;
+      --cyan: #16d9f5;
+      --blue: #4b8cff;
+      --teal: #22d3b6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --panel: color-mix(in srgb, var(--bg) 88%, transparent);
+      --panel-strong: color-mix(in srgb, var(--bg) 96%, var(--cyan) 4%);
+      --ink-soft: color-mix(in srgb, var(--ink) 72%, transparent);
+      --ink-muted: color-mix(in srgb, var(--ink) 54%, transparent);
+      --ink-faint: color-mix(in srgb, var(--ink) 34%, transparent);
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 50% 78%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 26%),
+        radial-gradient(circle at 12% 16%, color-mix(in srgb, var(--blue) 20%, transparent), transparent 28%),
+        radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 30%),
+        #02060d;
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -80px;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(118deg, transparent 0 18%, color-mix(in srgb, var(--cyan) 7%, transparent) 26%, transparent 34%),
+        linear-gradient(68deg, transparent 0 48%, color-mix(in srgb, var(--blue) 8%, transparent) 62%, transparent 72%);
+      filter: blur(2px);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background:
+        radial-gradient(circle at 18% 24%, color-mix(in srgb, var(--cyan) 16%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 72% 18%, color-mix(in srgb, var(--teal) 13%, transparent) 0 2px, transparent 3px),
+        radial-gradient(circle at 78% 74%, color-mix(in srgb, var(--blue) 13%, transparent) 0 2px, transparent 3px),
+        linear-gradient(28deg, transparent 0 18%, color-mix(in srgb, var(--cyan) 6%, transparent) 18.2% 18.4%, transparent 18.8% 48%, color-mix(in srgb, var(--blue) 5%, transparent) 48.2% 48.4%, transparent 49%),
+        repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 3%, transparent) 0 1px, transparent 1px 5px);
+      opacity: 0.68;
+      mix-blend-mode: screen;
+    }
+
+    .topline {
+      position: fixed;
+      top: 13px;
+      left: 18px;
+      right: 18px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(70px, 1fr) auto minmax(170px, 1fr);
+      align-items: center;
+      gap: 18px;
+      pointer-events: none;
+    }
+
+    .brand-mark,
+    .build-state {
+      font-family: var(--mono);
+      text-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 55%, transparent);
+    }
+
+    .brand-mark {
+      pointer-events: auto;
+      color: var(--cyan);
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .workspace-tabs {
+      justify-self: center;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(118px, 1fr));
+      align-items: center;
+      gap: 10px;
+      width: min(760px, 58vw);
+      min-height: 46px;
+      padding: 7px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--cyan) 7%, transparent), var(--panel)),
+        var(--panel);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 3%, transparent);
+      pointer-events: auto;
+    }
+
+    .workspace-group {
+      position: relative;
+      min-width: 0;
+      --accent: var(--cyan);
+    }
+
+    .workspace-group:nth-child(1) {
+      --accent: var(--blue);
+    }
+
+    .workspace-group:nth-child(2) {
+      --accent: var(--teal);
+    }
+
+    .workspace-group:nth-child(3) {
+      --accent: var(--amber);
+    }
+
+    .workspace-group:nth-child(4) {
+      --accent: var(--green);
+    }
+
+    .workspace-tab,
+    .tools-button,
+    .menu-row {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .workspace-tab {
+      width: 100%;
+      min-width: 0;
+      height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--ink-muted);
+      font: 700 13px/1 var(--mono);
+      text-align: left;
+      padding: 0 10px;
+      transition:
+        color 160ms ease,
+        border-color 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .workspace-group:hover .workspace-tab,
+    .workspace-group:focus-within .workspace-tab,
+    .workspace-tab.active {
+      color: color-mix(in srgb, var(--ink) 95%, white 5%);
+      border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 17%, transparent), color-mix(in srgb, var(--accent) 6%, transparent)),
+        var(--panel-strong);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent),
+        0 0 16px color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+
+    .workspace-tab-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--accent) 42%, var(--ink-muted));
+      opacity: 0.72;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .workspace-tab.active .workspace-tab-dot,
+    .workspace-group:hover .workspace-tab-dot,
+    .workspace-group:focus-within .workspace-tab-dot {
+      background: var(--accent);
+      opacity: 1;
+      box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 64%, transparent);
+    }
+
+    .workspace-tab-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .workspace-tab-count {
+      min-width: 20px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--accent) 52%, transparent);
+      border-radius: 10px;
+      color: color-mix(in srgb, var(--accent) 86%, var(--ink));
+      font-size: 11px;
+      font-weight: 700;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .topline-controls {
+      position: relative;
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .privacy-chip,
+    .build-state {
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      color: var(--ink-muted);
+      padding: 0 10px;
+      font: 11px/1 var(--mono);
+    }
+
+    .tools-cluster {
+      position: relative;
+      display: inline-grid;
+      --accent: var(--cyan);
+    }
+
+    .tools-button {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--cyan) 24%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--cyan) 8%, transparent), var(--panel)),
+        var(--panel);
+      transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .tools-button-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 3px);
+      gap: 3px;
+    }
+
+    .tools-button-grid span {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--ink-soft);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 28%, transparent);
+    }
+
+    .tools-cluster:hover .tools-button,
+    .tools-cluster:focus-within .tools-button {
+      border-color: color-mix(in srgb, var(--cyan) 62%, transparent);
+      background: color-mix(in srgb, var(--cyan) 12%, var(--panel));
+      box-shadow: 0 0 16px color-mix(in srgb, var(--cyan) 12%, transparent);
+    }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      min-width: 258px;
+      display: grid;
+      gap: 6px;
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 42%),
+        linear-gradient(180deg, var(--panel-strong), var(--panel)),
+        #07111d;
+      box-shadow:
+        0 18px 38px color-mix(in srgb, var(--bg) 76%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+      padding: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.985);
+      transform-origin: top center;
+      transition:
+        opacity 150ms ease,
+        transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 150ms ease;
+    }
+
+    .workspace-group .dropdown {
+      left: 50%;
+      transform: translate(-50%, -6px) scale(0.985);
+    }
+
+    .workspace-group:hover .dropdown,
+    .workspace-group:focus-within .dropdown {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0) scale(1);
+    }
+
+    .tools-cluster .dropdown {
+      right: 0;
+      min-width: 292px;
+    }
+
+    .tools-cluster:hover .dropdown,
+    .tools-cluster:focus-within .dropdown {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .menu-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 28px;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--ink-muted);
+      font: 10px/1 var(--mono);
+      padding: 0 6px 7px;
+    }
+
+    .menu-title strong {
+      color: color-mix(in srgb, var(--ink) 88%, white 4%);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .menu-row {
+      position: relative;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--ink-soft);
+      text-align: left;
+      padding: 7px 8px;
+      transition:
+        background 130ms ease,
+        border-color 130ms ease,
+        transform 130ms ease;
+    }
+
+    .menu-row:hover,
+    .menu-row:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      transform: translateY(-1px);
+    }
+
+    .menu-icon {
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 38%, transparent);
+    }
+
+    .menu-row strong {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: color-mix(in srgb, var(--ink) 90%, white 4%);
+      font: 700 12px/1.2 var(--mono);
+    }
+
+    .menu-row span:not(.menu-icon):not(.shortcut) {
+      display: block;
+      margin-top: 3px;
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 11px/1.25 var(--font);
+    }
+
+    .shortcut {
+      min-width: 38px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+      border-radius: 10px;
+      color: var(--ink-faint);
+      font: 10px/1 var(--mono);
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+    }
+
+    .workspace {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      padding: 40px;
+      overflow: hidden;
+    }
+
+    .workspace-window {
+      position: absolute;
+      left: 50%;
+      top: 53%;
+      width: min(720px, calc(100vw - 160px));
+      height: min(610px, calc(100dvh - 130px));
+      display: flex;
+      flex-direction: column;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, var(--panel-strong), var(--panel)),
+        #07111d;
+      box-shadow: 0 18px 46px color-mix(in srgb, var(--bg) 76%, transparent);
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+    }
+
+    .window-head {
+      position: relative;
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+      font-family: var(--mono);
+    }
+
+    .window-title {
+      color: color-mix(in srgb, var(--ink) 92%, white 4%);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .window-actions {
+      position: absolute;
+      right: 14px;
+      top: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--cyan);
+      font: 14px/1 var(--mono);
+    }
+
+    .window-body {
+      min-height: 0;
+      flex: 1;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      padding: 18px;
+      gap: 14px;
+    }
+
+    .message-stack {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      padding-left: 42px;
+      border-left: 1px solid color-mix(in srgb, var(--blue) 28%, transparent);
+    }
+
+    .message {
+      position: relative;
+      border: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 58%, transparent);
+      color: color-mix(in srgb, var(--ink) 78%, transparent);
+      padding: 13px 15px;
+      font: 14px/1.5 var(--font);
+    }
+
+    .message::before {
+      content: "";
+      position: absolute;
+      left: -47px;
+      top: 20px;
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--blue);
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 54%, transparent);
+    }
+
+    .message::after {
+      content: "";
+      position: absolute;
+      left: -40px;
+      top: 24px;
+      width: 35px;
+      height: 1px;
+      background: color-mix(in srgb, var(--blue) 28%, transparent);
+    }
+
+    .work-entry {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 34px;
+      border: 1px solid color-mix(in srgb, var(--red) 18%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--red) 10%, transparent), transparent),
+        color-mix(in srgb, var(--bg) 58%, transparent);
+      color: color-mix(in srgb, var(--red) 86%, var(--ink));
+      padding: 7px 11px;
+      font: 11px/1.25 var(--mono);
+    }
+
+    .work-entry::before {
+      content: "";
+      position: absolute;
+      left: -47px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--red);
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--red) 54%, transparent);
+      transform: translateY(-50%);
+    }
+
+    .work-entry::after {
+      content: "";
+      position: absolute;
+      left: -40px;
+      top: 50%;
+      width: 35px;
+      height: 1px;
+      background: color-mix(in srgb, var(--red) 34%, transparent);
+    }
+
+    .work-entry strong {
+      color: color-mix(in srgb, var(--red) 84%, var(--ink));
+      font-weight: 700;
+    }
+
+    .work-entry span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: color-mix(in srgb, var(--ink) 56%, transparent);
+    }
+
+    .work-entry code {
+      justify-self: end;
+      color: color-mix(in srgb, var(--red) 64%, var(--ink));
+      font: 10px/1 var(--mono);
+    }
+
+    .composer {
+      min-height: 90px;
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto auto;
+      align-items: end;
+      border: 1px solid color-mix(in srgb, var(--cyan) 48%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      overflow: hidden;
+    }
+
+    .composer-icon {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      border-right: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+      color: var(--cyan);
+      font: 16px/1 var(--mono);
+    }
+
+    .composer-placeholder {
+      align-self: start;
+      color: color-mix(in srgb, var(--muted) 86%, transparent);
+      font: 15px/1 var(--mono);
+      padding: 19px 14px;
+    }
+
+    .mini-pill,
+    .send-button {
+      margin-bottom: 14px;
+    }
+
+    .mini-pill {
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 76%, transparent);
+      color: var(--ink-muted);
+      font: 11px/1 var(--mono);
+      padding: 6px 9px;
+    }
+
+    .send-button {
+      width: 44px;
+      height: 44px;
+      margin-right: 14px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--cyan) 10%, var(--panel));
+      color: var(--cyan);
+      font: 18px/1 var(--mono);
+    }
+
+    .callout {
+      position: absolute;
+      left: 36px;
+      bottom: 32px;
+      max-width: 420px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 68%, transparent);
+      color: var(--ink-muted);
+      padding: 11px 13px;
+      font: 11px/1.45 var(--mono);
+    }
+
+    @media (max-width: 900px) {
+      .topline {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      .workspace-tabs {
+        width: auto;
+        grid-template-columns: repeat(4, minmax(30px, 1fr));
+        gap: 4px;
+        min-height: 36px;
+        padding: 5px;
+      }
+
+      .workspace-tab {
+        height: 26px;
+        grid-template-columns: auto;
+        justify-content: center;
+        gap: 0;
+        padding: 0 6px;
+      }
+
+      .workspace-tab.active {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 6px;
+      }
+
+      .workspace-tab-label,
+      .workspace-tab-count,
+      .privacy-chip,
+      .build-state {
+        display: none;
+      }
+
+      .workspace-tab.active .workspace-tab-label {
+        display: block;
+      }
+
+      .dropdown {
+        min-width: min(280px, calc(100vw - 34px));
+      }
+
+      .workspace-window {
+        left: 18px;
+        top: 64px;
+        width: calc(100vw - 36px);
+        height: calc(100dvh - 88px);
+        transform: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="topline" aria-label="ABC header dropdown experiment">
+      <div class="brand-mark">ABC</div>
+
+      <nav class="workspace-tabs" aria-label="Workspaces">
+        <div class="workspace-group">
+          <button class="workspace-tab active" type="button" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Agent</span>
+            <span class="workspace-tab-count">3</span>
+          </button>
+          <div class="dropdown" role="menu" aria-label="Agent actions">
+            <div class="menu-title"><strong>Agent</strong><span>current workspace</span></div>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>New chat</strong><span>Start a clean agent conversation</span></span><span class="shortcut">Ctrl+N</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Chat history</strong><span>Open recent and active chats</span></span><span class="shortcut">H</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Run task</strong><span>Give ABC an action to execute</span></span><span class="shortcut">Enter</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Attach context</strong><span>Add files, documents, or project state</span></span><span class="shortcut">+</span></button>
+          </div>
+        </div>
+
+        <div class="workspace-group">
+          <button class="workspace-tab" type="button" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Knowledge</span>
+            <span class="workspace-tab-count">1</span>
+          </button>
+          <div class="dropdown" role="menu" aria-label="Knowledge actions">
+            <div class="menu-title"><strong>Knowledge</strong><span>memory and sources</span></div>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Knowledge graph</strong><span>Open the visual memory map</span></span><span class="shortcut">Ctrl+2</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Search all</strong><span>Search memory, docs, cloud, and web</span></span><span class="shortcut">/</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Memory</strong><span>Review learned facts and rules</span></span><span class="shortcut">M</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Sources</strong><span>Manage indexed folders and services</span></span><span class="shortcut">S</span></button>
+          </div>
+        </div>
+
+        <div class="workspace-group">
+          <button class="workspace-tab" type="button" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Planning</span>
+          </button>
+          <div class="dropdown" role="menu" aria-label="Planning actions">
+            <div class="menu-title"><strong>Planning</strong><span>projects and decisions</span></div>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Projects overview</strong><span>Open roadmap, status, and project list</span></span><span class="shortcut">Ctrl+3</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Todos</strong><span>See all tasks across projects</span></span><span class="shortcut">T</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Decisions</strong><span>Show open choices and assumptions</span></span><span class="shortcut">D</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Create plan</strong><span>Turn a goal into a staged plan</span></span><span class="shortcut">P</span></button>
+          </div>
+        </div>
+
+        <div class="workspace-group">
+          <button class="workspace-tab" type="button" aria-expanded="false">
+            <span class="workspace-tab-dot" aria-hidden="true"></span>
+            <span class="workspace-tab-label">Inbox</span>
+            <span class="workspace-tab-count">2</span>
+          </button>
+          <div class="dropdown" role="menu" aria-label="Inbox actions">
+            <div class="menu-title"><strong>Inbox</strong><span>imports and routing</span></div>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Import</strong><span>Drop files, links, text, or screenshots</span></span><span class="shortcut">Ctrl+4</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Recent imports</strong><span>See what ABC analyzed last</span></span><span class="shortcut">R</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Routing rules</strong><span>Choose where incoming items go</span></span><span class="shortcut">Rules</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Activity log</strong><span>Review and undo automated actions</span></span><span class="shortcut">Log</span></button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="topline-controls">
+        <span class="privacy-chip">GDPR</span>
+        <span class="build-state">V2 - header menu experiment</span>
+        <div class="tools-cluster">
+          <button class="tools-button" type="button" aria-label="Global tools" aria-expanded="false" title="Global tools">
+            <span class="tools-button-grid" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+            </span>
+          </button>
+          <div class="dropdown" role="menu" aria-label="Global tools">
+            <div class="menu-title"><strong>Tools</strong><span>global</span></div>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Command search</strong><span>Find every action without browsing menus</span></span><span class="shortcut">Alt+Space</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Settings</strong><span>Models, privacy, shortcuts, windows</span></span><span class="shortcut">,</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Skills</strong><span>Automation rules ABC can use</span></span><span class="shortcut">K</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Hooks</strong><span>Event triggers and guardrails</span></span><span class="shortcut">Hooks</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Terminal</strong><span>Open a controlled command surface</span></span><span class="shortcut">&gt;_</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Cloud control</strong><span>Connected services, logs, undo</span></span><span class="shortcut">Cloud</span></button>
+            <button class="menu-row" type="button"><span class="menu-icon"></span><span><strong>Window rules</strong><span>Snap, minimize, restore, defaults</span></span><span class="shortcut">Win</span></button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Preview workspace">
+      <article class="workspace-window">
+        <header class="window-head">
+          <div class="window-title">Vector Debug</div>
+          <div class="window-actions"><span>-</span><span>[]</span><span>x</span></div>
+        </header>
+        <div class="window-body">
+          <main class="message-stack">
+            <div class="message">Check why memory search slows down during long sessions.</div>
+            <div class="work-entry"><strong>Read</strong><span>Opened memory retrieval notes and recent project context.</span><code>01</code></div>
+            <div class="work-entry"><strong>Checked</strong><span>Compared candidate growth against reranking behavior.</span><code>02</code></div>
+            <div class="work-entry"><strong>Prepared</strong><span>Built a safe trace plan before changing retrieval limits.</span><code>03</code></div>
+            <div class="message">ABC found three likely causes: a growing candidate pool, duplicate ranking paths, and no cutoff for old context.</div>
+            <div class="work-entry"><strong>Tool</strong><span>Simulated the header dropdown path and inspected global tool placement.</span><code>04</code></div>
+            <div class="work-entry"><strong>Decided</strong><span>Keep workspace actions local and move broad tools to the global icon.</span><code>05</code></div>
+            <div class="message">The new header menus keep workspace actions nearby, while global tools stay out of the main decision path.</div>
+          </main>
+          <div class="composer">
+            <div class="composer-icon">[]</div>
+            <div class="composer-placeholder">/ ask ABC something</div>
+            <button class="mini-pill" type="button">Agent</button>
+            <button class="send-button" type="button">^</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <aside class="callout">
+      Experiment: workspace buttons expose local actions. The small icon at the right is only for global tools that do not belong to one workspace.
+    </aside>
+  </main>
+</body>
+</html>
