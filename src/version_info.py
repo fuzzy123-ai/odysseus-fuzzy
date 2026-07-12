@@ -40,6 +40,56 @@ def _remote_head(remote: str | None, ref: str | None) -> str | None:
     return output.split()[0]
 
 
+def _git_is_ancestor(ancestor: str, descendant: str, timeout: float = 2.0) -> bool | None:
+    """Return whether ``ancestor`` is reachable from ``descendant``.
+
+    ``None`` means Git could not determine the relation, for example because a
+    remote commit reported by ``ls-remote`` has not been fetched locally yet.
+    """
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", BASE_DIR, "merge-base", "--is-ancestor", ancestor, descendant],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=timeout,
+        )
+    except Exception:
+        return None
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def _classify_version_relation(
+    commit: str | None,
+    latest_commit: str | None,
+) -> tuple[bool | None, str, str]:
+    """Return ``(update_available, status, relation)`` for two revisions."""
+
+    if not commit or not latest_commit:
+        return None, "unknown", "unknown"
+    if commit == latest_commit:
+        return False, "current", "same"
+
+    latest_is_ancestor = _git_is_ancestor(latest_commit, commit)
+    if latest_is_ancestor is True:
+        return False, "current", "ahead"
+
+    commit_is_ancestor = _git_is_ancestor(commit, latest_commit)
+    if commit_is_ancestor is True:
+        return True, "outdated", "behind"
+    if latest_is_ancestor is False and commit_is_ancestor is False:
+        return True, "diverged", "diverged"
+
+    # Preserve the conservative legacy signal when Git cannot inspect a remote
+    # object locally. The explicit relation keeps the uncertainty visible.
+    return True, "outdated", "unknown"
+
+
 def get_version_info(force_refresh: bool = False) -> dict[str, Any]:
     now = time.monotonic()
     if not force_refresh and _CACHE["payload"] and now < _CACHE["expires_at"]:
@@ -53,11 +103,7 @@ def get_version_info(force_refresh: bool = False) -> dict[str, Any]:
     ref = _upstream_ref(branch) or os.getenv("ODYSSEUS_GIT_REMOTE_REF")
     latest_commit = _remote_head(remote, ref)
 
-    update_available = None
-    status = "unknown"
-    if commit and latest_commit:
-        update_available = commit != latest_commit
-        status = "outdated" if update_available else "current"
+    update_available, status, relation = _classify_version_relation(commit, latest_commit)
 
     payload = {
         "version": APP_VERSION,
@@ -68,6 +114,7 @@ def get_version_info(force_refresh: bool = False) -> dict[str, Any]:
         "latest_commit": latest_commit[:12] if latest_commit else None,
         "update_available": update_available,
         "status": status,
+        "relation": relation,
     }
     _CACHE["payload"] = payload
     _CACHE["expires_at"] = now + _CACHE_TTL_SECONDS
