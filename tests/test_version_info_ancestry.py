@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from src import version_info
@@ -59,3 +61,40 @@ def test_version_payload_reports_ahead_release_as_current(monkeypatch):
     assert payload["status"] == "current"
     assert payload["relation"] == "ahead"
     assert payload["update_available"] is False
+
+
+def test_version_payload_uses_matching_container_relation_hint(monkeypatch):
+    monkeypatch.setattr(version_info, "_git", lambda args, timeout=2.0: None)
+    monkeypatch.setattr(version_info, "_remote_head", lambda remote, ref: None)
+    monkeypatch.setattr(version_info, "_git_is_ancestor", lambda ancestor, descendant: None)
+    monkeypatch.setenv("ODYSSEUS_GIT_COMMIT", "local-release")
+    monkeypatch.setenv("ODYSSEUS_GIT_SHORT_COMMIT", "local123")
+    monkeypatch.setenv("ODYSSEUS_GIT_BRANCH", "dev")
+    monkeypatch.setenv("ODYSSEUS_GIT_REMOTE_URL", "https://example.invalid/repo.git")
+    monkeypatch.setenv("ODYSSEUS_GIT_REMOTE_REF", "refs/heads/dev")
+    monkeypatch.setenv("ODYSSEUS_GIT_LATEST_COMMIT", "upstream-base")
+    monkeypatch.setenv("ODYSSEUS_GIT_RELATION", "ahead")
+    monkeypatch.setitem(version_info._CACHE, "payload", None)
+    monkeypatch.setitem(version_info._CACHE, "expires_at", 0.0)
+
+    payload = version_info.get_version_info(force_refresh=True)
+
+    assert payload["commit"] == "local123"
+    assert payload["latest_commit"] == "upstream-bas"
+    assert payload["status"] == "current"
+    assert payload["relation"] == "ahead"
+    assert payload["update_available"] is False
+
+
+def test_homeserver_version_relation_is_forwarded_to_container():
+    root = Path(version_info.BASE_DIR)
+    script = (root / "ops" / "homeserver" / "update-odysseus-version-env.sh").read_text(
+        encoding="utf-8"
+    )
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert 'git merge-base --is-ancestor "$LATEST_COMMIT" "$COMMIT"' in script
+    assert '"ODYSSEUS_GIT_LATEST_COMMIT": sys.argv[7]' in script
+    assert '"ODYSSEUS_GIT_RELATION": sys.argv[8]' in script
+    assert "ODYSSEUS_GIT_LATEST_COMMIT=${ODYSSEUS_GIT_LATEST_COMMIT:-}" in compose
+    assert "ODYSSEUS_GIT_RELATION=${ODYSSEUS_GIT_RELATION:-}" in compose

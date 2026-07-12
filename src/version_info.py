@@ -67,6 +67,7 @@ def _git_is_ancestor(ancestor: str, descendant: str, timeout: float = 2.0) -> bo
 def _classify_version_relation(
     commit: str | None,
     latest_commit: str | None,
+    relation_hint: str | None = None,
 ) -> tuple[bool | None, str, str]:
     """Return ``(update_available, status, relation)`` for two revisions."""
 
@@ -85,6 +86,14 @@ def _classify_version_relation(
     if latest_is_ancestor is False and commit_is_ancestor is False:
         return True, "diverged", "diverged"
 
+    hinted = str(relation_hint or "").strip().lower()
+    if hinted == "ahead":
+        return False, "current", "ahead"
+    if hinted == "behind":
+        return True, "outdated", "behind"
+    if hinted == "diverged":
+        return True, "diverged", "diverged"
+
     # Preserve the conservative legacy signal when Git cannot inspect a remote
     # object locally. The explicit relation keeps the uncertainty visible.
     return True, "outdated", "unknown"
@@ -101,9 +110,17 @@ def get_version_info(force_refresh: bool = False) -> dict[str, Any]:
     remote = _git(["config", "--get", f"branch.{branch}.remote"]) if branch else None
     remote = remote or os.getenv("ODYSSEUS_GIT_REMOTE_URL") or "origin"
     ref = _upstream_ref(branch) or os.getenv("ODYSSEUS_GIT_REMOTE_REF")
-    latest_commit = _remote_head(remote, ref)
+    configured_latest_commit = os.getenv("ODYSSEUS_GIT_LATEST_COMMIT") or None
+    latest_commit = _remote_head(remote, ref) or configured_latest_commit
+    relation_hint = None
+    if configured_latest_commit and latest_commit == configured_latest_commit:
+        relation_hint = os.getenv("ODYSSEUS_GIT_RELATION") or None
 
-    update_available, status, relation = _classify_version_relation(commit, latest_commit)
+    update_available, status, relation = _classify_version_relation(
+        commit,
+        latest_commit,
+        relation_hint,
+    )
 
     payload = {
         "version": APP_VERSION,
