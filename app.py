@@ -635,8 +635,6 @@ from routes.internal_reference_routes import setup_internal_reference_routes
 app.include_router(setup_internal_reference_routes(memory_manager))
 from routes.review_gate_routes import setup_review_gate_routes
 app.include_router(setup_review_gate_routes())
-from routes.operator_dashboard_routes import setup_operator_dashboard_routes
-app.include_router(setup_operator_dashboard_routes(mcp_manager=mcp_manager))
 from routes.legacy_chat_contract_routes import setup_legacy_chat_contract_routes
 app.include_router(setup_legacy_chat_contract_routes())
 from routes.version_one_readiness_routes import setup_version_one_readiness_routes
@@ -835,6 +833,8 @@ set_mcp_manager(mcp_manager)
 app.include_router(setup_mcp_routes(mcp_manager))
 from routes.operator_quick_status_routes import setup_operator_quick_status_routes
 app.include_router(setup_operator_quick_status_routes(mcp_manager))
+from routes.operator_dashboard_routes import setup_operator_dashboard_routes
+app.include_router(setup_operator_dashboard_routes(mcp_manager=mcp_manager))
 logger.info("MCP routes initialized")
 
 # AI Interaction tools (debates, pipelines, self-managing AI, UI control)
