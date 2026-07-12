@@ -51,3 +51,11 @@ timetree*.png
 *_signin_page.png
 *_calendar_view.png
 .gitignore
+
+# Admin-only non-UI readiness routes audit roadmap JSON at runtime. Keep the
+# rest of docs excluded, but include the bounded machine-readable plan inputs.
+!docs/
+docs/*
+!docs/plans/
+docs/plans/*
+!docs/plans/*.json
