@@ -122,6 +122,16 @@ _CONFIRM_KEYS = {
 
 
 _STRUCTURED_SCHEMAS: dict[str, dict[str, Any]] = {
+    "agent_input_token_budget_overrides": {
+        "type": "object",
+        "required": ("providers", "models"),
+        "properties": {
+            "providers": {"type": "object", "additional_properties": "positive_int"},
+            "models": {"type": "object", "additional_properties": "positive_int"},
+        },
+        "additional_properties": False,
+        "patch_ops": ("set", "remove", "replace", "clear"),
+    },
     "default_model_fallbacks": {
         "type": "list",
         "items": {"type": "object", "required": ["endpoint_id"], "properties": {"endpoint_id": "str", "model": "str"}},

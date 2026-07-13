@@ -13,7 +13,12 @@ from unittest.mock import patch
 
 import src.settings as settings
 import src.model_context as mc
-from src.context_budget import compute_input_token_budget, DEFAULT_BUDGET, budget_is_explicit
+from src.context_budget import (
+    DEFAULT_BUDGET,
+    DEFAULT_HARD_MAX,
+    budget_is_explicit,
+    compute_input_token_budget,
+)
 
 
 def test_default_value_is_the_auto_sentinel():
@@ -49,12 +54,17 @@ def test_saving_an_unrelated_setting_does_not_re_cap_the_budget(tmp_path, monkey
     assert settings.is_setting_overridden("agent_input_token_budget") is True
     soft = int(settings.get_setting("agent_input_token_budget", DEFAULT_BUDGET) or 0)
     assert budget_is_explicit(soft) is False
-    # And the effective budget scales to the window rather than capping at 6000.
-    assert compute_input_token_budget(soft, 131072, explicit=budget_is_explicit(soft)) == int(131072 * 0.85)
+    # And the effective budget scales beyond 6000 to the configured auto hard
+    # maximum. The hard maximum intentionally bounds long prefill prompts.
+    assert compute_input_token_budget(
+        soft, 131072, explicit=budget_is_explicit(soft)
+    ) == DEFAULT_HARD_MAX
 
 
 def test_auto_scales_on_a_known_window():
-    assert compute_input_token_budget(DEFAULT_BUDGET, 131072, explicit=False) == int(131072 * 0.85)
+    assert compute_input_token_budget(
+        DEFAULT_BUDGET, 131072, explicit=False
+    ) == DEFAULT_HARD_MAX
 
 
 def test_auto_stays_conservative_on_unknown_window():
@@ -105,7 +115,9 @@ def test_budget_context_binds_known_flag_to_its_own_value():
 def test_no_arg_caller_scales_from_discovered_window_not_6000():
     """End-to-end of the fix: a caller that passes no context_length (scheduled
     tasks, teacher escalation, ...) but whose endpoint reports 131072 now scales to
-    ~111k instead of being capped at the conservative 6000."""
+    the auto hard maximum instead of being capped at the conservative 6000."""
     with patch.object(mc, "get_context_length_known", return_value=(131072, True)):
         ctx = mc.budget_context_for_model("u", "m", fallback=0)
-    assert compute_input_token_budget(DEFAULT_BUDGET, ctx, explicit=False) == int(131072 * 0.85)
+    assert compute_input_token_budget(
+        DEFAULT_BUDGET, ctx, explicit=False
+    ) == DEFAULT_HARD_MAX

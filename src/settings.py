@@ -130,6 +130,10 @@ DEFAULT_SETTINGS = {
     # want to actually use (e.g. 900_000 to fill a 1M-context model). See
     # `compute_input_token_budget` in src/context_budget.py.
     "agent_input_token_hard_max": 32_000,
+    # Optional prompt-cap overrides. Positive integer values only; resolution
+    # precedence is exact normalized model, then provider, then the legacy
+    # global cap/auto policy. Invalid entries are ignored defensively at runtime.
+    "agent_input_token_budget_overrides": {"providers": {}, "models": {}},
     "context_compact_threshold": 0.65,
     "session_touch_interval_seconds": 60,
     "session_cache_max": 100,
