@@ -2333,6 +2333,226 @@ function initAccount() {
   }
 }
 
+/* Context input budget overrides (Agent Tools tab). */
+async function initContextBudgetOverrides() {
+  var providerList = el('set-contextProviderCaps');
+  var modelList = el('set-contextModelCaps');
+  var addProviderBtn = el('set-contextAddProvider');
+  var addModelBtn = el('set-contextAddModel');
+  var saveBtn = el('set-contextBudgetOverridesSave');
+  var msg = el('set-contextBudgetOverridesMsg');
+  if (!providerList || !modelList || !addProviderBtn || !addModelBtn || !saveBtn || !msg) return;
+
+  var rowSequence = 0;
+
+  function setMessage(text, isError) {
+    msg.textContent = text;
+    msg.style.color = isError ? 'var(--red)' : 'color-mix(in srgb, var(--fg) 65%, transparent)';
+  }
+
+  function syncEmptyState(kind) {
+    var list = kind === 'providers' ? providerList : modelList;
+    var empty = el(kind === 'providers' ? 'set-contextProviderCapsEmpty' : 'set-contextModelCapsEmpty');
+    if (empty) empty.hidden = list.children.length > 0;
+  }
+
+  function clearInvalid(input) {
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
+    input.style.removeProperty('border-color');
+  }
+
+  function markInvalid(input) {
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('aria-describedby', 'set-contextBudgetOverridesMsg');
+    input.style.borderColor = 'var(--red)';
+  }
+
+  function addRow(kind, name, cap, focusName) {
+    var list = kind === 'providers' ? providerList : modelList;
+    var singular = kind === 'providers' ? 'Provider' : 'Model';
+    var rowId = 'set-context-' + kind + '-' + (++rowSequence);
+    var row = document.createElement('div');
+    row.className = 'settings-row';
+    row.dataset.contextCapRow = kind;
+    row.setAttribute('role', 'listitem');
+    row.style.alignItems = 'stretch';
+
+    var nameLabel = document.createElement('label');
+    nameLabel.className = 'a11y-visually-hidden';
+    nameLabel.htmlFor = rowId + '-name';
+    nameLabel.textContent = singular + ' name';
+
+    var nameInput = document.createElement('input');
+    nameInput.id = rowId + '-name';
+    nameInput.className = 'settings-select';
+    nameInput.type = 'text';
+    nameInput.autocomplete = 'off';
+    nameInput.placeholder = kind === 'providers' ? 'Provider name' : 'Model ID';
+    nameInput.value = name || '';
+    nameInput.dataset.contextCapName = '';
+
+    var capLabel = document.createElement('label');
+    capLabel.className = 'a11y-visually-hidden';
+    capLabel.htmlFor = rowId + '-cap';
+    capLabel.textContent = singular + ' input token cap';
+
+    var capInput = document.createElement('input');
+    capInput.id = rowId + '-cap';
+    capInput.className = 'settings-select';
+    capInput.type = 'number';
+    capInput.inputMode = 'numeric';
+    capInput.min = '1';
+    capInput.step = '1';
+    capInput.placeholder = 'Token cap';
+    capInput.value = cap == null ? '' : String(cap);
+    capInput.dataset.contextCapValue = '';
+    capInput.style.flex = '0 1 130px';
+
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'admin-btn-sm';
+    removeBtn.textContent = 'Remove';
+    function updateRemoveLabel() {
+      var currentName = nameInput.value.trim();
+      removeBtn.setAttribute('aria-label', 'Remove ' + singular.toLowerCase() + ' cap' + (currentName ? ' for ' + currentName : ''));
+    }
+    updateRemoveLabel();
+    removeBtn.addEventListener('click', function() {
+      row.remove();
+      syncEmptyState(kind);
+      setMessage('Unsaved changes', false);
+    });
+
+    [nameInput, capInput].forEach(function(input) {
+      input.addEventListener('input', function() {
+        clearInvalid(input);
+        if (input === nameInput) updateRemoveLabel();
+        setMessage('Unsaved changes', false);
+      });
+    });
+
+    row.append(nameLabel, nameInput, capLabel, capInput, removeBtn);
+    list.appendChild(row);
+    syncEmptyState(kind);
+    if (focusName) nameInput.focus();
+  }
+
+  function normalizeOverrides(raw) {
+    var normalized = { providers: Object.create(null), models: Object.create(null) };
+    ['providers', 'models'].forEach(function(kind) {
+      var entries = raw && raw[kind];
+      if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return;
+      Object.keys(entries).sort().forEach(function(name) {
+        var cap = entries[name];
+        if (name.trim() && Number.isSafeInteger(cap) && cap > 0) {
+          normalized[kind][name] = cap;
+        }
+      });
+    });
+    return normalized;
+  }
+
+  function renderOverrides(overrides) {
+    providerList.replaceChildren();
+    modelList.replaceChildren();
+    Object.entries(overrides.providers).forEach(function(entry) {
+      addRow('providers', entry[0], entry[1], false);
+    });
+    Object.entries(overrides.models).forEach(function(entry) {
+      addRow('models', entry[0], entry[1], false);
+    });
+    syncEmptyState('providers');
+    syncEmptyState('models');
+  }
+
+  function serializeList(kind, list) {
+    var values = Object.create(null);
+    var invalid = [];
+    list.querySelectorAll('[data-context-cap-row]').forEach(function(row) {
+      var nameInput = row.querySelector('[data-context-cap-name]');
+      var capInput = row.querySelector('[data-context-cap-value]');
+      var name = nameInput.value.trim();
+      // Runtime matching is case-insensitive and normalizes path separators.
+      // Save the same canonical key here so visually different duplicates do
+      // not silently overwrite each other in the backend policy map.
+      var normalizedName = name.toLowerCase().replace(/\\/g, '/');
+      var rawCap = capInput.value.trim();
+      var cap = Number(rawCap);
+      clearInvalid(nameInput);
+      clearInvalid(capInput);
+
+      if (!name) {
+        markInvalid(nameInput);
+        invalid.push((kind === 'providers' ? 'Provider' : 'Model') + ' name is required.');
+      }
+      if (!/^\d+$/.test(rawCap) || !Number.isSafeInteger(cap) || cap <= 0) {
+        markInvalid(capInput);
+        invalid.push('Token cap must be a positive whole number.');
+      }
+      if (name && Object.prototype.hasOwnProperty.call(values, normalizedName)) {
+        markInvalid(nameInput);
+        invalid.push('Each ' + (kind === 'providers' ? 'provider' : 'model') + ' can appear only once.');
+      }
+      if (name && /^\d+$/.test(rawCap) && Number.isSafeInteger(cap) && cap > 0 && !Object.prototype.hasOwnProperty.call(values, normalizedName)) {
+        values[normalizedName] = cap;
+      }
+    });
+    return { values: values, invalid: invalid };
+  }
+
+  async function saveOverrides() {
+    var providers = serializeList('providers', providerList);
+    var models = serializeList('models', modelList);
+    var errors = providers.invalid.concat(models.invalid);
+    if (errors.length) {
+      var firstError = errors[0];
+      setMessage(firstError, true);
+      if (uiModule && uiModule.showToast) uiModule.showToast('Context caps not saved: ' + firstError);
+      var firstInvalid = providerList.querySelector('[aria-invalid="true"]') || modelList.querySelector('[aria-invalid="true"]');
+      if (firstInvalid) firstInvalid.focus();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    setMessage('Saving…', false);
+    try {
+      var response = await fetch('/api/auth/settings', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_input_token_budget_overrides: {
+            providers: providers.values,
+            models: models.values,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error('Settings request failed');
+      setMessage('Context caps saved', false);
+    } catch (_) {
+      setMessage('Failed to save context caps', true);
+      if (uiModule && uiModule.showToast) uiModule.showToast('Failed to save context caps.');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  addProviderBtn.addEventListener('click', function() { addRow('providers', '', null, true); });
+  addModelBtn.addEventListener('click', function() { addRow('models', '', null, true); });
+  saveBtn.addEventListener('click', saveOverrides);
+
+  try {
+    var response = await fetch('/api/auth/settings', { credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Settings request failed');
+    var settings = await response.json();
+    renderOverrides(normalizeOverrides(settings.agent_input_token_budget_overrides));
+    setMessage('', false);
+  } catch (_) {
+    renderOverrides({ providers: {}, models: {} });
+    setMessage('Failed to load context caps', true);
+  }
+}
+
 function initAll() {
   modalEl = el('settings-modal');
   initTabs();
@@ -2352,6 +2572,7 @@ function initAll() {
   initResearchSettings();
   initResearchSearchSettings();
   initAgentSettings();
+  initContextBudgetOverrides();
   initAppearance();
   initShortcuts();
   initAccount();

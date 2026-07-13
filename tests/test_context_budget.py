@@ -85,11 +85,11 @@ def test_default_settings_registers_hard_max_key():
 
 def test_alias_map_registers_friendly_names():
     """`manage_settings` should accept 'hard max' and friends."""
-    from pathlib import Path
-    src = Path("src/tool_implementations.py").read_text(encoding="utf-8")
-    assert '"hard max": "agent_input_token_hard_max"' in src
-    assert '"token budget cap": "agent_input_token_hard_max"' in src
-    assert '"input budget cap": "agent_input_token_hard_max"' in src
+    from src.settings_registry import SETTING_ALIASES, resolve_setting_alias
+
+    for alias in ("hard max", "token budget cap", "input budget cap"):
+        assert SETTING_ALIASES[alias] == "agent_input_token_hard_max"
+        assert resolve_setting_alias(alias) == "agent_input_token_hard_max"
 
 
 def test_agent_loop_reads_hard_max_setting(tmp_path, monkeypatch):

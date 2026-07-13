@@ -62,6 +62,7 @@ def test_structured_settings_have_patch_schema():
 
     assert structured
     assert set(structured) == {
+        "agent_input_token_budget_overrides",
         "default_model_fallbacks",
         "keybinds",
         "memory.answer_fallback_models",

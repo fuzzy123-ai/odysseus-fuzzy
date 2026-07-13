@@ -113,6 +113,38 @@ def test_patch_structured_list_and_object_values(isolated_settings_files):
     assert persisted["keybinds"]["search"] == "ctrl+j"
 
 
+def test_context_budget_overrides_validate_nested_positive_integer_maps(isolated_settings_files):
+    value = {
+        "providers": {"deepseek": 64_000},
+        "models": {"deepseek-v4-pro": 128_000},
+    }
+
+    result = set_setting(
+        "agent_input_token_budget_overrides", value, scope="global", actor="ui"
+    )
+
+    assert result["value"] == value
+    assert settings_store.load_settings()["agent_input_token_budget_overrides"] == value
+
+    invalid_values = [
+        {"providers": {"deepseek": "64000"}, "models": {}},
+        {"providers": {"deepseek": True}, "models": {}},
+        {"providers": {"": 64_000}, "models": {}},
+        {"providers": {}, "models": {"deepseek-v4-pro": 0}},
+        {"providers": {}},
+        {"providers": {}, "models": {}, "unexpected": {}},
+    ]
+    for invalid in invalid_values:
+        with pytest.raises(SettingsServiceError) as exc:
+            set_setting(
+                "agent_input_token_budget_overrides",
+                invalid,
+                scope="global",
+                actor="ui",
+            )
+        assert exc.value.code == "invalid_value"
+
+
 def test_confirm_setting_blocks_until_confirmed(isolated_settings_files):
     blocked = patch_setting(
         "tool_path_extra_roots",

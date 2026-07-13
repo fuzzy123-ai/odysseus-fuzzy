@@ -181,6 +181,49 @@ def _validate_structured_value(entry: SettingRegistryEntry, value: Any) -> None:
             isinstance(k, str) and isinstance(v, str) for k, v in value.items()
         ):
             raise SettingsServiceError("invalid_value", f"{entry.key} entries must be string:string.", {"key": entry.key})
+        required = set(schema.get("required") or ())
+        missing = sorted(required - set(value))
+        if missing:
+            raise SettingsServiceError(
+                "invalid_value",
+                f"{entry.key} is missing required fields: {', '.join(missing)}.",
+                {"key": entry.key, "missing": missing},
+            )
+        properties = schema.get("properties") or {}
+        if schema.get("additional_properties") is False:
+            unexpected = sorted(set(value) - set(properties))
+            if unexpected:
+                raise SettingsServiceError(
+                    "invalid_value",
+                    f"{entry.key} has unsupported fields: {', '.join(unexpected)}.",
+                    {"key": entry.key, "unexpected": unexpected},
+                )
+        for property_name, property_schema in properties.items():
+            if property_name not in value or not isinstance(property_schema, dict):
+                continue
+            property_value = value[property_name]
+            if property_schema.get("type") == "object":
+                if not isinstance(property_value, dict):
+                    raise SettingsServiceError(
+                        "invalid_value",
+                        f"{entry.key}.{property_name} must be an object.",
+                        {"key": entry.key, "path": property_name},
+                    )
+                if property_schema.get("additional_properties") == "positive_int":
+                    valid = all(
+                        isinstance(nested_key, str)
+                        and bool(nested_key.strip())
+                        and isinstance(nested_value, int)
+                        and not isinstance(nested_value, bool)
+                        and nested_value > 0
+                        for nested_key, nested_value in property_value.items()
+                    )
+                    if not valid:
+                        raise SettingsServiceError(
+                            "invalid_value",
+                            f"{entry.key}.{property_name} entries must map non-empty names to positive integers.",
+                            {"key": entry.key, "path": property_name},
+                        )
 
 
 def _policy_result(entry: SettingRegistryEntry, *, actor: str, confirmed: bool) -> dict[str, Any] | None:

@@ -155,39 +155,57 @@ def _sanitize_tool_messages(msgs: List[Dict]) -> List[Dict]:
     which triggers: "messages with role 'tool' must be a response to a
     preceding message with 'tool_calls'". This pass repairs that:
       - drops `tool` messages with no valid preceding tool_calls
-      - drops assistant `tool_calls` messages whose tool responses were
-        all trimmed away (some providers reject unanswered tool_calls)
+      - removes calls whose matching response was trimmed away
+      - keeps only matching, unique tool results (providers reject unanswered
+        calls, orphan results, and mismatched ``tool_call_id`` values)
     """
-    # Pass 1: drop orphan tool messages.
-    cleaned: List[Dict] = []
-    in_batch = False  # are we right after an assistant tool_calls (or mid-batch)?
-    for m in msgs:
-        role = m.get("role")
-        if role == "tool":
-            if in_batch:
-                cleaned.append(m)
-            # else: orphan — drop
-            continue
-        if role == "assistant" and m.get("tool_calls"):
-            in_batch = True
-        else:
-            in_batch = False
-        cleaned.append(m)
-
-    # Pass 2: drop assistant tool_calls messages that have NO following
-    # tool response (dangling) — walk backwards so we know what follows.
     out: List[Dict] = []
-    for i, m in enumerate(cleaned):
-        if m.get("role") == "assistant" and m.get("tool_calls"):
-            nxt = cleaned[i + 1] if i + 1 < len(cleaned) else None
-            if not (nxt and nxt.get("role") == "tool"):
-                # Dangling tool_calls — keep the message but strip the
-                # tool_calls so it's a plain assistant turn (preserves any
-                # text content the model produced alongside the calls).
-                m = {k: v for k, v in m.items() if k != "tool_calls"}
-                if not (m.get("content") or "").strip():
-                    continue  # nothing left worth keeping
-        out.append(m)
+    i = 0
+    while i < len(msgs):
+        msg = msgs[i]
+        if msg.get("role") == "tool":
+            i += 1  # orphaned result
+            continue
+        calls = msg.get("tool_calls") if msg.get("role") == "assistant" else None
+        if not isinstance(calls, list) or not calls:
+            out.append(msg)
+            i += 1
+            continue
+
+        valid_calls = {
+            str(call.get("id")): call
+            for call in calls
+            if isinstance(call, dict) and call.get("id")
+        }
+        results: List[Dict] = []
+        answered: set[str] = set()
+        j = i + 1
+        while j < len(msgs) and msgs[j].get("role") == "tool":
+            result = msgs[j]
+            call_id = str(result.get("tool_call_id") or "")
+            if call_id in valid_calls and call_id not in answered:
+                results.append(result)
+                answered.add(call_id)
+            j += 1
+
+        if answered:
+            repaired = dict(msg)
+            repaired["tool_calls"] = [
+                call for call in calls
+                if isinstance(call, dict) and str(call.get("id") or "") in answered
+            ]
+            out.append(repaired)
+            out.extend(results)
+        else:
+            # Keep accompanying assistant text as a normal turn, but never emit
+            # an unanswered tool call after compaction.
+            repaired = {k: v for k, v in msg.items() if k != "tool_calls"}
+            content = repaired.get("content")
+            if isinstance(content, str) and content.strip():
+                out.append(repaired)
+            elif isinstance(content, list) and content:
+                out.append(repaired)
+        i = j
     return out
 
 
@@ -197,9 +215,12 @@ def _message_text_token_estimate(text: str) -> int:
     return int(len(text) * 0.3) + 4
 
 
-def _truncate_text_to_token_budget(text: str, token_budget: int) -> str:
-    """Trim a too-large current user message instead of dropping it entirely."""
+def _truncate_text_to_token_budget(text: str, token_budget: int, *, message_kind: str = "user") -> str:
+    """Trim an oversized recent turn with an explicit, model-visible notice."""
+    is_assistant = message_kind == "assistant"
     if token_budget <= 32:
+        if is_assistant:
+            return "[Previous assistant response omitted: it exceeded the model context window.]"
         return "[Current user message omitted: it exceeded the model context window.]"
 
     if not isinstance(text, str):
@@ -212,10 +233,16 @@ def _truncate_text_to_token_budget(text: str, token_budget: int) -> str:
     if len(text) <= max_chars:
         return text
 
-    notice = (
-        "\n\n[Notice: the pasted message was too large for this model's context "
-        "window, so Odysseus kept the beginning and end.]"
-    )
+    if is_assistant:
+        notice = (
+            "\n\n[Notice: the previous assistant response was too large for this "
+            "model's context window, so Odysseus kept the beginning and end.]"
+        )
+    else:
+        notice = (
+            "\n\n[Notice: the pasted message was too large for this model's context "
+            "window, so Odysseus kept the beginning and end.]"
+        )
     keep_chars = max(200, max_chars - len(notice))
     head_len = max(100, int(keep_chars * 0.7))
     tail_len = max(80, keep_chars - head_len)
@@ -262,12 +289,16 @@ def _truncate_tool_call_args(msg: Dict[str, Any], token_budget: int) -> Dict[str
     return out
 
 
-def _truncate_message_to_token_budget(msg: Dict[str, Any], token_budget: int) -> Dict[str, Any]:
+def _truncate_message_to_token_budget(
+    msg: Dict[str, Any], token_budget: int, *, message_kind: str = "user",
+) -> Dict[str, Any]:
     """Return a copy of msg whose text content (and tool-call args) fit token_budget."""
     out = dict(msg)
     content = out.get("content", "")
     if isinstance(content, str):
-        out["content"] = _truncate_text_to_token_budget(content, token_budget)
+        out["content"] = _truncate_text_to_token_budget(
+            content, token_budget, message_kind=message_kind,
+        )
     elif isinstance(content, list):
         remaining = token_budget
         new_content = []
@@ -276,7 +307,9 @@ def _truncate_message_to_token_budget(msg: Dict[str, Any], token_budget: int) ->
                 new_content.append(item)
                 continue
             text = item.get("text", "")
-            truncated = _truncate_text_to_token_budget(text, remaining)
+            truncated = _truncate_text_to_token_budget(
+                text, remaining, message_kind=message_kind,
+            )
             cloned = dict(item)
             cloned["text"] = truncated
             new_content.append(cloned)
@@ -287,20 +320,91 @@ def _truncate_message_to_token_budget(msg: Dict[str, Any], token_budget: int) ->
     return _truncate_tool_call_args(out, token_budget)
 
 
-def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: int = 512) -> List[Dict]:
-    """Trim system messages to fit within context_length.
+def _latest_dialog_indices(messages: List[Dict]) -> tuple[Optional[int], Optional[int]]:
+    """Return ``(previous_assistant, current_user)`` conversation indices."""
+    user_idx = next(
+        (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
+        None,
+    )
+    if user_idx is None:
+        return None, None
+    assistant_idx = next(
+        (i for i in range(user_idx - 1, -1, -1) if messages[i].get("role") == "assistant"),
+        None,
+    )
+    return assistant_idx, user_idx
 
-    For small-context models, progressively strips:
-    1. RAG/memory system messages (keep preset system prompt)
-    2. Older conversation turns
-    Reserves space for the response.
+
+def latest_dialog_pair_preserved(original: List[Dict], trimmed: List[Dict]) -> bool:
+    """Return whether trimming retained (or visibly truncated) the latest pair."""
+    original_assistant, original_user = _latest_dialog_indices(original)
+    if original_user is None:
+        return True
+    trimmed_assistant, trimmed_user = _latest_dialog_indices(trimmed)
+    if trimmed_user is None:
+        return False
+
+    def _matches(source: Dict, candidate: Dict, kind: str) -> bool:
+        if source is candidate or source == candidate:
+            return True
+        if source.get("role") != candidate.get("role"):
+            return False
+        source_text = _content_as_text(source.get("content"))
+        candidate_text = _content_as_text(candidate.get("content"))
+        visible_markers = (
+            "[Current user message omitted:",
+            "[Previous assistant response omitted:",
+            "[Previous assistant tool response omitted",
+        )
+        if any(marker in candidate_text for marker in visible_markers):
+            return True
+        notice = "\n\n[Notice:"
+        candidate_prefix = candidate_text.split(notice, 1)[0]
+        if source_text and candidate_prefix and source_text.startswith(candidate_prefix):
+            return True
+        if not source_text and kind == "assistant":
+            source_ids = {
+                str(call.get("id")) for call in source.get("tool_calls", [])
+                if isinstance(call, dict) and call.get("id")
+            }
+            candidate_ids = {
+                str(call.get("id")) for call in candidate.get("tool_calls", [])
+                if isinstance(call, dict) and call.get("id")
+            }
+            return bool(source_ids & candidate_ids)
+        return False
+
+    if not _matches(original[original_user], trimmed[trimmed_user], "user"):
+        return False
+    if original_assistant is None:
+        return True
+    return trimmed_assistant is not None and _matches(
+        original[original_assistant], trimmed[trimmed_assistant], "assistant",
+    )
+
+
+def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: int = 512) -> List[Dict]:
+    """Trim messages to a non-negative prompt budget.
+
+    ``reserve_tokens`` is subtracted once for callers that pass a real model
+    window. Callers passing an already computed input cap must pass zero.
+    RAG/memory and older tool/history messages are reduced before the latest
+    user message and its immediately preceding assistant response.
     """
-    budget = context_length - reserve_tokens
+    try:
+        window = max(0, int(context_length or 0))
+    except (TypeError, ValueError):
+        window = 0
+    try:
+        reserve = max(0, int(reserve_tokens or 0))
+    except (TypeError, ValueError):
+        reserve = 0
+    budget = max(1, window - reserve)
     used = estimate_tokens(messages)
     if used <= budget:
         return messages
 
-    logger.info(f"Trimming messages: {used} tokens > {budget} budget (ctx={context_length})")
+    logger.info("Trimming messages: %s tokens > %s budget (ctx=%s)", used, budget, window)
 
     # Separate system messages from conversation.
     # Messages marked _protected (e.g. active document) are never trimmed.
@@ -317,7 +421,7 @@ def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: 
 
     # Protected messages count toward budget but are never dropped
     protected_tokens = estimate_tokens(protected_msgs)
-    budget -= protected_tokens
+    available_budget = max(1, budget - protected_tokens)
 
     # Priority: keep first system msg (preset prompt), drop others (memory, RAG, memo).
     # Exception: a research-spinoff primer (the seeded report that grounds a
@@ -333,12 +437,12 @@ def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: 
 
     # Try dropping extra system messages one by one (from the end)
     trimmed = essential_system + convo_msgs
-    if estimate_tokens(trimmed) <= budget:
+    if estimate_tokens(trimmed) <= available_budget:
         # Dropping extras was enough — try adding back some
         result = list(essential_system)
         for msg in extra_system:
             candidate = result + [msg] + convo_msgs
-            if estimate_tokens(candidate) <= budget:
+            if estimate_tokens(candidate) <= available_budget:
                 result.append(msg)
             else:
                 break
@@ -350,37 +454,60 @@ def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: 
         if len(sys_text) > 2000:
             essential_system[0] = {"role": "system", "content": sys_text[:2000] + "\n[System prompt truncated for context limits]"}
             trimmed = essential_system + convo_msgs
-            if estimate_tokens(trimmed) <= budget:
+            if estimate_tokens(trimmed) <= available_budget:
                 return _sanitize_tool_messages(essential_system + protected_msgs + convo_msgs)
 
-    # Still too big — drop older conversation turns BUT always keep the current
-    # user turn. If a pasted message alone exceeds the model context, truncate
-    # that message with a visible notice instead of dropping it; otherwise the
-    # model appears to "ignore" large pastes because it never receives them.
-    # Hermes-style: recent context matters more than old context.
-    PROTECT_RECENT = 10
-    current_msg = convo_msgs[-1:] if convo_msgs else []
-    prior_convo = convo_msgs[:-1] if convo_msgs else []
-    if len(prior_convo) >= PROTECT_RECENT:
-        old_msgs = prior_convo[:-(PROTECT_RECENT - 1)]
-        recent_msgs = prior_convo[-(PROTECT_RECENT - 1):] + current_msg
-        while old_msgs and estimate_tokens(essential_system + old_msgs + recent_msgs) > budget:
-            old_msgs.pop(0)
-        convo_msgs = old_msgs + recent_msgs
-    else:
-        convo_msgs = prior_convo + current_msg
-        while prior_convo and estimate_tokens(essential_system + prior_convo + current_msg) > budget:
-            prior_convo.pop(0)
-        convo_msgs = prior_convo + current_msg
+    # Still too big: shed older/tool-heavy turns while protecting the latest
+    # user/assistant dialog pair used by follow-up questions.
+    latest_assistant_idx, latest_user_idx = _latest_dialog_indices(convo_msgs)
+    mandatory = {i for i in (latest_assistant_idx, latest_user_idx) if i is not None}
+    kept = set(range(len(convo_msgs)))
+    tool_heavy = [
+        i for i, msg in enumerate(convo_msgs)
+        if i not in mandatory and (msg.get("role") == "tool" or msg.get("tool_calls"))
+    ]
+    remaining_old = [i for i in range(len(convo_msgs)) if i not in mandatory and i not in tool_heavy]
+    for drop_idx in tool_heavy + remaining_old:
+        current = [msg for i, msg in enumerate(convo_msgs) if i in kept]
+        if estimate_tokens(essential_system + current) <= available_budget:
+            break
+        kept.discard(drop_idx)
+    convo_msgs = [msg for i, msg in enumerate(convo_msgs) if i in kept]
 
-    # If the current message itself is too large, shrink only that message.
-    if current_msg and estimate_tokens(essential_system + protected_msgs + convo_msgs) > budget:
-        prefix = essential_system + protected_msgs + convo_msgs[:-1]
-        available_for_current = max(64, budget - estimate_tokens(prefix))
-        convo_msgs[-1] = _truncate_message_to_token_budget(convo_msgs[-1], available_for_current)
+    # If the direct pair alone is too large, retain both roles with visible
+    # truncation/omission notices rather than silently severing the follow-up.
+    latest_assistant_idx, latest_user_idx = _latest_dialog_indices(convo_msgs)
+    if estimate_tokens(essential_system + convo_msgs) > available_budget and latest_user_idx is not None:
+        pair_indices = [i for i in (latest_assistant_idx, latest_user_idx) if i is not None]
+        non_pair = [msg for i, msg in enumerate(convo_msgs) if i not in pair_indices]
+        pair_budget = max(1, available_budget - estimate_tokens(essential_system + non_pair))
+        assistant_budget = pair_budget // 2 if latest_assistant_idx is not None else 0
+        user_budget = pair_budget - assistant_budget
+        if latest_assistant_idx is not None:
+            convo_msgs[latest_assistant_idx] = _truncate_message_to_token_budget(
+                convo_msgs[latest_assistant_idx], assistant_budget, message_kind="assistant",
+            )
+        convo_msgs[latest_user_idx] = _truncate_message_to_token_budget(
+            convo_msgs[latest_user_idx], user_budget, message_kind="user",
+        )
 
     result = _sanitize_tool_messages(essential_system + protected_msgs + convo_msgs)
-    logger.info(f"Trimmed to {estimate_tokens(result)} tokens ({len(result)} messages)")
+    if latest_assistant_idx is not None and not latest_dialog_pair_preserved(messages, result):
+        user_pos = next(
+            (i for i in range(len(result) - 1, -1, -1) if result[i].get("role") == "user"),
+            len(result),
+        )
+        result.insert(user_pos, {
+            "role": "assistant",
+            "content": "[Previous assistant tool response omitted during context compaction.]",
+        })
+    logger.info(
+        "Trimmed context: before=%s after=%s messages=%s latest_pair_preserved=%s",
+        used,
+        estimate_tokens(result),
+        len(result),
+        latest_dialog_pair_preserved(messages, result),
+    )
     return result
 
 

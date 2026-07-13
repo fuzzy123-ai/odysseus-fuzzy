@@ -641,8 +641,8 @@ async def stream_agent_loop(
 
     _t3 = time.time()
     try:
-        from src.context_compactor import trim_for_context
-        from src.context_budget import compute_input_token_budget, DEFAULT_HARD_MAX, DEFAULT_BUDGET, budget_is_explicit as _budget_is_explicit
+        from src.context_compactor import latest_dialog_pair_preserved, trim_for_context
+        from src.context_budget import DEFAULT_HARD_MAX, DEFAULT_BUDGET, budget_is_explicit as _budget_is_explicit, resolve_input_token_budget
         from src.model_context import budget_context_for_model
 
         soft_budget = int(get_setting("agent_input_token_budget", DEFAULT_BUDGET) or 0)
@@ -666,27 +666,49 @@ async def stream_agent_loop(
             # proves (else 0) — not the passed-in context_length, which can be stale
             # or unset for some callers (#4122 review).
             ctx_for_budget = budget_context_for_model(endpoint_url, model, fallback=context_length)
-            effective_budget = compute_input_token_budget(
+            budget_decision = resolve_input_token_budget(
                 soft_budget,
                 ctx_for_budget,
                 budget_is_explicit,
                 hard_max=hard_max,
+                endpoint_url=endpoint_url,
+                model=model,
+                overrides=get_setting(
+                    "agent_input_token_budget_overrides",
+                    {"providers": {}, "models": {}},
+                ),
+                output_reserve=reserve_tokens,
             )
             trimmed_messages = trim_for_context(
                 messages,
-                effective_budget,
-                reserve_tokens=reserve_tokens,
+                budget_decision.input_budget,
+                # The output reserve was already applied once against the real
+                # model window while resolving input_budget.
+                reserve_tokens=0,
             )
             after_trim_tokens = estimate_tokens(trimmed_messages)
+            latest_pair_preserved = latest_dialog_pair_preserved(messages, trimmed_messages)
+            logger.info(
+                "[agent-context-budget] model=%s provider=%s source=%s input_budget=%s "
+                "output_reserve=%s before=%s after=%s latest_pair_preserved=%s",
+                model,
+                budget_decision.provider,
+                budget_decision.source,
+                budget_decision.input_budget,
+                budget_decision.output_reserve,
+                before_trim_tokens,
+                after_trim_tokens,
+                latest_pair_preserved,
+            )
             if after_trim_tokens < before_trim_tokens:
                 logger.info(
                     "[agent] soft-trimmed context: %s -> %s tokens (budget=%s, reserve=%s)",
                     before_trim_tokens,
                     after_trim_tokens,
-                    effective_budget,
-                    reserve_tokens,
+                    budget_decision.input_budget,
+                    0,
                 )
-                messages = trimmed_messages
+            messages = trimmed_messages
     except Exception as e:
         logger.warning("[agent] Soft context trim skipped: %s", e)
     prep_timings["context_trim"] = time.time() - _t3
